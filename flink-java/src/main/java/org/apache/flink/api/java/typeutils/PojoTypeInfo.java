@@ -25,9 +25,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.Validate;
-import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -44,6 +44,15 @@ import com.google.common.base.Joiner;
  * 
  */
 public class PojoTypeInfo<T> extends CompositeType<T>{
+
+	private final static String REGEX_FIELD = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*";
+	private final static String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
+	private final static String REGEX_NESTED_FIELDS_WILDCARD = REGEX_NESTED_FIELDS
+			+"|\\"+ExpressionKeys.SELECT_ALL_CHAR
+			+"|\\"+ExpressionKeys.SELECT_ALL_CHAR_SCALA;
+
+	private static final Pattern PATTERN_NESTED_FIELDS = Pattern.compile(REGEX_NESTED_FIELDS);
+	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
 
 	private final Class<T> typeClass;
 
@@ -103,62 +112,119 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 		return Comparable.class.isAssignableFrom(typeClass);
 	}
 	
+
 	@Override
-	public void getKey(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
-		// handle 'select all' first
-		if(fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR) || fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
+	public void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
+
+		Matcher matcher = PATTERN_NESTED_FIELDS_WILDCARD.matcher(fieldExpression);
+		if(!matcher.matches()) {
+			throw new InvalidFieldReferenceException("Invalid POJO field reference \""+fieldExpression+"\".");
+		}
+
+		String field = matcher.group(0);
+		if(field.equals(ExpressionKeys.SELECT_ALL_CHAR) || field.equals(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
+			// handle select all
 			int keyPosition = 0;
-			for(PojoField field : fields) {
-				if(field.type instanceof AtomicType) {
-					result.add(new FlatFieldDescriptor(offset + keyPosition, field.type));
-				} else if(field.type instanceof CompositeType) {
-					CompositeType<?> cType = (CompositeType<?>)field.type;
-					cType.getKey(String.valueOf(ExpressionKeys.SELECT_ALL_CHAR), offset + keyPosition, result);
+			for(PojoField pField : fields) {
+				if(pField.type instanceof CompositeType) {
+					CompositeType<?> cType = (CompositeType<?>)pField.type;
+					cType.getFlatFields(String.valueOf(ExpressionKeys.SELECT_ALL_CHAR), offset + keyPosition, result);
 					keyPosition += cType.getTotalFields()-1;
 				} else {
-					throw new RuntimeException("Unexpected key type: "+field.type);
+					result.add(new NamedFlatFieldDescriptor(pField.field.getName(), offset + keyPosition, pField.type));
 				}
 				keyPosition++;
 			}
 			return;
+		} else {
+			field = matcher.group(1);
 		}
-		Validate.notEmpty(fieldExpression, "Field expression must not be empty.");
-		// if there is a dot try getting the field from that sub field
-		int firstDot = fieldExpression.indexOf('.');
-		if (firstDot == -1) {
-			// this is the last field (or only field) in the field expression
-			int fieldId = 0;
-			for (int i = 0; i < fields.length; i++) {
-				if(fields[i].type instanceof CompositeType) {
-					fieldId += fields[i].type.getTotalFields()-1;
+
+		// get field
+		int fieldPos = -1;
+		TypeInformation<?> fieldType = null;
+		for (int i = 0; i < fields.length; i++) {
+			if (fields[i].field.getName().equals(field)) {
+				fieldPos = i;
+				fieldType = fields[i].type;
+				break;
+			}
+		}
+		if (fieldPos == -1) {
+			throw new InvalidFieldReferenceException("Unable to find field \""+field+"\" in type "+this+".");
+		}
+		String tail = matcher.group(3);
+		if(tail == null) {
+			if(fieldType instanceof CompositeType) {
+				// forward offset
+				for(int i=0; i<fieldPos; i++) {
+					offset += this.getTypeAt(i).getTotalFields();
 				}
-				if (fields[i].field.getName().equals(fieldExpression)) {
-					if(fields[i].type instanceof CompositeType) {
-						throw new IllegalArgumentException("The specified field '"+fieldExpression+"' is refering to a composite type.\n"
-								+ "Either select all elements in this type with the '"+ExpressionKeys.SELECT_ALL_CHAR+"' operator or specify a field in the sub-type");
-					}
-					result.add(new FlatFieldDescriptor(offset + fieldId, fields[i].type));
-					return;
+				// add all fields of composite type
+				((CompositeType) fieldType).getFlatFields("*", offset, result);
+				return;
+			} else {
+				// we found the field to add
+				// compute flat field position by adding skipped fields
+				int flatFieldPos = offset;
+				for(int i=0; i<fieldPos; i++) {
+					flatFieldPos += this.getTypeAt(i).getTotalFields();
 				}
-				fieldId++;
+				result.add(new FlatFieldDescriptor(flatFieldPos, fieldType));
+				// nothing left to do
+				return;
 			}
 		} else {
-			// split and go deeper
-			String firstField = fieldExpression.substring(0, firstDot);
-			String rest = fieldExpression.substring(firstDot + 1);
-			int fieldId = 0;
-			for (int i = 0; i < fields.length; i++) {
-				if (fields[i].field.getName().equals(firstField)) {
-					if (!(fields[i].type instanceof CompositeType<?>)) {
-						throw new RuntimeException("Field "+fields[i].type+" (specified by '"+fieldExpression+"') is not a composite type");
-					}
-					CompositeType<?> cType = (CompositeType<?>) fields[i].type;
-					cType.getKey(rest, offset + fieldId, result); // recurse
-					return;
+			if(fieldType instanceof CompositeType<?>) {
+				// forward offset
+				for(int i=0; i<fieldPos; i++) {
+					offset += this.getTypeAt(i).getTotalFields();
 				}
-				fieldId += fields[i].type.getTotalFields();
+				((CompositeType) fieldType).getFlatFields(tail, offset, result);
+				// nothing left to do
+				return;
+			} else {
+				throw new InvalidFieldReferenceException("Nested field expression \""+tail+"\" not possible on atomic type "+fieldType+".");
 			}
-			throw new RuntimeException("Unable to find field "+fieldExpression+" in type "+this+" (looking for '"+firstField+"')");
+		}
+	}
+
+	public TypeInformation<?> getTypeAt(String fieldExpression) {
+
+		Matcher matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression);
+		if(!matcher.matches()) {
+			if (fieldExpression.startsWith(ExpressionKeys.SELECT_ALL_CHAR) || fieldExpression.startsWith(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
+				throw new InvalidFieldReferenceException("Wildcard expressions are not allowed here.");
+			} else {
+				throw new InvalidFieldReferenceException("Invalid format of POJO field expression \""+fieldExpression+"\".");
+			}
+		}
+
+		String field = matcher.group(1);
+		// get field
+		int fieldPos = -1;
+		TypeInformation<?> fieldType = null;
+		for (int i = 0; i < fields.length; i++) {
+			if (fields[i].field.getName().equals(field)) {
+				fieldPos = i;
+				fieldType = fields[i].type;
+				break;
+			}
+		}
+		if (fieldPos == -1) {
+			throw new InvalidFieldReferenceException("Unable to find field \""+field+"\" in type "+this+".");
+		}
+
+		String tail = matcher.group(3);
+		if(tail == null) {
+			// we found the type
+			return fieldType;
+		} else {
+			if(fieldType instanceof CompositeType<?>) {
+				return ((CompositeType) fieldType).getTypeAt(tail);
+			} else {
+				throw new InvalidFieldReferenceException("Nested field expression \""+tail+"\" not possible on atomic type "+fieldType+".");
+			}
 		}
 	}
 
@@ -247,5 +313,24 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 		return "PojoType<" + typeClass.getCanonicalName()
 				+ ", fields = [" + Joiner.on(", ").join(fieldStrings) + "]"
 				+ ">";
+	}
+
+	public static class NamedFlatFieldDescriptor extends FlatFieldDescriptor {
+
+		private String fieldName;
+
+		public NamedFlatFieldDescriptor(String name, int keyPosition, TypeInformation<?> type) {
+			super(keyPosition, type);
+			this.fieldName = name;
+		}
+
+		public String getFieldName() {
+			return fieldName;
+		}
+
+		@Override
+		public String toString() {
+			return "NamedFlatFieldDescriptor [name="+fieldName+" position="+getPosition()+" typeInfo="+getType()+"]";
+		}
 	}
 }

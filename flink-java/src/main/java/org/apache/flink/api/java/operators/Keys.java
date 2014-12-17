@@ -125,8 +125,7 @@ public abstract class Keys<T> {
 				if(keyType.isTupleType()) {
 					// special case again:
 					TupleTypeInfoBase<?> tupleKeyType = (TupleTypeInfoBase<?>) keyType;
-					List<FlatFieldDescriptor> keyTypeFields = new ArrayList<FlatFieldDescriptor>(tupleKeyType.getTotalFields());
-					tupleKeyType.getKey(ExpressionKeys.SELECT_ALL_CHAR, 0, keyTypeFields);
+					List<FlatFieldDescriptor> keyTypeFields = tupleKeyType.getFlatFields(ExpressionKeys.SELECT_ALL_CHAR);
 					if(expressionKeys.keyFields.size() != keyTypeFields.size()) {
 						throw new IncompatibleKeysException(IncompatibleKeysException.SIZE_MISMATCH_MESSAGE);
 					}
@@ -207,7 +206,7 @@ public abstract class Keys<T> {
 		// int-defined field
 		public ExpressionKeys(int[] groupingFields, TypeInformation<T> type, boolean allowEmpty) {
 			if (!type.isTupleType()) {
-				throw new InvalidProgramException("Specifying keys via field positions is only valid" +
+				throw new InvalidProgramException("Specifying keys via field positions is only valid " +
 						"for tuple data types. Type: " + type);
 			}
 
@@ -288,8 +287,7 @@ public abstract class Keys<T> {
 			// extract the keys on their flat position
 			keyFields = new ArrayList<FlatFieldDescriptor>(expressions.length);
 			for (int i = 0; i < expressions.length; i++) {
-				List<FlatFieldDescriptor> keys = new ArrayList<FlatFieldDescriptor>(); // use separate list to do a size check
-				cType.getKey(expressions[i], 0, keys);
+				List<FlatFieldDescriptor> keys = cType.getFlatFields(expressions[i]); // use separate list to do a size check
 				if(keys.size() == 0) {
 					throw new IllegalArgumentException("Unable to extract key from expression '"+expressions[i]+"' on key "+cType);
 				}

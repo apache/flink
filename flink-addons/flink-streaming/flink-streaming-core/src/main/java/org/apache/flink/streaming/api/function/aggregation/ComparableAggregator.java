@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.function.aggregation;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -189,9 +188,7 @@ public abstract class ComparableAggregator<T> extends AggregationFunction<T> {
 			@SuppressWarnings("unchecked")
 			CompositeType<T> cType = (CompositeType<T>) typeInfo;
 
-			List<FlatFieldDescriptor> fieldDescriptors = new ArrayList<FlatFieldDescriptor>();
-			cType.getKey(field, 0, fieldDescriptors);
-
+			List<FlatFieldDescriptor> fieldDescriptors = cType.getFlatFields(field);
 			int logicalKeyPosition = fieldDescriptors.get(0).getPosition();
 
 			if (cType instanceof PojoTypeInfo) {

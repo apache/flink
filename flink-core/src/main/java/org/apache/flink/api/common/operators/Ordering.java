@@ -144,7 +144,7 @@ public class Ordering {
 		}
 		
 		for (int i = 0; i < this.indexes.size(); i++) {
-			if (this.indexes.get(i).intValue() != otherOrdering.indexes.get(i).intValue()) {
+			if (this.indexes.get(i) != otherOrdering.indexes.get(i)) {
 				return false;
 			}
 			

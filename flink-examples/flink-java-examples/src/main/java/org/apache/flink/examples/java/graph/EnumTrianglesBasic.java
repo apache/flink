@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
@@ -119,6 +120,7 @@ public class EnumTrianglesBasic {
 	// *************************************************************************
 
 	/** Converts a Tuple2 into an Edge */
+	@ForwardedFields("0;1")
 	public static class TupleEdgeConverter implements MapFunction<Tuple2<Integer, Integer>, Edge> {
 		private final Edge outEdge = new Edge();
 		
@@ -149,6 +151,7 @@ public class EnumTrianglesBasic {
 	 *  The first vertex of a triad is the shared vertex, the second and third vertex are ordered by vertexId. 
 	 *  Assumes that input edges share the first vertex and are in ascending order of the second vertex.
 	 */
+	@ForwardedFields("0")
 	private static class TriadBuilder implements GroupReduceFunction<Edge, Triad> {
 		private final List<Integer> vertices = new ArrayList<Integer>();
 		private final Triad outTriad = new Triad();

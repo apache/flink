@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.operators.SemanticProperties.EmptySemanticProperties;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
@@ -222,7 +223,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 
 	@Override
 	public SemanticProperties getSemanticProperties() {
-		return null;
+		return new EmptySemanticProperties();
 	}
 
 	protected void readStubAnnotations() {}

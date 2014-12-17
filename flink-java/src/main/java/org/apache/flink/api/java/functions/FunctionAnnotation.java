@@ -29,251 +29,280 @@ import java.util.Set;
 import org.apache.flink.api.common.InvalidProgramException;
 
 /**
- * This class defines the semantic assertions that can be added to functions.
- * The assertions are realized as java annotations, to be added to the class declaration of
- * the class that implements the functions. For example, to declare the <i>ConstantFields</i>
- * annotation for a map-type function that simply copies some fields, use it the following way:
+ * This class defines Java annotations for semantic assertions that can be added to Flink functions.
+ * Semantic annotations can help the Flink optimizer to generate more efficient execution plans for Flink programs.
+ * For example, a <i>ForwardedFields</i> assertion for a map-type function can be declared as:
  *
  * <pre><blockquote>
- * \@ConstantFields({"0->0,1", "1->2"})
- * public class MyMapper extends FlatMapFunction<Tuple3<String, Integer, Integer>, Tuple3<String, String, Integer>>
+ * \@ForwardedFields({"f0; f1->f2"})
+ * public class MyMapper extends MapFunction<Tuple3<String, String, Integer>, Tuple3<String, Integer, Integer>>
  * {
- *     public void flatMap(Tuple3<String, Integer, Integer> value, Collector<Tuple3<String, String, Integer>> out) {
- *         value.f2 = value.f1
- *         value.f1 = value.f0;
- *         out.collect(value);
+ *     public Tuple3<String, Integer, Integer> map(Tuple3<String, String, Integer> val) {
+ *
+ *         return new Tuple3<String, Integer, Integer>(val.f0, val.f2, 1);
  *     }
  * }
  * </blockquote></pre>
+ *
  * <p>
- * All annotations takes String arrays. The Strings represent the source and destination fields.
- * The transition is represented by the arrow "->".
- * Fields are described by their tuple position (and later also the names of the fields in the objects).
- * The left hand side of the arrow always describes the fields in the input value(s), i.e. the value that 
- * is passed as a parameter to the function call, or the values obtained from the input iterator. The right
- * hand side of the arrow describes the field in the value returned from the function. If the right hand side
- * is omitted, the a field is assumed to stay exactly the same, i.e. the field itself is unmodified, rather 
- * than that the value is placed into another field.
+ * All annotations take Strings with expressions that refer to (nested) value fields of the input and output types of a function.
+ * Field expressions for of composite data types (tuples, POJOs, Scala case classes) can be expressed in
+ * different ways, depending on the data type they refer to.
+ *</p>
+ *
+ * <ul>
+ *     <li>Java tuple data types (such as {@link org.apache.flink.api.java.tuple.Tuple3}): A tuple field can be addressed using
+ * its 0-offset index or name, e.g., the second field of a Java tuple is addressed by <code>"1"</code> or <code>"f1"</code>.</li>
+ *     <li>Java POJO data types: A POJO field is addressed using its names, e.g., <code>"xValue"</code> for the member field
+ * <code>xValue</code> of a POJO type that describes a 2d-coordinate.</li>
+ *     <li>Scala tuple data types (such as {@link scala.Tuple3}): A tuple field can be addressed using its 1-offset name
+ * (following Scala conventions) or 0-offset index, e.g., the second field of a Scala tuple is addressed by
+ * <code>"_2"</code> or <code>1</code></li>
+ *     <li>Scala case classes: A case class field is addressed using its names, e.g., <code>"xValue"</code> for the field <code>xValue</code>
+ * of a case class that describes a 2d-coordinate.</li>
+ * </ul>
+ *
  * <p>
- * <b>
- * It is very important to follow a conservative strategy when specifying constant fields.
- * Only fields that are always constant (regardless of value, stub call, etc.) to the output may be
- * declared as such! Otherwise, the correct execution of a program can not be guaranteed. So if in doubt,
- * do not add a field to this set.
+ * Nested fields are addressed by navigation, e.g., <code>"f1.xValue"</code> addresses the field <code>xValue</code> of a POJO type,
+ * that is stored at the second field of a Java tuple. In order to refer to all fields of a composite type (or the composite type itself)
+ * such as a tuple, POJO, or case class type, a <code>"*"</code> wildcard can be used, e.g., <code>f2.*</code> or <code>f2</code> reference all fields
+ * of a composite type at the third position of a Java tuple.
+ * </p>
+ *
+ * <b>NOTE: The use of semantic annotation is optional!
+ * If used correctly, semantic annotations can help the Flink optimizer to generate more efficient execution plans.
+ * However, incorrect semantic annotations can cause the optimizer to generate incorrect execution plans which compute wrong results!
+ * So be careful when adding semantic annotations.
  * </b>
- * <p>
- * Be aware that some annotations should only be used for functions with as single input
- * ({@link org.apache.flink.api.common.functions.RichMapFunction}, {@link org.apache.flink.api.common.functions.RichReduceFunction}) and some only for stubs with two inputs
- * ({@link org.apache.flink.api.common.functions.RichCrossFunction}, {@link org.apache.flink.api.common.functions.RichFlatJoinFunction}, {@link org.apache.flink.api.common.functions.RichCoGroupFunction}).
+ *
  */
 public class FunctionAnnotation {
 
 	/**
-	 * This annotation declares that a function leaves certain fields of its input values unmodified and
-	 * only "forwards" or "copies" them to the return value. The annotation is applicable to unary
-	 * functions, like for example {@link org.apache.flink.api.common.functions.RichMapFunction}, {@link org.apache.flink.api.common.functions.RichReduceFunction}, or {@link org.apache.flink.api.common.functions.RichFlatMapFunction}.
-	 * <p>
-	 * The following example illustrates a function that keeps the tuple's field zero constant:
-	 * <pre><blockquote>
-	 * \@ConstantFields("0")
-	 * public class MyMapper extends MapFunction<Tuple3<String, Integer, Integer>, Tuple2<String, Double>>
-	 * {
-	 *     public Tuple2<String, Double> map(Tuple3<String, Integer, Integer> value) {
-	 *         return new Tuple2<String, Double>(value.f0, value.f1 * 0.5);
-	 *     }
-	 * }
-	 * </blockquote></pre>
-	 * <p>
-	 * (Note that you could equivalently write {@code @ConstantFields("0 -> 0")}.
-	 * <p>
-	 * This annotation is mutually exclusive with the {@link ConstantFieldsExcept} annotation.
-	 * <p>
-	 * If neither this annotation, nor the {@link ConstantFieldsExcept} annotation are set, it is
-	 * assumed that <i>no</i> field in the input is forwarded/copied unmodified.
-	 * 
-	 * @see ConstantFieldsExcept
+	 * The ForwardedFields annotation declares fields which are never modified by the annotated function and
+	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
+	 *
+	 * Fields that are forwarded at the same position can be specified by their position.
+	 * The specified position must be valid for the input and output data type and have the same type.
+	 * For example <code>\@ForwardedFields({"f2"})</code> declares that the third field of a Java input tuple is
+	 * copied to the third field of an output tuple.
+	 *
+	 * Fields which are unchanged copied to another position in the output are declared by specifying the
+	 * source field expression in the input and the target field expression in the output.
+	 * <code>\@ForwardedFields({"f0->f2"})</code> denotes that the first field of the Java input tuple is
+	 * unchanged copied to the third field of the Java output tuple. When using the wildcard ("*") ensure that
+	 * the number of declared fields and their types in input and output type match.
+	 *
+	 * Multiple forwarded fields can be annotated in one (<code>\@ForwardedFields({"f2; f3->f0; f4"})</code>)
+	 * or separate Strings (<code>\@ForwardedFields({"f2", "f3->f0", "f4"})</code>).
+	 *
+	 * <b>NOTE: The use of the ForwardedFields annotation is optional.
+	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
+	 * However if used incorrectly, it can cause invalid plan choices and the computation of wrong results!
+	 * It is NOT required that all forwarded fields are declared, but all declarations must be correct.
+	 * </b>
+	 *
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field expressions such as nested fields and wildcard.
+	 *
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ConstantFields {
+	public @interface ForwardedFields {
 		String[] value();
 	}
 
 	/**
-	 * This annotation declares that a function leaves certain fields of its first input values unmodified and
-	 * only "forwards" or "copies" them to the return value. The annotation is applicable to binary
-	 * functions, like for example {@link org.apache.flink.api.common.functions.RichFlatJoinFunction}, {@link org.apache.flink.api.common.functions.RichCoGroupFunction}, or {@link org.apache.flink.api.common.functions.RichCrossFunction}.
-	 * <p>
-	 * The following example illustrates a join function that copies fields from the first and second input to the
-	 * return value:
-	 * <pre><blockquote>
-	 * \@ConstantFieldsFirst("1 -> 0")
-	 * \@ConstantFieldsFirst("1 -> 1")
-	 * public class MyJoin extends JoinFunction<Tuple2<String, Integer>, Tuple2<String, String>, Tuple2<Integer, String>>
-	 * {
-	 *     public Tuple2<Integer, String> map(Tuple2<String, Integer> first, Tuple2<String, String> second) {
-	 *         return new Tuple2<String, Double>(first.f1, second.f1);
-	 *     }
-	 * }
-	 * </blockquote></pre>
-	 * <p>
-	 * This annotation is mutually exclusive with the {@link ConstantFieldsFirstExcept} annotation.
-	 * <p>
-	 * If neither this annotation, nor the {@link ConstantFieldsFirstExcept} annotation are set, it is
-	 * assumed that <i>no</i> field in the first input is forwarded/copied unmodified.
-	 * 
-	 * @see ConstantFieldsSecond
-	 * @see ConstantFields
+	 * The ForwardedFieldsFirst annotation declares fields of the first input of a function which are
+	 * never modified by the annotated function and which are forwarded at the same position to the
+	 * output or unchanged copied to another position in the output.
+	 *
+	 * Fields that are forwarded from the first input at the same position in the output can be
+	 * specified by their position. The specified position must be valid for the input and output data type and have the same type.
+	 * For example <code>\@ForwardedFieldsFirst({"f2"})</code> declares that the third field of a Java input tuple at the first input is
+	 * copied to the third field of an output tuple.
+	 *
+	 * Fields which are unchanged copied to another position in the output are declared by specifying the
+	 * source field expression in the input and the target field expression in the output.
+	 * <code>\@ForwardedFieldsFirst({"f0->f2"})</code> denotes that the first field of the Java input tuple at the first input is
+	 * unchanged copied to the third field of the Java output tuple. When using the wildcard ("*") ensure that
+	 * the number of declared fields and their types in input and output type match.
+	 *
+	 * Multiple forwarded fields can be annotated in one (<code>\@ForwardedFieldsFirst({"f2; f3->f0; f4"})</code>)
+	 * or separate Strings (<code>\@ForwardedFieldsFirst({"f2", "f3->f0", "f4"})</code>).
+	 *
+	 * <b>NOTE: The use of the ForwardedFieldsFirst annotation is optional.
+	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
+	 * However if used incorrectly, it can cause invalid plan choices and the computation of wrong results!
+	 * It is NOT required that all forwarded fields are declared, but all declarations must be correct.
+	 * </b>
+	 *
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field expressions such as nested fields and wildcard.
+	 *
+	 * Forwarded fields from the second input can be specified using the
+	 * {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond} annotation.
+	 *
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ConstantFieldsFirst {
+	public @interface ForwardedFieldsFirst {
 		String[] value();
 	}
 
 	/**
-	 * This annotation declares that a function leaves certain fields of its second input values unmodified and
-	 * only "forwards" or "copies" them to the return value. The annotation is applicable to binary
-	 * functions, like for example {@link org.apache.flink.api.common.functions.RichFlatJoinFunction}, {@link org.apache.flink.api.common.functions.RichCoGroupFunction}, or {@link org.apache.flink.api.common.functions.RichCrossFunction}.
-	 * <p>
-	 * The following example illustrates a join function that copies fields from the first and second input to the
-	 * return value:
-	 * <pre><blockquote>
-	 * \@ConstantFieldsFirst("1 -> 0")
-	 * \@ConstantFieldsFirst("1 -> 1")
-	 * public class MyJoin extends JoinFunction<Tuple2<String, Integer>, Tuple2<String, String>, Tuple2<Integer, String>>
-	 * {
-	 *     public Tuple2<Integer, String> map(Tuple2<String, Integer> first, Tuple2<String, String> second) {
-	 *         return new Tuple2<String, Double>(first.f1, second.f1);
-	 *     }
-	 * }
-	 * </blockquote></pre>
-	 * <p>
-	 * This annotation is mutually exclusive with the {@link ConstantFieldsSecond} annotation.
-	 * <p>
-	 * If neither this annotation, nor the {@link ConstantFieldsSecondExcept} annotation are set, it is
-	 * assumed that <i>no</i> field in the second input is forwarded/copied unmodified.
-	 * 
-	 * @see ConstantFieldsFirst
-	 * @see ConstantFields
+	 * The ForwardedFieldsSecond annotation declares fields of the second input of a function which are
+	 * never modified by the annotated function and which are forwarded at the same position to the
+	 * output or unchanged copied to another position in the output.
+	 *
+	 * Fields that are forwarded from the second input at the same position in the output can be
+	 * specified by their position. The specified position must be valid for the input and output data type and have the same type.
+	 * For example <code>\@ForwardedFieldsSecond({"f2"})</code> declares that the third field of a Java input tuple at the second input is
+	 * copied to the third field of an output tuple.
+	 *
+	 * Fields which are unchanged copied to another position in the output are declared by specifying the
+	 * source field expression in the input and the target field expression in the output.
+	 * <code>\@ForwardedFieldsSecond({"f0->f2"})</code> denotes that the first field of the Java input tuple at the second input is
+	 * unchanged copied to the third field of the Java output tuple. When using the wildcard ("*") ensure that
+	 * the number of declared fields and their types in input and output type match.
+	 *
+	 * Multiple forwarded fields can be annotated in one (<code>\@ForwardedFieldsSecond({"f2; f3->f0; f4"})</code>)
+	 * or separate Strings (<code>\@ForwardedFieldsSecond({"f2", "f3->f0", "f4"})</code>).
+	 *
+	 * <b>NOTE: The use of the ForwardedFieldsSecond annotation is optional.
+	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
+	 * However if used incorrectly, it can cause invalid plan choices and the computation of wrong results!
+	 * It is NOT required that all forwarded fields are declared, but all declarations must be correct.
+	 * </b>
+	 *
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field expressions such as nested fields and wildcard.
+	 *
+	 * Forwarded fields from the first input can be specified using the
+	 * {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst} annotation.
+	 *
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ConstantFieldsSecond {
+	public @interface ForwardedFieldsSecond {
 		String[] value();
 	}
 
 	/**
-	 * This annotation declares that a function changes certain fields of its input values, while leaving all
-	 * others unmodified and in place in the return value. The annotation is applicable to unary
-	 * functions, like for example {@link org.apache.flink.api.common.functions.RichMapFunction}, {@link org.apache.flink.api.common.functions.RichReduceFunction}, or {@link org.apache.flink.api.common.functions.RichFlatMapFunction}.
-	 * <p>
-	 * The following example illustrates that at the example of a Map function:
-	 * 
-	 * <pre><blockquote>
-	 * \@ConstantFieldsExcept("1")
-	 * public class MyMapper extends MapFunction<Tuple3<String, Integer, Double>, Tuple3<String, Double, Double>>
-	 * {
-	 *     public Tuple3<String, String, Double> map(Tuple3<String, Integer, Double> value) {
-	 *         return new Tuple3<String, String, Double>(value.f0, value.f2 / 2, value.f2);
-	 *     }
-	 * }
-	 * </blockquote></pre>
-	 * <p>
-	 * The annotation takes one String array specifying the positions of the input types that do not remain constant.
-	 * When this annotation is used, it is assumed that all other values remain at the same position in input and output.
-	 * To model more complex situations use the {@link ConstantFields}s annotation.
-	 * <p>
-	 * This annotation is mutually exclusive with the {@link ConstantFields} annotation.
-	 * <p>
-	 * If neither this annotation, nor the {@link ConstantFields} annotation are set, it is
-	 * assumed that <i>no</i> field in the input is forwarded/copied unmodified.
-	 * 
-	 * @see ConstantFieldsExcept
+	 * The NonForwardedFields annotation declares ALL fields which not preserved on the same position in a functions output.
+	 * ALL other fields are considered to be unmodified at the same position.
+	 * Hence, the NonForwardedFields annotation is inverse to the {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields} annotation.
+	 *
+	 * <b>NOTE: The use of the NonForwardedFields annotation is optional.
+	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
+	 * However if used incorrectly, it can cause invalid plan choices and the computation of wrong results!
+	 * Since all not declared fields are considered to be forwarded, it is required that ALL non-forwarded fields are declared.
+	 * </b>
+	 *
+	 * Non-forwarded fields are declared as a list of field expressions, e.g., <code>\@NonForwardedFields({"f1; f3"})</code>
+	 * declares that the second and fourth field of a Java tuple are modified and all other fields are are not changed and remain
+	 * on their position. A NonForwardedFields annotation can only be used on functions where the type of the input and output are identical.
+	 *
+	 * Multiple non-forwarded fields can be annotated in one (<code>\@NonForwardedFields({"f1; f3"})</code>)
+	 * or separate Strings (<code>\@NonForwardedFields({"f1", "f3"})</code>).
+	 *
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field expressions such as nested fields and wildcard.
+	 *
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ConstantFieldsExcept {
+	public @interface NonForwardedFields {
 		String[] value();
 	}
 
 	/**
-	 * This annotation declares that a function changes certain fields of its first input value, while leaving all
-	 * others unmodified and in place in the return value. The annotation is applicable to binary
-	 * functions, like for example {@link org.apache.flink.api.common.functions.RichFlatJoinFunction}, {@link org.apache.flink.api.common.functions.RichCoGroupFunction}, or {@link org.apache.flink.api.common.functions.RichCrossFunction}.
-	 * <p>
-	 * The following example illustrates a join function that copies fields from the first and second input to the
-	 * return value:
-	 * 
-	 * <pre><blockquote>
-	 * \@ConstantFieldsFirstExcept("1")
-	 * public class MyJoin extends JoinFunction<Tuple3<String, Integer, Double>, Tuple2<String, Double>, Tuple3<String, Double, Double>>
-	 * {
-	 *     public Tuple3<String, Double, Double> map(Tuple3<String, Integer, Double> first, Tuple2<String, Double> second) {
-	 *         return Tuple3<String, Double, Double>(first.f0, second.f1, first.f2);
-	 *     }
-	 * }
-	 * </blockquote></pre>
-	 * <p>
-	 * The annotation takes one String array specifying the positions of the input types that do not remain constant.
-	 * When this annotation is used, it is assumed that all other values remain at the same position in input and output.
-	 * To model more complex situations use the {@link ConstantFields}s annotation.
-	 * <p>
-	 * This annotation is mutually exclusive with the {@link ConstantFieldsFirst}
-	 * <p>
-	 * If neither this annotation, nor the {@link ConstantFieldsFirst} annotation are set, it is
-	 * assumed that <i>no</i> field in the first input is forwarded/copied unmodified.
-	 * 
-	 * @see ConstantFieldsFirst
-	 * @see ConstantFieldsSecond
-	 * @see ConstantFieldsSecondExcept
+	 * The NonForwardedFieldsFirst annotation declares for a function ALL fields of its first input
+	 * which are not preserved on the same position in its output.
+	 * ALL other fields are considered to be unmodified at the same position.
+	 * Hence, the NonForwardedFieldsFirst annotation is inverse to the {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst} annotation.
+	 *
+	 * <b>NOTE: The use of the NonForwardedFieldsFirst annotation is optional.
+	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
+	 * However if used incorrectly, it can cause invalid plan choices and the computation of wrong results!
+	 * Since all not declared fields are considered to be forwarded, it is required that ALL non-forwarded fields of the first input are declared.
+	 * </b>
+	 *
+	 * Non-forwarded fields are declared as a list of field expressions, e.g., <code>\@NonForwardedFieldsFirst({"f1; f3"})</code>
+	 * declares that the second and fourth field of a Java tuple from the first input are modified and
+	 * all other fields of the first input are are not changed and remain on their position.
+	 * A NonForwardedFieldsFirst annotation can only be used on functions where the type of the first input and the output are identical.
+	 *
+	 * Multiple non-forwarded fields can be annotated in one (<code>\@NonForwardedFieldsFirst({"f1; f3"})</code>)
+	 * or separate Strings (<code>\@NonForwardedFieldsFirst({"f1", "f3"})</code>).
+	 *
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field expressions such as nested fields and wildcard.
+	 *
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFields
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ConstantFieldsFirstExcept {
+	public @interface NonForwardedFieldsFirst {
 		String[] value();
 	}
 
 	/**
-	 * This annotation declares that a function changes certain fields of its second input value, while leaving all
-	 * others unmodified and in place in the return value. The annotation is applicable to binary
-	 * functions, like for example {@link org.apache.flink.api.common.functions.RichFlatJoinFunction}, {@link org.apache.flink.api.common.functions.RichCoGroupFunction}, or {@link org.apache.flink.api.common.functions.RichCrossFunction}.
-	 * <p>
-	 * The following example illustrates a join function that copies fields from the first and second input to the
-	 * return value:
-	 * 
-	 * <pre><blockquote>
-	 * \@ConstantFieldsSecondExcept("1")
-	 * public class MyJoin extends JoinFunction<Tuple2<String, Double>, Tuple3<String, Integer, Double>, Tuple3<String, Double, Double>>
-	 * {
-	 *     public Tuple3<String, Double, Double> map(Tuple2<String, Double> first, Tuple3<String, Integer, Double> second) {
-	 *         return Tuple3<String, Double, Double>(second.f0, first.f1, second.f2);
-	 *     }
-	 * }
-	 * </blockquote></pre>
-	 * <p>
-	 * The annotation takes one String array specifying the positions of the input types that do not remain constant.
-	 * When this annotation is used, it is assumed that all other values remain at the same position in input and output.
-	 * To model more complex situations use the {@link ConstantFields}s annotation.
-	 * <p>
-	 * This annotation is mutually exclusive with the {@link ConstantFieldsSecond}
-	 * <p>
-	 * If neither this annotation, nor the {@link ConstantFieldsSecond} annotation are set, it is
-	 * assumed that <i>no</i> field in the second input is forwarded/copied unmodified.
-	 * 
-	 * @see ConstantFieldsFirst
-	 * @see ConstantFieldsFirstExcept
-	 * @see ConstantFieldsSecond
+	 * The NonForwardedFieldsSecond annotation declares for a function ALL fields of its second input
+	 * which are not preserved on the same position in its output.
+	 * ALL other fields are considered to be unmodified at the same position.
+	 * Hence, the NonForwardedFieldsSecond annotation is inverse to the {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond} annotation.
+	 *
+	 * <b>NOTE: The use of the NonForwardedFieldsSecond annotation is optional.
+	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
+	 * However if used incorrectly, it can cause invalid plan choices and the computation of wrong results!
+	 * Since all not declared fields are considered to be forwarded, it is required that ALL non-forwarded fields of the second input are declared.
+	 * </b>
+	 *
+	 * Non-forwarded fields are declared as a list of field expressions, e.g., <code>\@NonForwardedFieldsSecond({"f1; f3"})</code>
+	 * declares that the second and fourth field of a Java tuple from the second input are modified and
+	 * all other fields of the second input are are not changed and remain on their position.
+	 * A NonForwardedFieldsSecond annotation can only be used on functions where the type of the second input and the output are identical.
+	 *
+	 * Multiple non-forwarded fields can be annotated in one (<code>\@NonForwardedFieldsSecond({"f1; f3"})</code>)
+	 * or separate Strings (<code>\@NonForwardedFieldsSecond({"f1", "f3"})</code>).
+	 *
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field expressions such as nested fields and wildcard.
+	 *
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFields
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ConstantFieldsSecondExcept {
+	public @interface NonForwardedFieldsSecond {
 		String[] value();
 	}
 
 	/**
-	 * Specifies the fields of the input value of a user-defined that are accessed in the code.
-	 * This annotation can only be used with user-defined functions with one input (Map, Reduce, ...).
+	 * The ReadFields annotation declares for a function all fields which it accesses and evaluates, i.e.,
+	 * all fields that are used by the function to compute its result.
+	 * For example, fields which are evaluated in conditional statements or used for computations are considered to be read.
+	 * Fields which are only unmodified copied to the output without evaluating their values are NOT considered to be read.
+	 *
+	 * <b>NOTE: The use of the ReadFields annotation is optional.
+	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
+	 * The ReadFields annotation requires that ALL read fields are declared.
+	 * Otherwise, it can cause invalid plan choices and the computation of wrong results!
+	 * Declaring a non-read field as read is not harmful but might reduce optimization potential.
+	 * </b>
+	 *
+	 * Read fields are declared as a list of field expressions, e.g., <code>\@ReadFields({"f0; f2"})</code> declares the first and third
+	 * field of a Java input tuple to be read. All other fields are considered to not influence the behavior of the function.
+	 *
+	 * Multiple read fields can be declared in one <code>\@ReadFields({"f0; f2"})</code> or
+	 * multiple separate Strings <code>\@ReadFields({"f0", "f2"})</code>.
+	 *
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field expressions such as nested fields and wildcard.
+	 *
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
@@ -282,22 +311,62 @@ public class FunctionAnnotation {
 	}
 
 	/**
-	 * Specifies the fields of the first input value of a user-defined that are accessed in the code.
-	 * This annotation can only be used with user-defined functions with two inputs (Join, Cross, ...).
-	 */
-	@Target(ElementType.TYPE)
-	@Retention(RetentionPolicy.RUNTIME)
-	public @interface ReadFieldsSecond {
-		String[] value();
-	}
-
-	/**
-	 * Specifies the fields of the second input value of a user-defined that are accessed in the code.
-	 * This annotation can only be used with user-defined functions with two inputs (Join, Cross, ...).
+	 * The ReadFieldsFirst annotation declares for a function all fields of the first input which it accesses and evaluates, i.e.,
+	 * all fields of the first input that are used by the function to compute its result.
+	 * For example, fields which are evaluated in conditional statements or used for computations are considered to be read.
+	 * Fields which are only unmodified copied to the output without evaluating their values are NOT considered to be read.
+	 *
+	 * <b>NOTE: The use of the ReadFieldsFirst annotation is optional.
+	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
+	 * The ReadFieldsFirst annotation requires that ALL read fields of the first input are declared.
+	 * Otherwise, it can cause invalid plan choices and the computation of wrong results!
+	 * Declaring a non-read field as read is not harmful but might reduce optimization potential.
+	 * </b>
+	 *
+	 * Read fields are declared as a list of field expressions, e.g., <code>\@ReadFieldsFirst({"f0; f2"})</code> declares the first and third
+	 * field of a Java input tuple of the first input to be read.
+	 * All other fields of the first input are considered to not influence the behavior of the function.
+	 *
+	 * Multiple read fields can be declared in one <code>\@ReadFieldsFirst({"f0; f2"})</code> or
+	 * multiple separate Strings <code>\@ReadFieldsFirst({"f0", "f2"})</code>.
+	 *
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field expressions such as nested fields and wildcard.
+	 *
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public @interface ReadFieldsFirst {
+		String[] value();
+	}
+
+	/**
+	 * The ReadFieldsSecond annotation declares for a function all fields of the second input which it accesses and evaluates, i.e.,
+	 * all fields of the second input that are used by the function to compute its result.
+	 * For example, fields which are evaluated in conditional statements or used for computations are considered to be read.
+	 * Fields which are only unmodified copied to the output without evaluating their values are NOT considered to be read.
+	 *
+	 * <b>NOTE: The use of the ReadFieldsSecond annotation is optional.
+	 * If used correctly, it can help the Flink optimizer to generate more efficient execution plans.
+	 * The ReadFieldsSecond annotation requires that ALL read fields of the second input are declared.
+	 * Otherwise, it can cause invalid plan choices and the computation of wrong results!
+	 * Declaring a non-read field as read is not harmful but might reduce optimization potential.
+	 * </b>
+	 *
+	 * Read fields are declared as a list of field expressions, e.g., <code>\@ReadFieldsSecond({"f0; f2"})</code> declares the first and third
+	 * field of a Java input tuple of the second input to be read.
+	 * All other fields of the second input are considered to not influence the behavior of the function.
+	 *
+	 * Multiple read fields can be declared in one <code>\@ReadFieldsSecond({"f0; f2"})</code> or
+	 * multiple separate Strings <code>\@ReadFieldsSecond({"f0", "f2"})</code>.
+	 *
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field expressions such as nested fields and wildcard.
+	 *
+	 */
+	@Target(ElementType.TYPE)
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ReadFieldsSecond {
 		String[] value();
 	}
 	
@@ -311,111 +380,82 @@ public class FunctionAnnotation {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Reads the annotations of a user defined function with one input and returns semantic properties according to the constant fields annotated.
+	 * Reads the annotations of a user defined function with one input and returns semantic properties according to the forwarded fields annotated.
 	 * 
 	 * @param udfClass The user defined function, represented by its class.
-	 * @return	The DualInputSemanticProperties containing the constant fields.
+	 * @return	The DualInputSemanticProperties containing the forwarded fields.
 	 */
-	public static Set<Annotation> readSingleConstantAnnotations(Class<?> udfClass) {
-		ConstantFields constantSet = udfClass.getAnnotation(ConstantFields.class);
-		ConstantFieldsExcept notConstantSet = udfClass.getAnnotation(ConstantFieldsExcept.class);
-		ReadFields readfieldSet = udfClass.getAnnotation(ReadFields.class);
+	public static Set<Annotation> readSingleForwardAnnotations(Class<?> udfClass) {
+		ForwardedFields forwardedFields = udfClass.getAnnotation(ForwardedFields.class);
+		NonForwardedFields nonForwardedFields = udfClass.getAnnotation(NonForwardedFields.class);
+		ReadFields readSet = udfClass.getAnnotation(ReadFields.class);
 
-		Set<Annotation> result = null;
-
-		if (notConstantSet != null && constantSet != null) {
-			throw new InvalidProgramException("Either " + ConstantFields.class.getSimpleName() + " or " + 
-					ConstantFieldsExcept.class.getSimpleName() + " can be annotated to a function, not both.");
+		Set<Annotation> annotations = new HashSet<Annotation>();
+		if(forwardedFields != null) {
+			annotations.add(forwardedFields);
 		}
-
-		if (notConstantSet != null) {
-			result = new HashSet<Annotation>();
-			result.add(notConstantSet);
-		}
-		if (constantSet != null) {
-			result = new HashSet<Annotation>();
-			result.add(constantSet);
-		}
-
-		if (readfieldSet != null) {
-			if (result == null) {
-				result = new HashSet<Annotation>();
+		if(nonForwardedFields != null) {
+			if(!annotations.isEmpty()) {
+				throw new InvalidProgramException("Either " + ForwardedFields.class.getSimpleName() + " or " +
+						NonForwardedFields.class.getSimpleName() + " can be annotated to a function, not both.");
 			}
-			result.add(readfieldSet);
+			annotations.add(nonForwardedFields);
+		}
+		if(readSet != null) {
+			annotations.add(readSet);
 		}
 
-		return result;
+		return !annotations.isEmpty() ? annotations : null;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	/**
-	 * Reads the annotations of a user defined function with two inputs and returns semantic properties according to the constant fields annotated.
+	 * Reads the annotations of a user defined function with two inputs and returns semantic properties according to the forwarded fields annotated.
 	 * @param udfClass The user defined function, represented by its class.
-	 * @return	The DualInputSemanticProperties containing the constant fields.
+	 * @return	The DualInputSemanticProperties containing the forwarded fields.
 	 */
 
-	public static Set<Annotation> readDualConstantAnnotations(Class<?> udfClass) {
+	public static Set<Annotation> readDualForwardAnnotations(Class<?> udfClass) {
 
 		// get readSet annotation from stub
-		ConstantFieldsFirst constantSet1 = udfClass.getAnnotation(ConstantFieldsFirst.class);
-		ConstantFieldsSecond constantSet2= udfClass.getAnnotation(ConstantFieldsSecond.class);
+		ForwardedFieldsFirst forwardedFields1 = udfClass.getAnnotation(ForwardedFieldsFirst.class);
+		ForwardedFieldsSecond forwardedFields2= udfClass.getAnnotation(ForwardedFieldsSecond.class);
 
 		// get readSet annotation from stub
-		ConstantFieldsFirstExcept notConstantSet1 = udfClass.getAnnotation(ConstantFieldsFirstExcept.class);
-		ConstantFieldsSecondExcept notConstantSet2 = udfClass.getAnnotation(ConstantFieldsSecondExcept.class);
+		NonForwardedFieldsFirst nonForwardedFields1 = udfClass.getAnnotation(NonForwardedFieldsFirst.class);
+		NonForwardedFieldsSecond nonForwardedFields2 = udfClass.getAnnotation(NonForwardedFieldsSecond.class);
 
-		ReadFieldsFirst readfieldSet1 = udfClass.getAnnotation(ReadFieldsFirst.class);
-		ReadFieldsSecond readfieldSet2 = udfClass.getAnnotation(ReadFieldsSecond.class);
+		ReadFieldsFirst readSet1 = udfClass.getAnnotation(ReadFieldsFirst.class);
+		ReadFieldsSecond readSet2 = udfClass.getAnnotation(ReadFieldsSecond.class);
 
-		if (notConstantSet1 != null && constantSet1 != null) {
-			throw new InvalidProgramException("Either " + ConstantFieldsFirst.class.getSimpleName() + " or " + 
-					ConstantFieldsFirstExcept.class.getSimpleName() + " can be annotated to a function, not both.");
+		Set<Annotation> annotations = new HashSet<Annotation>();
+
+		if (nonForwardedFields1 != null && forwardedFields1 != null) {
+			throw new InvalidProgramException("Either " + ForwardedFieldsFirst.class.getSimpleName() + " or " +
+					NonForwardedFieldsFirst.class.getSimpleName() + " can be annotated to a function, not both.");
+		} else if (forwardedFields1 != null) {
+			annotations.add(forwardedFields1);
+		} else if (nonForwardedFields1 != null) {
+			annotations.add(nonForwardedFields1);
 		}
 
-		if (constantSet2 != null && notConstantSet2 != null) {
-			throw new InvalidProgramException("Either " + ConstantFieldsSecond.class.getSimpleName() + " or " + 
-					ConstantFieldsSecondExcept.class.getSimpleName() + " can be annotated to a function, not both.");
+		if (forwardedFields2 != null && nonForwardedFields2 != null) {
+			throw new InvalidProgramException("Either " + ForwardedFieldsSecond.class.getSimpleName() + " or " +
+					NonForwardedFieldsSecond.class.getSimpleName() + " can be annotated to a function, not both.");
+		} else if (forwardedFields2 != null) {
+			annotations.add(forwardedFields2);
+		} else if (nonForwardedFields2 != null) {
+			annotations.add(nonForwardedFields2);
 		}
 
-		Set<Annotation> result = null;
-
-		if (notConstantSet2 != null) {
-			result = new HashSet<Annotation>();
-			result.add(notConstantSet2);
+		if (readSet1 != null) {
+			annotations.add(readSet1);
 		}
-		if (constantSet2 != null) {
-			result = new HashSet<Annotation>();
-			result.add(constantSet2);
+		if (readSet2 != null) {
+			annotations.add(readSet2);
 		}
 
-		if (readfieldSet2 != null) {
-			if (result == null) {
-				result = new HashSet<Annotation>();
-			}
-			result.add(readfieldSet2);
-		}
-
-		if (notConstantSet1 != null) {
-			if (result == null) {
-				result = new HashSet<Annotation>();
-			}
-			result.add(notConstantSet1);
-		}
-		if (constantSet1 != null) {
-			if (result == null) {
-				result = new HashSet<Annotation>();
-			}
-			result.add(constantSet1);
-		}
-
-		if (readfieldSet1 != null) {
-			if (result == null) {
-				result = new HashSet<Annotation>();
-			}
-			result.add(readfieldSet1);
-		}
-
-		return result;
+		return !annotations.isEmpty() ? annotations : null;
 	}
 }
 

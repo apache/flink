@@ -23,7 +23,6 @@ import java.util.Arrays;
 
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
-import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.util.Utils;
@@ -135,50 +134,50 @@ public class RequestedLocalProperties implements Cloneable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Filters these properties by what can be preserved through a user function's constant fields set.
-	 * Since interesting properties are filtered top-down, anything that partially destroys the ordering
-	 * makes the properties uninteresting.
+	 * Filters these properties by what can be preserved by the given SemanticProperties when propagated down
+	 * to the given input.
 	 *
-	 * @param props The optimizer node that potentially modifies the properties.
-	 * @param input The input of the node which is relevant.
-	 *
+	 * @param props The SemanticProperties which define which fields are preserved.
+	 * @param input The index of the operator's input.
 	 * @return The filtered RequestedLocalProperties
 	 */
 	public RequestedLocalProperties filterBySemanticProperties(SemanticProperties props, int input) {
-		FieldList sourceList;
-		RequestedLocalProperties returnProps = this;
 
+		// no semantic properties, all local properties are filtered
 		if (props == null) {
-			return null;
+			throw new NullPointerException("SemanticProperties may not be null.");
 		}
 
 		if (this.ordering != null) {
-			Ordering no = new Ordering();
-			returnProps = this.clone();
-			for (int index = 0; index < this.ordering.getInvolvedIndexes().size(); index++) {
-				int value = this.ordering.getInvolvedIndexes().get(index);
-				sourceList = props.getSourceField(input, value) == null ? null : props.getSourceField(input, value).toFieldList();
-				if (sourceList != null) {
-					no.appendOrdering(sourceList.get(0), this.ordering.getType(index), this.ordering.getOrder(index));
+			Ordering newOrdering = new Ordering();
+
+			for (int i = 0; i < this.ordering.getInvolvedIndexes().size(); i++) {
+				int targetField = this.ordering.getInvolvedIndexes().get(i);
+				int sourceField = props.getForwardingSourceField(input, targetField);
+				if (sourceField >= 0) {
+					newOrdering.appendOrdering(sourceField, this.ordering.getType(i), this.ordering.getOrder(i));
 				} else {
 					return null;
 				}
 			}
-			returnProps.setOrdering(no);
+			return new RequestedLocalProperties(newOrdering);
+
 		} else if (this.groupedFields != null) {
-			returnProps =  this.clone();
-			returnProps.setGroupedFields(new FieldList());
+			FieldSet newGrouping = new FieldSet();
+
 			// check, whether the local key grouping is preserved
-			for (Integer index : this.groupedFields) {
-				sourceList = props.getSourceField(input, index) == null ? null : props.getSourceField(input, index).toFieldList();
-				if (sourceList != null) {
-					returnProps.setGroupedFields(returnProps.getGroupedFields().addFields(sourceList));
+			for (Integer targetField : this.groupedFields) {
+				int sourceField = props.getForwardingSourceField(input, targetField);
+				if (sourceField >= 0) {
+					newGrouping = newGrouping.addField(sourceField);
 				} else {
 					return null;
 				}
 			}
+			return new RequestedLocalProperties(newGrouping);
+		} else {
+			return null;
 		}
-		return returnProps;
 	}
 
 	/**

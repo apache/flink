@@ -24,6 +24,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.translation.PlanProjectOperator;
@@ -72,7 +73,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		ppo.setInput(input);
 		// set dop
 		ppo.setDegreeOfParallelism(this.getParallelism());
-		ppo.setSemanticProperties(SemanticPropUtil.createProjectionPropertiesSingle(fields));
+		ppo.setSemanticProperties(SemanticPropUtil.createProjectionPropertiesSingle(fields, (CompositeType<?>) getInputType()));
 
 		return ppo;
 	}

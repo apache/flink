@@ -23,9 +23,9 @@ import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.operators.{GenericDataSinkBase, SingleInputSemanticProperties}
 import org.apache.flink.api.common.operators.base.{JoinOperatorBase, MapOperatorBase}
 import org.apache.flink.api.common.operators.util.FieldSet
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecond
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond
 import org.junit.Test
 
 import org.apache.flink.api.scala._
@@ -46,7 +46,7 @@ class SemanticPropertiesTranslationTest {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
       val input = env.fromElements((3L, "test", 42))
-      input.map(new WildcardConstantMapper[(Long, String, Int)]).print()
+      input.map(new WildcardForwardMapper[(Long, String, Int)]).print()
 
       val plan = env.createProgramPlan()
 
@@ -55,9 +55,9 @@ class SemanticPropertiesTranslationTest {
       val mapper: MapOperatorBase[_, _, _] = sink.getInput.asInstanceOf[MapOperatorBase[_, _, _]]
 
       val semantics: SingleInputSemanticProperties = mapper.getSemanticProperties
-      val fw1: FieldSet = semantics.getForwardedField(0)
-      val fw2: FieldSet = semantics.getForwardedField(1)
-      val fw3: FieldSet = semantics.getForwardedField(2)
+      val fw1: FieldSet = semantics.getForwardingTargetFields(0, 0)
+      val fw2: FieldSet = semantics.getForwardingTargetFields(0, 1)
+      val fw3: FieldSet = semantics.getForwardingTargetFields(0, 2)
 
       assertNotNull(fw1)
       assertNotNull(fw2)
@@ -78,12 +78,12 @@ class SemanticPropertiesTranslationTest {
    * A mapper that preserves fields 0, 1, 2 of a tuple data set.
    */
   @Test
-  def translateUnaryFunctionAnnotationTuples(): Unit = {
+  def translateUnaryFunctionAnnotationTuples1(): Unit = {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
       val input = env.fromElements((3L, "test", 42))
-      input.map(new IndividualConstantMapper[Long, String, Int]).print()
+      input.map(new IndividualForwardMapper[Long, String, Int]).print()
 
       val plan = env.createProgramPlan()
 
@@ -92,9 +92,9 @@ class SemanticPropertiesTranslationTest {
       val mapper: MapOperatorBase[_, _, _] = sink.getInput.asInstanceOf[MapOperatorBase[_, _, _]]
 
       val semantics: SingleInputSemanticProperties = mapper.getSemanticProperties
-      val fw1: FieldSet = semantics.getForwardedField(0)
-      val fw2: FieldSet = semantics.getForwardedField(1)
-      val fw3: FieldSet = semantics.getForwardedField(2)
+      val fw1: FieldSet = semantics.getForwardingTargetFields(0, 0)
+      val fw2: FieldSet = semantics.getForwardingTargetFields(0, 1)
+      val fw3: FieldSet = semantics.getForwardingTargetFields(0, 2)
 
       assertNotNull(fw1)
       assertNotNull(fw2)
@@ -112,10 +112,47 @@ class SemanticPropertiesTranslationTest {
   }
 
   /**
+   * A mapper that preserves field 1 of a tuple data set.
+   */
+  @Test
+  def translateUnaryFunctionAnnotationTuples2(): Unit = {
+    try {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+
+      val input = env.fromElements((3L, "test", 42))
+      input.map(new FieldTwoForwardMapper[Long, String, Int]).print()
+
+      val plan = env.createProgramPlan()
+
+      val sink: GenericDataSinkBase[_] = plan.getDataSinks.iterator.next
+
+      val mapper: MapOperatorBase[_, _, _] = sink.getInput.asInstanceOf[MapOperatorBase[_, _, _]]
+
+      val semantics: SingleInputSemanticProperties = mapper.getSemanticProperties
+      val fw1: FieldSet = semantics.getForwardingTargetFields(0, 0)
+      val fw2: FieldSet = semantics.getForwardingTargetFields(0, 1)
+      val fw3: FieldSet = semantics.getForwardingTargetFields(0, 2)
+
+      assertNotNull(fw1)
+      assertNotNull(fw2)
+      assertNotNull(fw3)
+      assertTrue(fw1.size == 0)
+      assertTrue(fw3.size == 0)
+      assertTrue(fw2.contains(1))
+    } catch {
+      case e: Exception => {
+        System.err.println(e.getMessage)
+        e.printStackTrace()
+        fail("Exception in test: " + e.getMessage)
+      }
+    }
+  }
+
+  /**
    * A join that preserves tuple fields from both sides.
    */
   @Test
-  def translateBinaryFunctionAnnotationTuples(): Unit = {
+  def translateBinaryFunctionAnnotationTuples1(): Unit = {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -132,17 +169,63 @@ class SemanticPropertiesTranslationTest {
         sink.getInput.asInstanceOf[JoinOperatorBase[_, _, _, _]]
 
       val semantics = join.getSemanticProperties
-      val fw11: FieldSet = semantics.getForwardedField1(0)
-      val fw12: FieldSet = semantics.getForwardedField1(1)
-      val fw21: FieldSet = semantics.getForwardedField2(0)
-      val fw22: FieldSet = semantics.getForwardedField2(1)
+      val fw11: FieldSet = semantics.getForwardingTargetFields(0, 0)
+      val fw12: FieldSet = semantics.getForwardingTargetFields(0, 1)
+      val fw21: FieldSet = semantics.getForwardingTargetFields(1, 0)
+      val fw22: FieldSet = semantics.getForwardingTargetFields(1, 1)
 
-      assertNull(fw11)
-      assertNull(fw21)
+      assertNotNull(fw11)
+      assertNotNull(fw21)
       assertNotNull(fw12)
       assertNotNull(fw22)
+      assertEquals(0, fw11.size)
+      assertEquals(0, fw22.size)
       assertTrue(fw12.contains(0))
-      assertTrue(fw22.contains(1))
+      assertTrue(fw21.contains(1))
+    }
+    catch {
+      case e: Exception => {
+        System.err.println(e.getMessage)
+        e.printStackTrace()
+        fail("Exception in test: " + e.getMessage)
+      }
+    }
+  }
+
+  /**
+   * A join that preserves tuple fields from both sides.
+   */
+  @Test
+  def translateBinaryFunctionAnnotationTuples2(): Unit = {
+    try {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+
+      val input1 = env.fromElements((3L, "test"))
+      val input2 = env.fromElements((3L, 42))
+
+      input1.join(input2).where(0).equalTo(0)(
+        new ForwardingBasicJoin[(Long, String), (Long, Int)]).print()
+
+      val plan = env.createProgramPlan()
+      val sink: GenericDataSinkBase[_] = plan.getDataSinks.iterator.next
+
+      val join: JoinOperatorBase[_, _, _, _] =
+        sink.getInput.asInstanceOf[JoinOperatorBase[_, _, _, _]]
+
+      val semantics = join.getSemanticProperties
+      val fw11: FieldSet = semantics.getForwardingTargetFields(0, 0)
+      val fw12: FieldSet = semantics.getForwardingTargetFields(0, 1)
+      val fw21: FieldSet = semantics.getForwardingTargetFields(1, 0)
+      val fw22: FieldSet = semantics.getForwardingTargetFields(1, 1)
+
+      assertNotNull(fw11)
+      assertNotNull(fw12)
+      assertNotNull(fw21)
+      assertNotNull(fw22)
+      assertTrue(fw11.contains(0))
+      assertTrue(fw12.contains(1))
+      assertTrue(fw21.contains(2))
+      assertTrue(fw22.contains(3))
     }
     catch {
       case e: Exception => {
@@ -155,40 +238,39 @@ class SemanticPropertiesTranslationTest {
 }
 
 
-@ConstantFields(Array("*"))
-class WildcardConstantMapper[T] extends RichMapFunction[T, T] {
+@ForwardedFields(Array("*"))
+class WildcardForwardMapper[T] extends RichMapFunction[T, T] {
   def map(value: T): T = {
     value
   }
 }
 
-@ConstantFields(Array("0->0;1->1;2->2"))
-class IndividualConstantMapper[X, Y, Z] extends RichMapFunction[(X, Y, Z), (X, Y, Z)] {
+@ForwardedFields(Array("0;1;2"))
+class IndividualForwardMapper[X, Y, Z] extends RichMapFunction[(X, Y, Z), (X, Y, Z)] {
   def map(value: (X, Y, Z)): (X, Y, Z) = {
     value
   }
 }
 
-@ConstantFields(Array("0"))
-class ZeroConstantMapper[T] extends RichMapFunction[T, T] {
-  def map(value: T): T = {
+@ForwardedFields(Array("_2"))
+class FieldTwoForwardMapper[X, Y, Z] extends RichMapFunction[(X, Y, Z), (X, Y, Z)] {
+  def map(value: (X, Y ,Z)): (X, Y, Z) = {
     value
   }
 }
 
-@ConstantFieldsFirst(Array("1 -> 0"))
-@ConstantFieldsSecond(Array("1 -> 1"))
-class ForwardingTupleJoin[A, B, C, D] extends RichJoinFunction[(A, B),  (C, D), (B, D)] {
-  def join(first: (A, B), second: (C, D)): (B, D) = {
-    (first._2, second._2)
+@ForwardedFieldsFirst(Array("_2 -> _1"))
+@ForwardedFieldsSecond(Array("_1 -> _2"))
+class ForwardingTupleJoin[A, B, C, D] extends RichJoinFunction[(A, B),  (C, D), (B, C)] {
+  def join(first: (A, B), second: (C, D)): (B, C) = {
+    (first._2, second._1)
   }
 }
 
-@ConstantFieldsFirst(Array("0 -> 0"))
-@ConstantFieldsSecond(Array("0 -> 1"))
+@ForwardedFieldsFirst(Array("* -> 0.*"))
+@ForwardedFieldsSecond(Array("* -> 1.*"))
 class ForwardingBasicJoin[A, B] extends RichJoinFunction[A, B, (A, B)] {
   def join(first: A, second: B): (A, B) = {
     (first, second)
   }
 }
-

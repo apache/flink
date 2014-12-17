@@ -59,9 +59,7 @@ public class UnaryOperatorNode extends SingleInputNode {
 
 	@Override
 	public SemanticProperties getSemanticProperties() {
-		SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
-		sprops.setAllFieldsConstant(true);
-		return sprops;
+		return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
 	}
 
 	@Override

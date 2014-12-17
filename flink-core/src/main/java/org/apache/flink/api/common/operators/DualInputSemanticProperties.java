@@ -27,20 +27,20 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 /**
  * Container for the semantic properties associated to a dual input operator.
  */
-public class DualInputSemanticProperties extends SemanticProperties {
+public class DualInputSemanticProperties implements SemanticProperties {
 	private static final long serialVersionUID = 1L;
-	
+
 	/**
 	 * Mapping from fields in the source record(s) in the first input to fields
 	 * in the destination record(s).  
 	 */
-	private Map<Integer,FieldSet> forwardedFields1;
+	private Map<Integer,FieldSet> fieldMapping1;
 	
 	/**
 	 * Mapping from fields in the source record(s) in the second input to fields
 	 * in the destination record(s).  
 	 */
-	private Map<Integer,FieldSet> forwardedFields2;
+	private Map<Integer,FieldSet> fieldMapping2;
 	
 	/**
 	 * Set of fields that are read in the source record(s) from the
@@ -56,293 +56,124 @@ public class DualInputSemanticProperties extends SemanticProperties {
 
 	
 	public DualInputSemanticProperties() {
-		init();
+		this.fieldMapping1 = new HashMap<Integer,FieldSet>();
+		this.fieldMapping2 = new HashMap<Integer,FieldSet>();
+		this.readFields1 = null;
+		this.readFields2 = null;
 	}
 
-	/**
-	 * Finds the source field where the given field was forwarded from.
-	 * @param dest The destination field in the output data.
-	 * @return FieldSet containing the source input fields.
-	 */
-	public FieldSet forwardedFrom1(int dest) {
-		FieldSet fs = null;
-		for (Map.Entry<Integer, FieldSet> entry : forwardedFields1.entrySet()) {
-			if (entry.getValue().contains(dest)) {
-				if (fs == null) {
-					fs = new FieldSet();
-				}
+	@Override
+	public FieldSet getForwardingTargetFields(int input, int sourceField) {
 
-				fs = fs.addField(entry.getKey());
-			}
+		if (input != 0 && input != 1) {
+			throw new IndexOutOfBoundsException();
+		} else if (input == 0) {
+
+			return fieldMapping1.containsKey(sourceField) ? fieldMapping1.get(sourceField) : FieldSet.EMPTY_SET;
+		} else {
+			return fieldMapping2.containsKey(sourceField) ? fieldMapping2.get(sourceField) : FieldSet.EMPTY_SET;
 		}
-		return fs;
 	}
 
-	public FieldSet forwardedFrom2(int dest) {
-		FieldSet fs = null;
-		for (Map.Entry<Integer, FieldSet> entry : forwardedFields2.entrySet()) {
-			if (entry.getValue().contains(dest)) {
-				if (fs == null) {
-					fs = new FieldSet();
-				}
+	@Override
+	public int getForwardingSourceField(int input, int targetField) {
+		Map<Integer, FieldSet> fieldMapping;
 
-				fs = fs.addField(entry.getKey());
+		if (input != 0 && input != 1) {
+			throw new IndexOutOfBoundsException();
+		} else if (input == 0) {
+			fieldMapping = fieldMapping1;
+		} else {
+			fieldMapping = fieldMapping2;
+		}
+
+		for (Map.Entry<Integer, FieldSet> e : fieldMapping.entrySet()) {
+			if (e.getValue().contains(targetField)) {
+				return e.getKey();
 			}
 		}
-		return fs;
+		return -1;
+	}
+
+	@Override
+	public FieldSet getReadFields(int input) {
+		if (input != 0 && input != 1) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		if (input == 0) {
+			return readFields1;
+		} else {
+			return readFields2;
+		}
 	}
 
 	/**
 	 * Adds, to the existing information, a field that is forwarded directly
 	 * from the source record(s) in the first input to the destination
 	 * record(s).
-	 * 
-	 * @param sourceField the position in the source record(s) from the first input
-	 * @param destinationField the position in the destination record(s)
-	 */
-	public void addForwardedField1(int sourceField, int destinationField) {
-		FieldSet old = this.forwardedFields1.get(sourceField);
-		if (old == null) {
-			old = FieldSet.EMPTY_SET;
-		}
-		
-		FieldSet fs = old.addField(destinationField);
-		this.forwardedFields1.put(sourceField, fs);
-	}
-	
-	/**
-	 * Adds, to the existing information, a field that is forwarded directly
-	 * from the source record(s) in the first input to multiple fields in
-	 * the destination record(s).
-	 * 
-	 * @param sourceField the position in the source record(s)
-	 * @param destinationFields the position in the destination record(s)
-	 */
-	public void addForwardedField1(int sourceField, FieldSet destinationFields) {
-		FieldSet old = this.forwardedFields1.get(sourceField);
-		if (old == null) {
-			old = FieldSet.EMPTY_SET;
-		}
-		
-		FieldSet fs = old.addFields(destinationFields);
-		this.forwardedFields1.put(sourceField, fs);
-	}
-	
-	/**
-	 * Sets a field that is forwarded directly from the source
-	 * record(s) in the first input to multiple fields in the
-	 * destination record(s).
-	 * 
-	 * @param sourceField the position in the source record(s)
-	 * @param destinationFields the position in the destination record(s)
-	 */
-	public void setForwardedField1(int sourceField, FieldSet destinationFields) {
-		this.forwardedFields1.put(sourceField, destinationFields);
-	}
-	
-	/**
-	 * Gets the fields in the destination record where the source
-	 * field from the first input is forwarded.
-	 * 
+	 *
+	 * @param input the input of the source field
 	 * @param sourceField the position in the source record
-	 * @return the destination fields, or null if they do not exist
+	 * @param targetField the position in the destination record
 	 */
-	public FieldSet getForwardedField1(int sourceField) {
-		if (isAllFieldsConstant()) {
-			return new FieldSet(sourceField);
+	public void addForwardedField(int input, int sourceField, int targetField) {
+
+		Map<Integer, FieldSet> fieldMapping;
+
+		if (input != 0 && input != 1) {
+			throw new IndexOutOfBoundsException();
+		} else if (input == 0) {
+			fieldMapping = this.fieldMapping1;
+		} else {
+			fieldMapping = this.fieldMapping2;
 		}
 
-		return this.forwardedFields1.get(sourceField);
-	}
-	
-	/**
-	 * Adds, to the existing information, a field that is forwarded directly
-	 * from the source record(s) in the second input to the destination
-	 * record(s).
-	 * 
-	 * @param sourceField the position in the source record(s) from the first input
-	 * @param destinationField the position in the destination record(s)
-	 */
-	public void addForwardedField2(int sourceField, int destinationField) {
-		FieldSet old = this.forwardedFields2.get(sourceField);
-		if (old == null) {
-			old = FieldSet.EMPTY_SET;
-		}
-		
-		FieldSet fs = old.addField(destinationField);
-		this.forwardedFields2.put(sourceField, fs);
-	}
-	
-	/**
-	 * Adds, to the existing information, a field that is forwarded directly
-	 * from the source record(s) in the second input to multiple fields in
-	 * the destination record(s).
-	 * 
-	 * @param sourceField the position in the source record(s)
-	 * @param destinationFields the position in the destination record(s)
-	 */
-	public void addForwardedField2(int sourceField, FieldSet destinationFields) {
-		FieldSet old = this.forwardedFields2.get(sourceField);
-		if (old == null) {
-			old = FieldSet.EMPTY_SET;
-		}
-		
-		FieldSet fs = old.addFields(destinationFields);
-		this.forwardedFields2.put(sourceField, fs);
-	}
-	
-	/**
-	 * Sets a field that is forwarded directly from the source
-	 * record(s) in the second input to multiple fields in the
-	 * destination record(s).
-	 * 
-	 * @param sourceField the position in the source record(s)
-	 * @param destinationFields the position in the destination record(s)
-	 */
-	public void setForwardedField2(int sourceField, FieldSet destinationFields) {
-		this.forwardedFields2.put(sourceField, destinationFields);
-	}
-	
-	/**
-	 * Gets the fields in the destination record where the source
-	 * field from the second input is forwarded.
-	 * 
-	 * @param sourceField the position in the source record
-	 * @return the destination fields, or null if they do not exist
-	 */
-	public FieldSet getForwardedField2(int sourceField) {
-		if (isAllFieldsConstant()) {
-			return new FieldSet(sourceField);
+		if(isTargetFieldPresent(targetField, fieldMapping)) {
+			throw new InvalidSemanticAnnotationException("Target field "+targetField+" was added twice to input "+input);
 		}
 
-		return this.forwardedFields2.get(sourceField);
-	}
-
-	@Override
-	public FieldSet getSourceField(int input, int field) {
-		if (isAllFieldsConstant()) {
-			return new FieldSet(field);
-		}
-
-		switch(input) {
-			case 0:
-				return this.forwardedFrom1(field);
-			case 1:
-				return this.forwardedFrom2(field);
-			default:
-				throw new IndexOutOfBoundsException();
+		FieldSet targetFields = fieldMapping.get(sourceField);
+		if (targetFields != null) {
+			fieldMapping.put(sourceField, targetFields.addField(targetField));
+		} else {
+			fieldMapping.put(sourceField, new FieldSet(targetField));
 		}
 	}
 
-	@Override
-	public FieldSet getForwardFields(int input, int field) {
-		if (isAllFieldsConstant()) {
-			return new FieldSet(field);
-		}
+	private boolean isTargetFieldPresent(int targetField, Map<Integer, FieldSet> fieldMapping) {
 
-		if (input == 0) {
-			return this.getForwardedField1(field);
-		} else if (input == 1) {
-			return this.getForwardedField2(field);
+		for(FieldSet targetFields : fieldMapping.values()) {
+			if(targetFields.contains(targetField)) {
+				return true;
+			}
 		}
-		return null;
+		return false;
 	}
 
 	/**
 	 * Adds, to the existing information, field(s) that are read in
 	 * the source record(s) from the first input.
-	 * 
+	 *
+	 * @param input the input of the read fields
 	 * @param readFields the position(s) in the source record(s)
 	 */
-	public void addReadFields1(FieldSet readFields) {
-		if (this.readFields1 == null) {
-			this.readFields1 = readFields;
+	public void addReadFields(int input, FieldSet readFields) {
+
+		FieldSet curReadFields;
+
+		if (input != 0 && input != 1) {
+			throw new IndexOutOfBoundsException();
+		} else if (input == 0) {
+			this.readFields1 = (this.readFields1 == null) ? readFields.clone() : this.readFields1.addFields(readFields);
 		} else {
-			this.readFields1 = this.readFields2.addFields(readFields);
+			this.readFields2 = (this.readFields2 == null) ? readFields.clone() : this.readFields2.addFields(readFields);
 		}
-	}
-	
-	/**
-	 * Sets the field(s) that are read in the source record(s) from the first
-	 * input.
-	 * 
-	 * @param readFields the position(s) in the source record(s)
-	 */
-	public void setReadFields1(FieldSet readFields) {
-		this.readFields1 = readFields;
-	}
-	
-	/**
-	 * Gets the field(s) in the source record(s) from the first input
-	 * that are read.
-	 * 
-	 * @return the field(s) in the record, or null if they are not set
-	 */
-	public FieldSet getReadFields1() {
-		return this.readFields1;
-	}
-	
-	/**
-	 * Adds, to the existing information, field(s) that are read in
-	 * the source record(s) from the second input.
-	 * 
-	 * @param readFields the position(s) in the source record(s)
-	 */
-	public void addReadFields2(FieldSet readFields) {
-		if (this.readFields2 == null) {
-			this.readFields2 = readFields;
-		} else {
-			this.readFields2 = this.readFields2.addFields(readFields);
-		}
-	}
-	
-	/**
-	 * Sets the field(s) that are read in the source record(s) from the second
-	 * input.
-	 * 
-	 * @param readFields the position(s) in the source record(s)
-	 */
-	public void setReadFields2(FieldSet readFields) {
-		this.readFields2 = readFields;
-	}
-	
-	/**
-	 * Gets the field(s) in the source record(s) from the second input
-	 * that are read.
-	 * 
-	 * @return the field(s) in the record, or null if they are not set
-	 */
-	public FieldSet getReadFields2() {
-		return this.readFields2;
-	}
-	
-	/**
-	 * Clears the object.
-	 */
-	@Override
-	public void clearProperties() {
-		super.clearProperties();
-		init();
 	}
 
-	@Override
-	public boolean isEmpty() {
-		return super.isEmpty() &&
-				(forwardedFields1 == null || forwardedFields1.isEmpty()) &&
-				(forwardedFields2 == null || forwardedFields2.isEmpty()) &&
-				(readFields1 == null || readFields1.size() == 0) &&
-				(readFields2 == null || readFields2.size() == 0);
-	}
-	
 	@Override
 	public String toString() {
-		return "DISP(" + this.forwardedFields1 + "; " + this.forwardedFields2 + ")";
+		return "DISP(" + this.fieldMapping1 + "; " + this.fieldMapping2 + ")";
 	}
 
-	private void init() {
-		this.forwardedFields1 = new HashMap<Integer,FieldSet>();
-		this.forwardedFields2 = new HashMap<Integer,FieldSet>();
-		this.readFields1 = null;
-		this.readFields2 = null;
-	}
 }

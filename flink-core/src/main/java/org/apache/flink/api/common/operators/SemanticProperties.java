@@ -21,72 +21,73 @@ package org.apache.flink.api.common.operators;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.util.FieldSet;
 
 /**
  * Container for the semantic properties associated to an operator.
  */
-public abstract class SemanticProperties implements Serializable {
-	private boolean allFieldsConstant;
+public interface SemanticProperties extends Serializable {
 
-	private static final long serialVersionUID = 1L;
-
-	/** Set of fields that are written in the destination record(s).*/
-	private FieldSet writtenFields;
-	
-	
 	/**
-	 * Adds, to the existing information, field(s) that are written in
-	 * the destination record(s).
-	 * 
-	 * @param writtenFields the position(s) in the destination record(s)
+	 * Returns the indexes of all target fields to which a source field has been
+	 * unmodified copied by a function.
+	 *
+	 * @param input The input id for the requested source field (0 for first input, 1 for second input)
+	 * @param sourceField The index of the field for which the target position index is requested.
+	 * @return A set containing the indexes of all target fields to which the source field has been unmodified copied.
+	 *
 	 */
-	public void addWrittenFields(FieldSet writtenFields) {
-		if(this.writtenFields == null) {
-			this.writtenFields = writtenFields;
-		} else {
-			this.writtenFields = this.writtenFields.addFields(writtenFields);
+	public FieldSet getForwardingTargetFields(int input, int sourceField);
+
+	/**
+	 * Returns the index of the source field on the given input from which the target field
+	 * has been unmodified copied by a function.
+	 *
+	 * @param input The input id for the requested source field (0 for first input, 1 for second input)
+	 * @param targetField The index of the target field to which the source field has been copied.
+	 * @return The index of the source field on the given index that was copied to the given target field.
+	 * 			-1 if the target field was not copied from any source field of the given input.
+	 */
+	public int getForwardingSourceField(int input, int targetField);
+
+	/**
+	 * Returns the position indexes of all fields of an input that are accessed by a function.
+	 *
+	 * @param input The input id for which accessed fields are requested.
+	 * @return A set of fields of the specified input which have been accessed by the function. Null if no information is available.
+	 */
+	public FieldSet getReadFields(int input);
+
+	// ----------------------------------------------------------------------
+
+	public static class InvalidSemanticAnnotationException extends InvalidProgramException {
+
+		public InvalidSemanticAnnotationException(String s) {
+			super(s);
+		}
+
+		public InvalidSemanticAnnotationException(String s, Throwable e) {
+			super(s,e);
 		}
 	}
 
-	public void setAllFieldsConstant(boolean constant) {
-		this.allFieldsConstant = constant;
-	}
+	public static class EmptySemanticProperties implements SemanticProperties {
 
-	public boolean isAllFieldsConstant() {
-		return this.allFieldsConstant;
-	}
+		@Override
+		public FieldSet getForwardingTargetFields(int input, int sourceField) {
+			return FieldSet.EMPTY_SET;
+		}
 
-	public abstract FieldSet getForwardFields(int input, int field);
+		@Override
+		public int getForwardingSourceField(int input, int targetField) {
+			return -1;
+		}
 
-	public abstract FieldSet getSourceField(int input, int field);
+		@Override
+		public FieldSet getReadFields(int input) {
+			return null;
+		}
 
-	/**
-	 * Sets the field(s) that are written in the destination record(s).
-	 * 
-	 * @param writtenFields the position(s) in the destination record(s)
-	 */
-	public void setWrittenFields(FieldSet writtenFields) {
-		this.writtenFields = writtenFields;
-	}
-	
-	/**
-	 * Gets the field(s) in the destination record(s) that are written.
-	 * 
-	 * @return the field(s) in the record, or null if they are not set
-	 */
-	public FieldSet getWrittenFields() {
-		return this.writtenFields;
-	}
-	
-	/**
-	 * Clears the object.
-	 */
-	public void clearProperties() {
-		this.writtenFields = null;
-	}
-	
-	public boolean isEmpty() {
-		return this.writtenFields == null || this.writtenFields.size() == 0;
 	}
 }

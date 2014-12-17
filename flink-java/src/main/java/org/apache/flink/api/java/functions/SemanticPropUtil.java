@@ -20,395 +20,558 @@
 package org.apache.flink.api.java.functions;
 
 import java.lang.annotation.Annotation;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.operators.SemanticProperties.InvalidSemanticAnnotationException;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsExcept;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecondExcept;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.CompositeType.InvalidFieldReferenceException;
+import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
+import org.apache.flink.api.java.functions.FunctionAnnotation.NonForwardedFieldsSecond;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsSecond;
+import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 public class SemanticPropUtil {
 
-	private final static String REGEX_LIST = "(\\s*(\\d+\\s*,\\s*)*(\\d+\\s*))";
-	private final static String REGEX_FORWARD = "(\\s*(\\d+)\\s*->(" + REGEX_LIST + "|(\\*)))";
-	private final static String REGEX_LIST_OR_FORWARD = "(" + REGEX_LIST + "|" + REGEX_FORWARD + ")";
-	private final static String REGEX_ANNOTATION = "(\\s*(" + REGEX_LIST_OR_FORWARD + "\\s*;\\s*)*(" + REGEX_LIST_OR_FORWARD + "\\s*))";
+	private final static String REGEX_WILDCARD = "[\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR+"\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA+"]";
+	private final static String REGEX_SINGLE_FIELD = "[\\p{L}\\p{Digit}_\\$]+";
+	private final static String REGEX_NESTED_FIELDS = "((" + REGEX_SINGLE_FIELD + "\\.)*" + REGEX_SINGLE_FIELD + ")(\\."+ REGEX_WILDCARD +")?";
 
+	private final static String REGEX_LIST = "((" + REGEX_NESTED_FIELDS + ";)*(" + REGEX_NESTED_FIELDS + ");?)";
+	private final static String REGEX_FORWARD = "(("+ REGEX_NESTED_FIELDS +"|"+ REGEX_WILDCARD +")->(" + REGEX_NESTED_FIELDS + "|"+ REGEX_WILDCARD +"))";
+	private final static String REGEX_FIELD_OR_FORWARD = "(" + REGEX_NESTED_FIELDS + "|" + REGEX_FORWARD + ")";
+	private final static String REGEX_ANNOTATION = "((" + REGEX_FIELD_OR_FORWARD + ";)*(" + REGEX_FIELD_OR_FORWARD + ");?)";
+
+	private static final Pattern PATTERN_WILDCARD = Pattern.compile(REGEX_WILDCARD);
 	private static final Pattern PATTERN_FORWARD = Pattern.compile(REGEX_FORWARD);
 	private static final Pattern PATTERN_ANNOTATION = Pattern.compile(REGEX_ANNOTATION);
 	private static final Pattern PATTERN_LIST = Pattern.compile(REGEX_LIST);
+	private static final Pattern PATTERN_FIELD = Pattern.compile(REGEX_NESTED_FIELDS);
 
-	private static final Pattern PATTERN_DIGIT = Pattern.compile("\\d+");
+	public static SingleInputSemanticProperties createProjectionPropertiesSingle(int[] fields, CompositeType<?> inType)
+	{
 
-	public static SingleInputSemanticProperties createProjectionPropertiesSingle(int[] fields) {
+		Character.isJavaIdentifierStart(1);
+
 		SingleInputSemanticProperties ssp = new SingleInputSemanticProperties();
-		for (int i = 0; i < fields.length; i++) {
-			ssp.addForwardedField(fields[i], i);
+
+		int[] sourceOffsets = new int[inType.getArity()];
+		sourceOffsets[0] = 0;
+		for(int i=1; i<inType.getArity(); i++) {
+			sourceOffsets[i] = inType.getTypeAt(i-1).getTotalFields() + sourceOffsets[i-1];
 		}
+
+		int targetOffset = 0;
+		for(int i=0; i<fields.length; i++) {
+			int sourceOffset = sourceOffsets[fields[i]];
+			int numFieldsToCopy = inType.getTypeAt(fields[i]).getTotalFields();
+
+			for(int j=0; j<numFieldsToCopy; j++) {
+				ssp.addForwardedField(sourceOffset+j, targetOffset+j);
+			}
+			targetOffset += numFieldsToCopy;
+		}
+
 		return ssp;
 	}
 
-	public static DualInputSemanticProperties createProjectionPropertiesDual(int[] fields, boolean[] isFromFirst) {
+	public static DualInputSemanticProperties createProjectionPropertiesDual(
+			int[] fields, boolean[] isFromFirst, TypeInformation<?> inType1, TypeInformation<?> inType2)
+	{
 		DualInputSemanticProperties dsp = new DualInputSemanticProperties();
 
-		for (int i = 0; i < fields.length; i++) {
-			if (isFromFirst[i]) {
-				dsp.addForwardedField1(fields[i], i);
-			} else {
-				dsp.addForwardedField2(fields[i], i);
+		int[] sourceOffsets1;
+		if(inType1 instanceof TupleTypeInfo<?>) {
+			sourceOffsets1 = new int[inType1.getArity()];
+			sourceOffsets1[0] = 0;
+			for(int i=1; i<inType1.getArity(); i++) {
+				sourceOffsets1[i] = ((TupleTypeInfo<?>)inType1).getTypeAt(i-1).getTotalFields() + sourceOffsets1[i-1];
 			}
+		} else {
+			sourceOffsets1 = new int[] {0};
 		}
+
+		int[] sourceOffsets2;
+		if(inType2 instanceof TupleTypeInfo<?>) {
+			sourceOffsets2 = new int[inType2.getArity()];
+			sourceOffsets2[0] = 0;
+			for(int i=1; i<inType2.getArity(); i++) {
+				sourceOffsets2[i] = ((TupleTypeInfo<?>)inType2).getTypeAt(i-1).getTotalFields() + sourceOffsets2[i-1];
+			}
+		} else {
+			sourceOffsets2 = new int[] {0};
+		}
+
+		int targetOffset = 0;
+		for(int i=0; i<fields.length; i++) {
+			int sourceOffset;
+			int numFieldsToCopy;
+			int input;
+			if(isFromFirst[i]) {
+				input = 0;
+				if (fields[i] == -1) {
+					sourceOffset = 0;
+					numFieldsToCopy = inType1.getTotalFields();
+				} else {
+					sourceOffset = sourceOffsets1[fields[i]];
+					numFieldsToCopy = ((TupleTypeInfo<?>)inType1).getTypeAt(fields[i]).getTotalFields();
+				}
+			} else {
+				input = 1;
+				if (fields[i] == -1) {
+					sourceOffset = 0;
+					numFieldsToCopy = inType2.getTotalFields();
+				} else {
+					sourceOffset = sourceOffsets2[fields[i]];
+					numFieldsToCopy = ((TupleTypeInfo<?>)inType2).getTypeAt(fields[i]).getTotalFields();
+				}
+			}
+
+			for(int j=0; j<numFieldsToCopy; j++) {
+				dsp.addForwardedField(input, sourceOffset+j, targetOffset+j);
+			}
+			targetOffset += numFieldsToCopy;
+		}
+
 		return dsp;
 	}
 
-	public static SingleInputSemanticProperties getSemanticPropsSingle(Set<Annotation> set, TypeInformation<?> inType, TypeInformation<?> outType) {
+	public static SingleInputSemanticProperties getSemanticPropsSingle(
+			Set<Annotation> set, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (set == null) {
-			return null;
+			return new SingleInputSemanticProperties();
 		}
 		Iterator<Annotation> it = set.iterator();
-		SingleInputSemanticProperties result = null;
 
-		//non tuple types are not yet supported for annotations
-		if (!inType.isTupleType() || !outType.isTupleType()) {
-			return null;
-		}
+		String[] forwarded = null;
+		String[] nonForwarded = null;
+		String[] read = null;
 
 		while (it.hasNext()) {
-			if (result == null) {
-				result = new SingleInputSemanticProperties();
-			}
 
 			Annotation ann = it.next();
 
-			if (ann instanceof ConstantFields) {
-				ConstantFields cf = (ConstantFields) ann;
-				parseConstantFields(cf.value(), result, inType, outType);
-			} else if (ann instanceof ConstantFieldsExcept) {
-				ConstantFieldsExcept cfe = (ConstantFieldsExcept) ann;
-				parseConstantFieldsExcept(cfe.value(), result, inType, outType);
+			if (ann instanceof ForwardedFields) {
+				forwarded = ((ForwardedFields) ann).value();
+			} else if (ann instanceof NonForwardedFields) {
+				nonForwarded = ((NonForwardedFields) ann).value();
 			} else if (ann instanceof ReadFields) {
-				ReadFields rf = (ReadFields) ann;
-				parseReadFields(rf.value(), result, inType, outType);
+				read = ((ReadFields) ann).value();
+			} else if (ann instanceof ForwardedFieldsFirst || ann instanceof ForwardedFieldsSecond ||
+					ann instanceof NonForwardedFieldsFirst || ann instanceof NonForwardedFieldsSecond ||
+					ann instanceof ReadFieldsFirst || ann instanceof ReadFieldsSecond) {
+				throw new InvalidSemanticAnnotationException("Annotation "+ann.getClass()+" invalid for single input function.");
 			}
 		}
-		return result;
+
+		if(forwarded != null || nonForwarded != null || read != null) {
+			SingleInputSemanticProperties result = new SingleInputSemanticProperties();
+			getSemanticPropsSingleFromString(result, forwarded, nonForwarded, read, inType, outType);
+			return result;
+		} else {
+			return new SingleInputSemanticProperties();
+		}
 	}
 
-	private static void parseConstantFields(String[] cf, SingleInputSemanticProperties sm, TypeInformation<?> inType, TypeInformation<?> outType) {
-		if (cf == null) {
-			return;
+	public static DualInputSemanticProperties getSemanticPropsDual(
+			Set<Annotation> set, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
+		if (set == null) {
+			return new DualInputSemanticProperties();
 		}
-		for (String s : cf) {
-			if (s != null) {
-				readConstantSet(sm, s, inType, outType, 0);
+		Iterator<Annotation> it = set.iterator();
+
+		String[] forwardedFirst = null;
+		String[] forwardedSecond = null;
+		String[] nonForwardedFirst = null;
+		String[] nonForwardedSecond = null;
+		String[] readFirst = null;
+		String[] readSecond = null;
+
+		while (it.hasNext()) {
+			Annotation ann = it.next();
+
+			if (ann instanceof ForwardedFieldsFirst) {
+				forwardedFirst = ((ForwardedFieldsFirst) ann).value();
+			} else if (ann instanceof ForwardedFieldsSecond) {
+				forwardedSecond = ((ForwardedFieldsSecond) ann).value();
+			} else if (ann instanceof NonForwardedFieldsFirst) {
+				nonForwardedFirst = ((NonForwardedFieldsFirst) ann).value();
+			} else if (ann instanceof NonForwardedFieldsSecond) {
+				nonForwardedSecond = ((NonForwardedFieldsSecond) ann).value();
+			} else if (ann instanceof ReadFieldsFirst) {
+				readFirst = ((ReadFieldsFirst) ann).value();
+			} else if (ann instanceof ReadFieldsSecond) {
+				readSecond = ((ReadFieldsSecond) ann).value();
+			} else if (ann instanceof ForwardedFields || ann instanceof NonForwardedFields || ann instanceof ReadFields) {
+				throw new InvalidSemanticAnnotationException("Annotation " + ann.getClass() + " invalid for dual input function.");
 			}
+		}
+
+		if(forwardedFirst != null || nonForwardedFirst != null || readFirst != null ||
+				forwardedSecond != null ||nonForwardedSecond != null || readSecond != null) {
+			DualInputSemanticProperties result = new DualInputSemanticProperties();
+			getSemanticPropsDualFromString(result, forwardedFirst, forwardedSecond,
+					nonForwardedFirst, nonForwardedSecond, readFirst, readSecond, inType1, inType2, outType);
+			return result;
+		} else {
+			return new DualInputSemanticProperties();
 		}
 	}
 
-	private static void readConstantSet(SemanticProperties sp, String s, TypeInformation<?> inType, TypeInformation<?> outType, int input) {
-		if (s.equals("*")) {
-			if (sp instanceof SingleInputSemanticProperties) {
-				for (int i = 0; i < inType.getArity() && i < outType.getArity(); i++) {
-					((SingleInputSemanticProperties) sp).addForwardedField(i, i);
-				}
-			} else if (sp instanceof DualInputSemanticProperties) {
-				for (int i = 0; i < inType.getArity() && i < outType.getArity(); i++) {
-					if (input == 0) {
-						((DualInputSemanticProperties) sp).addForwardedField1(i, i);
-					} else if (input == 1) {
-						((DualInputSemanticProperties) sp).addForwardedField2(i, i);
-					}
-				}
-			}
+	public static void getSemanticPropsSingleFromString(SingleInputSemanticProperties result,
+			String[] forwarded, String[] nonForwarded, String[] readSet,
+			TypeInformation<?> inType, TypeInformation<?> outType)
+	{
+
+		boolean hasForwardedAnnotation = false;
+		boolean hasNonForwardedAnnotation = false;
+		// check for forwarded annotations
+		if(forwarded != null && forwarded.length > 0) {
+			hasForwardedAnnotation = true;
+		}
+		// check non-forwarded annotations
+		if(nonForwarded != null && nonForwarded.length > 0) {
+			hasNonForwardedAnnotation = true;
+		}
+
+		if(hasForwardedAnnotation && hasNonForwardedAnnotation) {
+			throw new InvalidSemanticAnnotationException("Either ForwardedFields OR " +
+					"NonForwardedFields annotation permitted, NOT both.");
+		} else if(hasForwardedAnnotation) {
+			parseForwardedFields(result, forwarded, inType, outType, 0);
+		} else if(hasNonForwardedAnnotation) {
+			parseNonForwardedFields(result, nonForwarded, inType, outType, 0);
+		}
+		parseReadFields(result, readSet, inType, 0);
+	}
+
+	public static void getSemanticPropsDualFromString(DualInputSemanticProperties result,
+			String[] forwardedFirst, String[] forwardedSecond,
+			String[] nonForwardedFirst, String[] nonForwardedSecond, String[]
+			readFieldsFirst, String[] readFieldsSecond,
+			TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType)
+	{
+
+		boolean hasForwardedFirstAnnotation = false;
+		boolean hasForwardedSecondAnnotation = false;
+		boolean hasNonForwardedFirstAnnotation = false;
+		boolean hasNonForwardedSecondAnnotation = false;
+		// check for forwarded annotations
+		if(forwardedFirst != null && forwardedFirst.length > 0) {
+			hasForwardedFirstAnnotation = true;
+		}
+		if(forwardedSecond != null && forwardedSecond.length > 0) {
+			hasForwardedSecondAnnotation = true;
+		}
+		// check non-forwarded annotations
+		if(nonForwardedFirst != null && nonForwardedFirst.length > 0) {
+			hasNonForwardedFirstAnnotation = true;
+		}
+		if(nonForwardedSecond != null && nonForwardedSecond.length > 0) {
+			hasNonForwardedSecondAnnotation = true;
+		}
+
+		if(hasForwardedFirstAnnotation && hasNonForwardedFirstAnnotation) {
+			throw new InvalidSemanticAnnotationException("Either ForwardedFieldsFirst OR " +
+					"NonForwardedFieldsFirst annotation permitted, NOT both.");
+		}
+		if(hasForwardedSecondAnnotation && hasNonForwardedSecondAnnotation) {
+			throw new InvalidSemanticAnnotationException("Either ForwardedFieldsSecond OR " +
+					"NonForwardedFieldsSecond annotation permitted, NOT both.");
+		}
+
+		if(hasForwardedFirstAnnotation) {
+			parseForwardedFields(result, forwardedFirst, inType1, outType, 0);
+		} else if(hasNonForwardedFirstAnnotation) {
+			parseNonForwardedFields(result, nonForwardedFirst, inType1, outType, 0);
+		}
+
+		if(hasForwardedSecondAnnotation) {
+			parseForwardedFields(result, forwardedSecond, inType2, outType, 1);
+		} else if(hasNonForwardedSecondAnnotation) {
+			parseNonForwardedFields(result, nonForwardedSecond, inType2, outType, 1);
+		}
+
+		parseReadFields(result, readFieldsFirst, inType1, 0);
+		parseReadFields(result, readFieldsSecond, inType2, 1);
+	}
+
+
+	private static void parseForwardedFields(SemanticProperties sp, String[] forwardedStr, TypeInformation<?> inType, TypeInformation<?> outType, int input) {
+
+		if (forwardedStr == null) {
 			return;
 		}
 
-		Matcher matcher = PATTERN_ANNOTATION.matcher(s);
-
-		if (!matcher.matches()) {
-			throw new InvalidProgramException("Unrecognized annotation string format.");
-		}
-
-		Matcher forwardMatcher = PATTERN_FORWARD.matcher(s);
-		while (forwardMatcher.find()) {
-			int sourceField = Integer.valueOf(forwardMatcher.group(2));
-			if (!isValidField(inType, sourceField)) {
-				throw new IndexOutOfBoundsException("Annotation: Field " + sourceField + " not available in the input tuple.");
+		for (String s : forwardedStr) {
+			if (s == null) {
+				continue;
 			}
 
-			if (forwardMatcher.group(7) != null) {
-				if (sp instanceof SingleInputSemanticProperties) {
-					for (int i = 0; i < outType.getArity(); i++) {
-						((SingleInputSemanticProperties) sp).addForwardedField(sourceField, i);
+			// remove white characters
+			s = s.replaceAll("\\s", "");
+
+			Matcher wcMatcher = PATTERN_WILDCARD.matcher(s);
+			// simple wildcard
+			if (wcMatcher.matches()) {
+
+				if (!inType.equals(outType)) {
+					throw new InvalidSemanticAnnotationException("Forwarded field annotation \"" + s +
+							"\" with wildcard only allowed for identical input and output types.");
+				}
+
+				for (int i = 0; i < inType.getTotalFields(); i++) {
+					if (sp instanceof SingleInputSemanticProperties) {
+						((SingleInputSemanticProperties) sp).addForwardedField(i, i);
+					} else if (sp instanceof DualInputSemanticProperties) {
+						((DualInputSemanticProperties) sp).addForwardedField(input, i, i);
 					}
-				} else if (sp instanceof DualInputSemanticProperties) {
-					for (int i = 0; i < outType.getArity(); i++) {
-						if (input == 0) {
-							((DualInputSemanticProperties) sp).addForwardedField1(sourceField, i);
-						} else if (input == 1) {
-							((DualInputSemanticProperties) sp).addForwardedField2(sourceField, i);
+				}
+				return;
+			}
+
+			// check format of annotation string
+			Matcher matcher = PATTERN_ANNOTATION.matcher(s);
+			if (!matcher.matches()) {
+				throw new InvalidSemanticAnnotationException("Invalid format of forwarded field annotation \"" + s + "\".");
+			}
+
+			// add forward annotations "->"
+			Matcher forwardMatcher = PATTERN_FORWARD.matcher(s);
+			while (forwardMatcher.find()) {
+				String sourceStr = forwardMatcher.group(2);
+				String targetStr = forwardMatcher.group(6);
+
+				try {
+					// check type compatibility
+					if (!areFieldsCompatible(sourceStr, inType, targetStr, outType)) {
+						throw new InvalidSemanticAnnotationException("Referenced fields of forwarded field annotation \"" + s + "\" do not match.");
+					}
+					List<FlatFieldDescriptor> inFFDs = getFlatFields(sourceStr, inType);
+					List<FlatFieldDescriptor> outFFDs = getFlatFields(targetStr, outType);
+					if (sp instanceof SingleInputSemanticProperties) {
+						for (int i = 0; i < inFFDs.size(); i++) {
+							int sourceField = inFFDs.get(i).getPosition();
+							int targetField = outFFDs.get(i).getPosition();
+							((SingleInputSemanticProperties) sp).addForwardedField(sourceField, targetField);
+						}
+					} else if (sp instanceof DualInputSemanticProperties) {
+						for (int i = 0; i < inFFDs.size(); i++) {
+							int sourceField = inFFDs.get(i).getPosition();
+							int targetField = outFFDs.get(i).getPosition();
+							((DualInputSemanticProperties) sp).addForwardedField(input, sourceField, targetField);
 						}
 					}
+				} catch (InvalidFieldReferenceException ifre) {
+					throw new InvalidSemanticAnnotationException("Invalid field reference in forwarded field annotation \"" + sourceStr + "->" + targetStr + "\".", ifre);
+				} catch (InvalidSemanticAnnotationException isae) {
+					throw new InvalidSemanticAnnotationException("Forwarded field annotation \"" + sourceStr + "->" + targetStr + "\" could not be added.", isae);
 				}
+			}
+			// remove forward annotations
+			s = forwardMatcher.replaceAll("");
+
+			// add forwarded annotations
+			Matcher listMatcher = PATTERN_LIST.matcher(s);
+			while (listMatcher.find()) {
+				String list = listMatcher.group();
+				Matcher fieldMatcher = PATTERN_FIELD.matcher(list);
+
+				// for each nested field
+				while (fieldMatcher.find()) {
+					String fieldStr = fieldMatcher.group();
+					try {
+						// check if field is compatible in input and output type
+						if (!areFieldsCompatible(fieldStr, inType, fieldStr, outType)) {
+							throw new InvalidSemanticAnnotationException("Referenced fields of forwarded field annotation \"" + s + "\" do not match.");
+						}
+						// add flat field positions
+						List<FlatFieldDescriptor> inFFDs = getFlatFields(fieldStr, inType);
+						List<FlatFieldDescriptor> outFFDs = getFlatFields(fieldStr, outType);
+						for (int i = 0; i < inFFDs.size(); i++) {
+							int sourcePos = inFFDs.get(i).getPosition();
+							int targetPos = outFFDs.get(i).getPosition();
+							if (sp instanceof SingleInputSemanticProperties) {
+								((SingleInputSemanticProperties) sp).addForwardedField(sourcePos, targetPos);
+							} else if (sp instanceof DualInputSemanticProperties) {
+								((DualInputSemanticProperties) sp).addForwardedField(input, sourcePos, targetPos);
+							}
+						}
+					} catch (InvalidFieldReferenceException ifre) {
+						throw new InvalidSemanticAnnotationException("Invalid field reference in forwarded field annotation \"" + fieldStr + "\".", ifre);
+					} catch (InvalidSemanticAnnotationException isae) {
+						throw new InvalidSemanticAnnotationException("Forwarded field annotation \"" + fieldStr + "\" could not be added.", isae);
+					}
+				}
+			}
+		}
+	}
+
+	private static void parseNonForwardedFields(
+			SemanticProperties sp, String[] nonForwardedStr, TypeInformation<?> inType, TypeInformation<?> outType, int input) {
+
+		if(nonForwardedStr == null) {
+			return;
+		}
+
+		FieldSet excludedFields = new FieldSet();
+		for(String s : nonForwardedStr) {
+
+			// remove white characters
+			s = s.replaceAll("\\s", "");
+
+			if (s.equals("")) {
 				continue;
 			}
-			String found = forwardMatcher.group(4);
-			FieldSet fs = readFieldSetFromString(found, inType, outType);
+
+			if(!inType.equals(outType)) {
+				throw new InvalidSemanticAnnotationException("Non-forwarded fields annotation only allowed for identical input and output types.");
+			}
+
+			Matcher matcher = PATTERN_LIST.matcher(s);
+			if (!matcher.matches()) {
+				throw new InvalidSemanticAnnotationException("Invalid format of non-forwarded fields annotation \""+s+"\".");
+			}
+
+			// process individual fields
+			matcher = PATTERN_FIELD.matcher(s);
+			while (matcher.find()) {
+				String fieldStr = matcher.group();
+
+				try {
+					// get and add all flat field positions
+					List<FlatFieldDescriptor> inFFDs = getFlatFields(fieldStr, inType);
+					for (FlatFieldDescriptor ffd : inFFDs) {
+						excludedFields = excludedFields.addField(ffd.getPosition());
+					}
+				} catch(InvalidFieldReferenceException ifre) {
+					throw new InvalidSemanticAnnotationException("Invalid field reference in non-forwarded fields annotation \""+fieldStr+"\".",ifre);
+				}
+			}
+		}
+
+		for(int i = 0; i < inType.getTotalFields(); i++) {
+			if(!excludedFields.contains(i)) {
+				if(sp instanceof SingleInputSemanticProperties) {
+					((SingleInputSemanticProperties) sp).addForwardedField(i,i);
+				} else if(sp instanceof DualInputSemanticProperties) {
+					((DualInputSemanticProperties) sp).addForwardedField(input, i, i);
+				}
+			}
+		}
+
+	}
+
+	private static void parseReadFields(SemanticProperties sp, String[] readFieldStrings, TypeInformation<?> inType, int input) {
+
+		if(readFieldStrings == null) {
+			return;
+		}
+
+		for(String s : readFieldStrings) {
+
+			FieldSet readFields = new FieldSet();
+
+			// remove white characters
+			s = s.replaceAll("\\s", "");
+
+			Matcher wcMatcher = PATTERN_WILDCARD.matcher(s);
+			// simple wildcard
+			if (wcMatcher.matches()) {
+				// add all fields
+				for (int i = 0; i < inType.getTotalFields(); i++) {
+					readFields = readFields.addField(i);
+				}
+			} else {
+				// process field list
+				Matcher matcher = PATTERN_LIST.matcher(s);
+
+				if (!matcher.matches()) {
+					throw new InvalidSemanticAnnotationException("Invalid format of read field annotation \"" + s + "\".");
+				}
+
+				// process field
+				matcher = PATTERN_FIELD.matcher(s);
+				while (matcher.find()) {
+					String fieldStr = matcher.group();
+					try {
+						List<FlatFieldDescriptor> ffds = getFlatFields(fieldStr, inType);
+						// get and add flat field positions
+						for (FlatFieldDescriptor ffd : ffds) {
+							readFields = readFields.addField(ffd.getPosition());
+						}
+					} catch (InvalidFieldReferenceException ifre) {
+						throw new InvalidSemanticAnnotationException("Invalid field reference in read field annotation \"" + fieldStr + "\".", ifre);
+
+					}
+				}
+			}
 
 			if (sp instanceof SingleInputSemanticProperties) {
-				((SingleInputSemanticProperties) sp).addForwardedField(sourceField, fs);
+				((SingleInputSemanticProperties) sp).addReadFields(readFields);
 			} else if (sp instanceof DualInputSemanticProperties) {
-				if (input == 0) {
-					((DualInputSemanticProperties) sp).addForwardedField1(sourceField, fs);
-				} else if (input == 1) {
-					((DualInputSemanticProperties) sp).addForwardedField2(sourceField, fs);
-				}
-			}
-		}
-		s = forwardMatcher.replaceAll("");
-
-		Matcher listMatcher = PATTERN_LIST.matcher(s);
-
-		while (listMatcher.find()) {
-			String list = listMatcher.group();
-			FieldSet fs = readFieldSetFromString(list, inType, outType);
-			for (int i : fs) {
-				if (sp instanceof SingleInputSemanticProperties) {
-					((SingleInputSemanticProperties) sp).addForwardedField(i, i);
-				} else if (sp instanceof DualInputSemanticProperties) {
-					if (input == 0) {
-						((DualInputSemanticProperties) sp).addForwardedField1(i, i);
-					} else if (input == 1) {
-						((DualInputSemanticProperties) sp).addForwardedField2(i, i);
-					}
-				}
+				((DualInputSemanticProperties) sp).addReadFields(input, readFields);
 			}
 		}
 	}
 
-	private static void parseConstantFieldsFirst(String[] cff, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
-		if (cff == null) {
-			return;
-		}
+	////////////////////// UTIL METHODS ///////////////////////////////
 
-		for (String s : cff) {
-			if (s != null) {
-				readConstantSet(dm, s, inType, outType, 0);
+	private static boolean areFieldsCompatible(String sourceField, TypeInformation<?> inType, String targetField, TypeInformation<?> outType) {
+
+		// get source type information
+		TypeInformation<?> sourceType = getExpressionTypeInformation(sourceField, inType);
+		// get target type information
+		TypeInformation<?> targetType = getExpressionTypeInformation(targetField, outType);
+
+		return (sourceType.equals(targetType));
+	}
+
+	private static TypeInformation<?> getExpressionTypeInformation(String fieldStr, TypeInformation<?> typeInfo) {
+		Matcher wildcardMatcher = PATTERN_WILDCARD.matcher(fieldStr);
+		if(wildcardMatcher.matches()) {
+			return typeInfo;
+		} else {
+			Matcher expMatcher = PATTERN_FIELD.matcher(fieldStr);
+			if(!expMatcher.matches()) {
+				throw new InvalidFieldReferenceException("Invalid field expression \""+fieldStr+"\".");
+			}
+			if(typeInfo instanceof CompositeType<?>) {
+				return ((CompositeType) typeInfo).getTypeAt(expMatcher.group(1));
+			} else {
+				throw new InvalidFieldReferenceException("Nested field expression \""+fieldStr+"\" not possible on atomic type ("+typeInfo+").");
 			}
 		}
 	}
 
-	private static void parseConstantFieldsSecond(String[] cfs, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
-		if (cfs == null) {
-			return;
-		}
-
-		for (String s : cfs) {
-			if (s != null) {
-				readConstantSet(dm, s, inType, outType, 1);
+	private static List<FlatFieldDescriptor> getFlatFields(String fieldStr, TypeInformation<?> typeInfo) {
+		if(typeInfo instanceof CompositeType<?>) {
+			return ((CompositeType) typeInfo).getFlatFields(fieldStr);
+		} else {
+			Matcher wildcardMatcher = PATTERN_WILDCARD.matcher(fieldStr);
+			if(wildcardMatcher.matches()) {
+				return Collections.singletonList(new FlatFieldDescriptor(0, typeInfo));
+			} else {
+				throw new InvalidFieldReferenceException("Nested field expression \""+fieldStr+"\" not possible on atomic type ("+typeInfo+").");
 			}
 		}
 	}
 
-	private static void parseConstantFieldsFirstExcept(String[] cffe, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
-		if (cffe == null) {
-			return;
-		}
-
-		for (String str : cffe) {
-			if (str == null) {
-				continue;
-			}
-
-			FieldSet fs = readFieldSetFromString(str, inType, outType);
-
-			for (int i = 0; i < outType.getArity(); i++) {
-				if (!fs.contains(i)) {
-					dm.addForwardedField1(i, i);
-				}
-			}
-		}
-	}
-
-	private static void parseConstantFieldsSecondExcept(String[] cfse, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
-		if (cfse == null) {
-			return;
-		}
-
-		for (String str : cfse) {
-			if (str == null) {
-				continue;
-			}
-
-			FieldSet fs = readFieldSetFromString(str, inType, outType);
-
-			for (int i = 0; i < outType.getArity(); i++) {
-				if (!fs.contains(i)) {
-					dm.addForwardedField2(i, i);
-				}
-			}
-		}
-	}
-
-	private static void parseReadFieldsFirst(String[] rf, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
-		if (rf == null) {
-			return;
-		}
-
-		for (String str : rf) {
-			if (str != null) {
-				FieldSet fs = readFieldSetFromString(str, inType, outType);
-				dm.addReadFields1(fs);
-			}
-		}
-	}
-
-	private static void parseReadFieldsSecond(String[] rf, DualInputSemanticProperties dm, TypeInformation<?> inType, TypeInformation<?> outType) {
-		if (rf == null) {
-			return;
-		}
-
-		for (String str : rf) {
-			if (str != null) {
-				FieldSet fs = readFieldSetFromString(str, inType, outType);
-				dm.addReadFields2(fs);
-			}
-		}
-	}
-
-
-	private static boolean isValidField(TypeInformation<?> type, int field) {
-		return field >= 0 && field < type.getArity();
-	}
-
-	private static void parseConstantFieldsExcept(String[] cfe, SingleInputSemanticProperties sm, TypeInformation<?> inType, TypeInformation<?> outType) {
-		if (cfe == null) {
-			return;
-		}
-
-		for (String str : cfe) {
-			if (str != null) {
-				FieldSet fs = readFieldSetFromString(str, inType, outType);
-
-				for (int i = 0; i < outType.getArity(); i++) {
-					if (!fs.contains(i)) {
-						sm.addForwardedField(i, i);
-					}
-				}
-			}
-		}
-	}
-
-	private static FieldSet readFieldSetFromString(String s, TypeInformation<?> inType, TypeInformation<?> outType) {
-		Matcher matcher = PATTERN_LIST.matcher(s);
-
-		if (!matcher.matches()) {
-			throw new InvalidProgramException("Unrecognized annotation string format.");
-		}
-
-		matcher = PATTERN_DIGIT.matcher(s);
-		FieldSet fs = FieldSet.EMPTY_SET;
-
-		while (matcher.find()) {
-			int field = Integer.valueOf(matcher.group());
-			if (!isValidField(outType, field)) {
-				throw new IndexOutOfBoundsException("Annotation: Field " + field + " not available in the output tuple.");
-			}
-			if (!isValidField(inType, field)) {
-				throw new IndexOutOfBoundsException("Annotation: Field " + field + " not available in the input tuple.");
-			}
-			
-			fs = fs.addField(field);
-		}
-		return fs;
-	}
-
-	private static void parseReadFields(String[] rf, SingleInputSemanticProperties sm, TypeInformation<?> inType, TypeInformation<?> outType) {
-		if (rf == null) {
-			return;
-		}
-
-		for (String str : rf) {
-			if (str != null) {
-				FieldSet fs = readFieldSetFromString(str, inType, outType);
-				sm.addReadFields(fs);
-			}
-		}
-	}
-
-	public static SingleInputSemanticProperties getSemanticPropsSingleFromString(String[] constantSet, String[] constantSetExcept, String[] readSet, TypeInformation<?> inType, TypeInformation<?> outType) {
-		SingleInputSemanticProperties result = new SingleInputSemanticProperties();
-		parseConstantFields(constantSet, result, inType, outType);
-		parseConstantFieldsExcept(constantSetExcept, result, inType, outType);
-		parseReadFields(readSet, result, inType, outType);
-		return result;
-	}
-
-	public static void getSemanticPropsDualFromString(DualInputSemanticProperties target, String[] constantSetFirst, String[] constantSetSecond, String[] constantSetFirstExcept,
-							String[] constantSetSecondExcept, String[] readFieldsFirst, String[] readFieldsSecond, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType)
-	{
-		parseConstantFieldsFirst(constantSetFirst, target, inType1, outType);
-		parseConstantFieldsSecond(constantSetSecond, target, inType2, outType);
-		parseConstantFieldsFirstExcept(constantSetFirstExcept, target, inType1, outType);
-		parseConstantFieldsSecondExcept(constantSetSecondExcept, target, inType2, outType);
-		parseReadFieldsFirst(readFieldsFirst, target, inType1, outType);
-		parseReadFieldsSecond(readFieldsSecond, target, inType2, outType);
-	}
-
-	public static DualInputSemanticProperties getSemanticPropsDual(Set<Annotation> set, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType) {
-		if (set == null) {
-			return null;
-		}
-
-		Iterator<Annotation> it = set.iterator();
-		DualInputSemanticProperties result = null;
-
-		//non tuple types are not yet supported for annotations
-		if (!inType1.isTupleType() || !inType2.isTupleType() || !outType.isTupleType()) {
-			return null;
-		}
-
-		while (it.hasNext()) {
-			if (result == null) {
-				result = new DualInputSemanticProperties();
-			}
-
-			Annotation ann = it.next();
-
-			if (ann instanceof ConstantFieldsFirst) {
-				ConstantFieldsFirst cff = (ConstantFieldsFirst) ann;
-				parseConstantFieldsFirst(cff.value(), result, inType1, outType);
-			} else if (ann instanceof ConstantFieldsSecond) {
-				ConstantFieldsSecond cfs = (ConstantFieldsSecond) ann;
-				parseConstantFieldsSecond(cfs.value(), result, inType2, outType);
-			} else if (ann instanceof ConstantFieldsFirstExcept) {
-				ConstantFieldsFirstExcept cffe = (ConstantFieldsFirstExcept) ann;
-				parseConstantFieldsFirstExcept(cffe.value(), result, inType1, outType);
-			} else if (ann instanceof ConstantFieldsSecondExcept) {
-				ConstantFieldsSecondExcept cfse = (ConstantFieldsSecondExcept) ann;
-				parseConstantFieldsSecondExcept(cfse.value(), result, inType2, outType);
-			} else if (ann instanceof ReadFieldsFirst) {
-				ReadFieldsFirst rff = (ReadFieldsFirst) ann;
-				parseReadFieldsFirst(rff.value(), result, inType1, outType);
-			} else if (ann instanceof ReadFieldsSecond) {
-				ReadFieldsSecond rfs = (ReadFieldsSecond) ann;
-				parseReadFieldsSecond(rfs.value(), result, inType2, outType);
-			}
-		}
-		return result;
-	}
 }

@@ -18,10 +18,14 @@
 
 package org.apache.flink.api.scala.typeutils
 
+import java.util.regex.{Pattern, Matcher}
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.AtomicType
+import org.apache.flink.api.common.typeutils.CompositeType.InvalidFieldReferenceException
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
+import org.apache.flink.api.java.typeutils.PojoTypeInfo.NamedFlatFieldDescriptor
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.common.typeutils.{CompositeType, TypeComparator}
 
@@ -34,6 +38,18 @@ abstract class CaseClassTypeInfo[T <: Product](
     fieldTypes: Seq[TypeInformation[_]],
     val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
+
+  private val REGEX_INT_FIELD: String = "[0-9]+"
+  private val REGEX_STR_FIELD: String = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*"
+  private val REGEX_FIELD: String = REGEX_STR_FIELD + "|" + REGEX_INT_FIELD
+  private val REGEX_NESTED_FIELDS: String = "(" + REGEX_FIELD + ")(\\.(.+))?"
+  private val REGEX_NESTED_FIELDS_WILDCARD: String = REGEX_NESTED_FIELDS + "|\\" +
+    ExpressionKeys.SELECT_ALL_CHAR + "|\\" + ExpressionKeys.SELECT_ALL_CHAR_SCALA
+
+  private val PATTERN_NESTED_FIELDS: Pattern = Pattern.compile(REGEX_NESTED_FIELDS)
+  private val PATTERN_NESTED_FIELDS_WILDCARD: Pattern =
+    Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD)
+  private val PATTERN_INT_FIELD: Pattern = Pattern.compile(REGEX_INT_FIELD)
 
   def getFieldIndices(fields: Array[String]): Array[Int] = {
     fields map { x => fieldNames.indexOf(x) }
@@ -68,75 +84,126 @@ abstract class CaseClassTypeInfo[T <: Product](
     new CaseClassComparator[T](finalLogicalKeyFields, finalComparators, fieldSerializers.toArray)
   }
 
-  override def getKey(
+  override def getFlatFields(
       fieldExpression: String,
       offset: Int,
       result: java.util.List[FlatFieldDescriptor]): Unit = {
+    val matcher: Matcher = PATTERN_NESTED_FIELDS_WILDCARD.matcher(fieldExpression)
+    if (!matcher.matches) {
+      throw new InvalidFieldReferenceException("Invalid tuple field reference \"" +
+        fieldExpression + "\".")
+    }
 
-    if (fieldExpression == ExpressionKeys.SELECT_ALL_CHAR) {
-      var keyPosition = 0
-      for (tpe <- types) {
-        tpe match {
-          case a: AtomicType[_] =>
-            result.add(new CompositeType.FlatFieldDescriptor(offset + keyPosition, tpe))
-
-          case co: CompositeType[_] =>
-            co.getKey(ExpressionKeys.SELECT_ALL_CHAR, offset + keyPosition, result)
-            keyPosition += co.getTotalFields - 1
-
-          case _ => throw new RuntimeException(s"Unexpected key type: $tpe")
-
+    var field: String = matcher.group(0)
+    if ((field == ExpressionKeys.SELECT_ALL_CHAR) ||
+      (field == ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
+      var keyPosition: Int = 0
+      for (fType <- fieldTypes) {
+        fType match {
+          case ct: CompositeType[_] =>
+            ct.getFlatFields(ExpressionKeys.SELECT_ALL_CHAR, offset + keyPosition, result)
+            keyPosition += ct.getTotalFields - 1
+          case _ =>
+            result.add(new FlatFieldDescriptor(offset + keyPosition, fType))
         }
         keyPosition += 1
       }
       return
+    } else {
+      field = matcher.group(1)
     }
 
-    if (fieldExpression == null || fieldExpression.length <= 0) {
-      throw new IllegalArgumentException("Field expression must not be empty.")
+    val intFieldMatcher = PATTERN_INT_FIELD.matcher(field);
+    if(intFieldMatcher.matches()) {
+      // convert 0-indexed integer field into 1-indexed name field
+      field = "_" + (Integer.valueOf(field) + 1)
     }
 
-    fieldExpression.split('.').toList match {
-      case headField :: Nil =>
-        var fieldId = 0
-        for (i <- 0 until fieldNames.length) {
-          fieldId += types(i).getTotalFields - 1
+    var pos = offset
+    val tail = matcher.group(3)
+    if (tail == null) {
 
-          if (fieldNames(i) == headField) {
-            if (fieldTypes(i).isInstanceOf[CompositeType[_]]) {
-              throw new IllegalArgumentException(
-                s"The specified field '$fieldExpression' is refering to a composite type.\n"
-                + s"Either select all elements in this type with the " +
-                  s"'${ExpressionKeys.SELECT_ALL_CHAR}' operator or specify a field in" +
-                  s" the sub-type")
-            }
-            result.add(new CompositeType.FlatFieldDescriptor(offset + fieldId, fieldTypes(i)))
-            return
+      for (i <- 0 until fieldNames.length) {
+        if (field == fieldNames(i)) {
+          // found field
+          fieldTypes(i) match {
+            case ct: CompositeType[_] =>
+              ct.getFlatFields("*", pos, result)
+              return
+            case _ =>
+              result.add(new FlatFieldDescriptor(pos, fieldTypes(i)))
+              return
           }
-
-          fieldId += 1
+        } else {
+          // skipping over non-matching fields
+          pos += fieldTypes(i).getTotalFields
         }
-      case firstField :: rest =>
-        var fieldId = 0
-        for (i <- 0 until fieldNames.length) {
-
-          if (fieldNames(i) == firstField) {
-            fieldTypes(i) match {
-              case co: CompositeType[_] =>
-                co.getKey(rest.mkString("."), offset + fieldId, result)
-                return
-
-              case _ =>
-                throw new RuntimeException(s"Field ${fieldTypes(i)} is not a composite type.")
-
-            }
+      }
+      throw new InvalidFieldReferenceException("Unable to find field \"" + field +
+        "\" in type " + this + ".")
+    } else {
+      var pos = offset
+      for (i <- 0 until fieldNames.length) {
+        if (field == fieldNames(i)) {
+          // found field
+          fieldTypes(i) match {
+            case ct: CompositeType[_] =>
+              ct.getFlatFields(tail, pos, result)
+              return
+            case _ =>
+              throw new InvalidFieldReferenceException("Nested field expression \"" + tail +
+                "\" not possible on atomic type " + fieldTypes(i) + ".")
           }
-
-          fieldId += types(i).getTotalFields
+        } else {
+          // skipping over non-matching fields
+          pos += fieldTypes(i).getTotalFields
         }
+      }
+      throw new InvalidFieldReferenceException("Unable to find field \"" + field +
+        "\" in type " + this + ".")
+    }
+  }
+
+  override def getTypeAt[X](fieldExpression: String) : TypeInformation[X] = {
+
+    val matcher: Matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression)
+    if (!matcher.matches) {
+      if (fieldExpression.startsWith(ExpressionKeys.SELECT_ALL_CHAR) ||
+        fieldExpression.startsWith(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
+        throw new InvalidFieldReferenceException("Wildcard expressions are not allowed here.")
+      }
+      else {
+        throw new InvalidFieldReferenceException("Invalid format of case class field expression \""
+          + fieldExpression + "\".")
+      }
     }
 
-    throw new RuntimeException(s"Unable to find field $fieldExpression in type $this.")
+    var field = matcher.group(1)
+    val tail = matcher.group(3)
+
+    val intFieldMatcher = PATTERN_INT_FIELD.matcher(field);
+    if(intFieldMatcher.matches()) {
+      // convert 0-indexed integer field into 1-indexed name field
+      field = "_" + (Integer.valueOf(field) + 1)
+    }
+
+    for (i <- 0 until fieldNames.length) {
+      if (fieldNames(i) == field) {
+        if (tail == null) {
+          return getTypeAt(i)
+        } else {
+          fieldTypes(i) match {
+            case co: CompositeType[_] =>
+              return co.getTypeAt(tail)
+            case _ =>
+              throw new InvalidFieldReferenceException("Nested field expression \"" + tail +
+                "\" not possible on atomic type " + fieldTypes(i) + ".")
+          }
+        }
+      }
+    }
+    throw new InvalidFieldReferenceException("Unable to find field \"" + field +
+      "\" in type " + this + ".")
   }
 
   override def toString = clazz.getSimpleName + "(" + fieldNames.zip(types).map {

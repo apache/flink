@@ -18,6 +18,7 @@
 package org.apache.flink.examples.scala.clustering
 
 import org.apache.flink.api.common.functions._
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.examples.java.clustering.util.KMeansData
@@ -83,10 +84,10 @@ object KMeans {
     val finalCentroids = centroids.iterate(numIterations) { currentCentroids =>
       val newCentroids = points
         .map(new SelectNearestCenter).withBroadcastSet(currentCentroids, "centroids")
-        .map { x => (x._1, x._2, 1L) }
+        .map { x => (x._1, x._2, 1L) }.withForwardedFields("_1; _2")
         .groupBy(0)
-        .reduce { (p1, p2) => (p1._1, p1._2.add(p2._2), p1._3 + p2._3) }
-        .map { x => new Centroid(x._1, x._2.div(x._3)) }
+        .reduce { (p1, p2) => (p1._1, p1._2.add(p2._2), p1._3 + p2._3) }.withForwardedFields("_1")
+        .map { x => new Centroid(x._1, x._2.div(x._3)) }.withForwardedFields("_1->id")
       newCentroids
     }
 
@@ -222,6 +223,7 @@ object KMeans {
   }
 
   /** Determines the closest cluster center for a data point. */
+  @ForwardedFields(Array("*->_2"))
   final class SelectNearestCenter extends RichMapFunction[Point, (Int, Point)] {
     private var centroids: Traversable[Centroid] = null
 

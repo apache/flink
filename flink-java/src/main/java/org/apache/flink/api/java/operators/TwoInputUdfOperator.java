@@ -27,6 +27,7 @@ import java.util.Set;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
@@ -107,64 +108,150 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	}
 
 	/**
-	 * Adds a constant-set annotation for the first input of the UDF.
-	 * 
 	 * <p>
-	 * Constant set annotations are used by the optimizer to infer the existence of data properties (sorted, partitioned, grouped).
-	 * In certain cases, these annotations allow the optimizer to generate a more efficient execution plan which can lead to improved performance.
-	 * Constant set annotations can only be specified if the first input and the output type of the UDF are of
-	 * {@link org.apache.flink.api.java.tuple.Tuple} data types.
-	 * 
+	 * Adds semantic information about forwarded fields of the first input of the user-defined function.
+	 * The forwarded fields information declares fields which are never modified by the function and
+	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
+	 * </p>
+	 *
 	 * <p>
-	 * A constant-set annotation is a set of constant field specifications. The constant field specification String "4->3" specifies, that this UDF copies the fourth field of 
-	 * an input tuple to the third field of the output tuple. Field references are zero-indexed.
-	 * 
+	 * Fields that are forwarded at the same position are specified by their position.
+	 * The specified position must be valid for the input and output data type and have the same type.
+	 * For example <code>withForwardedFieldsFirst("f2")</code> declares that the third field of a Java input tuple
+	 * from the first input is copied to the third field of an output tuple.
+	 * </p>
+	 *
 	 * <p>
-	 * <b>NOTICE: Constant set annotations are optional, but if given need to be correct. Otherwise, the program might produce wrong results!</b>
-	 * 
-	 * @param constantSetFirst A list of constant field specification Strings for the first input.
-	 * @return This operator with an annotated constant field set for the first input.
+	 * Fields which are unchanged copied from the first input to another position in the output are declared
+	 * by specifying the source field reference in the first input and the target field reference in the output.
+	 * <code>withForwardedFieldsFirst("f0->f2")</code> denotes that the first field of the first input Java tuple is
+	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
+	 * the number of declared fields and their types in first input and output type match.
+	 * </p>
+	 *
+	 * <p>
+	 * Multiple forwarded fields can be annotated in one (<code>withForwardedFieldsFirst("f2; f3->f0; f4")</code>)
+	 * or separate Strings (<code>withForwardedFieldsFirst("f2", "f3->f0", "f4")</code>).
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field references such as nested fields and wildcard.
+	 * </p>
+	 *
+	 * <p>
+	 * It is not possible to override existing semantic information about forwarded fields of the first input which was
+	 * for example added by a {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst} class annotation.
+	 * </p>
+	 *
+	 * <p>
+	 * <b>NOTE: Adding semantic information for functions is optional!
+	 * If used correctly, semantic information can help the Flink optimizer to generate more efficient execution plans.
+	 * However, incorrect semantic information can cause the optimizer to generate incorrect execution plans which compute wrong results!
+	 * So be careful when adding semantic information.
+	 * </b>
+	 * </p>
+	 *
+	 * @param forwardedFieldsFirst A list of forwarded field expressions for the first input of the function.
+	 * @return This operator with annotated forwarded field information.
+	 *
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst
 	 */
 	@SuppressWarnings("unchecked")
-	public O withConstantSetFirst(String... constantSetFirst) {
+	public O withForwardedFieldsFirst(String... forwardedFieldsFirst) {
 		if (this.udfSemantics == null) {
-			this.udfSemantics = new DualInputSemanticProperties();
+			// extract semantic properties from function annotations
+			this.udfSemantics = extractSemanticAnnotationsFromUdf(getFunction().getClass());
 		}
-		
-		SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, constantSetFirst, null,
-				null, null, null, null, this.getInput1Type(), this.getInput2Type(), this.getResultType());
+
+		if(this.udfSemantics == null) {
+			this.udfSemantics = new DualInputSemanticProperties();
+			SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, forwardedFieldsFirst, null,
+					null, null, null, null, getInput1Type(), getInput2Type(), getResultType());
+		} else {
+			if(this.udfWithForwardedFieldsFirstAnnotation(getFunction().getClass())) {
+				// refuse semantic information as it would override the function annotation
+				throw new SemanticProperties.InvalidSemanticAnnotationException("Forwarded field information " +
+						"has already been added by a function annotation for the first input of this operator. " +
+						"Cannot overwrite function annotations.");
+			} else {
+				SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, forwardedFieldsFirst, null,
+						null, null, null, null, getInput1Type(), getInput2Type(), getResultType());
+			}
+		}
 
 		O returnType = (O) this;
 		return returnType;
 	}
-	
+
 	/**
-	 * Adds a constant-set annotation for the second input of the UDF.
-	 * 
 	 * <p>
-	 * Constant set annotations are used by the optimizer to infer the existence of data properties (sorted, partitioned, grouped).
-	 * In certain cases, these annotations allow the optimizer to generate a more efficient execution plan which can lead to improved performance.
-	 * Constant set annotations can only be specified if the second input and the output type of the UDF are of
-	 * {@link org.apache.flink.api.java.tuple.Tuple} data types.
-	 * 
+	 * Adds semantic information about forwarded fields of the second input of the user-defined function.
+	 * The forwarded fields information declares fields which are never modified by the function and
+	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
+	 * </p>
+	 *
 	 * <p>
-	 * A constant-set annotation is a set of constant field specifications. The constant field specification String "4->3" specifies, that this UDF copies the fourth field of 
-	 * an input tuple to the third field of the output tuple. Field references are zero-indexed.
-	 * 
+	 * Fields that are forwarded at the same position are specified by their position.
+	 * The specified position must be valid for the input and output data type and have the same type.
+	 * For example <code>withForwardedFieldsSecond("f2")</code> declares that the third field of a Java input tuple
+	 * from the second input is copied to the third field of an output tuple.
+	 * </p>
+	 *
 	 * <p>
-	 * <b>NOTICE: Constant set annotations are optional, but if given need to be correct. Otherwise, the program might produce wrong results!</b>
-	 * 
-	 * @param constantSetSecond A list of constant field specification Strings for the second input.
-	 * @return This operator with an annotated constant field set for the second input.
+	 * Fields which are unchanged copied from the second input to another position in the output are declared
+	 * by specifying the source field reference in the second input and the target field reference in the output.
+	 * <code>withForwardedFieldsSecond("f0->f2")</code> denotes that the first field of the second input Java tuple is
+	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
+	 * the number of declared fields and their types in second input and output type match.
+	 * </p>
+	 *
+	 * <p>
+	 * Multiple forwarded fields can be annotated in one (<code>withForwardedFieldsSecond("f2; f3->f0; f4")</code>)
+	 * or separate Strings (<code>withForwardedFieldsSecond("f2", "f3->f0", "f4")</code>).
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field references such as nested fields and wildcard.
+	 * </p>
+	 *
+	 * <p>
+	 * It is not possible to override existing semantic information about forwarded fields of the second input which was
+	 * for example added by a {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond} class annotation.
+	 * </p>
+	 *
+	 * <p>
+	 * <b>NOTE: Adding semantic information for functions is optional!
+	 * If used correctly, semantic information can help the Flink optimizer to generate more efficient execution plans.
+	 * However, incorrect semantic information can cause the optimizer to generate incorrect execution plans which compute wrong results!
+	 * So be careful when adding semantic information.
+	 * </b>
+	 * </p>
+	 *
+	 * @param forwardedFieldsSecond A list of forwarded field expressions for the second input of the function.
+	 * @return This operator with annotated forwarded field information.
+	 *
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond
 	 */
 	@SuppressWarnings("unchecked")
-	public O withConstantSetSecond(String... constantSetSecond) {
+	public O withForwardedFieldsSecond(String... forwardedFieldsSecond) {
 		if (this.udfSemantics == null) {
-			this.udfSemantics = new DualInputSemanticProperties();
+			// extract semantic properties from function annotations
+			this.udfSemantics = extractSemanticAnnotationsFromUdf(getFunction().getClass());
 		}
-		
-		SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, null, constantSetSecond,
-				null, null, null, null, this.getInput1Type(), this.getInput2Type(), this.getResultType());
+
+		if(this.udfSemantics == null) {
+			this.udfSemantics = new DualInputSemanticProperties();
+			SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, null, forwardedFieldsSecond,
+					null, null, null, null, getInput1Type(), getInput2Type(), getResultType());
+		} else {
+			if(udfWithForwardedFieldsSecondAnnotation(getFunction().getClass())) {
+				// refuse semantic information as it would override the function annotation
+				throw new SemanticProperties.InvalidSemanticAnnotationException("Forwarded field information " +
+						"has already been added by a function annotation for the second input of this operator. " +
+						"Cannot overwrite function annotations.");
+			} else {
+				SemanticPropUtil.getSemanticPropsDualFromString(this.udfSemantics, null, forwardedFieldsSecond,
+						null, null, null, null, getInput1Type(), getInput2Type(), getResultType());
+			}
+		}
 
 		O returnType = (O) this;
 		return returnType;
@@ -303,9 +390,9 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 
 	@Override
 	public DualInputSemanticProperties getSemanticProperties() {
-		if (udfSemantics == null) {
+		if (this.udfSemantics == null) {
 			DualInputSemanticProperties props = extractSemanticAnnotationsFromUdf(getFunction().getClass());
-			udfSemantics = props != null ? props : new DualInputSemanticProperties();
+			this.udfSemantics = props != null ? props : new DualInputSemanticProperties();
 		}
 		
 		return this.udfSemantics;
@@ -325,7 +412,28 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	
 	
 	protected DualInputSemanticProperties extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
-		Set<Annotation> annotations = FunctionAnnotation.readDualConstantAnnotations(udfClass);
+		Set<Annotation> annotations = FunctionAnnotation.readDualForwardAnnotations(udfClass);
 		return SemanticPropUtil.getSemanticPropsDual(annotations, getInput1Type(), getInput2Type(), getResultType());
 	}
+
+	protected boolean udfWithForwardedFieldsFirstAnnotation(Class<?> udfClass) {
+
+		if (udfClass.getAnnotation(FunctionAnnotation.ForwardedFieldsFirst.class) != null ||
+				udfClass.getAnnotation(FunctionAnnotation.NonForwardedFieldsFirst.class) != null) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	protected boolean udfWithForwardedFieldsSecondAnnotation(Class<?> udfClass) {
+
+		if (udfClass.getAnnotation(FunctionAnnotation.ForwardedFieldsSecond.class) != null ||
+				udfClass.getAnnotation(FunctionAnnotation.NonForwardedFieldsSecond.class) != null) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
 }

@@ -24,9 +24,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.Union;
+import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.costs.CostEstimator;
@@ -255,9 +255,7 @@ public class BinaryUnionNode extends TwoInputNode {
 
 	@Override
 	public SemanticProperties getSemanticProperties() {
-		DualInputSemanticProperties sprops = new DualInputSemanticProperties();
-		sprops.setAllFieldsConstant(true);
-		return sprops;
+		return new UnionSemanticProperties();
 	}
 	
 	@Override
@@ -269,5 +267,36 @@ public class BinaryUnionNode extends TwoInputNode {
 				in1.estimatedNumRecords + in2.estimatedNumRecords : -1;
 		this.estimatedOutputSize = in1.estimatedOutputSize > 0 && in2.estimatedOutputSize > 0 ?
 			in1.estimatedOutputSize + in2.estimatedOutputSize : -1;
+	}
+
+	public static class UnionSemanticProperties implements SemanticProperties {
+
+		@Override
+		public FieldSet getForwardingTargetFields(int input, int sourceField) {
+			if (input != 0 && input != 1) {
+				throw new IndexOutOfBoundsException("Invalid input index for binary union node.");
+			}
+
+			return new FieldSet(sourceField);
+		}
+
+		@Override
+		public int getForwardingSourceField(int input, int targetField) {
+			if (input != 0 && input != 1) {
+				throw new IndexOutOfBoundsException();
+			}
+
+			return targetField;
+		}
+
+		@Override
+		public FieldSet getReadFields(int input) {
+			if (input != 0 && input != 1) {
+				throw new IndexOutOfBoundsException();
+			}
+
+			return FieldSet.EMPTY_SET;
+		}
+
 	}
 }

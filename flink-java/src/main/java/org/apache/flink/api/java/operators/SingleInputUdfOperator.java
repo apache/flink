@@ -26,6 +26,7 @@ import java.util.Set;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -105,27 +106,74 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	}
 
 	/**
-	 * Adds a constant-set annotation for the UDF.
-	 * 
 	 * <p>
-	 * Constant set annotations are used by the optimizer to infer the existence of data properties (sorted, partitioned, grouped).
-	 * In certain cases, these annotations allow the optimizer to generate a more efficient execution plan which can lead to improved performance.
-	 * Constant set annotations can only be specified if the second input and the output type of the UDF are of
-	 * {@link org.apache.flink.api.java.tuple.Tuple} data types.
-	 * 
+	 * Adds semantic information about forwarded fields of the user-defined function.
+	 * The forwarded fields information declares fields which are never modified by the function and
+	 * which are forwarded at the same position to the output or unchanged copied to another position in the output.
+	 * </p>
+	 *
 	 * <p>
-	 * A constant-set annotation is a set of constant field specifications. The constant field specification String "4->3" specifies, that this UDF copies the fourth field of 
-	 * an input tuple to the third field of the output tuple. Field references are zero-indexed.
-	 * 
+	 * Fields that are forwarded at the same position are specified by their position.
+	 * The specified position must be valid for the input and output data type and have the same type.
+	 * For example <code>withForwardedFields("f2")</code> declares that the third field of a Java input tuple is
+	 * copied to the third field of an output tuple.
+	 * </p>
+	 *
 	 * <p>
-	 * <b>NOTICE: Constant set annotations are optional, but if given need to be correct. Otherwise, the program might produce wrong results!</b>
-	 * 
-	 * @param constantSet A list of constant field specification Strings.
-	 * @return This operator with an annotated constant field set.
+	 * Fields which are unchanged copied to another position in the output are declared by specifying the
+	 * source field reference in the input and the target field reference in the output.
+	 * <code>withForwardedFields("f0->f2")</code> denotes that the first field of the Java input tuple is
+	 * unchanged copied to the third field of the Java output tuple. When using a wildcard ("*") ensure that
+	 * the number of declared fields and their types in input and output type match.
+	 * </p>
+	 *
+	 * <p>
+	 * Multiple forwarded fields can be annotated in one (<code>withForwardedFields("f2; f3->f0; f4")</code>)
+	 * or separate Strings (<code>withForwardedFields("f2", "f3->f0", "f4")</code>).
+	 * Please refer to the JavaDoc of {@link org.apache.flink.api.common.functions.Function} or Flink's documentation for
+	 * details on field references such as nested fields and wildcard.
+	 * </p>
+	 *
+	 * <p>
+	 * It is not possible to override existing semantic information about forwarded fields which was
+	 * for example added by a {@link org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields} class annotation.
+	 * </p>
+	 *
+	 * <p>
+	 * <b>NOTE: Adding semantic information for functions is optional!
+	 * If used correctly, semantic information can help the Flink optimizer to generate more efficient execution plans.
+	 * However, incorrect semantic information can cause the optimizer to generate incorrect execution plans which compute wrong results!
+	 * So be careful when adding semantic information.
+	 * </b>
+	 * </p>
+	 *
+	 * @param forwardedFields A list of field forward expressions.
+	 * @return This operator with annotated forwarded field information.
+	 *
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation
+	 * @see org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
 	 */
-	public O withConstantSet(String... constantSet) {
-		SingleInputSemanticProperties props = SemanticPropUtil.getSemanticPropsSingleFromString(constantSet, null, null, this.getInputType(), this.getResultType());
-		this.setSemanticProperties(props);
+	public O withForwardedFields(String... forwardedFields) {
+
+		if(this.udfSemantics == null) {
+			// extract semantic properties from function annotations
+			this.udfSemantics = extractSemanticAnnotations(getFunction().getClass());
+		}
+
+		if(this.udfSemantics == null) {
+			this.udfSemantics = new SingleInputSemanticProperties();
+			SemanticPropUtil.getSemanticPropsSingleFromString(this.udfSemantics, forwardedFields, null, null, this.getInputType(), this.getResultType());
+		} else {
+			if(udfWithForwardedFieldsAnnotation(getFunction().getClass())) {
+				// refuse semantic information as it would override the function annotation
+				throw new SemanticProperties.InvalidSemanticAnnotationException("Forwarded field information " +
+						"has already been added by a function annotation for this operator. " +
+						"Cannot overwrite function annotations.");
+			} else {
+				SemanticPropUtil.getSemanticPropsSingleFromString(this.udfSemantics, forwardedFields, null, null, this.getInputType(), this.getResultType());
+			}
+		}
+
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
@@ -263,9 +311,9 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 
 	@Override
 	public SingleInputSemanticProperties getSemanticProperties() {
-		if (udfSemantics == null) {
+		if (this.udfSemantics == null) {
 			SingleInputSemanticProperties props = extractSemanticAnnotations(getFunction().getClass());
-			udfSemantics = props != null ? props : new SingleInputSemanticProperties();
+			this.udfSemantics = props != null ? props : new SingleInputSemanticProperties();
 		}
 		
 		return this.udfSemantics;
@@ -284,7 +332,17 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	}
 	
 	protected SingleInputSemanticProperties extractSemanticAnnotations(Class<?> udfClass) {
-		Set<Annotation> annotations = FunctionAnnotation.readSingleConstantAnnotations(udfClass);
+		Set<Annotation> annotations = FunctionAnnotation.readSingleForwardAnnotations(udfClass);
 		return SemanticPropUtil.getSemanticPropsSingle(annotations, getInputType(), getResultType());
+	}
+
+	protected boolean udfWithForwardedFieldsAnnotation(Class<?> udfClass) {
+
+		if (udfClass.getAnnotation(FunctionAnnotation.ForwardedFields.class) != null ||
+				udfClass.getAnnotation(FunctionAnnotation.NonForwardedFields.class) != null) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 }

@@ -24,6 +24,7 @@ import java.util.Collection;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
@@ -198,6 +199,7 @@ public class KMeans {
 	// *************************************************************************
 	
 	/** Converts a Tuple2<Double,Double> into a Point. */
+	@ForwardedFields("0->x; 1->y")
 	public static final class TuplePointConverter implements MapFunction<Tuple2<Double, Double>, Point> {
 
 		@Override
@@ -207,6 +209,7 @@ public class KMeans {
 	}
 	
 	/** Converts a Tuple3<Integer, Double,Double> into a Centroid. */
+	@ForwardedFields("0->id; 1->x; 2->y")
 	public static final class TupleCentroidConverter implements MapFunction<Tuple3<Integer, Double, Double>, Centroid> {
 
 		@Override
@@ -216,6 +219,7 @@ public class KMeans {
 	}
 	
 	/** Determines the closest cluster center for a data point. */
+	@ForwardedFields("*->1")
 	public static final class SelectNearestCenter extends RichMapFunction<Point, Tuple2<Integer, Point>> {
 		private Collection<Centroid> centroids;
 
@@ -248,7 +252,8 @@ public class KMeans {
 		}
 	}
 	
-	/** Appends a count variable to the tuple. */ 
+	/** Appends a count variable to the tuple. */
+	@ForwardedFields("f0;f1")
 	public static final class CountAppender implements MapFunction<Tuple2<Integer, Point>, Tuple3<Integer, Point, Long>> {
 
 		@Override
@@ -258,6 +263,7 @@ public class KMeans {
 	}
 	
 	/** Sums and counts point coordinates. */
+	@ForwardedFields("0")
 	public static final class CentroidAccumulator implements ReduceFunction<Tuple3<Integer, Point, Long>> {
 
 		@Override
@@ -267,6 +273,7 @@ public class KMeans {
 	}
 	
 	/** Computes new centroid from coordinate sum and count of points. */
+	@ForwardedFields("0->id")
 	public static final class CentroidAverager implements MapFunction<Tuple3<Integer, Point, Long>, Centroid> {
 
 		@Override

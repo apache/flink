@@ -239,14 +239,14 @@ public class CoGroupCustomPartitioningTest extends CompilerTestBase {
 					@Override
 					public int partition(Long key, int numPartitions) { return 0; }
 				}, 0)
-				.map(new IdentityMapper<Tuple3<Long,Long,Long>>()).withConstantSet("0", "1", "2");
+				.map(new IdentityMapper<Tuple3<Long,Long,Long>>()).withForwardedFields("0", "1", "2");
 				
 			
 			DataSet<Tuple3<Long, Long, Long>> grouped = partitioned
 				.distinct(0, 1)
 				.groupBy(1)
 				.sortGroup(0, Order.ASCENDING)
-				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>()).withConstantSet("0", "1");
+				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>()).withForwardedFields("0", "1");
 			
 			grouped
 				.coGroup(partitioned).where(0).equalTo(0)

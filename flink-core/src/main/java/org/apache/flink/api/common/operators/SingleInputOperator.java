@@ -42,7 +42,7 @@ public abstract class SingleInputOperator<IN, OUT, FT extends Function> extends 
 	private final int[] keyFields;
 	
 	/** Semantic properties of the associated function. */
-	private SingleInputSemanticProperties semanticProperties;
+	private SingleInputSemanticProperties semanticProperties = new SingleInputSemanticProperties();
 	
 	// --------------------------------------------------------------------------------------------
 

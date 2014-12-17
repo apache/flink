@@ -69,7 +69,7 @@ object ConnectedComponents {
 
     // read vertex and edge data
     // assign the initial components (equal to the vertex id)
-    val vertices = getVerticesDataSet(env).map { id => (id, id) }
+    val vertices = getVerticesDataSet(env).map { id => (id, id) }.withForwardedFields("*->_1;*->_2")
 
     // undirected edges by emitting for each input edge the input edges itself and an inverted
     // version
@@ -82,7 +82,7 @@ object ConnectedComponents {
         // apply the step logic: join with the edges
         val allNeighbors = ws.join(edges).where(0).equalTo(0) { (vertex, edge) =>
           (edge._2, vertex._2)
-        }
+        }.withForwardedFieldsFirst("_2->_2").withForwardedFieldsSecond("_2->_1")
 
         // select the minimum neighbor
         val minNeighbors = allNeighbors.groupBy(0).min(1)
@@ -91,7 +91,7 @@ object ConnectedComponents {
         val updatedComponents = minNeighbors.join(s).where(0).equalTo(0) {
           (newVertex, oldVertex, out: Collector[(Long, Long)]) =>
             if (newVertex._2 < oldVertex._2) out.collect(newVertex)
-        }
+        }.withForwardedFieldsFirst("*")
 
         // delta and new workset are identical
         (updatedComponents, updatedComponents)

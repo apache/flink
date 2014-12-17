@@ -82,7 +82,7 @@ public class PojoTypeExtractionTest {
 		public static int ignoreStaticField;
 		public transient int ignoreTransientField;
 		public Date date; // generic type
-		public Integer someNumber; // BasicType
+		public Integer someNumberWithÜnicödeNäme; // BasicType
 		public float someFloat; // BasicType
 		public Tuple3<Long, Long, String> word; //Tuple Type with three basic types
 		public Object nothing; // generic type
@@ -226,7 +226,7 @@ public class PojoTypeExtractionTest {
 				"complex.collection",
 				"complex.nothing",
 				"complex.someFloat",
-				"complex.someNumber",
+				"complex.someNumberWithÜnicödeNäme",
 				"complex.word.f0",
 				"complex.word.f1",
 				"complex.word.f2"};
@@ -242,13 +242,13 @@ public class PojoTypeExtractionTest {
 				8};
 		Assert.assertEquals(fields.length, positions.length);
 		for(int i = 0; i < fields.length; i++) {
-			pojoType.getKey(fields[i], 0, ffd);
+			pojoType.getFlatFields(fields[i], 0, ffd);
 			Assert.assertEquals("Too many keys returned", 1, ffd.size());
 			Assert.assertEquals("position of field "+fields[i]+" wrong", positions[i], ffd.get(0).getPosition());
 			ffd.clear();
 		}
 
-		pojoType.getKey("complex.word.*", 0, ffd);
+		pojoType.getFlatFields("complex.word.*", 0, ffd);
 		Assert.assertEquals(3, ffd.size());
 		// check if it returns 5,6,7
 		for(FlatFieldDescriptor ffdE : ffd) {
@@ -268,11 +268,11 @@ public class PojoTypeExtractionTest {
 		ffd.clear();
 
 		// scala style full tuple selection for pojos
-		pojoType.getKey("complex.word._", 0, ffd);
+		pojoType.getFlatFields("complex.word._", 0, ffd);
 		Assert.assertEquals(3, ffd.size());
 		ffd.clear();
 
-		pojoType.getKey("complex.*", 0, ffd);
+		pojoType.getFlatFields("complex.*", 0, ffd);
 		Assert.assertEquals(9, ffd.size());
 		// check if it returns 0-7
 		for(FlatFieldDescriptor ffdE : ffd) {
@@ -313,7 +313,7 @@ public class PojoTypeExtractionTest {
 		}
 		ffd.clear();
 
-		pojoType.getKey("*", 0, ffd);
+		pojoType.getFlatFields("*", 0, ffd);
 		Assert.assertEquals(10, ffd.size());
 		// check if it returns 0-8
 		for(FlatFieldDescriptor ffdE : ffd) {
@@ -344,7 +344,7 @@ public class PojoTypeExtractionTest {
 				dateSeen = true;
 				Assert.assertEquals(BasicTypeInfo.DATE_TYPE_INFO, field.type);
 				Assert.assertEquals(Date.class, field.type.getTypeClass());
-			} else if(name.equals("someNumber")) {
+			} else if(name.equals("someNumberWithÜnicödeNäme")) {
 				if(intSeen) {
 					Assert.fail("already seen");
 				}
@@ -450,7 +450,7 @@ public class PojoTypeExtractionTest {
 				strArraySeen = true;
 				Assert.assertEquals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, field.type);
 				Assert.assertEquals(String[].class, field.type.getTypeClass());
-			} else if(Arrays.asList("date", "someNumber", "someFloat", "word", "nothing", "hadoopCitizen", "collection").contains(name)) {
+			} else if(Arrays.asList("date", "someNumberWithÜnicödeNäme", "someFloat", "word", "nothing", "hadoopCitizen", "collection").contains(name)) {
 				// ignore these, they are inherited from the ComplexNestedClass
 			}
 			else {

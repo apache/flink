@@ -17,6 +17,7 @@
  */
 package org.apache.flink.examples.scala.graph
 
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
 import org.apache.flink.api.scala._
 import scala.collection.JavaConverters._
 import org.apache.flink.api.scala.ExecutionEnvironment
@@ -97,7 +98,7 @@ object EnumTrianglesOpt {
           } else {
             new EdgeWithDegrees(e1.v1, e2.d1, e1.v2, e1.d2)
           }
-      }
+      }.withForwardedFields("v1;v2")
 
     // project edges by degrees, vertex with smaller degree comes first
     val edgesByDegree = edgesWithDegrees
@@ -111,6 +112,7 @@ object EnumTrianglesOpt {
       .groupBy("v1").sortGroup("v2", Order.ASCENDING).reduceGroup(new TriadBuilder())
       // filter triads
       .join(edgesById).where("v2", "v3").equalTo("v1", "v2") { (t, _) => t}
+        .withForwardedFieldsFirst("*")
 
     // emit result
     if (fileOutput) {
@@ -182,6 +184,7 @@ object EnumTrianglesOpt {
    * Assumes that input edges share the first vertex and are in ascending order of the second
    * vertex.
    */
+  @ForwardedFields(Array("v1"))
   class TriadBuilder extends GroupReduceFunction[Edge, Triad] {
 
     val vertices = mutable.MutableList[Integer]()

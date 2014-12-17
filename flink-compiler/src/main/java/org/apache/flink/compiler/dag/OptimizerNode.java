@@ -666,35 +666,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// ------------------------------------------------------------------------
 	// Access of stub annotations
 	// ------------------------------------------------------------------------
-	
-	/**
-	 * Returns the key columns for the specific input, if all keys are preserved
-	 * by this node. Null, otherwise.
-	 */
-	protected int[] getConstantKeySet(int input) {
-		Operator<?> contract = getPactContract();
-		if (contract instanceof AbstractUdfOperator<?, ?>) {
-			AbstractUdfOperator<?, ?> abstractPact = (AbstractUdfOperator<?, ?>) contract;
-			int[] keyColumns = abstractPact.getKeyColumns(input);
-			if (keyColumns != null) {
-				if (keyColumns.length == 0) {
-					return null;
-				}
-				for (int keyColumn : keyColumns) {
-					FieldSet fs = getSemanticProperties() == null ? null : getSemanticProperties().getForwardFields(input, keyColumn);
 
-					if (fs == null) {
-						return null;
-					} else if (!fs.contains(keyColumn)) {
-						return null;
-					}
-				}
-				return keyColumns;
-			}
-		}
-		return null;
-	}
-	
 	/**
 	 * An optional method where nodes can describe which fields will be unique in their output.
 	 */

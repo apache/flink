@@ -159,23 +159,8 @@ public class ReduceWrappingFunctionTest {
 				ReduceOperator reduceOp = ReduceOperator.builder(new TestReduceFunction()).build();
 				
 				SingleInputSemanticProperties props = reduceOp.getSemanticProperties();
-				FieldSet fw2 = props.getForwardedField(2);
-				FieldSet fw4 = props.getForwardedField(4);
-				
-				assertNotNull(fw2);
-				assertNotNull(fw4);
-				assertEquals(1, fw2.size());
-				assertEquals(1, fw4.size());
-				assertTrue(fw2.contains(2));
-				assertTrue(fw4.contains(4));
-			}
-			{
-				ReduceOperator reduceOp = ReduceOperator.builder(TestReduceFunction.class).build();
-				
-				SingleInputSemanticProperties props = reduceOp.getSemanticProperties();
-				FieldSet fw2 = props.getForwardedField(2);
-				FieldSet fw4 = props.getForwardedField(4);
-				
+				FieldSet fw2 = props.getForwardingTargetFields(0, 2);
+				FieldSet fw4 = props.getForwardingTargetFields(0, 4);
 				assertNotNull(fw2);
 				assertNotNull(fw4);
 				assertEquals(1, fw2.size());

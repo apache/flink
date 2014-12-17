@@ -26,120 +26,90 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 /**
  * Container for the semantic properties associated to a single input operator.
  */
-public class SingleInputSemanticProperties extends SemanticProperties {
-	
+public class SingleInputSemanticProperties implements SemanticProperties {
 	private static final long serialVersionUID = 1L;
-	
-	/**Mapping from fields in the source record(s) to fields in the destination record(s). */
-	private Map<Integer,FieldSet> forwardedFields;
-	
-	/** Set of fields that are read in the source record(s).*/
+
+	/**
+	 * Mapping from fields in the source record(s) to fields in the destination
+	 * record(s).
+	 */
+	private Map<Integer,FieldSet> fieldMapping;
+
+	/**
+	 * Set of fields that are read in the source record(s).
+	 */
 	private FieldSet readFields;
 
-	@Override
-	public FieldSet getForwardFields(int input, int field) {
-		if (input != 0) {
-			throw new IndexOutOfBoundsException();
-		}
-		return this.getForwardedField(field);
+	public SingleInputSemanticProperties() {
+		this.fieldMapping = new HashMap<Integer, FieldSet>();
+		this.readFields = null;
 	}
 
 	@Override
-	public FieldSet getSourceField(int input, int field) {
+	public FieldSet getForwardingTargetFields(int input, int sourceField) {
 		if (input != 0) {
 			throw new IndexOutOfBoundsException();
 		}
 
-		if (isAllFieldsConstant()) {
-			return new FieldSet(field);
-		}
-
-		return this.forwardedFrom(field);
+		return this.fieldMapping.containsKey(sourceField) ? this.fieldMapping.get(sourceField) : FieldSet.EMPTY_SET;
 	}
 
-	public FieldSet forwardedFrom(int dest) {
-		FieldSet fs = null;
-		for (Map.Entry<Integer, FieldSet> entry : forwardedFields.entrySet()) {
-			if (entry.getValue().contains(dest)) {
-				if (fs == null) {
-					fs = new FieldSet();
-				}
+	@Override
+	public int getForwardingSourceField(int input, int targetField) {
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
 
-				fs = fs.addField(entry.getKey());
+		for (Map.Entry<Integer, FieldSet> e : fieldMapping.entrySet()) {
+			if (e.getValue().contains(targetField)) {
+				return e.getKey();
 			}
 		}
-		return fs;
+		return -1;
 	}
 
-	public SingleInputSemanticProperties() {
-		init();
+	@Override
+	public FieldSet getReadFields(int input) {
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		return this.readFields;
 	}
-	
+
 	/**
 	 * Adds, to the existing information, a field that is forwarded directly
 	 * from the source record(s) to the destination record(s).
-	 * 
+	 *
 	 * @param sourceField the position in the source record(s)
-	 * @param destinationField the position in the destination record(s)
+	 * @param targetField the position in the destination record(s)
 	 */
-	public void addForwardedField(int sourceField, int destinationField) {
-		FieldSet old = this.forwardedFields.get(sourceField);
-		if (old == null) {
-			old = FieldSet.EMPTY_SET;
-		}
-		
-		FieldSet fs = old.addField(destinationField);
-		this.forwardedFields.put(sourceField, fs);
-	}
-	
-	/**
-	 * Adds, to the existing information, a field that is forwarded directly
-	 * from the source record(s) to multiple fields in the destination
-	 * record(s).
-	 * 
-	 * @param sourceField the position in the source record(s)
-	 * @param destinationFields the position in the destination record(s)
-	 */
-	public void addForwardedField(int sourceField, FieldSet destinationFields) {
-		FieldSet old = this.forwardedFields.get(sourceField);
-		if (old == null) {
-			old = FieldSet.EMPTY_SET;
-		}
-		
-		FieldSet fs = old.addFields(destinationFields);
-		this.forwardedFields.put(sourceField, fs);
-	}
-	
-	/**
-	 * Sets a field that is forwarded directly from the source
-	 * record(s) to multiple fields in the destination record(s).
-	 * 
-	 * @param sourceField the position in the source record(s)
-	 * @param destinationFields the position in the destination record(s)
-	 */
-	public void setForwardedField(int sourceField, FieldSet destinationFields) {
-		this.forwardedFields.put(sourceField,destinationFields);
-	}
-	
-	/**
-	 * Gets the fields in the destination record where the source
-	 * field is forwarded.
-	 * 
-	 * @param sourceField the position in the source record
-	 * @return the destination fields, or null if they do not exist
-	 */
-	public FieldSet getForwardedField(int sourceField) {
-		if (isAllFieldsConstant()) {
-			return new FieldSet(sourceField);
+	public void addForwardedField(int sourceField, int targetField) {
+		if(isTargetFieldPresent(targetField)) {
+			throw new InvalidSemanticAnnotationException("Target field "+targetField+" was added twice.");
 		}
 
-		return this.forwardedFields.get(sourceField);
+		FieldSet targetFields = fieldMapping.get(sourceField);
+		if (targetFields != null) {
+			fieldMapping.put(sourceField, targetFields.addField(targetField));
+		} else {
+			fieldMapping.put(sourceField, new FieldSet(targetField));
+		}
 	}
-	
+
+	private boolean isTargetFieldPresent(int targetField) {
+		for(FieldSet targetFields : fieldMapping.values()) {
+			if(targetFields.contains(targetField)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * Adds, to the existing information, field(s) that are read in
 	 * the source record(s).
-	 * 
+	 *
 	 * @param readFields the position(s) in the source record(s)
 	 */
 	public void addReadFields(FieldSet readFields) {
@@ -149,112 +119,39 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 			this.readFields = this.readFields.addFields(readFields);
 		}
 	}
-	
-	/**
-	 * Sets the field(s) that are read in the source record(s).
-	 * 
-	 * @param readFields the position(s) in the source record(s)
-	 */
-	public void setReadFields(FieldSet readFields) {
-		this.readFields = readFields;
-	}
-	
-	/**
-	 * Gets the field(s) in the source record(s) that are read.
-	 * 
-	 * @return the field(s) in the record, or null if they are not set
-	 */
-	public FieldSet getReadFields() {
-		return this.readFields;
-	}
-	
-	/**
-	 * Clears the object.
-	 */
-	@Override
-	public void clearProperties() {
-		super.clearProperties();
-		init();
-	}
-	
-	@Override
-	public boolean isEmpty() {
-		return super.isEmpty() &&
-				(forwardedFields == null || forwardedFields.isEmpty()) &&
-				(readFields == null || readFields.size() == 0);
-	}
 
 	@Override
 	public String toString() {
-		return "SISP(" + this.forwardedFields + ")";
+		return "SISP(" + this.fieldMapping + ")";
 	}
 
-	private void init() {
-		this.forwardedFields = new HashMap<Integer,FieldSet>();
-		this.readFields = null;
-	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
-	public static class AllFieldsConstantProperties extends SingleInputSemanticProperties {
-		
+
+	public static class AllFieldsForwardedProperties extends SingleInputSemanticProperties {
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public FieldSet getReadFields() {
-			return FieldSet.EMPTY_SET;
-		}
-		
-		@Override
-		public FieldSet getWrittenFields() {
-			return FieldSet.EMPTY_SET;
-		}
-
-		@Override
-		public FieldSet getForwardedField(int sourceField) {
+		public FieldSet getForwardingTargetFields(int input, int sourceField) {
+			if(input != 0) {
+				throw new IndexOutOfBoundsException();
+			}
 			return new FieldSet(sourceField);
 		}
-		
-		// ----- all mutating operations are unsupported -----
-		
+
 		@Override
-		public void addForwardedField(int sourceField, FieldSet destinationFields) {
-			throw new UnsupportedOperationException();
-		}
-		
-		@Override
-		public void addForwardedField(int sourceField, int destinationField) {
-			throw new UnsupportedOperationException();
-		}
-		
-		@Override
-		public void setForwardedField(int sourceField, FieldSet destinationFields) {
-			throw new UnsupportedOperationException();
-		}
-		
-		@Override
-		public void addReadFields(FieldSet readFields) {
-			throw new UnsupportedOperationException();
-		}
-		
-		@Override
-		public void setReadFields(FieldSet readFields) {
-			throw new UnsupportedOperationException();
+		public int getForwardingSourceField(int input, int targetField) {
+			if(input != 0) {
+				throw new IndexOutOfBoundsException();
+			}
+			return targetField;
 		}
 
 		@Override
-		public void addWrittenFields(FieldSet writtenFields) {
-			throw new UnsupportedOperationException();
+		public void addForwardedField(int sourceField, int targetField) {
+			throw new UnsupportedOperationException("Cannot modify forwarded fields");
 		}
 
-		@Override
-		public void setWrittenFields(FieldSet writtenFields) {
-			throw new UnsupportedOperationException();
-		}
-		
-		@Override
-		public boolean isEmpty() {
-			return false;
-		}
 	}
 }

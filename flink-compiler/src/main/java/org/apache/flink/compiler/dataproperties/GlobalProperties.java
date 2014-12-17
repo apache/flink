@@ -19,7 +19,6 @@
 package org.apache.flink.compiler.dataproperties;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 import org.apache.flink.api.common.functions.Partitioner;
@@ -32,6 +31,8 @@ import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.util.Utils;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class represents global properties of the data at a certain point in the plan.
@@ -41,6 +42,8 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
  * or an FieldSet with the hash partitioning columns.
  */
 public class GlobalProperties implements Cloneable {
+
+	public static final Logger LOG = LoggerFactory.getLogger(GlobalProperties.class);
 	
 	private PartitioningProperty partitioning;	// the type partitioning
 	
@@ -213,18 +216,6 @@ public class GlobalProperties implements Cloneable {
 		}
 	}
 
-	public Ordering getOrdering() {
-		return this.ordering;
-	}
-
-	public void setOrdering(Ordering ordering) {
-		this.ordering = ordering;
-	}
-
-	public void setPartitioningFields(FieldList partitioningFields) {
-		this.partitioningFields = partitioningFields;
-	}
-
 	public boolean isFullyReplicated() {
 		return this.partitioning == PartitioningProperty.FULL_REPLICATION;
 	}
@@ -246,83 +237,114 @@ public class GlobalProperties implements Cloneable {
 	}
 
 	/**
-	 * Filters these GlobalProperties by the fields that are constant or forwarded to another output field.
+	 * Filters these GlobalProperties by the fields that are forwarded to the output
+	 * as described by the SemanticProperties.
 	 *
-	 * @param props The node representing the contract.
+	 * @param props The semantic properties holding information about forwarded fields.
 	 * @param input The index of the input.
 	 * @return The filtered GlobalProperties
 	 */
 	public GlobalProperties filterBySemanticProperties(SemanticProperties props, int input) {
-		// check if partitioning survives
-		FieldList forwardFields = null;
-		GlobalProperties returnProps = this;
 
 		if (props == null) {
-			return new GlobalProperties();
+			throw new NullPointerException("SemanticProperties may not be null.");
 		}
 
-		if (this.ordering != null) {
-			Ordering no = new Ordering();
-			for (int index : this.ordering.getInvolvedIndexes()) {
-				forwardFields = props.getForwardFields(input, index) == null ? null: props.getForwardFields(input, index).toFieldList();
-				if (forwardFields == null) {
-					returnProps = new GlobalProperties();
-					no = null;
-					break;
-				} else {
-					returnProps = returnProps == this ? this.clone() : returnProps;
-					for (int i = 0; i < forwardFields.size(); i++) {
-						no.appendOrdering(forwardFields.get(i), this.ordering.getType(index), this.ordering.getOrder(index));
-					}
-				}
-				returnProps.setOrdering(no);
-			}
-		}
-		if (this.partitioningFields != null) {
-			returnProps = returnProps == this ? this.clone() : returnProps;
-			returnProps.setPartitioningFields(new FieldList());
+		GlobalProperties gp = new GlobalProperties();
 
-			for (int index : this.partitioningFields) {
-				forwardFields = props.getForwardFields(input, index) == null ? null: props.getForwardFields(input, index).toFieldList();
-				if (forwardFields == null) {
-					returnProps = new GlobalProperties();
-					break;
-				} else  {
-					returnProps.setPartitioningFields(returnProps.getPartitioningFields().addFields(forwardFields));
-				}
-			}
-		}
-		if (this.uniqueFieldCombinations != null) {
-			HashSet<FieldSet> newSet = new HashSet<FieldSet>();
-			newSet.addAll(this.uniqueFieldCombinations);
-			for (Iterator<FieldSet> combos = this.uniqueFieldCombinations.iterator(); combos.hasNext(); ){
-				FieldSet current = combos.next();
-				FieldSet nfs = new FieldSet();
-				for (Integer field : current) {
-					if (props.getForwardFields(input, field) == null) {
-						newSet.remove(current);
-						nfs = null;
+		// filter partitioning
+		switch(this.partitioning) {
+			case FULL_REPLICATION:
+				return gp;
+			case RANGE_PARTITIONED:
+				// check if ordering is preserved
+				Ordering newOrdering = new Ordering();
+				for (int i = 0; i < this.ordering.getInvolvedIndexes().size(); i++) {
+					int sourceField = this.ordering.getInvolvedIndexes().get(i);
+					FieldSet targetField = props.getForwardingTargetFields(input, sourceField);
+
+					if (targetField == null || targetField.size() == 0) {
+						// partitioning is destroyed
+						newOrdering = null;
 						break;
 					} else {
-						nfs = nfs.addFields(props.getForwardFields(input, field));
+						// use any field of target fields for now. We should use something like field equivalence sets in the future.
+						if(targetField.size() > 1) {
+							LOG.warn("Found that a field is forwarded to more than one target field in " +
+									"semantic forwarded field information. Will only use the field with the lowest index.");
+						}
+						newOrdering.appendOrdering(targetField.toArray()[0], this.ordering.getType(i), this.ordering.getOrder(i));
 					}
 				}
-				if (nfs != null) {
-					newSet.remove(current);
-					newSet.add(nfs);
+				if(newOrdering != null) {
+					gp.partitioning = PartitioningProperty.RANGE_PARTITIONED;
+					gp.ordering = newOrdering;
+					gp.partitioningFields = newOrdering.getInvolvedIndexes();
+				}
+				break;
+			case HASH_PARTITIONED:
+			case ANY_PARTITIONING:
+			case CUSTOM_PARTITIONING:
+				FieldList newPartitioningFields = new FieldList();
+				for (int sourceField : this.partitioningFields) {
+					FieldSet targetField = props.getForwardingTargetFields(input, sourceField);
+
+					if (targetField == null || targetField.size() == 0) {
+						newPartitioningFields = null;
+						break;
+					} else {
+						// use any field of target fields for now.  We should use something like field equivalence sets in the future.
+						if(targetField.size() > 1) {
+							LOG.warn("Found that a field is forwarded to more than one target field in " +
+									"semantic forwarded field information. Will only use the field with the lowest index.");
+						}
+						newPartitioningFields = newPartitioningFields.addField(targetField.toArray()[0]);
+					}
+				}
+				if(newPartitioningFields != null) {
+					gp.partitioning = this.partitioning;
+					gp.partitioningFields = newPartitioningFields;
+					gp.customPartitioner = this.customPartitioner;
+				}
+				break;
+			case FORCED_REBALANCED:
+			case RANDOM:
+				gp.partitioning = this.partitioning;
+				break;
+			default:
+				throw new RuntimeException("Unknown partitioning type.");
+		}
+
+		// filter unique field combinations
+		if (this.uniqueFieldCombinations != null) {
+			Set<FieldSet> newUniqueFieldCombinations = new HashSet<FieldSet>();
+			for (FieldSet fieldCombo : this.uniqueFieldCombinations) {
+				FieldSet newFieldCombo = new FieldSet();
+				for (Integer sourceField : fieldCombo) {
+					FieldSet targetField = props.getForwardingTargetFields(input, sourceField);
+
+					if (targetField == null || targetField.size() == 0) {
+						newFieldCombo = null;
+						break;
+					} else {
+						// use any field of target fields for now.  We should use something like field equivalence sets in the future.
+						if(targetField.size() > 1) {
+							LOG.warn("Found that a field is forwarded to more than one target field in " +
+									"semantic forwarded field information. Will only use the field with the lowest index.");
+						}
+						newFieldCombo = newFieldCombo.addField(targetField.toArray()[0]);
+					}
+				}
+				if (newFieldCombo != null) {
+					newUniqueFieldCombinations.add(newFieldCombo);
 				}
 			}
-
-			GlobalProperties gp = returnProps.clone();
-			gp.uniqueFieldCombinations = newSet.isEmpty() ? null : newSet;
-			return gp;
+			if(!newUniqueFieldCombinations.isEmpty()) {
+				gp.uniqueFieldCombinations = newUniqueFieldCombinations;
+			}
 		}
 
-		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
-			return new GlobalProperties();
-		}
-
-		return returnProps;
+		return gp;
 	}
 
 

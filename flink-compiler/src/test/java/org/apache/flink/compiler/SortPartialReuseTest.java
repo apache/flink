@@ -47,10 +47,10 @@ public class SortPartialReuseTest extends CompilerTestBase {
 			
 			input
 				.partitionByHash(0)
-				.map(new IdentityMapper<Tuple3<Long,Long,Long>>()).withConstantSet("0", "1", "2")
+				.map(new IdentityMapper<Tuple3<Long,Long,Long>>()).withForwardedFields("0", "1", "2")
 				
 				.groupBy(0, 1)
-				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>()).withConstantSet("0", "1", "2")
+				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>()).withForwardedFields("0", "1", "2")
 				
 				.groupBy(0)
 				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>())
@@ -92,10 +92,10 @@ public class SortPartialReuseTest extends CompilerTestBase {
 					@Override
 					public int partition(Long key, int numPartitions) { return 0; }
 				}, 0)
-				.map(new IdentityMapper<Tuple3<Long,Long,Long>>()).withConstantSet("0", "1", "2")
+				.map(new IdentityMapper<Tuple3<Long,Long,Long>>()).withForwardedFields("0", "1", "2")
 				
 				.groupBy(0, 1)
-				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>()).withConstantSet("0", "1", "2")
+				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>()).withForwardedFields("0", "1", "2")
 				
 				.groupBy(1)
 				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>())

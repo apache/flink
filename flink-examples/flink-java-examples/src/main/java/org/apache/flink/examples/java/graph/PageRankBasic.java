@@ -26,7 +26,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
@@ -156,7 +156,7 @@ public class PageRankBasic {
 	 * A reduce function that takes a sequence of edges and builds the adjacency list for the vertex where the edges
 	 * originate. Run as a pre-processing step.
 	 */
-	@ConstantFields("0")
+	@ForwardedFields("0")
 	public static final class BuildOutgoingEdgeList implements GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long[]>> {
 		
 		private final ArrayList<Long> neighbors = new ArrayList<Long>();
@@ -194,7 +194,7 @@ public class PageRankBasic {
 	/**
 	 * The function that applies the page rank dampening formula
 	 */
-	@ConstantFields("0")
+	@ForwardedFields("0")
 	public static final class Dampener implements MapFunction<Tuple2<Long,Double>, Tuple2<Long,Double>> {
 
 		private final double dampening;

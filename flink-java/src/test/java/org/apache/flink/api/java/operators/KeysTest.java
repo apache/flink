@@ -106,16 +106,14 @@ public class KeysTest {
 				new String[] {"f11"},
 				new String[] {"f-35"},
 				new String[] {"f0.f33"},
-				new String[] {"f1.f33"},
-				new String[] {"f1"} // select full tuple without saying "f1.*"
+				new String[] {"f1.f33"}
 		};
 		for(int i = 0; i < tests.length; i++) {
 			Throwable e = null;
 			try {
 				new ExpressionKeys<Tuple3<String, Tuple3<String, String, String>, String>>(tests[i], typeInfo);
 			} catch(Throwable t) {
-				// System.err.println("Message: "+t.getMessage()); t.printStackTrace();
-				e = t;	
+				e = t;
 			}
 			Assert.assertNotNull(e);
 		}
@@ -127,16 +125,14 @@ public class KeysTest {
 		
 		String[][] tests = new String[][] {
 				new String[] {"nonexistent"},
-				new String[] {"date.abc"}, // nesting into unnested
-				new String[] {"word"} // select full tuple without saying "f1.*"
+				new String[] {"date.abc"} // nesting into unnested
 		};
 		for(int i = 0; i < tests.length; i++) {
 			Throwable e = null;
 			try {
 				new ExpressionKeys<ComplexNestedClass>(tests[i], ti);
 			} catch(Throwable t) {
-				// System.err.println("Message: "+t.getMessage()); t.printStackTrace();
-				e = t;	
+				e = t;
 			}
 			Assert.assertNotNull(e);
 		}
@@ -214,6 +210,9 @@ public class KeysTest {
 		
 		complexFpk = new ExpressionKeys<Tuple3<String, Tuple3<Tuple3<String, String, String>, String, String>, String>>(new String[] {"f1.f0.*"}, complexTypeInfo);
 		Assert.assertArrayEquals(new int[] {1,2,3}, complexFpk.computeLogicalKeyPositions());
+
+		complexFpk = new ExpressionKeys<Tuple3<String, Tuple3<Tuple3<String, String, String>, String, String>, String>>(new String[] {"f1.f0"}, complexTypeInfo);
+		Assert.assertArrayEquals(new int[] {1,2,3}, complexFpk.computeLogicalKeyPositions());
 		
 		complexFpk = new ExpressionKeys<Tuple3<String, Tuple3<Tuple3<String, String, String>, String, String>, String>>(new String[] {"f2"}, complexTypeInfo);
 		Assert.assertArrayEquals(new int[] {6}, complexFpk.computeLogicalKeyPositions());
@@ -244,6 +243,12 @@ public class KeysTest {
 		Assert.assertArrayEquals(new int[] {1,2}, ek.computeLogicalKeyPositions());
 
 		ek = new ExpressionKeys<PojoWithMultiplePojos>(new String[]{"p2.*"}, ti);
+		Assert.assertArrayEquals(new int[] {3,4}, ek.computeLogicalKeyPositions());
+
+		ek = new ExpressionKeys<PojoWithMultiplePojos>(new String[]{"p1"}, ti);
+		Assert.assertArrayEquals(new int[] {1,2}, ek.computeLogicalKeyPositions());
+
+		ek = new ExpressionKeys<PojoWithMultiplePojos>(new String[]{"p2"}, ti);
 		Assert.assertArrayEquals(new int[] {3,4}, ek.computeLogicalKeyPositions());
 
 		ek = new ExpressionKeys<PojoWithMultiplePojos>(new String[]{"i0"}, ti);

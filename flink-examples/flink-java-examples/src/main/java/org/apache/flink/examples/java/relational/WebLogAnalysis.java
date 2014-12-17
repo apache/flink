@@ -21,6 +21,7 @@ package org.apache.flink.examples.java.relational;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -234,6 +235,7 @@ public class WebLogAnalysis {
 	 * If the first input does not provide any pairs, all pairs of the second input are emitted.
 	 * Otherwise, no pair is emitted.
 	 */
+	@ForwardedFieldsFirst("*")
 	public static class AntiJoinVisits implements CoGroupFunction<Tuple3<Integer, String, Integer>, Tuple1<String>, Tuple3<Integer, String, Integer>> {
 
 		/**

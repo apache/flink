@@ -64,7 +64,7 @@ public class TransitiveClosureNaive implements ProgramDescription {
 					public Tuple2<Long, Long> join(Tuple2<Long, Long> left, Tuple2<Long, Long> right) throws Exception {
 						return new Tuple2<Long, Long>(left.f0, right.f1);
 					}
-				})
+				}).withForwardedFieldsFirst("0").withForwardedFieldsSecond("1")
 				.union(paths)
 				.groupBy(0, 1)
 				.reduceGroup(new GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
@@ -72,7 +72,7 @@ public class TransitiveClosureNaive implements ProgramDescription {
 					public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) throws Exception {
 						out.collect(values.iterator().next());
 					}
-				});
+				}).withForwardedFields("0;1");
 
 		DataSet<Tuple2<Long,Long>> newPaths = paths
 				.coGroup(nextPaths)
@@ -90,7 +90,7 @@ public class TransitiveClosureNaive implements ProgramDescription {
 							}
 						}
 					}
-				});
+				}).withForwardedFieldsFirst("0").withForwardedFieldsSecond("0");
 
 		DataSet<Tuple2<Long, Long>> transitiveClosure = paths.closeWith(nextPaths, newPaths);
 

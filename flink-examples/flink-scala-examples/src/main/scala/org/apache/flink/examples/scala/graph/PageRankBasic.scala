@@ -84,7 +84,7 @@ object PageRankBasic {
     val links = getLinksDataSet(env)
 
     // assign initial ranks to pages
-    val pagesWithRanks = pages.map(p => Page(p, 1.0 / numPages))
+    val pagesWithRanks = pages.map(p => Page(p, 1.0 / numPages)).withForwardedFields("*->pageId")
 
     // build adjacency list from link input
     val adjacencyLists = links
@@ -112,7 +112,7 @@ object PageRankBasic {
           // apply dampening factor
           .map { p =>
             Page(p.pageId, (p.rank * DAMPENING_FACTOR) + ((1 - DAMPENING_FACTOR) / numPages))
-          }
+          }.withForwardedFields("pageId")
 
         // terminate if no rank update was significant
         val termination = currentRanks.join(newRanks).where("pageId").equalTo("pageId") {

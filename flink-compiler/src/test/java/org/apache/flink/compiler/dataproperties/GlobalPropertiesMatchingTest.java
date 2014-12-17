@@ -25,6 +25,7 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
 
 public class GlobalPropertiesMatchingTest {
@@ -113,7 +114,7 @@ public class GlobalPropertiesMatchingTest {
 	@Test
 	public void testMatchingCustomPartitioning() {
 		try {
-			final Partitioner<Long> partitioner = new MockPartitioner();
+			final Partitioner<Tuple2<Long, Integer>> partitioner = new MockPartitioner();
 			
 			RequestedGlobalProperties req = new RequestedGlobalProperties();
 			req.setCustomPartitioned(new FieldSet(6, 2), partitioner);

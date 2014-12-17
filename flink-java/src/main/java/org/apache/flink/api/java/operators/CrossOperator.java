@@ -68,7 +68,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		this.defaultName = defaultName;
 		this.hint = hint;
 	}
-	
+
 	@Override
 	protected CrossFunction<I1, I2, OUT> getFunction() {
 		return function;
@@ -322,19 +322,20 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		@Override
-		public CrossOperator<I1, I2, OUT> withConstantSetFirst(String... constantSetFirst) {
-			throw new InvalidProgramException("The semantic properties (constant fields and forwarded fields) are automatically calculated.");
+		public CrossOperator<I1, I2, OUT> withForwardedFieldsFirst(String... forwardedFieldsFirst) {
+			throw new InvalidProgramException("The semantic properties (forwarded fields) are automatically calculated.");
 		}
 
 		@Override
-		public CrossOperator<I1, I2, OUT> withConstantSetSecond(String... constantSetSecond) {
-			throw new InvalidProgramException("The semantic properties (constant fields and forwarded fields) are automatically calculated.");
+		public CrossOperator<I1, I2, OUT> withForwardedFieldsSecond(String... forwardedFieldsSecond) {
+			throw new InvalidProgramException("The semantic properties (forwarded fields) are automatically calculated.");
 		}
 		
 		@Override
 		protected DualInputSemanticProperties extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
 			// we do not extract anything, but construct the properties from the projection
-			return SemanticPropUtil.createProjectionPropertiesDual(getFunction().getFields(), getFunction().getIsFromFirst());
+			return SemanticPropUtil.createProjectionPropertiesDual(getFunction().getFields(), getFunction().getIsFromFirst(),
+					getInput1Type(), getInput2Type());
 		}
 	}
 

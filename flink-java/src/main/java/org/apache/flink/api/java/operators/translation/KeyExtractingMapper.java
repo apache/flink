@@ -18,11 +18,12 @@
 
 package org.apache.flink.api.java.operators.translation;
 
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-
+@ForwardedFields("*->1")
 public final class KeyExtractingMapper<T, K> extends RichMapFunction<T, Tuple2<K, T>> {
 	
 	private static final long serialVersionUID = 1L;

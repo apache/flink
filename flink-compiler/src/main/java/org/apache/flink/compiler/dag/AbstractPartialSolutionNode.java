@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.operators.SemanticProperties.EmptySemanticProperties;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.costs.CostEstimator;
 import org.apache.flink.compiler.plan.PlanNode;
@@ -88,7 +89,7 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 
 	@Override
 	public SemanticProperties getSemanticProperties() {
-		return null;
+		return new EmptySemanticProperties();
 	}
 	
 	@Override

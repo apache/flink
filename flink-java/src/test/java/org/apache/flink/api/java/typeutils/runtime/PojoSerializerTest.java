@@ -187,7 +187,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		// test with a simple, string-key first.
 		PojoTypeInfo<TestUserClass> pType = (PojoTypeInfo<TestUserClass>) type;
 		List<FlatFieldDescriptor> result = new ArrayList<FlatFieldDescriptor>();
-		pType.getKey("nestedClass.dumm2", 0, result);
+		pType.getFlatFields("nestedClass.dumm2", 0, result);
 		int[] fields = new int[1]; // see below
 		fields[0] = result.get(0).getPosition();
 		TypeComparator<TestUserClass> pojoComp = pType.createComparator( fields, new boolean[]{true}, 0);

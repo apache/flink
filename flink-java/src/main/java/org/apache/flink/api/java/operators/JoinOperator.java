@@ -39,6 +39,8 @@ import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
@@ -230,7 +232,27 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				return super.extractSemanticAnnotationsFromUdf(function.getClass());
 			}
 		}
-		
+
+		@Override
+		protected boolean udfWithForwardedFieldsFirstAnnotation(Class<?> udfClass) {
+
+			if (function instanceof DefaultJoin.WrappingFlatJoinFunction) {
+				return super.udfWithForwardedFieldsFirstAnnotation(((WrappingFunction<?>) function).getWrappedFunction().getClass());
+			} else {
+				return super.udfWithForwardedFieldsFirstAnnotation(function.getClass());
+			}
+		}
+
+		@Override
+		protected boolean udfWithForwardedFieldsSecondAnnotation(Class<?> udfClass) {
+
+			if (function instanceof DefaultJoin.WrappingFlatJoinFunction) {
+				return super.udfWithForwardedFieldsSecondAnnotation(((WrappingFunction<?>) function).getWrappedFunction().getClass());
+			} else {
+				return super.udfWithForwardedFieldsSecondAnnotation(function.getClass());
+			}
+		}
+
 		@Override
 		protected JoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
 
@@ -708,19 +730,20 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		@Override
-		public JoinOperator<I1, I2, OUT> withConstantSetFirst(String... constantSetFirst) {
-			throw new InvalidProgramException("The semantic properties (constant fields and forwarded fields) are automatically calculated.");
+		public JoinOperator<I1, I2, OUT> withForwardedFieldsFirst(String... forwardedFieldsFirst) {
+			throw new InvalidProgramException("The semantic properties (forwarded fields) are automatically calculated.");
 		}
 
 		@Override
-		public JoinOperator<I1, I2, OUT> withConstantSetSecond(String... constantSetSecond) {
-			throw new InvalidProgramException("The semantic properties (constant fields and forwarded fields) are automatically calculated.");
+		public JoinOperator<I1, I2, OUT> withForwardedFieldsSecond(String... forwardedFieldsSecond) {
+			throw new InvalidProgramException("The semantic properties (forwarded fields) are automatically calculated.");
 		}
 		
 		@Override
 		protected DualInputSemanticProperties extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
 			// we do not extract the annotation, we construct the properties from the projection#
-			return SemanticPropUtil.createProjectionPropertiesDual(getFunction().getFields(), getFunction().getIsFromFirst());
+			return SemanticPropUtil.createProjectionPropertiesDual(getFunction().getFields(), getFunction().getIsFromFirst(),
+					getInput1Type(), getInput2Type());
 		}
 
 	}
@@ -968,7 +991,9 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	// --------------------------------------------------------------------------------------------
 	//  default join functions
 	// --------------------------------------------------------------------------------------------
-	
+
+	@ForwardedFieldsFirst("*->0")
+	@ForwardedFieldsSecond("*->1")
 	public static final class DefaultFlatJoinFunction<T1, T2> extends RichFlatJoinFunction<T1, T2, Tuple2<T1, T2>> {
 
 		private static final long serialVersionUID = 1L;

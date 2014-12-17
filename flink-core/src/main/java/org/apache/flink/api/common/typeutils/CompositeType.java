@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.typeinfo.AtomicType;
@@ -38,10 +39,41 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	}
 	
 	/**
-	 * Returns the keyPosition for the given fieldPosition, offsetted by the given offset
+	 * Returns the flat field descriptors for the given field expression.
+	 *
+	 * @param fieldExpression The field expression for which the flat field descriptors are computed.
+	 * @return The list of descriptors for the flat fields which are specified by the field expression.
 	 */
-	public abstract void getKey(String fieldExpression, int offset, List<FlatFieldDescriptor> result);
-	
+	public List<FlatFieldDescriptor> getFlatFields(String fieldExpression) {
+		List<FlatFieldDescriptor> result = new ArrayList<FlatFieldDescriptor>();
+		this.getFlatFields(fieldExpression, 0, result);
+		return result;
+	}
+
+	/**
+	 * Computes the flat field descriptors for the given field expression with the given offset.
+	 *
+	 * @param fieldExpression The field expression for which the FlatFieldDescriptors are computed.
+	 * @param offset The offset to use when computing the positions of the flat fields.
+	 * @param result The list into which all flat field descriptors are inserted.
+	 */
+	public abstract void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result);
+
+	/**
+	 * Returns the type of the (nested) field at the given field expression position.
+	 * Wildcards are not allowed.
+	 *
+	 * @param fieldExpression The field expression for which the field of which the type is returned.
+	 * @return The type of the field at the given field expression.
+	 */
+	public abstract <X> TypeInformation<X> getTypeAt(String fieldExpression);
+
+	/**
+	 * Returns the type of the (unnested) field at the given field position.
+	 *
+	 * @param pos The position of the (unnested) field in this composite type.
+	 * @return The type of the field at the given position.
+	 */
 	public abstract <X> TypeInformation<X> getTypeAt(int pos);
 	
 	/**
@@ -105,8 +137,8 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 		private TypeInformation<?> type;
 		
 		public FlatFieldDescriptor(int keyPosition, TypeInformation<?> type) {
-			if( !(type instanceof AtomicType)) {
-				throw new IllegalArgumentException("A flattened field can only be an atomic type");
+			if(type instanceof CompositeType) {
+				throw new IllegalArgumentException("A flattened field can not be a composite type");
 			}
 			this.keyPosition = keyPosition;
 			this.type = type;
@@ -124,6 +156,13 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 		@Override
 		public String toString() {
 			return "FlatFieldDescriptor [position="+keyPosition+" typeInfo="+type+"]";
+		}
+	}
+
+	public static class InvalidFieldReferenceException extends IllegalArgumentException {
+
+		public InvalidFieldReferenceException(String s) {
+			super(s);
 		}
 	}
 }

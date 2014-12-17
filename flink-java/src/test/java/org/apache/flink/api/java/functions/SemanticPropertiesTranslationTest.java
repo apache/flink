@@ -22,17 +22,18 @@ package org.apache.flink.api.java.functions;
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.functions.RichJoinFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.junit.Test;
@@ -43,247 +44,487 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 /**
  * This is a minimal test to verify that semantic annotations are evaluated against
  * the type information properly translated correctly to the common data flow API.
- * 
- * This covers only the constant fields annotations currently !!!
+ *
  */
 @SuppressWarnings("serial")
 public class SemanticPropertiesTranslationTest {
 	
-	/**
-	 * A mapper that preserves all fields over a tuple data set.
-	 */
 	@Test
-	public void translateUnaryFunctionAnnotationTuplesWildCard() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
-			input.map(new WildcardConstantMapper<Tuple3<Long,String,Integer>>()).print();
-			
-			Plan plan = env.createProgramPlan();
-			
-			GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-			MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
-			
-			SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
-			
-			FieldSet fw1 = semantics.getForwardedField(0);
-			FieldSet fw2 = semantics.getForwardedField(1);
-			FieldSet fw3 = semantics.getForwardedField(2);
-			
-			assertNotNull(fw1);
-			assertNotNull(fw2);
-			assertNotNull(fw3);
-			
-			assertTrue(fw1.contains(0));
-			assertTrue(fw2.contains(1));
-			assertTrue(fw3.contains(2));
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
+	public void testUnaryFunctionWildcardForwardedAnnotation() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
+		input.map(new WildcardForwardedMapper<Tuple3<Long,String,Integer>>()).print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+
+		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+
+		FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
+		FieldSet fw2 = semantics.getForwardingTargetFields(0, 1);
+		FieldSet fw3 = semantics.getForwardingTargetFields(0, 2);
+		assertNotNull(fw1);
+		assertNotNull(fw2);
+		assertNotNull(fw3);
+		assertTrue(fw1.contains(0));
+		assertTrue(fw2.contains(1));
+		assertTrue(fw3.contains(2));
 	}
 	
-	/**
-	 * A mapper that preserves fields 0, 1, 2 of a tuple data set.
-	 */
 	@Test
-	public void translateUnaryFunctionAnnotationTuples() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
-			input.map(new IndividualConstantMapper<Long, String, Integer>()).print();
-			
-			Plan plan = env.createProgramPlan();
-			
-			GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-			MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
-			
-			SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
-			
-			FieldSet fw1 = semantics.getForwardedField(0);
-			FieldSet fw2 = semantics.getForwardedField(1);
-			FieldSet fw3 = semantics.getForwardedField(2);
-			
-			assertNotNull(fw1);
-			assertNotNull(fw2);
-			assertNotNull(fw3);
-			
-			assertTrue(fw1.contains(0));
-			assertTrue(fw2.contains(1));
-			assertTrue(fw3.contains(2));
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
+	public void testUnaryFunctionInPlaceForwardedAnnotation() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, String, Integer>> input = env.fromElements(new Tuple3<Long, String, Integer>(3l, "test", 42));
+		input.map(new IndividualForwardedMapper<Long, String, Integer>()).print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+
+		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+
+		FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
+		FieldSet fw2 = semantics.getForwardingTargetFields(0, 2);
+		assertNotNull(fw1);
+		assertNotNull(fw2);
+		assertTrue(fw1.contains(0));
+		assertTrue(fw2.contains(2));
 	}
-	
-//	/**
-//	 * A mapper that preserves all fields over a data set of an atomic type.
-//	 */
-//	@Test
-//	public void translateUnaryFunctionAnnotationAtomicWildCard() {
-//		try {
-//			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//			DataSet<Long> input = env.generateSequence(0, 1000);
-//			input.map(new WildcardConstantMapper<Long>()).print();
-//			
-//			Plan plan = env.createProgramPlan();
-//			
-//			GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-//			MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
-//			
-//			SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
-//			
-//			FieldSet fw1 = semantics.getForwardedField(0);
-//			assertNotNull(fw1);
-//			assertTrue(fw1.contains(0));
-//		}
-//		catch (Exception e) {
-//			System.err.println(e.getMessage());
-//			e.printStackTrace();
-//			fail("Exception in test: " + e.getMessage());
-//		}
-//	}
-	
-//	/**
-//	 * A mapper that preserves field zero of a data set of an atomic type.
-//	 */
-//	@Test
-//	public void translateUnaryFunctionAnnotationAtomicZero() {
-//		try {
-//			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//			DataSet<Long> input = env.generateSequence(0, 1000);
-//			input.map(new ZeroConstantMapper<Long>()).print();
-//			
-//			Plan plan = env.createProgramPlan();
-//			
-//			GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-//			MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
-//			
-//			SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
-//			
-//			FieldSet fw1 = semantics.getForwardedField(0);
-//			FieldSet fw2 = semantics.getForwardedField(1);
-//			FieldSet fw3 = semantics.getForwardedField(2);
-//			
-//			assertNotNull(fw1);
-//			assertNotNull(fw2);
-//			assertNotNull(fw3);
-//			
-//			assertTrue(fw1.contains(0));
-//			assertTrue(fw2.contains(1));
-//			assertTrue(fw3.contains(2));
-//		}
-//		catch (Exception e) {
-//			System.err.println(e.getMessage());
-//			e.printStackTrace();
-//			fail("Exception in test: " + e.getMessage());
-//		}
-//	}
-	
-	
-	/**
-	 * A join that preserves tuple fields from both sides.
-	 */
+
 	@Test
-	public void translateBinaryFunctionAnnotationTuples() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple2<Long, String>> input1 = env.fromElements(new Tuple2<Long, String>(3l, "test"));
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple2<Long, Double>> input2 = env.fromElements(new Tuple2<Long, Double>(3l, 3.1415));
-			
-			input1.join(input2).where(0).equalTo(0).with(new ForwardingTupleJoin<Long, String, Long, Double>())
+	public void testUnaryFunctionMovingForwardedAnnotation() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input.map(new ShufflingMapper<Long>()).print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+
+		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+
+		FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
+		FieldSet fw2 = semantics.getForwardingTargetFields(0, 1);
+		FieldSet fw3 = semantics.getForwardingTargetFields(0, 2);
+		assertNotNull(fw1);
+		assertNotNull(fw2);
+		assertNotNull(fw3);
+		assertTrue(fw1.contains(2));
+		assertTrue(fw2.contains(0));
+		assertTrue(fw3.contains(1));
+	}
+
+	@Test
+	public void testUnaryFunctionForwardedInLine1() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input.map(new NoAnnotationMapper<Tuple3<Long, Long, Long>>()).withForwardedFields("0->1; 2")
 				.print();
-			
-			Plan plan = env.createProgramPlan();
-			
-			GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-			JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
-			
-			DualInputSemanticProperties semantics = join.getSemanticProperties();
-			
-			FieldSet fw11 = semantics.getForwardedField1(0);
-			FieldSet fw12 = semantics.getForwardedField1(1);
-			FieldSet fw21 = semantics.getForwardedField2(0);
-			FieldSet fw22 = semantics.getForwardedField2(1);
-			
-			assertNull(fw11);
-			assertNull(fw21);
-			
-			assertNotNull(fw12);
-			assertNotNull(fw22);
-			
-			assertTrue(fw12.contains(0));
-			assertTrue(fw22.contains(1));
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Exception in test: " + e.getMessage());
-		}
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+
+		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+
+		FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
+		FieldSet fw2 = semantics.getForwardingTargetFields(0, 2);
+		assertNotNull(fw1);
+		assertNotNull(fw2);
+		assertTrue(fw1.contains(1));
+		assertTrue(fw2.contains(2));
 	}
-	
-//	/**
-//	 * A join that preserves atomic fields from both sides.
-//	 */
-//	@Test
-//	public void translateBinaryFunctionAnnotationAtomicType() {
-//		try {
-//			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//			
-//			DataSet<Long> input1 = env.generateSequence(0, 1000);
-//			DataSet<Long> input2 = env.generateSequence(0, 1000);
-//			
-//			input1.join(input2)
-//					.where(new KeySelector<Long, Long>() { public Long getKey(Long value) { return value; }})
-//					.equalTo(new KeySelector<Long, Long>() { public Long getKey(Long value) { return value; }})
-//					.with(new ForwardingBasicJoin<Long, Long>())
-//				.print();
-//			
-//			Plan plan = env.createProgramPlan();
-//			
-//			GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
-//			JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
-//			
-//			DualInputSemanticProperties semantics = join.getSemanticProperties();
-//			
-//			FieldSet fw11 = semantics.getForwardedField1(0);
-//			FieldSet fw12 = semantics.getForwardedField1(1);
-//			FieldSet fw21 = semantics.getForwardedField2(0);
-//			FieldSet fw22 = semantics.getForwardedField2(1);
-//			
-//			assertNull(fw11);
-//			assertNull(fw21);
-//			
-//			assertNotNull(fw12);
-//			assertNotNull(fw22);
-//			
-//			assertTrue(fw12.contains(0));
-//			assertTrue(fw22.contains(1));
-//		}
-//		catch (Exception e) {
-//			System.err.println(e.getMessage());
-//			e.printStackTrace();
-//			fail("Exception in test: " + e.getMessage());
-//		}
-//	}
-	
+
+	@Test
+	public void testUnaryFunctionForwardedInLine2() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input.map(new ReadSetMapper<Tuple3<Long, Long, Long>>()).withForwardedFields("0->1; 2")
+				.print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+
+		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+
+		FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
+		FieldSet fw2 = semantics.getForwardingTargetFields(0, 2);
+		assertNotNull(fw1);
+		assertNotNull(fw2);
+		assertTrue(fw1.contains(1));
+		assertTrue(fw2.contains(2));
+	}
+
+	@Test
+	public void testUnaryFunctionForwardedInLine3() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input.map(new ReadSetMapper<Tuple3<Long, Long, Long>>()).withForwardedFields("0->1; 2")
+				.print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+
+		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+
+		FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
+		FieldSet fw2 = semantics.getForwardingTargetFields(0, 2);
+		assertNotNull(fw1);
+		assertNotNull(fw2);
+		assertTrue(fw1.contains(1));
+		assertTrue(fw2.contains(2));
+	}
+
+	@Test
+	public void testUnaryFunctionAllForwardedExceptAnnotation() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input.map(new AllForwardedExceptMapper<Tuple3<Long, Long, Long>>()).print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+
+		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+
+		FieldSet fw1 = semantics.getForwardingTargetFields(0, 0);
+		FieldSet fw2 = semantics.getForwardingTargetFields(0, 2);
+		assertNotNull(fw1);
+		assertNotNull(fw2);
+		assertTrue(fw1.contains(0));
+		assertTrue(fw2.contains(2));
+	}
+
+	@Test
+	public void testUnaryFunctionReadFieldsAnnotation() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input.map(new ReadSetMapper<Tuple3<Long, Long, Long>>()).print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		MapOperatorBase<?, ?, ?> mapper = (MapOperatorBase<?, ?, ?>) sink.getInput();
+
+		SingleInputSemanticProperties semantics = mapper.getSemanticProperties();
+
+		FieldSet read = semantics.getReadFields(0);
+		assertNotNull(read);
+		assertEquals(2, read.size());
+		assertTrue(read.contains(0));
+		assertTrue(read.contains(2));
+	}
+
+	@Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+	public void testUnaryForwardedOverwritingInLine1() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input.map(new WildcardForwardedMapper<Tuple3<Long, Long, Long>>()).withForwardedFields("0->1; 2");
+	}
+
+	@Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+	public void testUnaryForwardedOverwritingInLine2() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input.map(new AllForwardedExceptMapper<Tuple3<Long, Long, Long>>()).withForwardedFields("0->1; 2");
+	}
+
+	@Test
+	public void testBinaryForwardedAnnotation() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, String>> input1 = env.fromElements(new Tuple2<Long, String>(3l, "test"));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Double>> input2 = env.fromElements(new Tuple2<Long, Double>(3l, 3.1415));
+		input1.join(input2).where(0).equalTo(0).with(new ForwardedBothAnnotationJoin<Long, String, Long, Double>())
+				.print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+
+		DualInputSemanticProperties semantics = join.getSemanticProperties();
+		assertNotNull(semantics.getForwardingTargetFields(0, 0));
+		assertNotNull(semantics.getForwardingTargetFields(1, 0));
+		assertEquals(1, semantics.getForwardingTargetFields(0, 1).size());
+		assertEquals(1, semantics.getForwardingTargetFields(1, 1).size());
+		assertTrue(semantics.getForwardingTargetFields(0, 1).contains(0));
+		assertTrue(semantics.getForwardingTargetFields(1, 1).contains(1));
+		assertEquals(0, semantics.getForwardingTargetFields(0, 0).size());
+		assertEquals(0, semantics.getForwardingTargetFields(1, 0).size());
+	}
+
+	@Test
+	public void testBinaryForwardedInLine1() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3l, 4l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
+		input1.join(input2).where(0).equalTo(0).with(new NoAnnotationJoin<Long>())
+				.withForwardedFieldsFirst("0->1; 1->2").withForwardedFieldsSecond("1->0")
+				.print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+
+		DualInputSemanticProperties semantics = join.getSemanticProperties();
+		assertNotNull(semantics.getForwardingTargetFields(1, 0));
+		assertEquals(1, semantics.getForwardingTargetFields(0, 0).size());
+		assertEquals(1, semantics.getForwardingTargetFields(0, 1).size());
+		assertEquals(1, semantics.getForwardingTargetFields(1, 1).size());
+		assertTrue(semantics.getForwardingTargetFields(0, 0).contains(1));
+		assertTrue(semantics.getForwardingTargetFields(0, 1).contains(2));
+		assertTrue(semantics.getForwardingTargetFields(1, 1).contains(0));
+		assertEquals(0, semantics.getForwardingTargetFields(1, 0).size());
+	}
+
+	@Test
+	public void testBinaryForwardedInLine2() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3l, 4l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
+		input1.join(input2).where(0).equalTo(0).with(new ReadSetJoin<Long>())
+				.withForwardedFieldsFirst("0->1; 1->2").withForwardedFieldsSecond("1->0")
+				.print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+
+		DualInputSemanticProperties semantics = join.getSemanticProperties();
+		assertNotNull(semantics.getForwardingTargetFields(1, 0));
+		assertEquals(1, semantics.getForwardingTargetFields(0, 0).size());
+		assertEquals(1, semantics.getForwardingTargetFields(0, 1).size());
+		assertEquals(1, semantics.getForwardingTargetFields(1, 1).size());
+		assertTrue(semantics.getForwardingTargetFields(0, 0).contains(1));
+		assertTrue(semantics.getForwardingTargetFields(0, 1).contains(2));
+		assertTrue(semantics.getForwardingTargetFields(1, 1).contains(0));
+		assertNotNull(semantics.getReadFields(0));
+		assertNotNull(semantics.getReadFields(1));
+		assertEquals(1, semantics.getReadFields(0).size());
+		assertEquals(1, semantics.getReadFields(1).size());
+		assertTrue(semantics.getReadFields(0).contains(1));
+		assertTrue(semantics.getReadFields(1).contains(0));
+		assertEquals(0, semantics.getForwardingTargetFields(1, 0).size());
+	}
+
+	@Test
+	public void testBinaryForwardedAnnotationInLineMixed1() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3l, 4l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
+		input1.join(input2).where(0).equalTo(0).with(new ForwardedFirstAnnotationJoin<Long>())
+				.withForwardedFieldsSecond("1")
+				.print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+
+		DualInputSemanticProperties semantics = join.getSemanticProperties();
+		assertNotNull(semantics.getForwardingTargetFields(0, 1));
+		assertNotNull(semantics.getForwardingTargetFields(1, 0));
+		assertNotNull(semantics.getForwardingTargetFields(0, 0));
+		assertNotNull(semantics.getForwardingTargetFields(1, 1));
+		assertEquals(1, semantics.getForwardingTargetFields(0, 0).size());
+		assertEquals(1, semantics.getForwardingTargetFields(1, 1).size());
+		assertTrue(semantics.getForwardingTargetFields(0, 0).contains(2));
+		assertTrue(semantics.getForwardingTargetFields(1, 1).contains(1));
+		assertEquals(0, semantics.getForwardingTargetFields(0, 1).size());
+		assertEquals(0, semantics.getForwardingTargetFields(1, 0).size());
+
+	}
+
+	@Test
+	public void testBinaryForwardedAnnotationInLineMixed2() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3l, 4l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
+		input1.join(input2).where(0).equalTo(0).with(new ForwardedSecondAnnotationJoin<Long>())
+				.withForwardedFieldsFirst("0->1")
+				.print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+
+		DualInputSemanticProperties semantics = join.getSemanticProperties();
+		assertNotNull(semantics.getForwardingTargetFields(0, 1));
+		assertNotNull(semantics.getForwardingTargetFields(1, 0));
+		assertNotNull(semantics.getForwardingTargetFields(0, 0));
+		assertNotNull(semantics.getForwardingTargetFields(1, 1));
+		assertEquals(1, semantics.getForwardingTargetFields(0, 0).size());
+		assertEquals(1, semantics.getForwardingTargetFields(1, 1).size());
+		assertTrue(semantics.getForwardingTargetFields(0, 0).contains(1));
+		assertTrue(semantics.getForwardingTargetFields(1, 1).contains(2));
+		assertEquals(0, semantics.getForwardingTargetFields(0, 1).size());
+		assertEquals(0, semantics.getForwardingTargetFields(1, 0).size());
+	}
+
+	@Test
+	public void testBinaryAllForwardedExceptAnnotation() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input1 = env.fromElements(new Tuple3<Long, Long, Long>(3l, 4l, 5l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input1.join(input2).where(0).equalTo(0).with(new AllForwardedExceptJoin<Long>())
+				.print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+
+		DualInputSemanticProperties semantics = join.getSemanticProperties();
+		assertNotNull(semantics.getForwardingTargetFields(0, 0));
+		assertNotNull(semantics.getForwardingTargetFields(0, 2));
+		assertNotNull(semantics.getForwardingTargetFields(1, 0));
+		assertNotNull(semantics.getForwardingTargetFields(1, 1));
+		assertEquals(1, semantics.getForwardingTargetFields(0, 1).size());
+		assertEquals(1, semantics.getForwardingTargetFields(1, 2).size());
+		assertTrue(semantics.getForwardingTargetFields(0, 1).contains(1));
+		assertTrue(semantics.getForwardingTargetFields(1, 2).contains(2));
+		assertEquals(0, semantics.getForwardingTargetFields(0, 0).size());
+		assertEquals(0, semantics.getForwardingTargetFields(0, 2).size());
+		assertEquals(0, semantics.getForwardingTargetFields(1, 0).size());
+		assertEquals(0, semantics.getForwardingTargetFields(1, 1).size());
+	}
+
+	@Test
+	public void testBinaryReadFieldsAnnotation() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3l, 4l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
+		input1.join(input2).where(0).equalTo(0).with(new ReadSetJoin<Long>())
+				.print();
+		Plan plan = env.createProgramPlan();
+
+		GenericDataSinkBase<?> sink = plan.getDataSinks().iterator().next();
+		JoinOperatorBase<?, ?, ?, ?> join = (JoinOperatorBase<?, ?, ?, ?>) sink.getInput();
+
+		DualInputSemanticProperties semantics = join.getSemanticProperties();
+		assertNotNull(semantics.getReadFields(0));
+		assertNotNull(semantics.getReadFields(1));
+		assertEquals(1, semantics.getReadFields(0).size());
+		assertEquals(1, semantics.getReadFields(1).size());
+		assertTrue(semantics.getReadFields(0).contains(1));
+		assertTrue(semantics.getReadFields(1).contains(0));
+	}
+
+	@Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+	public void testBinaryForwardedOverwritingInLine1() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3l, 4l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
+		input1.join(input2).where(0).equalTo(0).with(new ForwardedFirstAnnotationJoin<Long>())
+				.withForwardedFieldsFirst("0->1");
+	}
+
+	@Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+	public void testBinaryForwardedOverwritingInLine2() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3l, 4l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
+		input1.join(input2).where(0).equalTo(0).with(new ForwardedSecondAnnotationJoin<Long>())
+				.withForwardedFieldsSecond("0->1");
+	}
+
+	@Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+	public void testBinaryForwardedOverwritingInLine3() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3l, 4l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
+		input1.join(input2).where(0).equalTo(0).with(new ForwardedBothAnnotationJoin<Long, Long, Long, Long>())
+				.withForwardedFieldsFirst("0->1;");
+	}
+
+	@Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+	public void testBinaryForwardedOverwritingInLine4() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3l, 4l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3l, 2l));
+		input1.join(input2).where(0).equalTo(0).with(new ForwardedBothAnnotationJoin<Long, Long, Long, Long>())
+				.withForwardedFieldsSecond("0->1;");
+	}
+
+	@Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+	public void testBinaryForwardedOverwritingInLine5() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input1 = env.fromElements(new Tuple3<Long, Long, Long>(3l, 4l, 5l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input1.join(input2).where(0).equalTo(0).with(new AllForwardedExceptJoin<Long>())
+				.withForwardedFieldsFirst("0->1;");
+	}
+
+	@Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+	public void testBinaryForwardedOverwritingInLine6() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input1 = env.fromElements(new Tuple3<Long, Long, Long>(3l, 4l, 5l));
+		@SuppressWarnings("unchecked")
+		DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<Long, Long, Long>(3l, 2l, 1l));
+		input1.join(input2).where(0).equalTo(0).with(new AllForwardedExceptJoin<Long>())
+				.withForwardedFieldsSecond("0->1;");
+	}
+
 	// --------------------------------------------------------------------------------------------
-	
-	
-	@ConstantFields("*")
-	public static class WildcardConstantMapper<T> extends RichMapFunction<T, T> {
+
+	public static class NoAnnotationMapper<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
@@ -291,41 +532,104 @@ public class SemanticPropertiesTranslationTest {
 		}
 	}
 	
-	@ConstantFields("0->0;1->1;2->2")
-	public static class IndividualConstantMapper<X, Y, Z> extends RichMapFunction<Tuple3<X, Y, Z>, Tuple3<X, Y, Z>> {
+	@ForwardedFields("*")
+	public static class WildcardForwardedMapper<T> implements MapFunction<T, T> {
+
+		@Override
+		public T map(T value)  {
+			return value;
+		}
+	}
+	
+	@ForwardedFields("0;2")
+	public static class IndividualForwardedMapper<X, Y, Z> implements MapFunction<Tuple3<X, Y, Z>, Tuple3<X, Y, Z>> {
 
 		@Override
 		public Tuple3<X, Y, Z> map(Tuple3<X, Y, Z> value) {
 			return value;
 		}
 	}
-	
-	@ConstantFields("0")
-	public static class ZeroConstantMapper<T> extends RichMapFunction<T, T> {
+
+	@ForwardedFields("0->2;1->0;2->1")
+	public static class ShufflingMapper<X> implements MapFunction<Tuple3<X, X, X>, Tuple3<X, X, X>> {
+
+		@Override
+		public Tuple3<X, X, X> map(Tuple3<X, X, X> value) {
+			return value;
+		}
+	}
+
+	@FunctionAnnotation.NonForwardedFields({"1"})
+	public static class AllForwardedExceptMapper<T> implements MapFunction<T, T> {
 
 		@Override
 		public T map(T value)  {
 			return value;
 		}
 	}
-	
-	@ConstantFieldsFirst("1 -> 0")
-	@ConstantFieldsSecond("1 -> 1")
-	public static class ForwardingTupleJoin<A, B, C, D> extends RichJoinFunction<Tuple2<A, B>, Tuple2<C, D>, Tuple2<B, D>> {
+
+	@FunctionAnnotation.ReadFields({"0;2"})
+	public static class ReadSetMapper<T> implements MapFunction<T, T> {
+
+		@Override
+		public T map(T value)  {
+			return value;
+		}
+	}
+
+	public static class NoAnnotationJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
+
+		@Override
+		public Tuple3<X, X, X> join(Tuple2<X, X> first, Tuple2<X, X> second) throws Exception {
+			return null;
+		}
+	}
+
+	@ForwardedFieldsFirst("0->2")
+	public static class ForwardedFirstAnnotationJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
+
+		@Override
+		public Tuple3<X, X, X> join(Tuple2<X, X> first, Tuple2<X, X> second) throws Exception {
+			return null;
+		}
+	}
+
+	@ForwardedFieldsSecond("1->2")
+	public static class ForwardedSecondAnnotationJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
+
+		@Override
+		public Tuple3<X, X, X> join(Tuple2<X, X> first, Tuple2<X, X> second) throws Exception {
+			return null;
+		}
+	}
+
+	@ForwardedFieldsFirst("1 -> 0")
+	@ForwardedFieldsSecond("1 -> 1")
+	public static class ForwardedBothAnnotationJoin<A, B, C, D> implements JoinFunction<Tuple2<A, B>, Tuple2<C, D>, Tuple2<B, D>> {
 
 		@Override
 		public Tuple2<B, D> join(Tuple2<A, B> first, Tuple2<C, D> second) {
 			return new Tuple2<B, D>(first.f1, second.f1);
 		}
 	}
-	
-	@ConstantFieldsFirst("0 -> 0")
-	@ConstantFieldsSecond("0 -> 1")
-	public static class ForwardingBasicJoin<A, B> extends RichJoinFunction<A, B, Tuple2<A, B>> {
+
+	@FunctionAnnotation.NonForwardedFieldsFirst("0;2")
+	@FunctionAnnotation.NonForwardedFieldsSecond("0;1")
+	public static class AllForwardedExceptJoin<X> implements JoinFunction<Tuple3<X,X,X>, Tuple3<X,X,X>, Tuple3<X,X,X>> {
 
 		@Override
-		public Tuple2<A, B> join(A first, B second) {
-			return new Tuple2<A, B>(first, second);
+		public Tuple3<X, X, X> join(Tuple3<X, X, X> first, Tuple3<X, X, X> second) throws Exception {
+			return null;
+		}
+	}
+
+	@FunctionAnnotation.ReadFieldsFirst("1")
+	@FunctionAnnotation.ReadFieldsSecond("0")
+	public static class ReadSetJoin<X> implements JoinFunction<Tuple2<X,X>, Tuple2<X,X>, Tuple3<X,X,X>> {
+
+		@Override
+		public Tuple3<X, X, X> join(Tuple2<X, X> first, Tuple2<X, X> second) throws Exception {
+			return null;
 		}
 	}
 }

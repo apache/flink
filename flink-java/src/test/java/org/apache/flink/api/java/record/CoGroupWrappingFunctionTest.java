@@ -149,23 +149,8 @@ public class CoGroupWrappingFunctionTest {
 				CoGroupOperator coGroupOp = CoGroupOperator.builder(new TestCoGroupFunction(), LongValue.class, 1, 2).build();
 				
 				DualInputSemanticProperties props = coGroupOp.getSemanticProperties();
-				FieldSet fw2 = props.getForwardedField1(2);
-				FieldSet fw4 = props.getForwardedField2(4);
-				
-				assertNotNull(fw2);
-				assertNotNull(fw4);
-				assertEquals(1, fw2.size());
-				assertEquals(1, fw4.size());
-				assertTrue(fw2.contains(2));
-				assertTrue(fw4.contains(4));
-			}
-			{
-				CoGroupOperator coGroupOp = CoGroupOperator.builder(TestCoGroupFunction.class, LongValue.class, 1, 2).build();
-				
-				DualInputSemanticProperties props = coGroupOp.getSemanticProperties();
-				FieldSet fw2 = props.getForwardedField1(2);
-				FieldSet fw4 = props.getForwardedField2(4);
-				
+				FieldSet fw2 = props.getForwardingTargetFields(0, 2);
+				FieldSet fw4 = props.getForwardingTargetFields(1, 4);
 				assertNotNull(fw2);
 				assertNotNull(fw4);
 				assertEquals(1, fw2.size());

@@ -148,7 +148,7 @@ public class TypeExtractorTest {
 		Assert.assertEquals(9, ti.getArity());
 		Assert.assertTrue(ti instanceof TupleTypeInfo);
 		List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
-		((TupleTypeInfo) ti).getKey("f3", 0, ffd);
+		((TupleTypeInfo) ti).getFlatFields("f3", 0, ffd);
 		Assert.assertTrue(ffd.size() == 1);
 		Assert.assertEquals(3, ffd.get(0).getPosition() );
 
@@ -215,16 +215,16 @@ public class TypeExtractorTest {
 		Assert.assertTrue(ti instanceof TupleTypeInfo);
 		List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
 		
-		((TupleTypeInfo) ti).getKey("f0.f0", 0, ffd);
+		((TupleTypeInfo) ti).getFlatFields("f0.f0", 0, ffd);
 		Assert.assertEquals(0, ffd.get(0).getPosition() );
 		ffd.clear();
 		
-		((TupleTypeInfo) ti).getKey("f0.f0", 0, ffd);
+		((TupleTypeInfo) ti).getFlatFields("f0.f0", 0, ffd);
 		Assert.assertTrue( ffd.get(0).getType() instanceof BasicTypeInfo );
 		Assert.assertTrue( ffd.get(0).getType().getTypeClass().equals(String.class) );
 		ffd.clear();
 		
-		((TupleTypeInfo) ti).getKey("f1.f0", 0, ffd);
+		((TupleTypeInfo) ti).getFlatFields("f1.f0", 0, ffd);
 		Assert.assertEquals(1, ffd.get(0).getPosition() );
 		ffd.clear();
 
@@ -384,19 +384,19 @@ public class TypeExtractorTest {
 		Assert.assertEquals(Tuple2.class, tti.getTypeClass());
 		List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
 		
-		tti.getKey("f0", 0, ffd);
+		tti.getFlatFields("f0", 0, ffd);
 		Assert.assertEquals(1, ffd.size());
 		Assert.assertEquals(0, ffd.get(0).getPosition() ); // Long
 		Assert.assertTrue( ffd.get(0).getType().getTypeClass().equals(Long.class) );
 		ffd.clear();
 		
-		tti.getKey("f1.myField1", 0, ffd);
+		tti.getFlatFields("f1.myField1", 0, ffd);
 		Assert.assertEquals(1, ffd.get(0).getPosition() );
 		Assert.assertTrue( ffd.get(0).getType().getTypeClass().equals(String.class) );
 		ffd.clear();
 		
 		
-		tti.getKey("f1.myField2", 0, ffd);
+		tti.getFlatFields("f1.myField2", 0, ffd);
 		Assert.assertEquals(2, ffd.get(0).getPosition() );
 		Assert.assertTrue( ffd.get(0).getType().getTypeClass().equals(Integer.class) );
 		

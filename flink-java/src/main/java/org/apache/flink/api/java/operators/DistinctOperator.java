@@ -26,7 +26,6 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
-import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -96,7 +95,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 				SingleInputSemanticProperties sProps = new SingleInputSemanticProperties();
 				
 				for (int field : keys.computeLogicalKeyPositions()) {
-					sProps.setForwardedField(field, new FieldSet(field));
+					sProps.addForwardedField(field, field);
 				}
 				
 				po.setSemanticProperties(sProps);

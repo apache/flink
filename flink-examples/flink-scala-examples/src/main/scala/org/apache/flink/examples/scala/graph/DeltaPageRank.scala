@@ -70,6 +70,7 @@ object DeltaPageRank {
       .groupBy(0).sum(1)
 
     val initialDeltas = initialRanks.map { (page) => (page._1, page._2 - INITIAL_RANK) }
+                                      .withForwardedFields("_1")
 
     val iteration = initialRanks.iterateDelta(initialDeltas, maxIterations, Array(0)) {
 
@@ -91,7 +92,7 @@ object DeltaPageRank {
 
           val rankUpdates = solutionSet.join(deltas).where(0).equalTo(0) {
             (current, delta) => (current._1, current._2 + delta._2)
-          }
+          }.withForwardedFieldsFirst("_1")
 
           (rankUpdates, deltas)
         }

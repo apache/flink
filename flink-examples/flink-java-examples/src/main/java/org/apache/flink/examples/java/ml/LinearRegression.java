@@ -25,6 +25,7 @@ import java.util.Collection;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.ml.util.LinearRegressionData;
@@ -184,6 +185,7 @@ public class LinearRegression {
 	// *************************************************************************
 
 	/** Converts a Tuple2<Double,Double> into a Data. */
+	@ForwardedFields("0->x; 1->y")
 	public static final class TupleDataConverter implements MapFunction<Tuple2<Double, Double>, Data> {
 
 		@Override
@@ -193,6 +195,7 @@ public class LinearRegression {
 	}
 
 	/** Converts a Tuple2<Double,Double> into a Params. */
+	@ForwardedFields("0->theta0; 1->theta1")
 	public static final class TupleParamsConverter implements MapFunction<Tuple2<Double, Double>,Params> {
 
 		@Override

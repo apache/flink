@@ -20,20 +20,23 @@
 package org.apache.flink.compiler.dataproperties;
 
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
  * within the data of a single partition.
  */
 public class LocalProperties implements Cloneable {
-	
+
+	public static final Logger LOG = LoggerFactory.getLogger(GlobalProperties.class);
+
 	public static final LocalProperties EMPTY = new LocalProperties();
 	
 	// --------------------------------------------------------------------------------------------
@@ -126,101 +129,107 @@ public class LocalProperties implements Cloneable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Filters these properties by what can be preserved through a user function's constant fields set.
+	 * Filters these LocalProperties by the fields that are forwarded to the output
+	 * as described by the SemanticProperties.
 	 *
-	 * @param props The optimizer node that potentially modifies the properties.
-	 * @param input The input of the node which is relevant.
-	 *
+	 * @param props The semantic properties holding information about forwarded fields.
+	 * @param input The index of the input.
 	 * @return The filtered LocalProperties
 	 */
 	public LocalProperties filterBySemanticProperties(SemanticProperties props, int input) {
-		// check, whether the local order is preserved
-		Ordering no = this.ordering;
-		FieldList ngf = this.groupedFields;
-		Set<FieldSet> nuf = this.uniqueFields;
-		FieldList forwardList = null;
 
 		if (props == null) {
-			return new LocalProperties();
+			throw new NullPointerException("SemanticProperties may not be null.");
 		}
 
-		if (this.ordering != null) {
-			no = new Ordering();
-			final FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
-			for (int i = 0; i < involvedIndexes.size(); i++) {
-				forwardList = props.getForwardFields(input, involvedIndexes.get(i)) == null ? null : props.getForwardFields(input, involvedIndexes.get(i)).toFieldList();
+		LocalProperties returnProps = new LocalProperties();
 
-				if (forwardList == null) {
-					no = null;
-					ngf = null;
-					/*if (i == 0) {
-						no = null;
-						ngf = null;
+		// check if sorting is preserved
+		if (this.ordering != null) {
+			Ordering newOrdering = new Ordering();
+
+			for (int i = 0; i < this.ordering.getInvolvedIndexes().size(); i++) {
+				int sourceField = this.ordering.getInvolvedIndexes().get(i);
+				FieldSet targetField = props.getForwardingTargetFields(input, sourceField);
+				if (targetField == null || targetField.size() == 0) {
+					if (i == 0) {
+						// order fully destroyed
+						newOrdering = null;
+						break;
 					} else {
-						no = this.ordering.createNewOrderingUpToIndex(i);
-						ngf = no.getInvolvedIndexes();
-					}*/
+						// order partially preserved
+						break;
+					}
+				} else {
+					// use any field of target fields for now.  We should use something like field equivalence sets in the future.
+					if(targetField.size() > 1) {
+						LOG.warn("Found that a field is forwarded to more than one target field in " +
+								"semantic forwarded field information. Will only use the field with the lowest index.");
+					}
+					newOrdering.appendOrdering(targetField.toArray()[0], this.ordering.getType(i), this.ordering.getOrder(i));
+				}
+			}
+
+			returnProps.ordering = newOrdering;
+			if (newOrdering != null) {
+				returnProps.groupedFields = newOrdering.getInvolvedIndexes();
+			} else {
+				returnProps.groupedFields = null;
+			}
+		}
+		// check if grouping is preserved
+		else if (this.groupedFields != null) {
+			FieldList newGroupedFields = new FieldList();
+
+			for (Integer sourceField : this.groupedFields) {
+				FieldSet targetField = props.getForwardingTargetFields(input, sourceField);
+				if (targetField == null || targetField.size() == 0) {
+					newGroupedFields = null;
 					break;
 				} else {
-					no.appendOrdering(forwardList.get(0), this.ordering.getType(i), this.ordering.getOrder(i));
-					ngf = no.getInvolvedIndexes();
-				}
-			}
-		}
-		else if (this.groupedFields != null) {
-			// check, whether the local key grouping is preserved
-			for (Integer index : this.groupedFields) {
-				forwardList = props.getForwardFields(input, index) == null ? null : props.getForwardFields(input, index).toFieldList();
-				if (forwardList == null) {
-					ngf = null;
-					break;
-				} else if (!forwardList.contains(index)) {
-					FieldList grouped = new FieldList();
-					for (Integer value : ngf.toFieldList()) {
-						if (value.intValue() == index) {
-							grouped = grouped.addFields(forwardList);
-						} else {
-							grouped = grouped.addField(value);
-						}
+					// use any field of target fields for now.  We should use something like field equivalence sets in the future.
+					if(targetField.size() > 1) {
+						LOG.warn("Found that a field is forwarded to more than one target field in " +
+								"semantic forwarded field information. Will only use the field with the lowest index.");
 					}
-					ngf = grouped;
+					newGroupedFields = newGroupedFields.addField(targetField.toArray()[0]);
 				}
 			}
+			returnProps.groupedFields = newGroupedFields;
 		}
 
 		if (this.uniqueFields != null) {
-			HashSet<FieldSet> newSet = new HashSet<FieldSet>();
-			newSet.addAll(this.uniqueFields);
-			for (Iterator<FieldSet> combos = this.uniqueFields.iterator(); combos.hasNext(); ){
-				FieldSet current = combos.next();
-				FieldSet nfs = new FieldSet();
-				for (Integer field : current) {
-					if (props.getForwardFields(input, field) == null) {
-						newSet.remove(current);
-						nfs = null;
+			Set<FieldSet> newUniqueFields = new HashSet<FieldSet>();
+			for (FieldSet fields : this.uniqueFields) {
+				FieldSet newFields = new FieldSet();
+				for (Integer sourceField : fields) {
+					FieldSet targetField = props.getForwardingTargetFields(input, sourceField);
+
+					if (targetField == null || targetField.size() == 0) {
+						newFields = null;
 						break;
 					} else {
-						nfs = nfs.addFields(props.getForwardFields(input, field));
+						// use any field of target fields for now.  We should use something like field equivalence sets in the future.
+						if(targetField.size() > 1) {
+							LOG.warn("Found that a field is forwarded to more than one target field in " +
+									"semantic forwarded field information. Will only use the field with the lowest index.");
+						}
+						newFields = newFields.addField(targetField.toArray()[0]);
 					}
 				}
-				if (nfs != null) {
-					newSet.remove(current);
-					newSet.add(nfs);
+				if (newFields != null) {
+					newUniqueFields.add(newFields);
 				}
 			}
 
-			nuf = newSet.isEmpty() ? null : newSet;
+			if (!newUniqueFields.isEmpty()) {
+				returnProps.uniqueFields = newUniqueFields;
+			} else {
+				returnProps.uniqueFields = null;
+			}
 		}
 
-		if (no == this.ordering && ngf == this.groupedFields && nuf == this.uniqueFields) {
-			return this;
-		} else {
-			LocalProperties lp = new LocalProperties();
-			lp.ordering = no;
-			lp.groupedFields = ngf;
-			lp.uniqueFields = nuf;
-			return lp;
-		}
+		return returnProps;
 	}
 	// --------------------------------------------------------------------------------------------
 

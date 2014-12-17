@@ -250,7 +250,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
-		
+
 		// check the optimized Plan
 		// when reducer 1 distributes its data across the instances of map2, it needs to employ a local hash method,
 		// because map2 has twice as many instances and key/value pairs with the same key need to be processed by the same
@@ -258,10 +258,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
 		SingleInputPlanNode red2Node = (SingleInputPlanNode) sinkNode.getPredecessor();
 
-		SingleInputPlanNode map2Node = (SingleInputPlanNode) red2Node.getPredecessor();
-
-		Assert.assertEquals("The Reduce 2 Node has an invalid local strategy.", LocalStrategy.NONE, red2Node.getInput().getLocalStrategy());
-		Assert.assertEquals("The Map 2 Node has an invalid local strategy.", LocalStrategy.SORT, map2Node.getInput().getLocalStrategy());
+		Assert.assertEquals("The Reduce 2 Node has an invalid local strategy.", LocalStrategy.SORT, red2Node.getInput().getLocalStrategy());
 	}
 
 	/**

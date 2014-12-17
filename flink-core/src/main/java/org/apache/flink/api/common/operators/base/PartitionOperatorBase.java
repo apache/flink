@@ -82,7 +82,7 @@ public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpF
 	
 	@Override
 	public SingleInputSemanticProperties getSemanticProperties() {
-		return new SingleInputSemanticProperties.AllFieldsConstantProperties();
+		return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
 	}
 
 	// --------------------------------------------------------------------------------------------

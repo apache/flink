@@ -22,7 +22,6 @@ import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SemanticProperties;
-import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.plan.Channel;
@@ -189,73 +188,65 @@ public final class RequestedGlobalProperties implements Cloneable {
 		this.customPartitioner = null;
 	}
 
-	public void setPartitioningFields(FieldSet partitioned) {
-		this.partitioningFields = partitioned;
-	}
-
-	public void setPartitioningFields(FieldSet fields, PartitioningProperty partitioning) {
-		this.partitioningFields = fields;
-		this.partitioning = partitioning;
-	}
-
-	public void setOrdering(Ordering newOrdering) {
-		this.ordering = newOrdering;
-	}
-
 	/**
-	 * Filters these properties by what can be preserved by the given node when propagated down
+	 * Filters these properties by what can be preserved by the given SemanticProperties when propagated down
 	 * to the given input.
 	 *
-	 * @param props The node representing the contract.
-	 * @param input The index of the input.
+	 * @param props The SemanticProperties which define which fields are preserved.
+	 * @param input The index of the operator's input.
 	 * @return The filtered RequestedGlobalProperties
 	 */
 	public RequestedGlobalProperties filterBySemanticProperties(SemanticProperties props, int input) {
-		FieldList sourceList;
-		RequestedGlobalProperties returnProps = null;
+		RequestedGlobalProperties returnProps = new RequestedGlobalProperties();
 
+		// no semantic properties available. All global properties are filtered.
 		if (props == null) {
-			return null;
+			throw new NullPointerException("SemanticProperties may not be null.");
 		}
 
-		// check if partitioning survives
-		if (this.ordering != null) {
-			Ordering no = new Ordering();
-			returnProps = new RequestedGlobalProperties();
-			returnProps.setPartitioningFields(new FieldSet(), this.partitioning);
+		RequestedGlobalProperties rgProp = new RequestedGlobalProperties();
 
-			for (int index = 0; index < this.ordering.getInvolvedIndexes().size(); index++) {
-				int value = this.ordering.getInvolvedIndexes().get(index);
-				sourceList = props.getSourceField(input, value) == null ? null : props.getSourceField(input, value).toFieldList();
-				if (sourceList != null) {
-					no.appendOrdering(sourceList.get(0), this.ordering.getType(index), this.ordering.getOrder(index));
-				} else {
-					return null;
+		switch(this.partitioning) {
+			case FULL_REPLICATION:
+			case FORCED_REBALANCED:
+			case CUSTOM_PARTITIONING:
+			case RANDOM:
+				// make sure that certain properties are not pushed down
+				return null;
+			case HASH_PARTITIONED:
+			case ANY_PARTITIONING:
+				FieldSet newFields = new FieldSet();
+				for (Integer targetField : this.partitioningFields) {
+					int sourceField = props.getForwardingSourceField(input, targetField);
+					if (sourceField >= 0) {
+						newFields = newFields.addField(sourceField);
+					} else {
+						// partial partitionings are not preserved to avoid skewed partitioning
+						return null;
+					}
 				}
-			}
-			returnProps.setOrdering(no);
-		} else if (this.partitioningFields != null) {
-			returnProps = new RequestedGlobalProperties();
-			returnProps.setPartitioningFields(new FieldSet(), this.partitioning);
-			for (Integer index : this.partitioningFields) {
-				sourceList = props.getSourceField(input, index) == null ? null : props.getSourceField(input, index).toFieldList();
-				if (sourceList != null) {
-					returnProps.setPartitioningFields(returnProps.getPartitionedFields().addFields(sourceList), this.partitioning);
-				} else {
-					return null;
+				rgProp.partitioning = this.partitioning;
+				rgProp.partitioningFields = newFields;
+				return rgProp;
+			case RANGE_PARTITIONED:
+				// range partitioning
+				Ordering newOrdering = new Ordering();
+				for (int i = 0; i < this.ordering.getInvolvedIndexes().size(); i++) {
+					int value = this.ordering.getInvolvedIndexes().get(i);
+					int sourceField = props.getForwardingSourceField(input, value);
+					if (sourceField >= 0) {
+						newOrdering.appendOrdering(sourceField, this.ordering.getType(i), this.ordering.getOrder(i));
+					} else {
+						return null;
+					}
 				}
-			}
+				rgProp.partitioning = this.partitioning;
+				rgProp.ordering = newOrdering;
+				rgProp.dataDistribution = this.dataDistribution;
+				return rgProp;
+			default:
+				throw new RuntimeException("Unknown partitioning type encountered.");
 		}
-		// make sure that certain properties are not pushed down
-		final PartitioningProperty partitioning = this.partitioning;
-		if (partitioning == PartitioningProperty.FULL_REPLICATION ||
-				partitioning == PartitioningProperty.FORCED_REBALANCED ||
-				partitioning == PartitioningProperty.CUSTOM_PARTITIONING)
-		{
-			return null;
-		}
-
-		return returnProps;
 	}
 
 	/**

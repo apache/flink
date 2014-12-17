@@ -34,7 +34,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.compiler.plan.BulkIterationPlanNode;
@@ -376,14 +376,14 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		}
 	}
 	
-	@ConstantFields("0")
+	@ForwardedFields("0")
 	public static final class Reduce101 extends RichGroupReduceFunction<Tuple1<Long>, Tuple1<Long>> {
 		
 		@Override
 		public void reduce(Iterable<Tuple1<Long>> values, Collector<Tuple1<Long>> out) {}
 	}
 	
-	@ConstantFields("0")
+	@ForwardedFields("0")
 	public static final class DuplicateValue extends RichMapFunction<Tuple1<Long>, Tuple2<Long, Long>> {
 
 		@Override

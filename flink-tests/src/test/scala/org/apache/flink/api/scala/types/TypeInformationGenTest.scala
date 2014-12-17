@@ -39,6 +39,8 @@ class MyWritable extends Writable {
 
 case class CustomCaseClass(a: String, b: Int)
 
+case class UmlautCaseClass(ä: String, ß: Int)
+
 class CustomType(var myField1: String, var myField2: Int) {
   def this() {
     this(null, 0)
@@ -277,6 +279,143 @@ class TypeInformationGenTest {
     Assert.assertEquals(PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(6))
     Assert.assertEquals(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(7))
     Assert.assertEquals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, tti.getTypeAt(8))
+  }
+
+  @Test
+  def testGetFlatFields(): Unit = {
+
+    val tupleTypeInfo = createTypeInformation[(Int, Int, Int, Int)].
+      asInstanceOf[CaseClassTypeInfo[(Int, Int, Int, Int)]]
+    Assert.assertEquals(0, tupleTypeInfo.getFlatFields("0").get(0).getPosition)
+    Assert.assertEquals(1, tupleTypeInfo.getFlatFields("1").get(0).getPosition)
+    Assert.assertEquals(2, tupleTypeInfo.getFlatFields("2").get(0).getPosition)
+    Assert.assertEquals(3, tupleTypeInfo.getFlatFields("3").get(0).getPosition)
+    Assert.assertEquals(0, tupleTypeInfo.getFlatFields("_1").get(0).getPosition)
+    Assert.assertEquals(1, tupleTypeInfo.getFlatFields("_2").get(0).getPosition)
+    Assert.assertEquals(2, tupleTypeInfo.getFlatFields("_3").get(0).getPosition)
+    Assert.assertEquals(3, tupleTypeInfo.getFlatFields("_4").get(0).getPosition)
+
+    val nestedTypeInfo = createTypeInformation[(Int, (Int, String, Long), Int, (Double, Double))].
+      asInstanceOf[CaseClassTypeInfo[(Int, (Int, String, Long), Int, (Double, Double))]]
+    Assert.assertEquals(0, nestedTypeInfo.getFlatFields("0").get(0).getPosition)
+    Assert.assertEquals(1, nestedTypeInfo.getFlatFields("1.0").get(0).getPosition)
+    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("1.1").get(0).getPosition)
+    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1.2").get(0).getPosition)
+    Assert.assertEquals(4, nestedTypeInfo.getFlatFields("2").get(0).getPosition)
+    Assert.assertEquals(5, nestedTypeInfo.getFlatFields("3.0").get(0).getPosition)
+    Assert.assertEquals(6, nestedTypeInfo.getFlatFields("3.1").get(0).getPosition)
+    Assert.assertEquals(4, nestedTypeInfo.getFlatFields("_3").get(0).getPosition)
+    Assert.assertEquals(5, nestedTypeInfo.getFlatFields("_4._1").get(0).getPosition)
+    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1").size)
+    Assert.assertEquals(1, nestedTypeInfo.getFlatFields("1").get(0).getPosition)
+    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("1").get(1).getPosition)
+    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1").get(2).getPosition)
+    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1.*").size)
+    Assert.assertEquals(1, nestedTypeInfo.getFlatFields("1.*").get(0).getPosition)
+    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("1.*").get(1).getPosition)
+    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1.*").get(2).getPosition)
+    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("3").size)
+    Assert.assertEquals(5, nestedTypeInfo.getFlatFields("3").get(0).getPosition)
+    Assert.assertEquals(6, nestedTypeInfo.getFlatFields("3").get(1).getPosition)
+    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("_2").size)
+    Assert.assertEquals(1, nestedTypeInfo.getFlatFields("_2").get(0).getPosition)
+    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("_2").get(1).getPosition)
+    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("_2").get(2).getPosition)
+    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("_4").size)
+    Assert.assertEquals(5, nestedTypeInfo.getFlatFields("_4").get(0).getPosition)
+    Assert.assertEquals(6, nestedTypeInfo.getFlatFields("_4").get(1).getPosition)
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO,
+      nestedTypeInfo.getFlatFields("0").get(0).getType)
+    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO,
+      nestedTypeInfo.getFlatFields("1.1").get(0).getType)
+    Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
+      nestedTypeInfo.getFlatFields("1").get(2).getType)
+    Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO,
+      nestedTypeInfo.getFlatFields("3").get(1).getType)
+
+    val deepNestedTupleTypeInfo = createTypeInformation[(Int, (Int, (Int, Int)), Int)].
+      asInstanceOf[CaseClassTypeInfo[(Int, (Int, (Int, Int)), Int)]]
+    Assert.assertEquals(3, deepNestedTupleTypeInfo.getFlatFields("1").size)
+    Assert.assertEquals(1, deepNestedTupleTypeInfo.getFlatFields("1").get(0).getPosition)
+    Assert.assertEquals(2, deepNestedTupleTypeInfo.getFlatFields("1").get(1).getPosition)
+    Assert.assertEquals(3, deepNestedTupleTypeInfo.getFlatFields("1").get(2).getPosition)
+    Assert.assertEquals(5, deepNestedTupleTypeInfo.getFlatFields("*").size)
+    Assert.assertEquals(0, deepNestedTupleTypeInfo.getFlatFields("*").get(0).getPosition)
+    Assert.assertEquals(1, deepNestedTupleTypeInfo.getFlatFields("*").get(1).getPosition)
+    Assert.assertEquals(2, deepNestedTupleTypeInfo.getFlatFields("*").get(2).getPosition)
+    Assert.assertEquals(3, deepNestedTupleTypeInfo.getFlatFields("*").get(3).getPosition)
+    Assert.assertEquals(4, deepNestedTupleTypeInfo.getFlatFields("*").get(4).getPosition)
+
+    val caseClassTypeInfo = createTypeInformation[CustomCaseClass].
+      asInstanceOf[CaseClassTypeInfo[CustomCaseClass]]
+    Assert.assertEquals(0, caseClassTypeInfo.getFlatFields("a").get(0).getPosition)
+    Assert.assertEquals(1, caseClassTypeInfo.getFlatFields("b").get(0).getPosition)
+    Assert.assertEquals(2, caseClassTypeInfo.getFlatFields("*").size)
+    Assert.assertEquals(0, caseClassTypeInfo.getFlatFields("*").get(0).getPosition)
+    Assert.assertEquals(1, caseClassTypeInfo.getFlatFields("*").get(1).getPosition)
+
+    val caseClassInTupleTypeInfo = createTypeInformation[(Int, UmlautCaseClass)].
+      asInstanceOf[CaseClassTypeInfo[(Int, UmlautCaseClass)]]
+    Assert.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("_2.ä").get(0).getPosition)
+    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("1.ß").get(0).getPosition)
+    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("1").size)
+    Assert.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("1.*").get(0).getPosition)
+    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("1").get(1).getPosition)
+    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("_2.*").size)
+    Assert.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("_2.*").get(0).getPosition)
+    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("_2").get(1).getPosition)
+    Assert.assertEquals(3, caseClassInTupleTypeInfo.getFlatFields("*").size)
+    Assert.assertEquals(0, caseClassInTupleTypeInfo.getFlatFields("*").get(0).getPosition)
+    Assert.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("*").get(1).getPosition)
+    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("*").get(2).getPosition)
+
+  }
+
+  @Test
+  def testFieldAtStringRef(): Unit = {
+
+    val tupleTypeInfo = createTypeInformation[(Int, Int, Int, Int)].
+      asInstanceOf[CaseClassTypeInfo[(Int, Int, Int, Int)]]
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("0"))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("2"))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("_2"))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("_4"))
+
+    val nestedTypeInfo = createTypeInformation[(Int, (Int, String, Long), Int, (Double, Double))].
+      asInstanceOf[CaseClassTypeInfo[(Int, (Int, String, Long), Int, (Double, Double))]]
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("0"))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("1.0"))
+    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, nestedTypeInfo.getTypeAt("1.1"))
+    Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, nestedTypeInfo.getTypeAt("1.2"))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("2"))
+    Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, nestedTypeInfo.getTypeAt("3.0"))
+    Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, nestedTypeInfo.getTypeAt("3.1"))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("_3"))
+    Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, nestedTypeInfo.getTypeAt("_4._1"))
+    Assert.assertEquals(createTypeInformation[(Int, String, Long)], nestedTypeInfo.getTypeAt("1"))
+    Assert.assertEquals(createTypeInformation[(Double, Double)], nestedTypeInfo.getTypeAt("3"))
+    Assert.assertEquals(createTypeInformation[(Int, String, Long)], nestedTypeInfo.getTypeAt("_2"))
+    Assert.assertEquals(createTypeInformation[(Double, Double)], nestedTypeInfo.getTypeAt("_4"))
+
+    val deepNestedTupleTypeInfo = createTypeInformation[(Int, (Int, (Int, Int)), Int)].
+      asInstanceOf[CaseClassTypeInfo[(Int, (Int, (Int, Int)), Int)]]
+    Assert.assertEquals(createTypeInformation[(Int, (Int, Int))],
+      deepNestedTupleTypeInfo.getTypeAt("1"))
+
+    val umlautCaseClassTypeInfo = createTypeInformation[UmlautCaseClass].
+      asInstanceOf[CaseClassTypeInfo[UmlautCaseClass]]
+    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, umlautCaseClassTypeInfo.getTypeAt("ä"))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, umlautCaseClassTypeInfo.getTypeAt("ß"))
+
+    val caseClassTypeInfo = createTypeInformation[CustomCaseClass].
+      asInstanceOf[CaseClassTypeInfo[CustomCaseClass]]
+    val caseClassInTupleTypeInfo = createTypeInformation[(Int, CustomCaseClass)].
+      asInstanceOf[CaseClassTypeInfo[(Int, CustomCaseClass)]]
+    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, caseClassInTupleTypeInfo.getTypeAt("_2.a"))
+    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, caseClassInTupleTypeInfo.getTypeAt("1.b"))
+    Assert.assertEquals(caseClassTypeInfo, caseClassInTupleTypeInfo.getTypeAt("1"))
+    Assert.assertEquals(caseClassTypeInfo, caseClassInTupleTypeInfo.getTypeAt("_2"))
+
   }
 }
 

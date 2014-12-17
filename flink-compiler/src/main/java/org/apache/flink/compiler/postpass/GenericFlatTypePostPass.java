@@ -525,7 +525,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 				Integer pos = entry.getKey();
 				SemanticProperties sprops = optNode.getSemanticProperties();
 
-				if (sprops != null && sprops.getForwardFields(input, pos) != null && sprops.getForwardFields(input,pos).contains(pos)) {
+				if (sprops != null && sprops.getForwardingTargetFields(input, pos) != null && sprops.getForwardingTargetFields(input, pos).contains(pos)) {
 					targetSchema.addType(pos, entry.getValue());
 				}
 			}

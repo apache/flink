@@ -18,15 +18,32 @@
 
 package org.apache.flink.compiler.dataproperties;
 
-import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.Key;
 
-class MockPartitioner implements Partitioner<Tuple2<Long, Integer>> {
-	
-	private static final long serialVersionUID = 1L;
+import java.io.IOException;
+
+public class MockDistribution implements DataDistribution {
 
 	@Override
-	public int partition(Tuple2<Long, Integer> key, int numPartitions) {
+	public Key<?>[] getBucketBoundary(int bucketNum, int totalNumBuckets) {
+		return new Key<?>[0];
+	}
+
+	@Override
+	public int getNumberOfFields() {
 		return 0;
+	}
+
+	@Override
+	public void write(DataOutputView out) throws IOException {
+
+	}
+
+	@Override
+	public void read(DataInputView in) throws IOException {
+
 	}
 }

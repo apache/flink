@@ -20,12 +20,11 @@ package org.apache.flink.compiler.dataproperties;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
+import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
-import org.apache.flink.compiler.dag.OptimizerNode;
 import org.junit.Test;
-import org.mockito.Matchers;
 
 public class GlobalPropertiesPushdownTest {
 
@@ -35,11 +34,11 @@ public class GlobalPropertiesPushdownTest {
 			RequestedGlobalProperties req = new RequestedGlobalProperties();
 			req.setAnyPartitioning(new FieldSet(3, 1));
 			
-			RequestedGlobalProperties preserved = req.filterByNodesConstantSet(getAllPreservingNode(), 0);
+			RequestedGlobalProperties preserved = req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
 			assertEquals(PartitioningProperty.ANY_PARTITIONING, preserved.getPartitioning());
 			assertTrue(preserved.getPartitionedFields().isValidSubset(new FieldSet(1, 3)));
 			
-			RequestedGlobalProperties nonPreserved = req.filterByNodesConstantSet(getNonePreservingNode(), 0);
+			RequestedGlobalProperties nonPreserved = req.filterBySemanticProperties(getNonePreservingSemProps(), 0);
 			assertTrue(nonPreserved == null || nonPreserved.isTrivial());
 		}
 		catch (Exception e) {
@@ -54,11 +53,11 @@ public class GlobalPropertiesPushdownTest {
 			RequestedGlobalProperties req = new RequestedGlobalProperties();
 			req.setHashPartitioned(new FieldSet(3, 1));
 			
-			RequestedGlobalProperties preserved = req.filterByNodesConstantSet(getAllPreservingNode(), 0);
+			RequestedGlobalProperties preserved = req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
 			assertEquals(PartitioningProperty.HASH_PARTITIONED, preserved.getPartitioning());
 			assertTrue(preserved.getPartitionedFields().isValidSubset(new FieldSet(1, 3)));
 			
-			RequestedGlobalProperties nonPreserved = req.filterByNodesConstantSet(getNonePreservingNode(), 0);
+			RequestedGlobalProperties nonPreserved = req.filterBySemanticProperties(getNonePreservingSemProps(), 0);
 			assertTrue(nonPreserved == null || nonPreserved.isTrivial());
 		}
 		catch (Exception e) {
@@ -73,7 +72,7 @@ public class GlobalPropertiesPushdownTest {
 			RequestedGlobalProperties req = new RequestedGlobalProperties();
 			req.setCustomPartitioned(new FieldSet(3, 1), new MockPartitioner());
 			
-			RequestedGlobalProperties pushedDown = req.filterByNodesConstantSet(getAllPreservingNode(), 0);
+			RequestedGlobalProperties pushedDown = req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
 			assertTrue(pushedDown == null || pushedDown.isTrivial());
 		}
 		catch (Exception e) {
@@ -88,7 +87,7 @@ public class GlobalPropertiesPushdownTest {
 			RequestedGlobalProperties req = new RequestedGlobalProperties();
 			req.setForceRebalancing();
 			
-			RequestedGlobalProperties pushedDown = req.filterByNodesConstantSet(getAllPreservingNode(), 0);
+			RequestedGlobalProperties pushedDown = req.filterBySemanticProperties(getAllPreservingSemProps(), 0);
 			assertTrue(pushedDown == null || pushedDown.isTrivial());
 		}
 		catch (Exception e) {
@@ -99,15 +98,11 @@ public class GlobalPropertiesPushdownTest {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static OptimizerNode getAllPreservingNode() {
-		OptimizerNode node = mock(OptimizerNode.class);
-		when(node.isFieldConstant(Matchers.anyInt(), Matchers.anyInt())).thenReturn(true);
-		return node;
+	private static SemanticProperties getAllPreservingSemProps() {
+		return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
 	}
 	
-	private static OptimizerNode getNonePreservingNode() {
-		OptimizerNode node = mock(OptimizerNode.class);
-		when(node.isFieldConstant(Matchers.anyInt(), Matchers.anyInt())).thenReturn(false);
-		return node;
+	private static SemanticProperties getNonePreservingSemProps() {
+		return new SingleInputSemanticProperties();
 	}
 }

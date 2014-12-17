@@ -94,11 +94,11 @@ public class InterestingProperties implements Cloneable
 	public InterestingProperties filterByCodeAnnotations(OptimizerNode node, int input)
 	{
 		InterestingProperties iProps = new InterestingProperties();
-		SemanticProperties props = null;
-		if (node instanceof SingleInputNode) {
+		SemanticProperties props;
+		if (node instanceof SingleInputNode || node instanceof TwoInputNode) {
 			props = node.getSemanticProperties();
-		} else if (node instanceof TwoInputNode) {
-			props = node.getSemanticProperties();
+		} else {
+			props = new SemanticProperties.EmptySemanticProperties();
 		}
 
 		for (RequestedGlobalProperties rgp : this.globalProps) {

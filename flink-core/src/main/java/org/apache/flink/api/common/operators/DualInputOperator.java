@@ -59,7 +59,7 @@ public abstract class DualInputOperator<IN1, IN2, OUT, FT extends Function> exte
 	/**
 	 * Semantic properties of the associated function.
 	 */
-	private DualInputSemanticProperties semanticProperties;
+	private DualInputSemanticProperties semanticProperties = new DualInputSemanticProperties();
 	
 	// --------------------------------------------------------------------------------------------
 	

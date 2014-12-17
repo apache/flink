@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.function.aggregation;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -138,8 +137,7 @@ public abstract class SumAggregator {
 			@SuppressWarnings("unchecked")
 			CompositeType<T> cType = (CompositeType<T>) type;
 
-			List<FlatFieldDescriptor> fieldDescriptors = new ArrayList<FlatFieldDescriptor>();
-			cType.getKey(field, 0, fieldDescriptors);
+			List<FlatFieldDescriptor> fieldDescriptors = cType.getFlatFields(field);
 
 			int logicalKeyPosition = fieldDescriptors.get(0).getPosition();
 			Class<?> keyClass = fieldDescriptors.get(0).getType().getTypeClass();

@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.common.operators.util.FieldSet;
@@ -74,9 +76,8 @@ public class PartitionNode extends SingleInputNode {
 	}
 	
 	@Override
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		// Partition does not change any data
-		return true;
+	public SemanticProperties getSemanticProperties() {
+		return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
 	}
 	
 	// --------------------------------------------------------------------------------------------

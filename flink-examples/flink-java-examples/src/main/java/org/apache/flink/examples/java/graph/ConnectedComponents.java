@@ -25,9 +25,9 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
-import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSecond;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
@@ -126,7 +126,7 @@ public class ConnectedComponents implements ProgramDescription {
 	/**
 	 * Function that turns a value into a 2-tuple where both fields are that value.
 	 */
-	@ConstantFields("0 -> 0,1") 
+	@ForwardedFields("*->f0")
 	public static final class DuplicateValue<T> implements MapFunction<T, Tuple2<T, T>> {
 		
 		@Override
@@ -155,8 +155,8 @@ public class ConnectedComponents implements ProgramDescription {
 	 * a vertex is associated with, with a (Source-Vertex-ID, Target-VertexID) edge. The function
 	 * produces a (Target-vertex-ID, Component-ID) pair.
 	 */
-	@ConstantFieldsFirst("1 -> 1")
-	@ConstantFieldsSecond("1 -> 0")
+	@ForwardedFieldsFirst("f1->f1")
+	@ForwardedFieldsSecond("f1->f0")
 	public static final class NeighborWithComponentIDJoin implements JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
@@ -167,7 +167,7 @@ public class ConnectedComponents implements ProgramDescription {
 	
 
 
-	@ConstantFieldsFirst("0")
+	@ForwardedFieldsFirst("*")
 	public static final class ComponentIdFilter implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
@@ -177,6 +177,8 @@ public class ConnectedComponents implements ProgramDescription {
 			}
 		}
 	}
+
+
 
 	@Override
 	public String getDescription() {

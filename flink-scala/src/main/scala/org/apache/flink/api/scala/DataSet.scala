@@ -219,31 +219,31 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     this
   }
 
-  def withConstantSet(constantSets: String*) = {
+  def withForwardedFields(forwardedFields: String*) = {
     javaSet match {
-      case op: SingleInputUdfOperator[_, _, _] => op.withConstantSet(constantSets: _*)
+      case op: SingleInputUdfOperator[_, _, _] => op.withForwardedFields(forwardedFields: _*)
       case _ =>
-        throw new UnsupportedOperationException("Cannot specify constant sets on Operator " +
+        throw new UnsupportedOperationException("Cannot specify forwarded fields for Operator " +
           javaSet.toString + ".")
     }
     this
   }
 
-  def withConstantSetFirst(constantSets: String*) = {
+  def withForwardedFieldsFirst(forwardedFields: String*) = {
     javaSet match {
-      case op: TwoInputUdfOperator[_, _, _, _] => op.withConstantSetFirst(constantSets: _*)
+      case op: TwoInputUdfOperator[_, _, _, _] => op.withForwardedFieldsFirst(forwardedFields: _*)
       case _ =>
-        throw new UnsupportedOperationException("Cannot specify constant sets on Operator " +
+        throw new UnsupportedOperationException("Cannot specify forwarded fields for Operator " +
           javaSet.toString + ".")
     }
     this
   }
 
-  def withConstantSetSecond(constantSets: String*) = {
+  def withForwardedFieldsSecond(forwardedFields: String*) = {
     javaSet match {
-      case op: TwoInputUdfOperator[_, _, _, _] => op.withConstantSetSecond(constantSets: _*)
+      case op: TwoInputUdfOperator[_, _, _, _] => op.withForwardedFieldsSecond(forwardedFields: _*)
       case _ =>
-        throw new UnsupportedOperationException("Cannot specify constant sets on Operator " +
+        throw new UnsupportedOperationException("Cannot specify forwarded fields for Operator " +
           javaSet.toString + ".")
     }
     this
