@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
@@ -74,18 +75,22 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			return null;
 		}
 		checkKryoInitialized();
-		// We have to do a serialization round because not all Kryo (/Chill) serializers have the copy() method implemented.
-		ByteArrayOutputStream baout = new ByteArrayOutputStream();
-		Output output = new Output(baout);
+		try {
+			return kryo.copy(from);
+		} catch(KryoException ke) {
+			// kryo was unable to copy it, so we do it through serialization:
+			ByteArrayOutputStream baout = new ByteArrayOutputStream();
+			Output output = new Output(baout);
 
-		kryo.writeObject(output, from);
+			kryo.writeObject(output, from);
 
-		output.flush();
+			output.flush();
 
-		ByteArrayInputStream bain = new ByteArrayInputStream(baout.toByteArray());
-		Input input = new Input(bain);
+			ByteArrayInputStream bain = new ByteArrayInputStream(baout.toByteArray());
+			Input input = new Input(bain);
 
-		return (T)kryo.readObject(input, from.getClass());
+			return (T)kryo.readObject(input, from.getClass());
+		}
 	}
 	
 	@Override
