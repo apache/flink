@@ -19,7 +19,6 @@
 
 package org.apache.flink.hadoopcompatibility.mapreduce;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -117,9 +116,7 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-
-		System.out.println("HadoopOutputFormat: Write to " + this.configuration.get("mapred" +
-				".output.dir"));
+		
 		this.fileOutputCommitter = new FileOutputCommitter(new Path(this.configuration.get("mapred.output.dir")), context);
 		
 		try {
@@ -135,21 +132,6 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 			this.recordWriter = this.mapreduceOutputFormat.getRecordWriter(this.context);
 		} catch (InterruptedException e) {
 			throw new IOException("Could not create RecordWriter.", e);
-		}
-
-		File dir = new File(this.configuration.get("mapred.output.dir"));
-
-		if(dir.isDirectory()){
-			File[] files = dir.listFiles();
-			System.out.println(configuration.get("mapred.output.dir") + " contains the " +
-					"following files.");
-			for(File file: files){
-				System.out.println(file.toURI());
-			}
-		}else if(dir.exists()){
-			System.out.println(configuration.get("mapred.output.dir") + " is not a directory.");
-		}else{
-			System.out.println(configuration.get("mapred.output.dir") + " does not yet exists.");
 		}
 	}
 	
@@ -169,7 +151,6 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 	 */
 	@Override
 	public void close() throws IOException {
-		System.out.println("HadoopOutputFormat: Close");
 		try {
 			this.recordWriter.close(this.context);
 		} catch (InterruptedException e) {
@@ -181,22 +162,6 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		}
 		
 		Path outputPath = new Path(this.configuration.get("mapred.output.dir"));
-
-		File dir = new File(this.configuration.get("mapred.output.dir"));
-
-		if(dir.isDirectory()){
-			File[] files = dir.listFiles();
-			System.out.println(configuration.get("mapred.output.dir") + " contains the " +
-					"following files.");
-			for(File file: files){
-				System.out.println(file.toURI());
-			}
-		}else if(dir.exists()){
-			System.out.println(configuration.get("mapred.output.dir") + " is not a directory.");
-		}else{
-			System.out.println(configuration.get("mapred.output.dir") + " does not yet exists.");
-		}
-
 		
 		// rename tmp-file to final name
 		FileSystem fs = FileSystem.get(outputPath.toUri(), this.configuration);
@@ -206,18 +171,13 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		String tmpFile = tmpFileTemplate.substring(0,11-taskNumberStr.length())+taskNumberStr;
 		
 		if(fs.exists(new Path(outputPath.toString()+"/"+tmpFile))) {
-			System.out.println("Rename file " +  new Path(outputPath.toString()+"/"+tmpFile) + " " +
-					"to " + new Path(outputPath.toString()+"/"+taskNumberStr));
 			fs.rename(new Path(outputPath.toString()+"/"+tmpFile), new Path(outputPath.toString()+"/"+taskNumberStr));
-		}else{
-			System.out.println("File does not exist?");
 		}
 	}
 	
 	@Override
 	public void finalizeGlobal(int parallelism) throws IOException {
 
-		System.out.println("Finalize HadoopOutputFormat.");
 		JobContext jobContext;
 		TaskAttemptContext taskContext;
 		try {
