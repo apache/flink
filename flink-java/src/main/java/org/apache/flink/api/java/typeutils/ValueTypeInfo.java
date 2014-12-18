@@ -96,10 +96,10 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		}
 		
 		if (CopyableValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<T>) new ValueComparator(sortOrderAscending, type);
+			return (TypeComparator<T>) new CopyableValueComparator(sortOrderAscending, type);
 		}
 		else {
-			return (TypeComparator<T>) new CopyableValueComparator(sortOrderAscending, type);
+			return (TypeComparator<T>) new ValueComparator(sortOrderAscending, type);
 		}
 	}
 	
