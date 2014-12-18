@@ -383,14 +383,44 @@ public class DataStream<OUT> {
 	 * the iteration head.
 	 * <p>
 	 * By default a DataStream with iteration will never terminate, but the user
-	 * can use the {@link IterativeDataStream#setMaxWaitTime} call to set a max
-	 * waiting time for the iteration head. If no data received in the set time,
-	 * the stream terminates.
+	 * can use the the maxWaitTime parameter to set a max waiting time for the
+	 * iteration head. If no data received in the set time, the stream
+	 * terminates.
 	 * 
 	 * @return The iterative data stream created.
 	 */
 	public IterativeDataStream<OUT> iterate() {
-		return new IterativeDataStream<OUT>(this);
+		return new IterativeDataStream<OUT>(this, 0);
+	}
+
+	/**
+	 * Initiates an iterative part of the program that feeds back data streams.
+	 * The iterative part needs to be closed by calling
+	 * {@link IterativeDataStream#closeWith(DataStream)}. The transformation of
+	 * this IterativeDataStream will be the iteration head. The data stream
+	 * given to the {@link IterativeDataStream#closeWith(DataStream)} method is
+	 * the data stream that will be fed back and used as the input for the
+	 * iteration head. A common usage pattern for streaming iterations is to use
+	 * output splitting to send a part of the closing data stream to the head.
+	 * Refer to {@link SingleOutputStreamOperator#split(OutputSelector)} for
+	 * more information.
+	 * <p>
+	 * The iteration edge will be partitioned the same way as the first input of
+	 * the iteration head.
+	 * <p>
+	 * By default a DataStream with iteration will never terminate, but the user
+	 * can use the the maxWaitTime parameter to set a max waiting time for the
+	 * iteration head. If no data received in the set time, the stream
+	 * terminates.
+	 * 
+	 * @param maxWaitTimeMillis
+	 *            Number of milliseconds to wait between inputs before shutting
+	 *            down
+	 * 
+	 * @return The iterative data stream created.
+	 */
+	public IterativeDataStream<OUT> iterate(long maxWaitTimeMillis) {
+		return new IterativeDataStream<OUT>(this, maxWaitTimeMillis);
 	}
 
 	/**

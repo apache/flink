@@ -70,12 +70,9 @@ public class IterateExample {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
 				.setBufferTimeout(1);
 
-		// create an iterative data stream from the input
+		// create an iterative data stream from the input with 5 second timeout
 		IterativeDataStream<Tuple2<Double, Integer>> it = env.fromCollection(input).shuffle()
-				.iterate();
-
-		// trigger iteration termination if no new data received for 5 seconds
-		it.setMaxWaitTime(5000);
+				.iterate(5000);
 
 		// apply the step function to add new random value to the tuple and to
 		// increment the counter and split the output with the output selector

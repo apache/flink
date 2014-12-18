@@ -509,7 +509,7 @@ Unlike in the core API the user does not define the maximum number of iterations
 To start an iterative part of the program the user defines the iteration starting point:
 
 ~~~java
-IterativeDataStream<Integer> iteration = source.iterate();
+IterativeDataStream<Integer> iteration = source.iterate(maxWaitTimeMillis);
 ~~~
 The operator applied on the iteration starting point is the head of the iteration, where data is fed back from the iteration tail.
 
@@ -529,7 +529,7 @@ iteration.closeWith(tailOperator.select("iterate"));
 In these case all output directed to the “iterate” edge would be fed back to the iteration head.
 
 Because iterative streaming programs do not have a set number of iterations for each data element, the streaming program has no information on the end of its input. From this it follows that iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances a method is provided to allow iterative programs to shut down automatically if no input received by the iteration head for a predefined number of milliseconds.
-To use this function the user needs to call, the `iteration.setMaxWaitTime(millis)` to control the max wait time. 
+To use this functionality the user needs to add the maxWaitTimeMillis parameter to the `dataStream.iterate(…)` call to control the max wait time. 
 
 ### Rich functions
 The usage of rich functions are essentially the same as in the core Flink API. All transformations that take as argument a user-defined function can instead take a rich function as argument:

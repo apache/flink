@@ -68,7 +68,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   /**
    * Gets the underlying java DataStream object.
    */
-  private[flink] def getJavaStream: JavaStream[T] = javaStream
+  def getJavaStream: JavaStream[T] = javaStream
 
   /**
    * Sets the degree of parallelism of this operation. This must be greater than 1.
@@ -200,6 +200,32 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def distribute: DataStream[T] = new DataStream[T](javaStream.distribute())
 
   /**
+   * Initiates an iterative part of the program that creates a loop by feeding
+   * back data streams. To create a streaming iteration the user needs to define
+   * a transformation that creates two DataStreams.The first one one is the output
+   * that will be fed back to the start of the iteration and the second is the output
+   * stream of the iterative part.
+   * <p>
+   * stepfunction: initialStream => (feedback, output)
+   * <p>
+   * A common pattern is to use output splitting to create feedback and output DataStream.
+   * Please refer to the .split(...) method of the DataStream
+   * <p>
+   * By default a DataStream with iteration will never terminate, but the user
+   * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
+   * If no data received in the set time the stream terminates.
+   *
+   *
+   */
+  def iterate(stepFunction: DataStream[T] => (DataStream[T], DataStream[T]), maxWaitTimeMillis: Long = 0): DataStream[T] = {
+    val iterativeStream = javaStream.iterate(maxWaitTimeMillis)
+
+    val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
+    iterativeStream.closeWith(feedback.getJavaStream)
+    new DataStream[T](output.getJavaStream)
+  }
+
+  /**
    * Applies an aggregation that that gives the current maximum of the data stream at
    * the given position.
    *
@@ -232,33 +258,11 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given position. When equality, returns the first.
-   *
-   */
-  def maxBy(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.maxBy(field))
-    case field: String => return new DataStream[T](javaStream.maxBy(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
-
-  /**
-   * Applies an aggregation that that gives the current minimum element of the data stream by
-   * the given position. When equality, returns the first.
-   *
-   */
-  def minBy(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.minBy(field))
-    case field: String => return new DataStream[T](javaStream.minBy(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
-
-  /**
    * Applies an aggregation that that gives the current minimum element of the data stream by
    * the given position. When equality, the user can set to get the first or last element with the minimal value.
    *
    */
-  def minBy(field: Any, first: Boolean): DataStream[T] = field match {
+  def minBy(field: Any, first: Boolean = true): DataStream[T] = field match {
     case field: Int => return new DataStream[T](javaStream.minBy(field, first))
     case field: String => return new DataStream[T](javaStream.minBy(field, first))
     case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
@@ -269,7 +273,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * the given position. When equality, the user can set to get the first or last element with the maximal value.
    *
    */
-  def maxBy(field: Any, first: Boolean): DataStream[T] = field match {
+  def maxBy(field: Any, first: Boolean = true): DataStream[T] = field match {
     case field: Int => return new DataStream[T](javaStream.maxBy(field, first))
     case field: String => return new DataStream[T](javaStream.maxBy(field, first))
     case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
@@ -469,15 +473,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    */
-  def writeAsText(path: String, millis: Long): DataStream[T] = new DataStream[T](javaStream.writeAsText(path, millis))
-
-  /**
-   * Writes a DataStream to the file specified by path in text format.
-   * For every element of the DataStream the result of .toString
-   * is written.
-   *
-   */
-  def writeAsText(path: String): DataStream[T] = new DataStream[T](javaStream.writeAsText(path))
+  def writeAsText(path: String, millis: Long = 0): DataStream[T] = new DataStream[T](javaStream.writeAsText(path, millis))
 
   /**
    * Writes a DataStream to the file specified by path in text format. The
@@ -486,15 +482,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * is written.
    *
    */
-  def writeAsCsv(path: String, millis: Long): DataStream[T] = new DataStream[T](javaStream.writeAsCsv(path, millis))
-
-  /**
-   * Writes a DataStream to the file specified by path in text format.
-   * For every element of the DataStream the result of .toString
-   * is written.
-   *
-   */
-  def writeAsCsv(path: String): DataStream[T] = new DataStream[T](javaStream.writeAsCsv(path))
+  def writeAsCsv(path: String, millis: Long = 0): DataStream[T] = new DataStream[T](javaStream.writeAsCsv(path, millis))
 
   /**
    * Adds the given sink to this DataStream. Only streams with sinks added
