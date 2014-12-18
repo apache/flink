@@ -81,7 +81,8 @@ echo "Using $nupom as name for the generated pom file."
 poms=`find $flink_home -name pom.xml`
 for p in $poms; do
   # write into tmp file because in-place replacement is not possible (if nupom="pom.xml")
-  tmp_nuname="`dirname $p`/__generate_specific_pom_tmp"
+  tmp_nuname1="`dirname $p`/__generate_specific_pom_tmp1"
+  tmp_nuname2="`dirname $p`/__generate_specific_pom_tmp2"
   nuname="`dirname $p`/${nupom}"
   # Now we do search and replace of explicit strings.  The best way of
   # seeing what the below does is by doing a diff between the original
@@ -92,12 +93,21 @@ for p in $poms; do
   # enable/disable hadoop 1 and hadoop 2 profiles as appropriate
   # removing a comment string too. We output the new pom beside the
   # original.
-  sed -e "s/${old_version}/${new_version}/" \
-    -e "s/\(<module>[^<]*\)/\1\/${nupom}/" \
+
+  # To avoid accidentally replace version numbers in our dependencies 
+  # sharing the version number with the current release use the following.
+
+  perl -0777 -pe "s:<groupId>org.apache.flink</groupId>\n(\t*<artifactId>([a-z]+-)+[a-z]+</artifactId>\n\t*)<version>${old_version}</version>:<groupId>org.apache.flink</groupId>\n\1<version>${new_version}</version>:" $p > "$tmp_nuname1"
+
+  # Alternatively when no version collisions are present this is enough:
+  # sed -e "s/${old_version}/${new_version}/" $p > "$tmp_nuname1"
+
+  sed -e "s/\(<module>[^<]*\)/\1\/${nupom}/" \
     -e "s/\(relativePath>\.\.\)/\1\/${nupom}/" \
     -e "s/<!--hadoop1-->.*name>.*/${hadoop1}/" \
     -e "s/<!--hadoop2-->.*name>.*/${hadoop2}/" \
-  $p > "$tmp_nuname"
-  mv $tmp_nuname $nuname
+    $tmp_nuname1 > "$tmp_nuname2"
+  rm $tmp_nuname1
+  mv $tmp_nuname2 $nuname
 done
 

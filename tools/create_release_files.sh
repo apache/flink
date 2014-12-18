@@ -40,22 +40,22 @@ GIT_BRANCH=${GIT_BRANCH:-branch-1.0}
 OLD_VERSION=${OLD_VERSION:-0.6-incubating-SNAPSHOT}
 RELEASE_VERSION=${NEW_VERSION}
 RELEASE_CANDIDATE=${RELEASE_CANDIDATE:-rc1}
-NEW_VERSION_HADOOP2=${NEW_VERSION_HADOOP2:-"$RELEASE_VERSION-hadoop2"} # this is wrong, i.e. we need 0.7-hadoop2-incubating
+NEW_VERSION_HADOOP1=${NEW_VERSION_HADOOP1:-"$RELEASE_VERSION-hadoop1"}
 USER_NAME=${USER_NAME:-pwendell}
 MVN=${MVN:-mvn}
 GPG=${GPG:-gpg}
 SHASUM=${SHASUM:-sha512sum}
 MD5SUM=${MD5SUM:-md5sum}
-sonatype_user=${sonatype_user:-rmetzger}
+sonatype_user=${sonatype_user:-rmetzger} #legacy variable name referring to maven
 sonatype_pw=${sonatype_pw:-XXX}
 
-#echo $NEW_VERSION_HADOOP2
+#echo $NEW_VERSION_HADOOP1
 #sleep 5
 #set -e
 
 # create source package
 
-git clone https://github.com/apache/incubator-flink.git flink
+git clone https://github.com/apache/flink.git flink
 cd flink
 git checkout -b "$RELEASE_BRANCH-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
 rm .gitignore
@@ -70,7 +70,7 @@ find . -name 'pom.xml' -type f -exec sed -i 's#<version>'$OLD_VERSION'</version>
 
 git commit --author="Robert Metzger <rmetzger@apache.org>" -am "Commit for release $RELEASE_VERSION"
 # sry for hardcoding my name, but this makes releasing even faster
-git remote add asf_push https://rmetzger@git-wip-us.apache.org/repos/asf/incubator-flink.git
+git remote add asf_push https://$USER_NAME@git-wip-us.apache.org/repos/asf/flink.git
 RELEASE_HASH=`git rev-parse HEAD`
 echo "Echo created release hash $RELEASE_HASH"
 
@@ -123,16 +123,16 @@ make_binary_release() {
   fi
 }
 
-make_binary_release "hadoop1" ""
-make_binary_release "hadoop200alpha" "-P!include-yarn -Dhadoop.profile=2 -Dhadoop.version=2.0.0-alpha"
-make_binary_release "hadoop2" "-Dhadoop.profile=2"
+make_binary_release "hadoop1" "-Dhadoop.profile=1"
+make_binary_release "hadoop200alpha" "-P!include-yarn -Dhadoop.version=2.0.0-alpha"
+make_binary_release "hadoop2" ""
 # make_binary_release "mapr4" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0-mapr-4.0.0-FCS"
 
 
 # Copy data
 echo "Copying release tarballs"
 folder=flink-$RELEASE_VERSION-$RELEASE_CANDIDATE
-ssh $USER_NAME@people.apache.org mkdir /home/$USER_NAME/public_html/$folder
+ssh $USER_NAME@people.apache.org mkdir -p /home/$USER_NAME/public_html/$folder
 scp flink-* $USER_NAME@people.apache.org:/home/$USER_NAME/public_html/$folder/
 echo "copy done"
 
@@ -140,9 +140,9 @@ echo "Deploying to repository.apache.org"
 
 cd flink
 cp ../../deploysettings.xml . 
-echo "For your reference, the command:\n\t $MVN clean deploy -Prelease --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE ./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP2 pom.xml"
+echo "For your reference, the command:\n\t $MVN clean deploy -Prelease --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE ./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml"
 $MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.executable=$GPG -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
-./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP2 pom.xml
+./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP1 pom.xml
 sleep 4
 $MVN clean deploy -Dgpg.executable=$GPG -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
 
