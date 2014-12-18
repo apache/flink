@@ -23,9 +23,13 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<artifactId>flink-addons</artifactId>
 		<groupId>org.apache.flink</groupId>
+<<<<<<< HEAD
 		<version>0.9-SNAPSHOT</version>
+=======
+		<artifactId>flink-addons</artifactId>
+		<version>0.8-SNAPSHOT</version>
+>>>>>>> 7b8ef0d... [build tools] Release script update
 		<relativePath>..</relativePath>
 	</parent>
 	
