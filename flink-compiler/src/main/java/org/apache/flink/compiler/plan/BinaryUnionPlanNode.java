@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.plan;
-
 
 import org.apache.flink.compiler.dag.BinaryUnionNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
@@ -35,7 +33,28 @@ public class BinaryUnionPlanNode extends DualInputPlanNode {
 		super(template, "Union", in1, in2, DriverStrategy.UNION);
 	}
 	
+	public BinaryUnionPlanNode(BinaryUnionPlanNode toSwapFrom) {
+		super(toSwapFrom.getOptimizerNode(), "Union-With-Cached", toSwapFrom.getInput2(), toSwapFrom.getInput1(),
+				DriverStrategy.UNION_WITH_CACHED);
+		
+		this.globalProps = toSwapFrom.globalProps;
+		this.localProps = toSwapFrom.localProps;
+		this.nodeCosts = toSwapFrom.nodeCosts;
+		this.cumulativeCosts = toSwapFrom.cumulativeCosts;
+		
+		setDegreeOfParallelism(toSwapFrom.getDegreeOfParallelism());
+	}
+	
 	public BinaryUnionNode getOptimizerNode() {
 		return (BinaryUnionNode) this.template;
+	}
+	
+	public boolean unionsStaticAndDynamicPath() {
+		return getInput1().isOnDynamicPath() != getInput2().isOnDynamicPath();
+	}
+	
+	@Override
+	public int getMemoryConsumerWeight() {
+		return 0;
 	}
 }

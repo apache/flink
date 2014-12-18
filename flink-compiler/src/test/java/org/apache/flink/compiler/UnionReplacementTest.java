@@ -21,7 +21,6 @@ package org.apache.flink.compiler;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.junit.Test;
@@ -32,24 +31,25 @@ import static org.junit.Assert.fail;
 public class UnionReplacementTest extends CompilerTestBase {
 
 	@Test
-	public void testUnionReplacement(){
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<String> input1 = env.fromElements("test1");
-		DataSet<String> input2 = env.fromElements("test2");
-
-		DataSet<String> union = input1.union(input2);
-
-		union.print();
-		union.print();
-
-		Plan plan = env.createProgramPlan();
-		try{
-			OptimizedPlan oPlan = this.compileNoStats(plan);
+	public void testUnionReplacement() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			DataSet<String> input1 = env.fromElements("test1");
+			DataSet<String> input2 = env.fromElements("test2");
+	
+			DataSet<String> union = input1.union(input2);
+	
+			union.print();
+			union.print();
+	
+			Plan plan = env.createProgramPlan();
+			OptimizedPlan oPlan = compileNoStats(plan);
 			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
 			jobGen.compileJobGraph(oPlan);
-		}catch(CompilerException co){
-			co.printStackTrace();
-			fail("The Pact compiler is unable to compile this plan correctly.");
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 }
