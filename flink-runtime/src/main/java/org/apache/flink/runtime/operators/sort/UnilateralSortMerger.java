@@ -913,10 +913,15 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				// write the last leftover pair, if we have one
 				if (leftoverRecord != null) {
 					if (!buffer.write(leftoverRecord)) {
+						
 						// did not fit in a fresh buffer, must be large...
 						if (this.largeRecords != null) {
+							if (LOG.isDebugEnabled()) {
+								LOG.debug("Large record did not fit into a fresh sort buffer. Putting into large record store.");
+							}
 							this.largeRecords.addRecord(leftoverRecord);
-						} else {
+						}
+						else {
 							throw new IOException("The record exceeds the maximum size of a sort buffer (current maximum: "
 									+ buffer.getCapacity() + " bytes).");
 						}
@@ -1266,7 +1271,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			
 			final FileIOChannel.Enumerator enumerator = this.ioManager.createChannelEnumerator();
 			List<ChannelWithBlockCount> channelIDs = new ArrayList<ChannelWithBlockCount>();
-
 			
 			// loop as long as the thread is marked alive and we do not see the final element
 			while (isRunning()) {
@@ -1367,6 +1371,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 					}
 				}
 				
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Sorting keys for large records.");
+				}
 				largeRecords = largeRecordHandler.finishWriteAndSortKeys(longRecMem);
 			}
 			else {
