@@ -3,7 +3,6 @@ package flink.graphs.example;
 import flink.graphs.Edge;
 import flink.graphs.Graph;
 import flink.graphs.Vertex;
-import flink.graphs.library.PageRank;
 import flink.graphs.library.SingleSourceShortestPaths;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.java.DataSet;
@@ -24,9 +23,9 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 
         DataSet<Edge<Long,Double>> edges = getLongDoubleEdgeData(env);
 
-        Graph<Long, Double, Double> graph = Graph.create(vertices, edges, env);
-
         Long srcVertexId = 1L;
+
+        Graph<Long, Double, Double> graph = Graph.create(vertices, edges, env);
 
         DataSet<Vertex<Long,Double>> singleSourceShortestPaths =
                 graph.run(new SingleSourceShortestPaths(srcVertexId, maxIterations)).getVertices();
@@ -36,11 +35,13 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
         env.execute();
     }
 
+
     @Override
     public String getDescription() {
         return "Single Source Shortest Paths";
     }
 
+    @SuppressWarnings("serial")
     public static final DataSet<Vertex<Long, Double>> getLongDoubleVertexData(
             ExecutionEnvironment env) {
         List<Vertex<Long, Double>> vertices = new ArrayList<Vertex<Long, Double>>();
@@ -53,6 +54,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
         return env.fromCollection(vertices);
     }
 
+    @SuppressWarnings("serial")
     public static final DataSet<Edge<Long, Double>> getLongDoubleEdgeData(
             ExecutionEnvironment env) {
         List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
