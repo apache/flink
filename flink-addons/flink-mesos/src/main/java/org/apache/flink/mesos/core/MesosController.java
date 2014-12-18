@@ -251,12 +251,11 @@ public class MesosController {
 				.setPrincipal("Flink")
 				.build();
 
-		/*
-		The MesosSchedulerDriver executes theif (cmd.hasOption(USE_WEB.getOpt())) {
+
+		if (cmd.hasOption(USE_WEB.getOpt())) {
 			config.setBoolean(MesosConstants.MESOS_USE_WEB, true);
-		} FlinkMesosScheduler which is responsible for managing the offers that it
-		gets from the Mesos master.
-		 */
+		}
+
 		MesosSchedulerDriver driver = new MesosSchedulerDriver(
 				new FlinkMesosScheduler(config),
 				framework,
