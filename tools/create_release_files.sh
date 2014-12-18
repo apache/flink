@@ -46,7 +46,7 @@ MVN=${MVN:-mvn}
 GPG=${GPG:-gpg}
 SHASUM=${SHASUM:-sha512sum}
 MD5SUM=${MD5SUM:-md5sum}
-sonatype_user=${sonatype_user:-rmetzger}
+sonatype_user=${sonatype_user:-rmetzger} #legacy variable name referring to maven
 sonatype_pw=${sonatype_pw:-XXX}
 
 #echo $NEW_VERSION_HADOOP2
@@ -68,9 +68,9 @@ rm CHANGELOG
 # FOR MAC: find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
 find . -name 'pom.xml' -type f -exec sed -i 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
 
-git commit --author="Robert Metzger <rmetzger@apache.org>" -am "Commit for release $RELEASE_VERSION"
+git commit --author="Robert Metzger <rmetzger@apache.org>" -am "Commit for release $RELEASE_VERSION" #set this according to the release manager
 # sry for hardcoding my name, but this makes releasing even faster
-git remote add asf_push https://rmetzger@git-wip-us.apache.org/repos/asf/incubator-flink.git
+git remote add asf_push https://$USER_NAME@git-wip-us.apache.org/repos/asf/incubator-flink.git
 RELEASE_HASH=`git rev-parse HEAD`
 echo "Echo created release hash $RELEASE_HASH"
 
@@ -123,9 +123,9 @@ make_binary_release() {
   fi
 }
 
-make_binary_release "hadoop1" ""
+make_binary_release "hadoop1" "-Dhadoop.profile=1"
 make_binary_release "hadoop200alpha" "-P!include-yarn -Dhadoop.profile=2 -Dhadoop.version=2.0.0-alpha"
-make_binary_release "hadoop2" "-Dhadoop.profile=2"
+make_binary_release "hadoop2" ""
 # make_binary_release "mapr4" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0-mapr-4.0.0-FCS"
 
 
