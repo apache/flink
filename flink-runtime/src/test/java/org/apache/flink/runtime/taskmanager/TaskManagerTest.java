@@ -268,6 +268,14 @@ public class TaskManagerTest {
 							assertFalse(result.success());
 							assertEquals(eid2, result.executionID());
 
+							tm.tell(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
+									getRef());
+							tm.tell(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
+									getRef());
+
+							expectMsgEquals(true);
+							expectMsgEquals(true);
+
 							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
 							Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages
 									.ResponseRunningTasks.class).asJava();

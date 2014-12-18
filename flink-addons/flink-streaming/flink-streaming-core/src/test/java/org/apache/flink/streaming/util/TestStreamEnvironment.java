@@ -58,7 +58,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
 		try{
 			ActorRef client = cluster.getJobClient();
-			JobClient.submitJobAndWait(jobGraph, false, client);
+			JobClient.submitJobAndWait(jobGraph, false, client, cluster.timeout());
 		}catch(JobExecutionException e){
 			if(e.getMessage().contains("GraphConversionException")){
 				throw new Exception(CANNOT_EXECUTE_EMPTY_JOB, e);

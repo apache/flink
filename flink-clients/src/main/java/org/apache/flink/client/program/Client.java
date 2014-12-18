@@ -320,7 +320,8 @@ public class Client {
 		try {
 
 			if (wait) {
-				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client);
+				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client,
+						timeout);
 			}
 			else {
 				SubmissionResponse response =JobClient.submitJobDetached(jobGraph, client, timeout);

@@ -105,4 +105,12 @@ object TaskManagerMessages {
    * Logs the current memory usage as debug level output.
    */
   case object LogMemoryUsage
+
+  /**
+   * Fail the specified task externally
+   *
+   * @param executionID identifying the task to fail
+   * @param cause reason for the external failure
+   */
+  case class FailTask(executionID: ExecutionAttemptID, cause: Throwable)
 }

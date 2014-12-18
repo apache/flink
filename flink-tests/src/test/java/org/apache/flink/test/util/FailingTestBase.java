@@ -146,7 +146,7 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 
 			try {
 				// submit failing job
-				JobClient.submitJobAndWait(this.failingJob, false, client);
+				JobClient.submitJobAndWait(this.failingJob, false, client, executor.timeout());
 				
 				this.error = new Exception("The job did not fail.");
 			} catch(JobExecutionException jee) {
@@ -158,7 +158,7 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 			
 			try {
 				// submit working job
-				JobClient.submitJobAndWait(this.job, false, client);
+				JobClient.submitJobAndWait(this.job, false, client, executor.timeout());
 			} catch (Exception e) {
 				this.error = e;
 			}

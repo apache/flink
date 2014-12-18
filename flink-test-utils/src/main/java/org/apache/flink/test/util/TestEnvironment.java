@@ -53,7 +53,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 			JobGraph jobGraph = jgg.compileJobGraph(op);
 
 			ActorRef client = this.executor.getJobClient();
-			JobExecutionResult result = JobClient.submitJobAndWait(jobGraph, false, client);
+			JobExecutionResult result = JobClient.submitJobAndWait(jobGraph, false, client,
+					executor.timeout());
 
 			this.latestResult = result;
 			return result;

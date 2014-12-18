@@ -31,12 +31,11 @@ import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.JobManager
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.ExecutionStateChanged
 import org.apache.flink.runtime.messages.JobClientMessages.{SubmitJobDetached, SubmitJobAndWait}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 
-import scala.concurrent.Await
-import scala.concurrent.duration.{FiniteDuration, Duration}
+import scala.concurrent.{TimeoutException, Await}
+import scala.concurrent.duration.{FiniteDuration}
 
 
 class JobClient(jobManagerURL: String, timeout: FiniteDuration) extends Actor with ActorLogMessages
@@ -55,6 +54,9 @@ with  ActorLogging{
       jobManager.tell(SubmitJob(jobGraph, registerForEvents = listen, detach = false), listener)
     case RequestBlobManagerPort =>
       jobManager forward RequestBlobManagerPort
+    case RequestJobManagerStatus => {
+      jobManager forward RequestJobManagerStatus
+    }
   }
 }
 
@@ -120,10 +122,36 @@ object JobClient{
   }
 
   @throws(classOf[JobExecutionException])
-  def submitJobAndWait(jobGraph: JobGraph, listen: Boolean,
-                       jobClient: ActorRef): JobExecutionResult = {
-    AkkaUtils.askInf[JobExecutionResult](jobClient,
-      SubmitJobAndWait(jobGraph, listenToEvents = listen))
+  def submitJobAndWait(jobGraph: JobGraph, listen: Boolean, jobClient: ActorRef)
+                      (implicit timeout: FiniteDuration): JobExecutionResult = {
+    var waitForAnswer = true
+    var answer: JobExecutionResult = null
+
+    val result =
+      (jobClient ? SubmitJobAndWait(jobGraph, listenToEvents = listen))(AkkaUtils.INF_TIMEOUT).
+        mapTo[JobExecutionResult]
+
+    while(waitForAnswer) {
+      try {
+        answer = Await.result(result, timeout)
+        waitForAnswer = false
+      } catch {
+        case x: TimeoutException => {
+          val jmStatus = (jobClient ? RequestJobManagerStatus)(timeout).mapTo[JobManagerStatus]
+
+          try {
+            Await.result(jmStatus, timeout)
+          } catch {
+            case t: Throwable => {
+              throw new JobExecutionException("JobManager not reachable anymore. Terminate " +
+                "waiting for job answer.", false)
+            }
+          }
+        }
+      }
+    }
+
+    answer
   }
 
 

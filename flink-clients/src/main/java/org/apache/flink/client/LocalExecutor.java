@@ -170,7 +170,8 @@ public class LocalExecutor extends PlanExecutor {
 
 				ActorRef jobClient = flink.getJobClient();
 
-				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, jobClient);
+				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution,
+						jobClient, flink.timeout());
 			}
 			finally {
 				if (shutDownAtEnd) {

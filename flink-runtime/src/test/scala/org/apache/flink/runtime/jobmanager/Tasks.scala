@@ -40,6 +40,16 @@ object Tasks {
     override def invoke(): Unit = {}
   }
 
+  class WaitingNoOpInvokable extends AbstractInvokable{
+    val waitingTime = 100L
+
+    override def registerInputOutput(): Unit = {}
+
+    override def invoke(): Unit = {
+      Thread.sleep(waitingTime)
+    }
+  }
+
   class Sender extends AbstractInvokable{
     var writer: RecordWriter[IntegerRecord] = _
     override def registerInputOutput(): Unit = {

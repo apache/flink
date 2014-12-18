@@ -121,7 +121,8 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 			
 			try {
 			ActorRef client = this.executor.getJobClient();
-			this.jobExecutionResult = JobClient.submitJobAndWait(jobGraph, false, client);
+			this.jobExecutionResult = JobClient.submitJobAndWait(jobGraph, false, client,
+					executor.timeout());
 			}
 			catch(Exception e) {
 				System.err.println(e.getMessage());

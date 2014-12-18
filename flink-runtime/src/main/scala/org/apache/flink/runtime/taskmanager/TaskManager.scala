@@ -33,7 +33,7 @@ import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.BlobCache
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
-import org.apache.flink.runtime.execution.{ExecutionState, RuntimeEnvironment}
+import org.apache.flink.runtime.execution.{CancelTaskException, ExecutionState, RuntimeEnvironment}
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager,
 FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
@@ -231,6 +231,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       val taskIndex = tdd.getIndexInSubtaskGroup
       val numSubtasks = tdd.getCurrentNumberOfSubtasks
       var startRegisteringTask = 0L
+      var task: Task = null
 
       try {
         if(log.isDebugEnabled){
@@ -249,7 +250,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           throw new RuntimeException("No user code Classloader available.")
         }
 
-        val task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
+        task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
           tdd.getTaskName, this)
 
         runningTasks.put(executionID, task) match {
@@ -296,12 +297,25 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         sender ! TaskOperationResult(executionID, true)
       } catch {
         case t: Throwable =>
-          log.error(t, s"Could not instantiate task with execution ID ${executionID}.")
+          val message = if(t.isInstanceOf[CancelTaskException]){
+            "Task was canceled"
+          }else{
+            log.error(t, s"Could not instantiate task with execution ID ${executionID}.")
+            ExceptionUtils.stringifyException(t)
+          }
 
-          unregisterTask(executionID)
+          try {
+            if (task != null) {
+              task.failExternally(t)
+              removeAllTaskResources(task)
+            }
 
-          sender ! new TaskOperationResult(executionID, false,
-            ExceptionUtils.stringifyException(t))
+            libraryCacheManager.unregisterTask(jobID, executionID)
+          }catch{
+            case t: Throwable => log.error("Error during cleanup of task deployment.", t)
+          }
+
+          sender ! new TaskOperationResult(executionID, false, message)
       }
     }
 
@@ -336,6 +350,16 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       }
     }
 
+    case FailTask(executionID, cause) => {
+      runningTasks.get(executionID) match {
+        case Some(task) =>
+          Future{
+            task.failExternally(cause)
+          }
+        case None =>
+      }
+    }
+
     case Terminated(jobManager) => {
       log.info(s"Job manager ${jobManager.path} is no longer reachable. Try to reregister.")
       tryJobManagerRegistration()
@@ -351,13 +375,20 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
     futureResponse.mapTo[Boolean].onComplete {
       case Success(result) =>
+        if(!result){
+          self ! FailTask(executionID, new IllegalStateException("Task has been disposed on " +
+            "JobManager."))
+        }
+
         if (!result || executionState == ExecutionState.FINISHED || executionState ==
           ExecutionState.CANCELED || executionState == ExecutionState.FAILED) {
           self ! UnregisterTask(executionID)
         }
-      case Failure(t) =>
+      case Failure(t) => {
         log.warning(s"Execution state change notification failed for task ${executionID} " +
           s"of job ${jobID}. Cause ${t.getMessage}.")
+        self ! UnregisterTask(executionID)
+      }
     }
   }
 
@@ -420,27 +451,37 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     log.info(s"Unregister task with execution ID ${executionID}.")
     runningTasks.remove(executionID) match {
       case Some(task) =>
-        if(task.getEnvironment != null) {
-          for (entry <- DistributedCache.readFileInfoFromConfig(task.getEnvironment
-            .getJobConfiguration).asScala) {
-            fileCache.deleteTmpFile(entry.getKey, entry.getValue, task.getJobID)
-          }
-        }
-
-        channelManager foreach {
-          _.unregister(executionID, task)
-        }
-
-        profiler foreach {
-          _ ! UnmonitorTask(task.getExecutionId)
-        }
-
-        task.unregisterMemoryManager(memoryManager)
-
+        removeAllTaskResources(task)
         libraryCacheManager.unregisterTask(task.getJobID, executionID)
       case None =>
-        log.error(s"Cannot find task with ID ${executionID} to unregister.")
+        if(log.isDebugEnabled){
+          log.debug(s"Cannot find task with ID ${executionID} to unregister.")
+        }
     }
+  }
+
+  def removeAllTaskResources(task: Task): Unit = {
+    if(task.getEnvironment != null) {
+      try {
+        for (entry <- DistributedCache.readFileInfoFromConfig(task.getEnvironment
+          .getJobConfiguration).asScala) {
+          fileCache.deleteTmpFile(entry.getKey, entry.getValue, task.getJobID)
+        }
+      }catch{
+        case t: Throwable => log.error("Error cleaning up local files from the distributed cache" +
+          ".", t)
+      }
+    }
+
+    channelManager foreach {
+      _.unregister(task.getExecutionId, task)
+    }
+
+    profiler foreach {
+      _ ! UnmonitorTask(task.getExecutionId)
+    }
+
+    task.unregisterMemoryManager(memoryManager)
   }
 }
 

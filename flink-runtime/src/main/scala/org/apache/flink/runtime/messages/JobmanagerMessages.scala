@@ -316,4 +316,16 @@ object JobManagerMessages {
     }
   }
 
+  /**
+   * Requests the current state of the job manager
+   */
+  case object RequestJobManagerStatus
+
+  /**
+   * Response to RequestJobManagerStatus
+   */
+  sealed trait JobManagerStatus
+
+  case object JobManagerStatusAlive extends JobManagerStatus
+
 }

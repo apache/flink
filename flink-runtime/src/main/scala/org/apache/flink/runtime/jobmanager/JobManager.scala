@@ -97,6 +97,11 @@ Actor with ActorLogMessages with ActorLogging {
 
   override def postStop(): Unit = {
     log.info(s"Stopping job manager ${self.path}.")
+
+    for((e,_) <- currentJobs.values){
+      e.fail(new Exception("The JobManager is shutting down."))
+    }
+
     instanceManager.shutdown()
     scheduler.shutdown()
     libraryCacheManager.shutdown()
@@ -128,80 +133,88 @@ Actor with ActorLogMessages with ActorLogging {
           sender ! akka.actor.Status.Failure(new IllegalArgumentException("JobGraph must not be" +
             " null."))
         } else {
-
           log.info(s"Received job ${jobGraph.getJobID} (${jobGraph.getName}).")
 
-          // Create the user code class loader
-          libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
+          if (jobGraph.getNumberOfVertices == 0) {
+            sender ! SubmissionFailure(jobGraph.getJobID, new IllegalArgumentException("Job is " +
+              "empty."))
+          } else {
+            // Create the user code class loader
+            libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
 
-          val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
+            val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
 
-          val (executionGraph, jobInfo) = currentJobs.getOrElseUpdate(jobGraph.getJobID(),
-            (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
-              jobGraph.getJobConfiguration, jobGraph.getUserJarBlobKeys, userCodeLoader),
-              JobInfo(sender, System.currentTimeMillis())))
+            val (executionGraph, jobInfo) = currentJobs.getOrElseUpdate(jobGraph.getJobID(),
+              (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
+                jobGraph.getJobConfiguration, jobGraph.getUserJarBlobKeys, userCodeLoader),
+                JobInfo(sender, System.currentTimeMillis())))
 
-          val jobNumberRetries = if(jobGraph.getNumberOfExecutionRetries >= 0){
-            jobGraph.getNumberOfExecutionRetries
-          }else{
-            defaultExecutionRetries
-          }
-
-          executionGraph.setNumberOfRetriesLeft(jobNumberRetries)
-          executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
-
-          if (userCodeLoader == null) {
-            throw new JobException("The user code class loader could not be initialized.")
-          }
-
-          if(log.isDebugEnabled) {
-            log.debug(s"Running master initialization of job ${jobGraph.getJobID} (${jobGraph
-              .getName}}).")
-          }
-
-          for (vertex <- jobGraph.getVertices.asScala) {
-            val executableClass = vertex.getInvokableClassName
-            if (executableClass == null || executableClass.length == 0) {
-              throw new JobException(s"The vertex ${vertex.getID} (${vertex.getName}) has no " +
-                s"invokable class.")
+            val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {
+              jobGraph.getNumberOfExecutionRetries
+            } else {
+              defaultExecutionRetries
             }
 
-            vertex.initializeOnMaster(userCodeLoader)
+            executionGraph.setNumberOfRetriesLeft(jobNumberRetries)
+            executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
+
+            if (userCodeLoader == null) {
+              throw new JobException("The user code class loader could not be initialized.")
+            }
+
+            if (log.isDebugEnabled) {
+              log.debug(s"Running master initialization of job ${jobGraph.getJobID} (${
+                jobGraph
+                  .getName
+              }}).")
+            }
+
+            for (vertex <- jobGraph.getVertices.asScala) {
+              val executableClass = vertex.getInvokableClassName
+              if (executableClass == null || executableClass.length == 0) {
+                throw new JobException(s"The vertex ${vertex.getID} (${vertex.getName}) has no " +
+                  s"invokable class.")
+              }
+
+              vertex.initializeOnMaster(userCodeLoader)
+            }
+
+            // topological sorting of the job vertices
+            val sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources
+
+            if (log.isDebugEnabled) {
+              log.debug(s"Adding ${sortedTopology.size()} vertices from job graph ${
+                jobGraph
+                  .getJobID
+              } (${jobGraph.getName}).")
+            }
+
+            executionGraph.attachJobGraph(sortedTopology)
+
+            if (log.isDebugEnabled) {
+              log.debug(s"Successfully created execution graph from job graph " +
+                s"${jobGraph.getJobID} (${jobGraph.getName}).")
+            }
+
+            executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
+
+            // get notified about job status changes
+            executionGraph.registerJobStatusListener(self)
+
+            if (listenToEvents) {
+              // the sender will be notified about state changes
+              executionGraph.registerExecutionListener(sender)
+              executionGraph.registerJobStatusListener(sender)
+            }
+
+            jobInfo.detach = detach
+
+            log.info(s"Scheduling job ${jobGraph.getName}.")
+
+            executionGraph.scheduleForExecution(scheduler)
+
+            sender ! SubmissionSuccess(jobGraph.getJobID)
           }
-
-          // topological sorting of the job vertices
-          val sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources
-
-          if(log.isDebugEnabled) {
-            log.debug(s"Adding ${sortedTopology.size()} vertices from job graph ${jobGraph
-              .getJobID} (${jobGraph.getName}).")
-          }
-
-          executionGraph.attachJobGraph(sortedTopology)
-
-          if(log.isDebugEnabled) {
-            log.debug(s"Successfully created execution graph from job graph ${jobGraph.getJobID} " +
-              s"(${jobGraph.getName}).")
-          }
-
-          executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
-
-          // get notified about job status changes
-          executionGraph.registerJobStatusListener(self)
-
-          if(listenToEvents){
-            // the sender will be notified about state changes
-            executionGraph.registerExecutionListener(sender)
-            executionGraph.registerJobStatusListener(sender)
-          }
-
-          jobInfo.detach = detach
-
-          log.info(s"Scheduling job ${jobGraph.getName}.")
-
-          executionGraph.scheduleForExecution(scheduler)
-
-          sender ! SubmissionSuccess(jobGraph.getJobID)
         }
       } catch {
         case t: Throwable =>
@@ -211,7 +224,7 @@ Actor with ActorLogMessages with ActorLogging {
             case Some((executionGraph, jobInfo)) =>
               executionGraph.fail(t)
 
-              // don't send the client the final job status because we already send him
+              // don't send the client the final job status because we will send him
               // SubmissionFailure
               jobInfo.detach = true
 
@@ -224,7 +237,6 @@ Actor with ActorLogMessages with ActorLogging {
             case None =>
               libraryCacheManager.unregisterJob(jobGraph.getJobID)
               currentJobs.remove(jobGraph.getJobID)
-
           }
 
           sender ! SubmissionFailure(jobGraph.getJobID, t)
@@ -415,6 +427,10 @@ Actor with ActorLogMessages with ActorLogging {
       log.info(s"Task manager ${taskManager.path} terminated.")
       instanceManager.unregisterTaskManager(taskManager)
       context.unwatch(taskManager)
+    }
+
+    case RequestJobManagerStatus => {
+      sender ! JobManagerStatusAlive
     }
   }
 

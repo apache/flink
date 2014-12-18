@@ -245,11 +245,6 @@ object AkkaUtils {
     Await.result(future, timeout).asInstanceOf[T]
   }
 
-  def askInf[T](actor: ActorRef, msg: Any): T = {
-    val future = Patterns.ask(actor, msg, INF_TIMEOUT)
-    Await.result(future, INF_TIMEOUT).asInstanceOf[T]
-  }
-
   def retry[T](body: => T, tries: Int)(implicit executionContext: ExecutionContext): Future[T] = {
     Future{ body }.recoverWith{
       case t:Throwable =>

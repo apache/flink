@@ -449,5 +449,50 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         cluster.stop()
       }
     }
+
+    "check that all job vertices have completed the call to finalizeOnMaster before the job " +
+      "completes" in {
+      val num_tasks = 31
+
+      val source = new AbstractJobVertex("Source")
+      val sink = new WaitingOnFinalizeJobVertex("Sink", 500)
+
+      source.setInvokableClass(classOf[WaitingNoOpInvokable])
+      sink.setInvokableClass(classOf[NoOpInvokable])
+
+      source.setParallelism(num_tasks)
+      sink.setParallelism(num_tasks)
+
+      val jobGraph = new JobGraph("SubtaskInFinalStateRaceCondition", source, sink)
+
+      val cluster = TestingUtils.startTestingCluster(2*num_tasks)
+      val jm = cluster.getJobManager
+
+      try{
+        within(TestingUtils.TESTING_DURATION){
+          jm ! SubmitJob(jobGraph)
+
+          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsgType[JobResultSuccess]
+        }
+
+        sink.finished should equal(true)
+
+        jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+        expectMsg(true)
+      } finally{
+        cluster.stop()
+      }
+    }
+  }
+
+  class WaitingOnFinalizeJobVertex(name: String, val waitingTime: Long) extends
+  AbstractJobVertex(name){
+    var finished = false
+
+    override def finalizeOnMaster(loader: ClassLoader): Unit = {
+      Thread.sleep(waitingTime)
+      finished = true
+    }
   }
 }
