@@ -58,7 +58,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.util.ExceptionUtils
 import org.slf4j.LoggerFactory
 
-import scala.collection.convert.{WrapAsScala, DecorateAsScala}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -67,10 +66,11 @@ import scala.util.Success
 class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkkaURL: String,
                   val taskManagerConfig: TaskManagerConfiguration,
                   val networkConnectionConfig: NetworkConnectionConfiguration)
-  extends Actor with ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala {
+  extends Actor with ActorLogMessages with ActorLogging {
 
   import context._
   import taskManagerConfig.{timeout => tmTimeout, _}
+  import scala.collection.JavaConverters._
   implicit val timeout = tmTimeout
 
   log.info(s"Starting task manager at ${self.path}.")
@@ -230,7 +230,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       val executionID = tdd.getExecutionId
       val taskIndex = tdd.getIndexInSubtaskGroup
       val numSubtasks = tdd.getCurrentNumberOfSubtasks
-      var jarsRegistered = false
       var startRegisteringTask = 0L
 
       try {
@@ -243,7 +242,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           log.debug(s"Register task ${executionID} took ${(System.currentTimeMillis() -
             startRegisteringTask)/1000.0}s")
         }
-        jarsRegistered = true
 
         val userCodeClassLoader = libraryCacheManager.getClassLoader(jobID)
 
@@ -285,7 +283,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
         val cpTasks = new util.HashMap[String, FutureTask[Path]]()
 
-        for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration)) {
+        for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration).asScala) {
           val cp = fileCache.createTmpFile(entry.getKey, entry.getValue, jobID)
           cpTasks.put(entry.getKey, cp)
         }
@@ -299,26 +297,16 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       } catch {
         case t: Throwable =>
           log.error(t, s"Could not instantiate task with execution ID ${executionID}.")
-          runningTasks.remove(executionID)
 
-          for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration)) {
-            fileCache.deleteTmpFile(entry.getKey, entry.getValue, jobID)
-          }
-
-          if (jarsRegistered) {
-            try {
-              libraryCacheManager.unregisterTask(jobID, executionID)
-            } catch {
-              case ioe: IOException =>
-                if(log.isDebugEnabled) {
-                  log.debug(s"Unregistering the execution ${executionID} caused an IOException.")
-                }
-            }
-          }
+          unregisterTask(executionID)
 
           sender ! new TaskOperationResult(executionID, false,
             ExceptionUtils.stringifyException(t))
       }
+    }
+
+    case UnregisterTask(executionID) => {
+      unregisterTask(executionID)
     }
 
     case SendHeartbeat => {
@@ -348,38 +336,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       }
     }
 
-    case UnregisterTask(executionID) => {
-      log.info(s"Unregister task with execution ID ${executionID}.")
-      runningTasks.remove(executionID) match {
-        case Some(task) =>
-          if(task.getEnvironment != null) {
-            for (entry <- DistributedCache.readFileInfoFromConfig(task.getEnvironment
-              .getJobConfiguration)) {
-              fileCache.deleteTmpFile(entry.getKey, entry.getValue, task.getJobID)
-            }
-          }
-
-          channelManager foreach {
-            _.unregister(executionID, task)
-          }
-
-          profiler foreach {
-            _ ! UnmonitorTask(task.getExecutionId)
-          }
-
-          task.unregisterMemoryManager(memoryManager)
-
-          try {
-            libraryCacheManager.unregisterTask(task.getJobID, executionID)
-          } catch {
-            case ioe: IOException =>
-              log.error(ioe, s"Unregistering the execution ${executionID} caused an IOException.")
-          }
-        case None =>
-          log.error(s"Cannot find task with ID ${executionID} to unregister.")
-      }
-    }
-
     case Terminated(jobManager) => {
       log.info(s"Job manager ${jobManager.path} is no longer reachable. Try to reregister.")
       tryJobManagerRegistration()
@@ -393,13 +349,11 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     val futureResponse = (currentJobManager ? UpdateTaskExecutionState(new TaskExecutionState
     (jobID, executionID, executionState, optionalError)))(timeout)
 
-    val receiver = this.self
-
     futureResponse.mapTo[Boolean].onComplete {
       case Success(result) =>
         if (!result || executionState == ExecutionState.FINISHED || executionState ==
           ExecutionState.CANCELED || executionState == ExecutionState.FAILED) {
-          receiver ! UnregisterTask(executionID)
+          self ! UnregisterTask(executionID)
         }
       case Failure(t) =>
         log.warning(s"Execution state change notification failed for task ${executionID} " +
@@ -459,6 +413,33 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         t.failExternally(cause)
         runningTasks.remove(t.getExecutionId)
       }
+    }
+  }
+
+  def unregisterTask(executionID: ExecutionAttemptID): Unit = {
+    log.info(s"Unregister task with execution ID ${executionID}.")
+    runningTasks.remove(executionID) match {
+      case Some(task) =>
+        if(task.getEnvironment != null) {
+          for (entry <- DistributedCache.readFileInfoFromConfig(task.getEnvironment
+            .getJobConfiguration).asScala) {
+            fileCache.deleteTmpFile(entry.getKey, entry.getValue, task.getJobID)
+          }
+        }
+
+        channelManager foreach {
+          _.unregister(executionID, task)
+        }
+
+        profiler foreach {
+          _ ! UnmonitorTask(task.getExecutionId)
+        }
+
+        task.unregisterMemoryManager(memoryManager)
+
+        libraryCacheManager.unregisterTask(task.getJobID, executionID)
+      case None =>
+        log.error(s"Cannot find task with ID ${executionID} to unregister.")
     }
   }
 }

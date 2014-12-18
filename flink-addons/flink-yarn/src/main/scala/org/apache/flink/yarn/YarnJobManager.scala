@@ -69,7 +69,7 @@ trait YarnJobManager extends ActorLogMessages {
     case StopYarnSession(status) =>
       log.info("Stopping Yarn Session.")
 
-      instanceManager.getAllRegisteredInstances foreach {
+      instanceManager.getAllRegisteredInstances.asScala foreach {
         instance =>
           instance.getTaskManager ! StopYarnSession(status)
       }
@@ -196,7 +196,7 @@ trait YarnJobManager extends ActorLogMessages {
         case Some(rmClient) => {
           val response = rmClient.allocate(completedContainers.toFloat / numTaskManager)
 
-          for (container <- response.getAllocatedContainers) {
+          for (container <- response.getAllocatedContainers.asScala) {
             log.info(s"Got new container for TM ${container.getId} on host ${
               container.getNodeId.getHost}")
 
@@ -220,7 +220,7 @@ trait YarnJobManager extends ActorLogMessages {
             }
           }
 
-          for (status <- response.getCompletedContainersStatuses) {
+          for (status <- response.getCompletedContainersStatuses.asScala) {
             completedContainers += 1
             log.info(s"Completed container ${status.getContainerId}. Total completed " +
               s"$completedContainers.")

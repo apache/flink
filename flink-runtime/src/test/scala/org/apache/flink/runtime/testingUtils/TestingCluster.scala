@@ -20,7 +20,6 @@ package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{ActorSystem, Props}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils

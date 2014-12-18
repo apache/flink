@@ -39,7 +39,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParserTest.MyWritable;
 import org.apache.flink.api.java.typeutils.WritableTypeInfo;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.HashMultiset;

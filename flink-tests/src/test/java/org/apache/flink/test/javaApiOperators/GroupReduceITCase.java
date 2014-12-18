@@ -771,76 +771,79 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			}
 			out.collect(concat.toString());
 		}
-				case 27: {
-					/*
-					 * Test Java collections within pojos ( == test kryo)
-					 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					env.setDegreeOfParallelism(1);
-
-					DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithCollection(env);
-					// f0.f0 is first integer
-					DataSet<String> reduceDs = ds.groupBy("key")
-							.reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoWithCollection, String>() {
-								@Override
-								public void reduce(
-										Iterable<CollectionDataSets.PojoWithCollection> values,
-										Collector<String> out) throws Exception {
-									StringBuilder concat = new StringBuilder();
-									concat.append("call");
-									for(CollectionDataSets.PojoWithCollection value : values) {
-										concat.append("For key "+value.key+" we got: ");
-										for(CollectionDataSets.Pojo1 p :value.pojos) {
-											concat.append("pojo.a="+p.a);
-										}
-									}
-									out.collect(concat.toString());
-								}
-							});
-					reduceDs.writeAsText(resultPath);
-					env.execute();
-
-					// return expected result
-					return "callFor key 0 we got: pojo.a=apojo.a=bFor key 0 we got: pojo.a=a2pojo.a=b2\n";
-				}
-
-				case 28: {
-					/*
-					 * Group by generic type
-					 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					env.setDegreeOfParallelism(1);
-
-					DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithCollection(env);
-					// f0.f0 is first integer
-					DataSet<String> reduceDs = ds.groupBy("bigInt")
-							.reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoWithCollection, String>() {
-								@Override
-								public void reduce(
-										Iterable<CollectionDataSets.PojoWithCollection> values,
-										Collector<String> out) throws Exception {
-									StringBuilder concat = new StringBuilder();
-									concat.append("call");
-									for(CollectionDataSets.PojoWithCollection value : values) {
-										concat.append("\nFor key "+value.bigInt+" we got:\n"+value);
-									}
-									out.collect(concat.toString());
-								}
-							});
-					reduceDs.writeAsText(resultPath);
-					env.execute();
-
-					// return expected result
-					return "call\n" +
-							"For key 92233720368547758070 we got:\n" +
-							"PojoWithCollection{pojos.size()=2, key=0, sqlDate=2033-05-18, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=10, mixed=[{someKey=1}, /this/is/wrong, uhlala]}\n" +
-							"For key 92233720368547758070 we got:\n" +
-							"PojoWithCollection{pojos.size()=2, key=0, sqlDate=1976-05-03, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=31104000, mixed=null}\n";
-				}
-
 	}
-	
-	
+
+	@Test
+	public void testJavaCollectionsWithinPojos() throws Exception {
+		/*
+		 * Test Java collections within pojos ( == test kryo)
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(1);
+
+		DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithCollection(env);
+		// f0.f0 is first integer
+		DataSet<String> reduceDs = ds.groupBy("key")
+				.reduceGroup(new GroupReducer7());
+		reduceDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "callFor key 0 we got: pojo.a=apojo.a=bFor key 0 we got: pojo.a=a2pojo.a=b2\n";
+	}
+
+	public static class GroupReducer7 implements GroupReduceFunction<CollectionDataSets.PojoWithCollection, String> {
+		@Override
+		public void reduce(
+				Iterable<CollectionDataSets.PojoWithCollection> values,
+				Collector<String> out) throws Exception {
+			StringBuilder concat = new StringBuilder();
+			concat.append("call");
+			for(CollectionDataSets.PojoWithCollection value : values) {
+				concat.append("For key "+value.key+" we got: ");
+				for(CollectionDataSets.Pojo1 p :value.pojos) {
+					concat.append("pojo.a="+p.a);
+				}
+			}
+			out.collect(concat.toString());
+		}
+	}
+
+	@Test
+	public void testGroupByGenericType() throws Exception {
+		/*
+		 * Group by generic type
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(1);
+
+		DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithCollection(env);
+		// f0.f0 is first integer
+		DataSet<String> reduceDs = ds.groupBy("bigInt")
+				.reduceGroup(new GroupReducer8());
+		reduceDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "call\n" +
+				"For key 92233720368547758070 we got:\n" +
+				"PojoWithCollection{pojos.size()=2, key=0, sqlDate=2033-05-18, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=10, mixed=[{someKey=1}, /this/is/wrong, uhlala]}\n" +
+				"For key 92233720368547758070 we got:\n" +
+				"PojoWithCollection{pojos.size()=2, key=0, sqlDate=1976-05-03, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=31104000, mixed=null}\n";
+	}
+
+	public static class GroupReducer8 implements GroupReduceFunction<CollectionDataSets.PojoWithCollection, String> {
+		@Override
+		public void reduce(
+				Iterable<CollectionDataSets.PojoWithCollection> values,
+				Collector<String> out) throws Exception {
+			StringBuilder concat = new StringBuilder();
+			concat.append("call");
+			for(CollectionDataSets.PojoWithCollection value : values) {
+				concat.append("\nFor key "+value.bigInt+" we got:\n"+value);
+			}
+			out.collect(concat.toString());
+		}
+	}
+
 	public static class NestedTupleReducer implements GroupReduceFunction<Tuple2<Tuple2<Integer,Integer>,String>, String> {
 		@Override
 		public void reduce(

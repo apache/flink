@@ -22,7 +22,7 @@ import akka.actor.{Props, ActorSystem, ActorRef}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingTaskManager}
+import org.apache.flink.runtime.testingUtils.{TestingTaskManager}
 
 class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean)
   extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem) {

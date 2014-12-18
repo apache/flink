@@ -46,13 +46,14 @@ import org.apache.flink.runtime.messages.TaskManagerMessages.{NextInputSplit, He
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.slf4j.LoggerFactory
 
-import scala.collection.convert.WrapAsScala
 import scala.concurrent.{Future}
 import scala.concurrent.duration._
 
 class JobManager(val configuration: Configuration) extends
-Actor with ActorLogMessages with ActorLogging with WrapAsScala {
+Actor with ActorLogMessages with ActorLogging {
   import context._
+  import scala.collection.JavaConverters._
+
   implicit val timeout = FiniteDuration(configuration.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
     ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
 
@@ -158,7 +159,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
               .getName}}).")
           }
 
-          for (vertex <- jobGraph.getVertices) {
+          for (vertex <- jobGraph.getVertices.asScala) {
             val executableClass = vertex.getInvokableClassName
             if (executableClass == null || executableClass.length == 0) {
               throw new JobException(s"The vertex ${vertex.getID} (${vertex.getName}) has no " +
