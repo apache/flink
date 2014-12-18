@@ -213,6 +213,8 @@ under the License.
 			</build>
 		</profile>
 
+
+
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
@@ -228,6 +230,69 @@ under the License.
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
+		</profile>
+
+		<profile>
+			<id>mesos</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-mesos</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>2.4</version>
+						<executions>
+							<!--  Uber-jar -->
+							<execution>
+								<id>uber-jar</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<archiverConfig>
+										<!-- https://jira.codehaus.org/browse/MASSEMBLY-449 -->
+										<fileMode>420</fileMode> <!-- 420(dec) = 644(oct) -->
+										<directoryMode>493</directoryMode> <!-- 493(dec) = 755(oct) -->
+										<defaultDirectoryMode>493</defaultDirectoryMode>
+									</archiverConfig>
+									<archive>
+										<manifest>
+											<mainClass>org.apache.flink.org.apache.flink.mesos.core.MesosController</mainClass>
+											<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+											<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+										</manifest>
+									</archive>
+									<descriptors>
+										<descriptor>src/main/assemblies/yarn-uberjar.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+
+							<!-- mesos bin directory -->
+							<execution>
+								<id>mesos-bin</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
+										<descriptor>src/main/assemblies/mesos.xml</descriptor>
+									</descriptors>
+									<finalName>flink-${project.version}-bin</finalName>
+									<appendAssemblyId>false</appendAssemblyId>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 
 		<profile>

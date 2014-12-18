@@ -65,7 +65,7 @@ under the License.
 		<module>flink-addons</module>
 		<module>flink-quickstart</module>
 		<module>flink-dist</module>
-	</modules>
+    </modules>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -290,6 +290,12 @@ under the License.
 				<hadoop.version>${hadoop-two.version}</hadoop.version>
 			</properties>
 		</profile>
+		<profile>
+			<id>mesos</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+		</profile>
 
 		<profile>
 			<id>vendor-repos</id>
@@ -504,6 +510,9 @@ under the License.
 						<relocation>
 							<pattern>com.google</pattern>
 							<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+							<excludes>
+								<exclude>com.google.protobuf.*</exclude>
+							</excludes>
 						</relocation>
 					</relocations>
 				</configuration>
