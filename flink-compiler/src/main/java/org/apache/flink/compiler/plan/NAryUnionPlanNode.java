@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.compiler.costs.Costs;
 import org.apache.flink.compiler.dag.BinaryUnionNode;
 import org.apache.flink.compiler.dataproperties.GlobalProperties;
 import org.apache.flink.compiler.dataproperties.LocalProperties;
@@ -40,12 +41,16 @@ public class NAryUnionPlanNode extends PlanNode {
 	/**
 	 * @param template
 	 */
-	public NAryUnionPlanNode(BinaryUnionNode template, List<Channel> inputs, GlobalProperties gProps) {
+	public NAryUnionPlanNode(BinaryUnionNode template, List<Channel> inputs, GlobalProperties gProps,
+			Costs cumulativeCosts)
+	{
 		super(template, "Union", DriverStrategy.NONE);
 		
 		this.inputs = inputs;
 		this.globalProps = gProps;
 		this.localProps = new LocalProperties();
+		this.nodeCosts = new Costs();
+		this.cumulativeCosts = cumulativeCosts;
 	}
 
 	@Override

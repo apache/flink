@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import static org.apache.flink.runtime.operators.DamBehavior.FULL_DAM;
@@ -93,9 +92,9 @@ public enum DriverStrategy {
 	NESTEDLOOP_STREAMED_OUTER_SECOND(CrossDriver.class, null, FULL_DAM, PIPELINED, 0),
 	
 	// union utility op. unions happen implicitly on the network layer (in the readers) when bundeling streams
-	UNION(null, null, FULL_DAM, FULL_DAM, 0);
+	UNION(null, null, PIPELINED, PIPELINED, 0),
 	// explicit binary union between a streamed and a cached input
-//	UNION_WITH_CACHED(UnionWithTempOperator.class, null, FULL_DAM, PIPELINED, false);
+	UNION_WITH_CACHED(UnionWithTempOperator.class, null, FULL_DAM, PIPELINED, 0);
 	
 	// --------------------------------------------------------------------------------------------
 	

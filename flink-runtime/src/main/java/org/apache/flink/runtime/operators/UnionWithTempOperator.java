@@ -16,66 +16,68 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-//public class UnionWithTempOperator<T> implements PactDriver<Function, T> {
-//	
-//	private PactTaskContext<Function, T> taskContext;
-//	
-//	private volatile boolean running;
-//	
-//	
-//	@Override
-//	public void setup(PactTaskContext<Function, T> context) {
-//		this.taskContext = context;
-//		this.running = true;
-//	}
-//
-//	@Override
-//	public int getNumberOfInputs() {
-//		return 2;
-//	}
-//
-//	@Override
-//	public Class<Function> getStubType() {
-//		return Function.class;
-//	}
-//
-//	@Override
-//	public boolean requiresComparatorOnInput() {
-//		return false;
-//	}
-//
-//	@Override
-//	public void prepare() {}
-//
-//	@Override
-//	public void run() throws Exception {
-//		
-//		final int tempedInput = 0;
-//		final int streamedInput = 1;
-//		
-//		final MutableObjectIterator<T> cache = this.taskContext.getInput(tempedInput);
-//		final MutableObjectIterator<T> input = this.taskContext.getInput(streamedInput);
-//		
-//		final Collector<T> output = this.taskContext.getOutputCollector();
-//
-//		T record = this.taskContext.<T>getInputSerializer(streamedInput).createInstance();
-//
-//		while (this.running && ((record = input.next(record)) != null)) {
-//			output.collect(record);
-//		}
-//		while (this.running && ((record = cache.next(record)) != null)) {
-//			output.collect(record);
-//		}
-//	}
-//
-//	@Override
-//	public void cleanup() {}
-//
-//	@Override
-//	public void cancel() {
-//		this.running = false;
-//	}
-//}
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.MutableObjectIterator;
+
+public class UnionWithTempOperator<T> implements PactDriver<Function, T> {
+	
+	private static final int CACHED_INPUT = 0;
+	private static final int STREAMED_INPUT = 1;
+	
+	private PactTaskContext<Function, T> taskContext;
+	
+	private volatile boolean running;
+	
+	
+	@Override
+	public void setup(PactTaskContext<Function, T> context) {
+		this.taskContext = context;
+		this.running = true;
+	}
+
+	@Override
+	public int getNumberOfInputs() {
+		return 2;
+	}
+	
+	@Override
+	public int getNumberOfDriverComparators() {
+		return 0;
+	}
+
+	@Override
+	public Class<Function> getStubType() {
+		return null; // no UDF
+	}
+
+	@Override
+	public void prepare() {}
+
+	@Override
+	public void run() throws Exception {
+		
+		final Collector<T> output = this.taskContext.getOutputCollector();
+		T record = this.taskContext.<T>getInputSerializer(STREAMED_INPUT).getSerializer().createInstance();
+		
+		final MutableObjectIterator<T> input = this.taskContext.getInput(STREAMED_INPUT);
+		while (this.running && ((record = input.next(record)) != null)) {
+			output.collect(record);
+		}
+		
+		final MutableObjectIterator<T> cache = this.taskContext.getInput(CACHED_INPUT);
+		while (this.running && ((record = cache.next(record)) != null)) {
+			output.collect(record);
+		}
+	}
+
+	@Override
+	public void cleanup() {}
+
+	@Override
+	public void cancel() {
+		this.running = false;
+	}
+}
