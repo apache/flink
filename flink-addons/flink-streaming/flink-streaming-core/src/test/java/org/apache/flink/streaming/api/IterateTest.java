@@ -79,7 +79,7 @@ public class IterateTest {
 
 		DataStream<Boolean> source = env.fromElements(false, false, false);
 
-		IterativeDataStream<Boolean> iteration = source.iterate().setMaxWaitTime(3000);
+		IterativeDataStream<Boolean> iteration = source.iterate(3000);
 
 		DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).flatMap(
 				new IterationTail());

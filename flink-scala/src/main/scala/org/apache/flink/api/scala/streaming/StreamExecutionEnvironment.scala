@@ -117,14 +117,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    */
   def generateSequence(from: Long, to: Long): DataStream[Long] = {
-    val source = new SourceFunction[Long] {
-      override def invoke(out: Collector[Long]) = {
-        for (i <- from.to(to)) {
-          out.collect(i)
-        }
-      }
-    }
-    addSource(source)
+    new DataStream[java.lang.Long](javaEnv.generateSequence(from, to)).asInstanceOf[DataStream[Long]]
   }
 
   /**

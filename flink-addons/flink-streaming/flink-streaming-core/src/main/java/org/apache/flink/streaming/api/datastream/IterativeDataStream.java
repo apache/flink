@@ -31,12 +31,12 @@ public class IterativeDataStream<IN> extends
 	protected Integer iterationID;
 	protected long waitTime;
 
-	protected IterativeDataStream(DataStream<IN> dataStream) {
+	protected IterativeDataStream(DataStream<IN> dataStream, long maxWaitTime) {
 		super(dataStream);
 		setBufferTimeout(dataStream.environment.getBufferTimeout());
 		iterationID = iterationCount;
 		iterationCount++;
-		waitTime = 0;
+		waitTime = maxWaitTime;
 	}
 
 	protected IterativeDataStream(DataStream<IN> dataStream, Integer iterationID, long waitTime) {
@@ -69,20 +69,6 @@ public class IterativeDataStream<IN> extends
 		jobGraphBuilder.setIterationSourceSettings(iterationID.toString(), iterationTail.getId());
 		connectGraph(iterationTail, iterationSink.getId(), 0);
 		return iterationTail;
-	}
-
-	/**
-	 * Sets the max waiting time for the next record before shutting down the
-	 * stream. If not set, then the user needs to manually kill the process to
-	 * stop.
-	 * 
-	 * @param waitTimeMillis
-	 *            Max waiting time in milliseconds
-	 * @return The modified DataStream.
-	 */
-	public IterativeDataStream<IN> setMaxWaitTime(long waitTimeMillis) {
-		this.waitTime = waitTimeMillis;
-		return this;
 	}
 
 	@Override
