@@ -37,7 +37,15 @@ public class WindowGroupReduceInvokable<IN, OUT> extends WindowInvokable<IN, OUT
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		reducer.reduce(buffer, collector);
+		reducer.reduce(copyBuffer(), collector);
+	}
+
+	public LinkedList<IN> copyBuffer() {
+		LinkedList<IN> copy = new LinkedList<IN>();
+		for (IN element : buffer) {
+			copy.add(copy(element));
+		}
+		return copy;
 	}
 
 }
