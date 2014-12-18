@@ -49,7 +49,7 @@ public class WindowReduceInvokable<IN> extends WindowInvokable<IN, IN> {
 		while (reducedIterator.hasNext()) {
 			IN next = reducedIterator.next();
 			if (next != null) {
-				reduced = reducer.reduce(reduced, next);
+				reduced = reducer.reduce(copy(reduced), copy(next));
 			}
 		}
 		if (reduced != null) {

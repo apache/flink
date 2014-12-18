@@ -44,6 +44,6 @@ public class FilterInvokable<IN> extends StreamInvokable<IN, IN> {
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		collect = filterFunction.filter(nextRecord.getObject());
+		collect = filterFunction.filter(copy(nextRecord.getObject()));
 	}
 }

@@ -23,6 +23,7 @@ import java.io.Serializable;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -49,6 +50,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
 	protected StreamRecordSerializer<IN> inSerializer;
+	protected TypeSerializer<IN> objectSerializer;
 	protected StreamRecord<IN> nextRecord;
 	protected boolean isMutable;
 
@@ -72,6 +74,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 		this.inSerializer = taskContext.getInputSerializer(0);
 		if (this.inSerializer != null) {
 			this.nextRecord = inSerializer.createInstance();
+			this.objectSerializer = inSerializer.getObjectSerializer();
 		}
 		this.taskContext = taskContext;
 	}
@@ -140,5 +143,9 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	public void setRuntimeContext(RuntimeContext t) {
 		FunctionUtils.setFunctionRuntimeContext(userFunction, t);
+	}
+
+	protected IN copy(IN record) {
+		return objectSerializer.copy(record);
 	}
 }
