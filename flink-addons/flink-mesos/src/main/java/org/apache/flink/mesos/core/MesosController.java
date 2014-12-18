@@ -62,6 +62,7 @@ public class MesosController {
 	private static final Option USE_WEB = new Option("w","web",false, "Launch the web frontend on the jobmanager node.");
 	private static final Option JM_CORES = new Option("jmc","jobManagerCores",true, "Number of Jobmanager Cores");
 	private static final Option HELP = new Option("h","help",false, "print help");
+	private static final Option SINGLENODE = new Option("sn","singlenode",false, "Allow job- and taskmanager on same node");
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
 	 *  -Dfs.overwrite-files=true  -Dtaskmanager.network.numberOfBuffers=16368
@@ -96,6 +97,7 @@ public class MesosController {
 		opt.addOption(JM_CORES);
 		opt.addOption(SLOTS);
 		opt.addOption(USE_WEB);
+		opt.addOption(SINGLENODE);
 		opt.addOption(DYNAMIC_PROPERTIES);
 		formatter.printHelp(" ", opt);
 	}
@@ -152,6 +154,7 @@ public class MesosController {
 		options.addOption(MASTER);
 		options.addOption(MESOS_LIB);
 		options.addOption(USE_WEB);
+		options.addOption(SINGLENODE);
 		options.addOption(DYNAMIC_PROPERTIES);
 
 		LOG.info("starting");
@@ -254,6 +257,10 @@ public class MesosController {
 
 		if (cmd.hasOption(USE_WEB.getOpt())) {
 			config.setBoolean(MesosConstants.MESOS_USE_WEB, true);
+		}
+
+		if (cmd.hasOption(SINGLENODE.getOpt())) {
+			config.setBoolean(MesosConstants.SINGLENODE, true);
 		}
 
 		MesosSchedulerDriver driver = new MesosSchedulerDriver(

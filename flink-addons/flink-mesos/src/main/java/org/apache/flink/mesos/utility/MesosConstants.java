@@ -69,21 +69,27 @@ public class MesosConstants {
 	 */
 	public static final String MESOS_JOB_MANAGER_CORES = "flink.mesos.jmcores";
 
+	/**
+	 * allows job- and taskmanager on same node
+	 */
+	public static final String SINGLENODE = "flink.mesos.singlenode";
+
+
 	//------------------DEFAULT VALUES----------------
+
 	/**
 	 * The cores that each TaskManager
 	 */
 	public static final Integer DEFAULT_MESOS_TASK_MANAGER_CORES = 1;
-
 	/**
 	 * JobManager memory on each Mesos node
 	 */
 	public static final Double DEFAULT_MESOS_JOB_MANAGER_MEMORY = 256.0;
+
 	/**
 	 * JobManager memory on each Mesos node
 	 */
 	public static final Double DEFAULT_MESOS_JOB_MANAGER_CORES = 1.0;
-
 	/**
 	 * TaskManager memory on each Mesos node
 	 */

@@ -222,7 +222,7 @@ public class FlinkMesosScheduler implements Scheduler {
 				handleJM(tasks, launchIDs, offer);
 				schedulerDriver.launchTasks(launchIDs, tasks);
 				offerIDs.addAll(launchIDs);
-			} else if (jm_running /*&& !offer.getSlaveId().equals(jobManager.getSlaveId())*/ && !taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) { //needs to be changed if no taskmanager should be started on a jobmanager node, useful for testing
+			} else if (jm_running && (!offer.getSlaveId().equals(jobManager.getSlaveId()) || config.getBoolean(MesosConstants.SINGLENODE, false)) && !taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) { //needs to be changed if no taskmanager should be started on a jobmanager node, useful for testing
 				List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
 				List<Protos.OfferID> launchIDs = new LinkedList<Protos.OfferID>();
 				handleTM(tasks, launchIDs, offer);
