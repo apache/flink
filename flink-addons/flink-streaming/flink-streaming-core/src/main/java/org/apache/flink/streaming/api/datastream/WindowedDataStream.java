@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.GroupedWindowInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
+import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
@@ -490,7 +491,17 @@ public class WindowedDataStream<OUT> {
 			}
 		} else {
 			if (userEvicters == null) {
-				evicters.add(new TumblingEvictionPolicy<OUT>());
+				boolean notOnlyTime=false;
+				for (WindowingHelper<OUT> helper : triggerHelpers){
+					if (helper instanceof Time<?>){
+						evicters.add(helper.toEvict());
+					} else {
+						notOnlyTime=true;
+					}
+				}
+				if (notOnlyTime){
+					evicters.add(new TumblingEvictionPolicy<OUT>());
+				}
 			}
 		}
 
