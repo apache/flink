@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -40,11 +41,11 @@ import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.util.ReflectionUtils;
 
 
-public class HadoopOutputFormat<K extends Writable,V extends Writable> implements OutputFormat<Tuple2<K, V>> {
+public class HadoopOutputFormat<K extends Writable,V extends Writable> implements OutputFormat<Tuple2<K, V>>, FinalizeOnMaster {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private JobConf jobConf;	
+	private JobConf jobConf;
 	private org.apache.hadoop.mapred.OutputFormat<K,V> mapredOutputFormat;	
 	private transient RecordWriter<K,V> recordWriter;	
 	private transient FileOutputCommitter fileOutputCommitter;
@@ -141,7 +142,20 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		if (this.fileOutputCommitter.needsTaskCommit(this.context)) {
 			this.fileOutputCommitter.commitTask(this.context);
 		}
-		this.fileOutputCommitter.commitJob(this.jobContext);
+	}
+	
+	@Override
+	public void finalizeGlobal(int parallelism) throws IOException {
+
+		try {
+			JobContext jobContext = HadoopUtils.instantiateJobContext(this.jobConf, new JobID());
+			FileOutputCommitter fileOutputCommitter = new FileOutputCommitter();
+			
+			// finalize HDFS output format
+			fileOutputCommitter.commitJob(jobContext);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

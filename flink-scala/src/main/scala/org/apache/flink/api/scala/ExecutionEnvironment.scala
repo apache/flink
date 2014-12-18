@@ -20,7 +20,7 @@ package org.apache.flink.api.scala
 import java.util.UUID
 
 import org.apache.commons.lang3.Validate
-import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -28,7 +28,8 @@ import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.core.fs.Path
 
-import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv, CollectionEnvironment}
+import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv,
+CollectionEnvironment}
 import org.apache.flink.api.common.io.{InputFormat, FileInputFormat}
 
 import org.apache.flink.api.java.operators.DataSource
@@ -59,6 +60,19 @@ import scala.reflect.ClassTag
  *  be created.
  */
 class ExecutionEnvironment(javaEnv: JavaEnv) {
+  /**
+   * Sets the config object.
+   */
+  def setConfig(config: ExecutionConfig): Unit = {
+    javaEnv.setConfig(config)
+  }
+
+  /**
+   * Gets the config object.
+   */
+  def getConfig: ExecutionConfig = {
+    javaEnv.getConfig
+  }
 
   /**
    * Sets the degree of parallelism (DOP) for operations executed through this environment.
@@ -155,6 +169,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * @param lineDelimiter The string that separates lines, defaults to newline.
    * @param fieldDelimiter The char that separates individual fields, defaults to ','.
    * @param ignoreFirstLine Whether the first line in the file should be ignored.
+   * @param ignoreComments Lines that start with the given String are ignored, disabled by default.
    * @param lenient Whether the parser should silently ignore malformed lines.
    * @param includedFields The fields in the file that should be read. Per default all fields
    *                       are read.
@@ -164,6 +179,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       lineDelimiter: String = "\n",
       fieldDelimiter: Char = ',',
       ignoreFirstLine: Boolean = false,
+      ignoreComments: String = null,
       lenient: Boolean = false,
       includedFields: Array[Int] = null): DataSet[T] = {
 
@@ -174,6 +190,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     inputFormat.setFieldDelimiter(fieldDelimiter)
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)
+    inputFormat.setCommentPrefix(ignoreComments)
 
     val classes: Array[Class[_]] = new Array[Class[_]](typeInfo.getArity)
     for (i <- 0 until typeInfo.getArity) {

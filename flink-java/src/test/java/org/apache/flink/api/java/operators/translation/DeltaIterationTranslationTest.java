@@ -83,7 +83,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 				DataSet<Tuple2<Double, String>> worksetSelfJoin = 
 					iteration.getWorkset()
 						.map(new IdentityMapper<Tuple2<Double,String>>())
-						.join(iteration.getWorkset()).where(1).equalTo(1).projectFirst(0, 1).types(Double.class, String.class);
+						.join(iteration.getWorkset()).where(1).equalTo(1).projectFirst(0, 1);
 				
 				DataSet<Tuple3<Double, Long, String>> joined = worksetSelfJoin.join(iteration.getSolutionSet()).where(1).equalTo(2).with(new SolutionWorksetJoin());
 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational;
 
 import java.io.Serializable;
@@ -64,6 +63,7 @@ import org.apache.flink.util.Collector;
  *     AND o_orderpriority LIKE "Z%"
  * GROUP BY l_orderkey, o_shippriority;
  */
+@SuppressWarnings("deprecation")
 public class TPCHQuery3 implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;

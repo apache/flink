@@ -1,6 +1,24 @@
 ---
 title:  "Cluster Setup"
 ---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
 
 * This will be replaced by the TOC
 {:toc}
@@ -140,14 +158,15 @@ echo "PermitUserEnvironment yes" >> /etc/ssh/sshd_config
 ## Hadoop Distributed Filesystem (HDFS) Setup
 
 The Flink system currently uses the Hadoop Distributed Filesystem (HDFS)
-to read and write data in a distributed fashion.
+to read and write data in a distributed fashion. It is possible to use
+Flink without HDFS or other distributed file systems.
 
 Make sure to have a running HDFS installation. The following instructions are
 just a general overview of some required settings. Please consult one of the
 many installation guides available online for more detailed instructions.
 
-**Note that the following instructions are based on Hadoop 1.2 and might differ
-**for Hadoop 2.
+__Note that the following instructions are based on Hadoop 1.2 and might differ 
+for Hadoop 2.__
 
 ### Downloading, Installing, and Configuring HDFS
 
@@ -297,61 +316,18 @@ The Flink directory must be available on every worker under the same
 path. Similarly as for HDFS, you can use a shared NSF directory, or copy the
 entire Flink directory to every worker node.
 
-### Configuring the Network Buffers
-
-Network buffers are a critical resource for the communication layers. They are
-used to buffer records before transmission over a network, and to buffer
-incoming data before dissecting it into records and handing them to the
-application. A sufficient number of network buffers are critical to achieve a
-good throughput.
-
-In general, configure the task manager to have so many buffers that each logical
-network connection on you expect to be open at the same time has a dedicated
-buffer. A logical network connection exists for each point-to-point exchange of
-data over the network, which typically happens at repartitioning- or
-broadcasting steps. In those, each parallel task inside the TaskManager has to
-be able to talk to all other parallel tasks. Hence, the required number of
-buffers on a task manager is *total-degree-of-parallelism* (number of targets)
-\* *intra-node-parallelism* (number of sources in one task manager) \* *n*.
-Here, *n* is a constant that defines how many repartitioning-/broadcasting steps
-you expect to be active at the same time.
-
-Since the *intra-node-parallelism* is typically the number of cores, and more
-than 4 repartitioning or broadcasting channels are rarely active in parallel, it
-frequently boils down to *\#cores\^2\^* \* *\#machines* \* 4. To support for
-example a cluster of 20 8-core machines, you should use roughly 5000 network
-buffers for optimal throughput.
-
-Each network buffer is by default 64 KiBytes large. In the above example, the
-system would allocate roughly 300 MiBytes for network buffers.
-
-The number and size of network buffers can be configured with the following
-parameters:
-
-- `taskmanager.network.numberOfBuffers`, and
-- `taskmanager.network.bufferSizeInBytes`.
-
-### Configuring Temporary I/O Directories
-
-Although Flink aims to process as much data in main memory as possible,
-it is not uncommon that  more data needs to be processed than memory is
-available. Flink's runtime is designed to  write temporary data to disk
-to handle these situations.
-
-The `taskmanager.tmp.dirs` parameter specifies a list of directories into which
-Flink writes temporary files. The paths of the directories need to be
-separated by ':' (colon character).  Flink will concurrently write (or
-read) one temporary file to (from) each configured directory.  This way,
-temporary I/O can be evenly distributed over multiple independent I/O devices
-such as hard disks to improve performance.  To leverage fast I/O devices (e.g.,
-SSD, RAID, NAS), it is possible to specify a directory multiple times.
-
-If the `taskmanager.tmp.dirs` parameter is not explicitly specified,
-Flink writes temporary data to the temporary  directory of the operating
-system, such as */tmp* in Linux systems.
-
 Please see the [configuration page](config.html) for details and additional
 configuration options.
+
+In particular, 
+
+ * the amount of available memory per TaskManager (`taskmanager.heap.mb`), 
+ * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
+ * the total number of CPUs in the cluster (`parallelization.degree.default`) and 
+ * the temporary directories (`taskmanager.tmp.dirs`)
+
+are very important configuration values.
+
 
 ### Starting Flink
 
@@ -366,3 +342,5 @@ Assuming that you are on the master node and inside the Flink directory:
 ~~~bash
 bin/start-cluster.sh
 ~~~
+
+To stop Flink, there is also a `stop-cluster.sh` script.

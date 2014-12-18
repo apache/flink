@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.streamvertex;
 
 import java.util.ArrayList;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
@@ -52,11 +51,8 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 	}
 
 	private void setDeserializers() {
-		TypeInformation<IN1> inputTypeInfo1 = configuration.getTypeInfoIn1(userClassLoader);
-		inputDeserializer1 = new StreamRecordSerializer<IN1>(inputTypeInfo1);
-
-		TypeInformation<IN2> inputTypeInfo2 = configuration.getTypeInfoIn2(userClassLoader);
-		inputDeserializer2 = new StreamRecordSerializer<IN2>(inputTypeInfo2);
+		inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
+		inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
 	}
 
 	@Override

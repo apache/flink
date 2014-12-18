@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.apache.commons.lang3.Validate;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
@@ -95,9 +96,7 @@ public abstract class ExecutionEnvironment {
 	
 	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<Tuple2<String, DistributedCacheEntry>>();
 
-	private int degreeOfParallelism = -1;
-	
-	private int numberOfExecutionRetries = -1;
+	private ExecutionConfig config = new ExecutionConfig();
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -110,7 +109,22 @@ public abstract class ExecutionEnvironment {
 	protected ExecutionEnvironment() {
 		this.executionId = UUID.randomUUID();
 	}
-	
+
+	/**
+	 * Sets the config object.
+	 */
+	public void setConfig(ExecutionConfig config) {
+		Validate.notNull(config);
+		this.config = config;
+	}
+
+	/**
+	 * Gets the config object.
+	 */
+	public ExecutionConfig getConfig() {
+		return config;
+	}
+
 	/**
 	 * Gets the degree of parallelism with which operation are executed by default. Operations can
 	 * individually override this value to use a specific degree of parallelism via
@@ -123,7 +137,7 @@ public abstract class ExecutionEnvironment {
 	 *         returns {@code -1}, if the environments default parallelism should be used.
 	 */
 	public int getDegreeOfParallelism() {
-		return degreeOfParallelism;
+		return config.getDegreeOfParallelism();
 	}
 	
 	/**
@@ -139,11 +153,7 @@ public abstract class ExecutionEnvironment {
 	 * @param degreeOfParallelism The degree of parallelism
 	 */
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1) {
-			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
-		}
-		
-		this.degreeOfParallelism = degreeOfParallelism;
+		config.setDegreeOfParallelism(degreeOfParallelism);
 	}
 	
 	/**
@@ -154,10 +164,7 @@ public abstract class ExecutionEnvironment {
 	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
 	 */
 	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
-		if (numberOfExecutionRetries < -1) {
-			throw new IllegalArgumentException("The number of execution retries must be non-negative, or -1 (use system default)");
-		}
-		this.numberOfExecutionRetries = numberOfExecutionRetries;
+		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
 	}
 	
 	/**
@@ -168,7 +175,7 @@ public abstract class ExecutionEnvironment {
 	 * @return The number of times the system will try to re-execute failed tasks.
 	 */
 	public int getNumberOfExecutionRetries() {
-		return numberOfExecutionRetries;
+		return config.getNumberOfExecutionRetries();
 	}
 	
 	/**
@@ -742,8 +749,7 @@ public abstract class ExecutionEnvironment {
 		if (getDegreeOfParallelism() > 0) {
 			plan.setDefaultParallelism(getDegreeOfParallelism());
 		}
-		plan.setNumberOfExecutionRetries(this.numberOfExecutionRetries);
-		
+
 		try {
 			registerCachedFilesWithPlan(plan);
 		} catch (Exception e) {

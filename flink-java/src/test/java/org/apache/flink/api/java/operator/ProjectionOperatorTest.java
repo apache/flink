@@ -103,26 +103,48 @@ public class ProjectionOperatorTest {
 
 		// should work
 		try {
-			tupleDs.project(0).types(Integer.class);
+			tupleDs.project(0);
 		} catch(Exception e) {
 			Assert.fail();
 		}
 		
-		// should not work: too few types
+		// should work: dummy types() here
 		try {
-			tupleDs.project(2,1,4).types(String.class, Long.class);
+			tupleDs.project(2,1,4);
+		} catch(Exception e) {
 			Assert.fail();
-		} catch(IllegalArgumentException iae) {
+		}
+		
+	}
+	
+	@Test
+	public void testProjectionWithoutTypes() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		// should work
+		try {
+			tupleDs.project(2,0,4);
+		} catch(Exception e) {
+			Assert.fail();
+		}
+		
+		// should not work: field index is out of bounds of input tuple
+		try {
+			tupleDs.project(2,-1,4);
+			Assert.fail();
+		} catch(IndexOutOfBoundsException iob) {
 			// we're good here
 		} catch(Exception e) {
 			Assert.fail();
 		}
 		
-		// should not work: given types do not match input types
+		// should not work: field index is out of bounds of input tuple
 		try {
-			tupleDs.project(2,1,4).types(String.class, Long.class, Long.class);
+			tupleDs.project(2,1,4,5,8,9);
 			Assert.fail();
-		} catch(IllegalArgumentException iae) {
+		} catch(IndexOutOfBoundsException iob) {
 			// we're good here
 		} catch(Exception e) {
 			Assert.fail();

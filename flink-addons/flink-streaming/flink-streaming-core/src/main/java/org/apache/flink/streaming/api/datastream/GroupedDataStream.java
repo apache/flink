@@ -23,7 +23,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 
 /**
  * A GroupedDataStream represents a {@link DataStream} which has been
@@ -61,10 +60,10 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 *            element of the input values with the same key.
 	 * @return The transformed DataStream.
 	 */
+	@Override
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return addFunction("groupReduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
-				ReduceFunction.class, 0), new FunctionTypeWrapper<OUT>(reducer,
-				ReduceFunction.class, 0), new GroupedReduceInvokable<OUT>(reducer, keySelector));
+		return addFunction("groupReduce", clean(reducer), getType(), getType(),
+				new GroupedReduceInvokable<OUT>(clean(reducer), keySelector));
 	}
 
 	/**
@@ -180,11 +179,11 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	@Override
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
-		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(aggregate,
+		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(clean(aggregate),
 				keySelector);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("groupReduce", aggregate,
-				outTypeWrapper, outTypeWrapper, invokable);
+		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("groupReduce", clean(aggregate),
+				typeInfo, typeInfo, invokable);
 
 		return returnStream;
 	}

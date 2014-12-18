@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-addons</artifactId>
-        <version>0.8-incubating-SNAPSHOT</version>
+        <version>0.9-incubating-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -26,6 +26,11 @@
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

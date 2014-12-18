@@ -23,7 +23,9 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.flink.runtime.io.network.Buffer;
 import org.apache.flink.runtime.io.network.Envelope;
+import org.apache.flink.runtime.util.AtomicDisposableReferenceCounter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,10 +42,24 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 
 	private final AtomicInteger numQueuedEnvelopes = new AtomicInteger(0);
 
+	private final AtomicDisposableReferenceCounter closeReferenceCounter = new AtomicDisposableReferenceCounter();
+
 	public OutboundConnectionQueue(Channel channel) {
 		this.channel = channel;
 
 		channel.pipeline().addFirst(this);
+	}
+
+	boolean incrementReferenceCounter() {
+		return closeReferenceCounter.incrementReferenceCounter();
+	}
+
+	boolean decrementReferenceCounter() {
+		return closeReferenceCounter.decrementReferenceCounter();
+	}
+
+	void close() {
+		channel.close();
 	}
 
 	/**
@@ -56,6 +72,20 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 	public void enqueue(Envelope env) {
 		// the user event trigger ensure thread-safe hand-over of the envelope
 		this.channel.pipeline().fireUserEventTriggered(env);
+	}
+
+	@Override
+	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+		releaseAllEnvelopes();
+
+		super.channelInactive(ctx);
+	}
+
+	@Override
+	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+		releaseAllEnvelopes();
+
+		super.exceptionCaught(ctx, cause);
 	}
 
 	@Override
@@ -109,5 +139,15 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 	private void exceptionOccurred(Throwable t) throws Exception {
 		LOG.error("An exception occurred in Channel {}: {}", channel, t.getMessage());
 		throw new Exception(t);
+	}
+
+	private void releaseAllEnvelopes() {
+		Envelope envelope;
+		while ((envelope = queuedEnvelopes.poll()) != null) {
+			Buffer buffer = envelope.getBuffer();
+			if (buffer != null) {
+				buffer.recycleBuffer();
+			}
+		}
 	}
 }

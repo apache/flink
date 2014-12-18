@@ -27,22 +27,20 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
  * @param <T>
  *            Type of the Tuple
  */
-public class DistributePartitioner<T> implements StreamPartitioner<T> {
+public class DistributePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private int currentChannelIndex;
-	private int[] returnArray;
-	
-	public DistributePartitioner() {
-		this.currentChannelIndex = 0;
-		this.returnArray = new int[1];
+	private int[] returnArray = new int[] {-1};
+
+	public DistributePartitioner(boolean forward) {
+		super(forward ? PartitioningStrategy.FORWARD : PartitioningStrategy.DISTRIBUTE);
 	}
-	
+
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
-		returnArray[0] = currentChannelIndex;
-		currentChannelIndex = (currentChannelIndex + 1) % numberOfOutputChannels;
-		return returnArray;
+		this.returnArray[0] = (this.returnArray[0] + 1) % numberOfOutputChannels;
+
+		return this.returnArray;
 	}
 }

@@ -34,7 +34,7 @@ public class DistributePartitionerTest {
 	
 	@Before
 	public void setPartitioner() {
-		distributePartitioner = new DistributePartitioner<Tuple>();
+		distributePartitioner = new DistributePartitioner<Tuple>(false);
 	}
 	
 	@Test

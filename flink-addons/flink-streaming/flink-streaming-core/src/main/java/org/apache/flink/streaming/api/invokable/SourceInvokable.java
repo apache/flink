@@ -49,5 +49,10 @@ public class SourceInvokable<OUT> extends StreamInvokable<OUT,OUT> implements Se
 	@Override
 	protected void callUserFunction() throws Exception {
 	}
+	
+	@Override
+	public SourceFunction<OUT> getSourceFunction(){
+		return sourceFunction;
+	}
 
 }

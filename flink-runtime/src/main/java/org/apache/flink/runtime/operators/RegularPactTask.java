@@ -855,8 +855,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		for (int i = 0; i < numInputs; i++) {
 			final int memoryPages;
-			final boolean async = this.config.isInputAsynchronouslyMaterialized(i);
 			final boolean cached =  this.config.isInputCached(i);
+			final boolean async = this.config.isInputAsynchronouslyMaterialized(i);
 
 			this.inputIsAsyncMaterialized[i] = async;
 			this.inputIsCached[i] = cached;
@@ -888,6 +888,16 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	}
 
 	protected void resetAllInputs() throws Exception {
+		
+		// first we need to make sure that caches consume remaining data
+		// NOTE: we need to do this before closing the local strategies
+		for (int i = 0; i < this.inputs.length; i++) {
+			
+			if (this.inputIsCached[i] && this.resettableInputs[i] != null) {
+				this.resettableInputs[i].consumeAndCacheRemainingData();
+			}
+		}
+		
 		// close all local-strategies. they will either get re-initialized, or we have
 		// read them now and their data is cached
 		for (int i = 0; i < this.localStrategies.length; i++) {
@@ -918,7 +928,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					if (this.tempBarriers[i] != null) {
 						this.inputs[i] = this.tempBarriers[i].getIterator();
 					} else if (this.resettableInputs[i] != null) {
-						this.resettableInputs[i].consumeAndCacheRemainingData();
 						this.resettableInputs[i].reset();
 						this.inputs[i] = this.resettableInputs[i];
 					} else {

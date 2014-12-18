@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.kmeans;
 
 import java.util.ArrayList;
@@ -38,7 +37,7 @@ import org.apache.flink.test.recordJobs.kmeans.udfs.PointOutFormat;
 import org.apache.flink.test.recordJobs.kmeans.udfs.RecomputeClusterCenter;
 import org.apache.flink.types.IntValue;
 
-
+@SuppressWarnings("deprecation")
 public class KMeansCross implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;

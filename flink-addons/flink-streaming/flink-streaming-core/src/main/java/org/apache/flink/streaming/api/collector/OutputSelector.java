@@ -18,45 +18,27 @@
 package org.apache.flink.streaming.api.collector;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collection;
 
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 
 /**
- * Class for defining an OutputSelector for a {@link SplitDataStream} using the
- * {@link SingleOutputStreamOperator#split} call. Every output object of a
+ * Interface for defining an OutputSelector for a {@link SplitDataStream} using
+ * the {@link SingleOutputStreamOperator#split} call. Every output object of a
  * {@link SplitDataStream} will run through this operator to select outputs.
  * 
  * @param <OUT>
  *            Type parameter of the split values.
  */
-public abstract class OutputSelector<OUT> implements Serializable {
-	private static final long serialVersionUID = 1L;
-
-	private Collection<String> outputs;
-
-	public OutputSelector() {
-		outputs = new ArrayList<String>();
-	}
-
-	Collection<String> getOutputs(OUT outputObject) {
-		outputs.clear();
-		select(outputObject, outputs);
-		return outputs;
-	}
-
+public interface OutputSelector<OUT> extends Serializable {
 	/**
 	 * Method for selecting output names for the emitted objects when using the
 	 * {@link SingleOutputStreamOperator#split} method. The values will be
-	 * emitted only to output names which are added to the outputs collection.
-	 * The outputs collection is cleared automatically after each select call.
+	 * emitted only to output names which are contained in the returned
+	 * iterable.
 	 * 
 	 * @param value
 	 *            Output object for which the output selection should be made.
-	 * @param outputs
-	 *            Selected output names should be added to this collection.
 	 */
-	public abstract void select(OUT value, Collection<String> outputs);
+	public Iterable<String> select(OUT value);
 }

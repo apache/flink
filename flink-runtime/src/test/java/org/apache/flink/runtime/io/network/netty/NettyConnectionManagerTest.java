@@ -126,8 +126,10 @@ public class NettyConnectionManagerTest {
 					// enqueue envelopes with ascending seq numbers
 					while (seqNum.get() < numToSendPerSubtask) {
 						try {
-							Envelope env = new Envelope(seqNum.getAndIncrement(), jobId, channelId);
-							senderConnManager.enqueue(env, receiver);
+							int sequenceNumber = seqNum.getAndIncrement();
+
+							Envelope env = new Envelope(sequenceNumber, jobId, channelId);
+							senderConnManager.enqueue(env, receiver, sequenceNumber == 0);
 						} catch (IOException e) {
 							throw new RuntimeException("Unexpected exception while enqueuing envelope.");
 						}

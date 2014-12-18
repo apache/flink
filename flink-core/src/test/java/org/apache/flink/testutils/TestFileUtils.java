@@ -63,7 +63,27 @@ public class TestFileUtils {
 		}
 		return f.toURI().toString();
 	}
-	
+
+	public static String createTempFileInDirectory(String dir, long bytes) throws IOException {
+		File f;
+		do {
+			f = new File(dir + "/" + randomFileName());
+		} while (f.exists());
+		f.getParentFile().mkdirs();
+		f.createNewFile();
+		f.deleteOnExit();
+
+		BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(f));
+		try {
+			for (; bytes > 0; bytes--) {
+				out.write(0);
+			}
+		} finally {
+			out.close();
+		}
+		return f.toURI().toString();
+	}
+
 	public static String createTempFile(String contents) throws IOException {
 		File f = File.createTempFile(FILE_PREFIX, FILE_SUFFIX);
 		f.deleteOnExit();

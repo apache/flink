@@ -30,7 +30,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>0.8-incubating-SNAPSHOT</version>
+	<version>0.9-incubating-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -153,6 +153,13 @@ under the License.
 	<!-- this section defines the module versions that are used if nothing else is specified. -->
 	<dependencyManagement>
 		<dependencies>
+		
+			<!-- ASM is used by us, Kryo, Hadoop, ... -->
+			<dependency>
+				<groupId>org.ow2.asm</groupId>
+				<artifactId>asm</artifactId>
+				<version>4.0</version>
+			</dependency>
 
 			<!-- Make sure we use a consistent jetty version throughout the project -->
 			<dependency>
@@ -564,31 +571,33 @@ under the License.
 						<exclude>**/.*</exclude>
 						<exclude>**/*.prefs</exclude>
 						<exclude>**/*.log</exclude>
-						<!-- Resource files which have values. -->
-						<exclude>**/resources/**</exclude>
+						<!-- External web libraries. -->
+						<exclude>docs/**/bootstrap*</exclude>
+						<exclude>**/resources/**/font-awesome/**</exclude>
+						<exclude>**/resources/**/jquery*</exclude>
+						<exclude>**/resources/**/bootstrap*</exclude>
+						<exclude>flink-clients/resources/web-docs/js/*d3.js</exclude>
+						<exclude>flink-runtime/resources/web-docs-infoserver/css/sb-admin.css</exclude>
+						<exclude>flink-runtime/resources/web-docs-infoserver/js/flot/*</exclude>
+						<exclude>flink-runtime/resources/web-docs-infoserver/js/jcanvas.min.js</exclude>
+						<exclude>flink-runtime/resources/web-docs-infoserver/js/timeline.js</exclude>
+						<!-- Test Data. -->
+						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
+						<exclude>flink-addons/flink-avro/src/test/resources/avro/user.avsc</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
-						<exclude>tools/checkstyle.xml</exclude>
 						<exclude>CHANGELOG</exclude>
-						<exclude>**/*.creole</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<exclude>DEPENDENCIES</exclude>
 						<!-- Build files -->
-						<exclude>tools/maven/checkstyle.xml</exclude>
-						<exclude>tools/maven/scalastyle-config.xml</exclude>
-						<exclude>**/scalastyle-output.xml</exclude>
-						<exclude>**/dependency-reduced-pom.xml</exclude>
-						<exclude>tools/maven/suppressions.xml</exclude>
-						<exclude>**/pom.xml</exclude>
-						<exclude>**/pom.hadoop2.xml</exclude>
 						<exclude>**/*.iml</exclude>
+						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
 						<!-- Generated content -->
 						<exclude>**/target/**</exclude>
-						<!-- Documentation -->
-						<exclude>**/docs/**</exclude>
-						<exclude>**/tools/*.md</exclude>
+						<exclude>docs/_site/**</exclude>
+						<exclude>**/scalastyle-output.xml</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

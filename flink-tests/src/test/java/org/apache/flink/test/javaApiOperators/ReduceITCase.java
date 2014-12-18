@@ -45,6 +45,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+@SuppressWarnings("serial")
 @RunWith(Parameterized.class)
 public class ReduceITCase extends JavaProgramTestBase {
 	

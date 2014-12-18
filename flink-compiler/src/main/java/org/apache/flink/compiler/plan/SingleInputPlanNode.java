@@ -25,6 +25,7 @@ import static org.apache.flink.compiler.plan.PlanNode.SourceAndDamReport.NOT_FOU
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -84,12 +85,14 @@ public class SingleInputPlanNode extends PlanNode {
 		}
 		
 		final PlanNode predNode = input.getSource();
-		if (this.branchPlan == null) {
-			this.branchPlan = predNode.branchPlan;
-		} else if (predNode.branchPlan != null) {
+		
+		if (predNode.branchPlan != null && !predNode.branchPlan.isEmpty()) {
+			
+			if (this.branchPlan == null) {
+				this.branchPlan = new HashMap<OptimizerNode, PlanNode>();
+			}
 			this.branchPlan.putAll(predNode.branchPlan);
 		}
-		
 	}
 
 	// --------------------------------------------------------------------------------------------

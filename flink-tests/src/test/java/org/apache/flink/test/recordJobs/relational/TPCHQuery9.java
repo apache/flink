@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational;
 
 import org.apache.flink.api.common.Plan;
@@ -80,7 +79,7 @@ import org.slf4j.LoggerFactory;
  * <b>Attention:</b> The "order by" part is not implemented!
  * 
  */
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class TPCHQuery9 implements Program, ProgramDescription {
 	public final String ARGUMENTS = "dop partInputPath partSuppInputPath ordersInputPath lineItemInputPath supplierInputPath nationInputPath outputPath";
 

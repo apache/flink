@@ -116,12 +116,6 @@ public class StreamVertexTest {
 			fail();
 		} catch (RuntimeException e) {
 		}
-
-		try {
-			env.readTextFile("random/path/that/is/not/valid");
-			fail();
-		} catch (IllegalArgumentException e) {
-		}
 	}
 
 	private static class CoMap implements CoMapFunction<String, Long, String> {

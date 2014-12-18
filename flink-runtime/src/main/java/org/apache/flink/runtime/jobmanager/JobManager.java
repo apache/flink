@@ -330,15 +330,21 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			// Register this job with the library cache manager
 			libraryCacheManager.registerJob(job.getJobID(), job.getUserJarBlobKeys());
 			
+			// grab the class loader for user-defined code
+			final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(job.getJobID());
+			if (userCodeLoader == null) {
+				throw new JobException("The user code class loader could not be initialized.");
+			}
+			
 			// get the existing execution graph (if we attach), or construct a new empty one to attach
 			executionGraph = this.currentJobs.get(job.getJobID());
 			if (executionGraph == null) {
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Creating new execution graph for job " + job.getJobID() + " (" + job.getName() + ')');
 				}
-				
+
 				executionGraph = new ExecutionGraph(job.getJobID(), job.getName(),
-						job.getJobConfiguration(), job.getUserJarBlobKeys(), this.executorService);
+						job.getJobConfiguration(), job.getUserJarBlobKeys(), userCodeLoader, this.executorService);
 
 				executionGraph.setNumberOfRetriesLeft(job.getNumberOfExecutionRetries() >= 0 ?
 						job.getNumberOfExecutionRetries() : this.defaultExecutionRetries);
@@ -358,12 +364,6 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			// Register for updates on the job status
 			executionGraph.registerJobStatusListener(this);
 			
-			// grab the class loader for user-defined code
-			final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(job.getJobID());
-			if (userCodeLoader == null) {
-				throw new JobException("The user code class loader could not be initialized.");
-			}
-
 			// first, perform the master initialization of the nodes
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(String.format("Running master initialization of job %s (%s)", job.getJobID(), job.getName()));

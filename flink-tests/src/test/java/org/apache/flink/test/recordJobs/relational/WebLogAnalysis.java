@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational;
 
 import java.io.Serializable;
@@ -81,6 +80,7 @@ import org.apache.flink.util.Collector;
  * </pre></code>
  * 
  */
+@SuppressWarnings("deprecation")
 public class WebLogAnalysis implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;

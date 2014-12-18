@@ -161,7 +161,7 @@ public class OpenIterationTest extends CompilerTestBase {
 			DataSet<Tuple2<Long, Long>> mapped = iteration.getSolutionSet().map(new IdentityMapper<Tuple2<Long, Long>>());
 			
 			DataSet<Tuple2<Long, Long>> joined = iteration.getWorkset().join(mapped)
-												.where(0).equalTo(0).projectFirst(1).projectSecond(0).types(Long.class, Long.class);
+												.where(0).equalTo(0).projectFirst(1).projectSecond(0);
 			
 			iteration.closeWith(joined, joined)
 				.print();

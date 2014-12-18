@@ -50,6 +50,7 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
+import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
@@ -91,8 +92,7 @@ public abstract class DataSet<T> {
 	private final ExecutionEnvironment context;
 	
 	private final TypeInformation<T> type;
-	
-	
+
 	protected DataSet(ExecutionEnvironment context, TypeInformation<T> type) {
 		if (context == null) {
 			throw new NullPointerException("context is null");
@@ -127,7 +127,15 @@ public abstract class DataSet<T> {
 	public TypeInformation<T> getType() {
 		return this.type;
 	}
-	
+
+	public <F> F clean(F f) {
+		if (getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
+			ClosureCleaner.clean(f, true);
+		}
+		ClosureCleaner.ensureSerializable(f);
+		return f;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Filter & Transformations
 	// --------------------------------------------------------------------------------------------
@@ -151,7 +159,7 @@ public abstract class DataSet<T> {
 
 		TypeInformation<R> resultType = TypeExtractor.getMapReturnTypes(mapper, this.getType());
 
-		return new MapOperator<T, R>(this, resultType, mapper, Utils.getCallLocationName());
+		return new MapOperator<T, R>(this, resultType, clean(mapper), Utils.getCallLocationName());
 	}
 
 
@@ -179,7 +187,7 @@ public abstract class DataSet<T> {
 			throw new NullPointerException("MapPartition function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getMapPartitionReturnTypes(mapPartition, this.getType());
-		return new MapPartitionOperator<T, R>(this, resultType, mapPartition, Utils.getCallLocationName());
+		return new MapPartitionOperator<T, R>(this, resultType, clean(mapPartition), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -200,7 +208,7 @@ public abstract class DataSet<T> {
 		}
 
 		TypeInformation<R> resultType = TypeExtractor.getFlatMapReturnTypes(flatMapper, this.getType());
-		return new FlatMapOperator<T, R>(this, resultType, flatMapper, Utils.getCallLocationName());
+		return new FlatMapOperator<T, R>(this, resultType, clean(flatMapper), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -220,7 +228,7 @@ public abstract class DataSet<T> {
 		if (filter == null) {
 			throw new NullPointerException("Filter function must not be null.");
 		}
-		return new FilterOperator<T>(this, filter, Utils.getCallLocationName());
+		return new FilterOperator<T>(this, clean(filter), Utils.getCallLocationName());
 	}
 
 	
@@ -229,24 +237,23 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
-	 * <b>Note: Only Tuple DataSets can be projected.</b></br>
+	 * Applies a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
+	 * <b>Note: Only Tuple DataSets can be projected using field indexes.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * This method returns a {@link Projection} on which {@link Projection#types(Class)} needs to
-	 *   be called to completed the transformation.
-	 * 
-	 * @param fieldIndexes The field indexes of the input tuples that are retained.
+	 * Additional fields can be added to the projection by calling {@link ProjectOperator#project(int[])}.
+	 *
+	 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+	 *
+	 * @param fieldIndexes The field indexes of the input tuple that are retained.
 	 * 					   The order of fields in the output tuple corresponds to the order of field indexes.
-	 * @return A Projection that needs to be converted into a {@link org.apache.flink.api.java.operators.ProjectOperator} to complete the 
-	 *           Project transformation by calling {@link Projection#types(Class)}.
-	 * 
+	 * @return A ProjectOperator that represents the projected DataSet.
+	 *
 	 * @see Tuple
 	 * @see DataSet
-	 * @see Projection
-	 * @see org.apache.flink.api.java.operators.ProjectOperator
+	 * @see ProjectOperator
 	 */
-	public Projection<T> project(int... fieldIndexes) {
-		return new Projection<T>(this, fieldIndexes);
+	public <OUT extends Tuple> ProjectOperator<?, OUT> project(int... fieldIndexes) {
+		return new Projection<T>(this, fieldIndexes).projectTupleX();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -335,7 +342,7 @@ public abstract class DataSet<T> {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
-		return new ReduceOperator<T>(this, reducer, Utils.getCallLocationName());
+		return new ReduceOperator<T>(this, clean(reducer), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -356,7 +363,7 @@ public abstract class DataSet<T> {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getType());
-		return new GroupReduceOperator<T, R>(this, resultType, reducer, Utils.getCallLocationName());
+		return new GroupReduceOperator<T, R>(this, resultType, clean(reducer), Utils.getCallLocationName());
 	}
 
 	/**
@@ -532,7 +539,7 @@ public abstract class DataSet<T> {
 	 */
 	public <K> UnsortedGrouping<T> groupBy(KeySelector<T, K> keyExtractor) {
 		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
-		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType));
+		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(clean(keyExtractor), getType(), keyType));
 	}
 	
 	/**
@@ -970,7 +977,7 @@ public abstract class DataSet<T> {
 	 */
 	public <K extends Comparable<K>> PartitionOperator<T> partitionByHash(KeySelector<T, K> keyExtractor) {
 		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
-		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, this.getType(), keyType), Utils.getCallLocationName());
+		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(clean(keyExtractor), this.getType(), keyType), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -984,7 +991,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public <K> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, int field) {
-		return new PartitionOperator<T>(this, new Keys.ExpressionKeys<T>(new int[] {field}, getType(), false), partitioner, Utils.getCallLocationName());
+		return new PartitionOperator<T>(this, new Keys.ExpressionKeys<T>(new int[] {field}, getType(), false), clean(partitioner), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -998,7 +1005,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public <K> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, String field) {
-		return new PartitionOperator<T>(this, new Keys.ExpressionKeys<T>(new String[] {field}, getType()), partitioner, Utils.getCallLocationName());
+		return new PartitionOperator<T>(this, new Keys.ExpressionKeys<T>(new String[] {field}, getType()), clean(partitioner), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1017,7 +1024,7 @@ public abstract class DataSet<T> {
 	 */
 	public <K extends Comparable<K>> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, KeySelector<T, K> keyExtractor) {
 		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
-		return new PartitionOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, this.getType(), keyType), partitioner, Utils.getCallLocationName());
+		return new PartitionOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, this.getType(), keyType), clean(partitioner), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -1095,7 +1102,7 @@ public abstract class DataSet<T> {
 	 * @see TextOutputFormat
 	 */
 	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, final TextFormatter<T> formatter) {
-		return this.map(new FormattingMapper<T>(formatter)).writeAsText(filePath, writeMode);
+		return this.map(new FormattingMapper<T>(clean(formatter))).writeAsText(filePath, writeMode);
 	}
 	
 	/**

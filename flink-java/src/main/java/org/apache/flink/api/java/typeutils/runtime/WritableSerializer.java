@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -44,6 +45,9 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	
 	@Override
 	public T createInstance() {
+		if(typeClass == NullWritable.class) {
+			return (T) NullWritable.get();
+		}
 		return InstantiationUtil.instantiate(typeClass);
 	}
 	

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobTests;
 
 import org.apache.flink.api.java.record.operators.CollectionDataSource;
@@ -29,6 +28,7 @@ import java.util.List;
 /**
  * Test the input field validation of CollectionDataSource
  */
+@SuppressWarnings("deprecation")
 public class CollectionValidationTest {
 
 	@Test

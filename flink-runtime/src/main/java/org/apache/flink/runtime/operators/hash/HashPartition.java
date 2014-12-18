@@ -44,8 +44,8 @@ import org.apache.flink.util.MutableObjectIterator;
 
 /**
  * 
- * @param BT The type of the build side records.
- * @param PT The type of the probe side records.
+ * @param <BT> The type of the build side records.
+ * @param <PT> The type of the probe side records.
  */
 public class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDataInputView
 {
@@ -117,7 +117,6 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 * @param recursionLevel The recursion level - zero for partitions from the initial build, <i>n + 1</i> for
 	 *                       partitions that are created from spilled partition with recursion level <i>n</i>. 
 	 * @param initialBuffer The initial buffer for this partition.
-	 * @param writeBehindBuffers The queue from which to pop buffers for writing, once the partition is spilled.
 	 */
 	HashPartition(TypeSerializer<BT> buildSideAccessors, TypeSerializer<PT> probeSideAccessors,
 			int partitionNumber, int recursionLevel, MemorySegment initialBuffer, MemorySegmentSource memSource,

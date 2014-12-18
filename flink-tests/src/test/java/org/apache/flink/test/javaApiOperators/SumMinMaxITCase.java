@@ -92,7 +92,7 @@ public class SumMinMaxITCase extends JavaProgramTestBase  {
 					DataSet<Tuple2<Integer, Long>> sumDs = ds
 							.sum(0)
 							.andMax(1)
-							.project(0, 1).types(Integer.class, Long.class);
+							.project(0, 1);
 
 					sumDs.writeAsCsv(resultPath);
 					env.execute();
@@ -110,7 +110,7 @@ public class SumMinMaxITCase extends JavaProgramTestBase  {
 					DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 					DataSet<Tuple2<Long, Integer>> aggregateDs = ds.groupBy(1)
 							.sum(0)
-							.project(1, 0).types(Long.class, Integer.class);
+							.project(1, 0);
 
 					aggregateDs.writeAsCsv(resultPath);
 					env.execute();
@@ -134,7 +134,7 @@ public class SumMinMaxITCase extends JavaProgramTestBase  {
 					DataSet<Tuple1<Integer>> aggregateDs = ds.groupBy(1)
 							.min(0)
 							.min(0)
-							.project(0).types(Integer.class);
+							.project(0);
 
 					aggregateDs.writeAsCsv(resultPath);
 					env.execute();

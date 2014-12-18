@@ -41,6 +41,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
+@SuppressWarnings("deprecation")
 public class GroupOrderReduceITCase extends RecordAPITestBase {
 
 	private static final String INPUT = "1,3\n" + "2,1\n" + "5,1\n" + "3,1\n" + "1,8\n" + "1,9\n" + 

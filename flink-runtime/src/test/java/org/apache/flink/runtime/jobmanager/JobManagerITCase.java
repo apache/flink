@@ -793,6 +793,51 @@ public class JobManagerITCase {
 			fail(e.getMessage());
 		}
 	}
+
+	@Test
+	public void testSubtaskInFinalStateRaceCondition() {
+		final int NUM_TASKS = 1;
+
+		try{
+			final AbstractJobVertex source = new AbstractJobVertex("Source");
+			final WaitingOnFinalizeJobVertex sink = new WaitingOnFinalizeJobVertex("Sink", 500);
+			source.setInvokableClass(WaitingNoOpInvokable.class);
+			sink.setInvokableClass(NoOpInvokable.class);
+
+			source.setParallelism(NUM_TASKS);
+			sink.setParallelism(NUM_TASKS);
+
+			final JobGraph jobGraph = new JobGraph("SubtaskInFinalStateRaceCondition", source,
+					sink);
+
+			final JobManager jm = startJobManager(2*NUM_TASKS);
+
+			try{
+				JobSubmissionResult result = jm.submitJob(jobGraph);
+
+				if(result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS){
+					fail(result.getDescription());
+				}
+
+				ExecutionGraph eg = jm.getCurrentJobs().get(jobGraph.getJobID());
+
+				if(eg != null){
+					eg.waitForJobEnd();
+					assertEquals(JobStatus.FINISHED, eg.getState());
+				}
+
+				assertTrue("Sink has to have called finalizeOnMaster before job can finish.", sink
+						.finished);
+
+				waitForTaskThreadsToBeTerminated();
+			}finally{
+				jm.shutdown();
+			}
+		}catch(Exception e){
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//  Simple test tasks
@@ -884,6 +929,36 @@ public class JobManagerITCase {
 			synchronized (o) {
 				o.wait();
 			}
+		}
+	}
+
+	public static final class WaitingOnFinalizeJobVertex extends AbstractJobVertex {
+		private final long waitingTime;
+		public boolean finished = false;
+
+		public WaitingOnFinalizeJobVertex(String name, long waitingTime) {
+			super(name);
+			this.waitingTime = waitingTime;
+		}
+
+		@Override
+		public void finalizeOnMaster(ClassLoader loader) throws Exception {
+			Thread.sleep(waitingTime);
+			finished = true;
+		}
+	}
+
+	public static final class WaitingNoOpInvokable extends AbstractInvokable{
+		private static long waitingTime = 100;
+
+		@Override
+		public void registerInputOutput() {
+
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			Thread.sleep(waitingTime);
 		}
 	}
 }

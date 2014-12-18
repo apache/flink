@@ -102,18 +102,6 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 	public boolean isKeyType() {
 		return Comparable.class.isAssignableFrom(typeClass);
 	}
-
-
-	@Override
-	public String toString() {
-		List<String> fieldStrings = new ArrayList<String>();
-		for (PojoField field : fields) {
-			fieldStrings.add(field.field.getName() + ": " + field.type.toString());
-		}
-		return "PojoType<" + typeClass.getCanonicalName()
-				+ ", fields = [" + Joiner.on(", ").join(fieldStrings) + "]"
-				+ ">";
-	}
 	
 	@Override
 	public void getKey(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
@@ -238,4 +226,26 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 		return new PojoSerializer<T>(this.typeClass, fieldSerializers, reflectiveFields);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public boolean equals(Object obj) {
+		return (obj instanceof PojoTypeInfo) && ((PojoTypeInfo<?>) obj).typeClass == this.typeClass;
+	}
+	
+	@Override
+	public int hashCode() {
+		return typeClass.hashCode() + 1387562934;
+	}
+	
+	@Override
+	public String toString() {
+		List<String> fieldStrings = new ArrayList<String>();
+		for (PojoField field : fields) {
+			fieldStrings.add(field.field.getName() + ": " + field.type.toString());
+		}
+		return "PojoType<" + typeClass.getCanonicalName()
+				+ ", fields = [" + Joiner.on(", ").join(fieldStrings) + "]"
+				+ ">";
+	}
 }

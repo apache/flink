@@ -92,7 +92,7 @@ public class ProjectITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 				DataSet<Tuple3<String, Long, Integer>> projDs = ds.
-						project(3,4,2).types(String.class, Long.class, Integer.class);
+						project(3,4,2);
 				projDs.writeAsCsv(resultPath);
 				
 				env.execute();

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<artifactId>flink-addons</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>0.8-incubating-SNAPSHOT</version>
+		<version>0.9-incubating-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -90,6 +90,13 @@ under the License.
 			<properties>
 				<hbase.version>${hbase.hadoop1.version}</hbase.version>
 			</properties>
+			<dependencies>
+				<!-- Force hadoop-common dependency -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-core</artifactId>
+				</dependency>
+			</dependencies>
 		</profile>
 		
 		<profile>

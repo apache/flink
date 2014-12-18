@@ -115,7 +115,7 @@ public class DistinctITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
-				DataSet<Tuple1<Integer>> distinctDs = ds.union(ds).distinct(0).project(0).types(Integer.class);
+				DataSet<Tuple1<Integer>> distinctDs = ds.union(ds).distinct(0).project(0);
 				
 				distinctDs.writeAsCsv(resultPath);
 				env.execute();
@@ -140,7 +140,7 @@ public class DistinctITCase extends JavaProgramTestBase {
 									public Integer getKey(Tuple5<Integer, Long,  Integer, String, Long> in) {
 										return in.f0;
 									}
-								}).project(0).types(Integer.class);
+								}).project(0);
 				
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
@@ -222,7 +222,7 @@ public class DistinctITCase extends JavaProgramTestBase {
 										return new Tuple2<Integer, Long>(t.f0, t.f4);
 									}
 								})
-						.project(0,4).types(Integer.class, Long.class);
+						.project(0,4);
 				
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();
@@ -249,7 +249,7 @@ public class DistinctITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
 				DataSet<Tuple1<Integer>> reduceDs = ds.union(ds)
-						.distinct("f0").project(0).types(Integer.class);
+						.distinct("f0").project(0);
 				
 				reduceDs.writeAsCsv(resultPath);
 				env.execute();

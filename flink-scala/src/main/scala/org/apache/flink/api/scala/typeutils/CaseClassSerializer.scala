@@ -32,9 +32,9 @@ abstract class CaseClassSerializer[T <: Product](
   extends TupleSerializerBase[T](clazz, scalaFieldSerializers) {
 
   @transient var fields : Array[AnyRef] = _
-  
+
   @transient var instanceCreationFailed : Boolean = false
-  
+
   def createInstance: T = {
     if (instanceCreationFailed) {
       null.asInstanceOf[T]
@@ -59,16 +59,16 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   override def isStateful() = true
-  
+
   def copy(from: T, reuse: T): T = {
     copy(from)
   }
-  
+
   def copy(from: T): T = {
     initArray()
     var i = 0
     while (i < arity) {
-      fields(i) = from.productElement(i).asInstanceOf[AnyRef]
+      fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
       i += 1
     }
     createInstance(fields)
@@ -86,7 +86,7 @@ abstract class CaseClassSerializer[T <: Product](
   def deserialize(reuse: T, source: DataInputView): T = {
     deserialize(source);
   }
-  
+
   def deserialize(source: DataInputView): T = {
     initArray()
     var i = 0
@@ -96,7 +96,7 @@ abstract class CaseClassSerializer[T <: Product](
     }
     createInstance(fields)
   }
-  
+
   def initArray() = {
     if (fields == null) {
       fields = new Array[AnyRef](arity)

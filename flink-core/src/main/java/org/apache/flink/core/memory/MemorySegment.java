@@ -144,8 +144,8 @@ public class MemorySegment {
 			this.wrapper = ByteBuffer.wrap(this.memory, offset, length);
 		}
 		else {
-			this.wrapper.position(offset);
 			this.wrapper.limit(offset + length);
+			this.wrapper.position(offset);
 		}
 		
 		return this.wrapper;

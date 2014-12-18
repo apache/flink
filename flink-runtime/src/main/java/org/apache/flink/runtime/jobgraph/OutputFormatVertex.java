@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
@@ -81,6 +82,40 @@ public class OutputFormatVertex extends AbstractJobVertex {
 		
 		if (outputFormat instanceof InitializeOnMaster) {
 			((InitializeOnMaster) outputFormat).initializeGlobal(getParallelism());
+		}
+	}
+	
+	@Override
+	public void finalizeOnMaster(ClassLoader loader) throws Exception {
+		final TaskConfig cfg = new TaskConfig(getConfiguration());
+
+		UserCodeWrapper<OutputFormat<?>> wrapper;
+		try {
+			wrapper = cfg.<OutputFormat<?>>getStubWrapper(loader);
+		}
+		catch (Throwable t) {
+			throw new Exception("Deserializing the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		if (wrapper == null) {
+			throw new Exception("No input format present in InputFormatVertex's task configuration.");
+		}
+
+		OutputFormat<?> outputFormat;
+		try {
+			outputFormat = wrapper.getUserCodeObject(OutputFormat.class, loader);
+		}
+		catch (Throwable t) {
+			throw new Exception("Instantiating the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		try {
+			outputFormat.configure(cfg.getStubParameters());
+		}
+		catch (Throwable t) {
+			throw new Exception("Configuring the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		
+		if (outputFormat instanceof FinalizeOnMaster) {
+			((FinalizeOnMaster) outputFormat).finalizeGlobal(getParallelism());
 		}
 	}
 }

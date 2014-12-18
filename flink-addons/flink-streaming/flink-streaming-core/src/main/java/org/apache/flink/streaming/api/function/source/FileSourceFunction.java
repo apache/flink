@@ -17,32 +17,126 @@
 
 package org.apache.flink.streaming.api.function.source;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
+import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
 import org.apache.flink.util.Collector;
 
-public class FileSourceFunction implements SourceFunction<String> {
+public class FileSourceFunction extends RichSourceFunction<String> {
 	private static final long serialVersionUID = 1L;
 
-	private final String path;
+	private InputSplitProvider provider;
 
-	public FileSourceFunction(String path) {
-		this.path = path;
+	private InputFormat<String, ?> inputFormat;
+
+	private TypeSerializerFactory<String> serializerFactory;
+
+	public FileSourceFunction(InputFormat<String, ?> format, TypeInformation<String> typeInfo) {
+		this.inputFormat = format;
+		this.serializerFactory = createSerializer(typeInfo);
+	}
+
+	private static TypeSerializerFactory<String> createSerializer(TypeInformation<String> typeInfo) {
+		TypeSerializer<String> serializer = typeInfo.createSerializer();
+
+		if (serializer.isStateful()) {
+			return new RuntimeStatefulSerializerFactory<String>(serializer, typeInfo.getTypeClass());
+		} else {
+			return new RuntimeStatelessSerializerFactory<String>(serializer,
+					typeInfo.getTypeClass());
+		}
 	}
 
 	@Override
-	public void invoke(Collector<String> collector) throws IOException {
-		BufferedReader br = new BufferedReader(new FileReader(path));
-		String line = br.readLine();
-		while (line != null) {
-			if (!line.equals("")) {
-				collector.collect(line);
-			}
-			line = br.readLine();
-		}
-		br.close();
+	public void open(Configuration parameters) throws Exception {
+		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
+		this.provider = context.getInputSplitProvider();
+		inputFormat.configure(context.getTaskStubParameters());
 	}
 
+	@Override
+	public void invoke(Collector<String> collector) throws Exception {
+		final TypeSerializer<String> serializer = serializerFactory.getSerializer();
+		final Iterator<InputSplit> splitIterator = getInputSplits();
+		@SuppressWarnings("unchecked")
+		final InputFormat<String, InputSplit> format = (InputFormat<String, InputSplit>) this.inputFormat;
+		try {
+			while (splitIterator.hasNext()) {
+
+				final InputSplit split = splitIterator.next();
+				String record = serializer.createInstance();
+
+				format.open(split);
+				try {
+					while (!format.reachedEnd()) {
+						if ((record = format.nextRecord(record)) != null) {
+							collector.collect(record);
+						}
+					}
+				} finally {
+					format.close();
+				}
+			}
+			collector.close();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	private Iterator<InputSplit> getInputSplits() {
+
+		return new Iterator<InputSplit>() {
+
+			private InputSplit nextSplit;
+
+			private boolean exhausted;
+
+			@Override
+			public boolean hasNext() {
+				if (exhausted) {
+					return false;
+				}
+
+				if (nextSplit != null) {
+					return true;
+				}
+
+				InputSplit split = provider.getNextInputSplit();
+
+				if (split != null) {
+					this.nextSplit = split;
+					return true;
+				} else {
+					exhausted = true;
+					return false;
+				}
+			}
+
+			@Override
+			public InputSplit next() {
+				if (this.nextSplit == null && !hasNext()) {
+					throw new NoSuchElementException();
+				}
+
+				final InputSplit tmp = this.nextSplit;
+				this.nextSplit = null;
+				return tmp;
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+		};
+	}
 }

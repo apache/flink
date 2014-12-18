@@ -1,6 +1,24 @@
 ---
 title: "Flink Stream Processing API"
 ---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
 
 * This will be replaced by the TOC
 {:toc}
@@ -11,12 +29,12 @@ Introduction
 ------------
 
 
-Flink Streaming is an extension of the core Flink API for high-throughput, low-latency data stream processing. The system can connect to and process data streams from many data sources like Flume, Twitter, ZeroMQ and also from any user defined data source. Data streams can be transformed and modified using high-level functions similar to the ones provided by the batch processing API. Flink Streaming provides native support for iterative stream processing. The processed data can be pushed to different output types.
+Flink Streaming is an extension of the core Flink API for high-throughput, low-latency data stream processing. The system can connect to and process data streams from many data sources like RabbitMQ, Flume, Twitter, ZeroMQ and also from any user defined data source. Data streams can be transformed and modified using high-level functions similar to the ones provided by the batch processing API. Flink Streaming provides native support for iterative stream processing. The processed data can be pushed to different output types.
 
 Flink Streaming API
 -----------
 
-The Streaming API is part of the *addons* Maven project. All relevant classes are located in the *org.apache.flink.streaming* package.
+The Streaming API is currently part of the *addons* Maven project. All relevant classes are located in the *org.apache.flink.streaming* package.
 
 Add the following dependency to your `pom.xml` to use the Flink Streaming.
 
@@ -91,14 +109,16 @@ As these steps are basically the same as in the core API we will only note the i
 For stream processing jobs, the user needs to obtain a `StreamExecutionEnvironment` in contrast with the batch API where one would need an `ExecutionEnvironment`. The process otherwise is essentially the same:
 
 ~~~java 
-StreamExecutionEnvironment.createLocalEnvironment(params…)
-StreamExecutionEnvironment.createRemoteEnvironment(params…)
+StreamExecutionEnvironment.getExecutionEnvironment()
+StreamExecutionEnvironment.createLocalEnvironment(parallelism)
+StreamExecutionEnvironment.createRemoteEnvironment(…)
 ~~~
 
 For connecting to data streams the `StreamExecutionEnvironment` has many different methods, from basic file sources to completely general user defined data sources. We will go into details in the [basics](#basics) section.
 
 ~~~java
 env.socketTextStream(host, port)
+env.fromElements(elements…)
 ~~~
 
 After defining the data stream sources, the user can specify transformations on the data streams to create a new data stream. Different data streams can be also combined together for joint transformations which are being showcased in the [operations](#operations) section.
@@ -111,6 +131,7 @@ The processed data can be pushed to different outputs called sinks. The user can
 
 ~~~java
 dataStream.writeAsCsv(path)
+dataStream.print()
 ~~~
 
 Once the complete program is specified `execute(programName)` is to be called on the `StreamExecutionEnvironment`. This will either execute on the local machine or submit the program for execution on a cluster, depending on the chosen execution environment.
@@ -126,22 +147,22 @@ Basics
 
 ### DataStream
 
-The `DataStream` is the basic abstraction provided by the Flink Streaming API. It represents a continuous stream of data of a certain type from either a data source or a transformed data stream. Operations will be applied on individual data points or windows of the `DataStream` based on the type of the operation. For example the map operator transforms each data point individually while window or batch aggregations work on an interval of data points at the same time.
+The `DataStream` is the basic abstraction provided by the Flink Streaming API. It represents a continuous stream of data of a certain type from either a data source or a transformed data stream. Operations will be applied on individual data points or windows of the `DataStream` based on the type of the operation. For example the map operator transforms each data point individually while window operations work on an interval of data points at the same time.
  
-The operations may return different `DataStream` types allowing more elaborate transformations, for example the `groupBy()` method returns a `GroupedDataStream` which can be used for group operations.
+The operations may return different `DataStream` types allowing more elaborate transformations, for example the `groupBy(…)` method returns a `GroupedDataStream` which can be used for grouped operations such as aggregating by key.
 
 ### Partitioning
 
 Partitioning controls how individual data points are distributed among the parallel instances of the transformation operators. By default *Forward* partitioning is used. There are several partitioning types supported in Flink Streaming:
 
- * *Forward*: Forward partitioning directs the output data to the next operator on the same machine (if possible) avoiding expensive network I/O. This is the default partitioner.
+ * *Forward*: Forward partitioning directs the output data to the next operator on the same machine (if possible) avoiding expensive network I/O. If there are more processing nodes than inputs or vice verse the load is distributed among the extra nodes in a round-robin fashion. This is the default partitioner.
 Usage: `dataStream.forward()`
- * *Shuffle*: Shuffle partitioning randomly partitions the output data stream to the next operator using uniform distribution.
+ * *Shuffle*: Shuffle partitioning randomly partitions the output data stream to the next operator using uniform distribution. Use this only when it is important that the partitioning is randomised. If you only care about an even load use *Distribute*
 Usage: `dataStream.shuffle()`
  * *Distribute*: Distribute partitioning directs the output data stream to the next operator in a round-robin fashion, achieving a balanced distribution.
 Usage: `dataStream.distribute()`
- * *Field*: Field partitioning partitions the output data stream based on the hash code of a selected key field. Data points with the same key are directed to the same operator instance.
-Usage: `dataStream.partitionBy(keyposition)`
+ * *Field/Key*: Field/Key partitioning partitions the output data stream based on the hash code of a selected key of the tuples. Data points with the same key are directed to the same operator instance. The user can define keys by field positions (for tuple and array types), field expressions (for Pojo types) and custom keys using the `KeySelector` interface. 
+Usage: `dataStream.partitionBy(keys)`
  * *Broadcast*: Broadcast partitioning sends the output data stream to all parallel instances of the next operator.
 Usage: `dataStream.broadcast()`
  * *Global*: All data points end up at the same operator instance. To achieve this use the parallelism setting of the corresponding operator.
@@ -149,22 +170,23 @@ Usage: `operator.setParallelism(1)`
 
 ### Sources
 
-The user can connect to data streams by the different implemenations of `DataStreamSource` using methods provided by the `StreamExecutionEnvironment`. There are several predefined ones similar to the ones of the batch API and some streaming specific ones like:
+The user can connect to data streams by the different implementations of `SourceFunction` using `StreamExecutionEnvironment.addSource(SourceFunction)`. In contrast with other operators, DataStreamSources have a default operator parallelism of 1 which can be increased using the `.setParallelism(dop)` method as we will see later at the operator settings.
+
+There are several predefined ones similar to the ones of the batch API and some streaming specific ones like:
 
  * `socketTextStream(hostname, port)`
  * `readTextStream(filepath)`
- * `genereateSequence(from, to)`
+ * `generateSequence(from, to)`
  * `fromElements(elements…)`
  * `fromCollection(collection)`
  * `readTextFile(filepath)`
 
 These can be used to easily test and debug streaming programs.
 There are pre-implemented connectors for a number of the most popular message queue services, please refer to the section on [connectors](#stream-connectors) for more detail.
-Besides the pre-defined solutions the user can implement their own source by implementing the `SourceFunction` interface and using the `addSource(sourceFunction)` method of the `StreamExecutionEnvironment`.
 
 ### Sinks
 
-`DataStreamSink` represents the different outputs of a Flink Streaming program. There are several pre-defined implementations `DataStreamSink` available right away:
+`DataStreamSink` represents the different outputs of a Flink Streaming program. There are several pre-defined implementations available right away:
 
  * `dataStream.print()` – Writes the DataStream to the standard output, practical for testing purposes
  * `dataStream.writeAsText(parameters)` – Writes the DataStream to a text file
@@ -238,7 +260,7 @@ dataStream.reduce(new ReduceFunction<Integer>() {
 ~~~
 
 #### Merge
-Merges two or more `DataStream` instances creating a new DataStream containing all the elements from all the streams.
+Merges two or more `DataStream` outputs, creating a new DataStream containing all the elements from all the streams.
 
 ~~~java
 dataStream.merge(otherStream1, otherStream2…)
@@ -246,48 +268,146 @@ dataStream.merge(otherStream1, otherStream2…)
 
 ### Grouped operators
 
-Some transformations require that the `DataStream` is grouped on some key value. The user can create a `GroupedDataStream` by calling the `groupBy(keyPosition)` method of a non-grouped `DataStream`. The user can apply different reduce transformations on the obtained `GroupedDataStream`:
+Some transformations require that the elements of a `DataStream` are grouped on some key. The user can create a `GroupedDataStream` by calling the `groupBy(key)` method of a non-grouped `DataStream`. 
+Keys can be of three types: fields positions (applicable for tuple/array types), field expressions (applicable for pojo types), KeySelector instances. 
+
+The user can apply different reduce transformations on the obtained `GroupedDataStream`:
 
 #### Reduce on GroupedDataStream
 When the reduce operator is applied on a grouped data stream, the user-defined `ReduceFunction` will combine subsequent pairs of elements having the same key value. The combined results are sent to the output stream.
 
 ### Aggregations
 
-The Flink Streaming API supports different types of aggregation operators similarly to the core API. For grouped data streams the aggregations work in a grouped fashion.
+The Flink Streaming API supports different types of pre-defined aggregation operators similarly to the core API.
 
-Types of aggregations: `sum(fieldPosition)`, `min(fieldPosition)`, `max(fieldPosition)`, `minBy(fieldPosition, first)`, `maxBy(fieldPosition, first)`
+Types of aggregations: `sum(field)`, `min(field)`, `max(field)`, `minBy(field, first)`, `maxBy(field, first)`
 
-With `sum`, `min`, and `max` for every incoming tuple the selected field is replaced with the current aggregated value. If the aggregations are used without defining field position, position `0` is used as default. 
+With `sum`, `min`, and `max` for every incoming tuple the selected field is replaced with the current aggregated value. Fields can be selected using either field positions or field expressions (similarly to grouping).  
 
-With `minBy` and `maxBy` the output of the operator is the element with the current minimal or maximal value at the given fieldposition. If more components share the minimum or maximum value, the user can decide if the operator should return the first or last element. This can be set by the `first` boolean parameter.
+With `minBy` and `maxBy` the output of the operator is the element with the current minimal or maximal value at the given field. If more components share the minimum or maximum value, the user can decide if the operator should return the first or last element. This can be set by the `first` boolean parameter.
 
-### Window/Batch operators
+There is also an option to apply user defined aggregations with the usage of the `aggregate(…)` function of the data stream.
 
-Window and batch operators allow the user to execute function on slices or windows of the DataStream in a sliding fashion. If the stepsize for the slide is not defined then the window/batchsize is used as stepsize by default. The user can also use user defined timestamps for calculating time windows.
+### Window operators
 
-When applied to grouped data streams the data stream is batched/windowed for different key values separately. 
+Flink streaming provides very flexible windowing semantics to create arbitrary windows (also referred to as discretizations or slices) of the data streams and apply reduction or aggregation operations on the windows acquired. Windowing can be used for instance to create rolling aggregations of the most recent N elements, where N could be defined by Time, Count or any arbitrary user defined measure.
 
-For example a `dataStream.groupBy(0).batch(100, 10)` produces batches of the last 100 elements for each key value with 10 record step size.
+The user can control the size (eviction) of the windows and the frequency of reduction or aggregation calls (triggers) on them in an intuitive API:
+
+
+ * `dataStream.window(…).every(…).reduce(…)`
+ * `dataStream.window(…).every(…).reduceGroup(…)`
+ * `dataStream.window(…).every(…).aggregate(…)`
+
+The next example would create windows that hold elements of the last 5 seconds, and the user defined aggregation/reduce is executed on the windows every second (sliding the window by 1 second):
+
+~~~java
+dataStream.window(Time.of(5, TimeUnit.SECONDS)).every(Time.of(1, TimeUnit.SECONDS))
+~~~
+
+This approach is often referred to as policy based windowing. Different policies (count, time, etc.) can be mixed as well; for example to downsample our stream, a window that takes the latest 100 elements of the stream every minute is created as follows:
+
+~~~java
+dataStream.window(Count.of(100)).every(Time.of(1, TimeUnit.MINUTES))
+~~~
+
+The user can also omit the `.every(…)` call which results in a tumbling window emptying the window after every aggregation call.
+
+Several predefined policies are provided in the API, including delta-based, count-based and time-based policies. These can be accessed through the static methods provided by the `PolicyHelper` classes:
+
+ * `Time.of(…)`
+ * `Count.of(…)`
+ * `Delta.of(…)`
+
+For detailed description of these policies please refer to the javadocs.
+
+#### Policy based windowing
+The policy based windowing is a highly flexible way to specify stream discretisation also called windowing semantics. Two types of policies are used for such a specification:
+
+ * `TriggerPolicy` defines when to trigger the reduce UDF on the current window and emit the result. In the API it completes a window statement such as: `.window(…).every(…)`, while the triggering policy is passed within `every`. 
+
+When multiple triggers are used, the reduction or aggregation is executed at every trigger.
+
+Several predefined policies are provided in the API, including delta-based, punctuation based, count-based and time-based policies. Policies are in general UDFs and can implement any custom behaviour.
+
+ * `EvictionPolicy` defines the length of a window as a means of a predicate for evicting tuples when they are no longer needed. In the API this can be defined by the `.window(…)` operation on a stream. There are mostly the same predefined policy types provided as for trigger policies.
+
+When multiple evictions are used the strictest one controls the elements in the window. For instance in the call `dataStream.window(Count.of(5), Time.of(1,TimeUnit.SECONDS)).every(…)` produces a window of maximum 5 elements which have arrived in the last second.
+
+In addition to the `dataStream.window(…).every(…)` style users can specifically pass the list of trigger and eviction policies during the window call:
+
+~~~java
+dataStream.window(ListOfTriggerPolicies, ListOfEvictionPolicies)
+~~~
+
+By default most triggers can only trigger when a new element arrives. This might not be suitable for all the use-cases, especially when time based windowing is applied. To also provide trigering between elements so called active policies can be used. The predefined time-based policies are already implemented in such a way and can hold as an example for user defined active policy implementations. 
+
+Time-based trigger and eviction policies can work with user defined `TimeStamp` implementations, these policies already cover most use cases.
  
-#### Reduce on windowed/batched data streams
-The transformation calls a user-defined `ReduceFunction` on records received in the batch or during the predefined time window. The window is shifted after each reduce call. The user can also use the different streaming aggregations.
+#### Reduce on windowed data streams
+The transformation calls a user-defined `ReduceFunction` at every trigger on the records currently in the window. The user can also use the different streaming aggregations.
 
 A window reduce that sums the elements in the last minute with 10 seconds slide interval:
 
 ~~~java
-dataStream.window(60000, 10000).sum();
+dataStream.window(Time.of(1, TimeUnit.MINUTES)).every(Time.of(10,TimeUnit.SECONDS)).sum(field);
 ~~~
 
-#### ReduceGroup on windowed/batched data streams
-The transformation calls a `GroupReduceFunction` for each data batch or data window. The batch/window slides by the predefined number of elements/time after each call.
+#### ReduceGroup on windowed data streams
+The transformation calls a `GroupReduceFunction` for each data batch or data window similarly as a reduce, but providing access to all elements in the window.
 
 ~~~java
-dataStream.batch(1000, 100).reduceGroup(reducer);
+dataStream.window(…).every(…).reduceGroup(reducer);
 ~~~
+
+#### Grouped operations on windowed data streams
+Calling the `.groupBy(fields)` method on a windowed stream groups the elements by the given fields inside the windows. The window sizes (evictions) and slide sizes (triggers) will be calculated on the whole stream (in a central fashion), but the user defined functions will be applied on a per group basis.
+
+The user can also create windows and triggers on a per group basis calling `.window(…).every(…)` on an already grouped data stream. To highlight the differences let us look at to examples.
+
+To get the maximal value by key on the last 100 elements we use the first approach:
+
+~~~java
+dataStream.window(Count.of(100)).every(…).groupBy(groupingField).max(field);
+~~~
+
+Using this approach we took the last 100 elements, divided it into groups by key then applied the aggregation.
+
+To create fixed size windows for every key we need to reverse the order of the groupBy call. So to take the max for the last 100 elements in Each group:
+
+~~~java
+dataStream.groupBy(groupingField).window(Count.of(100)).every(…).max(field);
+~~~
+
+This will create separate windows for different keys and apply the trigger and eviction policies on a per group basis.
+
+### Temporal database style operators
+
+While database style operators like joins (on key) and crosses are hard to define properly on data streams, a straight forward implementation is to apply these operators on windows of the data streams.
+
+Currently join and cross operators are supported on time windows.
+
+The Join transformation produces a new Tuple DataStream with two fields. Each tuple holds a joined element of the first input DataStream in the first tuple field and a matching element of the second input DataStream in the second field for the current window.
+
+The following code shows a default Join transformation using field position keys:
+
+~~~java
+dataStream1.join(dataStream2)
+		.onWindow(windowing_params)
+		.where(key_in_first)
+		.equalTo(key_in_second);
+~~~
+
+The Cross transformation combines two DataStreams into one DataStreams. It builds all pairwise combinations of the elements of both input DataStreams in the current window, i.e., it builds a temporal Cartesian product.
+
+~~~java
+dataStream1.cross(dataStream2).onWindow(windowing_params);
+~~~
+
 
 ### Co operators
 
-Co operators allow the users to jointly transform two `DataStreams` of different types providing a simple way to jointly manipulate a shared state. It is designed to support joint stream transformations where merging is not appropriate due to different data types or the in cases when user needs explicit track of the datas origin.
+Co operators allow the users to jointly transform two `DataStreams` of different types providing a simple way to jointly manipulate a shared state. It is designed to support joint stream transformations where merging is not appropriate due to different data types or in case the user needs explicit tracking of the joined stream origin.
 Co operators can be applied to `ConnectedDataStreams` which represent two `DataStreams` of possibly different types. A `ConnectedDataStream` can be created by calling the `connect(otherDataStream)` method of a `DataStream`. Please note that the two connected `DataStreams` can also be merged data streams.
 
 #### Map on ConnectedDataStream
@@ -335,66 +455,57 @@ dataStream1.connect(dataStream2)
         })
 ~~~
 
-#### windowReduceGroup on ConnectedDataStream
-The windowReduceGroup operator applies a user defined `CoGroupFunction` to time aligned windows of the two data streams and return zero or more elements of an arbitrary type. The user can define the window and slide intervals and can also implement custom timestamps to be used for calculating windows.
-
-~~~java
-DataStream<Integer> dataStream1 = ...
-DataStream<String> dataStream2 = ...
-
-dataStream1.connect(dataStream2)
-    .windowReduceGroup(new CoGroupFunction<Integer, String, String>() {
-
-        @Override
-        public void coGroup(Iterable<Integer> first, Iterable<String> second,
-            Collector<String> out) throws Exception {
-
-            //Do something here
-
-        }
-    }, 10000, 5000);
-~~~
-
+#### WindowReduce on ConnectedDataStream
+The windowReduce operator applies a user defined `CoWindowFunction` to time aligned windows of the two data streams and return zero or more elements of an arbitrary type. The user can define the window and slide intervals and can also implement custom timestamps to be used for calculating windows.
 
 #### Reduce on ConnectedDataStream
 The Reduce operator for the `ConnectedDataStream` applies a simple reduce transformation on the joined data streams and then maps the reduced elements to a common output type.
 
 ### Output splitting
 
-Most data stream operators support directed outputs, meaning that different data elements are received by only given outputs. The outputs are referenced by their name given at the point of receiving:
+Most data stream operators support directed outputs (output splitting), meaning that different output elements are sent only to specific outputs. The outputs are referenced by their name given at the point of receiving:
 
 ~~~java
 SplitDataStream<Integer> split = someDataStream.split(outputSelector);
-DataStream<Integer> even = split.select("even");
+DataStream<Integer> even = split.select("even”);
 DataStream<Integer> odd = split.select("odd");
 ~~~
 
-Data streams only receive the elements directed to selected output names. These outputs are directed by implementing a selector function (extending `OutputSelector`):
+In the above example the data stream named ‘even’ will only contain elements that are directed to the output named “even”. The user can of course further transform these new stream by for example squaring only the even elements.
+
+Data streams only receive the elements directed to selected output names. The user can also select multiple output names by `splitStream.select(“output1”, “output2”…)`. It is common that a stream listens to all the outputs, so `split.selectAll()` provides this functionality without having to select all names.
+
+The outputs of an operator are directed by implementing a selector function (implementing the `OutputSelector` interface):
 
 ~~~java
-void select(OUT value, Collection<String> outputs);
+Iterable<String> select(OUT value);
 ~~~
 
-The data is sent to all the outputs added to the collection outputs (referenced by their name). This way the direction of the outputs can be determined by the value of the data sent. For example:
+The data is sent to all the outputs returned in the iterable (referenced by their name). This way the direction of the outputs can be determined by the value of the data sent. 
+
+For example to split even and odd numbers:
 
 ~~~java
 @Override
-void select(Integer value, Collection<String> outputs) {
+Iterable<String> select(Integer value) {	
+
+    List<String> outputs = new ArrayList<String>();
+
     if (value % 2 == 0) {
         outputs.add("even");
     } else {
         outputs.add("odd");
     }
+
+    return outputs;
 }
 ~~~
 
-This output selection allows data streams to listen to multiple outputs, and data points to be sent to multiple outputs. A value is sent to all the outputs specified in the `OutputSelector` and a data stream will receive a value if it has selected any of the outputs the value is sent to. The stream will receive the data at most once.
-It is common that a stream listens to all the outputs, so `split.selectAll()` is provided as an alias for explicitly selecting all output names.
-
+Every output will be emitted to the selected outputs exactly once, even if you add the same output names more than once.
 
 ### Iterations
 The Flink Streaming API supports implementing iterative stream processing dataflows similarly to the core Flink API. Iterative streaming programs also implement a step function and embed it into an `IterativeDataStream`.
-Unlike in the core API the user does not define the maximum number of iterations, but at the tail of each iteration the output is both streamed forward to the next operator and also streamed back to the iteration head. The user controls the output of the iteration tail using [output splitting](#output-splitting).
+Unlike in the core API the user does not define the maximum number of iterations, but at the tail of each iteration part of the output is streamed forward to the next operator and part is streamed back to the iteration head. The user controls the output of the iteration tail using [output splitting](#output-splitting).
 To start an iterative part of the program the user defines the iteration starting point:
 
 ~~~java
@@ -406,20 +517,18 @@ The operator applied on the iteration starting point is the head of the iteratio
 DataStream<Integer> head = iteration.map(new IterationHead());
 ~~~
 
-To close an iteration and define the iteration tail, the user calls `.closeWith(tail)` method of the `IterativeDataStream`:
+To close an iteration and define the iteration tail, the user calls `.closeWith(iterationTail)` method of the `IterativeDataStream`.
+
+A common pattern is to use output splitting:
 
 ~~~java
-DataStream<Integer> tail = head.map(new IterationTail());
-iteration.closeWith(tail);
-~~~
-Or to use with output splitting:
-
-~~~java
-SplitDataStream<Integer> tail = head.map(new IterationTail()).split(outputSelector);
-iteration.closeWith(tail.select("iterate"));
+SplitDataStream<..> tailOperator = head.map(new IterationTail()).split(outputSelector);
+iteration.closeWith(tailOperator.select("iterate"));
 ~~~ 
 
-Because iterative streaming programs do not have a set number of iteratons for each data element, the streaming program has no information on the end of its input. From this it follows that iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances a method is provided to allow iterative programs to shut down automatically if no input received by the iteration head for a predefined number of milliseconds.
+In these case all output directed to the “iterate” edge would be fed back to the iteration head.
+
+Because iterative streaming programs do not have a set number of iterations for each data element, the streaming program has no information on the end of its input. From this it follows that iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances a method is provided to allow iterative programs to shut down automatically if no input received by the iteration head for a predefined number of milliseconds.
 To use this function the user needs to call, the `iteration.setMaxWaitTime(millis)` to control the max wait time. 
 
 ### Rich functions
@@ -435,6 +544,46 @@ Rich functions provide, in addition to the user-defined function (`map()`, `redu
 
 [Back to top](#top)
 
+### Lambda expressions with Java 8
+
+For a more consice code one can rely on one of the main feautere of Java 8, lambda expressions. The following program has similar functionality to the one provided in the [example](#example-program) section, while showcasing the usage of lambda expressions.
+
+~~~java
+public class StreamingWordCount {
+    public static void main(String[] args) throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+	    DataStream<String> text = env.fromElements(
+                "Who's there?",
+                "I think I hear them. Stand, ho! Who's there?");
+
+            DataStream<Tuple2<String, Integer>> counts = 
+		// normalize and split each line
+		text.map(line -> line.toLowerCase().split("\\W+"))
+		// convert splitted line in pairs (2-tuples) containing: (word,1)
+		.flatMap((String[] tokens, Collector<Tuple2<String, Integer>> out) -> {
+		// emit the pairs with non-zero-length words
+			Arrays.stream(tokens)
+				.filter(t -> t.length() > 0)
+				.forEach(t -> out.collect(new Tuple2<>(t, 1)));
+		})
+		// group by the tuple field "0" and sum up tuple field "1"
+		.groupBy(0)
+		.sum(1);
+
+        counts.print();
+
+        env.execute("Streaming WordCount");
+    }
+}
+~~~
+
+For a detailed Java 8 Guide please refer to the [Java 8 Programming Guide](java8_programming_guide.html). Operators specific to streaming, such as Operator splitting also support this usage. [Output splitting](#output-splitting) can be rewritten as follows:
+
+~~~java
+SplitDataStream<Integer> split = someDataStream
+					.split(x -> Arrays.asList(String.valueOf(x % 2)));
+~~~
 
 Operator Settings
 ----------------
@@ -446,7 +595,9 @@ Setting parallelism for operators works exactly the same way as in the core Flin
 ### Buffer timeout
 
 By default data points are not transferred on the network one-by-one, which would cause unnecessary network traffic, but are buffered in the output buffers. The size of the output buffers can be set in the Flink config files. While this method is good for optimizing throughput, it can cause latency issues when the incoming stream is not fast enough.
-To tackle this issue the user can call `env.setBufferTimeout(timeoutMillis)` on the execution environment (or on individual operators) to set a maximum wait time for the buffers to fill up. After this time the buffers are flushed automatically even if they are not full. Usage:
+To tackle this issue the user can call `env.setBufferTimeout(timeoutMillis)` on the execution environment (or on individual operators) to set a maximum wait time for the buffers to fill up. After this time the buffers are flushed automatically even if they are not full. The default value for this timeout is 100ms which should be appropriate for most use-cases. 
+
+Usage:
 
 ~~~java
 LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
@@ -455,7 +606,12 @@ env.setBufferTimeout(timeoutMillis);
 env.genereateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 ~~~
 
+To maximise the throughput the user can call `.setBufferTimeout(-1)` which will remove the timeout and buffers will only be flushed when they are full.
+To minimise latency, set the timeout to a value close to 0 (fro example 5 or 10 ms). Theoretically a buffer timeout of 0 will cause all outputs to be flushed when produced, but this setting should be avoided because it can cause severe performance degradation.
+
 ### Mutability
+
+This is currently a beta feature and it is only supported for a subset of the available operators.
 
 Most operators allow setting mutability for reading input data. If the operator is set mutable then the variable used to store input data for operators will be reused in a mutable fashion to avoid excessive object creation. By default, all operators are set to immutable.
 Usage:

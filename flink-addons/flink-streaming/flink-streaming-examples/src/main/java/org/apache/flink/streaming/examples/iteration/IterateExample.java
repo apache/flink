@@ -18,13 +18,13 @@
 package org.apache.flink.streaming.examples.iteration;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
@@ -68,7 +68,7 @@ public class IterateExample {
 		// obtain execution environment and set setBufferTimeout(0) to enable
 		// continuous flushing of the output buffers (lowest latency)
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
-				.setBufferTimeout(0);
+				.setBufferTimeout(1);
 
 		// create an iterative data stream from the input
 		IterativeDataStream<Tuple2<Double, Integer>> it = env.fromCollection(input).shuffle()
@@ -79,7 +79,7 @@ public class IterateExample {
 
 		// apply the step function to add new random value to the tuple and to
 		// increment the counter and split the output with the output selector
-		SplitDataStream<Tuple2<Double, Integer>> step = it.map(new Step()).shuffle().setBufferTimeout(1)
+		SplitDataStream<Tuple2<Double, Integer>> step = it.map(new Step()).shuffle()
 				.split(new MySelector());
 
 		// close the iteration by selecting the tuples that were directed to the
@@ -110,12 +110,12 @@ public class IterateExample {
 	 * Iteration step function which takes an input (Double , Integer) and
 	 * produces an output (Double + random, Integer + 1).
 	 */
-	public static class Step implements
-			MapFunction<Tuple2<Double, Integer>, Tuple2<Double, Integer>> {
+	public static class Step extends
+			RichMapFunction<Tuple2<Double, Integer>, Tuple2<Double, Integer>> {
 		private static final long serialVersionUID = 1L;
-		private Random rnd;
+		private transient Random rnd;
 
-		public Step() {
+		public void open(Configuration parameters) {
 			rnd = new Random();
 		}
 
@@ -123,22 +123,23 @@ public class IterateExample {
 		public Tuple2<Double, Integer> map(Tuple2<Double, Integer> value) throws Exception {
 			return new Tuple2<Double, Integer>(value.f0 + rnd.nextDouble(), value.f1 + 1);
 		}
-
 	}
 
 	/**
 	 * OutputSelector testing which tuple needs to be iterated again.
 	 */
-	public static class MySelector extends OutputSelector<Tuple2<Double, Integer>> {
+	public static class MySelector implements OutputSelector<Tuple2<Double, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void select(Tuple2<Double, Integer> value, Collection<String> outputs) {
+		public Iterable<String> select(Tuple2<Double, Integer> value) {
+			List<String> output = new ArrayList<String>();
 			if (value.f0 > 100) {
-				outputs.add("output");
+				output.add("output");
 			} else {
-				outputs.add("iterate");
+				output.add("iterate");
 			}
+			return output;
 		}
 
 	}

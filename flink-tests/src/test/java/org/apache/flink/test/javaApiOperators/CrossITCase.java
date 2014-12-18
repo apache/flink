@@ -262,8 +262,7 @@ public class CrossITCase extends JavaProgramTestBase {
 					.projectFirst(2, 1)
 					.projectSecond(3)
 					.projectFirst(0)
-					.projectSecond(4,1)
-					.types(String.class, Long.class, String.class, Integer.class, Long.class, Long.class);
+					.projectSecond(4,1);
 
 				crossDs.writeAsCsv(resultPath);
 				env.execute();
@@ -294,8 +293,7 @@ public class CrossITCase extends JavaProgramTestBase {
 						.projectSecond(3)
 						.projectFirst(2, 1)
 						.projectSecond(4,1)
-						.projectFirst(0)
-						.types(String.class, String.class, Long.class, Long.class, Long.class, Integer.class);
+						.projectFirst(0);
 
 					crossDs.writeAsCsv(resultPath);
 					env.execute();

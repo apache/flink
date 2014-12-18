@@ -30,6 +30,7 @@ import org.apache.flink.types.Record;
  * Cross PACT computes the distance of all data points to all cluster
  * centers.
  */
+@SuppressWarnings("deprecation")
 @ConstantFieldsFirst({0,1})
 public class ComputeDistance extends CrossFunction implements Serializable {
 	private static final long serialVersionUID = 1L;

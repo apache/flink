@@ -729,6 +729,14 @@ public class TaskManager implements TaskOperationProtocol {
 		boolean success = false;
 		try {
 			success = this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, executionId, newExecutionState, optionalError));
+
+			if (!success) {
+				Task task = runningTasks.get(executionId);
+
+				if (task != null) {
+					task.failExternally(new IllegalStateException("Task has been disposed on JobManager."));
+				}
+			}
 		}
 		catch (Throwable t) {
 			String msg = "Error sending task state update to JobManager.";

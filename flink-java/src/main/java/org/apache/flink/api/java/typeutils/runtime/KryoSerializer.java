@@ -19,20 +19,23 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import com.twitter.chill.ScalaKryoInstantiator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 public class KryoSerializer<T> extends TypeSerializer<T> {
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 2L;
 
 	private final Class<T> type;
-	private final Class<? extends T> typeToInstantiate;
 
 	private transient Kryo kryo;
 	private transient T copyInstance;
@@ -44,20 +47,12 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private transient Output output;
 
 	public KryoSerializer(Class<T> type){
-		this(type,type);
-	}
-
-	public KryoSerializer(Class<T> type, Class<? extends T> typeToInstantiate){
-		if(type == null || typeToInstantiate == null){
+		if(type == null){
 			throw new NullPointerException("Type class cannot be null.");
 		}
-
 		this.type = type;
-		this.typeToInstantiate = typeToInstantiate;
-		kryo = new Kryo();
-		kryo.setAsmEnabled(true);
-		kryo.register(type);
 	}
+
 
 	@Override
 	public boolean isImmutableType() {
@@ -71,20 +66,36 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T createInstance() {
-		checkKryoInitialized();
-		return kryo.newInstance(typeToInstantiate);
+		return null;
 	}
 
 	@Override
 	public T copy(T from) {
+		if(from == null) {
+			return null;
+		}
 		checkKryoInitialized();
-		return kryo.copy(from);
+		try {
+			return kryo.copy(from);
+		} catch(KryoException ke) {
+			// kryo was unable to copy it, so we do it through serialization:
+			ByteArrayOutputStream baout = new ByteArrayOutputStream();
+			Output output = new Output(baout);
+
+			kryo.writeObject(output, from);
+
+			output.flush();
+
+			ByteArrayInputStream bain = new ByteArrayInputStream(baout.toByteArray());
+			Input input = new Input(bain);
+
+			return (T)kryo.readObject(input, from.getClass());
+		}
 	}
 	
 	@Override
 	public T copy(T from, T reuse) {
-		checkKryoInitialized();
-		return kryo.copy(from);
+		return copy(from);
 	}
 
 	@Override
@@ -101,7 +112,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			previousOut = target;
 		}
 		
-		kryo.writeObject(output, record);
+		kryo.writeClassAndObject(output, record);
 		output.flush();
 	}
 
@@ -113,7 +124,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			input = new NoFetchingInput(inputStream);
 			previousIn = source;
 		}
-		return kryo.readObject(input, typeToInstantiate);
+		return (T) kryo.readClassAndObject(input);
 	}
 	
 	@Override
@@ -136,14 +147,14 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public int hashCode() {
-		return type.hashCode() + 31 * typeToInstantiate.hashCode();
+		return type.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
 		if (obj != null && obj instanceof KryoSerializer) {
 			KryoSerializer<?> other = (KryoSerializer<?>) obj;
-			return other.type == this.type && other.typeToInstantiate == this.typeToInstantiate;
+			return other.type == this.type;
 		} else {
 			return false;
 		}
@@ -153,9 +164,10 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
-			this.kryo = new Kryo();
-			this.kryo.setAsmEnabled(true);
+			this.kryo = new ScalaKryoInstantiator().newKryo();
+			this.kryo.setRegistrationRequired(false);
 			this.kryo.register(type);
+			this.kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
 		}
 	}
 }

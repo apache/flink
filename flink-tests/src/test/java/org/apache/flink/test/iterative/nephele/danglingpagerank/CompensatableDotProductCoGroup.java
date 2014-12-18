@@ -29,6 +29,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
+@SuppressWarnings("deprecation")
 public class CompensatableDotProductCoGroup extends CoGroupFunction {
 	
 	private static final long serialVersionUID = 1L;

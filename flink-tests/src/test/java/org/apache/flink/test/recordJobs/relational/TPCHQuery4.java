@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational;
 
 import java.text.ParseException;
@@ -51,7 +50,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Implementation of the TPC-H Query 4 as a Flink program.
  */
-@SuppressWarnings("serial")
+
+@SuppressWarnings({"serial", "deprecation"})
 public class TPCHQuery4 implements Program, ProgramDescription {
 
 	private static Logger LOG = LoggerFactory.getLogger(TPCHQuery4.class);

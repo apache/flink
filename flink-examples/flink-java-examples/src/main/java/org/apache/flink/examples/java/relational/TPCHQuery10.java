@@ -122,7 +122,7 @@ public class TPCHQuery10 {
 									}
 								})
 				// project fields out that are no longer required
-				.project(0,1).types(Integer.class, Integer.class);
+				.project(0,1);
 
 		// lineitems filtered by flag: (orderkey, revenue)
 		DataSet<Tuple2<Integer, Double>> lineitemsFilteredByFlag = 
@@ -146,23 +146,21 @@ public class TPCHQuery10 {
 		DataSet<Tuple2<Integer, Double>> revenueByCustomer = 
 				ordersFilteredByYear.joinWithHuge(lineitemsFilteredByFlag)
 									.where(0).equalTo(0)
-									.projectFirst(1).projectSecond(1)
-									.types(Integer.class, Double.class)
-									.groupBy(0).aggregate(Aggregations.SUM, 1);
+									.projectFirst(1).projectSecond(1);
+		
+		revenueByCustomer = revenueByCustomer.groupBy(0).aggregate(Aggregations.SUM, 1);
 
 		// join customer with nation (custkey, name, address, nationname, acctbal)
 		DataSet<Tuple5<Integer, String, String, String, Double>> customerWithNation = customers
 						.joinWithTiny(nations)
 						.where(3).equalTo(0)
-						.projectFirst(0,1,2).projectSecond(1).projectFirst(4)
-						.types(Integer.class, String.class, String.class, String.class, Double.class);
+						.projectFirst(0,1,2).projectSecond(1).projectFirst(4);
 
 		// join customer (with nation) with revenue (custkey, name, address, nationname, acctbal, revenue)
 		DataSet<Tuple6<Integer, String, String, String, Double, Double>> result = 
 				customerWithNation.join(revenueByCustomer)
 				.where(0).equalTo(0)
-				.projectFirst(0,1,2,3,4).projectSecond(1)
-				.types(Integer.class, String.class, String.class, String.class, Double.class, Double.class);
+				.projectFirst(0,1,2,3,4).projectSecond(1);
 
 		// emit result
 		result.writeAsCsv(outputPath, "\n", "|");

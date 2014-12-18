@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.Serializable;
@@ -39,12 +38,12 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
-
 /**
  * An implementation of the triangle enumeration, which expects its input to
  * encode the degrees of the vertices. The algorithm selects the lower-degree vertex for the
  * enumeration of open triads.
  */
+@SuppressWarnings("deprecation")
 public class EnumTrianglesOnEdgesWithDegrees implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;

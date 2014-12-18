@@ -41,6 +41,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
+@SuppressWarnings("deprecation")
 public class DeltaPageRankWithInitialDeltas implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;
