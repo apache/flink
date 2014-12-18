@@ -323,9 +323,8 @@ public class ExecutionJobVertex {
 		synchronized (stateMonitor) {
 			if (!finishedSubtasks[subtask]) {
 				finishedSubtasks[subtask] = true;
-				numSubtasksInFinalState++;
 				
-				if (numSubtasksInFinalState == parallelism) {
+				if (numSubtasksInFinalState+1 == parallelism) {
 					
 					// call finalizeOnMaster hook
 					try {
@@ -334,12 +333,16 @@ public class ExecutionJobVertex {
 					catch (Throwable t) {
 						getGraph().fail(t);
 					}
+
+					numSubtasksInFinalState++;
 					
 					// we are in our final state
 					stateMonitor.notifyAll();
 					
 					// tell the graph
 					graph.jobVertexInFinalState(this);
+				}else{
+					numSubtasksInFinalState++;
 				}
 			}
 		}
