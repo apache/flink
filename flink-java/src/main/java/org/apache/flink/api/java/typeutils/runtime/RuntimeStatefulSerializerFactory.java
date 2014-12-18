@@ -55,6 +55,9 @@ public final class RuntimeStatefulSerializerFactory<T> implements TypeSerializer
 		}
 	}
 
+	public void setClassLoader(ClassLoader loader) {
+		this.loader = loader;
+	}
 
 	@Override
 	public void writeParametersToConfig(Configuration config) {

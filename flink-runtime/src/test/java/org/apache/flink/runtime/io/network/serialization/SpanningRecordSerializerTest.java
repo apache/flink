@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.serialization;
 
 import org.junit.Assert;
@@ -25,7 +24,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.Buffer;
-import org.apache.flink.runtime.io.network.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.serialization.RecordSerializer.SerializationResult;
 import org.apache.flink.runtime.io.network.serialization.types.SerializationTestType;
 import org.apache.flink.runtime.io.network.serialization.types.SerializationTestTypeFactory;
@@ -64,10 +62,11 @@ public class SpanningRecordSerializerTest {
 
 			serializer.addRecord(randomIntRecord);
 			Assert.assertTrue(serializer.hasData());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
-
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
 	}
 
 	@Test
@@ -96,12 +95,10 @@ public class SpanningRecordSerializerTest {
 				}
 
 				@Override
-				public void write(DataOutputView out) throws IOException {
-				}
+				public void write(DataOutputView out) {}
 
 				@Override
-				public void read(DataInputView in) throws IOException {
-				}
+				public void read(DataInputView in) {}
 
 				@Override
 				public int hashCode() {
@@ -125,8 +122,10 @@ public class SpanningRecordSerializerTest {
 
 			result = serializer.setNextBuffer(buffer);
 			Assert.assertEquals(SerializationResult.FULL_RECORD, result);
-		} catch (IOException e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 	}
 
@@ -137,7 +136,8 @@ public class SpanningRecordSerializerTest {
 
 		try {
 			test(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test encountered an unexpected exception.");
 		}
@@ -150,7 +150,8 @@ public class SpanningRecordSerializerTest {
 
 		try {
 			test(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test encountered an unexpected exception.");
 		}
@@ -163,7 +164,8 @@ public class SpanningRecordSerializerTest {
 
 		try {
 			test(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test encountered an unexpected exception.");
 		}
@@ -176,7 +178,8 @@ public class SpanningRecordSerializerTest {
 
 		try {
 			test(Util.randomRecords(NUM_VALUES), SEGMENT_SIZE);
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test encountered an unexpected exception.");
 		}

@@ -60,5 +60,12 @@ public interface BlockChannelReader extends FileIOChannel {
 	 * @return The queue with the full memory segments.
 	 */
 	LinkedBlockingQueue<MemorySegment> getReturnQueue();
+	
+	/**
+	 * Seeks the underlying file channel to the given position.
+	 * 
+	 * @param position The position to seek to.
+	 */
+	void seekToPosition(long position) throws IOException;
 }
 	

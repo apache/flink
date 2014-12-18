@@ -128,4 +128,9 @@ public class AsynchronousBlockReader extends AsynchronousFileIOChannel<ReadReque
 	public LinkedBlockingQueue<MemorySegment> getReturnQueue() {
 		return this.returnSegments;
 	}
+	
+	@Override
+	public void seekToPosition(long position) throws IOException {
+		this.requestQueue.add(new SeekRequest(this, position));
+	}
 }

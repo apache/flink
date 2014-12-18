@@ -18,15 +18,27 @@
 
 package org.apache.flink.core.memory;
 
+import java.io.Closeable;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
-public class OutputViewDataOutputStreamWrapper implements DataOutputView {
+public class OutputViewDataOutputStreamWrapper implements DataOutputView, Closeable {
+	
 	private final DataOutputStream out;
 
 	public OutputViewDataOutputStreamWrapper(DataOutputStream out){
 		this.out = out;
+	}
+	
+	
+	public void flush() throws IOException {
+		out.flush();
+	}
+	
+	@Override
+	public void close() throws IOException {
+		out.close();
 	}
 
 	@Override

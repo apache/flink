@@ -141,7 +141,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	throws IOException, MemoryAllocationException
 	{
 		super(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
-			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false);
+			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false, true);
 		
 		this.combineStub = combineStub;
 	}
@@ -392,8 +392,8 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			// ------------------- Merging Phase ------------------------
 
 			// merge channels until sufficient file handles are available
-			while (isRunning() && channelIDs.size() > this.maxNumFileHandles) {
-				channelIDs = mergeChannelList(channelIDs, this.sortReadMemory, this.writeMemory);
+			while (isRunning() && channelIDs.size() > this.maxFanIn) {
+				channelIDs = mergeChannelList(channelIDs, this.mergeReadMemory, this.writeMemory);
 			}
 			
 			// from here on, we won't write again
@@ -413,11 +413,11 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 				List<List<MemorySegment>> readBuffers = new ArrayList<List<MemorySegment>>(channelIDs.size());
 				
 				// allocate the read memory and register it to be released
-				getSegmentsForReaders(readBuffers, this.sortReadMemory, channelIDs.size());
+				getSegmentsForReaders(readBuffers, this.mergeReadMemory, channelIDs.size());
 				
 				// get the readers and register them to be released
 				final MergeIterator<E> mergeIterator = getMergingIterator(
-						channelIDs, readBuffers, new ArrayList<FileIOChannel>(channelIDs.size()));
+						channelIDs, readBuffers, new ArrayList<FileIOChannel>(channelIDs.size()), null);
 				
 				// set the target for the user iterator
 				// if the final merge combines, create a combining iterator around the merge iterator,
@@ -452,7 +452,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			final List<FileIOChannel> channelAccesses = new ArrayList<FileIOChannel>(channelIDs.size());
 
 			// the list with the target iterators
-			final MergeIterator<E> mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
+			final MergeIterator<E> mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses, null);
 			final KeyGroupedIterator<E> groupedIter = new KeyGroupedIterator<E>(mergeIterator, this.serializer, this.comparator2);
 
 			// create a new channel writer

@@ -18,16 +18,25 @@
 
 package org.apache.flink.core.memory;
 
+import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 
-public class InputViewDataInputStreamWrapper implements DataInputView {
+public class InputViewDataInputStreamWrapper implements DataInputView, Closeable {
+	
 	private final DataInputStream in;
 
 	public InputViewDataInputStreamWrapper(DataInputStream in){
 		this.in = in;
 	}
+	
+	@Override
+	public void close() throws IOException {
+		in.close();
+	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void skipBytesToRead(int numBytes) throws IOException {

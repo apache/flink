@@ -16,14 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 import java.util.Comparator;
 
-import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
@@ -36,18 +32,21 @@ import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.RandomIntPairGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.TestData.Key;
-import org.apache.flink.runtime.operators.testutils.TestData.Value;
 import org.apache.flink.runtime.operators.testutils.TestData.Generator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.Generator.ValueMode;
+import org.apache.flink.runtime.operators.testutils.TestData.Key;
+import org.apache.flink.runtime.operators.testutils.TestData.Value;
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.runtime.operators.testutils.types.IntPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class ExternalSortITCase {
@@ -64,7 +63,7 @@ public class ExternalSortITCase {
 
 	private static final int NUM_PAIRS = 200000;
 
-	private static final int MEMORY_SIZE = 1024 * 1024 * 78;
+	private static final int MEMORY_SIZE = 1024 * 1024 * 78;	
 	
 	private final AbstractInvokable parentTask = new DummyInvokable();
 
@@ -243,7 +242,7 @@ public class ExternalSortITCase {
 		merger.close();
 	}
 
-//	@Test
+	@Test
 	public void testSpillingSortWithIntermediateMerge() throws Exception {
 		// amount of pairs
 		final int PAIRS = 10000000;
@@ -297,7 +296,7 @@ public class ExternalSortITCase {
 		merger.close();
 	}
 	
-//	@Test
+	@Test
 	public void testSpillingSortWithIntermediateMergeIntPair() throws Exception {
 		// amount of pairs
 		final int PAIRS = 50000000;

@@ -97,8 +97,8 @@ public class MergeIterator<E> implements MutableObjectIterator<E> {
 	//                      Internal Classes that wrap the sorted input streams
 	// ============================================================================================
 	
-	private static final class HeadStream<E>
-	{
+	private static final class HeadStream<E> {
+		
 		private final MutableObjectIterator<E> iterator;
 		
 		private final TypeComparator<E> comparator;
@@ -106,7 +106,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E> {
 		private E head;
 
 		public HeadStream(MutableObjectIterator<E> iterator, TypeSerializer<E> serializer, TypeComparator<E> comparator)
-		throws IOException
+				throws IOException
 		{
 			this.iterator = iterator;
 			this.comparator = comparator;
@@ -121,8 +121,7 @@ public class MergeIterator<E> implements MutableObjectIterator<E> {
 			return this.head;
 		}
 
-		public boolean nextHead() throws IOException
-		{
+		public boolean nextHead() throws IOException {
 			if ((this.head = this.iterator.next(this.head)) != null) {
 				this.comparator.setReference(this.head);
 				return true;
@@ -135,11 +134,10 @@ public class MergeIterator<E> implements MutableObjectIterator<E> {
 
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class HeadStreamComparator<E> implements Comparator<HeadStream<E>>
-	{		
+	private static final class HeadStreamComparator<E> implements Comparator<HeadStream<E>> {
+		
 		@Override
-		public int compare(HeadStream<E> o1, HeadStream<E> o2)
-		{
+		public int compare(HeadStream<E> o1, HeadStream<E> o2) {
 			return o2.comparator.compareToReference(o1.comparator);
 		}
 	}

@@ -55,6 +55,9 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 		this.stateful = stateful;
 	}
 	
+	public Class<T> getTupleClass() {
+		return this.tupleClass;
+	}
 	
 	@Override
 	public boolean isImmutableType() {

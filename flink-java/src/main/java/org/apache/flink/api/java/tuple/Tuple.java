@@ -81,4 +81,32 @@ public abstract class Tuple implements java.io.Serializable {
 	 * @return The number of fields in the tuple.
 	 */
 	public abstract int getArity();
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Gets the class corresponding to the tuple of the given arity (dimensions). For
+	 * example, {@code getTupleClass(3)} will return the {@code Tuple3.class}.
+	 * 
+	 * @param arity The arity of the tuple class to get.
+	 * @return The tuple class with the given arity.
+	 */
+	@SuppressWarnings("unchecked")
+	public static Class<? extends Tuple> getTupleClass(int arity) {
+		if (arity < 1 || arity > MAX_ARITY) {
+			throw new IllegalArgumentException("The tuple arity must be in [0, " + MAX_ARITY + "].");
+		}
+		return (Class<? extends Tuple>) CLASSES[arity - 1];
+	}
+	
+	// --------------------------------------------------------------------------------------------	
+	// The following lines are generated.
+	// --------------------------------------------------------------------------------------------
+	
+	// BEGIN_OF_TUPLE_DEPENDENT_CODE	
+	// GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
+	private static final Class<?>[] CLASSES = new Class<?>[] {
+		Tuple1.class, Tuple2.class, Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class, Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class, Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class, Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class, Tuple23.class, Tuple24.class, Tuple25.class
+	};
+	// END_OF_TUPLE_DEPENDENT_CODE
 }

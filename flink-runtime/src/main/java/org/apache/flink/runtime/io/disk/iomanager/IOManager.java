@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Random;
@@ -97,6 +98,18 @@ public abstract class IOManager {
 		return new FileIOChannel.Enumerator(this.paths, this.random);
 	}
 
+	/**
+	 * Deletes the file underlying the given channel. If the channel is still open, this
+	 * call may fail.
+	 * 
+	 * @param channel The channel to be deleted.
+	 * @throws IOException Thrown if the deletion fails.
+	 */
+	public void deleteChannel(FileIOChannel.ID channel) throws IOException {
+		if (channel != null) {
+			new File(channel.getPath()).delete();
+		}
+	}
 	
 	// ------------------------------------------------------------------------
 	//                        Reader / Writer instantiations
@@ -184,6 +197,15 @@ public abstract class IOManager {
 	// ------------------------------------------------------------------------
 	//                          Utilities
 	// ------------------------------------------------------------------------
+	
+	/**
+	 * Gets the number of directories across which the I/O manager rotates its files.
+	 * 
+	 * @return The number of temporary file directories.
+	 */
+	public int getNumberOfTempDirs() {
+		return this.paths.length;
+	}
 	
 	protected int getNextPathNum() {
 		final int next = this.nextPath;
