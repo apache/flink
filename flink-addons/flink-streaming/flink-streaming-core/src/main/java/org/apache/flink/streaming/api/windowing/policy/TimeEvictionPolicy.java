@@ -41,7 +41,7 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 
 	private long granularity;
 	private TimeStamp<DATA> timestamp;
-	private LinkedList<DATA> buffer = new LinkedList<DATA>();
+	private LinkedList<Long> buffer = new LinkedList<Long>();
 
 	/**
 	 * This eviction policy evicts all elements which are older than a specified
@@ -91,12 +91,15 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 
 		checkForDeleted(bufferSize);
 
+		//remember timestamp
+		long time=timestamp.getTimestamp(datapoint);
+		
 		// delete and count expired tuples
-		long threshold = timestamp.getTimestamp(datapoint) - granularity;
+		long threshold = time - granularity;
 		int counter = deleteAndCountExpired(threshold);
 
 		// Add current element to buffer
-		buffer.add(datapoint);
+		buffer.add(time);
 
 		// return result
 		return counter;
@@ -114,7 +117,7 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 		int counter = 0;
 		while (!buffer.isEmpty()) {
 
-			if (timestamp.getTimestamp(buffer.getFirst()) <= threshold) {
+			if (buffer.getFirst() <= threshold) {
 				buffer.removeFirst();
 				counter++;
 			} else {
