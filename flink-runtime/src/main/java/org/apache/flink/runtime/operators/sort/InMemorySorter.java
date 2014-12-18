@@ -25,7 +25,6 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.util.MutableObjectIterator;
 
-
 /**
  *
  */
@@ -58,11 +57,18 @@ public interface InMemorySorter<T> extends IndexedSortable {
 	long getCapacity();
 	
 	/**
-	 * Gets the number of bytes currently occupied in this sorter.
+	 * Gets the number of bytes currently occupied in this sorter, records and sort index.
 	 * 
 	 * @return The number of bytes occupied.
 	 */
 	long getOccupancy();
+	
+	/**
+	 * Gets the number of bytes occupied by records only.
+	 * 
+	 * @return The number of bytes occupied by records.
+	 */
+	long getNumRecordBytes();
 	
 	/**
 	 * Gets the record at the given logical position.
@@ -96,7 +102,9 @@ public interface InMemorySorter<T> extends IndexedSortable {
 	 * @param output The output view to write the records to.
 	 * @throws IOException Thrown, if an I/O exception occurred writing to the output view.
 	 */
-	public void writeToOutput(final ChannelWriterOutputView output) throws IOException;
+	public void writeToOutput(ChannelWriterOutputView output) throws IOException;
+	
+	public void writeToOutput(ChannelWriterOutputView output, LargeRecordHandler<T> largeRecordsOutput) throws IOException;
 	
 	/**
 	 * Writes a subset of the records in this buffer in their logical order to the given output.

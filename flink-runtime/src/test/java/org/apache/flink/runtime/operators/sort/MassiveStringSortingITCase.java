@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 import java.io.BufferedReader;
@@ -47,9 +46,6 @@ import org.junit.Assert;
 public class MassiveStringSortingITCase {
 
 	private static final long SEED = 347569784659278346L;
-	
-	@SuppressWarnings("unused")
-	private static final char LINE_BREAK = '\n';
 	
 	
 	public void testStringSorting() {
