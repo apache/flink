@@ -1320,7 +1320,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				output.close();
 				unregisterOpenChannelToBeRemovedAtShudown(writer);
 				
-				channelIDs.add(new ChannelWithBlockCount(channel, output.getBlockCount()));
+				if (output.getBytesWritten() > 0) {
+					channelIDs.add(new ChannelWithBlockCount(channel, output.getBlockCount()));
+				}
 
 				// pass empty sort-buffer to reading thread
 				element.buffer.reset();
