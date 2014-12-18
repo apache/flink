@@ -49,7 +49,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
@@ -78,7 +77,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	
 	/** The minimum number of segments that are required for the sort to operate. */
 	protected static final int MIN_NUM_SORT_MEM_SEGMENTS = 10;
-
+	
 	// ------------------------------------------------------------------------
 	//                                  Threads
 	// ------------------------------------------------------------------------
@@ -670,12 +669,13 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	 * Class representing buffers that circulate between the reading, sorting and spilling thread.
 	 */
 	protected static final class CircularElement<E> {
+		
 		final int id;
 		final InMemorySorter<E> buffer;
 
 		public CircularElement() {
-			this.buffer = null;
 			this.id = -1;
+			this.buffer = null;
 		}
 
 		public CircularElement(int id, InMemorySorter<E> buffer) {
@@ -769,8 +769,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			catch (Throwable t) {
 				internalHandleException(new IOException("Thread '" + getName() + "' terminated due to an exception: "
 					+ t.getMessage(), t));
-			}
-			finally {
 			}
 		}
 
@@ -915,6 +913,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				// write the last leftover pair, if we have one
 				if (leftoverRecord != null) {
 					if (!buffer.write(leftoverRecord)) {
+						// did not fit in a fresh buffer, must be large...
 						if (this.largeRecords != null) {
 							this.largeRecords.addRecord(leftoverRecord);
 						} else {
@@ -923,6 +922,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 						}
 						buffer.reset();
 					}
+					
 					leftoverRecord = null;
 				}
 				
@@ -944,6 +944,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 							fullBuffer = true;
 							break;
 						}
+						
+						// successfully added record
+						
 						if (bytesUntilSpilling - buffer.getOccupancy() <= 0) {
 							bytesUntilSpilling = 0;
 							
@@ -1303,7 +1306,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Spilling buffer " + element.id + ".");
 				}
-				element.buffer.writeToOutput(output);
+				
+				element.buffer.writeToOutput(output, largeRecordHandler);
+				
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Spilled buffer " + element.id + ".");
 				}
@@ -1655,166 +1660,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		}
 	}
 	
-	/**
-	 *
-	 */
-	public static final class InputDataCollector<E> implements Collector<E>
-	{
-		private final CircularQueues<E> queues;		// the queues used to pass buffers
+	protected static final class ChannelWithBlockCount {
 		
-		private InMemorySorter<E> currentBuffer;
-		
-		private CircularElement<E> currentElement;
-		
-		private long bytesUntilSpilling;			// number of bytes left before we signal to spill
-		
-		private boolean spillingInThisBuffer;
-		
-		private volatile boolean running;
-		
-
-		public InputDataCollector(CircularQueues<E> queues, long startSpillingBytes)
-		{
-			this.queues = queues;
-			this.bytesUntilSpilling = startSpillingBytes;
-			this.running = true;
-			
-			grabBuffer();
-		}
-		
-		private void grabBuffer()
-		{
-			while (this.currentElement == null) {
-				try {
-					this.currentElement = this.queues.empty.take();
-				}
-				catch (InterruptedException iex) {
-					if (this.running) {
-						LOG.error("Reading thread was interrupted (without being shut down) while grabbing a buffer. " +
-								"Retrying to grab buffer...");
-					} else {
-						return;
-					}
-				}
-			}
-			
-			this.currentBuffer = this.currentElement.buffer;
-			if (!this.currentBuffer.isEmpty()) {
-				throw new RuntimeException("New sort-buffer is not empty.");
-			}
-			
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Retrieved empty read buffer " + this.currentElement.id + ".");
-			}
-			
-			this.spillingInThisBuffer = this.currentBuffer.getCapacity() <= this.bytesUntilSpilling;
-		}
-		
-
-		@Override
-		public void collect(E record)
-		{
-			try {
-				if (this.spillingInThisBuffer) {
-					if (this.currentBuffer.write(record)) {
-						if (this.bytesUntilSpilling - this.currentBuffer.getOccupancy() <= 0) {
-							this.bytesUntilSpilling = 0;
-							// send the sentinel
-							this.queues.sort.add(UnilateralSortMerger.<E>spillingMarker());
-						}
-						return;
-					}
-				}
-				else {
-					// no spilling in this buffer
-					if (this.currentBuffer.write(record)) {
-						return;
-					}
-				}
-				
-				if (this.bytesUntilSpilling > 0) {
-					this.bytesUntilSpilling -= this.currentBuffer.getCapacity();
-					if (this.bytesUntilSpilling <= 0) {
-						this.bytesUntilSpilling = 0;
-						// send the sentinel
-						this.queues.sort.add(UnilateralSortMerger.<E>spillingMarker());
-					}
-				}
-				
-				// we came here when the buffer could not be written. send it to the sorter
-				// send the buffer
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Emitting full buffer from reader thread: " + this.currentElement.id + ".");
-				}
-				this.queues.sort.add(this.currentElement);
-				this.currentElement = null;
-				
-				// we need a new buffer. grab the next one
-				while (this.running && this.currentElement == null) {
-					try {
-						this.currentElement = this.queues.empty.take();
-					}
-					catch (InterruptedException iex) {
-						if (this.running) {
-							LOG.error("Reading thread was interrupted (without being shut down) while grabbing a buffer. " +
-									"Retrying to grab buffer...");
-						} else {
-							return;
-						}
-					}
-				}
-				if (!this.running) {
-					return;
-				}
-				
-				this.currentBuffer = this.currentElement.buffer;
-				if (!this.currentBuffer.isEmpty()) {
-					throw new RuntimeException("BUG: New sort-buffer is not empty.");
-				}
-				
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Retrieved empty read buffer " + this.currentElement.id + ".");
-				}
-				// write the record
-				if (!this.currentBuffer.write(record)) {
-					throw new RuntimeException("Record could not be written to empty sort-buffer: Serialized record exceeds buffer capacity.");
-				}
-			}
-			catch (IOException ioex) {
-				throw new RuntimeException("BUG: An error occurred while writing a record to the sort buffer: " + 
-						ioex.getMessage(), ioex);
-			}
-		}
-		
-
-		@Override
-		public void close()
-		{
-			if (this.running) {
-				this.running = false;
-				
-				if (this.currentBuffer != null && this.currentElement != null) {
-					if (this.currentBuffer.isEmpty()) {
-						this.queues.empty.add(this.currentElement);
-					}
-					else {
-						this.queues.sort.add(this.currentElement);
-						if (LOG.isDebugEnabled()) {
-							LOG.debug("Emitting last buffer from input collector: " + this.currentElement.id + ".");
-						}
-					}
-				}
-				
-				this.currentBuffer = null;
-				this.currentElement = null;
-				
-				this.queues.sort.add(UnilateralSortMerger.<E>endMarker());
-			}
-		}
-	}
-	
-	protected static final class ChannelWithBlockCount
-	{
 		private final FileIOChannel.ID channel;
 		private final int blockCount;
 		

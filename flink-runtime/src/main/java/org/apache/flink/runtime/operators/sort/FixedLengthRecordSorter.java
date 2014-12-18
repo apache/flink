@@ -186,23 +186,18 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 		return this.freeMemory;
 	}
 	
-	/**
-	 * Gets the total capacity of this sorter, in bytes.
-	 * 
-	 * @return The sorter's total capacity.
-	 */
 	@Override
 	public long getCapacity() {
 		return ((long) this.totalNumBuffers) * this.segmentSize;
 	}
 	
-	/**
-	 * Gets the number of bytes currently occupied in this sorter.
-	 * 
-	 * @return The number of bytes occupied.
-	 */
 	@Override
 	public long getOccupancy() {
+		return this.sortBufferBytes;
+	}
+	
+	@Override
+	public long getNumRecordBytes() {
 		return this.sortBufferBytes;
 	}
 
@@ -428,6 +423,13 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 				}
 			}
 		}
+	}
+	
+	@Override
+	public void writeToOutput(ChannelWriterOutputView output, LargeRecordHandler<T> largeRecordsOutput)
+			throws IOException
+	{
+		writeToOutput(output);
 	}
 	
 	/**

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.util;
 
+import java.util.NoSuchElementException;
+
 /**
  * Minimal implementation of an array-backed list of ints
  */
@@ -42,16 +44,12 @@ public class IntArrayList {
 		return true;
 	}
 
-	public int removeInt(int index) {
-		if(index >= size) {
-			throw new IndexOutOfBoundsException("Index (" + index + ") is greater than or equal to list size (" + size + ")");
+	public int removeLast() {
+		if (size == 0) {
+			throw new NoSuchElementException();
 		}
-		final int old = array[ index ];
-		size--;
-		if(index != size) {
-			System.arraycopy(array, index+1, array, index, size-index );
-		}
-		return old;
+		--size;
+		return array[size];
 	}
 	
 	public void clear() {
@@ -59,7 +57,7 @@ public class IntArrayList {
 	}
 	
 	public boolean isEmpty() {
-		return (size==0);
+		return size == 0;
 	}
 	
 	private void grow(final int length) {
@@ -71,4 +69,14 @@ public class IntArrayList {
 		}
 	}
 
+	public static final IntArrayList EMPTY = new IntArrayList(0) {
+		
+		public boolean add(int number) {
+			throw new UnsupportedOperationException();
+		}
+		
+		public int removeLast() {
+			throw new UnsupportedOperationException();
+		};
+	};
 }

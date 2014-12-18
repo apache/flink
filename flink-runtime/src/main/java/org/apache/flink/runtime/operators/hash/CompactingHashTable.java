@@ -1032,7 +1032,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 						int oldBucketCount = 0;
 						int newBucketCount = 0;
 						while(!hashList.isEmpty()) {
-							hash = hashList.removeInt(hashList.size()-1);
+							hash = hashList.removeLast();
 							pointer = pointerList.removeLong(pointerList.size()-1);
 							posHashCode = hash % this.numBuckets;
 							if(posHashCode == bucket && oldBucketCount < NUM_ENTRIES_PER_BUCKET) {
@@ -1061,7 +1061,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 				int bucketInSegmentPos = 0;
 				MemorySegment bucket = null;
 				while(!overflowHashes.isEmpty()) {
-					hash = overflowHashes.removeInt(overflowHashes.size()-1);
+					hash = overflowHashes.removeLast();
 					pointer = overflowPointers.removeLong(overflowPointers.size()-1);
 					posHashCode = hash % this.numBuckets; 
 					bucketArrayPos = posHashCode >>> this.bucketsPerSegmentBits;
