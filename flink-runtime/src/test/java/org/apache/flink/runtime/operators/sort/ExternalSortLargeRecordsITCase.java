@@ -293,6 +293,72 @@ public class ExternalSortLargeRecordsITCase {
 		}
 	}
 	
+	@Test
+	public void testSortWithMediumRecordsOnly() {
+		try {
+			final int NUM_RECORDS = 70;
+			
+			final TypeInformation<?>[] types = new TypeInformation<?>[] {
+					BasicTypeInfo.LONG_TYPE_INFO,
+					new ValueTypeInfo<SmallOrMediumOrLargeValue>(SmallOrMediumOrLargeValue.class)
+				};
+			
+			final TupleTypeInfo<Tuple2<Long, SmallOrMediumOrLargeValue>> typeInfo = 
+								new TupleTypeInfo<Tuple2<Long,SmallOrMediumOrLargeValue>>(types);
+			
+			final TypeSerializer<Tuple2<Long, SmallOrMediumOrLargeValue>> serializer = typeInfo.createSerializer();
+			final TypeComparator<Tuple2<Long, SmallOrMediumOrLargeValue>> comparator = typeInfo.createComparator(new int[] {0}, new boolean[]{false}, 0);
+			
+			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> source = 
+					new MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>>()
+			{
+				private final Random rnd = new Random();
+				private int num = -1;
+				
+				@Override
+				public Tuple2<Long, SmallOrMediumOrLargeValue> next(Tuple2<Long, SmallOrMediumOrLargeValue> reuse) {
+					if (++num < NUM_RECORDS) {
+						long val = rnd.nextLong();
+						return new Tuple2<Long, SmallOrMediumOrLargeValue>(val, new SmallOrMediumOrLargeValue((int) val, SmallOrMediumOrLargeValue.MEDIUM_SIZE));
+					}
+					else {
+						return null;
+					}
+					
+				}
+			};
+			
+			@SuppressWarnings("unchecked")
+			Sorter<Tuple2<Long, SmallOrMediumOrLargeValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SmallOrMediumOrLargeValue>>(
+					this.memoryManager, this.ioManager, 
+					source, this.parentTask,
+					new RuntimeStatefulSerializerFactory<Tuple2<Long, SmallOrMediumOrLargeValue>>(serializer, (Class<Tuple2<Long, SmallOrMediumOrLargeValue>>) (Class<?>) Tuple2.class),
+					comparator, 1.0, 1, 128, 0.7f);
+			
+			// check order
+			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> iterator = sorter.getIterator();
+			
+			Tuple2<Long, SmallOrMediumOrLargeValue> val = serializer.createInstance();
+			
+			long prevKey = Long.MAX_VALUE;
+
+			for (int i = 0; i < NUM_RECORDS; i++) {
+				val = iterator.next(val);
+				
+				assertTrue(val.f0 <= prevKey);
+				assertTrue(val.f0.intValue() == val.f1.val());
+			}
+			
+			assertNull(iterator.next(val));
+			
+			sorter.close();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class SomeMaybeLongValue implements org.apache.flink.types.Value {
