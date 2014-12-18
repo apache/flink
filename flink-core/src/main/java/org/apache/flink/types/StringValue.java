@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types;
 
 import java.io.DataInput;
@@ -36,7 +35,6 @@ import org.apache.flink.core.memory.MemorySegment;
  * The mutability allows to reuse the object inside the user code, also across invocations. Reusing a StringValue object
  * helps to increase the performance, as string objects are rather heavy-weight objects and incur a lot of garbage
  * collection overhead, if created and destroyed in masses.
- * 
  * 
  * @see org.apache.flink.types.Key
  * @see org.apache.flink.types.NormalizableKey
@@ -699,16 +697,15 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 				target.writeByte(curr);
 			}
 			len |= curr << shift;
+			target.writeByte(curr);
 		}
 
 		for (int i = 0; i < len; i++) {
 			int c = in.readUnsignedByte();
 			target.writeByte(c);
-			if (c >= HIGH_BIT) {
-				int curr;
-				while ((curr = in.readUnsignedByte()) >= HIGH_BIT) {
-					target.writeByte(curr);
-				}
+			while (c >= HIGH_BIT) {
+				c = in.readUnsignedByte();
+				target.writeByte(c);
 			}
 		}
 	}
