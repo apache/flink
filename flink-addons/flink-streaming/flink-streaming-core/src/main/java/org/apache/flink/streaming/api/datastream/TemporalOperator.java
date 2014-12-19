@@ -21,18 +21,18 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 
-public abstract class WindowDBOperator<I1, I2, OP> {
+public abstract class TemporalOperator<I1, I2, OP> {
 
-	protected final DataStream<I1> input1;
-	protected final DataStream<I2> input2;
+	public final DataStream<I1> input1;
+	public final DataStream<I2> input2;
 
-	long windowSize;
-	long slideInterval;
+	public long windowSize;
+	public long slideInterval;
 
-	TimeStamp<I1> timeStamp1;
-	TimeStamp<I2> timeStamp2;
+	public TimeStamp<I1> timeStamp1;
+	public TimeStamp<I2> timeStamp2;
 
-	public WindowDBOperator(DataStream<I1> input1, DataStream<I2> input2) {
+	public TemporalOperator(DataStream<I1> input1, DataStream<I2> input2) {
 		if (input1 == null || input2 == null) {
 			throw new NullPointerException();
 		}
@@ -97,7 +97,7 @@ public abstract class WindowDBOperator<I1, I2, OP> {
 
 		return createNextWindowOperator();
 	}
-	
+
 	protected abstract OP createNextWindowOperator();
 
 }

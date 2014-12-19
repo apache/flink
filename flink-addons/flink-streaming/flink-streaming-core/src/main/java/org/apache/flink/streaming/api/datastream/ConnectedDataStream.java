@@ -17,15 +17,10 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.util.List;
-
-import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -43,7 +38,6 @@ import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
-import org.apache.flink.util.Collector;
 
 /**
  * The ConnectedDataStream represents a stream for two different data types. It
@@ -545,54 +539,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		return invokable;
 	}
 
-	protected <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCross(
-			CrossFunction<IN1, IN2, OUT> crossFunction, long windowSize, long slideInterval,
-			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
-
-		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CrossFunction.class,
-				crossFunction.getClass(), 2, null, null);
-
-		CrossWindowFunction<IN1, IN2, OUT> crossWindowFunction = new CrossWindowFunction<IN1, IN2, OUT>(
-				clean(crossFunction));
-
-		return addGeneralWindowCombine(crossWindowFunction, outTypeInfo, windowSize, slideInterval,
-				timestamp1, timestamp2);
-	}
-
-	private static class CrossWindowFunction<IN1, IN2, OUT> implements
-			CoWindowFunction<IN1, IN2, OUT> {
-
-		private static final long serialVersionUID = 1L;
-
-		private CrossFunction<IN1, IN2, OUT> crossFunction;
-
-		public CrossWindowFunction(CrossFunction<IN1, IN2, OUT> crossFunction) {
-			this.crossFunction = crossFunction;
-		}
-
-		@Override
-		public void coWindow(List<IN1> first, List<IN2> second, Collector<OUT> out)
-				throws Exception {
-			for (IN1 firstValue : first) {
-				for (IN2 secondValue : second) {
-					out.collect(crossFunction.cross(firstValue, secondValue));
-				}
-			}
-		}
-	}
-
-	protected SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> addGeneralWindowJoin(
-			CoWindowFunction<IN1, IN2, Tuple2<IN1, IN2>> coWindowFunction, long windowSize,
-			long slideInterval, TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
-
-		TypeInformation<Tuple2<IN1, IN2>> outType = new TupleTypeInfo<Tuple2<IN1, IN2>>(
-				getInputType1(), getInputType2());
-
-		return addGeneralWindowCombine(coWindowFunction, outType, windowSize, slideInterval,
-				timestamp1, timestamp2);
-	}
-
-	private <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCombine(
+	protected <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCombine(
 			CoWindowFunction<IN1, IN2, OUT> coWindowFunction, TypeInformation<OUT> outTypeInfo,
 			long windowSize, long slideInterval, TimeStamp<IN1> timestamp1,
 			TimeStamp<IN2> timestamp2) {
