@@ -284,7 +284,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * received records.
    *
    */
-  def count: DataStream[java.lang.Long] = new DataStream[java.lang.Long](javaStream.count())
+  def count: DataStream[Long] = new DataStream[java.lang.Long](javaStream.count()).asInstanceOf[DataStream[Long]]
 
   /**
    * Creates a new DataStream by applying the given function to every element of this DataStream.
@@ -445,14 +445,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new SplitDataStream that contains only the elements satisfying the
    *  given output selector predicate.
    */
-  def split(fun: T => TraversableOnce[String]): SplitDataStream[T] = {
+  def split(fun: T => String): SplitDataStream[T] = {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")
     }
     val selector = new OutputSelector[T] {
       val cleanFun = clean(fun)
       def select(in: T): java.lang.Iterable[String] = {
-        asJavaIterable(cleanFun(in).toIterable)
+        List(cleanFun(in))
       }
     }
     split(selector)

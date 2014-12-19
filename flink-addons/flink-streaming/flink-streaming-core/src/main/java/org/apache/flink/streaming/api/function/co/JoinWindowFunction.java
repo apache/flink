@@ -20,31 +20,30 @@ package org.apache.flink.streaming.api.function.co;
 
 import java.util.List;
 
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
-public class JoinWindowFunction<IN1, IN2> implements CoWindowFunction<IN1, IN2, Tuple2<IN1, IN2>> {
+public class JoinWindowFunction<IN1, IN2, OUT> implements CoWindowFunction<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private KeySelector<IN1, ?> keySelector1;
 	private KeySelector<IN2, ?> keySelector2;
+	private JoinFunction<IN1, IN2, OUT> joinFunction;
 
-	public JoinWindowFunction() {
-	}
-
-	public JoinWindowFunction(KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
+	public JoinWindowFunction(KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2,
+			JoinFunction<IN1, IN2, OUT> joinFunction) {
 		this.keySelector1 = keySelector1;
 		this.keySelector2 = keySelector2;
+		this.joinFunction = joinFunction;
 	}
 
 	@Override
-	public void coWindow(List<IN1> first, List<IN2> second, Collector<Tuple2<IN1, IN2>> out)
-			throws Exception {
+	public void coWindow(List<IN1> first, List<IN2> second, Collector<OUT> out) throws Exception {
 		for (IN1 item1 : first) {
 			for (IN2 item2 : second) {
 				if (keySelector1.getKey(item1).equals(keySelector2.getKey(item2))) {
-					out.collect(new Tuple2<IN1, IN2>(item1, item2));
+					out.collect(joinFunction.join(item1, item2));
 				}
 			}
 		}

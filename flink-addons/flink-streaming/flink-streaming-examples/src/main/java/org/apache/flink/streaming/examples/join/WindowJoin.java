@@ -67,7 +67,8 @@ public class WindowJoin {
 				.join(salaries)
 				.onWindow(1000)
 				.where(0)
-				.equalTo(0);
+				.equalTo(0)
+				.withDefault();
 
 		// emit result
 		if (fileOutput) {

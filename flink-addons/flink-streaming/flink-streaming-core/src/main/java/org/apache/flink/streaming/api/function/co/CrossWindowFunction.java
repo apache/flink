@@ -20,20 +20,25 @@ package org.apache.flink.streaming.api.function.co;
 
 import java.util.List;
 
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.util.Collector;
 
-public class CrossWindowFunction<IN1, IN2> implements CoWindowFunction<IN1, IN2, Tuple2<IN1, IN2>> {
+public class CrossWindowFunction<IN1, IN2, OUT> implements CoWindowFunction<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	@Override
-	public void coWindow(List<IN1> first, List<IN2> second, Collector<Tuple2<IN1, IN2>> out)
-			throws Exception {
+	private CrossFunction<IN1, IN2, OUT> crossFunction;
 
-		for (IN1 item1 : first) {
-			for (IN2 item2 : second) {
-				out.collect(new Tuple2<IN1, IN2>(item1, item2));
+	public CrossWindowFunction(CrossFunction<IN1, IN2, OUT> crossFunction) {
+		this.crossFunction = crossFunction;
+	}
+
+	@Override
+	public void coWindow(List<IN1> first, List<IN2> second, Collector<OUT> out) throws Exception {
+		for (IN1 firstValue : first) {
+			for (IN2 secondValue : second) {
+				out.collect(crossFunction.cross(firstValue, secondValue));
 			}
 		}
 	}
+
 }

@@ -19,9 +19,16 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.CrossOperator;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.function.co.CrossWindowFunction;
 
-public class StreamCrossOperator<I1, I2> extends WindowDBOperator<I1, I2, StreamCrossOperator.CrossWindow<I1, I2>> {
+public class StreamCrossOperator<I1, I2> extends
+		TemporalOperator<I1, I2, StreamCrossOperator.CrossWindow<I1, I2>> {
 
 	public StreamCrossOperator(DataStream<I1> input1, DataStream<I2> input2) {
 		super(input1, input2);
@@ -40,12 +47,23 @@ public class StreamCrossOperator<I1, I2> extends WindowDBOperator<I1, I2, Stream
 			this.op = operator;
 		}
 
+		public <F> F clean(F f) {
+			if (op.input1.getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
+				ClosureCleaner.clean(f, true);
+			}
+			ClosureCleaner.ensureSerializable(f);
+			return f;
+		}
+
 		/**
-		 * Finalizes a temporal Cross transformation by applying a {@link CrossFunction} to each pair of crossed elements.<br/>
-		 * Each CrossFunction call returns exactly one element. 
+		 * Finalizes a temporal Cross transformation by applying a
+		 * {@link CrossFunction} to each pair of crossed elements.<br/>
+		 * Each CrossFunction call returns exactly one element.
 		 * 
-		 * @param function The CrossFunction that is called for each pair of crossed elements.
-		 * @return An CrossOperator that represents the crossed result DataSet
+		 * @param function
+		 *            The CrossFunction that is called for each pair of crossed
+		 *            elements.
+		 * @return A CrossOperator that represents the crossed result DataStream
 		 * 
 		 * @see CrossFunction
 		 * @see DataSet
@@ -54,15 +72,29 @@ public class StreamCrossOperator<I1, I2> extends WindowDBOperator<I1, I2, Stream
 			return createCrossOperator(function);
 		}
 
+		/**
+		 * Finalizes a temporal Cross transformation by emitting all pairs in a
+		 * new Tuple2.
+		 * 
+		 * @return A CrossOperator that represents the crossed result DataStream
+		 */
+		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> withDefault() {
+			return createCrossOperator(new CrossOperator.DefaultCrossFunction<I1, I2>());
+		}
+
 		protected <R> SingleOutputStreamOperator<R, ?> createCrossOperator(
 				CrossFunction<I1, I2, R> function) {
 
-			return op.input1.connect(op.input2).addGeneralWindowCross(function, op.windowSize,
-					op.slideInterval, op.timeStamp1, op.timeStamp2);
+			TypeInformation<R> outTypeInfo = TypeExtractor.getCrossReturnTypes(function,
+					op.input1.getType(), op.input2.getType());
+
+			CrossWindowFunction<I1, I2, R> crossWindowFunction = new CrossWindowFunction<I1, I2, R>(
+					clean(function));
+
+			return op.input1.connect(op.input2).addGeneralWindowCombine(crossWindowFunction,
+					outTypeInfo, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2);
 
 		}
-
-		// ----------------------------------------------------------------------------------------
 
 	}
 

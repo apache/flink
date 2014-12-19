@@ -18,15 +18,18 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.function.co.JoinWindowFunction;
 import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.apache.flink.streaming.util.keys.PojoKeySelector;
 
 public class StreamJoinOperator<I1, I2> extends
-		WindowDBOperator<I1, I2, StreamJoinOperator.JoinWindow<I1, I2>> {
+		TemporalOperator<I1, I2, StreamJoinOperator.JoinWindow<I1, I2>> {
 
 	public StreamJoinOperator(DataStream<I1> input1, DataStream<I2> input2) {
 		super(input1, input2);
@@ -51,7 +54,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 * that should be used as join keys.<br/>
 		 * <b>Note: Fields can only be selected as join keys on Tuple
 		 * DataStreams.</b><br/>
-		 *
+		 * 
 		 * @param fields
 		 *            The indexes of the other Tuple fields of the first join
 		 *            DataStreams that should be used as keys.
@@ -59,8 +62,8 @@ public class StreamJoinOperator<I1, I2> extends
 		 *         {@link JoinPredicate#equalTo} to continue the Join.
 		 */
 		public JoinPredicate<I1, I2> where(int... fields) {
-			return new JoinPredicate<I1, I2>(op, FieldsKeySelector.getSelector(
-					op.input1.getType(), fields));
+			return new JoinPredicate<I1, I2>(op, FieldsKeySelector.getSelector(op.input1.getType(),
+					fields));
 		}
 
 		/**
@@ -68,7 +71,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 * Defines the fields of the first join {@link DataStream} that should
 		 * be used as grouping keys. Fields are the names of member fields of
 		 * the underlying type of the data stream.
-		 *
+		 * 
 		 * @param fields
 		 *            The fields of the first join DataStream that should be
 		 *            used as keys.
@@ -105,12 +108,13 @@ public class StreamJoinOperator<I1, I2> extends
 	 * Intermediate step of a temporal Join transformation. <br/>
 	 * To continue the Join transformation, select the join key of the second
 	 * input {@link DataStream} by calling {@link JoinPredicate#equalTo}
-	 *
+	 * 
 	 */
 	public static class JoinPredicate<I1, I2> {
 
-		private StreamJoinOperator<I1, I2> op;
-		private final KeySelector<I1, ?> keys1;
+		public StreamJoinOperator<I1, I2> op;
+		public KeySelector<I1, ?> keys1;
+		public KeySelector<I2, ?> keys2;
 
 		private JoinPredicate(StreamJoinOperator<I1, I2> operator, KeySelector<I1, ?> keys1) {
 			this.op = operator;
@@ -124,37 +128,30 @@ public class StreamJoinOperator<I1, I2> extends
 		 * <b>Note: Fields can only be selected as join keys on Tuple
 		 * DataStreams.</b><br/>
 		 * 
-		 * The resulting operator wraps each pair of joining elements into a
-		 * {@link Tuple2}, with the element of the first input being the first
-		 * field of the tuple and the element of the second input being the
-		 * second field of the tuple.
-		 *
 		 * @param fields
 		 *            The indexes of the Tuple fields of the second join
 		 *            DataStream that should be used as keys.
-		 * @return The joined data stream.
+		 * @return An incomplete join. Call {@link FinalizeStreamJoin#with} or
+		 *         {@link FinalizeStreamJoin#withDefault} to complete
 		 */
-		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> equalTo(int... fields) {
-			return createJoinOperator(FieldsKeySelector.getSelector(op.input2.getType(),
-					fields));
+		public FinalizeStreamJoin<I1, I2> equalTo(int... fields) {
+			keys2 = FieldsKeySelector.getSelector(op.input2.getType(), fields);
+			return new FinalizeStreamJoin<I1, I2>(this);
 		}
 
 		/**
 		 * Continues a temporal Join transformation and defines the fields of
 		 * the second join {@link DataStream} that should be used as join keys.<br/>
-		 *
-		 * The resulting operator wraps each pair of joining elements into a
-		 * {@link Tuple2}, with the element of the first input being the first
-		 * field of the tuple and the element of the second input being the
-		 * second field of the tuple.
-		 *
+		 * 
 		 * @param fields
 		 *            The fields of the second join DataStream that should be
 		 *            used as keys.
-		 * @return The joined data stream.
+		 * @return An incomplete join. Call {@link FinalizeStreamJoin#with} or
+		 *         {@link FinalizeStreamJoin#withDefault} to complete
 		 */
-		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> equalTo(String... fields) {
-			return createJoinOperator(new PojoKeySelector<I2>(op.input2.getType(), fields));
+		public FinalizeStreamJoin<I1, I2> equalTo(String... fields) {
+			this.keys2 = new PojoKeySelector<I2>(op.input2.getType(), fields);
+			return new FinalizeStreamJoin<I1, I2>(this);
 		}
 
 		/**
@@ -164,29 +161,75 @@ public class StreamJoinOperator<I1, I2> extends
 		 * second DataStream and extracts a single key value on which the
 		 * DataStream is joined. </br>
 		 * 
-		 * The resulting operator wraps each pair of joining elements into a
-		 * {@link Tuple2}, with the element of the first input being the first
-		 * field of the tuple and the element of the second input being the
-		 * second field of the tuple.
-		 * 
 		 * @param keySelector
 		 *            The KeySelector function which extracts the key values
 		 *            from the second DataStream on which it is joined.
-		 * @return The joined data stream.
+		 * @return An incomplete join. Call {@link FinalizeStreamJoin#with} or
+		 *         {@link FinalizeStreamJoin#withDefault} to complete
 		 */
-		public <K> SingleOutputStreamOperator<Tuple2<I1, I2>, ?> equalTo(
-				KeySelector<I2, K> keySelector) {
-			return createJoinOperator(keySelector);
+		public <K> FinalizeStreamJoin<I1, I2> equalTo(KeySelector<I2, K> keySelector) {
+			this.keys2 = keySelector;
+			return new FinalizeStreamJoin<I1, I2>(this);
 		}
 
-		protected SingleOutputStreamOperator<Tuple2<I1, I2>, ?> createJoinOperator(
-				KeySelector<I2, ?> keys2) {
+	}
 
-			JoinWindowFunction<I1, I2> joinWindowFunction = new JoinWindowFunction<I1, I2>(keys1,
-					keys2);
-			return op.input1.connect(op.input2).addGeneralWindowJoin(joinWindowFunction,
-					op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2);
+	public static class FinalizeStreamJoin<I1, I2> {
+		private final JoinPredicate<I1, I2> predicate;
+
+		private FinalizeStreamJoin(JoinPredicate<I1, I2> predicate) {
+			this.predicate = predicate;
+		}
+
+		/**
+		 * Completes a stream join. </p> The resulting operator wraps each pair
+		 * of joining elements into a {@link Tuple2}, with the element of the
+		 * first input being the first field of the tuple and the element of the
+		 * second input being the second field of the tuple.
+		 * 
+		 * @return The joined data stream.
+		 */
+		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> withDefault() {
+			return createJoinOperator(new DefaultJoinFunction<I1, I2>());
+		}
+
+		/**
+		 * Completes a stream join. </p> The resulting operator wraps each pair
+		 * of joining elements using the user defined {@link JoinFunction}
+		 * 
+		 * @return The joined data stream.
+		 */
+		public <OUT> SingleOutputStreamOperator<OUT, ?> with(JoinFunction<I1, I2, OUT> joinFunction) {
+			return createJoinOperator(joinFunction);
+		}
+
+		private <OUT> SingleOutputStreamOperator<OUT, ?> createJoinOperator(
+				JoinFunction<I1, I2, OUT> joinFunction) {
+
+			JoinWindowFunction<I1, I2, OUT> joinWindowFunction = new JoinWindowFunction<I1, I2, OUT>(
+					predicate.keys1, predicate.keys2, joinFunction);
+
+			StreamJoinOperator<I1, I2> op = predicate.op;
+
+			TypeInformation<OUT> outType = TypeExtractor.getJoinReturnTypes(joinFunction,
+					op.input1.getType(), op.input2.getType());
+
+			return op.input1.connect(op.input2).addGeneralWindowCombine(joinWindowFunction,
+					outType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2);
 		}
 	}
 
+	public static final class DefaultJoinFunction<T1, T2> implements
+			JoinFunction<T1, T2, Tuple2<T1, T2>> {
+
+		private static final long serialVersionUID = 1L;
+		private final Tuple2<T1, T2> outTuple = new Tuple2<T1, T2>();
+
+		@Override
+		public Tuple2<T1, T2> join(T1 first, T2 second) throws Exception {
+			outTuple.f0 = first;
+			outTuple.f1 = second;
+			return outTuple;
+		}
+	}
 }
