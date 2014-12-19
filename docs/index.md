@@ -20,7 +20,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Flink (incubating) is a platform for efficient, distributed, general-purpose data processing.
+Apache Flink is a platform for efficient, distributed, general-purpose data processing.
 It features powerful programming abstractions in Java and Scala, a high-performance runtime, and
 automatic program optimization. It has native support for iterations, incremental iterations, and
 programs consisting of large DAGs of operations.

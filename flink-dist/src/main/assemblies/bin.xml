@@ -88,7 +88,6 @@ under the License.
 				<include>*.txt</include>
 				<include>LICENSE*</include>
 				<include>NOTICE*</include>
-				<include>DISCLAIMER*</include>
 			</includes>
 		</fileSet>
 

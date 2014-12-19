@@ -64,7 +64,6 @@ under the License.
 			<includes>
 				<include>*.txt</include>
 				<include>*.properties</include>
-				<include>DISCLAIMER*</include>
 				<include>LICENSE*</include>
 				<include>NOTICE*</include>
 			</includes>

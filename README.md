@@ -1,4 +1,4 @@
-# Apache Flink (incubating)
+# Apache Flink
 
 
 Apache Flink is an open source system for expressive, declarative, fast, and efficient data analysis. Flink combines the scalability and programming flexibility of distributed MapReduce-like platforms with the efficiency, out-of-core execution, and query optimization capabilities found in parallel databases.
