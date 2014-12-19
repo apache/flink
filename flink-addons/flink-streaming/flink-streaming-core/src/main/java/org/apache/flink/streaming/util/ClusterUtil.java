@@ -17,16 +17,15 @@
 
 package org.apache.flink.streaming.util;
 
-import java.net.InetSocketAddress;
-
-import org.apache.flink.client.program.Client;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import akka.actor.ActorRef;
 
 public class ClusterUtil {
 
@@ -43,8 +42,8 @@ public class ClusterUtil {
 	 * @param memorySize
 	 *            memorySize
 	 */
-	public static void runOnMiniCluster(JobGraph jobGraph, int degreeOfParallelism,
-										long memorySize) throws Exception  {
+	public static void runOnMiniCluster(JobGraph jobGraph, int degreeOfParallelism, long memorySize)
+			throws Exception {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
 
@@ -58,22 +57,16 @@ public class ClusterUtil {
 
 		try {
 			exec = new LocalFlinkMiniCluster(configuration, true);
+			ActorRef jobClient = exec.getJobClient();
 
-			Client client = new Client(new InetSocketAddress("localhost", exec.getJobManagerRPCPort()),
-					configuration, ClusterUtil.class.getClassLoader());
-			client.run(jobGraph, true);
-		} catch (ProgramInvocationException e) {
-			if (e.getMessage().contains("GraphConversionException")) {
-				throw new Exception(CANNOT_EXECUTE_EMPTY_JOB, e);
-			} else {
-				throw e;
-			}
+			JobClient.submitJobAndWait(jobGraph, false, jobClient, exec.timeout());
+
 		} catch (Exception e) {
 			throw e;
 		} finally {
-				if(exec != null) {
-					exec.stop();
-				}
+			if (exec != null) {
+				exec.stop();
+			}
 		}
 	}
 
