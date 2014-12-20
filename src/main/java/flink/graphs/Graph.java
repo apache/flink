@@ -145,30 +145,31 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @param mapper
      * @return 
      */
-    public <NV extends Serializable> DataSet<Edge<K, NV>> mapEdges(final MapFunction<EV, NV> mapper) {
-        return edges.map(new ApplyMapperToEdgeWithType<K, EV, NV>(mapper));
+    public <NV extends Serializable> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper) {
+    	DataSet<Edge<K, NV>> mappedEdges = edges.map(new ApplyMapperToEdgeWithType<K, EV, NV>(mapper)); 
+        return new Graph<K, VV, NV>(this.vertices, mappedEdges, this.context);
     }
     
     private static final class ApplyMapperToEdgeWithType<K extends Comparable<K> & Serializable, 
 		EV extends Serializable, NV extends Serializable> implements MapFunction
 		<Edge<K, EV>, Edge<K, NV>>, ResultTypeQueryable<Edge<K, NV>> {
 	
-		private MapFunction<EV, NV> innerMapper;
+		private MapFunction<Edge<K, EV>, NV> innerMapper;
 		
-		public ApplyMapperToEdgeWithType(MapFunction<EV, NV> theMapper) {
+		public ApplyMapperToEdgeWithType(MapFunction<Edge<K, EV>, NV> theMapper) {
 			this.innerMapper = theMapper;
 		}
 		
 		public Edge<K, NV> map(Edge<K, EV> value) throws Exception {
-			return new Edge<K, NV>(value.f0, value.f1, innerMapper.map(value.f2));
+			return new Edge<K, NV>(value.f0, value.f1, innerMapper.map(value));
 		}
 	
 		@Override
 		public TypeInformation<Edge<K, NV>> getProducedType() {
-			@SuppressWarnings("unchecked")
+			TypeInformation<Edge<K, EV>> edgeTypeInfo = new TupleTypeInfo<Edge<K, EV>>(keyType, keyType, edgeValueType);
 			TypeInformation<NV> newEdgeValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
-					(TypeInformation<EV>)edgeValueType);
-			
+					edgeTypeInfo);
+
 			return new TupleTypeInfo<Edge<K, NV>>(keyType, keyType, newEdgeValueType);
 		}
     }
