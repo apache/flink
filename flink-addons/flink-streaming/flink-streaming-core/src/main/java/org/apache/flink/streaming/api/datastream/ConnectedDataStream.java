@@ -539,7 +539,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		return invokable;
 	}
 
-	protected <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCombine(
+	public <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCombine(
 			CoWindowFunction<IN1, IN2, OUT> coWindowFunction, TypeInformation<OUT> outTypeInfo,
 			long windowSize, long slideInterval, TimeStamp<IN1> timestamp1,
 			TimeStamp<IN2> timestamp2) {
@@ -550,7 +550,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		if (slideInterval < 1) {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
-
+		
 		return addCoFunction("coWindowReduce", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 

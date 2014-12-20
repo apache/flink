@@ -33,7 +33,7 @@ import org.apache.flink.streaming.state.OperatorState;
 /**
  * The SingleOutputStreamOperator represents a user defined transformation
  * applied on a {@link DataStream} with one predefined output type.
- *
+ * 
  * @param <OUT>
  *            Output type of the operator.
  * @param <O>
@@ -50,6 +50,13 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 
 	protected SingleOutputStreamOperator(DataStream<OUT> dataStream) {
 		super(dataStream);
+	}
+
+	@SuppressWarnings("unchecked")
+	public <R> SingleOutputStreamOperator<R, ?> setType(TypeInformation<R> outType) {
+		jobGraphBuilder.setOutType(id, outType);
+		typeInfo = outType;
+		return (SingleOutputStreamOperator<R, ?>) this;
 	}
 
 	/**
@@ -70,7 +77,6 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 
 		return this;
 	}
-
 
 	/**
 	 * Sets the maximum time frequency (ms) for the flushing of the output

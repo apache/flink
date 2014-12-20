@@ -61,7 +61,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    *
    */
   def groupBy(fields: Int*): WindowedDataStream[T] =
-    new WindowedDataStream[T](javaStream.groupBy(fields: _*))
+    new WindowedDataStream[T](javaStream.groupBy(new FieldsKeySelector[T](fields: _*)))
 
   /**
    * Groups the elements of the WindowedDataStream using the given

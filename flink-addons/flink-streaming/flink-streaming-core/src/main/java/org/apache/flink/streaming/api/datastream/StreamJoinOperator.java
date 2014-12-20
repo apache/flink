@@ -23,8 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.function.co.JoinWindowFunction;
+import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.apache.flink.streaming.util.keys.PojoKeySelector;
 
@@ -122,75 +124,89 @@ public class StreamJoinOperator<I1, I2> extends
 		}
 
 		/**
-		 * Continues a temporal Join transformation and defines the
-		 * {@link Tuple} fields of the second join {@link DataStream} that
-		 * should be used as join keys.<br/>
-		 * <b>Note: Fields can only be selected as join keys on Tuple
-		 * DataStreams.</b><br/>
+		 * Creates a temporal Join transformation and defines the {@link Tuple}
+		 * fields of the second join {@link DataStream} that should be used as
+		 * join keys.<br/>
+		 * </p> The resulting operator wraps each pair of joining elements in a
+		 * Tuple2<I1,I2>(first, second). To use a different wrapping function
+		 * use {@link JoinedStream#with(JoinFunction)}
 		 * 
 		 * @param fields
 		 *            The indexes of the Tuple fields of the second join
 		 *            DataStream that should be used as keys.
-		 * @return An incomplete join. Call {@link FinalizeStreamJoin#with} or
-		 *         {@link FinalizeStreamJoin#withDefault} to complete
+		 * @return A streaming join operator. Call {@link JoinedStream#with} to
+		 *         apply a custom wrapping
 		 */
-		public FinalizeStreamJoin<I1, I2> equalTo(int... fields) {
+		public JoinedStream<I1, I2> equalTo(int... fields) {
 			keys2 = FieldsKeySelector.getSelector(op.input2.getType(), fields);
-			return new FinalizeStreamJoin<I1, I2>(this);
+			return createJoinOperator();
 		}
 
 		/**
-		 * Continues a temporal Join transformation and defines the fields of
-		 * the second join {@link DataStream} that should be used as join keys.<br/>
+		 * Creates a temporal Join transformation and defines the fields of the
+		 * second join {@link DataStream} that should be used as join keys. </p>
+		 * The resulting operator wraps each pair of joining elements in a
+		 * Tuple2<I1,I2>(first, second). To use a different wrapping function
+		 * use {@link JoinedStream#with(JoinFunction)}
 		 * 
 		 * @param fields
 		 *            The fields of the second join DataStream that should be
 		 *            used as keys.
-		 * @return An incomplete join. Call {@link FinalizeStreamJoin#with} or
-		 *         {@link FinalizeStreamJoin#withDefault} to complete
+		 * @return A streaming join operator. Call {@link JoinedStream#with} to
+		 *         apply a custom wrapping
 		 */
-		public FinalizeStreamJoin<I1, I2> equalTo(String... fields) {
+		public JoinedStream<I1, I2> equalTo(String... fields) {
 			this.keys2 = new PojoKeySelector<I2>(op.input2.getType(), fields);
-			return new FinalizeStreamJoin<I1, I2>(this);
+			return createJoinOperator();
 		}
 
 		/**
-		 * Continues a temporal Join transformation and defines a
+		 * Creates a temporal Join transformation and defines a
 		 * {@link KeySelector} function for the second join {@link DataStream}
 		 * .</br> The KeySelector function is called for each element of the
 		 * second DataStream and extracts a single key value on which the
-		 * DataStream is joined. </br>
+		 * DataStream is joined. </p> The resulting operator wraps each pair of
+		 * joining elements in a Tuple2<I1,I2>(first, second). To use a
+		 * different wrapping function use
+		 * {@link JoinedStream#with(JoinFunction)}
+		 * 
 		 * 
 		 * @param keySelector
 		 *            The KeySelector function which extracts the key values
 		 *            from the second DataStream on which it is joined.
-		 * @return An incomplete join. Call {@link FinalizeStreamJoin#with} or
-		 *         {@link FinalizeStreamJoin#withDefault} to complete
+		 * @return A streaming join operator. Call {@link JoinedStream#with} to
+		 *         apply a custom wrapping
 		 */
-		public <K> FinalizeStreamJoin<I1, I2> equalTo(KeySelector<I2, K> keySelector) {
+		public <K> JoinedStream<I1, I2> equalTo(KeySelector<I2, K> keySelector) {
 			this.keys2 = keySelector;
-			return new FinalizeStreamJoin<I1, I2>(this);
+			return createJoinOperator();
 		}
 
+		private JoinedStream<I1, I2> createJoinOperator() {
+
+			JoinFunction<I1, I2, Tuple2<I1, I2>> joinFunction = new DefaultJoinFunction<I1, I2>();
+
+			JoinWindowFunction<I1, I2, Tuple2<I1, I2>> joinWindowFunction = getJoinWindowFunction(
+					joinFunction, this);
+
+			TypeInformation<Tuple2<I1, I2>> outType = new TupleTypeInfo<Tuple2<I1, I2>>(
+					op.input1.getType(), op.input2.getType());
+
+			return new JoinedStream<I1, I2>(this, op.input1
+					.groupBy(keys1)
+					.connect(op.input2.groupBy(keys2))
+					.addGeneralWindowCombine(joinWindowFunction, outType, op.windowSize,
+							op.slideInterval, op.timeStamp1, op.timeStamp2));
+		}
 	}
 
-	public static class FinalizeStreamJoin<I1, I2> {
+	public static class JoinedStream<I1, I2> extends
+			SingleOutputStreamOperator<Tuple2<I1, I2>, JoinedStream<I1, I2>> {
 		private final JoinPredicate<I1, I2> predicate;
 
-		private FinalizeStreamJoin(JoinPredicate<I1, I2> predicate) {
+		private JoinedStream(JoinPredicate<I1, I2> predicate, DataStream<Tuple2<I1, I2>> ds) {
+			super(ds);
 			this.predicate = predicate;
-		}
-
-		/**
-		 * Completes a stream join. </p> The resulting operator wraps each pair
-		 * of joining elements into a {@link Tuple2}, with the element of the
-		 * first input being the first field of the tuple and the element of the
-		 * second input being the second field of the tuple.
-		 * 
-		 * @return The joined data stream.
-		 */
-		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> withDefault() {
-			return createJoinOperator(new DefaultJoinFunction<I1, I2>());
 		}
 
 		/**
@@ -200,36 +216,36 @@ public class StreamJoinOperator<I1, I2> extends
 		 * @return The joined data stream.
 		 */
 		public <OUT> SingleOutputStreamOperator<OUT, ?> with(JoinFunction<I1, I2, OUT> joinFunction) {
-			return createJoinOperator(joinFunction);
-		}
-
-		private <OUT> SingleOutputStreamOperator<OUT, ?> createJoinOperator(
-				JoinFunction<I1, I2, OUT> joinFunction) {
-
-			JoinWindowFunction<I1, I2, OUT> joinWindowFunction = new JoinWindowFunction<I1, I2, OUT>(
-					predicate.keys1, predicate.keys2, joinFunction);
-
-			StreamJoinOperator<I1, I2> op = predicate.op;
 
 			TypeInformation<OUT> outType = TypeExtractor.getJoinReturnTypes(joinFunction,
-					op.input1.getType(), op.input2.getType());
+					predicate.op.input1.getType(), predicate.op.input2.getType());
 
-			return op.input1.connect(op.input2).addGeneralWindowCombine(joinWindowFunction,
-					outType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2);
+			CoWindowInvokable<I1, I2, OUT> invokable = new CoWindowInvokable<I1, I2, OUT>(
+					getJoinWindowFunction(joinFunction, predicate), predicate.op.windowSize,
+					predicate.op.slideInterval, predicate.op.timeStamp1, predicate.op.timeStamp2);
+
+			jobGraphBuilder.setInvokable(id, invokable);
+
+			return setType(outType);
 		}
 	}
 
-	public static final class DefaultJoinFunction<T1, T2> implements
-			JoinFunction<T1, T2, Tuple2<T1, T2>> {
+	public static final class DefaultJoinFunction<I1, I2> implements
+			JoinFunction<I1, I2, Tuple2<I1, I2>> {
 
 		private static final long serialVersionUID = 1L;
-		private final Tuple2<T1, T2> outTuple = new Tuple2<T1, T2>();
+		private final Tuple2<I1, I2> outTuple = new Tuple2<I1, I2>();
 
 		@Override
-		public Tuple2<T1, T2> join(T1 first, T2 second) throws Exception {
+		public Tuple2<I1, I2> join(I1 first, I2 second) throws Exception {
 			outTuple.f0 = first;
 			outTuple.f1 = second;
 			return outTuple;
 		}
+	}
+
+	public static <I1, I2, OUT> JoinWindowFunction<I1, I2, OUT> getJoinWindowFunction(
+			JoinFunction<I1, I2, OUT> joinFunction, JoinPredicate<I1, I2> predicate) {
+		return new JoinWindowFunction<I1, I2, OUT>(predicate.keys1, predicate.keys2, joinFunction);
 	}
 }

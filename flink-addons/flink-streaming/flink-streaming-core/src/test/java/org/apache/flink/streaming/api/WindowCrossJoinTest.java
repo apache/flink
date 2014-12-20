@@ -96,7 +96,7 @@ public class WindowCrossJoinTest implements Serializable {
 		DataStream<Integer> inStream2 = env.fromCollection(in2);
 
 		inStream1.join(inStream2).onWindow(1000, 1000, new MyTimestamp1(), new MyTimestamp2())
-				.where(0).equalTo(0).withDefault().addSink(new JoinResultSink());
+				.where(0).equalTo(0).addSink(new JoinResultSink());
 
 		inStream1.cross(inStream2).onWindow(1000, 1000, new MyTimestamp1(), new MyTimestamp2())
 				.with(new CrossFunction<Tuple2<Integer,String>, Integer, Tuple2<Tuple2<Integer,String>, Integer>>() {

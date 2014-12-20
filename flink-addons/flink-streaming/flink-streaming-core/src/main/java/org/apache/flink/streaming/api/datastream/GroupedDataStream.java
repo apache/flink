@@ -186,7 +186,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(clean(aggregate),
 				keySelector);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = transform("groupReduce", typeInfo,
+		SingleOutputStreamOperator<OUT, ?> returnStream = transform("groupReduce", getType(),
 				invokable);
 
 		return returnStream;

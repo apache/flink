@@ -108,7 +108,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def groupBy(fields: Int*): DataStream[T] =
-    new DataStream[T](javaStream.groupBy(fields: _*))
+    new DataStream[T](javaStream.groupBy(new FieldsKeySelector[T](fields: _*)))
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
@@ -138,7 +138,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def partitionBy(fields: Int*): DataStream[T] =
-    new DataStream[T](javaStream.partitionBy(fields: _*))
+    new DataStream[T](javaStream.partitionBy(new FieldsKeySelector[T](fields: _*)))
 
   /**
    * Sets the partitioning of the DataStream so that the output is
@@ -457,6 +457,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     split(selector)
   }
+
+  def join[R](stream: DataStream[R]): StreamJoinOperator[T, R] = new StreamJoinOperator[T, R](javaStream, stream.getJavaStream)
 
   /**
    * Writes a DataStream to the standard output stream (stdout). For each

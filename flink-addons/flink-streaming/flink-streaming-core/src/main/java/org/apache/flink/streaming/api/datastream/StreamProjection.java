@@ -56,7 +56,7 @@ public class StreamProjection<IN> {
 	protected StreamProjection(DataStream<IN> dataStream, int[] fieldIndexes) {
 		this.dataStream = dataStream;
 		this.fieldIndexes = fieldIndexes;
-		this.inTypeInfo = dataStream.typeInfo;
+		this.inTypeInfo = dataStream.getType();
 		if (!inTypeInfo.isTupleType()) {
 			throw new RuntimeException("Only Tuple DataStreams can be projected");
 		}
