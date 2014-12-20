@@ -42,11 +42,6 @@ class StreamJoinOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
 
 object StreamJoinOperator {
 
-  private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    ClosureCleaner.clean(f, checkSerializable)
-    f
-  }
-
   class JoinWindow[I1, I2](op: StreamJoinOperator[I1, I2]) {
 
     /**
@@ -94,7 +89,7 @@ object StreamJoinOperator {
      * Creates a temporal join transformation by defining the second join key.
      * The returned transformation wrapes each joined element pair in a tuple2:
      * (first, second)
-     * To define a custom wrapping, use JoinedStream.with(...)
+     * To define a custom wrapping, use JoinedStream.apply(...)
      */
     def equalTo(fields: Int*): JoinedStream[I1, I2] = {
       finish(new FieldsKeySelector[I2](fields: _*))
@@ -104,7 +99,7 @@ object StreamJoinOperator {
      * Creates a temporal join transformation by defining the second join key.
      * The returned transformation wrapes each joined element pair in a tuple2:
      * (first, second)
-     * To define a custom wrapping, use JoinedStream.with(...)
+     * To define a custom wrapping, use JoinedStream.apply(...)
      */
     def equalTo(firstField: String, otherFields: String*): JoinedStream[I1, I2] = {
       finish(new PojoKeySelector[I2](op.input2.getType(), (firstField +: otherFields): _*))
@@ -114,7 +109,7 @@ object StreamJoinOperator {
      * Creates a temporal join transformation by defining the second join key.
      * The returned transformation wrapes each joined element pair in a tuple2:
      * (first, second)
-     * To define a custom wrapping, use JoinedStream.with(...)
+     * To define a custom wrapping, use JoinedStream.apply(...)
      */
     def equalTo[K: TypeInformation](fun: (I2) => K): JoinedStream[I1, I2] = {
       val keyType = implicitly[TypeInformation[K]]
@@ -159,6 +154,9 @@ object StreamJoinOperator {
 
     private val op = jp.op
 
+    /**
+     * Sets a wrapper for the joined elements. For each joined pair, the result of the udf call will be emitted.
+     */
     def apply[R: TypeInformation: ClassTag](fun: (I1, I2) => R): DataStream[R] = {
 
       val invokable = new CoWindowInvokable[I1, I2, R](
@@ -175,7 +173,7 @@ object StreamJoinOperator {
 
     val joinFun = new JoinFunction[I1, I2, R] {
 
-      val cleanFun = clean(joinFunction)
+      val cleanFun = jp.op.input1.clean(joinFunction)
 
       override def join(first: I1, second: I2): R = {
         cleanFun(first, second)

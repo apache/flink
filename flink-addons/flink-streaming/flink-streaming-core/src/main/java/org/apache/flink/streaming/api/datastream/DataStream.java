@@ -547,19 +547,16 @@ public class DataStream<OUT> {
 	 * <p>
 	 * This method returns a {@link StreamCrossOperator} on which the
 	 * {@link StreamCrossOperator#onWindow} should be called to define the
-	 * window, and then call
-	 * {@link StreamCrossOperator.CrossWindow#with(org.apache.flink.api.common.functions.CrossFunction)}
-	 * to define a {@link org.apache.flink.api.common.functions.CrossFunction}
-	 * which is called for each pair of crossed elements. The CrossFunction
-	 * returns a exactly one element for each pair of input elements.
+	 * window.
+	 * <p>
+	 * Call {@link StreamCrossOperator.CrossWindow#with(CrossFunction)} to
+	 * define a custom cross function.
 	 * 
 	 * @param dataStreamToCross
 	 *            The other DataStream with which this DataStream is crossed.
 	 * @return A {@link StreamCrossOperator} to continue the definition of the
-	 *         Join transformation.
+	 *         cross transformation.
 	 * 
-	 * @see org.apache.flink.api.common.functions.CrossFunction
-	 * @see DataStream
 	 */
 	public <IN2> StreamCrossOperator<OUT, IN2> cross(DataStream<IN2> dataStreamToCross) {
 		return new StreamCrossOperator<OUT, IN2>(this, dataStreamToCross);
@@ -574,7 +571,9 @@ public class DataStream<OUT> {
 	 * {@link StreamJoinOperator#onWindow} should be called to define the
 	 * window, and then the {@link StreamJoinOperator.JoinWindow#where} and
 	 * {@link StreamJoinOperator.JoinPredicate#equalTo} can be used to define
-	 * the join keys.
+	 * the join keys.</p> The user can also use the
+	 * {@link StreamJoinOperator.JoinedStream#with(JoinFunction)} to apply
+	 * custom join function.
 	 * 
 	 * @param other
 	 *            The other DataStream with which this DataStream is joined.

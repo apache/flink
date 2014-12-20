@@ -458,7 +458,32 @@ class DataStream[T](javaStream: JavaStream[T]) {
     split(selector)
   }
 
+  /**
+   * Initiates a temporal Join transformation that joins the elements of two
+   * data streams on key equality over a specified time window.
+   *
+   * This method returns a StreamJoinOperator on which the
+   * .onWindow(..) should be called to define the
+   * window, and then the .where(..) and .equalTo(..) methods can be used to defin
+   * the join keys.</p> The user can also use the apply method of the returned JoinedStream
+   * to use custom join function.
+   *
+   */
   def join[R](stream: DataStream[R]): StreamJoinOperator[T, R] = new StreamJoinOperator[T, R](javaStream, stream.getJavaStream)
+
+  /**
+   * Initiates a temporal cross transformation that builds all pair
+   * combinations of elements of both DataStreams, i.e., it builds a Cartesian
+   * product.
+   *
+   * This method returns a StreamJoinOperator on which the
+   * .onWindow(..) should be called to define the
+   * window, and then the .where(..) and .equalTo(..) methods can be used to defin
+   * the join keys.</p> The user can also use the apply method of the returned JoinedStream
+   * to use custom join function.
+   *
+   */
+  def cross[R](stream: DataStream[R]): StreamCrossOperator[T, R] = new StreamCrossOperator[T, R](javaStream, stream.getJavaStream)
 
   /**
    * Writes a DataStream to the standard output stream (stdout). For each

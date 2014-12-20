@@ -20,12 +20,12 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.CrossOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.function.co.CrossWindowFunction;
+import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 
 public class StreamCrossOperator<I1, I2> extends
 		TemporalOperator<I1, I2, StreamCrossOperator.CrossWindow<I1, I2>> {
@@ -36,23 +36,24 @@ public class StreamCrossOperator<I1, I2> extends
 
 	@Override
 	protected CrossWindow<I1, I2> createNextWindowOperator() {
-		return new CrossWindow<I1, I2>(this);
+
+		CrossWindowFunction<I1, I2, Tuple2<I1, I2>> crossWindowFunction = new CrossWindowFunction<I1, I2, Tuple2<I1, I2>>(
+				input1.clean(new CrossOperator.DefaultCrossFunction<I1, I2>()));
+
+		return new CrossWindow<I1, I2>(this, input1.connect(input2).addGeneralWindowCombine(
+				crossWindowFunction,
+				new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()), windowSize,
+				slideInterval, timeStamp1, timeStamp2));
 	}
 
-	public static class CrossWindow<I1, I2> {
+	public static class CrossWindow<I1, I2> extends
+			SingleOutputStreamOperator<Tuple2<I1, I2>, CrossWindow<I1, I2>> {
 
 		private StreamCrossOperator<I1, I2> op;
 
-		public CrossWindow(StreamCrossOperator<I1, I2> operator) {
-			this.op = operator;
-		}
-
-		public <F> F clean(F f) {
-			if (op.input1.getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
-				ClosureCleaner.clean(f, true);
-			}
-			ClosureCleaner.ensureSerializable(f);
-			return f;
+		public CrossWindow(StreamCrossOperator<I1, I2> op, DataStream<Tuple2<I1, I2>> ds) {
+			super(ds);
+			this.op = op;
 		}
 
 		/**
@@ -63,36 +64,20 @@ public class StreamCrossOperator<I1, I2> extends
 		 * @param function
 		 *            The CrossFunction that is called for each pair of crossed
 		 *            elements.
-		 * @return A CrossOperator that represents the crossed result DataStream
+		 * @return The crossed data streams
 		 * 
-		 * @see CrossFunction
-		 * @see DataSet
 		 */
 		public <R> SingleOutputStreamOperator<R, ?> with(CrossFunction<I1, I2, R> function) {
-			return createCrossOperator(function);
-		}
-
-		/**
-		 * Finalizes a temporal Cross transformation by emitting all pairs in a
-		 * new Tuple2.
-		 * 
-		 * @return A CrossOperator that represents the crossed result DataStream
-		 */
-		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> withDefault() {
-			return createCrossOperator(new CrossOperator.DefaultCrossFunction<I1, I2>());
-		}
-
-		protected <R> SingleOutputStreamOperator<R, ?> createCrossOperator(
-				CrossFunction<I1, I2, R> function) {
-
 			TypeInformation<R> outTypeInfo = TypeExtractor.getCrossReturnTypes(function,
 					op.input1.getType(), op.input2.getType());
 
-			CrossWindowFunction<I1, I2, R> crossWindowFunction = new CrossWindowFunction<I1, I2, R>(
-					clean(function));
+			CoWindowInvokable<I1, I2, R> invokable = new CoWindowInvokable<I1, I2, R>(
+					new CrossWindowFunction<I1, I2, R>(clean(function)), op.windowSize,
+					op.slideInterval, op.timeStamp1, op.timeStamp2);
 
-			return op.input1.connect(op.input2).addGeneralWindowCombine(crossWindowFunction,
-					outTypeInfo, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2);
+			jobGraphBuilder.setInvokable(id, invokable);
+
+			return setType(outTypeInfo);
 
 		}
 
