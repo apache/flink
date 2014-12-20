@@ -111,36 +111,35 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     /**
      * Apply a function to the attribute of each vertex in the graph.
      * @param mapper
-     * @return
+     * @return a new graph
      */
-    public <NV extends Serializable> DataSet<Vertex<K, NV>> mapVertices(final MapFunction<VV, NV> mapper) {
-        return vertices.map(new ApplyMapperToVertexWithType<K, VV, NV>(mapper));
+    public <NV extends Serializable> Graph<K, NV, EV> mapVertices(final MapFunction<Vertex<K, VV>, NV> mapper) {
+    	DataSet<Vertex<K, NV>> mappedVertices = vertices.map(new ApplyMapperToVertexWithType<K, VV, NV>(mapper)); 
+        return new Graph<K, NV, EV>(mappedVertices, this.getEdges(), this.context);
     }
     
     private static final class ApplyMapperToVertexWithType<K extends Comparable<K> & Serializable, 
     	VV extends Serializable, NV extends Serializable> implements MapFunction
 		<Vertex<K, VV>, Vertex<K, NV>>, ResultTypeQueryable<Vertex<K, NV>> {
 	
-		private MapFunction<VV, NV> innerMapper;
+		private MapFunction<Vertex<K, VV>, NV> innerMapper;
 		
-		public ApplyMapperToVertexWithType(MapFunction<VV, NV> theMapper) {
+		public ApplyMapperToVertexWithType(MapFunction<Vertex<K, VV>, NV> theMapper) {
 			this.innerMapper = theMapper;
 		}
 		
 		public Vertex<K, NV> map(Vertex<K, VV> value) throws Exception {
-			return new Vertex<K, NV>(value.f0, innerMapper.map(value.f1));
+			return new Vertex<K, NV>(value.f0, innerMapper.map(value));
 		}
 	
 		@Override
 		public TypeInformation<Vertex<K, NV>> getProducedType() {
-			@SuppressWarnings("unchecked")
-			TypeInformation<NV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
-					(TypeInformation<VV>)vertexValueType);
-			
+			TypeInformation<Vertex<K, VV>> vertextypeInfo = new TupleTypeInfo<Vertex<K, VV>>(keyType, vertexValueType);
+			TypeInformation<NV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, vertextypeInfo);			
 			return new TupleTypeInfo<Vertex<K, NV>>(keyType, newVertexValueType);
 		}
     }
-    
+
     /**
      * Apply a function to the attribute of each edge in the graph.
      * @param mapper
