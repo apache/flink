@@ -75,11 +75,11 @@ public class TestMapVertices extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env));
 				
-				DataSet<Vertex<Long, Long>> mappedVertices = graph.mapVertices(new MapFunction<Long, Long>() {
-					public Long map(Long value) throws Exception {
-						return value+1;
+				DataSet<Vertex<Long, Long>> mappedVertices = graph.mapVertices(new MapFunction<Vertex<Long, Long>, Long>() {
+					public Long map(Vertex<Long, Long> value) throws Exception {
+						return value.getValue()+1;
 					}
-				});
+				}).getVertices();
 				
 				mappedVertices.writeAsCsv(resultPath);
 				env.execute();
@@ -98,31 +98,30 @@ public class TestMapVertices extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env));
 				
-				DataSet<Vertex<Long, String>> mappedVertices = graph.mapVertices(new MapFunction<Long, String>() {
-					public String map(Long value) throws Exception {
+				DataSet<Vertex<Long, String>> mappedVertices = graph.mapVertices(new MapFunction<Vertex<Long, Long>, String>() {
+					public String map(Vertex<Long, Long> vertex) throws Exception {
 						String stringValue;
-						if (value == 1) {
+						if (vertex.getValue() == 1) {
 							stringValue = "one";
 						}
-						else if (value == 2) {
+						else if (vertex.getValue() == 2) {
 							stringValue = "two";
 						}
-						else if (value == 3) {
+						else if (vertex.getValue() == 3) {
 							stringValue = "three";
 						}
-						else if (value == 4) {
+						else if (vertex.getValue() == 4) {
 							stringValue = "four";
 						}
-						else if (value == 5) {
+						else if (vertex.getValue() == 5) {
 							stringValue = "five";
 						}
 						else {
 							stringValue = "";
 						}
-						
 						return stringValue;
 					}
-				});
+				}).getVertices();
 				
 				mappedVertices.writeAsCsv(resultPath);
 				env.execute();
@@ -141,13 +140,13 @@ public class TestMapVertices extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env));
 				
-				DataSet<Vertex<Long, Tuple1<Long>>> mappedVertices = graph.mapVertices(new MapFunction<Long, Tuple1<Long>>() {
-					public Tuple1<Long> map(Long value) throws Exception {
+				DataSet<Vertex<Long, Tuple1<Long>>> mappedVertices = graph.mapVertices(new MapFunction<Vertex<Long, Long>, Tuple1<Long>>() {
+					public Tuple1<Long> map(Vertex<Long, Long> vertex) throws Exception {
 						Tuple1<Long> tupleValue = new Tuple1<Long>();
-						tupleValue.setFields(value);
+						tupleValue.setFields(vertex.getValue());
 						return tupleValue;
 					}
-				});
+				}).getVertices();
 				
 				mappedVertices.writeAsCsv(resultPath);
 				env.execute();
@@ -166,13 +165,13 @@ public class TestMapVertices extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env));
 				
-				DataSet<Vertex<Long, DummyCustomType>> mappedVertices = graph.mapVertices(new MapFunction<Long, DummyCustomType>() {
-					public DummyCustomType map(Long value) throws Exception {
+				DataSet<Vertex<Long, DummyCustomType>> mappedVertices = graph.mapVertices(new MapFunction<Vertex<Long, Long>, DummyCustomType>() {
+					public DummyCustomType map(Vertex<Long, Long> vertex) throws Exception {
 						DummyCustomType dummyValue = new DummyCustomType();
-						dummyValue.setIntField(value.intValue());						
+						dummyValue.setIntField(vertex.getValue().intValue());						
 						return dummyValue;
 					}
-				});
+				}).getVertices();
 				
 				mappedVertices.writeAsCsv(resultPath);
 				env.execute();
@@ -192,14 +191,14 @@ public class TestMapVertices extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env));
 				
 				DataSet<Vertex<Long, DummyCustomParameterizedType<Double>>> mappedVertices = graph.mapVertices(
-						new MapFunction<Long, DummyCustomParameterizedType<Double>>() {
-					public DummyCustomParameterizedType<Double> map(Long value) throws Exception {
+						new MapFunction<Vertex<Long, Long>, DummyCustomParameterizedType<Double>>() {
+					public DummyCustomParameterizedType<Double> map(Vertex<Long, Long> vertex) throws Exception {
 						DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<Double>();
-						dummyValue.setIntField(value.intValue());
-						dummyValue.setTField(new Double(value));						
+						dummyValue.setIntField(vertex.getValue().intValue());
+						dummyValue.setTField(new Double(vertex.getValue()));						
 						return dummyValue;
 					}
-				});
+				}).getVertices();
 				
 				mappedVertices.writeAsCsv(resultPath);
 				env.execute();
@@ -214,5 +213,5 @@ public class TestMapVertices extends JavaProgramTestBase {
 			}
 		}
 	}
-	
+
 }

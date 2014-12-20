@@ -1,6 +1,8 @@
 package flink.graphs.example.utils;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -102,6 +104,32 @@ public class ExampleUtils {
 	                        }
 	                    }
 	                });
+	}
+
+	public static final DataSet<Vertex<Long, Double>> getLongDoubleVertexData(
+			ExecutionEnvironment env) {
+		List<Vertex<Long, Double>> vertices = new ArrayList<Vertex<Long, Double>>();
+		vertices.add(new Vertex<Long, Double>(1L, 1.0));
+		vertices.add(new Vertex<Long, Double>(2L, 2.0));
+		vertices.add(new Vertex<Long, Double>(3L, 3.0));
+		vertices.add(new Vertex<Long, Double>(4L, 4.0));
+		vertices.add(new Vertex<Long, Double>(5L, 5.0));
+
+		return env.fromCollection(vertices);
+	}
+	
+	public static final DataSet<Edge<Long, Double>> getLongDoubleEdgeData(
+			ExecutionEnvironment env) {
+		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
+		edges.add(new Edge<Long, Double>(1L, 2L, 12.0));
+		edges.add(new Edge<Long, Double>(1L, 3L, 13.0));
+		edges.add(new Edge<Long, Double>(2L, 3L, 23.0));
+		edges.add(new Edge<Long, Double>(3L, 4L, 34.0));
+		edges.add(new Edge<Long, Double>(3L, 5L, 35.0));
+		edges.add(new Edge<Long, Double>(4L, 5L, 45.0));
+		edges.add(new Edge<Long, Double>(5L, 1L, 51.0));
+		
+		return env.fromCollection(edges);
 	}
 }
 
