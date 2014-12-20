@@ -56,12 +56,13 @@ public abstract class FieldsKeySelector<IN> implements KeySelector<IN, Object> {
 	protected Object key;
 	protected boolean simpleKey;
 
-	public static Class<?>[] tupleClasses = new Class[] { Tuple1.class, Tuple2.class, Tuple3.class,
-			Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class,
-			Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class, Tuple14.class,
-			Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class, Tuple19.class,
-			Tuple20.class, Tuple21.class, Tuple22.class, Tuple23.class, Tuple24.class,
-			Tuple25.class };
+	@SuppressWarnings("unchecked")
+	public static Class<? extends Tuple>[] tupleClasses = new Class[] { Tuple1.class, Tuple2.class,
+			Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class,
+			Tuple9.class, Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class,
+			Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class,
+			Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class, Tuple23.class,
+			Tuple24.class, Tuple25.class };
 
 	public FieldsKeySelector(int... fields) {
 		this.keyFields = fields;
@@ -73,7 +74,7 @@ public abstract class FieldsKeySelector<IN> implements KeySelector<IN, Object> {
 		}
 
 		try {
-			key = (Tuple) tupleClasses[fields.length - 1].newInstance();
+			key =  tupleClasses[fields.length - 1].newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException(e.getMessage());
 		}

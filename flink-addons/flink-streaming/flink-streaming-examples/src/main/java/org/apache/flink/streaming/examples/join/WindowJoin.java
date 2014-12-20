@@ -19,7 +19,9 @@ package org.apache.flink.streaming.examples.join;
 
 import java.util.Random;
 
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,7 +36,7 @@ import org.apache.flink.util.Collector;
  * his example will join two streams with a sliding window. One which emits
  * grades and one which emits salaries of people.
  * </p>
- *
+ * 
  * <p>
  * This example shows how to:
  * <ul>
@@ -63,13 +65,13 @@ public class WindowJoin {
 
 		// apply a temporal join over the two stream based on the names over one
 		// second windows
-		DataStream<Tuple2<Tuple2<String, Integer>, Tuple2<String, Integer>>> joinedStream = grades
-				.join(salaries)
-				.onWindow(1000)
-				.where(0)
-				.equalTo(0)
-				.withDefault();
-
+		DataStream<Tuple3<String, Integer, Integer>> joinedStream = grades
+						.join(salaries)
+						.onWindow(1000)
+						.where(0)
+						.equalTo(0)
+						.with(new MyJoinFunction());
+		
 		// emit result
 		if (fileOutput) {
 			joinedStream.writeAsText(outputPath, 1);
@@ -138,6 +140,24 @@ public class WindowJoin {
 				out.collect(outTuple);
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
 			}
+		}
+	}
+
+	public static class MyJoinFunction
+			implements
+			JoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Integer, Integer>> {
+
+		private static final long serialVersionUID = 1L;
+
+		private Tuple3<String, Integer, Integer> joined = new Tuple3<String, Integer, Integer>();
+
+		@Override
+		public Tuple3<String, Integer, Integer> join(Tuple2<String, Integer> first,
+				Tuple2<String, Integer> second) throws Exception {
+			joined.f0 = first.f0;
+			joined.f1 = first.f1;
+			joined.f2 = second.f1;
+			return joined;
 		}
 	}
 

@@ -505,6 +505,15 @@ public class JobGraphBuilder {
 
 	}
 
+	public <IN, OUT> void setInvokable(String id, StreamInvokable<IN, OUT> invokableObject) {
+		invokableObjects.put(id, invokableObject);
+	}
+
+	public <OUT> void setOutType(String id, TypeInformation<OUT> outType) {
+		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType);
+		typeSerializersOut1.put(id, serializer);
+	}
+
 	/**
 	 * Sets TypeSerializerWrapper from one vertex to another, used with some
 	 * sinks.

@@ -92,7 +92,8 @@ public class DataStream<OUT> {
 	protected List<String> userDefinedNames;
 	protected boolean selectAll;
 	protected StreamPartitioner<OUT> partitioner;
-	protected final TypeInformation<OUT> typeInfo;
+	@SuppressWarnings("rawtypes")
+	protected TypeInformation typeInfo;
 	protected List<DataStream<OUT>> mergedStreams;
 
 	protected final JobGraphBuilder jobGraphBuilder;
@@ -175,8 +176,16 @@ public class DataStream<OUT> {
 	 * 
 	 * @return The type of the datastream.
 	 */
+	@SuppressWarnings("unchecked")
 	public TypeInformation<OUT> getType() {
 		return this.typeInfo;
+	}
+
+	@SuppressWarnings("unchecked")
+	public <R> DataStream<R> setType(TypeInformation<R> outType) {
+		jobGraphBuilder.setOutType(id, outType);
+		typeInfo = outType;
+		return (DataStream<R>) this;
 	}
 
 	public <F> F clean(F f) {
@@ -979,7 +988,7 @@ public class DataStream<OUT> {
 
 		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = transform("reduce", typeInfo, invokable);
+		SingleOutputStreamOperator<OUT, ?> returnStream = transform("reduce", getType(), invokable);
 
 		return returnStream;
 	}
@@ -1077,7 +1086,7 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> addSink(SinkFunction<OUT> sinkFunction) {
 
-		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", typeInfo);
+		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType());
 
 		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(
 				clean(sinkFunction)), getType(), null, "sink", degreeOfParallelism);
