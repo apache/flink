@@ -44,6 +44,11 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy
 import org.apache.flink.streaming.api.collector.OutputSelector
 import scala.collection.JavaConversions._
 import java.util.HashMap
+import org.apache.flink.streaming.api.function.aggregation.SumFunction
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
+import org.apache.flink.streaming.api.function.aggregation.AggregationFunction
+import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
+import com.amazonaws.services.cloudfront_2012_03_15.model.InvalidArgumentException
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -230,53 +235,52 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * the given position.
    *
    */
-  def max(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.max(field))
-    case field: String => return new DataStream[T](javaStream.max(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
 
   /**
    * Applies an aggregation that that gives the current minimum of the data stream at
    * the given position.
    *
    */
-  def min(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.min(field))
-    case field: String => return new DataStream[T](javaStream.min(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
 
   /**
    * Applies an aggregation that sums the data stream at the given position.
    *
    */
-  def sum(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.sum(field))
-    case field: String => return new DataStream[T](javaStream.sum(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def sum(position: Int): DataStream[T] = aggregate(AggregationType.SUM, position)
 
   /**
    * Applies an aggregation that that gives the current minimum element of the data stream by
    * the given position. When equality, the user can set to get the first or last element with the minimal value.
    *
    */
-  def minBy(field: Any, first: Boolean = true): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.minBy(field, first))
-    case field: String => return new DataStream[T](javaStream.minBy(field, first))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def minBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MINBY, position, first)
 
   /**
    * Applies an aggregation that that gives the current maximum element of the data stream by
    * the given position. When equality, the user can set to get the first or last element with the maximal value.
    *
    */
-  def maxBy(field: Any, first: Boolean = true): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.maxBy(field, first))
-    case field: String => return new DataStream[T](javaStream.maxBy(field, first))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
+  def maxBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MAXBY, position, first)
+
+  private def aggregate(aggregationType: AggregationType, position: Int, first: Boolean = true): DataStream[T] = {
+
+    val jStream = javaStream.asInstanceOf[JavaStream[Product]]
+    val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
+
+    val agg = new ScalaStreamingAggregator[Product](jStream.getType().createSerializer(), position)
+
+    val reducer = aggregationType match {
+      case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(outType.getTypeAt(position).getTypeClass()));
+      case _ => new agg.ProductComparableAggregator(aggregationType, first)
+    }
+
+    val invokable = jStream match {
+      case groupedStream: GroupedDataStream[_] => new GroupedReduceInvokable(reducer, groupedStream.getKeySelector())
+      case _ => new StreamReduceInvokable(reducer)
+    }
+    new DataStream[Product](jStream.transform("aggregation", jStream.getType(), invokable)).asInstanceOf[DataStream[T]]
   }
 
   /**

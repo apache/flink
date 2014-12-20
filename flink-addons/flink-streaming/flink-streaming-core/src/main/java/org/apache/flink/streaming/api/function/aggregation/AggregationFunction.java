@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 public abstract class AggregationFunction<T> implements ReduceFunction<T> {
 	private static final long serialVersionUID = 1L;
 
-	int position;
+	public int position;
 
 	public AggregationFunction(int pos) {
 		this.position = pos;

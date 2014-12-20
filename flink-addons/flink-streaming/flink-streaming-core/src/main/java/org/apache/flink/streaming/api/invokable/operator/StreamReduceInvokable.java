@@ -52,6 +52,7 @@ public class StreamReduceInvokable<IN> extends StreamInvokable<IN, IN> {
 			currentValue = reducer.reduce(currentValue, nextValue);
 		} else {
 			currentValue = nextValue;
+
 		}
 		collector.collect(currentValue);
 

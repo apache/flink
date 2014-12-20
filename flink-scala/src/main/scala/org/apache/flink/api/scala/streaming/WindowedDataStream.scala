@@ -36,6 +36,9 @@ import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.streaming.api.invokable.StreamInvokable
 import scala.collection.JavaConversions._
+import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
+import org.apache.flink.streaming.api.function.aggregation.SumFunction
 
 class WindowedDataStream[T](javaStream: JavaWStream[T]) {
 
@@ -158,75 +161,48 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * the given position.
    *
    */
-  def max(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.max(field))
-    case field: String => return new DataStream[T](javaStream.max(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
 
   /**
    * Applies an aggregation that that gives the minimum of the elements in the window at
    * the given position.
    *
    */
-  def min(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.min(field))
-    case field: String => return new DataStream[T](javaStream.min(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
 
   /**
    * Applies an aggregation that sums the elements in the window at the given position.
    *
    */
-  def sum(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.sum(field))
-    case field: String => return new DataStream[T](javaStream.sum(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def sum(position: Int): DataStream[T] = aggregate(AggregationType.SUM, position)
 
   /**
    * Applies an aggregation that that gives the maximum element of the window by
    * the given position. When equality, returns the first.
    *
    */
-  def maxBy(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.maxBy(field))
-    case field: String => return new DataStream[T](javaStream.maxBy(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def maxBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MAXBY, position, first)
 
   /**
    * Applies an aggregation that that gives the minimum element of the window by
    * the given position. When equality, returns the first.
    *
    */
-  def minBy(field: Any): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.minBy(field))
-    case field: String => return new DataStream[T](javaStream.minBy(field))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def minBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MINBY, position, first)
 
-  /**
-   * Applies an aggregation that that gives the minimum element of the window by
-   * the given position. When equality, the user can set to get the first or last element with the minimal value.
-   *
-   */
-  def minBy(field: Any, first: Boolean): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.minBy(field, first))
-    case field: String => return new DataStream[T](javaStream.minBy(field, first))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
-  }
+  def aggregate(aggregationType: AggregationType, position: Int, first: Boolean = true): DataStream[T] = {
 
-  /**
-   * Applies an aggregation that that gives the maximum element of the window by
-   * the given position. When equality, the user can set to get the first or last element with the maximal value.
-   *
-   */
-  def maxBy(field: Any, first: Boolean): DataStream[T] = field match {
-    case field: Int => return new DataStream[T](javaStream.maxBy(field, first))
-    case field: String => return new DataStream[T](javaStream.maxBy(field, first))
-    case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
+    val jStream = javaStream.asInstanceOf[JavaWStream[Product]]
+    val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
+
+    val agg = new ScalaStreamingAggregator[Product](jStream.getType().createSerializer(), position)
+
+    val reducer = aggregationType match {
+      case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(outType.getTypeAt(position).getTypeClass()));
+      case _ => new agg.ProductComparableAggregator(aggregationType, first)
+    }
+
+    new DataStream[Product](jStream.reduce(reducer)).asInstanceOf[DataStream[T]]
   }
 
 }
