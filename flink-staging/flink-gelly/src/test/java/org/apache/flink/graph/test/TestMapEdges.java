@@ -75,11 +75,11 @@ public class TestMapEdges extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env));
 				
-				DataSet<Edge<Long, Long>> mappedEdges = graph.mapEdges(new MapFunction<Long, Long>() {
-					public Long map(Long value) throws Exception {
-						return value+1;
+				DataSet<Edge<Long, Long>> mappedEdges = graph.mapEdges(new MapFunction<Edge<Long, Long>, Long>() {
+					public Long map(Edge<Long, Long> edge) throws Exception {
+						return edge.getValue()+1;
 					}
-				});
+				}).getEdges();
 				
 				mappedEdges.writeAsCsv(resultPath);
 				env.execute();
@@ -100,11 +100,11 @@ public class TestMapEdges extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env));
 				
-				DataSet<Edge<Long, String>> mappedEdges = graph.mapEdges(new MapFunction<Long, String>() {
-					public String map(Long value) throws Exception {
-						return String.format("string(%d)", value);
+				DataSet<Edge<Long, String>> mappedEdges = graph.mapEdges(new MapFunction<Edge<Long, Long>, String>() {
+					public String map(Edge<Long, Long> edge) throws Exception {
+						return String.format("string(%d)", edge.getValue());
 					}
-				});
+				}).getEdges();
 				
 				mappedEdges.writeAsCsv(resultPath);
 				env.execute();
@@ -125,13 +125,14 @@ public class TestMapEdges extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env));
 				
-				DataSet<Edge<Long, Tuple1<Long>>> mappedEdges = graph.mapEdges(new MapFunction<Long, Tuple1<Long>>() {
-					public Tuple1<Long> map(Long value) throws Exception {
+				DataSet<Edge<Long, Tuple1<Long>>> mappedEdges = graph.mapEdges(new MapFunction<Edge<Long, Long>, 
+						Tuple1<Long>>() {
+					public Tuple1<Long> map(Edge<Long, Long> edge) throws Exception {
 						Tuple1<Long> tupleValue = new Tuple1<Long>();
-						tupleValue.setFields(value);
+						tupleValue.setFields(edge.getValue());
 						return tupleValue;
 					}
-				});
+				}).getEdges();
 				
 				mappedEdges.writeAsCsv(resultPath);
 				env.execute();
@@ -152,13 +153,14 @@ public class TestMapEdges extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env));
 				
-				DataSet<Edge<Long, DummyCustomType>> mappedEdges = graph.mapEdges(new MapFunction<Long, DummyCustomType>() {
-					public DummyCustomType map(Long value) throws Exception {
+				DataSet<Edge<Long, DummyCustomType>> mappedEdges = graph.mapEdges(new MapFunction<Edge<Long, Long>, 
+						DummyCustomType>() {
+					public DummyCustomType map(Edge<Long, Long> edge) throws Exception {
 						DummyCustomType dummyValue = new DummyCustomType();
-						dummyValue.setIntField(value.intValue());						
+						dummyValue.setIntField(edge.getValue().intValue());						
 						return dummyValue;
 					}
-				});
+				}).getEdges();
 				
 				mappedEdges.writeAsCsv(resultPath);
 				env.execute();
@@ -180,14 +182,14 @@ public class TestMapEdges extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env));
 				
 				DataSet<Edge<Long, DummyCustomParameterizedType<Double>>> mappedEdges = graph.mapEdges(
-						new MapFunction<Long, DummyCustomParameterizedType<Double>>() {
-					public DummyCustomParameterizedType<Double> map(Long value) throws Exception {
+						new MapFunction<Edge<Long, Long>, DummyCustomParameterizedType<Double>>() {
+					public DummyCustomParameterizedType<Double> map(Edge<Long, Long> edge) throws Exception {
 						DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<Double>();
-						dummyValue.setIntField(value.intValue());
-						dummyValue.setTField(new Double(value));						
+						dummyValue.setIntField(edge.getValue().intValue());
+						dummyValue.setTField(new Double(edge.getValue()));						
 						return dummyValue;
 					}
-				});
+				}).getEdges();
 				
 				mappedEdges.writeAsCsv(resultPath);
 				env.execute();
@@ -204,5 +206,4 @@ public class TestMapEdges extends JavaProgramTestBase {
 			}
 		}
 	}
-	
 }
