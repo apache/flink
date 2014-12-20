@@ -35,11 +35,11 @@ public abstract class ComparableAggregator<T> extends AggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	Comparator comparator;
-	boolean byAggregate;
-	boolean first;
+	public Comparator comparator;
+	public boolean byAggregate;
+	public boolean first;
 
-	private ComparableAggregator(int pos, AggregationType aggregationType, boolean first) {
+	public ComparableAggregator(int pos, AggregationType aggregationType, boolean first) {
 		super(pos);
 		this.comparator = Comparator.getForAggregation(aggregationType);
 		this.byAggregate = (aggregationType == AggregationType.MAXBY)

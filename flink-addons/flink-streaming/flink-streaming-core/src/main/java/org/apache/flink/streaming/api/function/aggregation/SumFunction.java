@@ -45,7 +45,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	private static class IntSum extends SumFunction {
+	public static class IntSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -54,7 +54,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	private static class LongSum extends SumFunction {
+	public static class LongSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -63,7 +63,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	private static class DoubleSum extends SumFunction {
+	public static class DoubleSum extends SumFunction {
 
 		private static final long serialVersionUID = 1L;
 
@@ -73,7 +73,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	private static class ShortSum extends SumFunction {
+	public static class ShortSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -82,7 +82,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	private static class FloatSum extends SumFunction {
+	public static class FloatSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -91,7 +91,7 @@ public abstract class SumFunction implements Serializable{
 		}
 	}
 
-	private static class ByteSum extends SumFunction {
+	public static class ByteSum extends SumFunction {
 		private static final long serialVersionUID = 1L;
 
 		@Override
