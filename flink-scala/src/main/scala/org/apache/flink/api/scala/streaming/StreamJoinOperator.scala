@@ -61,9 +61,12 @@ object StreamJoinOperator {
      * The resulting incomplete join can be completed by JoinPredicate.equalTo()
      * to define the second key.
      */
-    def where(firstField: String, otherFields: String*) = {
-      new JoinPredicate[I1, I2](op, new PojoKeySelector[I1](op.input1.getType(),
-        (firstField +: otherFields): _*))
+    def where(firstField: String, otherFields: String*) = 
+      op.input1.getType() match {
+      case ccInfo: CaseClassTypeInfo[I1] => new JoinPredicate[I1, I2](op,
+          new CaseClassKeySelector[I1](ccInfo, firstField +: otherFields.toArray: _*))
+      case _ =>  new JoinPredicate[I1, I2](op, new PojoKeySelector[I1](
+          op.input1.getType(), (firstField +: otherFields): _*))  
     }
 
     /**
@@ -104,9 +107,13 @@ object StreamJoinOperator {
      * (first, second)
      * To define a custom wrapping, use JoinedStream.apply(...)
      */
-    def equalTo(firstField: String, otherFields: String*): JoinedStream[I1, I2] = {
-      finish(new PojoKeySelector[I2](op.input2.getType(), (firstField +: otherFields): _*))
-    }
+    def equalTo(firstField: String, otherFields: String*): JoinedStream[I1, I2] = 
+      op.input2.getType() match {
+      case ccInfo: CaseClassTypeInfo[I2] => finish(
+          new CaseClassKeySelector[I2](ccInfo, firstField +: otherFields.toArray: _*))
+      case _ => finish(new PojoKeySelector[I2](op.input2.getType(), 
+          (firstField +: otherFields): _*))
+    }    
 
     /**
      * Creates a temporal join transformation by defining the second join key.

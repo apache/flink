@@ -143,8 +143,6 @@ public abstract class ComparableAggregator<T> extends AggregationFunction<T> {
 			} else {
 				if (c == 1) {
 					Array.set(array2, position, v1);
-				} else {
-					Array.set(array2, position, v2);
 				}
 
 				return array2;
@@ -230,10 +228,8 @@ public abstract class ComparableAggregator<T> extends AggregationFunction<T> {
 			} else {
 				if (c == 1) {
 					keyFields[0].set(value2, field1);
-				} else {
-					keyFields[0].set(value2, field2);
-				}
-
+				} 
+				
 				return value2;
 			}
 		}

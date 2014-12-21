@@ -49,6 +49,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
 import com.amazonaws.services.cloudfront_2012_03_15.model.InvalidArgumentException
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -122,9 +123,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * be used with grouped operators like grouped reduce or grouped aggregations
    *
    */
-  def groupBy(firstField: String, otherFields: String*): DataStream[T] =
-    new DataStream[T](javaStream.groupBy(firstField +: otherFields.toArray: _*))
-
+  def groupBy(firstField: String, otherFields: String*): DataStream[T] = 
+    javaStream.getType() match {
+      case ccInfo: CaseClassTypeInfo[T] => new DataStream[T](javaStream.groupBy(
+          new CaseClassKeySelector[T](ccInfo, firstField +: otherFields.toArray: _*)))
+      case _ =>  new DataStream[T](javaStream.groupBy(
+          firstField +: otherFields.toArray: _*))    
+    }
+  
   /**
    * Groups the elements of a DataStream by the given K key to
    * be used with grouped operators like grouped reduce or grouped aggregations
@@ -155,7 +161,12 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def partitionBy(firstField: String, otherFields: String*): DataStream[T] =
-    new DataStream[T](javaStream.partitionBy(firstField +: otherFields.toArray: _*))
+    javaStream.getType() match {
+      case ccInfo: CaseClassTypeInfo[T] => new DataStream[T](javaStream.partitionBy(
+          new CaseClassKeySelector[T](ccInfo, firstField +: otherFields.toArray: _*)))
+      case _ =>  new DataStream[T](javaStream.partitionBy(
+          firstField +: otherFields.toArray: _*))    
+    }
 
   /**
    * Sets the partitioning of the DataStream so that the output is
