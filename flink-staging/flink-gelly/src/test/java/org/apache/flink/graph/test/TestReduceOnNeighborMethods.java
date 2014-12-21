@@ -72,7 +72,8 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
-						graph.reduceOnNeighbors(new NeighborsFunctionWithVertexValue<Long, Long, Long, Long>() {
+						graph.reduceOnNeighbors(new NeighborsFunctionWithVertexValue<Long, Long, Long, 
+								Tuple2<Long, Long>>() {
 							public Tuple2<Long, Long> iterateNeighbors(Vertex<Long, Long> vertex,
 									Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
 								long sum = 0;
@@ -101,7 +102,8 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithSum = 
-						graph.reduceOnNeighbors(new NeighborsFunctionWithVertexValue<Long, Long, Long, Long>() {
+						graph.reduceOnNeighbors(new NeighborsFunctionWithVertexValue<Long, Long, Long, 
+								Tuple2<Long, Long>>() {
 							public Tuple2<Long, Long> iterateNeighbors(Vertex<Long, Long> vertex,
 									Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
 								long sum = 0;
@@ -130,7 +132,8 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
-						graph.reduceOnNeighbors(new NeighborsFunctionWithVertexValue<Long, Long, Long, Long>() {
+						graph.reduceOnNeighbors(new NeighborsFunctionWithVertexValue<Long, Long, Long, 
+								Tuple2<Long, Long>>() {
 							public Tuple2<Long, Long> iterateNeighbors(Vertex<Long, Long> vertex,
 									Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
 								long sum = 0;

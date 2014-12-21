@@ -336,10 +336,11 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * The function applied on the edges has access to the vertex value.
 	 * @param edgesFunction the function to apply to the neighborhood
 	 * @param direction the edge direction (in-, out-, all-)
-	 * @return a dataset of a Tuple2 with the vertex id and the computed value
+	 * @param <T> the output type 
+	 * @return a dataset of a T
 	 * @throws IllegalArgumentException
 	 */
-	public <T> DataSet<Tuple2<K, T>> reduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
+	public <T> DataSet<T> reduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
 			EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
@@ -363,10 +364,11 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * (not the vertex value).
 	 * @param edgesFunction the function to apply to the neighborhood
 	 * @param direction the edge direction (in-, out-, all-)
-	 * @return a dataset of a Tuple2 with the vertex id and the computed value
+	 * @param <T> the output type
+	 * @return a dataset of T
 	 * @throws IllegalArgumentException
 	 */
-	public <T> DataSet<Tuple2<K, T>> reduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
+	public <T> DataSet<T> reduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
 			EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
@@ -399,8 +401,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	private static final class ApplyGroupReduceFunctionOnAllEdges<K extends Comparable<K> & Serializable, 
-		EV extends Serializable, T> implements GroupReduceFunction<Tuple2<K, Edge<K, EV>>, Tuple2<K, T>>,
-		ResultTypeQueryable<Tuple2<K, T>> {
+		EV extends Serializable, T> implements GroupReduceFunction<Tuple2<K, Edge<K, EV>>, T>,
+		ResultTypeQueryable<T> {
 	
 		private EdgesFunction<K, EV, T> function;
 
@@ -409,20 +411,19 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 
 		public void reduce(final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
-				Collector<Tuple2<K, T>> out) throws Exception {
+				Collector<T> out) throws Exception {
 			out.collect(function.iterateEdges(keysWithEdges));
 		}
 
 		@Override
-		public TypeInformation<Tuple2<K, T>> getProducedType() {
-			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
-					TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 2, null, null));
+		public TypeInformation<T> getProducedType() {
+			return TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 2, null, null);
 		}
 	}
 
 	private static final class ApplyGroupReduceFunction<K extends Comparable<K> & Serializable, 
-		EV extends Serializable, T> implements GroupReduceFunction<Tuple2<K, Edge<K, EV>>, Tuple2<K, T>>,
-		ResultTypeQueryable<Tuple2<K, T>> {
+		EV extends Serializable, T> implements GroupReduceFunction<Tuple2<K, Edge<K, EV>>, T>,
+		ResultTypeQueryable<T> {
 
 		private EdgesFunction<K, EV, T> function;
 
@@ -431,15 +432,14 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 
 		public void reduce(Iterable<Tuple2<K, Edge<K, EV>>> edges,
-				Collector<Tuple2<K, T>> out) throws Exception {
+				Collector<T> out) throws Exception {
 			out.collect(function.iterateEdges(edges));
 			
 		}
 
 		@Override
-		public TypeInformation<Tuple2<K, T>> getProducedType() {
-			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
-					TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 2, null, null));
+		public TypeInformation<T> getProducedType() {
+			return TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 2, null, null);
 		}	
 	}
 
@@ -463,8 +463,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 	private static final class ApplyCoGroupFunction<K extends Comparable<K> & Serializable, 
 		VV extends Serializable, EV extends Serializable, T> 
-		implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, T>>,
-		ResultTypeQueryable<Tuple2<K, T>> {
+		implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, T>,
+		ResultTypeQueryable<T> {
 		
 		private EdgesFunctionWithVertexValue<K, VV, EV, T> function;
 		
@@ -472,20 +472,19 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			this.function = fun;
 		}
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,
-				Iterable<Edge<K, EV>> edges, Collector<Tuple2<K, T>> out) throws Exception {
+				Iterable<Edge<K, EV>> edges, Collector<T> out) throws Exception {
 			out.collect(function.iterateEdges(vertex.iterator().next(), edges));
 		}
 		@Override
-		public TypeInformation<Tuple2<K, T>> getProducedType() {
-			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
-					TypeExtractor.createTypeInfo(EdgesFunctionWithVertexValue.class, function.getClass(), 3, null, null));
+		public TypeInformation<T> getProducedType() {
+			return TypeExtractor.createTypeInfo(EdgesFunctionWithVertexValue.class, function.getClass(), 3, null, null);
 		}
 	}
 
 	private static final class ApplyCoGroupFunctionOnAllEdges<K extends Comparable<K> & Serializable, 
 		VV extends Serializable, EV extends Serializable, T> 
-		implements CoGroupFunction<Vertex<K, VV>, Tuple2<K, Edge<K, EV>>, Tuple2<K, T>>,
-		ResultTypeQueryable<Tuple2<K, T>> {
+		implements CoGroupFunction<Vertex<K, VV>, Tuple2<K, Edge<K, EV>>, T>,
+		ResultTypeQueryable<T> {
 
 	private EdgesFunctionWithVertexValue<K, VV, EV, T> function;
 
@@ -494,7 +493,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	public void coGroup(Iterable<Vertex<K, VV>> vertex, final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges, 
-			Collector<Tuple2<K, T>> out) throws Exception {
+			Collector<T> out) throws Exception {
 
 		final Iterator<Edge<K, EV>> edgesIterator = new Iterator<Edge<K,EV>>() {
 
@@ -526,9 +525,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	@Override
-	public TypeInformation<Tuple2<K, T>> getProducedType() {
-		return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
-				TypeExtractor.createTypeInfo(EdgesFunctionWithVertexValue.class, function.getClass(), 3, null, null));
+	public TypeInformation<T> getProducedType() {
+		return TypeExtractor.createTypeInfo(EdgesFunctionWithVertexValue.class, function.getClass(), 3, null, null);
 	}
 }
 
@@ -993,10 +991,11 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * The function applied on the neighbors has access to the vertex value.
 	 * @param neighborsFunction the function to apply to the neighborhood
 	 * @param direction the edge direction (in-, out-, all-)
-	 * @return a dataset of a Tuple2 with the vertex id and the computed value
+	 * @param <T> the output type
+	 * @return a dataset of a T
 	 * @throws IllegalArgumentException
 	 */
-	public <T> DataSet<Tuple2<K, T>> reduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
+	public <T> DataSet<T> reduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
 			EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
@@ -1036,8 +1035,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 	private static final class ApplyNeighborCoGroupFunction<K extends Comparable<K> & Serializable, 
 		VV extends Serializable, EV extends Serializable, T> 
-		implements CoGroupFunction<Vertex<K, VV>, Tuple2<Edge<K, EV>, Vertex<K, VV>>, Tuple2<K, T>>,
-		ResultTypeQueryable<Tuple2<K, T>> {
+		implements CoGroupFunction<Vertex<K, VV>, Tuple2<Edge<K, EV>, Vertex<K, VV>>, T>,
+		ResultTypeQueryable<T> {
 	
 		private NeighborsFunctionWithVertexValue<K, VV, EV, T> function;
 		
@@ -1045,21 +1044,20 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			this.function = fun;
 		}
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,
-				Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors, Collector<Tuple2<K, T>> out) throws Exception {
+				Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors, Collector<T> out) throws Exception {
 			out.collect(function.iterateNeighbors(vertex.iterator().next(), neighbors));
 		}
 		@Override
-		public TypeInformation<Tuple2<K, T>> getProducedType() {
-			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
-					TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, 
-							function.getClass(), 3, null, null));
+		public TypeInformation<T> getProducedType() {
+			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, 
+							function.getClass(), 3, null, null);
 		}
 	}
 
 	private static final class ApplyCoGroupFunctionOnAllNeighbors<K extends Comparable<K> & Serializable, 
 		VV extends Serializable, EV extends Serializable, T> 
-		implements CoGroupFunction<Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>, Tuple2<K, T>>,
-		ResultTypeQueryable<Tuple2<K, T>> {
+		implements CoGroupFunction<Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>, T>,
+		ResultTypeQueryable<T> {
 
 		private NeighborsFunctionWithVertexValue<K, VV, EV, T> function;
 		
@@ -1068,7 +1066,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex, final Iterable<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> keysWithNeighbors, 
-				Collector<Tuple2<K, T>> out) throws Exception {
+				Collector<T> out) throws Exception {
 		
 			final Iterator<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighborsIterator = new Iterator<Tuple2<Edge<K, EV>, Vertex<K, VV>>>() {
 		
@@ -1102,10 +1100,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			}
 
 		@Override
-		public TypeInformation<Tuple2<K, T>> getProducedType() {
-			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
-					TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, 
-							function.getClass(), 3, null, null));
+		public TypeInformation<T> getProducedType() {
+			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, 
+							function.getClass(), 3, null, null);
 		}
 	}
 }
