@@ -33,7 +33,8 @@ import scala.reflect.ClassTag
 import org.apache.commons.lang.Validate
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
 
-class StreamJoinOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends TemporalOperator[I1, I2, StreamJoinOperator.JoinWindow[I1, I2]](i1, i2) {
+class StreamJoinOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
+TemporalOperator[I1, I2, StreamJoinOperator.JoinWindow[I1, I2]](i1, i2) {
 
   override def createNextWindowOperator() = {
     new StreamJoinOperator.JoinWindow[I1, I2](this)
@@ -61,7 +62,8 @@ object StreamJoinOperator {
      * to define the second key.
      */
     def where(firstField: String, otherFields: String*) = {
-      new JoinPredicate[I1, I2](op, new PojoKeySelector[I1](op.input1.getType(), (firstField +: otherFields): _*))
+      new JoinPredicate[I1, I2](op, new PojoKeySelector[I1](op.input1.getType(),
+        (firstField +: otherFields): _*))
     }
 
     /**
@@ -82,7 +84,8 @@ object StreamJoinOperator {
 
   }
 
-  class JoinPredicate[I1, I2](private[flink] val op: StreamJoinOperator[I1, I2], private[flink] val keys1: KeySelector[I1, _]) {
+  class JoinPredicate[I1, I2](private[flink] val op: StreamJoinOperator[I1, I2],
+                              private[flink] val keys1: KeySelector[I1, _]) {
     private[flink] var keys2: KeySelector[I2, _] = null
 
     /**
@@ -145,30 +148,36 @@ object StreamJoinOperator {
         }
       }
 
-      return op.input1.groupBy(keys1).connect(op.input2.groupBy(keys2)).addGeneralWindowCombine(getJoinWindowFunction(this, (_, _)),
+      return op.input1.groupBy(keys1).connect(op.input2.groupBy(keys2))
+        .addGeneralWindowCombine(getJoinWindowFunction(this, (_, _)),
         returnType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)
     }
   }
 
-  class JoinedStream[I1, I2](jp: JoinPredicate[I1, I2], javaStream: JavaStream[(I1, I2)]) extends DataStream[(I1, I2)](javaStream) {
+  class JoinedStream[I1, I2](jp: JoinPredicate[I1, I2], javaStream: JavaStream[(I1, I2)]) extends
+  DataStream[(I1, I2)](javaStream) {
 
     private val op = jp.op
 
     /**
-     * Sets a wrapper for the joined elements. For each joined pair, the result of the udf call will be emitted.
+     * Sets a wrapper for the joined elements. For each joined pair, the result of the
+     * udf call will be emitted.
      */
     def apply[R: TypeInformation: ClassTag](fun: (I1, I2) => R): DataStream[R] = {
 
       val invokable = new CoWindowInvokable[I1, I2, R](
-        clean(getJoinWindowFunction(jp, fun)), op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)
+        clean(getJoinWindowFunction(jp, fun)), op.windowSize, op.slideInterval, op.timeStamp1,
+        op.timeStamp2)
 
-      javaStream.getExecutionEnvironment().getJobGraphBuilder().setInvokable(javaStream.getId(), invokable)
+      javaStream.getExecutionEnvironment().getJobGraphBuilder().setInvokable(javaStream.getId(),
+        invokable)
 
       new DataStream[R](javaStream.setType(implicitly[TypeInformation[R]]))
     }
   }
 
-  private[flink] def getJoinWindowFunction[I1, I2, R](jp: JoinPredicate[I1, I2], joinFunction: (I1, I2) => R) = {
+  private[flink] def getJoinWindowFunction[I1, I2, R](jp: JoinPredicate[I1, I2],
+                                                      joinFunction: (I1, I2) => R) = {
     Validate.notNull(joinFunction, "Join function must not be null.")
 
     val joinFun = new JoinFunction[I1, I2, R] {

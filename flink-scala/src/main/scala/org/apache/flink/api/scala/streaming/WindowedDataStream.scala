@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -52,7 +52,8 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * This controls how often the user defined function will be triggered on
    * the window.
    */
-  def every(windowingHelper: WindowingHelper[_]*): WindowedDataStream[T] = new WindowedDataStream[T](javaStream.every(windowingHelper: _*))
+  def every(windowingHelper: WindowingHelper[_]*): WindowedDataStream[T] =
+    new WindowedDataStream[T](javaStream.every(windowingHelper: _*))
 
   /**
    * Groups the elements of the WindowedDataStream using the given
@@ -126,12 +127,14 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
 
   /**
    * Applies a reduceGroup transformation on the windowed data stream by reducing
-   * the current window at every trigger. In contrast with the simple binary reduce operator, groupReduce exposes the whole window through the Iterable interface.
+   * the current window at every trigger. In contrast with the simple binary reduce operator,
+   * groupReduce exposes the whole window through the Iterable interface.
    * </br>
    * </br>
    * Whenever possible try to use reduce instead of groupReduce for increased efficiency
    */
-  def reduceGroup[R: ClassTag: TypeInformation](reducer: GroupReduceFunction[T, R]): DataStream[R] = {
+  def reduceGroup[R: ClassTag: TypeInformation](reducer: GroupReduceFunction[T, R]):
+  DataStream[R] = {
     if (reducer == null) {
       throw new NullPointerException("GroupReduce function must not be null.")
     }
@@ -140,12 +143,14 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
 
   /**
    * Applies a reduceGroup transformation on the windowed data stream by reducing
-   * the current window at every trigger. In contrast with the simple binary reduce operator, groupReduce exposes the whole window through the Iterable interface.
+   * the current window at every trigger. In contrast with the simple binary reduce operator,
+   * groupReduce exposes the whole window through the Iterable interface.
    * </br>
    * </br>
    * Whenever possible try to use reduce instead of groupReduce for increased efficiency
    */
-  def reduceGroup[R: ClassTag: TypeInformation](fun: (Iterable[T], Collector[R]) => Unit): DataStream[R] = {
+  def reduceGroup[R: ClassTag: TypeInformation](fun: (Iterable[T], Collector[R]) => Unit):
+  DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("GroupReduce function must not be null.")
     }
@@ -181,16 +186,19 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * the given position. When equality, returns the first.
    *
    */
-  def maxBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MAXBY, position, first)
+  def maxBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MAXBY,
+    position, first)
 
   /**
    * Applies an aggregation that that gives the minimum element of the window by
    * the given position. When equality, returns the first.
    *
    */
-  def minBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MINBY, position, first)
+  def minBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MINBY,
+    position, first)
 
-  def aggregate(aggregationType: AggregationType, position: Int, first: Boolean = true): DataStream[T] = {
+  def aggregate(aggregationType: AggregationType, position: Int, first: Boolean = true):
+  DataStream[T] = {
 
     val jStream = javaStream.asInstanceOf[JavaWStream[Product]]
     val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
@@ -198,7 +206,8 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     val agg = new ScalaStreamingAggregator[Product](jStream.getType().createSerializer(), position)
 
     val reducer = aggregationType match {
-      case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(outType.getTypeAt(position).getTypeClass()));
+      case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(
+        outType.getTypeAt(position).getTypeClass()));
       case _ => new agg.ProductComparableAggregator(aggregationType, first)
     }
 
