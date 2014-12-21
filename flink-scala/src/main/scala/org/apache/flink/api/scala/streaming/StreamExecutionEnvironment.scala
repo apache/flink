@@ -161,8 +161,24 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     Validate.notNull(function, "Function must not be null.")
+    ClosureCleaner.clean(function, true)
     val typeInfo = implicitly[TypeInformation[T]]
     new DataStream[T](javaEnv.addSource(function, typeInfo))
+  }
+  
+   /**
+   * Create a DataStream using a user defined source function for arbitrary
+   * source functionality.
+   *
+   */
+  def addSource[T: ClassTag: TypeInformation](function: Collector[T] => Unit): DataStream[T] = {
+    Validate.notNull(function, "Function must not be null.")
+    val sourceFunction = new SourceFunction[T] {
+      override def invoke(out: Collector[T]) {
+        function(out)
+      }
+    }
+    addSource(sourceFunction)
   }
 
   /**
