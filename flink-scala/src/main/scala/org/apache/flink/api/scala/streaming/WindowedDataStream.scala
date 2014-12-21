@@ -39,6 +39,7 @@ import scala.collection.JavaConversions._
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.function.aggregation.SumFunction
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 
 class WindowedDataStream[T](javaStream: JavaWStream[T]) {
 
@@ -77,8 +78,14 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    *
    */
   def groupBy(firstField: String, otherFields: String*): WindowedDataStream[T] =
-    new WindowedDataStream[T](javaStream.groupBy(firstField +: otherFields.toArray: _*))
-
+    javaStream.getType() match {
+      case ccInfo: CaseClassTypeInfo[T] => new WindowedDataStream[T](javaStream.groupBy(
+          new CaseClassKeySelector[T](ccInfo, firstField +: otherFields.toArray: _*)))
+      case _ =>  new WindowedDataStream[T](javaStream.groupBy(
+          firstField +: otherFields.toArray: _*))    
+    }
+    
+    
   /**
    * Groups the elements of the WindowedDataStream using the given
    * KeySelector function. The window sizes (evictions) and slide sizes

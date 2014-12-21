@@ -15,24 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.streaming
 
-import org.apache.flink.streaming.util.keys.{ FieldsKeySelector => JavaSelector }
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import java.util.ArrayList
+import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.java.tuple.Tuple
 
-class FieldsKeySelector[IN](fields: Int*) extends KeySelector[IN, Seq[Any]] {
+class CaseClassKeySelector[T <: Product](@transient val typeInfo: CaseClassTypeInfo[T],
+  val keyFields: String*) extends KeySelector[T, Seq[Any]] {
 
-  override def getKey(value: IN): Seq[Any] =
+  val numOfKeys: Int = keyFields.length;
 
-    value match {
-      case prod: Product => 
-        for (i <- 0 to fields.length - 1) yield prod.productElement(fields(i))
-      case tuple: Tuple => 
-        for (i <- 0 to fields.length - 1) yield tuple.getField(fields(i))
-      
-      case _ => throw new RuntimeException("Only tuple types are supported")
-    }
+  @transient val fieldDescriptors = new ArrayList[FlatFieldDescriptor]();
+  for (field <- keyFields) {
+    typeInfo.getKey(field, 0, fieldDescriptors);
+  }
 
+  val logicalKeyPositions = new Array[Int](numOfKeys)
+  val orders = new Array[Boolean](numOfKeys)
+
+  for (i <- 0 to numOfKeys - 1) {
+    logicalKeyPositions(i) = fieldDescriptors.get(i).getPosition();
+  }
+
+  def getKey(value: T): Seq[Any] = {
+    for (i <- 0 to numOfKeys - 1) yield value.productElement(logicalKeyPositions(i))
+  }
 }
