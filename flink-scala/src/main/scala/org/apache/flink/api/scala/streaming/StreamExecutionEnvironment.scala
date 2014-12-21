@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -117,7 +117,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    */
   def generateSequence(from: Long, to: Long): DataStream[Long] = {
-    new DataStream[java.lang.Long](javaEnv.generateSequence(from, to)).asInstanceOf[DataStream[Long]]
+    new DataStream[java.lang.Long](javaEnv.generateSequence(from, to)).
+      asInstanceOf[DataStream[Long]]
   }
 
   /**
@@ -147,7 +148,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
       "elements", typeInfo);
 
     javaEnv.getJobGraphBuilder.addStreamVertex(returnStream.getId(),
-      new SourceInvokable[T](new FromElementsFunction[T](scala.collection.JavaConversions.asJavaCollection(data))), null, typeInfo,
+      new SourceInvokable[T](new FromElementsFunction[T](scala.collection.JavaConversions
+        .asJavaCollection(data))), null, typeInfo,
       "source", 1);
     new DataStream(returnStream)
   }
@@ -204,7 +206,8 @@ object StreamExecutionEnvironment {
    * of parallelism of the local environment is the number of hardware contexts (CPU cores/threads).
    */
   def createLocalEnvironment(
-    degreeOfParallelism: Int = Runtime.getRuntime.availableProcessors()): StreamExecutionEnvironment = {
+    degreeOfParallelism: Int =  Runtime.getRuntime.availableProcessors()):
+  StreamExecutionEnvironment = {
     new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(degreeOfParallelism))
   }
 
@@ -223,7 +226,8 @@ object StreamExecutionEnvironment {
    *                 those must be
    *                 provided in the JAR files.
    */
-  def createRemoteEnvironment(host: String, port: Int, jarFiles: String*): StreamExecutionEnvironment = {
+  def createRemoteEnvironment(host: String, port: Int, jarFiles: String*):
+  StreamExecutionEnvironment = {
     new StreamExecutionEnvironment(JavaEnv.createRemoteEnvironment(host, port, jarFiles: _*))
   }
 

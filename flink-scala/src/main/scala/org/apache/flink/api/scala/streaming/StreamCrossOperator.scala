@@ -35,11 +35,13 @@ import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
 import org.apache.flink.streaming.api.function.co.CrossWindowFunction
 import org.apache.flink.api.common.functions.CrossFunction
 
-class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends TemporalOperator[I1, I2, StreamCrossOperator.CrossWindow[I1, I2]](i1, i2) {
+class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
+  TemporalOperator[I1, I2, StreamCrossOperator.CrossWindow[I1, I2]](i1, i2) {
 
   override def createNextWindowOperator(): StreamCrossOperator.CrossWindow[I1, I2] = {
 
-    val crossWindowFunction = StreamCrossOperator.getCrossWindowFunction(this, (l: I1, r: I2) => (l, r))
+    val crossWindowFunction = StreamCrossOperator.getCrossWindowFunction(this,
+      (l: I1, r: I2) => (l, r))
 
     val returnType = new CaseClassTypeInfo[(I1, I2)](
 
@@ -69,24 +71,31 @@ class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extend
 }
 object StreamCrossOperator {
 
-  private[flink] class CrossWindow[I1, I2](op: StreamCrossOperator[I1, I2], javaStream: JavaStream[(I1, I2)]) extends DataStream[(I1, I2)](javaStream) {
+  private[flink] class CrossWindow[I1, I2](op: StreamCrossOperator[I1, I2],
+                                           javaStream: JavaStream[(I1, I2)]) extends
+    DataStream[(I1, I2)](javaStream) {
 
     /**
-     * Sets a wrapper for the crossed elements. For each crossed pair, the result of the udf call will be emitted.
+     * Sets a wrapper for the crossed elements. For each crossed pair, the result of the udf
+     * call will be emitted.
      *
      */
     def apply[R: TypeInformation: ClassTag](fun: (I1, I2) => R): DataStream[R] = {
 
       val invokable = new CoWindowInvokable[I1, I2, R](
-        clean(getCrossWindowFunction(op, fun)), op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)
+        clean(getCrossWindowFunction(op, fun)), op.windowSize, op.slideInterval, op.timeStamp1,
+        op.timeStamp2)
 
-      javaStream.getExecutionEnvironment().getJobGraphBuilder().setInvokable(javaStream.getId(), invokable)
+      javaStream.getExecutionEnvironment().getJobGraphBuilder().setInvokable(javaStream.getId(),
+        invokable)
 
       new DataStream[R](javaStream.setType(implicitly[TypeInformation[R]]))
     }
   }
 
-  private[flink] def getCrossWindowFunction[I1, I2, R](op: StreamCrossOperator[I1, I2], crossFunction: (I1, I2) => R): CrossWindowFunction[I1, I2, R] = {
+  private[flink] def getCrossWindowFunction[I1, I2, R](op: StreamCrossOperator[I1, I2],
+                                                       crossFunction: (I1, I2) => R):
+  CrossWindowFunction[I1, I2, R] = {
     Validate.notNull(crossFunction, "Join function must not be null.")
 
     val crossFun = new CrossFunction[I1, I2, R] {
