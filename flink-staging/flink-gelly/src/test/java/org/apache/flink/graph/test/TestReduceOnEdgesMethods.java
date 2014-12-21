@@ -15,7 +15,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class TestNeighborMethods extends JavaProgramTestBase {
+public class TestReduceOnEdgesMethods extends JavaProgramTestBase {
 
 	private static int NUM_PROGRAMS = 6;
 	
@@ -23,7 +23,7 @@ public class TestNeighborMethods extends JavaProgramTestBase {
 	private String resultPath;
 	private String expectedResult;
 	
-	public TestNeighborMethods(Configuration config) {
+	public TestReduceOnEdgesMethods(Configuration config) {
 		super(config);
 	}
 	

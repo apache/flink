@@ -41,6 +41,7 @@ import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -448,6 +449,15 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple2<K, Edge<K, EV>>> out) {
 			out.collect(new Tuple2<K, Edge<K, EV>>(edge.getSource(), edge));
 			out.collect(new Tuple2<K, Edge<K, EV>>(edge.getTarget(), edge));
+		}
+	}
+
+	private static final class EmitOneEdgeWithNeighborPerNode<K extends Comparable<K> & Serializable, 
+		VV extends Serializable, EV extends Serializable> implements FlatMapFunction<
+		Edge<K, EV>, Tuple3<K, K, Edge<K, EV>>> {
+		public void flatMap(Edge<K, EV> edge, Collector<Tuple3<K, K, Edge<K, EV>>> out) {
+			out.collect(new Tuple3<K, K, Edge<K, EV>>(edge.getSource(), edge.getTarget(), edge));
+			out.collect(new Tuple3<K, K, Edge<K, EV>>(edge.getTarget(), edge.getSource(), edge));
 		}
 	}
 
@@ -978,4 +988,124 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return algorithm.run(this);
 	}
 
+	/**
+	 * Compute an aggregate over the neighbors (edges and vertices) of each vertex.
+	 * The function applied on the neighbors has access to the vertex value.
+	 * @param neighborsFunction the function to apply to the neighborhood
+	 * @param direction the edge direction (in-, out-, all-)
+	 * @return a dataset of a Tuple2 with the vertex id and the computed value
+	 * @throws IllegalArgumentException
+	 */
+	public <T> DataSet<Tuple2<K, T>> reduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
+			EdgeDirection direction) throws IllegalArgumentException {
+		switch (direction) {
+		case IN:
+			// create <edge-sourceVertex> pairs
+			DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithSources = edges.join(this.vertices)
+				.where(0).equalTo(0);
+			return vertices.coGroup(edgesWithSources).where(0).equalTo("f0.f1").with(
+					new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction));
+		case OUT:
+			// create <edge-targetVertex> pairs
+			DataSet<Tuple2<Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges.join(this.vertices)
+				.where(1).equalTo(0);
+			return vertices.coGroup(edgesWithTargets).where(0).equalTo("f0.f0").with(
+					new ApplyNeighborCoGroupFunction<K, VV, EV, T>(neighborsFunction));
+		case ALL:
+			// create <edge-sourceOrTargetVertex> pairs
+			DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges.flatMap(
+					new EmitOneEdgeWithNeighborPerNode<K, VV, EV>()).join(this.vertices)
+					.where(1).equalTo(0).with(new ProjectEdgeWithNeighbor<K, VV, EV>());
+
+			return vertices.coGroup(edgesWithNeighbors).where(0).equalTo(0)
+					.with(new ApplyCoGroupFunctionOnAllNeighbors<K, VV, EV, T>(neighborsFunction));
+		default:
+			throw new IllegalArgumentException("Illegal edge direction");
+		}
+	}
+
+	private static final class ProjectEdgeWithNeighbor<K extends Comparable<K> & Serializable, 
+		VV extends Serializable, EV extends Serializable> implements 
+		FlatJoinFunction<Tuple3<K, K, Edge<K, EV>>, Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> {
+		public void join(Tuple3<K, K, Edge<K, EV>> keysWithEdge, Vertex<K, VV> neighbor,
+				Collector<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> out) {
+			out.collect(new Tuple3<K, Edge<K, EV>, Vertex<K, VV>>(keysWithEdge.f0, 
+					keysWithEdge.f2, neighbor));
+		}
+	}
+
+	private static final class ApplyNeighborCoGroupFunction<K extends Comparable<K> & Serializable, 
+		VV extends Serializable, EV extends Serializable, T> 
+		implements CoGroupFunction<Vertex<K, VV>, Tuple2<Edge<K, EV>, Vertex<K, VV>>, Tuple2<K, T>>,
+		ResultTypeQueryable<Tuple2<K, T>> {
+	
+		private NeighborsFunctionWithVertexValue<K, VV, EV, T> function;
+		
+		public ApplyNeighborCoGroupFunction (NeighborsFunctionWithVertexValue<K, VV, EV, T> fun) {
+			this.function = fun;
+		}
+		public void coGroup(Iterable<Vertex<K, VV>> vertex,
+				Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors, Collector<Tuple2<K, T>> out) throws Exception {
+			out.collect(function.iterateNeighbors(vertex.iterator().next(), neighbors));
+		}
+		@Override
+		public TypeInformation<Tuple2<K, T>> getProducedType() {
+			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
+					TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, 
+							function.getClass(), 3, null, null));
+		}
+	}
+
+	private static final class ApplyCoGroupFunctionOnAllNeighbors<K extends Comparable<K> & Serializable, 
+		VV extends Serializable, EV extends Serializable, T> 
+		implements CoGroupFunction<Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>, Tuple2<K, T>>,
+		ResultTypeQueryable<Tuple2<K, T>> {
+
+		private NeighborsFunctionWithVertexValue<K, VV, EV, T> function;
+		
+		public ApplyCoGroupFunctionOnAllNeighbors (NeighborsFunctionWithVertexValue<K, VV, EV, T> fun) {
+			this.function = fun;
+		}
+
+		public void coGroup(Iterable<Vertex<K, VV>> vertex, final Iterable<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> keysWithNeighbors, 
+				Collector<Tuple2<K, T>> out) throws Exception {
+		
+			final Iterator<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighborsIterator = new Iterator<Tuple2<Edge<K, EV>, Vertex<K, VV>>>() {
+		
+				final Iterator<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> keysWithEdgesIterator = 
+						keysWithNeighbors.iterator();
+		
+				@Override
+				public boolean hasNext() {
+					return keysWithEdgesIterator.hasNext();
+				}
+		
+				@Override
+				public Tuple2<Edge<K, EV>, Vertex<K, VV>> next() {
+					Tuple3<K, Edge<K, EV>, Vertex<K, VV>> next = keysWithEdgesIterator.next(); 
+					return new Tuple2<Edge<K, EV>, Vertex<K, VV>>(next.f1, next.f2);
+				}
+		
+				@Override
+				public void remove() {
+					keysWithEdgesIterator.remove();
+				}			
+			};
+			
+			Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighborsIterable = new Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>>() {
+				public Iterator<Tuple2<Edge<K, EV>, Vertex<K, VV>>> iterator() {
+					return neighborsIterator;
+				}
+			};
+		
+			out.collect(function.iterateNeighbors(vertex.iterator().next(), neighborsIterable));
+			}
+
+		@Override
+		public TypeInformation<Tuple2<K, T>> getProducedType() {
+			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
+					TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, 
+							function.getClass(), 3, null, null));
+		}
+	}
 }
