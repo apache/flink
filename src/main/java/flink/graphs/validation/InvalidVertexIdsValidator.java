@@ -4,7 +4,6 @@ import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 
@@ -31,7 +30,7 @@ public class InvalidVertexIdsValidator<K extends Comparable<K> & Serializable, V
         DataSet<K> invalidIds = graph.getVertices().coGroup(edgeIds).where(0).equalTo(0)
                 .with(new GroupInvalidIds<K, VV>()).first(1);
 
-        return GraphUtils.count(invalidIds.map(new KToTupleMap<K>()), ExecutionEnvironment.getExecutionEnvironment())
+        return GraphUtils.count(invalidIds.map(new KToTupleMap<K>()), graph.getContext())
                 .map(new InvalidIdsMap());
     }
 

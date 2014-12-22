@@ -92,6 +92,10 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
 	}
 
+	public ExecutionEnvironment getContext() {
+		return this.context;
+	}
+
 	/**
 	 * Function that checks whether a graph's ids are valid
 	 * @return
