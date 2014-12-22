@@ -69,6 +69,10 @@ public class SetupInfoServlet extends HttpServlet {
 		globalC = GlobalConfiguration.getConfiguration();
 		this.jobmanager = jm;
 		this.timeout = timeout;
+
+		if(isJVMVersion6()) {
+			LOG.warn("System JVM version is Java 6; Please upgrade to Java 7 or higher as support for Java 6 will soon be deprecated");
+		}
 	}
 	
 	@Override
@@ -154,4 +158,15 @@ public class SetupInfoServlet extends HttpServlet {
 			return o1.getInstanceConnectionInfo().compareTo(o2.getInstanceConnectionInfo());
 		}
 	};
+
+	/**
+	 * Checks the Java version of the system and returns true if the version is above 1.6
+	 * @return The version of the JVM
+	 */
+	private boolean isJVMVersion6() {
+		String version = System.getProperty("java.version");
+		int indexOfPeriod = version.indexOf('.');
+		indexOfPeriod = version.indexOf('.', indexOfPeriod + 1);
+		return Double.parseDouble(version.substring(0, indexOfPeriod)) < 1.7;
+	}
 }
