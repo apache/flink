@@ -55,42 +55,46 @@ public class SetupInfoServlet extends HttpServlet {
 
 	/** Serial UID for serialization interoperability. */
 	private static final long serialVersionUID = 3704963598772630435L;
-	
+
 	/** The log for this class. */
 	private static final Logger LOG = LoggerFactory.getLogger(SetupInfoServlet.class);
-	
-	
+
+
 	final private Configuration globalC;
 	final private ActorRef jobmanager;
 	final private FiniteDuration timeout;
-	
-	
+
+
 	public SetupInfoServlet(ActorRef jm, FiniteDuration timeout) {
 		globalC = GlobalConfiguration.getConfiguration();
 		this.jobmanager = jm;
 		this.timeout = timeout;
+
+        if(isJVMVersion6()){
+           LOG.warn("System JVM version is Java 6; Please upgrade to Java 7 or higher as support for Java 6 will soon be deprecated");
+        }
 	}
-	
+
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
-		
+
 		resp.setStatus(HttpServletResponse.SC_OK);
 		resp.setContentType("application/json");
-		
+
 		if ("globalC".equals(req.getParameter("get"))) {
 			writeGlobalConfiguration(resp);
 		} else if ("taskmanagers".equals(req.getParameter("get"))) {
 			writeTaskmanagers(resp);
 		}
 	}
-	
+
 	private void writeGlobalConfiguration(HttpServletResponse resp) throws IOException {
-		
+
 		Set<String> keys = globalC.keySet();
 		List<String> list = new ArrayList<String>(keys);
 		Collections.sort(list);
-		
+
 		JSONObject obj = new JSONObject();
 		for (String k : list) {
 			try {
@@ -99,25 +103,25 @@ public class SetupInfoServlet extends HttpServlet {
 				LOG.warn("Json object creation failed", e);
 			}
 		}
-		
+
 		PrintWriter w = resp.getWriter();
 		w.write(obj.toString());
 	}
-	
+
 	private void writeTaskmanagers(HttpServletResponse resp) throws IOException {
 
 		List<Instance> instances = new ArrayList<Instance>(AkkaUtils.<RegisteredTaskManagers>ask
 				(jobmanager, RequestRegisteredTaskManagers$.MODULE$, timeout).asJavaCollection());
 
 		Collections.sort(instances, INSTANCE_SORTER);
-				
+
 		JSONObject obj = new JSONObject();
 		JSONArray array = new JSONArray();
 		for (Instance instance : instances) {
 			JSONObject objInner = new JSONObject();
-				
+
 			long time = new Date().getTime() - instance.getLastHeartBeat();
-	
+
 			try {
 				objInner.put("inetAdress", instance.getInstanceConnectionInfo().getInetAdress());
 				objInner.put("ipcPort", instance.getTaskManager().path().address().hostPort());
@@ -134,24 +138,35 @@ public class SetupInfoServlet extends HttpServlet {
 			catch (JSONException e) {
 				LOG.warn("Json object creation failed", e);
 			}
-			
+
 		}
 		try {
 			obj.put("taskmanagers", array);
 		} catch (JSONException e) {
 			LOG.warn("Json object creation failed", e);
 		}
-		
+
 		PrintWriter w = resp.getWriter();
 		w.write(obj.toString());
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	private static final Comparator<Instance> INSTANCE_SORTER = new Comparator<Instance>() {
 		@Override
 		public int compare(Instance o1, Instance o2) {
 			return o1.getInstanceConnectionInfo().compareTo(o2.getInstanceConnectionInfo());
 		}
 	};
+
+	/**
+	 * Checks the Java version of the system and returns true if the version is above 1.6
+	 * @return The version of the JVM
+	 */
+	private boolean isJVMVersion6(){
+		String version = System.getProperty("java.version");
+		int pos = version.indexOf('.');
+		pos = version.indexOf('.', pos + 1);
+        return Double.parseDouble(version.substring(0, pos)) < 1.7;
+	}
 }
