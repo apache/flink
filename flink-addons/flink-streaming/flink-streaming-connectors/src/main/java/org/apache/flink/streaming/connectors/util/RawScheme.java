@@ -15,13 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.function.source;
+package org.apache.flink.streaming.connectors.util;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-
-public abstract class RichSourceFunction<OUT> extends AbstractRichFunction implements
-		SourceFunction<OUT> {
+public class RawScheme implements DeserializationScheme<byte[]>,
+		SerializationScheme<byte[], byte[]> {
 
 	private static final long serialVersionUID = 1L;
 
+	@Override
+	public byte[] deserialize(byte[] message) {
+		return message;
+	}
+
+	@Override
+	public boolean isEndOfStream(byte[] nextElement) {
+		return false;
+	}
+
+	@Override
+	public byte[] serialize(byte[] element) {
+		return element;
+	}
 }

@@ -19,8 +19,10 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.function.source.RichSourceFunction;
+import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.connectors.util.DeserializationScheme;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,15 +32,13 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
-public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
+public class RMQSource<OUT> extends RichParallelSourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSource.class);
 
 	private final String QUEUE_NAME;
 	private final String HOST_NAME;
-	private boolean closeWithoutSend = false;
-	private boolean sendAndClose = false;
 
 	private transient ConnectionFactory factory;
 	private transient Connection connection;
@@ -46,9 +46,11 @@ public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
 	private transient QueueingConsumer consumer;
 	private transient QueueingConsumer.Delivery delivery;
 
-	OUT outTuple;
+	private DeserializationScheme<OUT> scheme;
 
-	public RMQSource(String HOST_NAME, String QUEUE_NAME) {
+	OUT out;
+
+	public RMQSource(String HOST_NAME, String QUEUE_NAME, DeserializationScheme<OUT> scheme) {
 		this.HOST_NAME = HOST_NAME;
 		this.QUEUE_NAME = QUEUE_NAME;
 	}
@@ -79,7 +81,6 @@ public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
 	 */
 	@Override
 	public void invoke(Collector<OUT> collector) throws Exception {
-		initializeConnection();
 
 		while (true) {
 
@@ -91,17 +92,23 @@ public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
 				}
 			}
 
-			outTuple = deserialize(delivery.getBody());
-			if (closeWithoutSend) {
+			out = scheme.deserialize(delivery.getBody());
+			if (scheme.isEndOfStream(out)) {
 				break;
 			} else {
-				collector.collect(outTuple);
-			}
-			if (sendAndClose) {
-				break;
+				collector.collect(out);
 			}
 		}
 
+	}
+
+	@Override
+	public void open(Configuration config) {
+		initializeConnection();
+	}
+
+	@Override
+	public void close() {
 		try {
 			connection.close();
 		} catch (IOException e) {
@@ -109,29 +116,6 @@ public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
 					+ " at " + HOST_NAME, e);
 		}
 
-	}
-
-	/**
-	 * Deserializes the incoming data.
-	 * 
-	 * @param message
-	 *            The incoming message in a byte array
-	 * @return The deserialized message in the required format.
-	 */
-	public abstract OUT deserialize(byte[] message);
-
-	/**
-	 * Closes the connection immediately and no further data will be sent.
-	 */
-	public void closeWithoutSend() {
-		closeWithoutSend = true;
-	}
-
-	/**
-	 * Closes the connection only when the next message is sent after this call.
-	 */
-	public void sendAndClose() {
-		sendAndClose = true;
 	}
 
 }

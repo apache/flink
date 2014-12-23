@@ -40,6 +40,8 @@ import org.apache.flink.streaming.api.function.source.FileSourceFunction;
 import org.apache.flink.streaming.api.function.source.FileStreamFunction;
 import org.apache.flink.streaming.api.function.source.FromElementsFunction;
 import org.apache.flink.streaming.api.function.source.GenSequenceFunction;
+import org.apache.flink.streaming.api.function.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
@@ -222,7 +224,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> readTextStream(String filePath) {
 		checkIfFileExists(filePath);
-		return addSource(new FileStreamFunction(filePath));
+		return addSource(new FileStreamFunction(filePath), null, "textStream");
 	}
 
 	private static void checkIfFileExists(String filePath) {
@@ -260,14 +262,10 @@ public abstract class StreamExecutionEnvironment {
 		}
 
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getForObject(data[0]);
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements",
-				outTypeInfo);
 
 		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
-				null, outTypeInfo, "source", 1);
 
-		return returnStream;
+		return addSource(function, outTypeInfo, "elements");
 	}
 
 	/**
@@ -292,13 +290,9 @@ public abstract class StreamExecutionEnvironment {
 		}
 
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getForObject(data.iterator().next());
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "collection",
-				outTypeInfo);
+		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
-		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(
-				new FromElementsFunction<OUT>(data)), null, outTypeInfo, "source", 1);
-
-		return returnStream;
+		return addSource(function, outTypeInfo, "collection");
 	}
 
 	/**
@@ -316,7 +310,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A DataStream, containing the strings received from socket.
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
-		return addSource(new SocketTextStreamFunction(hostname, port, delimiter));
+		return addSource(new SocketTextStreamFunction(hostname, port, delimiter), null,
+				"socketStrean");
 	}
 
 	/**
@@ -348,20 +343,26 @@ public abstract class StreamExecutionEnvironment {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return addSource(new GenSequenceFunction(from, to));
+		return addSource(new GenSequenceFunction(from, to), null, "sequence");
 	}
 
 	private DataStreamSource<String> addFileSource(InputFormat<String, ?> inputFormat,
 			TypeInformation<String> typeInfo) {
 		FileSourceFunction function = new FileSourceFunction(inputFormat, typeInfo);
-		DataStreamSource<String> returnStream = addSource(function);
+		DataStreamSource<String> returnStream = addSource(function, null, "fileSource");
 		jobGraphBuilder.setInputFormat(returnStream.getId(), inputFormat);
 		return returnStream;
 	}
 
 	/**
 	 * Create a DataStream using a user defined source function for arbitrary
-	 * source functionality.
+	 * source functionality.</p> By default sources have a parallelism of 1. To
+	 * enable parallel execution, the user defined source should implement
+	 * {@link ParallelSourceFunction} or extend
+	 * {@link RichParallelSourceFunction}. In these cases the resulting source
+	 * will have the parallelism of the environment. To change this afterwards
+	 * call {@link DataStreamSource#setParallelism(int)}
+	 * 
 	 * 
 	 * @param function
 	 *            the user defined function
@@ -370,15 +371,31 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
-		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class,
-				function.getClass(), 0, null, null);
+		return addSource(function, null);
+	}
 
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source", outTypeInfo);
-
-		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
-				null, outTypeInfo, "source", 1);
-
-		return returnStream;
+	/**
+	 * Ads a data source with a custom type information thus opening a
+	 * {@link DataStream}. Only in very special cases does the user need to
+	 * support type information. Otherwise use
+	 * {@link #addSource(SourceFunction)} </p> By default sources have a
+	 * parallelism of 1. To enable parallel execution, the user defined source
+	 * should implement {@link ParallelSourceFunction} or extend
+	 * {@link RichParallelSourceFunction}. In these cases the resulting source
+	 * will have the parallelism of the environment. To change this afterwards
+	 * call {@link DataStreamSource#setParallelism(int)}
+	 * 
+	 * @param function
+	 *            the user defined function
+	 * @param outTypeInfo
+	 *            the user defined type information for the stream
+	 * @param <OUT>
+	 *            type of the returned stream
+	 * @return the data stream constructed
+	 */
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
+			TypeInformation<OUT> outTypeInfo) {
+		return addSource(function, outTypeInfo, function.getClass().getName());
 	}
 
 	/**
@@ -391,17 +408,28 @@ public abstract class StreamExecutionEnvironment {
 	 *            the user defined function
 	 * @param outTypeInfo
 	 *            the user defined type information for the stream
+	 * @param sourceName
+	 *            Name of the data source
 	 * @param <OUT>
 	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
-	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
-			TypeInformation<OUT> outTypeInfo) {
+	private <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
+			TypeInformation<OUT> outTypeInfo, String sourceName) {
 
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source", outTypeInfo);
+		if (outTypeInfo == null) {
+			outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class, function.getClass(),
+					0, null, null);
+		}
+
+		boolean isParallel = function instanceof ParallelSourceFunction;
+		int dop = isParallel ? getDegreeOfParallelism() : 1;
+
+		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, sourceName,
+				outTypeInfo, isParallel);
 
 		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
-				null, outTypeInfo, "source", 1);
+				null, outTypeInfo, sourceName, dop);
 
 		return returnStream;
 	}

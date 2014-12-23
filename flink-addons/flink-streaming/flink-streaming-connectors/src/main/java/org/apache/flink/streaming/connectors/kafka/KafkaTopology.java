@@ -21,13 +21,14 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.connectors.util.SimpleStringScheme;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class KafkaTopology {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaTopology.class);
-	
+
 	public static final class MySource implements SourceFunction<String> {
 		private static final long serialVersionUID = 1L;
 
@@ -41,41 +42,6 @@ public class KafkaTopology {
 		}
 	}
 
-	public static final class MyKafkaSource extends KafkaSource<String> {
-		private static final long serialVersionUID = 1L;
-
-		public MyKafkaSource(String zkQuorum, String groupId, String topicId, int numThreads) {
-			super(zkQuorum, groupId, topicId, numThreads);
-		}
-
-		@Override
-		public String deserialize(byte[] msg) {
-			String s = new String(msg);
-			if (s.equals("q")) {
-				closeWithoutSend();
-			}
-			return new String(s);
-		}
-
-	}
-
-	public static final class MyKafkaSink extends KafkaSink<String, String> {
-		private static final long serialVersionUID = 1L;
-
-		public MyKafkaSink(String topicId, String brokerAddr) {
-			super(topicId, brokerAddr);
-		}
-
-		@Override
-		public String serialize(String tuple) {
-			if (tuple.equals("q")) {
-				sendAndClose();
-			}
-			return tuple;
-		}
-
-	}
-	
 	public static final class MyKafkaPrintSink implements SinkFunction<String> {
 		private static final long serialVersionUID = 1L;
 
@@ -87,21 +53,19 @@ public class KafkaTopology {
 		}
 	}
 
-	private static final int SOURCE_PARALELISM = 1;
-
 	public static void main(String[] args) throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		@SuppressWarnings("unused")
 		DataStream<String> stream1 = env
-			.addSource(new MyKafkaSource("localhost:2181", "group", "test", 1)).setParallelism(1)
-			.addSink(new MyKafkaPrintSink());
+				.addSource(
+						new KafkaSource<String>("localhost:2181", "group", "test",
+								new SimpleStringScheme())).addSink(new MyKafkaPrintSink());
 
 		@SuppressWarnings("unused")
-		DataStream<String> stream2 = env
-			.addSource(new MySource())
-			.addSink(new MyKafkaSink("test", "localhost:9092"));
+		DataStream<String> stream2 = env.addSource(new MySource()).addSink(
+				new KafkaSink<String, String>("test", "localhost:9092", new SimpleStringScheme()));
 
 		env.execute();
 	}

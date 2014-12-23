@@ -145,14 +145,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     data: Seq[T]): DataStream[T] = {
     Validate.notNull(data, "Data must not be null.")
     val typeInfo = implicitly[TypeInformation[T]]
-    val returnStream = new DataStreamSource[T](javaEnv,
-      "elements", typeInfo);
 
-    javaEnv.getJobGraphBuilder.addStreamVertex(returnStream.getId(),
-      new SourceInvokable[T](new FromElementsFunction[T](scala.collection.JavaConversions
-        .asJavaCollection(data))), null, typeInfo,
-      "source", 1);
-    returnStream
+    val sourceFunction = new FromElementsFunction[T](scala.collection.JavaConversions
+        .asJavaCollection(data))
+        
+    javaEnv.addSource(sourceFunction, typeInfo)
   }
 
   /**

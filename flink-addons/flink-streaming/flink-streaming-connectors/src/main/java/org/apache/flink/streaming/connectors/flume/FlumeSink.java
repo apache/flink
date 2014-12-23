@@ -17,18 +17,19 @@
 
 package org.apache.flink.streaming.connectors.flume;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.util.SerializationScheme;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.FlumeException;
 import org.apache.flume.api.RpcClient;
 import org.apache.flume.api.RpcClientFactory;
 import org.apache.flume.event.EventBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public abstract class FlumeSink<IN> implements SinkFunction<IN> {
+public class FlumeSink<IN> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlumeSink.class);
@@ -37,17 +38,17 @@ public abstract class FlumeSink<IN> implements SinkFunction<IN> {
 	boolean initDone = false;
 	String host;
 	int port;
-	private boolean sendAndClose = false;
-	private boolean closeWithoutSend = false;
+	SerializationScheme<IN, byte[]> scheme;
 
-	public FlumeSink(String host, int port) {
+	public FlumeSink(String host, int port, SerializationScheme<IN, byte[]> scheme) {
 		this.host = host;
 		this.port = port;
+		this.scheme = scheme;
 	}
 
 	/**
-	 * Receives tuples from the Apache Flink {@link DataStream} and forwards them to
-	 * Apache Flume.
+	 * Receives tuples from the Apache Flink {@link DataStream} and forwards
+	 * them to Apache Flume.
 	 * 
 	 * @param value
 	 *            The tuple arriving from the datastream
@@ -60,24 +61,10 @@ public abstract class FlumeSink<IN> implements SinkFunction<IN> {
 			client.init(host, port);
 		}
 
-		byte[] data = serialize(value);
-		if (!closeWithoutSend) {
-			client.sendDataToFlume(data);
-		}
-		if (sendAndClose) {
-			client.close();
-		}
+		byte[] data = scheme.serialize(value);
+		client.sendDataToFlume(data);
 
 	}
-
-	/**
-	 * Serializes tuples into byte arrays.
-	 * 
-	 * @param value
-	 *            The tuple used for the serialization
-	 * @return The serialized byte array.
-	 */
-	public abstract byte[] serialize(IN value);
 
 	private class FlinkRpcClientFacade {
 		private RpcClient client;
@@ -99,7 +86,8 @@ public abstract class FlumeSink<IN> implements SinkFunction<IN> {
 			int initCounter = 0;
 			while (true) {
 				if (initCounter >= 90) {
-					throw new RuntimeException("Cannot establish connection with" + port + " at " + host);
+					throw new RuntimeException("Cannot establish connection with" + port + " at "
+							+ host);
 				}
 				try {
 					this.client = RpcClientFactory.getDefaultInstance(hostname, port);
@@ -142,28 +130,10 @@ public abstract class FlumeSink<IN> implements SinkFunction<IN> {
 			}
 		}
 
-		/**
-		 * Closes the RpcClient.
-		 */
-		public void close() {
-			client.close();
-		}
-
 	}
 
-	/**
-	 * Closes the connection only when the next message is sent after this call.
-	 */
-	public void sendAndClose() {
-		sendAndClose = true;
+	@Override
+	public void close() {
+		client.client.close();
 	}
-
-	/**
-	 * Closes the connection immediately and no further data will be sent.
-	 */
-	public void closeWithoutSend() {
-		client.close();
-		closeWithoutSend = true;
-	}
-
 }
