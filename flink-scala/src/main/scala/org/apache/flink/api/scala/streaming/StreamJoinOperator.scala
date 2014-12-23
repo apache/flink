@@ -28,10 +28,11 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.datastream.TemporalOperator
 import org.apache.flink.streaming.api.function.co.JoinWindowFunction
-import org.apache.flink.streaming.util.keys.PojoKeySelector
 import scala.reflect.ClassTag
 import org.apache.commons.lang.Validate
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
+import org.apache.flink.streaming.util.keys.KeySelectorUtil
+import org.apache.flink.api.java.operators.Keys
 
 class StreamJoinOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
 TemporalOperator[I1, I2, StreamJoinOperator.JoinWindow[I1, I2]](i1, i2) {
@@ -43,8 +44,10 @@ TemporalOperator[I1, I2, StreamJoinOperator.JoinWindow[I1, I2]](i1, i2) {
 
 object StreamJoinOperator {
 
-  class JoinWindow[I1, I2](op: StreamJoinOperator[I1, I2]) {
+  class JoinWindow[I1, I2](private[flink] op: StreamJoinOperator[I1, I2]) {
 
+    private[flink] val type1 = op.input1.getType();
+    
     /**
      * Continues a temporal Join transformation by defining
      * the fields in the first stream to be used as keys for the join.
@@ -52,7 +55,8 @@ object StreamJoinOperator {
      * to define the second key.
      */
     def where(fields: Int*) = {
-      new JoinPredicate[I1, I2](op, new FieldsKeySelector[I1](fields: _*))
+      new JoinPredicate[I1, I2](op, KeySelectorUtil.getSelectorForKeys(
+          new Keys.ExpressionKeys(fields.toArray,type1),type1))
     }
 
     /**
@@ -62,12 +66,8 @@ object StreamJoinOperator {
      * to define the second key.
      */
     def where(firstField: String, otherFields: String*) = 
-      op.input1.getType() match {
-      case ccInfo: CaseClassTypeInfo[I1] => new JoinPredicate[I1, I2](op,
-          new CaseClassKeySelector[I1](ccInfo, firstField +: otherFields.toArray: _*))
-      case _ =>  new JoinPredicate[I1, I2](op, new PojoKeySelector[I1](
-          op.input1.getType(), (firstField +: otherFields): _*))  
-    }
+      new JoinPredicate[I1, I2](op, KeySelectorUtil.getSelectorForKeys(
+          new Keys.ExpressionKeys(firstField +: otherFields.toArray,type1),type1))  
 
     /**
      * Continues a temporal Join transformation by defining
@@ -90,6 +90,7 @@ object StreamJoinOperator {
   class JoinPredicate[I1, I2](private[flink] val op: StreamJoinOperator[I1, I2],
                               private[flink] val keys1: KeySelector[I1, _]) {
     private[flink] var keys2: KeySelector[I2, _] = null
+    private[flink] val type2 = op.input2.getType();
 
     /**
      * Creates a temporal join transformation by defining the second join key.
@@ -98,7 +99,8 @@ object StreamJoinOperator {
      * To define a custom wrapping, use JoinedStream.apply(...)
      */
     def equalTo(fields: Int*): JoinedStream[I1, I2] = {
-      finish(new FieldsKeySelector[I2](fields: _*))
+      finish(KeySelectorUtil.getSelectorForKeys(
+          new Keys.ExpressionKeys(fields.toArray,type2),type2))
     }
 
     /**
@@ -108,12 +110,8 @@ object StreamJoinOperator {
      * To define a custom wrapping, use JoinedStream.apply(...)
      */
     def equalTo(firstField: String, otherFields: String*): JoinedStream[I1, I2] = 
-      op.input2.getType() match {
-      case ccInfo: CaseClassTypeInfo[I2] => finish(
-          new CaseClassKeySelector[I2](ccInfo, firstField +: otherFields.toArray: _*))
-      case _ => finish(new PojoKeySelector[I2](op.input2.getType(), 
-          (firstField +: otherFields): _*))
-    }    
+     finish(KeySelectorUtil.getSelectorForKeys(
+          new Keys.ExpressionKeys(firstField +: otherFields.toArray,type2),type2))
 
     /**
      * Creates a temporal join transformation by defining the second join key.

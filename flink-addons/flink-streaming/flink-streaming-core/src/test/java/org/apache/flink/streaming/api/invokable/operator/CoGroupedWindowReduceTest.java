@@ -25,15 +25,35 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedWindowReduceInvokable;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.MockCoContext;
-import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
 public class CoGroupedWindowReduceTest {
+
+	KeySelector<Tuple2<String, Integer>, ?> keySelector0 = new KeySelector<Tuple2<String, Integer>, String>() {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String getKey(Tuple2<String, Integer> value) throws Exception {
+			return value.f0;
+		}
+	};
+
+	KeySelector<Tuple2<String, String>, ?> keySelector1 = new KeySelector<Tuple2<String, String>, String>() {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String getKey(Tuple2<String, String> value) throws Exception {
+			return value.f0;
+		}
+	};
 
 	private static class MyCoReduceFunction implements
 			CoReduceFunction<Tuple2<String, Integer>, Tuple2<String, String>, String> {
@@ -85,7 +105,6 @@ public class CoGroupedWindowReduceTest {
 		}
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void coGroupedWindowReduceTest1() {
 
@@ -125,9 +144,9 @@ public class CoGroupedWindowReduceTest {
 		expected.add("i");
 
 		CoGroupedWindowReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String> invokable = new CoGroupedWindowReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String>(
-				new MyCoReduceFunction(), 4L, 3L, 4L, 3L, new TupleKeySelector(0),
-				new TupleKeySelector( 0), new MyTimeStamp<Tuple2<String, Integer>>(
-						timestamps1), new MyTimeStamp<Tuple2<String, String>>(timestamps2));
+				new MyCoReduceFunction(), 4L, 3L, 4L, 3L, keySelector0, keySelector1,
+				new MyTimeStamp<Tuple2<String, Integer>>(timestamps1),
+				new MyTimeStamp<Tuple2<String, String>>(timestamps2));
 
 		List<String> result = MockCoContext.createAndExecute(invokable, inputs1, inputs2);
 
@@ -136,7 +155,6 @@ public class CoGroupedWindowReduceTest {
 		assertEquals(expected, result);
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void coGroupedWindowReduceTest2() {
 
@@ -178,9 +196,9 @@ public class CoGroupedWindowReduceTest {
 		expected.add("fh");
 
 		CoGroupedWindowReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String> invokable = new CoGroupedWindowReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String>(
-				new MyCoReduceFunction(), 4L, 3L, 2L, 2L, new TupleKeySelector( 0),
-				new TupleKeySelector( 0), new MyTimeStamp<Tuple2<String, Integer>>(
-						timestamps1), new MyTimeStamp<Tuple2<String, String>>(timestamps2));
+				new MyCoReduceFunction(), 4L, 3L, 2L, 2L, keySelector0, keySelector1,
+				new MyTimeStamp<Tuple2<String, Integer>>(timestamps1),
+				new MyTimeStamp<Tuple2<String, String>>(timestamps2));
 
 		List<String> result = MockCoContext.createAndExecute(invokable, inputs1, inputs2);
 

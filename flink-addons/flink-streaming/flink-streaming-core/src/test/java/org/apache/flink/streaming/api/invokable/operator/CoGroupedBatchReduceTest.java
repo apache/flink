@@ -23,14 +23,34 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedBatchReduceInvokable;
 import org.apache.flink.streaming.util.MockCoContext;
-import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
 public class CoGroupedBatchReduceTest {
+
+	KeySelector<Tuple2<String, String>, ?> keySelector1 = new KeySelector<Tuple2<String, String>, String>() {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String getKey(Tuple2<String, String> value) throws Exception {
+			return value.f0;
+		}
+	};
+
+	KeySelector<Tuple2<String, Integer>, ?> keySelector2 = new KeySelector<Tuple2<String, Integer>, String>() {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String getKey(Tuple2<String, Integer> value) throws Exception {
+			return value.f0;
+		}
+	};
 
 	private static class MyCoReduceFunction implements
 			CoReduceFunction<Tuple2<String, Integer>, Tuple2<String, String>, String> {
@@ -59,7 +79,6 @@ public class CoGroupedBatchReduceTest {
 		}
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void coGroupedBatchReduceTest1() {
 
@@ -96,8 +115,7 @@ public class CoGroupedBatchReduceTest {
 		expected.add("h");
 
 		CoGroupedBatchReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String> invokable = new CoGroupedBatchReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String>(
-				new MyCoReduceFunction(), 4L, 3L, 4L, 3L, new TupleKeySelector(0),
-				new TupleKeySelector(0));
+				new MyCoReduceFunction(), 4L, 3L, 4L, 3L, keySelector2, keySelector1);
 
 		List<String> result = MockCoContext.createAndExecute(invokable, inputs1, inputs2);
 
@@ -106,7 +124,6 @@ public class CoGroupedBatchReduceTest {
 		assertEquals(expected, result);
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void coGroupedBatchReduceTest2() {
 
@@ -143,8 +160,7 @@ public class CoGroupedBatchReduceTest {
 		expected.add("fh");
 
 		CoGroupedBatchReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String> invokable = new CoGroupedBatchReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String>(
-				new MyCoReduceFunction(), 4L, 3L, 2L, 2L, new TupleKeySelector(0),
-				new TupleKeySelector(0));
+				new MyCoReduceFunction(), 4L, 3L, 2L, 2L, keySelector2, keySelector1);
 
 		List<String> result = MockCoContext.createAndExecute(invokable, inputs1, inputs2);
 

@@ -41,8 +41,12 @@ public class JoinWindowFunction<IN1, IN2, OUT> implements CoWindowFunction<IN1, 
 	@Override
 	public void coWindow(List<IN1> first, List<IN2> second, Collector<OUT> out) throws Exception {
 		for (IN1 item1 : first) {
+			Object key1 = keySelector1.getKey(item1);
+
 			for (IN2 item2 : second) {
-				if (keySelector1.getKey(item1).equals(keySelector2.getKey(item2))) {
+				Object key2 = keySelector2.getKey(item2);
+
+				if (key1.equals(key2)) {
 					out.collect(joinFunction.join(item1, item2));
 				}
 			}

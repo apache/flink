@@ -116,7 +116,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def groupBy(fields: Int*): DataStream[T] =
-    new DataStream[T](javaStream.groupBy(new FieldsKeySelector[T](fields: _*)))
+    new DataStream[T](javaStream.groupBy(fields: _*))
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
@@ -124,12 +124,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def groupBy(firstField: String, otherFields: String*): DataStream[T] = 
-    javaStream.getType() match {
-      case ccInfo: CaseClassTypeInfo[T] => new DataStream[T](javaStream.groupBy(
-          new CaseClassKeySelector[T](ccInfo, firstField +: otherFields.toArray: _*)))
-      case _ =>  new DataStream[T](javaStream.groupBy(
-          firstField +: otherFields.toArray: _*))    
-    }
+    new DataStream[T](javaStream.groupBy(firstField +: otherFields.toArray: _*))    
   
   /**
    * Groups the elements of a DataStream by the given K key to
@@ -152,7 +147,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def partitionBy(fields: Int*): DataStream[T] =
-    new DataStream[T](javaStream.partitionBy(new FieldsKeySelector[T](fields: _*)))
+    new DataStream[T](javaStream.partitionBy(fields: _*));
 
   /**
    * Sets the partitioning of the DataStream so that the output is
@@ -161,12 +156,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def partitionBy(firstField: String, otherFields: String*): DataStream[T] =
-    javaStream.getType() match {
-      case ccInfo: CaseClassTypeInfo[T] => new DataStream[T](javaStream.partitionBy(
-          new CaseClassKeySelector[T](ccInfo, firstField +: otherFields.toArray: _*)))
-      case _ =>  new DataStream[T](javaStream.partitionBy(
-          firstField +: otherFields.toArray: _*))    
-    }
+    new DataStream[T](javaStream.partitionBy(firstField +: otherFields.toArray: _*))    
 
   /**
    * Sets the partitioning of the DataStream so that the output is
