@@ -66,7 +66,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    *
    */
   def groupBy(fields: Int*): WindowedDataStream[T] =
-    new WindowedDataStream[T](javaStream.groupBy(new FieldsKeySelector[T](fields: _*)))
+    new WindowedDataStream[T](javaStream.groupBy(fields: _*))
 
   /**
    * Groups the elements of the WindowedDataStream using the given
@@ -78,13 +78,8 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    *
    */
   def groupBy(firstField: String, otherFields: String*): WindowedDataStream[T] =
-    javaStream.getType() match {
-      case ccInfo: CaseClassTypeInfo[T] => new WindowedDataStream[T](javaStream.groupBy(
-          new CaseClassKeySelector[T](ccInfo, firstField +: otherFields.toArray: _*)))
-      case _ =>  new WindowedDataStream[T](javaStream.groupBy(
+    new WindowedDataStream[T](javaStream.groupBy(
           firstField +: otherFields.toArray: _*))    
-    }
-    
     
   /**
    * Groups the elements of the WindowedDataStream using the given

@@ -20,7 +20,6 @@ package org.apache.flink.examples.scala.streaming.windowing
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.function.source.SourceFunction
 import org.apache.flink.util.Collector
 import scala.util.Random
 

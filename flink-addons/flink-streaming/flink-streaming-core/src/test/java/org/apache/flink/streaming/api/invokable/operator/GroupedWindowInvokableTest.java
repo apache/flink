@@ -40,10 +40,19 @@ import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.streaming.util.MockContext;
-import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
 public class GroupedWindowInvokableTest {
+
+	KeySelector<Tuple2<Integer, String>, ?> keySelector = new KeySelector<Tuple2<Integer, String>, String>() {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String getKey(Tuple2<Integer, String> value) throws Exception {
+			return value.f1;
+		}
+	};
 
 	/**
 	 * Tests that illegal arguments result in failure. The following cases are
@@ -162,7 +171,7 @@ public class GroupedWindowInvokableTest {
 		expectedDistributedEviction.add(3);
 		expectedDistributedEviction.add(3);
 		expectedDistributedEviction.add(15);
-		
+
 		List<Integer> expectedCentralEviction = new ArrayList<Integer>();
 		expectedCentralEviction.add(2);
 		expectedCentralEviction.add(5);
@@ -173,7 +182,7 @@ public class GroupedWindowInvokableTest {
 		expectedCentralEviction.add(5);
 		expectedCentralEviction.add(1);
 		expectedCentralEviction.add(5);
-		
+
 		LinkedList<CloneableTriggerPolicy<Integer>> triggers = new LinkedList<CloneableTriggerPolicy<Integer>>();
 		// Trigger on every 2nd element, but the first time after the 3rd
 		triggers.add(new CountTriggerPolicy<Integer>(2, -1));
@@ -185,7 +194,7 @@ public class GroupedWindowInvokableTest {
 
 		LinkedList<TriggerPolicy<Integer>> centralTriggers = new LinkedList<TriggerPolicy<Integer>>();
 
-		ReduceFunction<Integer> reduceFunction=new ReduceFunction<Integer>() {
+		ReduceFunction<Integer> reduceFunction = new ReduceFunction<Integer>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -193,8 +202,8 @@ public class GroupedWindowInvokableTest {
 				return value1 + value2;
 			}
 		};
-		
-		KeySelector<Integer, Integer> keySelector=new KeySelector<Integer, Integer>() {
+
+		KeySelector<Integer, Integer> keySelector = new KeySelector<Integer, Integer>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
@@ -202,7 +211,7 @@ public class GroupedWindowInvokableTest {
 				return value;
 			}
 		};
-		
+
 		GroupedWindowInvokable<Integer, Integer> invokable = new GroupedWindowInvokable<Integer, Integer>(
 				reduceFunction, keySelector, triggers, evictions, centralTriggers, null);
 
@@ -213,18 +222,19 @@ public class GroupedWindowInvokableTest {
 			actual.add(current);
 		}
 
-		assertEquals(new HashSet<Integer>(expectedDistributedEviction), new HashSet<Integer>(actual));
+		assertEquals(new HashSet<Integer>(expectedDistributedEviction),
+				new HashSet<Integer>(actual));
 		assertEquals(expectedDistributedEviction.size(), actual.size());
-		
-		//Run test with central eviction
+
+		// Run test with central eviction
 		triggers.clear();
 		centralTriggers.add(new CountTriggerPolicy<Integer>(2, -1));
 		LinkedList<EvictionPolicy<Integer>> centralEvictions = new LinkedList<EvictionPolicy<Integer>>();
 		centralEvictions.add(new CountEvictionPolicy<Integer>(2, 2, -1));
-		
-		invokable = new GroupedWindowInvokable<Integer, Integer>(
-				reduceFunction, keySelector, triggers, null, centralTriggers,centralEvictions);
-		
+
+		invokable = new GroupedWindowInvokable<Integer, Integer>(reduceFunction, keySelector,
+				triggers, null, centralTriggers, centralEvictions);
+
 		result = MockContext.createAndExecute(invokable, inputs);
 		actual = new LinkedList<Integer>();
 		for (Integer current : result) {
@@ -279,8 +289,7 @@ public class GroupedWindowInvokableTest {
 							return value2;
 						}
 					}
-				}, new TupleKeySelector<Tuple2<Integer, String>>(1), triggers, evictions,
-				centralTriggers, null);
+				}, keySelector, triggers, evictions, centralTriggers, null);
 
 		List<Tuple2<Integer, String>> result = MockContext.createAndExecute(invokable2, inputs2);
 
@@ -387,8 +396,7 @@ public class GroupedWindowInvokableTest {
 		LinkedList<CloneableTriggerPolicy<Tuple2<Integer, String>>> distributedTriggers = new LinkedList<CloneableTriggerPolicy<Tuple2<Integer, String>>>();
 
 		GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable = new GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
-				myReduceFunction, new TupleKeySelector<Tuple2<Integer, String>>(1),
-				distributedTriggers, evictions, triggers, null);
+				myReduceFunction, keySelector, distributedTriggers, evictions, triggers, null);
 
 		ArrayList<Tuple2<Integer, String>> result = new ArrayList<Tuple2<Integer, String>>();
 		for (Tuple2<Integer, String> t : MockContext.createAndExecute(invokable, inputs)) {
@@ -398,7 +406,7 @@ public class GroupedWindowInvokableTest {
 		assertEquals(new HashSet<Tuple2<Integer, String>>(expected),
 				new HashSet<Tuple2<Integer, String>>(result));
 		assertEquals(expected.size(), result.size());
-		
+
 		// repeat the test with central eviction. The result should be the same.
 		triggers.clear();
 		triggers.add(new TimeTriggerPolicy<Tuple2<Integer, String>>(2L, myTimeStamp, 2L));
@@ -407,8 +415,8 @@ public class GroupedWindowInvokableTest {
 		centralEvictions.add(new TimeEvictionPolicy<Tuple2<Integer, String>>(4L, myTimeStamp));
 
 		invokable = new GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
-				myReduceFunction, new TupleKeySelector<Tuple2<Integer, String>>(1),
-				distributedTriggers, evictions, triggers, centralEvictions);
+				myReduceFunction, keySelector, distributedTriggers, evictions, triggers,
+				centralEvictions);
 
 		result = new ArrayList<Tuple2<Integer, String>>();
 		for (Tuple2<Integer, String> t : MockContext.createAndExecute(invokable, inputs)) {

@@ -22,12 +22,12 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedReduceInvokable;
 import org.apache.flink.streaming.util.MockCoContext;
-import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
 public class CoGroupedReduceTest {
@@ -59,7 +59,7 @@ public class CoGroupedReduceTest {
 		}
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings("unchecked")
 	@Test
 	public void coGroupedReduceTest() {
 		Tuple3<String, String, String> word1 = new Tuple3<String, String, String>("a", "word1", "b");
@@ -71,8 +71,38 @@ public class CoGroupedReduceTest {
 		Tuple2<Integer, Integer> int4 = new Tuple2<Integer, Integer>(2, 4);
 		Tuple2<Integer, Integer> int5 = new Tuple2<Integer, Integer>(1, 5);
 
+		KeySelector<Tuple3<String, String, String>, ?> keySelector0 = new KeySelector<Tuple3<String, String, String>, String>() {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public String getKey(Tuple3<String, String, String> value) throws Exception {
+				return value.f0;
+			}
+		};
+
+		KeySelector<Tuple2<Integer, Integer>, ?> keySelector1 = new KeySelector<Tuple2<Integer, Integer>, Integer>() {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Integer getKey(Tuple2<Integer, Integer> value) throws Exception {
+				return value.f0;
+			}
+		};
+
+		KeySelector<Tuple3<String, String, String>, ?> keySelector2 = new KeySelector<Tuple3<String, String, String>, String>() {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public String getKey(Tuple3<String, String, String> value) throws Exception {
+				return value.f2;
+			}
+		};
+
 		CoGroupedReduceInvokable<Tuple3<String, String, String>, Tuple2<Integer, Integer>, String> invokable = new CoGroupedReduceInvokable<Tuple3<String, String, String>, Tuple2<Integer, Integer>, String>(
-				new MyCoReduceFunction(), new TupleKeySelector(0), new TupleKeySelector(0));
+				new MyCoReduceFunction(), keySelector0, keySelector1);
 
 		List<String> expected = Arrays.asList("word1", "1", "word2", "2", "word1word3", "3", "5",
 				"7");
@@ -83,12 +113,12 @@ public class CoGroupedReduceTest {
 		assertEquals(expected, actualList);
 
 		invokable = new CoGroupedReduceInvokable<Tuple3<String, String, String>, Tuple2<Integer, Integer>, String>(
-				new MyCoReduceFunction(), new TupleKeySelector(2), new TupleKeySelector(0));
+				new MyCoReduceFunction(), keySelector2, keySelector1);
 
 		expected = Arrays.asList("word1", "1", "word2", "2", "word2word3", "3", "5", "7");
 
-		actualList = MockCoContext.createAndExecute(invokable,
-				Arrays.asList(word1, word2, word3), Arrays.asList(int1, int2, int3, int4, int5));
+		actualList = MockCoContext.createAndExecute(invokable, Arrays.asList(word1, word2, word3),
+				Arrays.asList(int1, int2, int3, int4, int5));
 
 		assertEquals(expected, actualList);
 	}

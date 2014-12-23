@@ -33,6 +33,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -66,8 +67,7 @@ import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.util.keys.FieldsKeySelector;
-import org.apache.flink.streaming.util.keys.PojoKeySelector;
+import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -245,9 +245,11 @@ public class DataStream<OUT> {
 	 * @return The grouped {@link DataStream}
 	 */
 	public GroupedDataStream<OUT> groupBy(int... fields) {
-
-		return groupBy(FieldsKeySelector.getSelector(getType(), fields));
-
+		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
+			return groupBy(new KeySelectorUtil.ArrayKeySelector<OUT>(fields));
+		} else {
+			return groupBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+		}
 	}
 
 	/**
@@ -264,7 +266,7 @@ public class DataStream<OUT> {
 	 **/
 	public GroupedDataStream<OUT> groupBy(String... fields) {
 
-		return groupBy(new PojoKeySelector<OUT>(getType(), fields));
+		return groupBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
 
 	}
 
@@ -282,6 +284,11 @@ public class DataStream<OUT> {
 		return new GroupedDataStream<OUT>(this, clean(keySelector));
 	}
 
+	private GroupedDataStream<OUT> groupBy(Keys<OUT> keys) {
+		return new GroupedDataStream<OUT>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
+				getType())));
+	}
+
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output is
 	 * partitioned by the selected fields. This setting only effects the how the
@@ -293,9 +300,11 @@ public class DataStream<OUT> {
 	 * @return The DataStream with fields partitioning set.
 	 */
 	public DataStream<OUT> partitionBy(int... fields) {
-
-		return setConnectionType(new FieldsPartitioner<OUT>(FieldsKeySelector.getSelector(
-				getType(), fields)));
+		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
+			return partitionBy(new KeySelectorUtil.ArrayKeySelector<OUT>(fields));
+		} else {
+			return partitionBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+		}
 	}
 
 	/**
@@ -309,9 +318,11 @@ public class DataStream<OUT> {
 	 * @return The DataStream with fields partitioning set.
 	 */
 	public DataStream<OUT> partitionBy(String... fields) {
+		return partitionBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+	}
 
-		return setConnectionType(new FieldsPartitioner<OUT>(new PojoKeySelector<OUT>(getType(),
-				fields)));
+	private DataStream<OUT> partitionBy(Keys<OUT> keys) {
+		return partitionBy(KeySelectorUtil.getSelectorForKeys(keys, getType()));
 	}
 
 	/**
@@ -411,7 +422,7 @@ public class DataStream<OUT> {
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. A common usage pattern for streaming iterations is to use
 	 * output splitting to send a part of the closing data stream to the head.
-	 * Refer to {@link SingleOutputStreamOperator#split(OutputSelector)} for
+	 * Refer to {@link SingleOutputStreamOperator#split(outputSelector)} for
 	 * more information.
 	 * <p>
 	 * The iteration edge will be partitioned the same way as the first input of
@@ -549,7 +560,7 @@ public class DataStream<OUT> {
 	 * {@link StreamCrossOperator#onWindow} should be called to define the
 	 * window.
 	 * <p>
-	 * Call {@link StreamCrossOperator.CrossWindow#with(CrossFunction)} to
+	 * Call {@link StreamCrossOperator.CrossWindow#with(crossFunction)} to
 	 * define a custom cross function.
 	 * 
 	 * @param dataStreamToCross
@@ -572,7 +583,7 @@ public class DataStream<OUT> {
 	 * window, and then the {@link StreamJoinOperator.JoinWindow#where} and
 	 * {@link StreamJoinOperator.JoinPredicate#equalTo} can be used to define
 	 * the join keys.</p> The user can also use the
-	 * {@link StreamJoinOperator.JoinedStream#with(JoinFunction)} to apply
+	 * {@link StreamJoinOperator.JoinedStream#with(joinFunction)} to apply
 	 * custom join function.
 	 * 
 	 * @param other

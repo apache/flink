@@ -25,6 +25,8 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,7 +36,7 @@ import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
 import org.apache.flink.streaming.util.MockContext;
-import org.apache.flink.streaming.util.keys.TupleKeySelector;
+import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.junit.Test;
 
 public class AggregationFunctionTest {
@@ -94,14 +96,14 @@ public class AggregationFunctionTest {
 				Integer.class, type1);
 		ReduceFunction<Integer> sumFunction0 = SumAggregator
 				.getSumFunction(0, Integer.class, type2);
-		ReduceFunction<Tuple2<Integer, Integer>> minFunction = ComparableAggregator
-				.getAggregator(1, type1, AggregationType.MIN);
-		ReduceFunction<Integer> minFunction0 = ComparableAggregator.getAggregator(0,
-				type2, AggregationType.MIN);
-		ReduceFunction<Tuple2<Integer, Integer>> maxFunction = ComparableAggregator
-				.getAggregator(1, type1, AggregationType.MAX);
-		ReduceFunction<Integer> maxFunction0 = ComparableAggregator.getAggregator(0,
-				type2, AggregationType.MAX);
+		ReduceFunction<Tuple2<Integer, Integer>> minFunction = ComparableAggregator.getAggregator(
+				1, type1, AggregationType.MIN);
+		ReduceFunction<Integer> minFunction0 = ComparableAggregator.getAggregator(0, type2,
+				AggregationType.MIN);
+		ReduceFunction<Tuple2<Integer, Integer>> maxFunction = ComparableAggregator.getAggregator(
+				1, type1, AggregationType.MAX);
+		ReduceFunction<Integer> maxFunction0 = ComparableAggregator.getAggregator(0, type2,
+				AggregationType.MAX);
 		List<Tuple2<Integer, Integer>> sumList = MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(sumFunction), getInputList());
 
@@ -111,17 +113,24 @@ public class AggregationFunctionTest {
 		List<Tuple2<Integer, Integer>> maxList = MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(maxFunction), getInputList());
 
+		TypeInformation<Tuple2<Integer, Integer>> typeInfo = TypeExtractor
+				.getForObject(new Tuple2<Integer, Integer>(1, 1));
+
+		KeySelector<Tuple2<Integer, Integer>, ?> keySelector = KeySelectorUtil.getSelectorForKeys(
+				new Keys.ExpressionKeys<Tuple2<Integer, Integer>>(new int[] { 0 }, typeInfo),
+				typeInfo);
+
 		List<Tuple2<Integer, Integer>> groupedSumList = MockContext.createAndExecute(
-				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(sumFunction,
-						new TupleKeySelector<Tuple2<Integer, Integer>>(0)), getInputList());
+				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(sumFunction, keySelector),
+				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMinList = MockContext.createAndExecute(
-				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(minFunction,
-						new TupleKeySelector<Tuple2<Integer, Integer>>(0)), getInputList());
+				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(minFunction, keySelector),
+				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMaxList = MockContext.createAndExecute(
-				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(maxFunction,
-						new TupleKeySelector<Tuple2<Integer, Integer>>(0)), getInputList());
+				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(maxFunction, keySelector),
+				getInputList());
 
 		assertEquals(expectedSumList, sumList);
 		assertEquals(expectedMinList, minList);

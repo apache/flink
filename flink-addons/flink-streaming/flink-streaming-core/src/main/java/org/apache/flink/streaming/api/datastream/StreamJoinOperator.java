@@ -21,14 +21,14 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.function.co.JoinWindowFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
-import org.apache.flink.streaming.util.keys.FieldsKeySelector;
-import org.apache.flink.streaming.util.keys.PojoKeySelector;
+import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 public class StreamJoinOperator<I1, I2> extends
 		TemporalOperator<I1, I2, StreamJoinOperator.JoinWindow<I1, I2>> {
@@ -45,9 +45,11 @@ public class StreamJoinOperator<I1, I2> extends
 	public static class JoinWindow<I1, I2> {
 
 		private StreamJoinOperator<I1, I2> op;
+		private TypeInformation<I1> type1;
 
 		private JoinWindow(StreamJoinOperator<I1, I2> operator) {
 			this.op = operator;
+			this.type1 = op.input1.getType();
 		}
 
 		/**
@@ -64,8 +66,8 @@ public class StreamJoinOperator<I1, I2> extends
 		 *         {@link JoinPredicate#equalTo} to continue the Join.
 		 */
 		public JoinPredicate<I1, I2> where(int... fields) {
-			return new JoinPredicate<I1, I2>(op, FieldsKeySelector.getSelector(op.input1.getType(),
-					fields));
+			return new JoinPredicate<I1, I2>(op, KeySelectorUtil.getSelectorForKeys(
+					new Keys.ExpressionKeys<I1>(fields, type1), type1));
 		}
 
 		/**
@@ -81,8 +83,8 @@ public class StreamJoinOperator<I1, I2> extends
 		 *         {@link JoinPredicate#equalTo} to continue the Join.
 		 */
 		public JoinPredicate<I1, I2> where(String... fields) {
-			return new JoinPredicate<I1, I2>(op, new PojoKeySelector<I1>(op.input1.getType(),
-					fields));
+			return new JoinPredicate<I1, I2>(op, KeySelectorUtil.getSelectorForKeys(
+					new Keys.ExpressionKeys<I1>(fields, type1), type1));
 		}
 
 		/**
@@ -114,13 +116,15 @@ public class StreamJoinOperator<I1, I2> extends
 	 */
 	public static class JoinPredicate<I1, I2> {
 
-		public StreamJoinOperator<I1, I2> op;
-		public KeySelector<I1, ?> keys1;
-		public KeySelector<I2, ?> keys2;
+		private StreamJoinOperator<I1, I2> op;
+		private KeySelector<I1, ?> keys1;
+		private KeySelector<I2, ?> keys2;
+		private TypeInformation<I2> type2;
 
 		private JoinPredicate(StreamJoinOperator<I1, I2> operator, KeySelector<I1, ?> keys1) {
 			this.op = operator;
 			this.keys1 = keys1;
+			this.type2 = op.input2.getType();
 		}
 
 		/**
@@ -138,7 +142,8 @@ public class StreamJoinOperator<I1, I2> extends
 		 *         apply a custom wrapping
 		 */
 		public JoinedStream<I1, I2> equalTo(int... fields) {
-			keys2 = FieldsKeySelector.getSelector(op.input2.getType(), fields);
+			keys2 = KeySelectorUtil.getSelectorForKeys(new Keys.ExpressionKeys<I2>(fields, type2),
+					type2);
 			return createJoinOperator();
 		}
 
@@ -156,7 +161,8 @@ public class StreamJoinOperator<I1, I2> extends
 		 *         apply a custom wrapping
 		 */
 		public JoinedStream<I1, I2> equalTo(String... fields) {
-			this.keys2 = new PojoKeySelector<I2>(op.input2.getType(), fields);
+			this.keys2 = KeySelectorUtil.getSelectorForKeys(new Keys.ExpressionKeys<I2>(fields,
+					type2), type2);
 			return createJoinOperator();
 		}
 
