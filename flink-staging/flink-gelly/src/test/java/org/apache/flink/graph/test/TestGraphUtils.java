@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 public class TestGraphUtils {
 
@@ -33,6 +34,33 @@ public class TestGraphUtils {
 		edges.add(new Edge<Long, Long>(5L, 1L, 51L));
 		
 		return env.fromCollection(edges);
+	}
+
+	public static final DataSet<Tuple2<Long, Long>> getLongLongTuple2Data(
+			ExecutionEnvironment env) {
+		List<Tuple2<Long, Long>> tuples = new ArrayList<Tuple2<Long, Long>>();
+		tuples.add(new Tuple2<Long, Long>(1L, 10L));
+		tuples.add(new Tuple2<Long, Long>(2L, 20L));
+		tuples.add(new Tuple2<Long, Long>(3L, 30L));
+		tuples.add(new Tuple2<Long, Long>(4L, 40L));
+		tuples.add(new Tuple2<Long, Long>(6L, 60L));
+
+		return env.fromCollection(tuples);
+	}
+
+	public static final DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2Data(
+			ExecutionEnvironment env) {
+		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<Tuple2<Long,
+				DummyCustomParameterizedType<Float>>>();
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(1L,
+				new DummyCustomParameterizedType<Float>(10, 10f)));
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(2L,
+				new DummyCustomParameterizedType<Float>(20, 20f)));
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(3L,
+				new DummyCustomParameterizedType<Float>(30, 30f)));
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(4L,
+				new DummyCustomParameterizedType<Float>(40, 40f)));
+		return env.fromCollection(tuples);
 	}
 
 	/**

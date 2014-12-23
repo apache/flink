@@ -179,7 +179,51 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
     }
 
-    /**
+	/**
+	 * Method that joins the vertex DataSet with an input DataSet and applies a UDF on the resulted values.
+	 * @param inputDataSet
+	 * @param mapper - the UDF applied
+	 * @return - a new graph where the vertex values have been updated.
+	 */
+	public <T> Graph<K, VV, EV> joinWithVertices(DataSet<Tuple2<K, T>> inputDataSet,
+												 final MapFunction<Tuple2<VV, T>, VV> mapper) {
+
+		DataSet<Vertex<K, VV>> resultedVertices = this.getVertices()
+				.coGroup(inputDataSet).where(0).equalTo(0)
+				.with(new ApplyCoGroupToVertexValues<K, VV, T>(mapper));
+
+		return Graph.create(resultedVertices, this.getEdges(), this.getContext());
+	}
+
+	private static final class ApplyCoGroupToVertexValues<K extends Comparable<K> & Serializable,
+			VV extends Serializable, T>
+			implements CoGroupFunction<Vertex<K, VV>, Tuple2<K, T>, Vertex<K, VV>> {
+
+		private MapFunction<Tuple2<VV, T>, VV> mapper;
+
+		public ApplyCoGroupToVertexValues(MapFunction<Tuple2<VV, T>, VV> mapper) {
+			this.mapper = mapper;
+		}
+
+		@Override
+		public void coGroup(Iterable<Vertex<K, VV>> iterableDS1, Iterable<Tuple2<K, T>> iterableDS2,
+							Collector<Vertex<K, VV>> collector) throws Exception {
+
+			Iterator<Vertex<K, VV>> iteratorDS1 = iterableDS1.iterator();
+			Iterator<Tuple2<K, T>> iteratorDS2 = iterableDS2.iterator();
+
+			if(iteratorDS2.hasNext() && iteratorDS1.hasNext()) {
+				Tuple2<K, T> iteratorDS2Next = iteratorDS2.next();
+
+				collector.collect(new Vertex<K, VV>(iteratorDS2Next.f0, mapper
+						.map(new Tuple2<VV, T>(iteratorDS1.next().f1, iteratorDS2Next.f1))));
+			} else if(iteratorDS1.hasNext()) {
+				collector.collect(iteratorDS1.next());
+			}
+		}
+	}
+
+	/**
      * Apply value-based filtering functions to the graph 
      * and return a sub-graph that satisfies the predicates
      * for both vertex values and edge values.
