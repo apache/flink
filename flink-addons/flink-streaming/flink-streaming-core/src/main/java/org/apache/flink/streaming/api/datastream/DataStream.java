@@ -1005,7 +1005,7 @@ public class DataStream<OUT> {
 
 	protected <R> DataStream<OUT> addIterationSource(Integer iterationID, long waitTime) {
 
-		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null);
+		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null, true);
 
 		jobGraphBuilder.addIterationHead(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism, waitTime);

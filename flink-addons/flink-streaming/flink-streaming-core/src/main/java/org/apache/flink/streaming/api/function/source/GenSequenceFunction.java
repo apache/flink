@@ -17,29 +17,37 @@
 
 package org.apache.flink.streaming.api.function.source;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.NumberSequenceIterator;
 
 /**
  * Source Function used to generate the number sequence
  * 
  */
-public class GenSequenceFunction implements SourceFunction<Long> {
+public class GenSequenceFunction extends RichParallelSourceFunction<Long> {
 
 	private static final long serialVersionUID = 1L;
 
-	long from;
-	long to;
+	private NumberSequenceIterator fullIterator;
+	private NumberSequenceIterator splitIterator;
 
 	public GenSequenceFunction(long from, long to) {
-		this.from = from;
-		this.to = to;
+		fullIterator = new NumberSequenceIterator(from, to);
 	}
 
 	@Override
 	public void invoke(Collector<Long> collector) throws Exception {
-		for (long i = from; i <= to; i++) {
-			collector.collect(i);
+		while (splitIterator.hasNext()) {
+			collector.collect(splitIterator.next());
 		}
+	}
+
+	@Override
+	public void open(Configuration config) {
+		int splitNumber = getRuntimeContext().getIndexOfThisSubtask();
+		int numOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
+		splitIterator = fullIterator.split(numOfSubTasks)[splitNumber];
 	}
 
 }

@@ -23,22 +23,24 @@ import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.util.SerializationScheme;
 
-public abstract class KafkaSink<IN, OUT> implements SinkFunction<IN> {
+public class KafkaSink<IN, OUT> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private kafka.javaapi.producer.Producer<Integer, OUT> producer;
 	private Properties props;
 	private String topicId;
 	private String brokerAddr;
-	private boolean sendAndClose = false;
-	private boolean closeWithoutSend = false;
 	private boolean initDone = false;
+	private SerializationScheme<IN, OUT> scheme;
 
-	public KafkaSink(String topicId, String brokerAddr) {
+	public KafkaSink(String topicId, String brokerAddr,
+			SerializationScheme<IN, OUT> serializationScheme) {
 		this.topicId = topicId;
 		this.brokerAddr = brokerAddr;
+		this.scheme = serializationScheme;
 
 	}
 
@@ -60,49 +62,22 @@ public abstract class KafkaSink<IN, OUT> implements SinkFunction<IN> {
 	/**
 	 * Called when new data arrives to the sink, and forwards it to Kafka.
 	 * 
-	 * @param value
+	 * @param next
 	 *            The incoming data
 	 */
 	@Override
-	public void invoke(IN value) {
+	public void invoke(IN next) {
 		if (!initDone) {
 			initialize();
 		}
 
-		OUT out = serialize(value);
-		KeyedMessage<Integer, OUT> data = new KeyedMessage<Integer, OUT>(topicId, out);
+		producer.send(new KeyedMessage<Integer, OUT>(topicId, scheme.serialize(next)));
 
-		if (!closeWithoutSend) {
-			producer.send(data);
-		}
-
-		if (sendAndClose) {
-			producer.close();
-		}
 	}
 
-	/**
-	 * Serializes tuples into byte arrays.
-	 * 
-	 * @param value
-	 *            The tuple used for the serialization
-	 * @return The serialized byte array.
-	 */
-	public abstract OUT serialize(IN value);
-
-	/**
-	 * Closes the connection immediately and no further data will be sent.
-	 */
-	public void closeWithoutSend() {
+	@Override
+	public void close() {
 		producer.close();
-		closeWithoutSend = true;
-	}
-
-	/**
-	 * Closes the connection only when the next message is sent after this call.
-	 */
-	public void sendAndClose() {
-		sendAndClose = true;
 	}
 
 }

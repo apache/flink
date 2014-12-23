@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -27,28 +27,29 @@ import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.function.source.RichSourceFunction;
+import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.connectors.util.DeserializationScheme;
 import org.apache.flink.util.Collector;
 
-public abstract class KafkaSource<OUT> extends RichSourceFunction<OUT> {
+public class KafkaSource<OUT> extends RichParallelSourceFunction<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private final String zkQuorum;
 	private final String groupId;
 	private final String topicId;
-	private final int numThreads;
 	private ConsumerConnector consumer;
-	private boolean closeWithoutSend = false;
-	private boolean sendAndClose = false;
+	private DeserializationScheme<OUT> scheme;
 
 	OUT outTuple;
 
-	public KafkaSource(String zkQuorum, String groupId, String topicId, int numThreads) {
+	public KafkaSource(String zkQuorum, String groupId, String topicId,
+			DeserializationScheme<OUT> deserializationScheme) {
 		this.zkQuorum = zkQuorum;
 		this.groupId = groupId;
 		this.topicId = topicId;
-		this.numThreads = numThreads;
+		this.scheme = deserializationScheme;
 	}
 
 	/**
@@ -58,7 +59,7 @@ public abstract class KafkaSource<OUT> extends RichSourceFunction<OUT> {
 		Properties props = new Properties();
 		props.put("zookeeper.connect", zkQuorum);
 		props.put("group.id", groupId);
-		props.put("zookeeper.session.timeout.ms", "400");
+		props.put("zookeeper.session.timeout.ms", "2000");
 		props.put("zookeeper.sync.time.ms", "200");
 		props.put("auto.commit.interval.ms", "1000");
 		consumer = kafka.consumer.Consumer.createJavaConsumerConnector(new ConsumerConfig(props));
@@ -72,48 +73,25 @@ public abstract class KafkaSource<OUT> extends RichSourceFunction<OUT> {
 	 */
 	@Override
 	public void invoke(Collector<OUT> collector) throws Exception {
-		initializeConnection();
 
-		Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
-		topicCountMap.put(topicId, numThreads);
 		Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer
-				.createMessageStreams(topicCountMap);
+				.createMessageStreams(Collections.singletonMap(topicId, 1));
+
 		KafkaStream<byte[], byte[]> stream = consumerMap.get(topicId).get(0);
 		ConsumerIterator<byte[], byte[]> it = stream.iterator();
 
 		while (it.hasNext()) {
-			OUT out = deserialize(it.next().message());
-			if (closeWithoutSend) {
+			OUT out = scheme.deserialize(it.next().message());
+			if (scheme.isEndOfStream(out)) {
 				break;
 			}
 			collector.collect(out);
-			if (sendAndClose) {
-				break;
-			}
 		}
 		consumer.shutdown();
 	}
 
-	/**
-	 * Deserializes the incoming data.
-	 * 
-	 * @param message
-	 *            The incoming message in a byte array
-	 * @return The deserialized message in the required format.
-	 */
-	public abstract OUT deserialize(byte[] message);
-
-	/**
-	 * Closes the connection immediately and no further data will be sent.
-	 */
-	public void closeWithoutSend() {
-		closeWithoutSend = true;
-	}
-
-	/**
-	 * Closes the connection only when the next message is sent after this call.
-	 */
-	public void sendAndClose() {
-		sendAndClose = true;
+	@Override
+	public void open(Configuration config) {
+		initializeConnection();
 	}
 }

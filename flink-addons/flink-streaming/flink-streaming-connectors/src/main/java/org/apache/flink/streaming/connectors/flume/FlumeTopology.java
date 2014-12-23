@@ -17,80 +17,33 @@
 
 package org.apache.flink.streaming.connectors.flume;
 
-import org.apache.commons.lang.SerializationUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.connectors.util.SerializationScheme;
+import org.apache.flink.streaming.connectors.util.SimpleStringScheme;
 
 public class FlumeTopology {
-	private static final Logger LOG = LoggerFactory.getLogger(FlumeTopology.class);
-
-	public static class MyFlumeSink extends FlumeSink<String> {
-		private static final long serialVersionUID = 1L;
-
-		public MyFlumeSink(String host, int port) {
-			super(host, port);
-		}
-
-		@Override
-		public byte[] serialize(String tuple) {
-			if (tuple.equals("q")) {
-				try {
-					sendAndClose();
-				} catch (Exception e) {
-					throw new RuntimeException("Error while closing Flume connection with " + port
-							+ " at " + host, e);
-				}
-			}
-			return SerializationUtils.serialize(tuple);
-		}
-
-	}
-
-	public static final class MyFlumePrintSink implements SinkFunction<String> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(String value) {
-			if (LOG.isInfoEnabled()) {
-				LOG.info("String: <{}> arrived from Flume", value);
-			}
-		}
-
-	}
-
-	public static class MyFlumeSource extends FlumeSource<String> {
-		private static final long serialVersionUID = 1L;
-
-		MyFlumeSource(String host, int port) {
-			super(host, port);
-		}
-
-		@Override
-		public String deserialize(byte[] msg) {
-			String s = (String) SerializationUtils.deserialize(msg);
-			if (s.equals("q")) {
-				closeWithoutSend();
-			}
-			return s;
-		}
-
-	}
 
 	public static void main(String[] args) throws Exception {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")
-		DataStream<String> dataStream1 = env.addSource(new MyFlumeSource("localhost", 41414))
-				.addSink(new MyFlumePrintSink());
-
-		@SuppressWarnings("unused")
-		DataStream<String> dataStream2 = env.fromElements("one", "two", "three", "four", "five",
-				"q").addSink(new MyFlumeSink("localhost", 42424));
+		DataStream<String> dataStream1 = env.addSource(
+				new FlumeSource<String>("localhost", 41414, new SimpleStringScheme())).addSink(
+				new FlumeSink<String>("localhost", 42424, new StringToByteSerializer()));
 
 		env.execute();
 	}
+
+	public static class StringToByteSerializer implements SerializationScheme<String, byte[]> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public byte[] serialize(String element) {
+			return element.getBytes();
+		}
+	}
+
 }

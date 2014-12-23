@@ -25,7 +25,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.function.source.RichSourceFunction;
+import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
@@ -43,7 +43,7 @@ import com.twitter.hbc.httpclient.auth.OAuth1;
  * Implementation of {@link SourceFunction} specialized to emit tweets from
  * Twitter. It can connect to Twitter Streaming API, collect tweets and
  */
-public class TwitterSource extends RichSourceFunction<String> {
+public class TwitterSource extends RichParallelSourceFunction<String> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TwitterSource.class);
 

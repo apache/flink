@@ -15,13 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.function.source;
+package org.apache.flink.streaming.connectors.util;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
+import java.io.Serializable;
 
-public abstract class RichSourceFunction<OUT> extends AbstractRichFunction implements
-		SourceFunction<OUT> {
+public interface SerializationScheme<T,R> extends Serializable {
 
-	private static final long serialVersionUID = 1L;
+	/**
+	 * Serializes the incoming element to a specified type.
+	 * 
+	 * @param element
+	 *            The incoming element to be serialized
+	 * @return The serialized element.
+	 */
+	public R serialize(T element);
 
 }
