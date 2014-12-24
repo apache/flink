@@ -98,6 +98,7 @@ public class WordCount {
 	// *************************************************************************
 	
 	private static boolean fileOutput = false;
+	private static boolean verbose = false;
 	private static String textPath;
 	private static String outputPath;
 	
@@ -106,9 +107,13 @@ public class WordCount {
 		if(args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
-			if(args.length == 2) {
+			if(args.length == 2) { // cli line: program {textPath} {outputPath}
 				textPath = args[0];
 				outputPath = args[1];
+			} else if(args.length == 4 && (args[0].startsWith("-v") || args[0].startsWith("--verbose"))) { // cli line: program {optArg} {optVal} {textPath} {outputPath}
+				verbose = Boolean.valueOf(args[1]);
+				textPath = args[2];
+				outputPath = args[3];
 			} else {
 				System.err.println("Usage: WordCount <text path> <result path>");
 				return false;
