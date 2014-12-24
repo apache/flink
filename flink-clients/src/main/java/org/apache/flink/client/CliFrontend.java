@@ -278,7 +278,7 @@ public class CliFrontend {
 		// Parse command line options
 		CommandLine line;
 		try {
-			line = parser.parse(RUN_OPTIONS, args, false);
+			line = parser.parse(RUN_OPTIONS, args, true);
 			evaluateGeneralOptions(line);
 		}
 		catch (MissingOptionException e) {
