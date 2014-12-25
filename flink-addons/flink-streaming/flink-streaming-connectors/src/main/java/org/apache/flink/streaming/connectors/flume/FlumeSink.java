@@ -17,9 +17,10 @@
 
 package org.apache.flink.streaming.connectors.flume;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
-import org.apache.flink.streaming.connectors.util.SerializationScheme;
+import org.apache.flink.streaming.connectors.util.SerializationSchema;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.FlumeException;
@@ -38,12 +39,12 @@ public class FlumeSink<IN> extends RichSinkFunction<IN> {
 	boolean initDone = false;
 	String host;
 	int port;
-	SerializationScheme<IN, byte[]> scheme;
+	SerializationSchema<IN, byte[]> scheme;
 
-	public FlumeSink(String host, int port, SerializationScheme<IN, byte[]> scheme) {
+	public FlumeSink(String host, int port, SerializationSchema<IN, byte[]> schema) {
 		this.host = host;
 		this.port = port;
-		this.scheme = scheme;
+		this.scheme = schema;
 	}
 
 	/**
@@ -55,11 +56,6 @@ public class FlumeSink<IN> extends RichSinkFunction<IN> {
 	 */
 	@Override
 	public void invoke(IN value) {
-
-		if (!initDone) {
-			client = new FlinkRpcClientFacade();
-			client.init(host, port);
-		}
 
 		byte[] data = scheme.serialize(value);
 		client.sendDataToFlume(data);
@@ -135,5 +131,11 @@ public class FlumeSink<IN> extends RichSinkFunction<IN> {
 	@Override
 	public void close() {
 		client.client.close();
+	}
+
+	@Override
+	public void open(Configuration config) {
+		client = new FlinkRpcClientFacade();
+		client.init(host, port);
 	}
 }

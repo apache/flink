@@ -15,25 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.util;
+package org.apache.flink.streaming.connectors;
 
-public class RawScheme implements DeserializationScheme<byte[]>,
-		SerializationScheme<byte[], byte[]> {
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.function.source.GenericSourceFunction;
+import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.connectors.util.DeserializationSchema;
+
+public abstract class ConnectorSource<OUT> extends RichParallelSourceFunction<OUT> implements
+		GenericSourceFunction<OUT> {
 
 	private static final long serialVersionUID = 1L;
+	protected DeserializationSchema<OUT> schema;
 
-	@Override
-	public byte[] deserialize(byte[] message) {
-		return message;
+	public ConnectorSource(DeserializationSchema<OUT> schema) {
+		this.schema = schema;
 	}
 
 	@Override
-	public boolean isEndOfStream(byte[] nextElement) {
-		return false;
+	public TypeInformation<OUT> getType() {
+		return TypeExtractor.createTypeInfo(DeserializationSchema.class, schema.getClass(), 0,
+				null, null);
 	}
 
-	@Override
-	public byte[] serialize(byte[] element) {
-		return element;
-	}
 }

@@ -21,8 +21,8 @@ import java.io.IOException;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.connectors.util.DeserializationScheme;
+import org.apache.flink.streaming.connectors.ConnectorSource;
+import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +32,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 
-public class RMQSource<OUT> extends RichParallelSourceFunction<OUT> {
+public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSource.class);
@@ -46,11 +46,11 @@ public class RMQSource<OUT> extends RichParallelSourceFunction<OUT> {
 	private transient QueueingConsumer consumer;
 	private transient QueueingConsumer.Delivery delivery;
 
-	private DeserializationScheme<OUT> scheme;
-
 	OUT out;
 
-	public RMQSource(String HOST_NAME, String QUEUE_NAME, DeserializationScheme<OUT> scheme) {
+	public RMQSource(String HOST_NAME, String QUEUE_NAME,
+			DeserializationSchema<OUT> deserializationSchema) {
+		super(deserializationSchema);
 		this.HOST_NAME = HOST_NAME;
 		this.QUEUE_NAME = QUEUE_NAME;
 	}
@@ -92,8 +92,8 @@ public class RMQSource<OUT> extends RichParallelSourceFunction<OUT> {
 				}
 			}
 
-			out = scheme.deserialize(delivery.getBody());
-			if (scheme.isEndOfStream(out)) {
+			out = schema.deserialize(delivery.getBody());
+			if (schema.isEndOfStream(out)) {
 				break;
 			} else {
 				collector.collect(out);

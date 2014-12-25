@@ -19,8 +19,8 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.util.SerializationScheme;
-import org.apache.flink.streaming.connectors.util.SimpleStringScheme;
+import org.apache.flink.streaming.connectors.util.SerializationSchema;
+import org.apache.flink.streaming.connectors.util.SimpleStringSchema;
 
 public class RMQTopology {
 
@@ -30,7 +30,7 @@ public class RMQTopology {
 
 		@SuppressWarnings("unused")
 		DataStream<String> dataStream1 = env.addSource(
-				new RMQSource<String>("localhost", "hello", new SimpleStringScheme())).print();
+				new RMQSource<String>("localhost", "hello", new SimpleStringSchema())).print();
 
 		@SuppressWarnings("unused")
 		DataStream<String> dataStream2 = env.fromElements("one", "two", "three", "four", "five",
@@ -40,7 +40,7 @@ public class RMQTopology {
 		env.execute();
 	}
 
-	public static class StringToByteSerializer implements SerializationScheme<String, byte[]> {
+	public static class StringToByteSerializer implements SerializationSchema<String, byte[]> {
 
 		private static final long serialVersionUID = 1L;
 

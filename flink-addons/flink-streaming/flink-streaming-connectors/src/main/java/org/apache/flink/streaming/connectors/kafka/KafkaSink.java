@@ -24,7 +24,7 @@ import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
 import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
-import org.apache.flink.streaming.connectors.util.SerializationScheme;
+import org.apache.flink.streaming.connectors.util.SerializationSchema;
 
 public class KafkaSink<IN, OUT> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
@@ -34,13 +34,13 @@ public class KafkaSink<IN, OUT> extends RichSinkFunction<IN> {
 	private String topicId;
 	private String brokerAddr;
 	private boolean initDone = false;
-	private SerializationScheme<IN, OUT> scheme;
+	private SerializationSchema<IN, OUT> scheme;
 
 	public KafkaSink(String topicId, String brokerAddr,
-			SerializationScheme<IN, OUT> serializationScheme) {
+			SerializationSchema<IN, OUT> serializationSchema) {
 		this.topicId = topicId;
 		this.brokerAddr = brokerAddr;
-		this.scheme = serializationScheme;
+		this.scheme = serializationSchema;
 
 	}
 

@@ -19,8 +19,8 @@ package org.apache.flink.streaming.connectors.flume;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.util.SerializationScheme;
-import org.apache.flink.streaming.connectors.util.SimpleStringScheme;
+import org.apache.flink.streaming.connectors.util.SerializationSchema;
+import org.apache.flink.streaming.connectors.util.SimpleStringSchema;
 
 public class FlumeTopology {
 
@@ -30,13 +30,13 @@ public class FlumeTopology {
 
 		@SuppressWarnings("unused")
 		DataStream<String> dataStream1 = env.addSource(
-				new FlumeSource<String>("localhost", 41414, new SimpleStringScheme())).addSink(
+				new FlumeSource<String>("localhost", 41414, new SimpleStringSchema())).addSink(
 				new FlumeSink<String>("localhost", 42424, new StringToByteSerializer()));
 
 		env.execute();
 	}
 
-	public static class StringToByteSerializer implements SerializationScheme<String, byte[]> {
+	public static class StringToByteSerializer implements SerializationSchema<String, byte[]> {
 
 		private static final long serialVersionUID = 1L;
 

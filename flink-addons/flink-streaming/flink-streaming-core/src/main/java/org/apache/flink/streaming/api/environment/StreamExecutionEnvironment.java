@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.function.source.FileSourceFunction;
 import org.apache.flink.streaming.api.function.source.FileStreamFunction;
 import org.apache.flink.streaming.api.function.source.FromElementsFunction;
 import org.apache.flink.streaming.api.function.source.GenSequenceFunction;
+import org.apache.flink.streaming.api.function.source.GenericSourceFunction;
 import org.apache.flink.streaming.api.function.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
@@ -414,12 +415,17 @@ public abstract class StreamExecutionEnvironment {
 	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
+	@SuppressWarnings("unchecked")
 	private <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
 			TypeInformation<OUT> outTypeInfo, String sourceName) {
 
 		if (outTypeInfo == null) {
-			outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class, function.getClass(),
-					0, null, null);
+			if (function instanceof GenericSourceFunction) {
+				outTypeInfo = ((GenericSourceFunction<OUT>) function).getType();
+			} else {
+				outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class,
+						function.getClass(), 0, null, null);
+			}
 		}
 
 		boolean isParallel = function instanceof ParallelSourceFunction;

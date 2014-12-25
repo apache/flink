@@ -29,27 +29,26 @@ import kafka.javaapi.consumer.ConsumerConnector;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.connectors.util.DeserializationScheme;
+import org.apache.flink.streaming.connectors.ConnectorSource;
+import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 import org.apache.flink.util.Collector;
 
-public class KafkaSource<OUT> extends RichParallelSourceFunction<OUT> {
+public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private final String zkQuorum;
 	private final String groupId;
 	private final String topicId;
 	private ConsumerConnector consumer;
-	private DeserializationScheme<OUT> scheme;
 
 	OUT outTuple;
 
 	public KafkaSource(String zkQuorum, String groupId, String topicId,
-			DeserializationScheme<OUT> deserializationScheme) {
+			DeserializationSchema<OUT> deserializationSchema) {
+		super(deserializationSchema);
 		this.zkQuorum = zkQuorum;
 		this.groupId = groupId;
 		this.topicId = topicId;
-		this.scheme = deserializationScheme;
 	}
 
 	/**
@@ -81,8 +80,8 @@ public class KafkaSource<OUT> extends RichParallelSourceFunction<OUT> {
 		ConsumerIterator<byte[], byte[]> it = stream.iterator();
 
 		while (it.hasNext()) {
-			OUT out = scheme.deserialize(it.next().message());
-			if (scheme.isEndOfStream(out)) {
+			OUT out = schema.deserialize(it.next().message());
+			if (schema.isEndOfStream(out)) {
 				break;
 			}
 			collector.collect(out);
