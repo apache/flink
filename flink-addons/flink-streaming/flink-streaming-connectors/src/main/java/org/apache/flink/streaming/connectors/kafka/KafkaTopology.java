@@ -19,15 +19,11 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.connectors.util.SimpleStringScheme;
+import org.apache.flink.streaming.connectors.util.SimpleStringSchema;
 import org.apache.flink.util.Collector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class KafkaTopology {
-	private static final Logger LOG = LoggerFactory.getLogger(KafkaTopology.class);
 
 	public static final class MySource implements SourceFunction<String> {
 		private static final long serialVersionUID = 1L;
@@ -42,17 +38,6 @@ public class KafkaTopology {
 		}
 	}
 
-	public static final class MyKafkaPrintSink implements SinkFunction<String> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(String value) {
-			if (LOG.isInfoEnabled()) {
-				LOG.info("String: <{}> arrived from Kafka", value);
-			}
-		}
-	}
-
 	public static void main(String[] args) throws Exception {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -61,11 +46,11 @@ public class KafkaTopology {
 		DataStream<String> stream1 = env
 				.addSource(
 						new KafkaSource<String>("localhost:2181", "group", "test",
-								new SimpleStringScheme())).addSink(new MyKafkaPrintSink());
+								new SimpleStringSchema())).print();
 
 		@SuppressWarnings("unused")
 		DataStream<String> stream2 = env.addSource(new MySource()).addSink(
-				new KafkaSink<String, String>("test", "localhost:9092", new SimpleStringScheme()));
+				new KafkaSink<String, String>("test", "localhost:9092", new SimpleStringSchema()));
 
 		env.execute();
 	}

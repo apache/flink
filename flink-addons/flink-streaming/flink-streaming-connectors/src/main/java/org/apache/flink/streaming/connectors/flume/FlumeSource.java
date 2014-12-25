@@ -20,8 +20,8 @@ package org.apache.flink.streaming.connectors.flume;
 import java.util.List;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.function.source.ParallelSourceFunction;
-import org.apache.flink.streaming.connectors.util.DeserializationScheme;
+import org.apache.flink.streaming.connectors.ConnectorSource;
+import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 import org.apache.flink.util.Collector;
 import org.apache.flume.Context;
 import org.apache.flume.channel.ChannelProcessor;
@@ -29,18 +29,17 @@ import org.apache.flume.source.AvroSource;
 import org.apache.flume.source.avro.AvroFlumeEvent;
 import org.apache.flume.source.avro.Status;
 
-public class FlumeSource<OUT> implements ParallelSourceFunction<OUT> {
+public class FlumeSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	String host;
 	String port;
-	DeserializationScheme<OUT> scheme;
 	volatile boolean finished = false;
 
-	FlumeSource(String host, int port, DeserializationScheme<OUT> scheme) {
+	FlumeSource(String host, int port, DeserializationSchema<OUT> deserializationSchema) {
+		super(deserializationSchema);
 		this.host = host;
 		this.port = Integer.toString(port);
-		this.scheme = scheme;
 	}
 
 	public class MyAvroSource extends AvroSource {
@@ -87,9 +86,9 @@ public class FlumeSource<OUT> implements ParallelSourceFunction<OUT> {
 		 */
 		private void collect(AvroFlumeEvent avroEvent) {
 			byte[] b = avroEvent.getBody().array();
-			OUT out = FlumeSource.this.scheme.deserialize(b);
+			OUT out = FlumeSource.this.schema.deserialize(b);
 
-			if (scheme.isEndOfStream(out)) {
+			if (schema.isEndOfStream(out)) {
 				FlumeSource.this.finished = true;
 				this.stop();
 				FlumeSource.this.notifyAll();
