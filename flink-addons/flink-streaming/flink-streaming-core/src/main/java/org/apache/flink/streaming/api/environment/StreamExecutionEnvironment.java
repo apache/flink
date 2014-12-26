@@ -379,8 +379,9 @@ public abstract class StreamExecutionEnvironment {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source", outTypeInfo);
 
 		try {
+			//currently parallel sources are not directly supported
 			jobGraphBuilder.addSourceVertex(returnStream.getId(), function, null, outTypeInfo,
-					"source", SerializationUtils.serialize(function), getDegreeOfParallelism());
+					"source", SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
 		}
