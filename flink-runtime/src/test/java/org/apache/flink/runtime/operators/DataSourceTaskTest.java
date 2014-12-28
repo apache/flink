@@ -31,7 +31,6 @@ import java.util.List;
 import org.junit.Assert;
 
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.operators.testutils.NirvanaOutputList;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
@@ -50,7 +49,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 
 	private List<Record> outList;
 	
-	private String tempTestPath = Path.constructTestPath(DataSourceTaskTest.class, "dst_test");
+	private String tempTestPath = DataSinkTaskTest.constructTestPath(DataSourceTaskTest.class, "dst_test");
 	
 	@After
 	public void cleanUp() {

@@ -25,7 +25,7 @@ import org.apache.flink.util.InstantiationUtil
 import org.apache.hadoop.io.Writable
 
 class WritableSerializer extends JSerializer {
-  val INITIAL_BUFFER_SIZE = 8096
+  val INITIAL_BUFFER_SIZE = 256
 
   override protected def fromBinaryJava(bytes: Array[Byte], manifest: Class[_]): AnyRef = {
     val in = new DataInputDeserializer(bytes, 0, bytes.length)

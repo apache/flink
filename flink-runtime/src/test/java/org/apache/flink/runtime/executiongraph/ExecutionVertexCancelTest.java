@@ -32,6 +32,7 @@ import akka.actor.Status;
 import akka.actor.UntypedActor;
 import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
+
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
@@ -46,7 +47,9 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+@SuppressWarnings("serial")
 public class ExecutionVertexCancelTest {
+	
 	private static ActorSystem system;
 
 	@BeforeClass
@@ -209,7 +212,7 @@ public class ExecutionVertexCancelTest {
 
 					// task manager mock actor
 					// first return NOT SUCCESS (task not found, cancel call overtook deploy call), then success (cancel call after deploy call)
-					TestActorRef taskManager = TestActorRef.create(system, Props.create(new
+					TestActorRef<?> taskManager = TestActorRef.create(system, Props.create(new
 							CancelSequenceTaskManagerCreator(new
 							TaskOperationResult(execId, false), new TaskOperationResult(execId, true))));
 
@@ -281,7 +284,7 @@ public class ExecutionVertexCancelTest {
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-					final TestActorRef taskManager = TestActorRef.create(system,
+					final TestActorRef<?> taskManager = TestActorRef.create(system,
 							Props.create(new CancelSequenceTaskManagerCreator(new
 									TaskOperationResult(execId, true))));
 
@@ -465,7 +468,6 @@ public class ExecutionVertexCancelTest {
 					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
-					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 					final ActorRef taskManager = system.actorOf(Props.create(new CancelSequenceTaskManagerCreator()));
 

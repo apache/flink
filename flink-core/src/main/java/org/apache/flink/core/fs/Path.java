@@ -16,16 +16,12 @@
  * limitations under the License.
  */
 
-
-/**
- * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
+/* This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
- * additional information regarding copyright ownership. 
- */
+ * additional information regarding copyright ownership. */
 
 package org.apache.flink.core.fs;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
@@ -500,20 +496,5 @@ public class Path implements IOReadableWritable, Serializable {
 			StringRecord.writeString(out, uri.getFragment());
 		}
 
-	}
-	
-	public static String constructTestPath(Class<?> forClass, String folder) {
-		// we create test path that depends on class to prevent name clashes when two tests
-		// create temp files with the same name
-		String path = System.getProperty("java.io.tmpdir");
-		if (!(path.endsWith("/") || path.endsWith("\\")) ) {
-			path += System.getProperty("file.separator");
-		}
-		path += (forClass.getName() + "-" + folder);
-		return path;
-	}
-	
-	public static String constructTestURI(Class<?> forClass, String folder) {
-		return new File(constructTestPath(forClass, folder)).toURI().toString();
 	}
 }

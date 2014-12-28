@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
 import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
@@ -54,7 +53,7 @@ public class DataSinkTaskTest extends TaskTestBase
 
 	private static final int NETWORK_BUFFER_SIZE = 1024;
 	
-	private final String tempTestPath = Path.constructTestPath(DataSinkTaskTest.class, "dst_test");
+	private final String tempTestPath = constructTestPath(DataSinkTaskTest.class, "dst_test");
 	
 	@After
 	public void cleanUp() {
@@ -491,5 +490,19 @@ public class DataSinkTaskTest extends TaskTestBase
 		}
 	}
 	
+	public static String constructTestPath(Class<?> forClass, String folder) {
+		// we create test path that depends on class to prevent name clashes when two tests
+		// create temp files with the same name
+		String path = System.getProperty("java.io.tmpdir");
+		if (!(path.endsWith("/") || path.endsWith("\\")) ) {
+			path += System.getProperty("file.separator");
+		}
+		path += (forClass.getName() + "-" + folder);
+		return path;
+	}
+	
+	public static String constructTestURI(Class<?> forClass, String folder) {
+		return new File(constructTestPath(forClass, folder)).toURI().toString();
+	}
 }
 

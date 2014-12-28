@@ -121,7 +121,7 @@ public class Utils {
 		// chain-in a new classloader
 		URL fileUrl = null;
 		try {
-			fileUrl = path.toURL();
+			fileUrl = path.toURI().toURL();
 		} catch (MalformedURLException e) {
 			throw new RuntimeException("Erroneous config file path", e);
 		}

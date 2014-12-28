@@ -34,6 +34,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
  */
 public final class TaskDeploymentDescriptor implements Serializable {
 
+	private static final long serialVersionUID = -3233562176034358530L;
+
 	/** The ID of the job the tasks belongs to. */
 	private final JobID jobID;
 
@@ -191,6 +193,15 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 */
 	public int getCurrentNumberOfSubtasks() {
 		return this.currentNumberOfSubtasks;
+	}
+	
+	/**
+	 * Gets the number of the slot into which the task is to be deployed.
+	 * 
+	 * @return The number of the target slot.
+	 */
+	public int getTargetSlotNumber() {
+		return targetSlotNumber;
 	}
 
 	/**

@@ -32,6 +32,8 @@ import org.apache.flink.core.memory.DataOutputView;
  */
 public final class RemoteReceiver implements IOReadableWritable, Serializable {
 
+	private static final long serialVersionUID = 4304924747853162443L;
+
 	/**
 	 * The address of the connection to the remote TaskManager.
 	 */

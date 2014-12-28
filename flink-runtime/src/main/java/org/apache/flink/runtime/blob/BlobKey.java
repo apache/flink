@@ -32,19 +32,16 @@ import java.util.Arrays;
  */
 public final class BlobKey implements Serializable, Comparable<BlobKey> {
 
-	/**
-	 * Array of hex characters to facilitate fast toString() method.
-	 */
+	private static final long serialVersionUID = 3847117712521785209L;
+
+	/** Array of hex characters to facilitate fast toString() method. */
 	private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
 
-	/**
-	 * Size of the internal BLOB key in bytes.
-	 */
+	/** Size of the internal BLOB key in bytes. */
 	private static final int SIZE = 20;
 
-	/**
-	 * The byte buffer storing the actual key data.
-	 */
+	
+	/** The byte buffer storing the actual key data. */
 	private final byte[] key;
 
 	/**
@@ -60,8 +57,7 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	 * @param key
 	 *        the actual key data
 	 */
-	BlobKey(final byte[] key) {
-
+	BlobKey(byte[] key) {
 		if (key.length != SIZE) {
 			throw new IllegalArgumentException("BLOB key must have a size of " + SIZE + " bytes");
 		}
@@ -70,8 +66,15 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Adds the BLOB key to the given {@link MessageDigest}.
+	 * 
+	 * @param md
+	 *        the message digest to add the BLOB key to
 	 */
+	public void addToMessageDigest(MessageDigest md) {
+		md.update(this.key);
+	}
+	
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -84,17 +87,11 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 		return Arrays.equals(this.key, bk.key);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int hashCode() {
 		return Arrays.hashCode(this.key);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public String toString() {
 		// from http://stackoverflow.com/questions/9655181/convert-from-byte-array-to-hex-string-in-java
@@ -108,6 +105,26 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 		return new String(hexChars);
 	}
 
+	@Override
+	public int compareTo(BlobKey o) {
+	
+		final byte[] aarr = this.key;
+		final byte[] barr = o.key;
+		final int len = Math.min(aarr.length, barr.length);
+	
+		for (int i = 0; i < len; ++i) {
+			final int a = (aarr[i] & 0xff);
+			final int b = (barr[i] & 0xff);
+			if (a != b) {
+				return a - b;
+			}
+		}
+	
+		return aarr.length - barr.length;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Auxiliary method to read a BLOB key from an input stream.
 	 * 
@@ -117,7 +134,7 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	 * @throws IOException
 	 *         throw if an I/O error occurs while reading from the input stream
 	 */
-	static BlobKey readFromInputStream(final InputStream inputStream) throws IOException {
+	static BlobKey readFromInputStream(InputStream inputStream) throws IOException {
 
 		final byte[] key = new byte[BlobKey.SIZE];
 
@@ -142,39 +159,6 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	 *         thrown if an I/O error occurs while writing the BLOB key
 	 */
 	void writeToOutputStream(final OutputStream outputStream) throws IOException {
-
 		outputStream.write(this.key);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int compareTo(final BlobKey o) {
-
-		final byte[] aarr = this.key;
-		final byte[] barr = o.key;
-		final int len = Math.min(aarr.length, barr.length);
-
-		for (int i = 0; i < len; ++i) {
-			final int a = (aarr[i] & 0xff);
-			final int b = (barr[i] & 0xff);
-			if (a != b) {
-				return a - b;
-			}
-		}
-
-		return aarr.length - barr.length;
-	}
-
-	/**
-	 * Adds the BLOB key to the given {@link MessageDigest}.
-	 * 
-	 * @param md
-	 *        the message digest to add the BLOB key to
-	 */
-	public void addToMessageDigest(final MessageDigest md) {
-
-		md.update(this.key);
 	}
 }
