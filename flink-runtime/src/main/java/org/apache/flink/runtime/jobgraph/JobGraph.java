@@ -43,10 +43,12 @@ import org.apache.flink.runtime.blob.BlobKey;
  */
 public class JobGraph implements Serializable {
 
+	private static final long serialVersionUID = 1L;
+	
 	// --------------------------------------------------------------------------------------------
 	// Members that define the structure / topology of the graph
 	// --------------------------------------------------------------------------------------------
-	
+
 	/** List of task vertices included in this job graph. */
 	private final Map<JobVertexID, AbstractJobVertex> taskVertices = new LinkedHashMap<JobVertexID, AbstractJobVertex>();
 
@@ -54,7 +56,7 @@ public class JobGraph implements Serializable {
 	private final Configuration jobConfiguration = new Configuration();
 
 	/** Set of JAR files required to run this job. */
-	private final transient List<Path> userJars = new ArrayList<Path>();
+	private final List<Path> userJars = new ArrayList<Path>();
 
 	/** Set of blob keys identifying the JAR files required to run this job. */
 	private final List<BlobKey> userJarBlobKeys = new ArrayList<BlobKey>();
@@ -357,7 +359,6 @@ public class JobGraph implements Serializable {
 	 * @return set of BLOB keys referring to the JAR files required to run this job
 	 */
 	public List<BlobKey> getUserJarBlobKeys() {
-
 		return this.userJarBlobKeys;
 	}
 
@@ -369,15 +370,13 @@ public class JobGraph implements Serializable {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs during the upload
 	 */
-	public void uploadRequiredJarFiles(final InetSocketAddress serverAddress) throws IOException {
-
+	public void uploadRequiredJarFiles(InetSocketAddress serverAddress) throws IOException {
 		if (this.userJars.isEmpty()) {
 			return;
 		}
 
 		BlobClient bc = null;
 		try {
-
 			bc = new BlobClient(serverAddress);
 
 			for (final Path jar : this.userJars) {
@@ -388,14 +387,15 @@ public class JobGraph implements Serializable {
 					is = fs.open(jar);
 					final BlobKey key = bc.put(is);
 					this.userJarBlobKeys.add(key);
-				} finally {
+				}
+				finally {
 					if (is != null) {
 						is.close();
 					}
 				}
 			}
-
-		} finally {
+		}
+		finally {
 			if (bc != null) {
 				bc.close();
 			}

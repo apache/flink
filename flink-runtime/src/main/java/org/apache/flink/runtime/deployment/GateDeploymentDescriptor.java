@@ -29,6 +29,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionEdge;
  */
 public final class GateDeploymentDescriptor implements Serializable {
 
+	private static final long serialVersionUID = -8433936680266802364L;
+
 	/** The list of channel deployment descriptors attached to this gate. */
 	private final List<ChannelDeploymentDescriptor> channels;
 

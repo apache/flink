@@ -23,7 +23,7 @@ import java.lang.management.{GarbageCollectorMXBean, MemoryMXBean, ManagementFac
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
 import java.util.concurrent.{FutureTask, TimeUnit}
-
+import scala.collection.JavaConverters._
 import akka.actor._
 import akka.pattern.ask
 import org.apache.flink.api.common.cache.DistributedCache
@@ -34,35 +34,46 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.BlobCache
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.execution.{CancelTaskException, ExecutionState, RuntimeEnvironment}
-import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager,
-FallbackLibraryCacheManager, LibraryCacheManager}
+import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{InstanceConnectionInfo, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.{IOManagerAsync}
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager
-import org.apache.flink.runtime.io.network.{NetworkConnectionManager, LocalConnectionManager,
-ChannelManager}
+import org.apache.flink.runtime.io.network.{NetworkConnectionManager, LocalConnectionManager, ChannelManager}
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
-import org.apache.flink.runtime.messages.RegistrationMessages.{RegisterTaskManager,
-AcknowledgeRegistration}
+import org.apache.flink.runtime.messages.RegistrationMessages.{RegisterTaskManager, AcknowledgeRegistration}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
-import org.apache.flink.runtime.messages.TaskManagerProfilerMessages.{UnmonitorTask, MonitorTask,
-RegisterProfilingListener}
+import org.apache.flink.runtime.messages.TaskManagerProfilerMessages.{UnmonitorTask, MonitorTask, RegisterProfilingListener}
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.util.ExceptionUtils
 import org.slf4j.LoggerFactory
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 
+/**
+ * 
+ * 
+ * The TaskManager has the following phases:
+ * 
+ *  - Waiting to be registered with its JobManager. In that phase, it periodically sends 
+ *    [[RegisterAtJobManager]] messages to itself, which trigger the sending of
+ *    a [[RegisterTaskManager]] message to the JobManager.
+ *  
+ *  - Upon successful registration, the JobManager replies with an [[AcknowledgeRegistration]]
+ *    message. This stops the registration messages and initializes all fields
+ *    that require the JobManager's actor reference
+ *    
+ *  - ...
+ */
 class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkkaURL: String,
                   val taskManagerConfig: TaskManagerConfiguration,
                   val networkConnectionConfig: NetworkConnectionConfiguration)
@@ -70,17 +81,12 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
   import context._
   import taskManagerConfig.{timeout => tmTimeout, _}
-  import scala.collection.JavaConverters._
   implicit val timeout = tmTimeout
 
   log.info(s"Starting task manager at ${self.path}.")
 
-  val REGISTRATION_DELAY = 0 seconds
-  val REGISTRATION_INTERVAL = 10 seconds
-  val MAX_REGISTRATION_ATTEMPTS = 10
-  val HEARTBEAT_INTERVAL = 5000 millisecond
-
   TaskManager.checkTempDirs(tmpDirPaths)
+   
   val ioManager = new IOManagerAsync(tmpDirPaths)
   val memoryManager = new DefaultMemoryManager(memorySize, numberOfSlots, pageSize)
   val bcVarManager = new BroadcastVariableManager();
@@ -92,29 +98,24 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   val waitForRegistration = scala.collection.mutable.Set[ActorRef]();
 
   val profiler = profilingInterval match {
-    case Some(interval) => Some(TaskManager.startProfiler(self.path.toSerializationFormat,
-      interval))
+    case Some(interval) => 
+              Some(TaskManager.startProfiler(self.path.toSerializationFormat, interval))
     case None => None
   }
 
-  var libraryCacheManager: LibraryCacheManager = null
+  var libraryCacheManager: LibraryCacheManager = _
   var channelManager: Option[ChannelManager] = None
   var registrationScheduler: Option[Cancellable] = None
   var registrationAttempts: Int = 0
   var registered: Boolean = false
   var currentJobManager = ActorRef.noSender
   var instanceID: InstanceID = null;
-  var memoryMXBean: Option[MemoryMXBean] = None
-  var gcMXBeans: Option[Iterable[GarbageCollectorMXBean]] = None
   var heartbeatScheduler: Option[Cancellable] = None
 
   if (log.isDebugEnabled) {
     memoryLogggingIntervalMs.foreach {
       interval =>
         val d = FiniteDuration(interval, TimeUnit.MILLISECONDS)
-        memoryMXBean = Some(ManagementFactory.getMemoryMXBean)
-        gcMXBeans = Some(ManagementFactory.getGarbageCollectorMXBeans.asScala)
-
         context.system.scheduler.schedule(d, d, self, LogMemoryUsage)
     }
   }
@@ -137,8 +138,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         try {
           channelManager.shutdown()
         } catch {
-          case t: Throwable =>
-            log.error(t, "ChannelManager did not shutdown properly.")
+          case t: Throwable => log.error(t, "ChannelManager did not shutdown properly.")
         }
     }
 
@@ -146,16 +146,22 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     memoryManager.shutdown()
     fileCache.shutdown()
 
-    if(libraryCacheManager != null){
-      libraryCacheManager.shutdown()
+    if (libraryCacheManager != null) {
+      try {
+        libraryCacheManager.shutdown()
+      }
+      catch {
+        case t: Throwable => log.error(t, "LibraryCacheManager did not shutdown properly.")
+      }
     }
   }
 
-  def tryJobManagerRegistration(): Unit = {
+  private def tryJobManagerRegistration(): Unit = {
     registrationAttempts = 0
     import context.dispatcher
-    registrationScheduler = Some(context.system.scheduler.schedule(REGISTRATION_DELAY,
-      REGISTRATION_INTERVAL, self, RegisterAtJobManager))
+    registrationScheduler = Some(context.system.scheduler.schedule(
+        TaskManager.REGISTRATION_DELAY, TaskManager.REGISTRATION_INTERVAL,
+        self, RegisterAtJobManager))
   }
 
 
@@ -165,7 +171,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
       if (registered) {
         registrationScheduler.foreach(_.cancel())
-      } else if (registrationAttempts <= MAX_REGISTRATION_ATTEMPTS) {
+      } else if (registrationAttempts <= TaskManager.MAX_REGISTRATION_ATTEMPTS) {
 
         log.info(s"Try to register at master ${jobManagerAkkaURL}. ${registrationAttempts}. " +
           s"Attempt")
@@ -187,16 +193,13 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         context.watch(currentJobManager)
 
         log.info(s"TaskManager successfully registered at JobManager ${
-          currentJobManager.path
-            .toString
-        }.")
+          currentJobManager.path.toString }.")
 
         setupChannelManager()
         setupLibraryCacheManager(blobPort)
 
-        heartbeatScheduler = Some(context.system.scheduler.schedule(HEARTBEAT_INTERVAL,
-          HEARTBEAT_INTERVAL, self,
-          SendHeartbeat))
+        heartbeatScheduler = Some(context.system.scheduler.schedule(
+            TaskManager.HEARTBEAT_INTERVAL, TaskManager.HEARTBEAT_INTERVAL, self, SendHeartbeat))
 
         profiler foreach {
           _.tell(RegisterProfilingListener, JobManager.getProfiler(currentJobManager))
@@ -218,56 +221,121 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           }
           sender ! new TaskOperationResult(executionID, true)
         case None =>
-          sender ! new TaskOperationResult(executionID, false, "No task with that execution ID " +
-            "was " +
-            "found.")
+          sender ! new TaskOperationResult(executionID, false,
+                                           "No task with that execution ID was found.")
       }
     }
 
-    case SubmitTask(tdd) => {
-      val jobID = tdd.getJobID
-      val vertexID = tdd.getVertexID
-      val executionID = tdd.getExecutionId
-      val taskIndex = tdd.getIndexInSubtaskGroup
-      val numSubtasks = tdd.getCurrentNumberOfSubtasks
-      var startRegisteringTask = 0L
-      var task: Task = null
+    case UnregisterTask(executionID) => {
+      unregisterTask(executionID)
+    }
 
-      try {
-        if(log.isDebugEnabled){
-          startRegisteringTask = System.currentTimeMillis()
+    case SendHeartbeat => {
+      currentJobManager ! Heartbeat(instanceID)
+    }
+
+    case LogMemoryUsage => {
+      logMemoryStats()
+    }
+
+    case NotifyWhenRegisteredAtJobManager => {
+       if (registered) {
+         sender ! RegisteredAtJobManager
+       } else {
+         waitForRegistration += sender
+      }
+    }
+
+    case FailTask(executionID, cause) => {
+      runningTasks.get(executionID) match {
+        case Some(task) =>
+          Future{
+            task.failExternally(cause)
+          }
+        case None =>
+      }
+    }
+
+    case Terminated(jobManager) => {
+      log.info(s"Job manager ${jobManager.path} is no longer reachable. "
+                 + "Cancelling all tasks and trying to reregister.")
+      
+      cancelAndClearEverything(new Throwable("Lost connection to JobManager"))
+      tryJobManagerRegistration()
+    }
+  }
+
+  def notifyExecutionStateChange(jobID: JobID, executionID: ExecutionAttemptID,
+                                 executionState: ExecutionState,
+                                 optionalError: Throwable): Unit = {
+    log.info(s"Update execution state to ${executionState}.")
+    val futureResponse = (currentJobManager ? UpdateTaskExecutionState(new TaskExecutionState
+    (jobID, executionID, executionState, optionalError)))(timeout)
+
+    futureResponse.mapTo[Boolean].onComplete {
+      case Success(result) =>
+        if(!result){
+          self ! FailTask(executionID, new IllegalStateException("Task has been disposed on " +
+            "JobManager."))
         }
-        libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles());
 
-        if(log.isDebugEnabled){
-          log.debug(s"Register task ${executionID} took ${(System.currentTimeMillis() -
-            startRegisteringTask)/1000.0}s")
+        if (!result || executionState == ExecutionState.FINISHED || executionState ==
+          ExecutionState.CANCELED || executionState == ExecutionState.FAILED) {
+          self ! UnregisterTask(executionID)
         }
+      case Failure(t) => {
+        log.warning(s"Execution state change notification failed for task ${executionID} " +
+          s"of job ${jobID}. Cause ${t.getMessage}.")
+        self ! UnregisterTask(executionID)
+      }
+    }
+  }
 
-        val userCodeClassLoader = libraryCacheManager.getClassLoader(jobID)
+  private def submitTask(tdd: TaskDeploymentDescriptor) : Unit = {
+    val jobID = tdd.getJobID
+    val vertexID = tdd.getVertexID
+    val executionID = tdd.getExecutionId
+    val taskIndex = tdd.getIndexInSubtaskGroup
+    val numSubtasks = tdd.getCurrentNumberOfSubtasks
+    var startRegisteringTask = 0L
+    var task: Task = null
 
-        if (userCodeClassLoader == null) {
-          throw new RuntimeException("No user code Classloader available.")
-        }
+    try {
+      if (log.isDebugEnabled) {
+        startRegisteringTask = System.currentTimeMillis()
+      }
+      libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles());
 
-        task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
-          tdd.getTaskName, this)
+      if (log.isDebugEnabled) {
+        log.debug(s"Register task ${executionID} took ${
+          (System.currentTimeMillis() - startRegisteringTask)/1000.0}s")
+      }
 
-        runningTasks.put(executionID, task) match {
-          case Some(_) => throw new RuntimeException(s"TaskManager contains already a task with " +
-            s"executionID ${executionID}.")
-          case None =>
-        }
+      val userCodeClassLoader = libraryCacheManager.getClassLoader(jobID)
 
-        val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID,
+      if (userCodeClassLoader == null) {
+        throw new RuntimeException("No user code Classloader available.")
+      }
+
+      task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
+        tdd.getTaskName, this)
+
+      runningTasks.put(executionID, task) match {
+        case Some(_) => throw new RuntimeException(
+            s"TaskManager contains already a task with executionID ${executionID}.")
+        case None =>
+      }
+
+      val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID,
           executionID, timeout)
-        val env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, memoryManager,
+
+      val env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, memoryManager,
           ioManager, splitProvider, currentJobManager, bcVarManager)
 
-        task.setEnvironment(env)
+      task.setEnvironment(env)
 
-        // register the task with the network stack and profilers
-        channelManager match {
+      // register the task with the network stack and profilers
+      channelManager match {
           case Some(cm) => cm.register(task)
           case None => throw new RuntimeException("ChannelManager has not been properly " +
             "instantiated.")
@@ -311,88 +379,15 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
             }
 
             libraryCacheManager.unregisterTask(jobID, executionID)
-          }catch{
+          } catch {
             case t: Throwable => log.error("Error during cleanup of task deployment.", t)
           }
 
           sender ! new TaskOperationResult(executionID, false, message)
       }
-    }
-
-    case UnregisterTask(executionID) => {
-      unregisterTask(executionID)
-    }
-
-    case SendHeartbeat => {
-      currentJobManager ! Heartbeat(instanceID)
-    }
-
-    case LogMemoryUsage => {
-      memoryMXBean foreach {
-        mxbean =>
-            if(log.isDebugEnabled) {
-              log.debug(TaskManager.getMemoryUsageStatsAsString(mxbean))
-            }
-      }
-
-      gcMXBeans foreach {
-        mxbeans =>
-            if(log.isDebugEnabled) {
-              log.debug(TaskManager.getGarbageCollectorStatsAsString(mxbeans))
-            }
-      }
-    }
-
-    case NotifyWhenRegisteredAtJobManager => {
-      registered match {
-        case true => sender ! RegisteredAtJobManager
-        case false => waitForRegistration += sender
-      }
-    }
-
-    case FailTask(executionID, cause) => {
-      runningTasks.get(executionID) match {
-        case Some(task) =>
-          Future{
-            task.failExternally(cause)
-          }
-        case None =>
-      }
-    }
-
-    case Terminated(jobManager) => {
-      log.info(s"Job manager ${jobManager.path} is no longer reachable. Try to reregister.")
-      tryJobManagerRegistration()
-    }
   }
-
-  def notifyExecutionStateChange(jobID: JobID, executionID: ExecutionAttemptID,
-                                 executionState: ExecutionState,
-                                 optionalError: Throwable): Unit = {
-    log.info(s"Update execution state to ${executionState}.")
-    val futureResponse = (currentJobManager ? UpdateTaskExecutionState(new TaskExecutionState
-    (jobID, executionID, executionState, optionalError)))(timeout)
-
-    futureResponse.mapTo[Boolean].onComplete {
-      case Success(result) =>
-        if(!result){
-          self ! FailTask(executionID, new IllegalStateException("Task has been disposed on " +
-            "JobManager."))
-        }
-
-        if (!result || executionState == ExecutionState.FINISHED || executionState ==
-          ExecutionState.CANCELED || executionState == ExecutionState.FAILED) {
-          self ! UnregisterTask(executionID)
-        }
-      case Failure(t) => {
-        log.warning(s"Execution state change notification failed for task ${executionID} " +
-          s"of job ${jobID}. Cause ${t.getMessage}.")
-        self ! UnregisterTask(executionID)
-      }
-    }
-  }
-
-  def setupChannelManager(): Unit = {
+  
+  private def setupChannelManager(): Unit = {
     //shutdown existing channel manager
     channelManager foreach {
       cm =>
@@ -424,12 +419,23 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     }
   }
 
-  def setupLibraryCacheManager(blobPort: Int): Unit = {
-    if(blobPort > 0){
+  private def setupLibraryCacheManager(blobPort: Int): Unit = {
+    // shutdown existing library cache manager
+    if (libraryCacheManager != null) {
+      try {
+        libraryCacheManager.shutdown()
+      }
+      catch {
+        case t: Throwable => log.error(t, "Could not properly shut down LibraryCacheManager.")
+      }
+      libraryCacheManager = null
+    }
+    
+    if (blobPort > 0) {
       val address = new InetSocketAddress(currentJobManager.path.address.host.getOrElse
         ("localhost"), blobPort)
       libraryCacheManager = new BlobLibraryCacheManager(new BlobCache(address), cleanupInterval)
-    }else{
+    } else {
       libraryCacheManager = new FallbackLibraryCacheManager
     }
   }
@@ -437,7 +443,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   /**
    * Removes all tasks from this TaskManager.
    */
-  def cancelAndClearEverything(cause: Throwable) {
+  private def cancelAndClearEverything(cause: Throwable) {
     if (runningTasks.size > 0) {
       log.info("Cancelling all computations and discarding all cached data.")
       for (t <- runningTasks.values) {
@@ -447,7 +453,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     }
   }
 
-  def unregisterTask(executionID: ExecutionAttemptID): Unit = {
+  private def unregisterTask(executionID: ExecutionAttemptID): Unit = {
     log.info(s"Unregister task with execution ID ${executionID}.")
     runningTasks.remove(executionID) match {
       case Some(task) =>
@@ -460,7 +466,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     }
   }
 
-  def removeAllTaskResources(task: Task): Unit = {
+  private def removeAllTaskResources(task: Task): Unit = {
     if(task.getEnvironment != null) {
       try {
         for (entry <- DistributedCache.readFileInfoFromConfig(task.getEnvironment
@@ -483,8 +489,21 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
     task.unregisterMemoryManager(memoryManager)
   }
+  
+  private def logMemoryStats(): Unit = {
+    if (log.isDebugEnabled) {
+      val memoryMXBean = ManagementFactory.getMemoryMXBean()
+      val gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans().asScala
+      
+      log.debug(TaskManager.getMemoryUsageStatsAsString(memoryMXBean))
+      log.debug(TaskManager.getGarbageCollectorStatsAsString(gcMXBeans))
+    }
+  }
 }
 
+/**
+ * TaskManager companion object. Contains TaskManager executable entry point, command line parsing, and constants.
+ */
 object TaskManager {
 
   val LOG = LoggerFactory.getLogger(classOf[TaskManager])
@@ -492,7 +511,13 @@ object TaskManager {
 
   val TASK_MANAGER_NAME = "taskmanager"
   val PROFILER_NAME = "profiler"
+    
+  val REGISTRATION_DELAY = 0 seconds
+  val REGISTRATION_INTERVAL = 10 seconds
+  val MAX_REGISTRATION_ATTEMPTS = 10
+  val HEARTBEAT_INTERVAL = 5000 millisecond
 
+  
   def main(args: Array[String]): Unit = {
     val (hostname, port, configuration) = parseArgs(args)
 
@@ -599,7 +624,7 @@ object TaskManager {
 
     val networkConnectionConfiguration = if(localExecution){
       LocalNetworkConfiguration(numBuffers, bufferSize)
-    }else{
+    } else {
       val numInThreads = configuration.getInteger(
         ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
         ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS)
@@ -708,7 +733,7 @@ object TaskManager {
     }
   }
 
-  def getMemoryUsageStatsAsString(memoryMXBean: MemoryMXBean): String = {
+  private def getMemoryUsageStatsAsString(memoryMXBean: MemoryMXBean): String = {
     val heap = memoryMXBean.getHeapMemoryUsage()
     val nonHeap = memoryMXBean.getNonHeapMemoryUsage
 
@@ -724,7 +749,7 @@ object TaskManager {
       s"NON HEAP: $nonHeapUsed/$nonHeapCommitted/$nonHeapMax MB (used/committed/max)]"
   }
 
-  def getGarbageCollectorStatsAsString(gcMXBeans: Iterable[GarbageCollectorMXBean]): String = {
+  private def getGarbageCollectorStatsAsString(gcMXBeans: Iterable[GarbageCollectorMXBean]): String = {
     val beans = gcMXBeans map {
       bean =>
         s"[${bean.getName}, GC TIME (ms): ${bean.getCollectionTime}, " +

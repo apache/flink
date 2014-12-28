@@ -39,6 +39,8 @@ import org.apache.flink.util.InstantiationUtil;
  */
 public class AccumulatorEvent implements Serializable {
 
+	private static final long serialVersionUID = 8965894516006882735L;
+
 	private JobID jobID;
 	
 	private Map<String, Accumulator<?, ?>> accumulators;

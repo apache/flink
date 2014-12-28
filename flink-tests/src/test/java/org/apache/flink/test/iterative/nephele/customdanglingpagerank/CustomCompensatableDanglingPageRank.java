@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
@@ -56,6 +55,7 @@ import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.Vert
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankSerializerFactory;
 import org.apache.flink.test.iterative.nephele.danglingpagerank.DiffL1NormConvergenceCriterion;
 import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStatsAggregator;
+import org.apache.flink.test.util.TestBaseUtils;
 
 public class CustomCompensatableDanglingPageRank {
 	
@@ -101,7 +101,7 @@ public class CustomCompensatableDanglingPageRank {
 		String pageWithRankInputPath = ""; //"file://" + PlayConstants.PLAY_DIR + "test-inputs/danglingpagerank/pageWithRank";
 		String adjacencyListInputPath = ""; //"file://" + PlayConstants.PLAY_DIR +
 //			"test-inputs/danglingpagerank/adjacencylists";
-		String outputPath =  Path.constructTestURI(CustomCompensatableDanglingPageRank.class, "flink_iterations");
+		String outputPath = TestBaseUtils.constructTestURI(CustomCompensatableDanglingPageRank.class, "flink_iterations");
 //		String confPath = PlayConstants.PLAY_DIR + "local-conf";
 		int minorConsumer = 2;
 		int matchMemory = 5;

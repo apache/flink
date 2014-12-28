@@ -23,6 +23,9 @@ import org.apache.flink.runtime.instance.AllocatedSlot;
 
 public class SubSlot extends AllocatedSlot {
 
+	private static final long serialVersionUID = 1361615219044538497L;
+	
+
 	private final SharedSlot sharedSlot;
 	
 	private final AbstractID groupId;

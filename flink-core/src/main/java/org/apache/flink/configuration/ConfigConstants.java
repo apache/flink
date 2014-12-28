@@ -295,7 +295,7 @@ public final class ConfigConstants {
 	public static final String AKKA_STARTUP_TIMEOUT = "akka.startup-timeout";
 
 	/**
-	 * Hearbeat interval of the transport failure detector
+	 * Heartbeat interval of the transport failure detector
 	 */
 	public static final String AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "akka.transport.heartbeat.interval";
 
@@ -466,11 +466,6 @@ public final class ConfigConstants {
 	public static final int DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK = -1;
 
 	/**
-	 * The default interval for TaskManager heart beats (5000 msecs).
-	 */
-	public static final int DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL = 5000;
-
-	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
 	 */
 	public static final boolean DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = false;
@@ -559,8 +554,8 @@ public final class ConfigConstants {
 	/**
 	 * The default directory to store temporary objects (e.g. during file uploads).
 	 */
-	public static final String DEFAULT_WEB_TMP_DIR = System.getProperty("java.io.tmpdir") == null ? "/tmp" : System
-		.getProperty("java.io.tmpdir");
+	public static final String DEFAULT_WEB_TMP_DIR = 
+			System.getProperty("java.io.tmpdir") == null ? "/tmp" : System.getProperty("java.io.tmpdir");
 
 	/**
 	 * The default directory for temporary plan dumps from the web frontend.

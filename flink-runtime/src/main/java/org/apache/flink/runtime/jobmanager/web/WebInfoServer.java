@@ -85,15 +85,16 @@ public class WebInfoServer {
 	 */
 	public WebInfoServer(Configuration config, ActorRef jobmanager,
 						ActorRef archive, FiniteDuration timeout) throws IOException {
-		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
-
-		this.timeout = timeout;
-
+		
 		// if no explicit configuration is given, use the global configuration
 		if (config == null) {
 			config = GlobalConfiguration.getConfiguration();
 		}
+		
+		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		
+		this.timeout = timeout;
 
 		// get base path of Flink installation
 		final String basePath = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");
