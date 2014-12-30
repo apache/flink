@@ -71,10 +71,8 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable> i
             }
 
             if (vertexValue > minDistance) {
-                vertexValue = minDistance;
+                setNewVertexValue(minDistance);
             }
-
-            setNewVertexValue(vertexValue);
         }
     }
 
