@@ -107,9 +107,9 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		LinkedList<Object> fakeElements = new LinkedList<Object>();
 		// check if there is more then one window border missed
 		// use > here. In case >= would fit, the regular call will do the job.
-		while (timestamp.getTimestamp(datapoint) > startTime + granularity) {
+		while (timestamp.getTimestamp(datapoint) >= startTime + granularity) {
 			startTime += granularity;
-			fakeElements.add(startTime-1);
+			fakeElements.add(startTime - 1);
 		}
 		return (Object[]) fakeElements.toArray();
 	}
@@ -146,7 +146,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		// start time is excluded, but end time is included: >=
 		if (System.currentTimeMillis() >= startTime + granularity) {
 			startTime += granularity;
-			callback.sendFakeElement(startTime-1);
+			callback.sendFakeElement(startTime - 1);
 		}
 
 	}

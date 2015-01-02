@@ -50,8 +50,7 @@ public class TimeTriggerPolicyTest {
 		// test different granularity
 		for (long granularity = 0; granularity < 31; granularity++) {
 			// create policy
-			TriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(granularity,
-					timeStamp);
+			TriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(granularity, timeStamp);
 
 			// remember window border
 			// Remark: This might NOT work in case the timeStamp uses
@@ -101,11 +100,10 @@ public class TimeTriggerPolicyTest {
 		};
 
 		// create policy
-		TimeTriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(5,
-				timeStamp);
+		TimeTriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(5, timeStamp);
 
 		// expected result
-		Long[][] result = { {}, {}, { 4L, 9L, 14L }, { 24L } };
+		Long[][] result = { {}, {}, { 4L, 9L, 14L, 19L }, { 24L } };
 
 		// call policy
 		for (int i = 0; i < times.length; i++) {
