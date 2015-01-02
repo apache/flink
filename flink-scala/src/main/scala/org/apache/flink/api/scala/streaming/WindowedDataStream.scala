@@ -40,13 +40,9 @@ import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.A
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.function.aggregation.SumFunction
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
 
 class WindowedDataStream[T](javaStream: JavaWStream[T]) {
-
-  private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    ClosureCleaner.clean(f, checkSerializable)
-    f
-  }
 
   /**
    * Defines the slide size (trigger frequency) for the windowed data stream.

@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.windowing.policy;
 
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 
 /**
  * This interface extends the {@link TriggerPolicy} interface with functionality
@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.invokable.util.TimeStamp;
  * first. It can return zero ore more fake data points which will be added
  * before the the currently arrived real element gets processed. This allows to
  * handle empty windows in time based windowing with an user defined
- * {@link TimeStamp}. Triggers are not called on fake datapoint. A fake
+ * {@link Timestamp}. Triggers are not called on fake datapoint. A fake
  * datapoint is always considered as triggered.
  * 
  * 2) An active trigger has a factory method for a runnable. This factory method
@@ -49,7 +49,7 @@ public interface ActiveTriggerPolicy<DATA> extends TriggerPolicy<DATA> {
 	 * first. It can return zero ore more fake data points which will be added
 	 * before the the currently arrived real element gets processed. This allows
 	 * to handle empty windows in time based windowing with an user defined
-	 * {@link TimeStamp}. Triggers are not called on fake datapoints. A fake
+	 * {@link Timestamp}. Triggers are not called on fake datapoints. A fake
 	 * datapoint is always considered as triggered.
 	 * 
 	 * @param datapoint

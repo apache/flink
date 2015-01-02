@@ -19,8 +19,7 @@ package org.apache.flink.streaming.api.invokable.operator.co;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
-import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
 public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
@@ -28,14 +27,14 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 	protected long startTime2;
 	protected long nextRecordTime1;
 	protected long nextRecordTime2;
-	protected TimeStamp<IN1> timestamp1;
-	protected TimeStamp<IN2> timestamp2;
+	protected TimestampWrapper<IN1> timestamp1;
+	protected TimestampWrapper<IN2> timestamp2;
 	protected StreamWindow<IN1> window1;
 	protected StreamWindow<IN2> window2;
 
 	public CoWindowReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer, long windowSize1,
-			long windowSize2, long slideInterval1, long slideInterval2, TimeStamp<IN1> timestamp1,
-			TimeStamp<IN2> timestamp2) {
+			long windowSize2, long slideInterval1, long slideInterval2,
+			TimestampWrapper<IN1> timestamp1, TimestampWrapper<IN2> timestamp2) {
 		super(coReducer, windowSize1, windowSize2, slideInterval1, slideInterval2);
 		this.timestamp1 = timestamp1;
 		this.timestamp2 = timestamp2;
@@ -51,10 +50,10 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 		this.window2 = new StreamWindow<IN2>(batchSize2, slideSize2);
 		this.batch1 = this.window1;
 		this.batch2 = this.window2;
-		if (timestamp1 instanceof DefaultTimeStamp) {
+		if (timestamp1.isDefaultTimestamp()) {
 			(new TimeCheck1()).start();
 		}
-		if (timestamp2 instanceof DefaultTimeStamp) {
+		if (timestamp2.isDefaultTimestamp()) {
 			(new TimeCheck2()).start();
 		}
 	}

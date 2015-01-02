@@ -21,7 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.junit.Test;
 
 public class TimeTriggerPolicyTest {
@@ -33,16 +34,11 @@ public class TimeTriggerPolicyTest {
 
 		// create a timestamp
 		@SuppressWarnings("serial")
-		TimeStamp<Integer> timeStamp = new TimeStamp<Integer>() {
+		Timestamp<Integer> timeStamp = new Timestamp<Integer>() {
 
 			@Override
 			public long getTimestamp(Integer value) {
 				return value;
-			}
-
-			@Override
-			public long getStartTime() {
-				return 0;
 			}
 
 		};
@@ -50,12 +46,12 @@ public class TimeTriggerPolicyTest {
 		// test different granularity
 		for (long granularity = 0; granularity < 31; granularity++) {
 			// create policy
-			TriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(granularity, timeStamp);
+
+			TriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(granularity,
+					new TimestampWrapper<Integer>(timeStamp, 0));
 
 			// remember window border
-			// Remark: This might NOT work in case the timeStamp uses
-			// System.getCurrentTimeMillis to determine the start time.
-			long currentTime = timeStamp.getStartTime();
+			long currentTime = 0;
 
 			// test by adding values
 			for (int i = 0; i < times.length; i++) {
@@ -85,22 +81,18 @@ public class TimeTriggerPolicyTest {
 
 		// create a timestamp
 		@SuppressWarnings("serial")
-		TimeStamp<Integer> timeStamp = new TimeStamp<Integer>() {
+		Timestamp<Integer> timeStamp = new Timestamp<Integer>() {
 
 			@Override
 			public long getTimestamp(Integer value) {
 				return value;
 			}
 
-			@Override
-			public long getStartTime() {
-				return 0;
-			}
-
 		};
 
 		// create policy
-		TimeTriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(5, timeStamp);
+		TimeTriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(5,
+				new TimestampWrapper<Integer>(timeStamp, 0));
 
 		// expected result
 		Long[][] result = { {}, {}, { 4L, 9L, 14L, 19L }, { 24L } };

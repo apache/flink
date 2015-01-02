@@ -22,8 +22,8 @@ import java.util.Map;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
 public class CoGroupedWindowReduceInvokable<IN1, IN2, OUT> extends
 		CoWindowReduceInvokable<IN1, IN2, OUT> {
@@ -38,7 +38,7 @@ public class CoGroupedWindowReduceInvokable<IN1, IN2, OUT> extends
 	public CoGroupedWindowReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer,
 			long windowSize1, long windowSize2, long slideInterval1, long slideInterval2,
 			KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2,
-			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
+			TimestampWrapper<IN1> timestamp1, TimestampWrapper<IN2> timestamp2) {
 		super(coReducer, windowSize1, windowSize2, slideInterval1, slideInterval2, timestamp1,
 				timestamp2);
 		this.keySelector1 = keySelector1;

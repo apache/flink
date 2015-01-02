@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
@@ -96,12 +96,16 @@ public class WindowCrossJoinTest implements Serializable {
 		DataStream<Tuple2<Integer, String>> inStream1 = env.fromCollection(in1);
 		DataStream<Tuple1<Integer>> inStream2 = env.fromCollection(in2);
 
-		inStream1.join(inStream2).onWindow(1000, 1000, new MyTimestamp1(), new MyTimestamp2())
-				.where(0).equalTo(0).addSink(new JoinResultSink());
+		inStream1
+				.join(inStream2)
+				.onWindow(1000, 1000, new MyTimestamp<Tuple2<Integer, String>>(),
+						new MyTimestamp<Tuple1<Integer>>()).where(0).equalTo(0)
+				.addSink(new JoinResultSink());
 
 		inStream1
 				.cross(inStream2)
-				.onWindow(1000, 1000, new MyTimestamp1(), new MyTimestamp2())
+				.onWindow(1000, 1000, new MyTimestamp<Tuple2<Integer, String>>(),
+						new MyTimestamp<Tuple1<Integer>>())
 				.with(new CrossFunction<Tuple2<Integer, String>, Tuple1<Integer>, Tuple2<Tuple2<Integer, String>, Tuple1<Integer>>>() {
 
 					private static final long serialVersionUID = 1L;
@@ -119,25 +123,15 @@ public class WindowCrossJoinTest implements Serializable {
 		assertEquals(crossExpectedResults, crossResults);
 	}
 
-	private static class MyTimestamp1 implements TimeStamp<Tuple2<Integer, String>> {
+	private static class MyTimestamp<T> extends TimestampWrapper<T> {
+		public MyTimestamp() {
+			super(null, 0);
+		}
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public long getTimestamp(Tuple2<Integer, String> value) {
-			return 101L;
-		}
-
-		@Override
-		public long getStartTime() {
-			return 100L;
-		}
-	}
-
-	private static class MyTimestamp2 implements TimeStamp<Tuple1<Integer>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public long getTimestamp(Tuple1<Integer> value) {
+		public long getTimestamp(T value) {
 			return 101L;
 		}
 

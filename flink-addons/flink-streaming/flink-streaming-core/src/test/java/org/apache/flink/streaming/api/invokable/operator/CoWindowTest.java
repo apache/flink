@@ -27,7 +27,8 @@ import java.util.Set;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.function.co.CoWindowFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.util.MockCoContext;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -80,7 +81,7 @@ public class CoWindowTest {
 
 	}
 
-	private static final class MyTS1 implements TimeStamp<Integer> {
+	private static final class MyTS1 implements Timestamp<Integer> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -89,14 +90,9 @@ public class CoWindowTest {
 			return value;
 		}
 
-		@Override
-		public long getStartTime() {
-			return 1;
-		}
-
 	}
 
-	private static final class MyTS2 implements TimeStamp<Tuple2<Integer, Integer>> {
+	private static final class MyTS2 implements Timestamp<Tuple2<Integer, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -105,18 +101,14 @@ public class CoWindowTest {
 			return value.f0;
 		}
 
-		@Override
-		public long getStartTime() {
-			return 1;
-		}
-
 	}
 
 	@Test
 	public void coWindowGroupReduceTest2() throws Exception {
 
 		CoWindowInvokable<Integer, Integer, Integer> invokable1 = new CoWindowInvokable<Integer, Integer, Integer>(
-				new MyCoGroup1(), 2, 1, new MyTS1(), new MyTS1());
+				new MyCoGroup1(), 2, 1, new TimestampWrapper<Integer>(new MyTS1(), 1),
+				new TimestampWrapper<Integer>(new MyTS1(), 1));
 
 		// Windowsize 2, slide 1
 		// 1,2|2,3|3,4|4,5
@@ -152,7 +144,8 @@ public class CoWindowTest {
 		assertEquals(expected1, actual1);
 
 		CoWindowInvokable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer> invokable2 = new CoWindowInvokable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer>(
-				new MyCoGroup2(), 2, 3, new MyTS2(), new MyTS2());
+				new MyCoGroup2(), 2, 3, new TimestampWrapper<Tuple2<Integer, Integer>>(new MyTS2(),
+						1), new TimestampWrapper<Tuple2<Integer, Integer>>(new MyTS2(), 1));
 
 		// WindowSize 2, slide 3
 		// 1,2|4,5|7,8|

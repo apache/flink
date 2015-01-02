@@ -19,8 +19,6 @@ package org.apache.flink.streaming.api.windowing.helper;
 
 import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
@@ -39,7 +37,7 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 
 	private long length;
 	private TimeUnit granularity;
-	private TimeStamp<DATA> timeStamp;
+	private TimestampWrapper<DATA> timestampWrapper;
 	private long delay;
 
 	/**
@@ -53,31 +51,52 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	 *            the smallest possible granularity is milliseconds. Any smaller
 	 *            time unit might cause an error at runtime due to conversion
 	 *            problems.
-	 * @param timeStamp
+	 * @param timestamp
 	 *            The user defined timestamp that will be used to extract time
 	 *            information from the incoming elements
+	 * @param startTime
+	 *            The startTime of the stream for computing the first window
 	 */
-	private Time(long length, TimeUnit timeUnit, TimeStamp<DATA> timeStamp) {
+	private Time(long length, TimeUnit timeUnit, Timestamp<DATA> timestamp, long startTime) {
+		this(length, timeUnit, new TimestampWrapper<DATA>(timestamp, startTime));
+	}
+
+	/**
+	 * Creates an helper representing a trigger which triggers every given
+	 * length or an eviction which evicts all elements older than length.
+	 * 
+	 * @param length
+	 *            The number of time units
+	 * @param timeUnit
+	 *            The unit of time such as minute oder millisecond. Note that
+	 *            the smallest possible granularity is milliseconds. Any smaller
+	 *            time unit might cause an error at runtime due to conversion
+	 *            problems.
+	 * @param timestampWrapper
+	 *            The user defined {@link TimestampWrapper} that will be used to
+	 *            extract time information from the incoming elements
+	 */
+	private Time(long length, TimeUnit timeUnit, TimestampWrapper<DATA> timestampWrapper) {
 		this.length = length;
 		this.granularity = timeUnit;
-		this.timeStamp = timeStamp;
+		this.timestampWrapper = timestampWrapper;
 		this.delay = 0;
 	}
 
 	@Override
 	public EvictionPolicy<DATA> toEvict() {
-		return new TimeEvictionPolicy<DATA>(granularityInMillis(), timeStamp);
+		return new TimeEvictionPolicy<DATA>(granularityInMillis(), timestampWrapper);
 	}
 
 	@Override
 	public TriggerPolicy<DATA> toTrigger() {
-		return new TimeTriggerPolicy<DATA>(granularityInMillis(), timeStamp, delay);
+		return new TimeTriggerPolicy<DATA>(granularityInMillis(), timestampWrapper, delay);
 	}
 
 	/**
 	 * Creates a helper representing a time trigger which triggers every given
 	 * length (slide size) or a time eviction which evicts all elements older
-	 * than length (window size).
+	 * than length (window size) using System time.
 	 * 
 	 * @param length
 	 *            The number of time units
@@ -88,8 +107,10 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	 *            problems.
 	 * @return Helper representing the time based trigger and eviction policy
 	 */
+	@SuppressWarnings("unchecked")
 	public static <DATA> Time<DATA> of(long length, TimeUnit timeUnit) {
-		return new Time<DATA>(length, timeUnit, new DefaultTimeStamp<DATA>());
+		return new Time<DATA>(length, timeUnit,
+				(TimestampWrapper<DATA>) SystemTimestamp.getWrapper());
 	}
 
 	/**
@@ -99,13 +120,32 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	 * 
 	 * @param length
 	 *            The number of time units
-	 * @param timeStamp
+	 * @param timestamp
+	 *            The user defined timestamp that will be used to extract time
+	 *            information from the incoming elements
+	 * @param startTime
+	 *            The startTime used to compute the first window
+	 * @return Helper representing the time based trigger and eviction policy
+	 */
+	public static <DATA> Time<DATA> of(long length, Timestamp<DATA> timestamp, long startTime) {
+		return new Time<DATA>(length, null, timestamp, startTime);
+	}
+
+	/**
+	 * Creates a helper representing a time trigger which triggers every given
+	 * length (slide size) or a time eviction which evicts all elements older
+	 * than length (window size) using a user defined timestamp extractor. By
+	 * default the start time is set to 0.
+	 * 
+	 * @param length
+	 *            The number of time units
+	 * @param timestamp
 	 *            The user defined timestamp that will be used to extract time
 	 *            information from the incoming elements
 	 * @return Helper representing the time based trigger and eviction policy
 	 */
-	public static <DATA> Time<DATA> of(long length, TimeStamp<DATA> timeStamp) {
-		return new Time<DATA>(length, TimeUnit.MILLISECONDS, timeStamp);
+	public static <DATA> Time<DATA> of(long length, Timestamp<DATA> timestamp) {
+		return of(length, timestamp, 0);
 	}
 
 	/**
@@ -121,6 +161,10 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	}
 
 	private long granularityInMillis() {
-		return this.granularity.toMillis(this.length);
+		if (granularity != null) {
+			return this.granularity.toMillis(this.length);
+		} else {
+			return this.length;
+		}
 	}
 }

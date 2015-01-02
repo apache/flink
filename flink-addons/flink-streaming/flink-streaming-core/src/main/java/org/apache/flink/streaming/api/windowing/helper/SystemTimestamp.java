@@ -15,16 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.util;
+package org.apache.flink.streaming.api.windowing.helper;
 
 /**
- * Default timestamp function that uses the Java System.currentTimeMillis()
- * method to retrieve a timestamp.
- *
- * @param <T>
- *            Type of the inputs of the reducing function.
+ * {@link Timestamp} implementation to be used when system time is needed to
+ * determine windows
  */
-public class DefaultTimeStamp<T> implements TimeStamp<T> {
+public class SystemTimestamp<T> implements Timestamp<T> {
+
 	private static final long serialVersionUID = 1L;
 
 	@Override
@@ -32,8 +30,8 @@ public class DefaultTimeStamp<T> implements TimeStamp<T> {
 		return System.currentTimeMillis();
 	}
 
-	@Override
-	public long getStartTime() {
-		return System.currentTimeMillis();
+	public static <R> TimestampWrapper<R> getWrapper() {
+		return new TimestampWrapper<R>(new SystemTimestamp<R>(), System.currentTimeMillis());
 	}
+
 }

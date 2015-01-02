@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.streaming
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import scala.reflect.ClassTag
@@ -52,24 +53,6 @@ import com.amazonaws.services.cloudfront_2012_03_15.model.InvalidArgumentExcepti
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 
 class DataStream[T](javaStream: JavaStream[T]) {
-
-  /* This code is originally from the Apache Spark project. */
-  /**
-   * Clean a closure to make it ready to serialized and send to tasks
-   * (removes unreferenced variables in $outer's, updates REPL variables)
-   * If <tt>checkSerializable</tt> is set, <tt>clean</tt> will also proactively
-   * check to see if <tt>f</tt> is serializable and throw a <tt>SparkException</tt>
-   * if not.
-   *
-   * @param f the closure to clean
-   * @param checkSerializable whether or not to immediately check <tt>f</tt> for serializability
-   * @throws <tt>SparkException<tt> if <tt>checkSerializable</tt> is set but <tt>f</tt> is not
-   *   serializable
-   */
-  private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    ClosureCleaner.clean(f, checkSerializable)
-    f
-  }
 
   /**
    * Gets the underlying java DataStream object.
