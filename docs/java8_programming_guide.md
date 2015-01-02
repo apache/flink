@@ -68,7 +68,7 @@ DataSet<String> input = env.fromElements(1, 2, 3);
 // collector type must not be declared, it is inferred from the type of the dataset
 DataSet<String> manyALetters = input.flatMap((number, out) -> {	
     for(int i = 0; i < number; i++) {
-        o.collect("a");
+        out.collect("a");
     }
 });
 
