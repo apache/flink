@@ -15,32 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.util;
+package org.apache.flink.streaming.api.windowing.helper;
 
 import java.io.Serializable;
 
-/**
- * Interface for getting a timestamp from a custom value. Used in window
- * reduces. In order to work properly, the timestamps must be non-decreasing.
- *
- * @param <T>
- *            Type of the value to create the timestamp from.
- */
-public interface TimeStamp<T> extends Serializable {
+public class TimestampWrapper<T> implements Serializable {
 
-	/**
-	 * Values
-	 * 
-	 * @param value
-	 *            The value to create the timestamp from
-	 * @return The timestamp
-	 */
-	public long getTimestamp(T value);
+	private static final long serialVersionUID = 1L;
+	private long startTime;
+	private Timestamp<T> timestamp;
 
-	/**
-	 * Function to define the starting time for reference
-	 * 
-	 * @return The starting timestamp
-	 */
-	public long getStartTime();
+	public TimestampWrapper(Timestamp<T> timeStamp, long startTime) {
+		this.timestamp = timeStamp;
+		this.startTime = startTime;
+	}
+
+	public long getTimestamp(T in) {
+		return timestamp.getTimestamp(in);
+	}
+
+	public long getStartTime() {
+		return startTime;
+	}
+
+	public boolean isDefaultTimestamp() {
+		return timestamp instanceof SystemTimestamp;
+	}
 }

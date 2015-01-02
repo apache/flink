@@ -19,12 +19,12 @@ package org.apache.flink.streaming.api.windowing.policy;
 
 import java.util.LinkedList;
 
-import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
 /**
  * This trigger policy triggers with regard to the time. The is measured using a
- * given {@link TimeStamp} implementation. A point in time is always represented
+ * given {@link Timestamp} implementation. A point in time is always represented
  * as long. Therefore, parameters such as granularity and delay can be set as
  * long value as well.
  * 
@@ -42,12 +42,12 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 	protected long startTime;
 	protected long granularity;
-	protected TimeStamp<DATA> timestamp;
+	protected TimestampWrapper<DATA> timestampWrapper;
 	protected long delay;
 
 	/**
 	 * This trigger policy triggers with regard to the time. The is measured
-	 * using a given {@link TimeStamp} implementation. A point in time is always
+	 * using a given {@link Timestamp} implementation. A point in time is always
 	 * represented as long. Therefore, parameters such as granularity can be set
 	 * as long value as well. If this value for the granularity is set to 2 for
 	 * example, the policy will trigger at every second point in time.
@@ -55,22 +55,22 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 * @param granularity
 	 *            The granularity of the trigger. If this value is set to x the
 	 *            policy will trigger at every x-th time point
-	 * @param timestamp
-	 *            The {@link TimeStamp} to measure the time with. This can be
-	 *            either user defined of provided by the API.
+	 * @param timestampWrapper
+	 *            The {@link TimestampWrapper} to measure the time with. This
+	 *            can be either user defined of provided by the API.
 	 * @param timeWrapper
 	 *            This policy creates fake elements to not miss windows in case
 	 *            no element arrived within the duration of the window. This
 	 *            extractor should wrap a long into such an element of type
 	 *            DATA.
 	 */
-	public TimeTriggerPolicy(long granularity, TimeStamp<DATA> timestamp) {
-		this(granularity, timestamp, 0);
+	public TimeTriggerPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper) {
+		this(granularity, timestampWrapper, 0);
 	}
 
 	/**
 	 * This is mostly the same as
-	 * {@link TimeTriggerPolicy#TimeTriggerPolicy(long, TimeStamp)}. In addition
+	 * {@link TimeTriggerPolicy#TimeTriggerPolicy(long, Timestamp)}. In addition
 	 * to granularity and timestamp a delay can be specified for the first
 	 * trigger. If the start time given by the timestamp is x, the delay is y,
 	 * and the granularity is z, the first trigger will happen at x+y+z.
@@ -78,9 +78,9 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 * @param granularity
 	 *            The granularity of the trigger. If this value is set to 2 the
 	 *            policy will trigger at every second time point
-	 * @param timestamp
-	 *            The {@link TimeStamp} to measure the time with. This can be
-	 *            either user defined of provided by the API.
+	 * @param timestampWrapper
+	 *            The {@link TimestampWrapper} to measure the time with. This
+	 *            can be either user defined of provided by the API.
 	 * @param delay
 	 *            A delay for the first trigger. If the start time given by the
 	 *            timestamp is x, the delay is y, and the granularity is z, the
@@ -91,9 +91,9 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 *            extractor should wrap a long into such an element of type
 	 *            DATA.
 	 */
-	public TimeTriggerPolicy(long granularity, TimeStamp<DATA> timestamp, long delay) {
-		this.startTime = timestamp.getStartTime() + delay;
-		this.timestamp = timestamp;
+	public TimeTriggerPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper, long delay) {
+		this.startTime = timestampWrapper.getStartTime() + delay;
+		this.timestampWrapper = timestampWrapper;
 		this.granularity = granularity;
 		this.delay = delay;
 	}
@@ -107,7 +107,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		LinkedList<Object> fakeElements = new LinkedList<Object>();
 		// check if there is more then one window border missed
 		// use > here. In case >= would fit, the regular call will do the job.
-		while (timestamp.getTimestamp(datapoint) >= startTime + granularity) {
+		while (timestampWrapper.getTimestamp(datapoint) >= startTime + granularity) {
 			startTime += granularity;
 			fakeElements.add(startTime - 1);
 		}
@@ -127,7 +127,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 */
 	@Override
 	public Runnable createActiveTriggerRunnable(ActiveTriggerCallback callback) {
-		if (this.timestamp instanceof DefaultTimeStamp) {
+		if (this.timestampWrapper.isDefaultTimestamp()) {
 			return new TimeCheck(callback);
 		} else {
 			return null;
@@ -177,7 +177,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 	@Override
 	public synchronized boolean notifyTrigger(DATA datapoint) {
-		long recordTime = timestamp.getTimestamp(datapoint);
+		long recordTime = timestampWrapper.getTimestamp(datapoint);
 		if (recordTime >= startTime + granularity) {
 			if (granularity != 0) {
 				startTime = recordTime - ((recordTime - startTime) % granularity);
@@ -190,7 +190,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 	@Override
 	public TimeTriggerPolicy<DATA> clone() {
-		return new TimeTriggerPolicy<DATA>(granularity, timestamp, delay);
+		return new TimeTriggerPolicy<DATA>(granularity, timestampWrapper, delay);
 	}
 
 }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.SystemTimestamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
 public abstract class TemporalOperator<I1, I2, OP> {
 
@@ -29,8 +29,8 @@ public abstract class TemporalOperator<I1, I2, OP> {
 	public long windowSize;
 	public long slideInterval;
 
-	public TimeStamp<I1> timeStamp1;
-	public TimeStamp<I2> timeStamp2;
+	public TimestampWrapper<I1> timeStamp1;
+	public TimestampWrapper<I2> timeStamp2;
 
 	public TemporalOperator(DataStream<I1> input1, DataStream<I2> input2) {
 		if (input1 == null || input2 == null) {
@@ -41,37 +41,37 @@ public abstract class TemporalOperator<I1, I2, OP> {
 	}
 
 	/**
-	 * Continues a temporal Join transformation.<br/>
-	 * Defines the window size on which the two DataStreams will be joined.
+	 * Continues a temporal transformation.<br/>
+	 * Defines the window size on which the two DataStreams will be transformed.
 	 * 
 	 * @param windowSize
 	 *            The size of the window in milliseconds.
-	 * @return An incomplete Join transformation. Call {@link JoinWindow#where}
-	 *         to continue the Join.
+	 * @return An incomplete temporal transformation.
 	 */
 	public OP onWindow(long windowSize) {
 		return onWindow(windowSize, windowSize);
 	}
 
 	/**
-	 * Continues a temporal Join transformation.<br/>
-	 * Defines the window size on which the two DataStreams will be joined.
+	 * Continues a temporal transformation.<br/>
+	 * Defines the window size on which the two DataStreams will be transformed.
 	 * 
 	 * @param windowSize
 	 *            The size of the window in milliseconds.
 	 * @param slideInterval
 	 *            The slide size of the window.
-	 * @return An incomplete Join transformation. Call {@link JoinWindow#where}
-	 *         to continue the Join.
+	 * @return An incomplete temporal transformation.
 	 */
+	@SuppressWarnings("unchecked")
 	public OP onWindow(long windowSize, long slideInterval) {
-		return onWindow(windowSize, slideInterval, new DefaultTimeStamp<I1>(),
-				new DefaultTimeStamp<I2>());
+		return onWindow(windowSize, slideInterval,
+				(TimestampWrapper<I1>) SystemTimestamp.getWrapper(),
+				(TimestampWrapper<I2>) SystemTimestamp.getWrapper());
 	}
 
 	/**
-	 * Continues a temporal Join transformation.<br/>
-	 * Defines the window size on which the two DataStreams will be joined.
+	 * Continues a temporal transformation.<br/>
+	 * Defines the window size on which the two DataStreams will be transformed.
 	 * 
 	 * @param windowSize
 	 *            The size of the window in milliseconds.
@@ -83,11 +83,10 @@ public abstract class TemporalOperator<I1, I2, OP> {
 	 * @param timeStamp2
 	 *            The timestamp used to extract time from the elements of the
 	 *            second data stream.
-	 * @return An incomplete Join transformation. Call {@link JoinWindow#where}
-	 *         to continue the Join.
+	 * @return An incomplete temporal transformation.
 	 */
-	public OP onWindow(long windowSize, long slideInterval, TimeStamp<I1> timeStamp1,
-			TimeStamp<I2> timeStamp2) {
+	public OP onWindow(long windowSize, long slideInterval, TimestampWrapper<I1> timeStamp1,
+			TimestampWrapper<I2> timeStamp2) {
 
 		this.windowSize = windowSize;
 		this.slideInterval = slideInterval;

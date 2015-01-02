@@ -161,9 +161,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     Validate.notNull(function, "Function must not be null.")
-    ClosureCleaner.clean(function, true)
+    val cleanFun = StreamExecutionEnvironment.clean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    new DataStream[T](javaEnv.addSource(function, typeInfo))
+    new DataStream[T](javaEnv.addSource(cleanFun, typeInfo))
   }
   
    /**
@@ -174,8 +174,9 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   def addSource[T: ClassTag: TypeInformation](function: Collector[T] => Unit): DataStream[T] = {
     Validate.notNull(function, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
+      val cleanFun = StreamExecutionEnvironment.clean(function)
       override def invoke(out: Collector[T]) {
-        function(out)
+        cleanFun(out)
       }
     }
     addSource(sourceFunction)
@@ -205,6 +206,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 }
 
 object StreamExecutionEnvironment {
+  
+  private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
+    ClosureCleaner.clean(f, checkSerializable)
+    f
+  }
 
   /**
    * Creates an execution environment that represents the context in which the program is

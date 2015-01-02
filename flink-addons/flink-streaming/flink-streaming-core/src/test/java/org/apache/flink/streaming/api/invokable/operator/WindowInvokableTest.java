@@ -24,7 +24,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.api.windowing.policy.CountEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
@@ -62,17 +63,12 @@ public class WindowInvokableTest {
 		expected.add(10);
 		expected.add(32);
 
-		TimeStamp<Integer> myTimeStamp = new TimeStamp<Integer>() {
+		Timestamp<Integer> myTimeStamp = new Timestamp<Integer>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
 			public long getTimestamp(Integer value) {
 				return value;
-			}
-
-			@Override
-			public long getStartTime() {
-				return 1;
 			}
 		};
 
@@ -88,11 +84,13 @@ public class WindowInvokableTest {
 		LinkedList<TriggerPolicy<Integer>> triggers = new LinkedList<TriggerPolicy<Integer>>();
 		// Trigger every 2 time units but delay the first trigger by 2 (First
 		// trigger after 4, then every 2)
-		triggers.add(new TimeTriggerPolicy<Integer>(2L, myTimeStamp, 2L));
+		triggers.add(new TimeTriggerPolicy<Integer>(2L, new TimestampWrapper<Integer>(myTimeStamp,
+				1), 2L));
 
 		LinkedList<EvictionPolicy<Integer>> evictions = new LinkedList<EvictionPolicy<Integer>>();
 		// Always delete all elements older then 4
-		evictions.add(new TimeEvictionPolicy<Integer>(4L, myTimeStamp));
+		evictions.add(new TimeEvictionPolicy<Integer>(4L, new TimestampWrapper<Integer>(
+				myTimeStamp, 1)));
 
 		WindowInvokable<Integer, Integer> invokable = new WindowReduceInvokable<Integer>(
 				myReduceFunction, triggers, evictions);

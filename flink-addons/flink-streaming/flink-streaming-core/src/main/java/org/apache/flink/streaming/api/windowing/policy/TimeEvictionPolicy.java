@@ -19,14 +19,15 @@ package org.apache.flink.streaming.api.windowing.policy;
 
 import java.util.LinkedList;
 
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
 /**
  * This eviction policy evicts all elements which are older then a specified
- * time. The time is measured using a given {@link TimeStamp} implementation. A
+ * time. The time is measured using a given {@link Timestamp} implementation. A
  * point in time is always represented as long. Therefore, the granularity can
  * be set as long value as well.
- *
+ * 
  * @param <DATA>
  *            The type of the incoming data points which are processed by this
  *            policy.
@@ -40,12 +41,12 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 	private static final long serialVersionUID = -1457476766124518220L;
 
 	private long granularity;
-	private TimeStamp<DATA> timestamp;
+	private TimestampWrapper<DATA> timestampWrapper;
 	private LinkedList<Long> buffer = new LinkedList<Long>();
 
 	/**
 	 * This eviction policy evicts all elements which are older than a specified
-	 * time. The time is measured using a given {@link TimeStamp}
+	 * time. The time is measured using a given {@link Timestamp}
 	 * implementation. A point in time is always represented as long. Therefore,
 	 * the granularity can be set as long value as well. If this value is set to
 	 * 2 the policy will evict all elements which are older as 2.
@@ -60,12 +61,12 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 	 *            The granularity of the eviction. If this value is set to 2 the
 	 *            policy will evict all elements which are older as 2(if
 	 *            (time(X)<current time-granularity) evict X).
-	 * @param timestamp
-	 *            The {@link TimeStamp} to measure the time with. This can be
-	 *            either user defined of provided by the API.
+	 * @param timestampWrapper
+	 *            The {@link TimestampWrapper} to measure the time with. This
+	 *            can be either user defined of provided by the API.
 	 */
-	public TimeEvictionPolicy(long granularity, TimeStamp<DATA> timestamp) {
-		this.timestamp = timestamp;
+	public TimeEvictionPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper) {
+		this.timestampWrapper = timestampWrapper;
 		this.granularity = granularity;
 	}
 
@@ -78,7 +79,7 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 		try {
 			threshold = (Long) datapoint - granularity;
 		} catch (ClassCastException e) {
-			threshold = timestamp.getTimestamp((DATA) datapoint) - granularity;
+			threshold = timestampWrapper.getTimestamp((DATA) datapoint) - granularity;
 		}
 
 		// return result
@@ -91,9 +92,9 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 
 		checkForDeleted(bufferSize);
 
-		//remember timestamp
-		long time=timestamp.getTimestamp(datapoint);
-		
+		// remember timestamp
+		long time = timestampWrapper.getTimestamp(datapoint);
+
 		// delete and count expired tuples
 		long threshold = time - granularity;
 		int counter = deleteAndCountExpired(threshold);
@@ -130,7 +131,7 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 
 	@Override
 	public TimeEvictionPolicy<DATA> clone() {
-		return new TimeEvictionPolicy<DATA>(granularity, timestamp);
+		return new TimeEvictionPolicy<DATA>(granularity, timestampWrapper);
 	}
 
 }

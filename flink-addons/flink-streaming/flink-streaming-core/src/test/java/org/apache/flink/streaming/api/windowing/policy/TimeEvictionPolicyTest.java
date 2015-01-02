@@ -19,7 +19,8 @@ package org.apache.flink.streaming.api.windowing.policy;
 
 import java.util.LinkedList;
 
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -35,16 +36,11 @@ public class TimeEvictionPolicyTest {
 
 		// create a timestamp
 		@SuppressWarnings("serial")
-		TimeStamp<Integer> timeStamp = new TimeStamp<Integer>() {
+		Timestamp<Integer> timeStamp = new Timestamp<Integer>() {
 
 			@Override
 			public long getTimestamp(Integer value) {
 				return value;
-			}
-
-			@Override
-			public long getStartTime() {
-				return 0;
 			}
 
 		};
@@ -53,7 +49,7 @@ public class TimeEvictionPolicyTest {
 		for (long granularity = 0; granularity < 40; granularity++) {
 			// create policy
 			TimeEvictionPolicy<Integer> policy = new TimeEvictionPolicy<Integer>(granularity,
-					timeStamp);
+					new TimestampWrapper<Integer>(timeStamp, 0));
 
 			// The trigger status should not effect the policy. Therefore, it's
 			// value is changed after each usage.

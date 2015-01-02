@@ -84,8 +84,8 @@ public class Delta<DATA> implements WindowingHelper<DATA> {
 	 *            The threshold used by the delta function.
 	 * @return Helper representing a delta trigger or eviction policy
 	 */
-	public static <DATA> Delta<DATA> of(DeltaFunction<DATA> deltaFunction, DATA initVal,
-			double threshold) {
+	public static <DATA> Delta<DATA> of(double threshold, DeltaFunction<DATA> deltaFunction,
+			DATA initVal) {
 		return new Delta<DATA>(deltaFunction, initVal, threshold);
 	}
 }

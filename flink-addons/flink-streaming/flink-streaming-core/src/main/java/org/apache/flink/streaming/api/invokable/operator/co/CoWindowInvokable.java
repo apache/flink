@@ -23,8 +23,8 @@ import java.util.List;
 
 import org.apache.commons.math.util.MathUtils;
 import org.apache.flink.streaming.api.function.co.CoWindowFunction;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.state.CircularFifoList;
 
 public class CoWindowInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
@@ -35,8 +35,8 @@ public class CoWindowInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT>
 	protected long slideSize;
 	protected CircularFifoList<StreamRecord<IN1>> circularList1;
 	protected CircularFifoList<StreamRecord<IN2>> circularList2;
-	protected TimeStamp<IN1> timeStamp1;
-	protected TimeStamp<IN2> timeStamp2;
+	protected TimestampWrapper<IN1> timeStamp1;
+	protected TimestampWrapper<IN2> timeStamp2;
 
 	protected StreamWindow window;
 
@@ -44,7 +44,7 @@ public class CoWindowInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT>
 	protected long nextRecordTime;
 
 	public CoWindowInvokable(CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize,
-			long slideInterval, TimeStamp<IN1> timeStamp1, TimeStamp<IN2> timeStamp2) {
+			long slideInterval, TimestampWrapper<IN1> timeStamp1, TimestampWrapper<IN2> timeStamp2) {
 		super(coWindowFunction);
 		this.coWindowFunction = coWindowFunction;
 		this.windowSize = windowSize;

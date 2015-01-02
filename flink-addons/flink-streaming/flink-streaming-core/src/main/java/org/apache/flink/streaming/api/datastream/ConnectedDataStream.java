@@ -36,8 +36,8 @@ import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
-import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.SystemTimestamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
 /**
  * The ConnectedDataStream represents a stream for two different data types. It
@@ -305,8 +305,8 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The transformed {@link ConnectedDataStream}
 	 */
 	public CoWindowDataStream<IN1, IN2> window(long windowSize1, long windowSize2,
-			long slideInterval1, long slideInterval2, TimeStamp<IN1> timeStamp1,
-			TimeStamp<IN2> timeStamp2) {
+			long slideInterval1, long slideInterval2, TimestampWrapper<IN1> timeStamp1,
+			TimestampWrapper<IN2> timeStamp2) {
 		if (windowSize1 < 1 || windowSize2 < 1) {
 			throw new IllegalArgumentException("Window size must be positive");
 		}
@@ -338,10 +338,12 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            second input data stream are slid by after each transformation
 	 * @return The transformed {@link ConnectedDataStream}
 	 */
+	@SuppressWarnings("unchecked")
 	public CoWindowDataStream<IN1, IN2> window(long windowSize1, long windowSize2,
 			long slideInterval1, long slideInterval2) {
 		return window(windowSize1, windowSize2, slideInterval1, slideInterval2,
-				new DefaultTimeStamp<IN1>(), new DefaultTimeStamp<IN2>());
+				(TimestampWrapper<IN1>) SystemTimestamp.getWrapper(),
+				(TimestampWrapper<IN2>) SystemTimestamp.getWrapper());
 	}
 
 	/**
@@ -365,7 +367,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The transformed {@link ConnectedDataStream}
 	 */
 	public CoWindowDataStream<IN1, IN2> window(long windowSize1, long windowSize2,
-			TimeStamp<IN1> timeStamp1, TimeStamp<IN2> timeStamp2) {
+			TimestampWrapper<IN1> timeStamp1, TimestampWrapper<IN2> timeStamp2) {
 		return window(windowSize1, windowSize2, windowSize1, windowSize2, timeStamp1, timeStamp2);
 	}
 
@@ -384,9 +386,11 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            milliseconds
 	 * @return The transformed {@link ConnectedDataStream}
 	 */
+	@SuppressWarnings("unchecked")
 	public CoWindowDataStream<IN1, IN2> window(long windowSize1, long windowSize2) {
 		return window(windowSize1, windowSize2, windowSize1, windowSize2,
-				new DefaultTimeStamp<IN1>(), new DefaultTimeStamp<IN2>());
+				(TimestampWrapper<IN1>) SystemTimestamp.getWrapper(),
+				(TimestampWrapper<IN2>) SystemTimestamp.getWrapper());
 	}
 
 	/**
@@ -479,10 +483,12 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * 
 	 * @return The transformed {@link DataStream}.
 	 */
+	@SuppressWarnings("unchecked")
 	public <OUT> SingleOutputStreamOperator<OUT, ?> windowReduce(
 			CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize, long slideInterval) {
 		return windowReduce(coWindowFunction, windowSize, slideInterval,
-				new DefaultTimeStamp<IN1>(), new DefaultTimeStamp<IN2>());
+				(TimestampWrapper<IN1>) SystemTimestamp.getWrapper(),
+				(TimestampWrapper<IN2>) SystemTimestamp.getWrapper());
 	}
 
 	/**
@@ -510,7 +516,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 */
 	public <OUT> SingleOutputStreamOperator<OUT, ?> windowReduce(
 			CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize, long slideInterval,
-			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
+			TimestampWrapper<IN1> timestamp1, TimestampWrapper<IN2> timestamp2) {
 
 		if (windowSize < 1) {
 			throw new IllegalArgumentException("Window size must be positive");
@@ -541,8 +547,8 @@ public class ConnectedDataStream<IN1, IN2> {
 
 	public <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCombine(
 			CoWindowFunction<IN1, IN2, OUT> coWindowFunction, TypeInformation<OUT> outTypeInfo,
-			long windowSize, long slideInterval, TimeStamp<IN1> timestamp1,
-			TimeStamp<IN2> timestamp2) {
+			long windowSize, long slideInterval, TimestampWrapper<IN1> timestamp1,
+			TimestampWrapper<IN2> timestamp2) {
 
 		if (windowSize < 1) {
 			throw new IllegalArgumentException("Window size must be positive");
@@ -550,7 +556,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		if (slideInterval < 1) {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
-		
+
 		return addCoFunction("coWindowReduce", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 
