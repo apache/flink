@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
-
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -32,90 +31,98 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
- * An example of grouped stream windowing where different eviction and trigger policies can be used.
- * A source fetches events from cars every 1 sec containing their id, their current speed (kmh),
- * overall elapsed distance (m) and a timestamp. The streaming
- * example triggers the top speed of each car every x meters elapsed for the last y seconds.
+ * An example of grouped stream windowing where different eviction and trigger
+ * policies can be used. A source fetches events from cars every 1 sec
+ * containing their id, their current speed (kmh), overall elapsed distance (m)
+ * and a timestamp. The streaming example triggers the top speed of each car
+ * every x meters elapsed for the last y seconds.
  */
 public class TopSpeedWindowingExample {
 
-    public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws Exception {
 
-        if (!parseParameters(args)) {
-            return;
-        }
+		if (!parseParameters(args)) {
+			return;
+		}
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        DataStream topSpeeds = env
-                .addSource(CarSource.create(numOfCars))
-                .groupBy(0)
-                .window(Time.of(evictionSec, TimeUnit.SECONDS))
-                .every(Delta.of(
-                        new DeltaFunction<Tuple4<Integer, Integer, Double, Long>>() {
-                            @Override
-                            public double getDelta(Tuple4<Integer, Integer, Double, Long> oldDataPoint, Tuple4<Integer, Integer, Double, Long> newDataPoint) {
-                                return newDataPoint.f2 - oldDataPoint.f2;
-                            }
-                        }
-                        , new Tuple4<Integer, Integer, Double, Long>(0, 0, 0d, 0l), triggerMeters))
-                .maxBy(1);
+		@SuppressWarnings({ "rawtypes", "serial" })
+		DataStream topSpeeds = env
+				.addSource(CarSource.create(numOfCars))
+				.groupBy(0)
+				.window(Time.of(evictionSec, TimeUnit.SECONDS))
+				.every(Delta.of(triggerMeters,
+						new DeltaFunction<Tuple4<Integer, Integer, Double, Long>>() {
+							@Override
+							public double getDelta(
+									Tuple4<Integer, Integer, Double, Long> oldDataPoint,
+									Tuple4<Integer, Integer, Double, Long> newDataPoint) {
+								return newDataPoint.f2 - oldDataPoint.f2;
+							}
+						}, new Tuple4<Integer, Integer, Double, Long>(0, 0, 0d, 0l))).maxBy(1);
 
-        topSpeeds.print();
-        env.execute("CarTopSpeedWindowingExample");
-    }
+		topSpeeds.print();
+		env.execute("CarTopSpeedWindowingExample");
+	}
 
-    private static class CarSource implements SourceFunction<Tuple4<Integer, Integer, Double, Long>> {
-        private Integer[] speeds;
-        private Double[] distances;
+	private static class CarSource implements
+			SourceFunction<Tuple4<Integer, Integer, Double, Long>> {
 
-        private Random rand = new Random();
+		private static final long serialVersionUID = 1L;
+		private Integer[] speeds;
+		private Double[] distances;
 
-        private CarSource(int numOfCars) {
-            speeds = new Integer[numOfCars];
-            distances = new Double[numOfCars];
-            Arrays.fill(speeds, 50);
-            Arrays.fill(distances, 0d);
-        }
+		private Random rand = new Random();
 
-        public static CarSource create(int cars) {
-            return new CarSource(cars);
-        }
+		private CarSource(int numOfCars) {
+			speeds = new Integer[numOfCars];
+			distances = new Double[numOfCars];
+			Arrays.fill(speeds, 50);
+			Arrays.fill(distances, 0d);
+		}
 
-        @Override
-        public void invoke(Collector<Tuple4<Integer, Integer, Double, Long>> collector) throws Exception {
+		public static CarSource create(int cars) {
+			return new CarSource(cars);
+		}
 
-            while (true) {
-                Thread.sleep(1000);
-                for (int carId = 0; carId < speeds.length; carId++) {
-                    if (rand.nextBoolean())
-                        speeds[carId] = Math.min(100, speeds[carId] + 5);
-                    else
-                        speeds[carId] = Math.max(0, speeds[carId] - 5);
-                    distances[carId] += speeds[carId] / 3.6d;
-                    collector.collect(new Tuple4<Integer, Integer, Double, Long>(carId, speeds[carId], distances[carId], System.currentTimeMillis()));
-                }
-            }
-        }
-    }
+		@Override
+		public void invoke(Collector<Tuple4<Integer, Integer, Double, Long>> collector)
+				throws Exception {
 
-    private static int numOfCars = 2;
-    private static int evictionSec = 10;
-    private static double triggerMeters = 50;
+			while (true) {
+				Thread.sleep(1000);
+				for (int carId = 0; carId < speeds.length; carId++) {
+					if (rand.nextBoolean()) {
+						speeds[carId] = Math.min(100, speeds[carId] + 5);
+					} else {
+						speeds[carId] = Math.max(0, speeds[carId] - 5);
+					}
+					distances[carId] += speeds[carId] / 3.6d;
+					collector.collect(new Tuple4<Integer, Integer, Double, Long>(carId,
+							speeds[carId], distances[carId], System.currentTimeMillis()));
+				}
+			}
+		}
+	}
 
-    private static boolean parseParameters(String[] args) {
+	private static int numOfCars = 2;
+	private static int evictionSec = 10;
+	private static double triggerMeters = 50;
 
-        if (args.length > 0) {
-            if (args.length == 3) {
-                numOfCars = Integer.valueOf(args[0]);
-                evictionSec = Integer.valueOf(args[1]);
-                triggerMeters = Double.valueOf(args[2]);
-            } else {
-                System.err.println("Usage: TopSpeedWindowingExample <numCars> <evictSec> <triggerMeters>");
-                return false;
-            }
-        }
-        return true;
-    }
+	private static boolean parseParameters(String[] args) {
+
+		if (args.length > 0) {
+			if (args.length == 3) {
+				numOfCars = Integer.valueOf(args[0]);
+				evictionSec = Integer.valueOf(args[1]);
+				triggerMeters = Double.valueOf(args[2]);
+			} else {
+				System.err
+						.println("Usage: TopSpeedWindowingExample <numCars> <evictSec> <triggerMeters>");
+				return false;
+			}
+		}
+		return true;
+	}
 }

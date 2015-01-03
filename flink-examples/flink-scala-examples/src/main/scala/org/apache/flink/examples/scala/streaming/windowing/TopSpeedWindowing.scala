@@ -30,10 +30,12 @@ import scala.math.{max, min}
 import scala.util.Random
 
 /**
- * An example of grouped stream windowing where different eviction and trigger policies can be used.
- * A source fetches events from cars every 1 sec containing their id, their current speed (kmh),
+ * An example of grouped stream windowing where different eviction and 
+ * trigger policies can be used.A source fetches events from cars 
+ * every 1 sec containing their id, their current speed (kmh),
  * overall elapsed distance (m) and a timestamp. The streaming
- * example triggers the top speed of each car every x meters elapsed for the last y seconds.
+ * example triggers the top speed of each car every x meters elapsed 
+ * for the last y seconds.
  */
 object TopSpeedWindowing {
 
@@ -47,7 +49,8 @@ object TopSpeedWindowing {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val cars = env.addSource(carSource _).groupBy("carId")
       .window(Time.of(evictionSec, SECONDS))
-      .every(Delta.of[CarSpeed](triggerMeters, (oldSp,newSp) => newSp.distance-oldSp.distance, CarSpeed(0,0,0,0)))
+      .every(Delta.of[CarSpeed](triggerMeters, 
+          (oldSp,newSp) => newSp.distance-oldSp.distance, CarSpeed(0,0,0,0)))
       .reduce((x, y) => if (x.speed > y.speed) x else y)
 
     cars print

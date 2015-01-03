@@ -231,7 +231,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reduceFunction) {
-		return dataStream.transform("NextGenWindowReduce", getType(),
+		return dataStream.transform("WindowReduce", getType(),
 				getReduceInvokable(reduceFunction));
 	}
 
@@ -255,7 +255,7 @@ public class WindowedDataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor
 				.getGroupReduceReturnTypes(reduceFunction, inType);
 
-		return dataStream.transform("NextGenWindowReduce", outType,
+		return dataStream.transform("WindowReduce", outType,
 				getReduceGroupInvokable(reduceFunction));
 	}
 
@@ -279,7 +279,7 @@ public class WindowedDataStream<OUT> {
 	public <R> SingleOutputStreamOperator<R, ?> reduceGroup(
 			GroupReduceFunction<OUT, R> reduceFunction, TypeInformation<R> outType) {
 
-		return dataStream.transform("NextGenWindowReduce", outType,
+		return dataStream.transform("WindowReduce", outType,
 				getReduceGroupInvokable(reduceFunction));
 	}
 
