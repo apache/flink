@@ -21,9 +21,10 @@ package org.apache.flink.api.scala.streaming
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.datastream.{ WindowedDataStream => JavaWStream }
 import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaStream }
+import org.apache.flink.streaming.api.datastream.{ ConnectedDataStream => JavaConStream }
 
 object StreamingConversions {
-  
+
   implicit def javaToScalaStream[R](javaStream: JavaStream[R]): DataStream[R] =
     new DataStream[R](javaStream)
 
@@ -32,5 +33,8 @@ object StreamingConversions {
 
   implicit def javaToScalaSplitStream[R](javaStream: SplitJavaStream[R]): SplitDataStream[R] =
     new SplitDataStream[R](javaStream)
+
+  implicit def javaToScalaConnectedStream[IN1, IN2](javaStream: JavaConStream[IN1, IN2]): 
+  ConnectedDataStream[IN1, IN2] = new ConnectedDataStream[IN1, IN2](javaStream)
 
 }

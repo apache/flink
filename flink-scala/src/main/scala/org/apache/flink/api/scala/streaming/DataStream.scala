@@ -19,22 +19,20 @@
 package org.apache.flink.api.scala.streaming
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
-import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream,
+  SingleOutputStreamOperator, GroupedDataStream}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.streaming.api.invokable.StreamInvokable
-import org.apache.flink.streaming.api.datastream.GroupedDataStream
 import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable
-import org.apache.flink.streaming.api.datastream.GroupedDataStream
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.common.functions.FilterFunction
@@ -92,6 +90,15 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def merge(dataStreams: DataStream[T]*): DataStream[T] =
     javaStream.merge(dataStreams.map(_.getJavaStream): _*)
+
+  /**
+   * Creates a new ConnectedDataStream by connecting
+   * DataStream outputs of different type with each other. The
+   * DataStreams connected using this operators can be used with CoFunctions.
+   *
+   */
+  def connect[T2](dataStream: DataStream[T2]): ConnectedDataStream[T, T2] = 
+    javaStream.connect(dataStream.getJavaStream)
 
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
