@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.function.source.FromElementsFunction
 import org.apache.flink.streaming.api.function.source.SourceFunction
 import scala.collection.JavaConversions._
 import org.apache.flink.util.Collector
+import org.apache.flink.api.scala.streaming.StreamingConversions._
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -82,7 +83,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    */
   def readTextFile(filePath: String): DataStream[String] =
-    new DataStream[String](javaEnv.readTextFile(filePath))
+    javaEnv.readTextFile(filePath)
 
   /**
    * Creates a DataStream that represents the Strings produced by reading the
@@ -91,8 +92,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * testing a topology.
    *
    */
-  def readTextStream(StreamPath: String): DataStream[String] =
-    new DataStream[String](javaEnv.readTextStream(StreamPath))
+  def readTextStream(StreamPath: String): DataStream[String] = 
+    javaEnv.readTextStream(StreamPath)
 
   /**
    * Creates a new DataStream that contains the strings received infinitely
@@ -101,7 +102,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    */
   def socketTextStream(hostname: String, port: Int, delimiter: Char): DataStream[String] =
-    new DataStream[String](javaEnv.socketTextStream(hostname, port, delimiter))
+    javaEnv.socketTextStream(hostname, port, delimiter)
 
   /**
    * Creates a new DataStream that contains the strings received infinitely
@@ -110,7 +111,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    *
    */
   def socketTextStream(hostname: String, port: Int): DataStream[String] =
-    new DataStream[String](javaEnv.socketTextStream(hostname, port))
+    javaEnv.socketTextStream(hostname, port)
 
   /**
    * Creates a new DataStream that contains a sequence of numbers.
@@ -151,7 +152,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
       new SourceInvokable[T](new FromElementsFunction[T](scala.collection.JavaConversions
         .asJavaCollection(data))), null, typeInfo,
       "source", 1);
-    new DataStream(returnStream)
+    returnStream
   }
 
   /**
@@ -163,7 +164,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     Validate.notNull(function, "Function must not be null.")
     val cleanFun = StreamExecutionEnvironment.clean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    new DataStream[T](javaEnv.addSource(cleanFun, typeInfo))
+    javaEnv.addSource(cleanFun, typeInfo)
   }
   
    /**

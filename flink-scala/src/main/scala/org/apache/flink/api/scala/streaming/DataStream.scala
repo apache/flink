@@ -49,8 +49,8 @@ import org.apache.flink.streaming.api.function.aggregation.SumFunction
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
-import com.amazonaws.services.cloudfront_2012_03_15.model.InvalidArgumentException
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.api.scala.streaming.StreamingConversions._
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -62,7 +62,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   /**
    * Sets the degree of parallelism of this operation. This must be greater than 1.
    */
-  def setParallelism(dop: Int) = {
+  def setParallelism(dop: Int): DataStream[T] = {
     javaStream match {
       case ds: SingleOutputStreamOperator[_, _] => ds.setParallelism(dop)
       case _ =>
@@ -91,15 +91,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def merge(dataStreams: DataStream[T]*): DataStream[T] =
-    new DataStream[T](javaStream.merge(dataStreams.map(_.getJavaStream): _*))
+    javaStream.merge(dataStreams.map(_.getJavaStream): _*)
 
   /**
    * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
    * be used with grouped operators like grouped reduce or grouped aggregations
    *
    */
-  def groupBy(fields: Int*): DataStream[T] =
-    new DataStream[T](javaStream.groupBy(fields: _*))
+  def groupBy(fields: Int*): DataStream[T] = javaStream.groupBy(fields: _*)
 
   /**
    * Groups the elements of a DataStream by the given field expressions to
@@ -107,7 +106,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def groupBy(firstField: String, otherFields: String*): DataStream[T] = 
-    new DataStream[T](javaStream.groupBy(firstField +: otherFields.toArray: _*))    
+   javaStream.groupBy(firstField +: otherFields.toArray: _*)   
   
   /**
    * Groups the elements of a DataStream by the given K key to
@@ -120,7 +119,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       val cleanFun = clean(fun)
       def getKey(in: T) = cleanFun(in)
     }
-    new DataStream[T](javaStream.groupBy(keyExtractor))
+    javaStream.groupBy(keyExtractor)
   }
 
   /**
@@ -130,7 +129,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def partitionBy(fields: Int*): DataStream[T] =
-    new DataStream[T](javaStream.partitionBy(fields: _*));
+    javaStream.partitionBy(fields: _*)
 
   /**
    * Sets the partitioning of the DataStream so that the output is
@@ -139,7 +138,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def partitionBy(firstField: String, otherFields: String*): DataStream[T] =
-    new DataStream[T](javaStream.partitionBy(firstField +: otherFields.toArray: _*))    
+   javaStream.partitionBy(firstField +: otherFields.toArray: _*)
 
   /**
    * Sets the partitioning of the DataStream so that the output is
@@ -153,7 +152,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       val cleanFun = clean(fun)
       def getKey(in: T) = cleanFun(in)
     }
-    new DataStream[T](javaStream.partitionBy(keyExtractor))
+    javaStream.partitionBy(keyExtractor)
   }
 
   /**
@@ -163,7 +162,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * parallel instances of the next processing operator.
    *
    */
-  def broadcast: DataStream[T] = new DataStream[T](javaStream.broadcast())
+  def broadcast: DataStream[T] = javaStream.broadcast()
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
@@ -172,7 +171,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * processing operator.
    *
    */
-  def shuffle: DataStream[T] = new DataStream[T](javaStream.shuffle())
+  def shuffle: DataStream[T] = javaStream.shuffle()
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
@@ -182,7 +181,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * instances of the next processing operator.
    *
    */
-  def forward: DataStream[T] = new DataStream[T](javaStream.forward())
+  def forward: DataStream[T] = javaStream.forward()
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples
@@ -191,7 +190,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * the next processing operator.
    *
    */
-  def distribute: DataStream[T] = new DataStream[T](javaStream.distribute())
+  def distribute: DataStream[T] = javaStream.distribute()
 
   /**
    * Initiates an iterative part of the program that creates a loop by feeding
@@ -217,7 +216,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
 
     val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
     iterativeStream.closeWith(feedback.getJavaStream)
-    new DataStream[T](output.getJavaStream)
+    output
   }
 
   /**
@@ -301,8 +300,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       def map(in: T): R = cleanFun(in)
     }
 
-    new DataStream(javaStream.transform("map", implicitly[TypeInformation[R]],
-      new MapInvokable[T, R](mapper)))
+    javaStream.transform("map", implicitly[TypeInformation[R]], new MapInvokable[T, R](mapper))
   }
 
   /**
@@ -313,8 +311,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new NullPointerException("Map function must not be null.")
     }
 
-    new DataStream(javaStream.transform("map", implicitly[TypeInformation[R]],
-      new MapInvokable[T, R](mapper)))
+    javaStream.transform("map", implicitly[TypeInformation[R]], new MapInvokable[T, R](mapper))
   }
 
   /**
@@ -325,8 +322,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (flatMapper == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
-    new DataStream[R](javaStream.transform("flatMap", implicitly[TypeInformation[R]],
-      new FlatMapInvokable[T, R](flatMapper)))
+   javaStream.transform("flatMap", implicitly[TypeInformation[R]], 
+       new FlatMapInvokable[T, R](flatMapper))
   }
 
   /**
@@ -368,10 +365,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new NullPointerException("Reduce function must not be null.")
     }
     javaStream match {
-      case ds: GroupedDataStream[_] => new DataStream[T](javaStream.transform("reduce",
-        javaStream.getType(), new GroupedReduceInvokable[T](reducer, ds.getKeySelector())))
-      case _ => new DataStream[T](javaStream.transform("reduce", javaStream.getType(),
-        new StreamReduceInvokable[T](reducer)))
+      case ds: GroupedDataStream[_] => javaStream.transform("reduce",
+        javaStream.getType(), new GroupedReduceInvokable[T](reducer, ds.getKeySelector()))
+      case _ => javaStream.transform("reduce", javaStream.getType(),
+        new StreamReduceInvokable[T](reducer))
     }
   }
 
@@ -397,7 +394,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (filter == null) {
       throw new NullPointerException("Filter function must not be null.")
     }
-    new DataStream[T](javaStream.filter(filter))
+    javaStream.filter(filter)
   }
 
   /**
@@ -426,7 +423,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * window(List(triggers), List(evicters))
    */
   def window(windowingHelper: WindowingHelper[_]*): WindowedDataStream[T] =
-    new WindowedDataStream[T](javaStream.window(windowingHelper: _*))
+    javaStream.window(windowingHelper: _*)
 
   /**
    * Create a WindowedDataStream using the given TriggerPolicy-s and EvictionPolicy-s.
@@ -436,7 +433,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def window(triggers: List[TriggerPolicy[T]], evicters: List[EvictionPolicy[T]]):
-    WindowedDataStream[T] = new WindowedDataStream[T](javaStream.window(triggers, evicters))
+    WindowedDataStream[T] = javaStream.window(triggers, evicters)
 
   /**
    *
@@ -445,7 +442,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * SplitDataStream.
    */
   def split(selector: OutputSelector[T]): SplitDataStream[T] = javaStream match {
-    case op: SingleOutputStreamOperator[_, _] => new SplitDataStream[T](op.split(selector))
+    case op: SingleOutputStreamOperator[_, _] => op.split(selector)
     case _ =>
       throw new UnsupportedOperationException("Operator " + javaStream.toString + " can not be " +
         "split.")
@@ -503,7 +500,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * written.
    *
    */
-  def print(): DataStream[T] = new DataStream[T](javaStream.print())
+  def print(): DataStream[T] = javaStream.print()
 
   /**
    * Writes a DataStream to the file specified by path in text format. The
@@ -513,7 +510,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def writeAsText(path: String, millis: Long = 0): DataStream[T] =
-    new DataStream[T](javaStream.writeAsText(path, millis))
+    javaStream.writeAsText(path, millis)
 
   /**
    * Writes a DataStream to the file specified by path in text format. The
@@ -523,7 +520,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def writeAsCsv(path: String, millis: Long = 0): DataStream[T] =
-    new DataStream[T](javaStream.writeAsCsv(path, millis))
+    javaStream.writeAsCsv(path, millis)
 
   /**
    * Adds the given sink to this DataStream. Only streams with sinks added
@@ -532,7 +529,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def addSink(sinkFuntion: SinkFunction[T]): DataStream[T] =
-    new DataStream[T](javaStream.addSink(sinkFuntion))
+    javaStream.addSink(sinkFuntion)
 
   /**
    * Adds the given sink to this DataStream. Only streams with sinks added
