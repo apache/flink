@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
 import org.apache.flink.streaming.util.keys.KeySelectorUtil
 import org.apache.flink.api.java.operators.Keys
 import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
+import org.apache.flink.api.scala.streaming.StreamingConversions._
 
 class StreamJoinOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
 TemporalOperator[I1, I2, StreamJoinOperator.JoinWindow[I1, I2]](i1, i2) {
@@ -178,7 +179,7 @@ object StreamJoinOperator {
       javaStream.getExecutionEnvironment().getJobGraphBuilder().setInvokable(javaStream.getId(),
         invokable)
 
-      new DataStream[R](javaStream.setType(implicitly[TypeInformation[R]]))
+      javaStream.setType(implicitly[TypeInformation[R]])
     }
   }
 

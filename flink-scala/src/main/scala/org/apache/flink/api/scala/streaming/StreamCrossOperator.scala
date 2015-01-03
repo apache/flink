@@ -33,6 +33,7 @@ import org.apache.flink.api.common.functions.CrossFunction
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
+import org.apache.flink.api.scala.streaming.StreamingConversions._
 
 class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
   TemporalOperator[I1, I2, StreamCrossOperator.CrossWindow[I1, I2]](i1, i2) {
@@ -88,7 +89,7 @@ object StreamCrossOperator {
       javaStream.getExecutionEnvironment().getJobGraphBuilder().setInvokable(javaStream.getId(),
         invokable)
 
-      new DataStream[R](javaStream.setType(implicitly[TypeInformation[R]]))
+      javaStream.setType(implicitly[TypeInformation[R]])
     }
   }
 

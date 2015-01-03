@@ -41,6 +41,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.function.aggregation.SumFunction
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
+import org.apache.flink.api.scala.streaming.StreamingConversions._
 
 class WindowedDataStream[T](javaStream: JavaWStream[T]) {
 
@@ -50,7 +51,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * the window.
    */
   def every(windowingHelper: WindowingHelper[_]*): WindowedDataStream[T] =
-    new WindowedDataStream[T](javaStream.every(windowingHelper: _*))
+    javaStream.every(windowingHelper: _*)
 
   /**
    * Groups the elements of the WindowedDataStream using the given
@@ -61,8 +62,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * DataStream.window(...) operator on an already grouped data stream.
    *
    */
-  def groupBy(fields: Int*): WindowedDataStream[T] =
-    new WindowedDataStream[T](javaStream.groupBy(fields: _*))
+  def groupBy(fields: Int*): WindowedDataStream[T] = javaStream.groupBy(fields: _*)
 
   /**
    * Groups the elements of the WindowedDataStream using the given
@@ -74,8 +74,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    *
    */
   def groupBy(firstField: String, otherFields: String*): WindowedDataStream[T] =
-    new WindowedDataStream[T](javaStream.groupBy(
-          firstField +: otherFields.toArray: _*))    
+   javaStream.groupBy(firstField +: otherFields.toArray: _*)   
     
   /**
    * Groups the elements of the WindowedDataStream using the given
@@ -92,7 +91,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
       val cleanFun = clean(fun)
       def getKey(in: T) = cleanFun(in)
     }
-    new WindowedDataStream[T](javaStream.groupBy(keyExtractor))
+    javaStream.groupBy(keyExtractor)
   }
 
   /**
@@ -104,7 +103,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     if (reducer == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
-    new DataStream[T](javaStream.reduce(reducer))
+    javaStream.reduce(reducer)
   }
 
   /**
@@ -136,7 +135,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     if (reducer == null) {
       throw new NullPointerException("GroupReduce function must not be null.")
     }
-    new DataStream[R](javaStream.reduceGroup(reducer, implicitly[TypeInformation[R]]))
+    javaStream.reduceGroup(reducer, implicitly[TypeInformation[R]])
   }
 
   /**
