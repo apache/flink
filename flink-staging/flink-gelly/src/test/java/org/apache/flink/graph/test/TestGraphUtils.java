@@ -35,6 +35,20 @@ public class TestGraphUtils {
 		
 		return env.fromCollection(edges);
 	}
+	
+	public static final DataSet<Edge<String, Long>> getStringLongEdgeData(
+			ExecutionEnvironment env) {
+		List<Edge<String, Long>> edges = new ArrayList<Edge<String, Long>>();
+		edges.add(new Edge<String, Long>("1", "2", 12L));
+		edges.add(new Edge<String, Long>("1", "3", 13L));
+		edges.add(new Edge<String, Long>("2", "3", 23L));
+		edges.add(new Edge<String, Long>("3", "4", 34L));
+		edges.add(new Edge<String, Long>("3", "5", 35L));
+		edges.add(new Edge<String, Long>("4", "5", 45L));
+		edges.add(new Edge<String, Long>("5", "1", 51L));
+		
+		return env.fromCollection(edges);
+	}
 
 	public static final DataSet<Tuple2<Long, Long>> getLongLongTuple2Data(
 			ExecutionEnvironment env) {

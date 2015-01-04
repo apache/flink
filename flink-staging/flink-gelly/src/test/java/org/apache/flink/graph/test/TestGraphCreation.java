@@ -8,7 +8,6 @@ import java.util.LinkedList;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.NullValue;
@@ -17,13 +16,12 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import flink.graphs.TestGraphUtils.DummyCustomParameterizedType;
-import flink.graphs.TestGraphUtils.DummyCustomType;
 import flink.graphs.validation.InvalidVertexIdsValidator;
 
 @RunWith(Parameterized.class)
 public class TestGraphCreation extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 8;
+	private static int NUM_PROGRAMS = 5;
 
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -105,66 +103,6 @@ public class TestGraphCreation extends JavaProgramTestBase {
 				}
 				case 3: {
 				/*
-				 * Test create() with edge dataset and a mapper that assigns a double constant as value
-		         */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, Double, Long> graph = Graph.create(TestGraphUtils.getLongLongEdgeData(env),
-							new MapFunction<Long, Double>() {
-								public Double map(Long value) {
-									return 0.1d;
-								}
-							}, env);
-
-					graph.getVertices().writeAsCsv(resultPath);
-					env.execute();
-					return "1,0.1\n" +
-							"2,0.1\n" +
-							"3,0.1\n" +
-							"4,0.1\n" +
-							"5,0.1\n";
-				}
-				case 4: {
-				/*
-				 * Test create() with edge dataset and a mapper that assigns a Tuple2 as value
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, Tuple2<Long, Long>, Long> graph = Graph.create(
-							TestGraphUtils.getLongLongEdgeData(env), new MapFunction<Long, Tuple2<Long, Long>>() {
-								public Tuple2<Long, Long> map(Long vertexId) {
-									return new Tuple2<Long, Long>(vertexId*2, 42l);
-								}
-							}, env);
-
-					graph.getVertices().writeAsCsv(resultPath);
-					env.execute();
-					return "1,(2,42)\n" +
-							"2,(4,42)\n" +
-							"3,(6,42)\n" +
-							"4,(8,42)\n" +
-							"5,(10,42)\n";
-				}
-				case 5: {
-				/*
-				 * Test create() with edge dataset and a mapper that assigns a custom vertex value
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, DummyCustomType, Long> graph = Graph.create(
-							TestGraphUtils.getLongLongEdgeData(env), new MapFunction<Long, DummyCustomType>() {
-								public DummyCustomType map(Long vertexId) {
-									return new DummyCustomType(vertexId.intValue()-1, false);
-								}
-							}, env);
-
-					graph.getVertices().writeAsCsv(resultPath);
-					env.execute();
-					return "1,(F,0)\n" +
-							"2,(F,1)\n" +
-							"3,(F,2)\n" +
-							"4,(F,3)\n" +
-							"5,(F,4)\n";
-				}
-				case 6: {
-				/*
 				 * Test create() with edge dataset and a mapper that assigns a parametrized custom vertex value
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -190,7 +128,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 							"4,(8.0,3)\n" +
 							"5,(10.0,4)\n";
 				}
-				case 7: {
+				case 4: {
 				/*
 				 * Test validate():
 				 */
@@ -204,7 +142,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 
 					return "true\n";
 				}
-				case 8: {
+				case 5: {
 				/*
 				 * Test validate() - invalid vertex ids
 				 */
