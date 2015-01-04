@@ -52,10 +52,8 @@ import org.apache.flink.spargel.java.VertexUpdateFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.types.NullValue;
 
-import flink.graphs.utils.EdgeToTuple3Map;
 import flink.graphs.utils.GraphUtils;
 import flink.graphs.utils.Tuple2ToVertexMap;
-import flink.graphs.utils.VertexToTuple2Map;
 import flink.graphs.validation.GraphValidator;
 
 @SuppressWarnings("serial")
@@ -958,10 +956,13 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @param maximumNumberOfIterations
      * @return
      */
-    public <M>Graph<K, VV, EV> runVertexCentricIteration(VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
+    @SuppressWarnings("unchecked")
+	public <M>Graph<K, VV, EV> runVertexCentricIteration(VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
     		MessagingFunction<K, VV, M, EV> messagingFunction, int maximumNumberOfIterations) {
-    	DataSet<Tuple2<K, VV>> newVertices = vertices.map(new VertexToTuple2Map<K, VV>()).runOperation(
-				VertexCentricIteration.withValuedEdges(edges.map(new EdgeToTuple3Map<K, EV>()),
+    	DataSet<Tuple2<K, VV>> tupleVertices = (DataSet<Tuple2<K, VV>>) (DataSet<?>) vertices;
+    	DataSet<Tuple3<K, K, EV>> tupleEdges = (DataSet<Tuple3<K, K, EV>>) (DataSet<?>) edges;
+    	DataSet<Tuple2<K, VV>> newVertices = tupleVertices.runOperation(
+    	                     VertexCentricIteration.withValuedEdges(tupleEdges,
 						vertexUpdateFunction, messagingFunction, maximumNumberOfIterations));
 		return new Graph<K, VV, EV>(newVertices.map(new Tuple2ToVertexMap<K, VV>()), edges, context);
     }
