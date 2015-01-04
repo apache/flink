@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,22 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.examples.scala.streaming.windowing
+package org.apache.flink.streaming.scala.examples.windowing
 
 
 import java.util.concurrent.TimeUnit._
-import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment
-import org.apache.flink.api.scala.streaming.windowing.Delta
-import org.apache.flink.streaming.api.windowing.helper.Time
-import org.apache.flink.util.Collector
 
+import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment;
+import org.apache.flink.util.Collector
 import scala.math.{max, min}
+
 import scala.util.Random
+
+import org.apache.flink.streaming.api.scala.windowing.Time
+import org.apache.flink.streaming.api.scala.windowing.Delta
 
 /**
  * An example of grouped stream windowing where different eviction and 
- * trigger policies can be used.A source fetches events from cars 
+ * trigger policies can be used. A source fetches events from cars 
  * every 1 sec containing their id, their current speed (kmh),
  * overall elapsed distance (m) and a timestamp. The streaming
  * example triggers the top speed of each car every x meters elapsed 

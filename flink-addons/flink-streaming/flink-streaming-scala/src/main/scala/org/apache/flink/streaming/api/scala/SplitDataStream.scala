@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming
+package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaStream }
-import org.apache.flink.api.scala.streaming.StreamingConversions._
+import org.apache.flink.streaming.api.scala.StreamingConversions._
 
 /**
  * The SplitDataStream represents an operator that has been split using an

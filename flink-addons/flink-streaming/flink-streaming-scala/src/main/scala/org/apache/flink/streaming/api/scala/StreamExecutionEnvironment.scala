@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming
+package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.environment.{ StreamExecutionEnvironment => JavaEnv }
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.commons.lang.Validate
 import scala.reflect.ClassTag
-import org.apache.flink.streaming.api.datastream.DataStreamSource
-import org.apache.flink.streaming.api.invokable.SourceInvokable
-import org.apache.flink.streaming.api.function.source.FromElementsFunction
-import org.apache.flink.streaming.api.function.source.SourceFunction
-import scala.collection.JavaConversions._
+
+import org.apache.commons.lang.Validate
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
+import org.apache.flink.streaming.api.function.source.{ FromElementsFunction, SourceFunction }
+import org.apache.flink.streaming.api.scala.StreamingConversions.javaToScalaStream
 import org.apache.flink.util.Collector
-import org.apache.flink.api.scala.streaming.StreamingConversions._
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
