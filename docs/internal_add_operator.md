@@ -243,4 +243,9 @@ public <R> DataSet<R> mapPartition(MapPartitionFunction<T, R> function) {
 }
 ~~~
 
+---
+
+*This documentation is maintained by the contributors of the individual components.
+We kindly ask anyone that adds and changes components to eventually provide a patch
+or pull request that updates these documents as well.*
 

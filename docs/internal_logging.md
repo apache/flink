@@ -87,3 +87,10 @@ catch(Exception exception){
 	LOG.error("An {} occurred.", "error", exception);
 }
 ~~~
+
+---
+
+*This documentation is maintained by the contributors of the individual components.
+We kindly ask anyone that adds and changes components to eventually provide a patch
+or pull request that updates these documents as well.*
+

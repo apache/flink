@@ -275,6 +275,24 @@ ul {
 }
 
 /*----------------------------------------------------------------------
+    Side navigation
+----------------------------------------------------------------------*/
+
+.sidenav-category {
+    font-weight: bold;
+    font-size: larger;
+    margin-top: 10px;
+}
+
+.sidenav-item {
+    border-top: thin solid #AAAAAA;
+}
+
+.sidenav-item-bottom {
+    border-bottom: thin solid #AAAAAA; border-top: thin solid #AAAAAA;
+}
+
+/*----------------------------------------------------------------------
     Responsive CSS 768px / 992px / 1200px
 ----------------------------------------------------------------------*/
 

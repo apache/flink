@@ -1,5 +1,5 @@
 ---
-title:  "Distributed Communication and Coordination via Akka"
+title:  "Overview of Flink System Architecture & Internals"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,28 +20,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page discusses the implementation of Flink's distributed communication
-via Akka (http://akka.io)
+This documentation provides an overview of the "How-To's" for
+Flink developers. It is intended as guide to contributors and people
+that are interested in the technology behind Flink.
 
 
-## Actor Systems
+## Architectures and Components
 
-### JobManager
+- [How-to: Adding a new Operator](internal_add_operator.html)
 
-### TaskManager
-
-### JobClient
-
-
-## Actors and Messages
-
-
-## Failure Detection
-
-
+- [How-to: Using logging in Flink](internal_logging.html)
 
 ---
 
 *This documentation is maintained by the contributors of the individual components.
 We kindly ask anyone that adds and changes components to eventually provide a patch
 or pull request that updates these documents as well.*
+
