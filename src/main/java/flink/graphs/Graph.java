@@ -61,17 +61,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	EV extends Serializable> implements Serializable {
 
     private final ExecutionEnvironment context;
-
 	private final DataSet<Vertex<K, VV>> vertices;
-
 	private final DataSet<Edge<K, EV>> edges;
-
 	private boolean isUndirected;
-
-	private static TypeInformation<?> keyType;
-	private static TypeInformation<?> vertexValueType;
-	private static TypeInformation<?> edgeValueType;
-
 
 	public Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges, ExecutionEnvironment context) {
 
@@ -85,10 +77,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		this.edges = edges;
         this.context = context;
 		this.isUndirected = undirected;
-		
-		Graph.keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
-		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
-		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
 	}
 
 	public ExecutionEnvironment getContext() {
@@ -111,14 +99,14 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	public DataSet<Edge<K, EV>> getEdges() {
 		return edges;
 	}
-    
+
     /**
      * Apply a function to the attribute of each vertex in the graph.
      * @param mapper
      * @return a new graph
      */
     public <NV extends Serializable> Graph<K, NV, EV> mapVertices(final MapFunction<Vertex<K, VV>, NV> mapper) {
-    	DataSet<Vertex<K, NV>> mappedVertices = vertices.map(new ApplyMapperToVertexWithType<K, VV, NV>(mapper)); 
+    	DataSet<Vertex<K, NV>> mappedVertices = vertices.map(new ApplyMapperToVertexWithType<K, VV, NV>(mapper));
         return new Graph<K, NV, EV>(mappedVertices, this.getEdges(), this.context);
     }
     
@@ -127,7 +115,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		<Vertex<K, VV>, Vertex<K, NV>>, ResultTypeQueryable<Vertex<K, NV>> {
 	
 		private MapFunction<Vertex<K, VV>, NV> innerMapper;
-		
 		public ApplyMapperToVertexWithType(MapFunction<Vertex<K, VV>, NV> theMapper) {
 			this.innerMapper = theMapper;
 		}
@@ -138,9 +125,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	
 		@Override
 		public TypeInformation<Vertex<K, NV>> getProducedType() {
-			TypeInformation<Vertex<K, VV>> vertextypeInfo = new TupleTypeInfo<Vertex<K, VV>>(keyType, vertexValueType);
-			TypeInformation<NV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, vertextypeInfo);			
-			return new TupleTypeInfo<Vertex<K, NV>>(keyType, newVertexValueType);
+			return new TupleTypeInfo<Vertex<K, NV>>(
+					((TupleTypeInfo<?>)(TypeExtractor.createTypeInfo(MapFunction.class, innerMapper.getClass(), 0, null, null))).getTypeAt(0),
+					TypeExtractor.createTypeInfo(MapFunction.class, innerMapper.getClass(), 1, null, null));
 		}
     }
 
@@ -150,7 +137,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @return 
      */
     public <NV extends Serializable> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper) {
-    	DataSet<Edge<K, NV>> mappedEdges = edges.map(new ApplyMapperToEdgeWithType<K, EV, NV>(mapper)); 
+    	DataSet<Edge<K, NV>> mappedEdges = edges.map(new ApplyMapperToEdgeWithType<K, EV, NV>(mapper));
         return new Graph<K, VV, NV>(this.vertices, mappedEdges, this.context);
     }
     
@@ -170,12 +157,11 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	
 		@Override
 		public TypeInformation<Edge<K, NV>> getProducedType() {
-			TypeInformation<Edge<K, EV>> edgeTypeInfo = new TupleTypeInfo<Edge<K, EV>>(keyType, keyType, edgeValueType);
-			TypeInformation<NV> newEdgeValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
-					edgeTypeInfo);
-
-			return new TupleTypeInfo<Edge<K, NV>>(keyType, keyType, newEdgeValueType);
-		}
+			TypeInformation<K> keyType = ((TupleTypeInfo<?>)
+					(TypeExtractor.createTypeInfo(MapFunction.class, innerMapper.getClass(), 0, null, null))).getTypeAt(0);
+			return new TupleTypeInfo<Edge<K, NV>>(keyType, keyType,
+					TypeExtractor.createTypeInfo(MapFunction.class, innerMapper.getClass(), 1, null, null));
+			}
     }
 
 	/**
@@ -466,7 +452,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		@Override
 		public TypeInformation<T> getProducedType() {
 			return TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 2, null, null);
-		}	
+		}
 	}
 
 	private static final class EmitOneEdgePerNode<K extends Comparable<K> & Serializable, 
@@ -629,22 +615,20 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		<Tuple1<K>, Vertex<K, VV>>, ResultTypeQueryable<Vertex<K, VV>> {
 
 		private MapFunction<K, VV> innerMapper;
-		
+
 		public ApplyMapperToVertexValuesWithType(MapFunction<K, VV> theMapper) {
 			this.innerMapper = theMapper;
 		}
-		
+
 		public Vertex<K, VV> map(Tuple1<K> value) throws Exception {
 			return new Vertex<K, VV>(value.f0, innerMapper.map(value.f0));
 		}
-	
+
 		@Override
 		public TypeInformation<Vertex<K, VV>> getProducedType() {
-			@SuppressWarnings("unchecked")
-			TypeInformation<VV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
-					(TypeInformation<K>)keyType);
-			
-			return new TupleTypeInfo<Vertex<K, VV>>(keyType, newVertexValueType);
+			return new TupleTypeInfo<Vertex<K, VV>>(
+					TypeExtractor.createTypeInfo(MapFunction.class, innerMapper.getClass(), 0, null, null),
+					TypeExtractor.createTypeInfo(MapFunction.class, innerMapper.getClass(), 1, null, null));
 		}
 	}
 	
@@ -1191,7 +1175,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 					Tuple3<K, Edge<K, EV>, Vertex<K, VV>> next = keysWithEdgesIterator.next(); 
 					return new Tuple2<Edge<K, EV>, Vertex<K, VV>>(next.f1, next.f2);
 				}
-		
+
 				@Override
 				public void remove() {
 					keysWithEdgesIterator.remove();
