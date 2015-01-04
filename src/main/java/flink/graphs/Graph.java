@@ -31,6 +31,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -761,11 +762,13 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
                 .iterateDelta(verticesWithInitialIds, maxIterations, 0);
 
         DataSet<Tuple2<K, K>> changes = iteration.getWorkset()
-                .join(edgeIds).where(0).equalTo(0)
+                .join(edgeIds, JoinHint.REPARTITION_SORT_MERGE)
+                .where(0).equalTo(0)
                 .with(new FindNeighborsJoin<K>())
                 .groupBy(0)
                 .aggregate(Aggregations.MIN, 1)
-                .join(iteration.getSolutionSet()).where(0).equalTo(0)
+                .join(iteration.getSolutionSet(), JoinHint.REPARTITION_SORT_MERGE)
+                .where(0).equalTo(0)
                 .with(new VertexWithNewComponentJoin<K>());
 
         DataSet<Tuple2<K, K>> components = iteration.closeWith(changes, changes);
