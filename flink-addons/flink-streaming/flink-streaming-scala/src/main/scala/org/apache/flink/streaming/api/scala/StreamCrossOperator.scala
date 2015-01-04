@@ -16,24 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming
+package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.common.functions.JoinFunction
+import scala.reflect.ClassTag
+
+import org.apache.commons.lang.Validate
+import org.apache.flink.api.common.functions.CrossFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
-import org.apache.flink.streaming.api.datastream.TemporalOperator
-import scala.reflect.ClassTag
-import org.apache.commons.lang.Validate
-import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
-import org.apache.flink.streaming.api.function.co.CrossWindowFunction
-import org.apache.flink.api.common.functions.CrossFunction
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
-import org.apache.flink.api.scala.streaming.StreamingConversions._
+import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
+import org.apache.flink.streaming.api.datastream.TemporalOperator
+import org.apache.flink.streaming.api.function.co.CrossWindowFunction
+import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
+import org.apache.flink.streaming.api.scala.StreamingConversions._
 
 class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
   TemporalOperator[I1, I2, StreamCrossOperator.CrossWindow[I1, I2]](i1, i2) {

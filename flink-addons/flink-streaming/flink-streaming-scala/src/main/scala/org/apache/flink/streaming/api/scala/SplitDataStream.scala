@@ -16,25 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming
+package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
-import org.apache.flink.streaming.api.datastream.{ WindowedDataStream => JavaWStream }
+import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaStream }
-import org.apache.flink.streaming.api.datastream.{ ConnectedDataStream => JavaConStream }
+import org.apache.flink.streaming.api.scala.StreamingConversions._
 
-object StreamingConversions {
+/**
+ * The SplitDataStream represents an operator that has been split using an
+ * {@link OutputSelector}. Named outputs can be selected using the
+ * {@link #select} function.
+ *
+ * @param <OUT>
+ *            The type of the output.
+ */
+class SplitDataStream[T](javaStream: SplitJavaStream[T]) {
 
-  implicit def javaToScalaStream[R](javaStream: JavaStream[R]): DataStream[R] =
-    new DataStream[R](javaStream)
+  /**
+   * Gets the underlying java DataStream object.
+   */
+  private[flink] def getJavaStream: SplitJavaStream[T] = javaStream
 
-  implicit def javaToScalaWindowedStream[R](javaWStream: JavaWStream[R]): WindowedDataStream[R] =
-    new WindowedDataStream[R](javaWStream)
+  /**
+   *  Sets the output names for which the next operator will receive values.
+   */
+  def select(outputNames: String*): DataStream[T] = javaStream.select(outputNames: _*)
 
-  implicit def javaToScalaSplitStream[R](javaStream: SplitJavaStream[R]): SplitDataStream[R] =
-    new SplitDataStream[R](javaStream)
-
-  implicit def javaToScalaConnectedStream[IN1, IN2](javaStream: JavaConStream[IN1, IN2]): 
-  ConnectedDataStream[IN1, IN2] = new ConnectedDataStream[IN1, IN2](javaStream)
+  /**
+   * Selects all output names from a split data stream.
+   */
+  def selectAll(): DataStream[T] = javaStream.selectAll()
 
 }

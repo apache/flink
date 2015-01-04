@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming;
+package org.apache.flink.api.streaming.scala;
 
 import java.io.Serializable;
 

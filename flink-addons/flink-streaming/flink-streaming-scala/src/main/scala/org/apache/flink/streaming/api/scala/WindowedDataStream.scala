@@ -16,32 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
-import org.apache.flink.streaming.api.datastream.{ WindowedDataStream => JavaWStream }
-import org.apache.flink.api.common.typeinfo.TypeInformation
+package org.apache.flink.streaming.api.scala
+
+import scala.Array.canBuildFrom
+import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.reflect.ClassTag
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.streaming.api.invokable.operator.MapInvokable
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
-import org.apache.flink.util.Collector
-import org.apache.flink.api.common.functions.FlatMapFunction
-import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable
-import org.apache.flink.api.common.functions.ReduceFunction
-import org.apache.flink.api.common.functions.ReduceFunction
-import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
+
 import org.apache.flink.api.common.functions.GroupReduceFunction
-import org.apache.flink.streaming.api.invokable.StreamInvokable
-import scala.collection.JavaConversions._
-import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
+import org.apache.flink.api.common.functions.ReduceFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
+import org.apache.flink.api.scala._
+import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
+import org.apache.flink.streaming.api.datastream.{WindowedDataStream => JavaWStream}
+import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.function.aggregation.SumFunction
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
-import org.apache.flink.api.scala.streaming.StreamingConversions._
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
+import org.apache.flink.streaming.api.scala.StreamingConversions._
+import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
+import org.apache.flink.streaming.api.windowing.helper._
+import org.apache.flink.util.Collector
 
 class WindowedDataStream[T](javaStream: JavaWStream[T]) {
 

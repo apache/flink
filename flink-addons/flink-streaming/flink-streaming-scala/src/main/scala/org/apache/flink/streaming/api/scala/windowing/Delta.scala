@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming.windowing
+package org.apache.flink.streaming.api.scala.windowing
 
 import org.apache.flink.streaming.api.windowing.helper.{ Delta => JavaDelta }
 import org.apache.commons.lang.Validate
-import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean;
 import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction
 
 object Delta {
