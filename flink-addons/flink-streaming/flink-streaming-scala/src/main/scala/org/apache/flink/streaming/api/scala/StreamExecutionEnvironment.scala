@@ -16,20 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming
+package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.environment.{ StreamExecutionEnvironment => JavaEnv }
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.commons.lang.Validate
 import scala.reflect.ClassTag
-import org.apache.flink.streaming.api.datastream.DataStreamSource
-import org.apache.flink.streaming.api.invokable.SourceInvokable
-import org.apache.flink.streaming.api.function.source.FromElementsFunction
-import org.apache.flink.streaming.api.function.source.SourceFunction
-import scala.collection.JavaConversions._
+
+import org.apache.commons.lang.Validate
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
+import org.apache.flink.streaming.api.function.source.{ FromElementsFunction, SourceFunction }
+import org.apache.flink.streaming.api.scala.StreamingConversions.javaToScalaStream
 import org.apache.flink.util.Collector
-import org.apache.flink.api.scala.streaming.StreamingConversions._
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 

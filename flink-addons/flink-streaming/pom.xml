@@ -35,6 +35,7 @@ under the License.
 
 	<modules>
 		<module>flink-streaming-core</module>
+		<module>flink-streaming-scala</module>
 		<module>flink-streaming-examples</module>
 		<module>flink-streaming-connectors</module>
 	</modules>

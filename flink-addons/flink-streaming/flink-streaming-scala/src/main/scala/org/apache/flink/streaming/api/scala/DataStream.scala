@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming
+package org.apache.flink.streaming.api.scala
+
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream,
   SingleOutputStreamOperator, GroupedDataStream}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -31,15 +31,14 @@ import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.streaming.api.invokable.StreamInvokable
-import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable
-import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable
+import org.apache.flink.streaming.api.invokable.operator.{ GroupedReduceInvokable, StreamReduceInvokable }
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.streaming.api.function.sink.SinkFunction
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
-import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy
-import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy
+import org.apache.flink.streaming.api.windowing.policy.{ EvictionPolicy, TriggerPolicy }
 import org.apache.flink.streaming.api.collector.OutputSelector
 import scala.collection.JavaConversions._
 import java.util.HashMap
@@ -48,7 +47,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.api.scala.streaming.StreamingConversions._
+import org.apache.flink.streaming.api.scala.StreamingConversions._
+import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
 
 class DataStream[T](javaStream: JavaStream[T]) {
 

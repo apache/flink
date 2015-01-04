@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.streaming.windowing
+package org.apache.flink.streaming.api.scala.windowing
 
 import java.util.concurrent.TimeUnit
 import org.apache.flink.streaming.api.windowing.helper.{ Time => JavaTime }
+
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.commons.net.ntp.TimeStamp
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp
-import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment.clean
 import org.apache.commons.lang.Validate
 
 object Time {

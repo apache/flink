@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.examples.scala.streaming.windowing
+package org.apache.flink.streaming.scala.examples.windowing
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.streaming.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.util.Collector
 import scala.util.Random
 
