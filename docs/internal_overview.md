@@ -35,7 +35,11 @@ or pull request that updates these documents as well.*
 
 <!--
 - [Life Cycle of a Program](program_life_cycle.html)
+-->
 
+- [Distributed Communication via Akka](internal_distributed_akka.html)
+
+<!--
 - [Jobs and Scheduling](job_scheduling.html)
 
 - [Distributed Runtime](distributed_runtime.html)
@@ -49,10 +53,6 @@ or pull request that updates these documents as well.*
 
 <!--
 - [Java API, Types, and Type Extraction](types.html)
--->
-
-<!--
-- [RPC and JobManager Communication](rpc_transfer.html)
 -->
 
 - [How-to: Using logging in Flink](internal_logging.html)
