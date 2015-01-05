@@ -175,7 +175,6 @@ The example shows how to access an Azure table and turn data into Flink's `DataS
 
 ## Access MongoDB
 
-_Note: This example works starting from Flink 0.5 (then called Stratosphere)_
+This [GitHub repository documents how to use MongoDB with Apache Flink (starting from 0.7-incubating)](https://github.com/okkam-it/flink-mongodb-test).
 
-Please see this (slightly outdated) blogpost on [How to access MongoDB with Apache Flink](http://flink.incubator.apache.org/news/2014/01/28/querying_mongodb.html).
 

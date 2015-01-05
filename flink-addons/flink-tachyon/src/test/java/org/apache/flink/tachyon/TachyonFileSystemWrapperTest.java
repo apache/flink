@@ -133,11 +133,6 @@ public class TachyonFileSystemWrapperTest {
 
 			WordCount.main(new String[]{input, output});
 
-//			List<Integer> files = client.listFiles("/", true);
-//			for(Integer file : files) {
-//				TachyonFile f = client.getFile(file);
-//				System.out.println("file = "+file+" f = "+f.getPath());
-//			}
 			// verify result
 			TachyonFile resultFile = client.getFile("/" + TACHYON_TEST_OUT_FILE_NAME);
 			Assert.assertNotNull("Result file has not been created", resultFile);
