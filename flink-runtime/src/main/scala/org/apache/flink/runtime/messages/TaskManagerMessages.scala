@@ -21,10 +21,11 @@ package org.apache.flink.runtime.messages
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.instance.InstanceID
+import org.apache.flink.runtime.instance.InstanceID 
 
 object TaskManagerMessages {
 
+  
   /**
    * Cancels the task associated with [[attemptID]]. The result is sent back to the sender as a
    * [[TaskOperationResult]] message.
@@ -113,4 +114,28 @@ object TaskManagerMessages {
    * @param cause reason for the external failure
    */
   case class FailTask(executionID: ExecutionAttemptID, cause: Throwable)
+  
+    // --------------------------------------------------------------------------
+  // Utility methods to allow simpler case object access from Java
+  // --------------------------------------------------------------------------
+  
+  def getNotifyWhenRegisteredAtJobManagerMessage() : AnyRef = {
+    NotifyWhenRegisteredAtJobManager
+  }
+  
+  def getRegisteredAtJobManagerMessage() : AnyRef = {
+    RegisteredAtJobManager
+  }
+  
+  def getRegisterAtJobManagerMessage() : AnyRef = {
+    RegisterAtJobManager
+  }
+
+  def getSendHeartbeatMessage() : AnyRef = {
+    SendHeartbeat
+  }
+
+  def getLogMemoryUsageMessage() : AnyRef = {
+    RegisteredAtJobManager
+  }
 }
