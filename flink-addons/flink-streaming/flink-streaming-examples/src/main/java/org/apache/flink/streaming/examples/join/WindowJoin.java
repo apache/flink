@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.examples.join;
 
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -67,7 +68,7 @@ public class WindowJoin {
 		// second windows
 		DataStream<Tuple3<String, Integer, Integer>> joinedStream = grades
 						.join(salaries)
-						.onWindow(1000)
+						.onWindow(1, TimeUnit.SECONDS)
 						.where(0)
 						.equalTo(0)
 						.with(new MyJoinFunction());

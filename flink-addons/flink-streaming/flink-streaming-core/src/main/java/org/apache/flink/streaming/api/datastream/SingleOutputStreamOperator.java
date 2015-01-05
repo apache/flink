@@ -186,7 +186,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	@Override
-	protected SingleOutputStreamOperator<OUT, O> copy() {
+	public SingleOutputStreamOperator<OUT, O> copy() {
 		return new SingleOutputStreamOperator<OUT, O>(this);
 	}
 

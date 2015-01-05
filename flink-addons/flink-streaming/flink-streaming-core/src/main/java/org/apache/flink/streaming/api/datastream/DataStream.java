@@ -38,6 +38,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.JobGraphBuilder;
+import org.apache.flink.streaming.api.datastream.temporaloperator.StreamCrossOperator;
+import org.apache.flink.streaming.api.datastream.temporaloperator.StreamJoinOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType;
@@ -1180,7 +1182,7 @@ public class DataStream<OUT> {
 	 * 
 	 * @return The copy
 	 */
-	protected DataStream<OUT> copy() {
+	public DataStream<OUT> copy() {
 		return new DataStream<OUT>(this);
 	}
 

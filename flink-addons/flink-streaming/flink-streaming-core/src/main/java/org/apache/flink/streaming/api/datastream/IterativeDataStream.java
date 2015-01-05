@@ -72,7 +72,7 @@ public class IterativeDataStream<IN> extends
 	}
 
 	@Override
-	protected IterativeDataStream<IN> copy() {
+	public IterativeDataStream<IN> copy() {
 		return new IterativeDataStream<IN>(this, iterationID, waitTime);
 	}
 }

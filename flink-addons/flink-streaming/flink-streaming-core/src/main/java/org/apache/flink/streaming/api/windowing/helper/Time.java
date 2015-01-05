@@ -35,13 +35,13 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
  */
 public class Time<DATA> implements WindowingHelper<DATA> {
 
-	private long length;
-	private TimeUnit granularity;
-	private TimestampWrapper<DATA> timestampWrapper;
-	private long delay;
+	protected long length;
+	protected TimeUnit granularity;
+	protected TimestampWrapper<DATA> timestampWrapper;
+	protected long delay;
 
 	/**
-	 * Creates an helper representing a trigger which triggers every given
+	 * Creates a helper representing a trigger which triggers every given
 	 * length or an eviction which evicts all elements older than length.
 	 * 
 	 * @param length
@@ -62,7 +62,7 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	}
 
 	/**
-	 * Creates an helper representing a trigger which triggers every given
+	 * Creates a helper representing a trigger which triggers every given
 	 * length or an eviction which evicts all elements older than length.
 	 * 
 	 * @param length
@@ -160,11 +160,7 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 		return this;
 	}
 
-	private long granularityInMillis() {
-		if (granularity != null) {
-			return this.granularity.toMillis(this.length);
-		} else {
-			return this.length;
-		}
+	protected long granularityInMillis() {
+		return granularity == null ? length : granularity.toMillis(length);
 	}
 }

@@ -20,25 +20,24 @@ package org.apache.flink.streaming.api.scala
 
 import scala.Array.canBuildFrom
 import scala.reflect.ClassTag
-
 import org.apache.commons.lang.Validate
 import org.apache.flink.api.common.functions.JoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.operators.Keys
-import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
-import org.apache.flink.streaming.api.datastream.TemporalOperator
+import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.function.co.JoinWindowFunction
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
-import org.apache.flink.streaming.api.scala.StreamingConversions._
+import org.apache.flink.streaming.api.scala.StreamingConversions.javaToScalaStream
 import org.apache.flink.streaming.util.keys.KeySelectorUtil
+import org.apache.flink.streaming.api.datastream.temporaloperator.TemporalWindow
+import java.util.concurrent.TimeUnit
 
-class StreamJoinOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
+class StreamJoinOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends 
 TemporalOperator[I1, I2, StreamJoinOperator.JoinWindow[I1, I2]](i1, i2) {
 
   override def createNextWindowOperator() = {
@@ -48,10 +47,11 @@ TemporalOperator[I1, I2, StreamJoinOperator.JoinWindow[I1, I2]](i1, i2) {
 
 object StreamJoinOperator {
 
-  class JoinWindow[I1, I2](private[flink] op: StreamJoinOperator[I1, I2]) {
+  class JoinWindow[I1, I2](private[flink]op: StreamJoinOperator[I1, I2]) extends 
+  TemporalWindow[JoinWindow[I1, I2]] {
 
     private[flink] val type1 = op.input1.getType();
-    
+
     /**
      * Continues a temporal Join transformation by defining
      * the fields in the first stream to be used as keys for the join.
@@ -60,7 +60,7 @@ object StreamJoinOperator {
      */
     def where(fields: Int*) = {
       new JoinPredicate[I1, I2](op, KeySelectorUtil.getSelectorForKeys(
-          new Keys.ExpressionKeys(fields.toArray,type1),type1))
+        new Keys.ExpressionKeys(fields.toArray, type1), type1))
     }
 
     /**
@@ -69,9 +69,9 @@ object StreamJoinOperator {
      * The resulting incomplete join can be completed by JoinPredicate.equalTo()
      * to define the second key.
      */
-    def where(firstField: String, otherFields: String*) = 
+    def where(firstField: String, otherFields: String*) =
       new JoinPredicate[I1, I2](op, KeySelectorUtil.getSelectorForKeys(
-          new Keys.ExpressionKeys(firstField +: otherFields.toArray,type1),type1))  
+        new Keys.ExpressionKeys(firstField +: otherFields.toArray, type1), type1))
 
     /**
      * Continues a temporal Join transformation by defining
@@ -89,10 +89,19 @@ object StreamJoinOperator {
       new JoinPredicate[I1, I2](op, keyExtractor)
     }
 
+    override def every(length: Long, timeUnit: TimeUnit): JoinWindow[I1, I2] = {
+      every(timeUnit.toMillis(length))
+    }
+
+    override def every(length: Long): JoinWindow[I1, I2] = {
+      op.slideInterval = length
+      this
+    }
+
   }
 
   class JoinPredicate[I1, I2](private[flink] val op: StreamJoinOperator[I1, I2],
-                              private[flink] val keys1: KeySelector[I1, _]) {
+    private[flink] val keys1: KeySelector[I1, _]) {
     private[flink] var keys2: KeySelector[I2, _] = null
     private[flink] val type2 = op.input2.getType();
 
@@ -104,7 +113,7 @@ object StreamJoinOperator {
      */
     def equalTo(fields: Int*): JoinedStream[I1, I2] = {
       finish(KeySelectorUtil.getSelectorForKeys(
-          new Keys.ExpressionKeys(fields.toArray,type2),type2))
+        new Keys.ExpressionKeys(fields.toArray, type2), type2))
     }
 
     /**
@@ -113,9 +122,9 @@ object StreamJoinOperator {
      * (first, second)
      * To define a custom wrapping, use JoinedStream.apply(...)
      */
-    def equalTo(firstField: String, otherFields: String*): JoinedStream[I1, I2] = 
-     finish(KeySelectorUtil.getSelectorForKeys(
-          new Keys.ExpressionKeys(firstField +: otherFields.toArray,type2),type2))
+    def equalTo(firstField: String, otherFields: String*): JoinedStream[I1, I2] =
+      finish(KeySelectorUtil.getSelectorForKeys(
+        new Keys.ExpressionKeys(firstField +: otherFields.toArray, type2), type2))
 
     /**
      * Creates a temporal join transformation by defining the second join key.
@@ -159,11 +168,11 @@ object StreamJoinOperator {
 
       return op.input1.groupBy(keys1).connect(op.input2.groupBy(keys2))
         .addGeneralWindowCombine(getJoinWindowFunction(this, (_, _)),
-        returnType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)
+          returnType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)
     }
   }
 
-  class JoinedStream[I1, I2](jp: JoinPredicate[I1, I2], javaStream: JavaStream[(I1, I2)]) extends
+  class JoinedStream[I1, I2](jp: JoinPredicate[I1, I2], javaStream: JavaStream[(I1, I2)]) extends 
   DataStream[(I1, I2)](javaStream) {
 
     private val op = jp.op
@@ -186,7 +195,7 @@ object StreamJoinOperator {
   }
 
   private[flink] def getJoinWindowFunction[I1, I2, R](jp: JoinPredicate[I1, I2],
-                                                      joinFunction: (I1, I2) => R) = {
+    joinFunction: (I1, I2) => R) = {
     Validate.notNull(joinFunction, "Join function must not be null.")
 
     val joinFun = new JoinFunction[I1, I2, R] {

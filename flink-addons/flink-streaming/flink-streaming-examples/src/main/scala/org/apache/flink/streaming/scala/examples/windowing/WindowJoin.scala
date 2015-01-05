@@ -22,6 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.util.Collector
 import scala.util.Random
+import java.util.concurrent.TimeUnit
 
 object WindowJoin {
 
@@ -37,10 +38,10 @@ object WindowJoin {
     val names = env.addSource(nameStream _).map(x => Name(x._1, x._2))
     val ages = env.addSource(ageStream _).map(x => Age(x._1, x._2))
 
-    //Join the two input streams by id on the last second and create new Person objects
-    //containing both name and age
+    //Join the two input streams by id on the last second every 2 seconds and create new 
+    //Person objects containing both name and age
     val joined =
-      names.join(ages).onWindow(1000)
+      names.join(ages).onWindow(1, TimeUnit.SECONDS).every(2, TimeUnit.SECONDS)
                       .where("id").equalTo("id") { (n, a) => Person(n.name, a.age) }
 
     joined print

@@ -38,7 +38,7 @@ public class DataStreamSink<IN> extends SingleOutputStreamOperator<IN, DataStrea
 	}
 
 	@Override
-	protected DataStreamSink<IN> copy() {
+	public DataStreamSink<IN> copy() {
 		throw new RuntimeException("Data stream sinks cannot be copied");
 	}
 

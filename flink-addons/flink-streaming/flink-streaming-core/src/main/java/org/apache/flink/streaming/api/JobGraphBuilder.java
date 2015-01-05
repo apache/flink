@@ -509,6 +509,10 @@ public class JobGraphBuilder {
 		invokableObjects.put(id, invokableObject);
 	}
 
+	public StreamInvokable<?, ?> getInvokable(String id) {
+		return invokableObjects.get(id);
+	}
+
 	public <OUT> void setOutType(String id, TypeInformation<OUT> outType) {
 		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType);
 		typeSerializersOut1.put(id, serializer);
