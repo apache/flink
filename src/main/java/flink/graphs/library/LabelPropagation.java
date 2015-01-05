@@ -12,6 +12,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+/**
+ * An implementation of the label propagation algorithm.
+ * The iterative algorithm detects communities by propagating labels.
+ * In each iteration, a vertex adopts the label that is most frequent among its neighbors' labels.
+ * The algorithm converges when no vertex changes its value or the maximum number of iterations have been reached.
+ * Note that different initializations might lead to different results.
+ *
+ */
 @SuppressWarnings("serial")
 public class LabelPropagation<K extends Comparable<K> & Serializable> implements GraphAlgorithm<K, Long, NullValue> {
 
