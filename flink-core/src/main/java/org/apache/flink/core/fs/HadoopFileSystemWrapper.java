@@ -17,7 +17,7 @@
  */
 package org.apache.flink.core.fs;
 
-public interface AbstractHadoopWrapper {
+public interface HadoopFileSystemWrapper {
 
 	/**
 	 * Test whether the HadoopWrapper can wrap the given file system scheme.
