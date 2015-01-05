@@ -305,12 +305,12 @@ public abstract class FileSystem {
 		return fs;
 	}
 
-	private static AbstractHadoopWrapper hadoopWrapper;
+	private static HadoopFileSystemWrapper hadoopWrapper;
 
 	private static Class<?> getHadoopWrapperClassNameForFileSystem(String scheme) {
 		if(hadoopWrapper == null) {
 			try {
-				hadoopWrapper = (AbstractHadoopWrapper) instantiateHadoopFileSystemWrapper(null);
+				hadoopWrapper = (HadoopFileSystemWrapper) instantiateHadoopFileSystemWrapper(null);
 			} catch (IOException e) {
 				throw new RuntimeException("Error creating new Hadoop wrapper", e);
 			}

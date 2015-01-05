@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-addons</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>0.8-incubating-SNAPSHOT</version>
+		<version>0.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -40,6 +40,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -51,6 +52,7 @@ under the License.
 			<groupId>org.tachyonproject</groupId>
 			<artifactId>tachyon</artifactId>
 			<version>0.5.0</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.tachyonproject</groupId>

@@ -23,7 +23,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.UnknownHostException;
 
-import org.apache.flink.core.fs.AbstractHadoopWrapper;
+import org.apache.flink.core.fs.HadoopFileSystemWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
@@ -45,7 +45,7 @@ import org.apache.hadoop.conf.Configuration;
  * distributed file system (HDFS).
  *
  */
-public final class HadoopFileSystem extends FileSystem implements AbstractHadoopWrapper {
+public final class HadoopFileSystem extends FileSystem implements HadoopFileSystemWrapper {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopFileSystem.class);
 	
