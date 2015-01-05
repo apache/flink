@@ -151,7 +151,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Create a DataStream using a user defined source function for arbitrary
-   * source functionality.
+   * source functionality. By default sources have a parallelism of 1. 
+   * To enable parallel execution, the user defined source should implement 
+   * ParallelSourceFunction or extend RichParallelSourceFunction. 
+   * In these cases the resulting source will have the parallelism of the environment. 
+   * To change this afterwards call DataStreamSource.setParallelism(int)
    *
    */
   def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
