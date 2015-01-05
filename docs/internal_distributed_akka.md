@@ -1,3 +1,6 @@
+---
+title:  "Distributed Communication and Coordination via Akka"
+---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
@@ -16,6 +19,23 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<hr class="divider">
 
-<p class="text-center"><a href="privacy-policy.html">Privacy Policy<a></p>
+This page discusses the implementation of Flink's distributed communication
+via Akka (http://akka.io)
+
+
+## Actor Systems
+
+### JobManager
+
+### TaskManager
+
+### JobClient
+
+
+## Actors and Messages
+
+
+## Failure Detection
+
+

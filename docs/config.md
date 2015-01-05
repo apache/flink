@@ -226,6 +226,23 @@ heartbeats to the JobManager.
 - `jobmanager.max-heartbeat-delay-before-failure.msecs`: The maximum time that a
 TaskManager hearbeat may be missing before the TaskManager is considered failed.
 
+### Distributed Coordination (via Akka)
+
+- `akka.startup-timeout`: 
+- `akka.transport.heartbeat.interval`: 
+- `akka.transport.heartbeat.pause`: 
+- `akka.transport.threshold`: 
+- `akka.watch.heartbeat.interval`: 
+- `akka.watch.heartbeat.pause`: 
+- `akka.watch.threshold`: 
+- `akka.tcp.timeout`: 
+- `akka.framesize`: 
+- `akka.throughput`: 
+- `akka.log.lifecycle.events`: 
+- `akka.loglevel`: 
+- `akka.ask.timeout`: 
+
+
 ### JobManager Web Frontend
 
 - `jobmanager.web.port`: Port of the JobManager's web interface that displays

@@ -35,9 +35,13 @@ or pull request that updates these documents as well.*
 
 <!--
 - [Life Cycle of a Program](program_life_cycle.html)
+-->
 
-- [Jobs and Scheduling](job_scheduling.html)
+- [Distributed Communication via Akka](internal_distributed_akka.html)
 
+- [Jobs and Scheduling](internal_job_scheduling.html)
+
+<!--
 - [Distributed Runtime](distributed_runtime.html)
 
 - [Runtime Algorithms and Memory Management](operators_and_memory.html)
@@ -48,11 +52,7 @@ or pull request that updates these documents as well.*
 - [How-to: Adding a new Operator](internal_add_operator.html)
 
 <!--
-- [Java API, Types, and Type Extraction](types.html)
--->
-
-<!--
-- [RPC and JobManager Communication](rpc_transfer.html)
+- [Types, and Type Extraction](types.html)
 -->
 
 - [How-to: Using logging in Flink](internal_logging.html)
