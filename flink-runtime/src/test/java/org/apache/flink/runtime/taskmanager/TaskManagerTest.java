@@ -26,6 +26,7 @@ import akka.japi.Creator;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
+
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -46,15 +47,16 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
-import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager$;
 import org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -162,8 +164,8 @@ public class TaskManagerTest {
 
 							expectMsgEquals(new TaskOperationResult(eid1, true));
 							expectMsgEquals(new TaskOperationResult(eid2, true));
-
-							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+							
+							tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 
 							Map<ExecutionAttemptID, Task> runningTasks = expectMsgClass(TestingTaskManagerMessages
 									.ResponseRunningTasks.class).asJava();
@@ -187,7 +189,7 @@ public class TaskManagerTest {
 
 							assertEquals(ExecutionState.CANCELED, t1.getExecutionState());
 
-							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+							tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 							runningTasks = expectMsgClass(TestingTaskManagerMessages
 									.ResponseRunningTasks.class).asJava();
 
@@ -206,7 +208,7 @@ public class TaskManagerTest {
 
 							assertEquals(ExecutionState.CANCELED, t2.getExecutionState());
 
-							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+							tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 							runningTasks = expectMsgClass(TestingTaskManagerMessages
 									.ResponseRunningTasks.class).asJava();
 
@@ -276,7 +278,7 @@ public class TaskManagerTest {
 							expectMsgEquals(true);
 							expectMsgEquals(true);
 
-							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+							tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 							Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages
 									.ResponseRunningTasks.class).asJava();
 
@@ -337,7 +339,7 @@ public class TaskManagerTest {
 						tm.tell(new SubmitTask(tdd1), getRef());
 						expectMsgEquals(new TaskOperationResult(eid1, true));
 
-						tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+						tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 						Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages.ResponseRunningTasks
 								.class).asJava();
 
@@ -359,7 +361,7 @@ public class TaskManagerTest {
 				assertEquals(ExecutionState.FINISHED, t2.getExecutionState());
 			}
 
-						tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+						tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 						tasks = expectMsgClass(TestingTaskManagerMessages.ResponseRunningTasks
 								.class).asJava();
 
@@ -424,7 +426,7 @@ public class TaskManagerTest {
 						expectMsgEquals(new TaskOperationResult(eid2, true));
 						expectMsgEquals(new TaskOperationResult(eid1, true));
 
-						tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+						tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 						Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages
 								.ResponseRunningTasks.class).asJava();
 
@@ -450,7 +452,7 @@ public class TaskManagerTest {
 							Await.ready(response, d);
 						}
 
-						tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+						tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 						tasks = expectMsgClass(TestingTaskManagerMessages
 								.ResponseRunningTasks.class).asJava();
 
@@ -514,6 +516,7 @@ public class TaskManagerTest {
 		}
 	}
 
+	@SuppressWarnings("serial")
 	public static class SimpleLookupJobManagerCreator implements Creator<SimpleLookupJobManager>{
 		private final ChannelID receiverID;
 
@@ -527,6 +530,7 @@ public class TaskManagerTest {
 		}
 	}
 
+	@SuppressWarnings("serial")
 	public static class SimpleLookupFailingUpdateJobManagerCreator implements
 			Creator<SimpleLookupFailingUpdateJobManager>{
 		private final ChannelID receiverID;
@@ -550,8 +554,8 @@ public class TaskManagerTest {
 
 		ActorRef taskManager = TestingUtils.startTestingTaskManagerWithConfiguration("localhost", cfg, system);
 
-		Future<Object> response = Patterns.ask(taskManager, NotifyWhenRegisteredAtJobManager$.MODULE$,
-				timeout);
+		Future<Object> response = Patterns.ask(taskManager, 
+				TaskManagerMessages.getNotifyWhenRegisteredAtJobManagerMessage(), timeout);
 
 		try {
 			FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);

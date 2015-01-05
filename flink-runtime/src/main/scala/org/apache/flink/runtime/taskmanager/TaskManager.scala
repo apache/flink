@@ -171,14 +171,16 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
       if (registered) {
         registrationScheduler.foreach(_.cancel())
-      } else if (registrationAttempts <= TaskManager.MAX_REGISTRATION_ATTEMPTS) {
+      }
+      else if (registrationAttempts <= TaskManager.MAX_REGISTRATION_ATTEMPTS) {
 
         log.info(s"Try to register at master ${jobManagerAkkaURL}. ${registrationAttempts}. " +
           s"Attempt")
         val jobManager = context.actorSelection(jobManagerAkkaURL)
 
         jobManager ! RegisterTaskManager(connectionInfo, hardwareDescription, numberOfSlots)
-      } else {
+      }
+      else {
         log.error("TaskManager could not register at JobManager.");
         self ! PoisonPill
       }
@@ -211,6 +213,10 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
         waitForRegistration.clear()
       }
+    }
+    
+    case SubmitTask(tdd) => {
+      submitTask(tdd)
     }
 
     case CancelTask(executionID) => {
@@ -502,7 +508,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 }
 
 /**
- * TaskManager companion object. Contains TaskManager executable entry point, command line parsing, and constants.
+ * TaskManager companion object. Contains TaskManager executable entry point, command
+ * line parsing, and constants.
  */
 object TaskManager {
 
@@ -749,7 +756,9 @@ object TaskManager {
       s"NON HEAP: $nonHeapUsed/$nonHeapCommitted/$nonHeapMax MB (used/committed/max)]"
   }
 
-  private def getGarbageCollectorStatsAsString(gcMXBeans: Iterable[GarbageCollectorMXBean]): String = {
+  private def getGarbageCollectorStatsAsString(gcMXBeans: Iterable[GarbageCollectorMXBean]) 
+    : String =
+  {
     val beans = gcMXBeans map {
       bean =>
         s"[${bean.getName}, GC TIME (ms): ${bean.getCollectionTime}, " +
