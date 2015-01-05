@@ -190,4 +190,8 @@ public class CoWindowInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT>
 	protected void callUserFunction2() throws Exception {
 	}
 
+	public void setSlideSize(long slideSize) {
+		this.slideSize = slideSize;
+	}
+
 }

@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
@@ -98,14 +98,14 @@ public class WindowCrossJoinTest implements Serializable {
 
 		inStream1
 				.join(inStream2)
-				.onWindow(1000, 1000, new MyTimestamp<Tuple2<Integer, String>>(),
-						new MyTimestamp<Tuple1<Integer>>()).where(0).equalTo(0)
+				.onWindow(1000, new MyTimestamp<Tuple2<Integer, String>>(),
+						new MyTimestamp<Tuple1<Integer>>(), 100).where(0).equalTo(0)
 				.addSink(new JoinResultSink());
 
 		inStream1
 				.cross(inStream2)
-				.onWindow(1000, 1000, new MyTimestamp<Tuple2<Integer, String>>(),
-						new MyTimestamp<Tuple1<Integer>>())
+				.onWindow(1000, new MyTimestamp<Tuple2<Integer, String>>(),
+						new MyTimestamp<Tuple1<Integer>>(), 100)
 				.with(new CrossFunction<Tuple2<Integer, String>, Tuple1<Integer>, Tuple2<Tuple2<Integer, String>, Tuple1<Integer>>>() {
 
 					private static final long serialVersionUID = 1L;
@@ -123,21 +123,12 @@ public class WindowCrossJoinTest implements Serializable {
 		assertEquals(crossExpectedResults, crossResults);
 	}
 
-	private static class MyTimestamp<T> extends TimestampWrapper<T> {
-		public MyTimestamp() {
-			super(null, 0);
-		}
-
+	private static class MyTimestamp<T> implements Timestamp<T> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public long getTimestamp(T value) {
 			return 101L;
-		}
-
-		@Override
-		public long getStartTime() {
-			return 100L;
 		}
 	}
 

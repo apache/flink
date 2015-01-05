@@ -199,7 +199,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	}
 
 	@Override
-	protected GroupedDataStream<OUT> copy() {
+	public GroupedDataStream<OUT> copy() {
 		return new GroupedDataStream<OUT>(this);
 	}
 }

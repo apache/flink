@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.datastream;
+package org.apache.flink.streaming.api.datastream.temporaloperator;
+
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -26,6 +28,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.function.co.JoinWindowFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
@@ -42,7 +46,7 @@ public class StreamJoinOperator<I1, I2> extends
 		return new JoinWindow<I1, I2>(this);
 	}
 
-	public static class JoinWindow<I1, I2> {
+	public static class JoinWindow<I1, I2> implements TemporalWindow<JoinWindow<I1, I2>> {
 
 		private StreamJoinOperator<I1, I2> op;
 		private TypeInformation<I1> type1;
@@ -102,6 +106,17 @@ public class StreamJoinOperator<I1, I2> extends
 		 */
 		public <K> JoinPredicate<I1, I2> where(KeySelector<I1, K> keySelector) {
 			return new JoinPredicate<I1, I2>(op, keySelector);
+		}
+
+		@Override
+		public JoinWindow<I1, I2> every(long length, TimeUnit timeUnit) {
+			return every(timeUnit.toMillis(length));
+		}
+
+		@Override
+		public JoinWindow<I1, I2> every(long length) {
+			op.slideInterval = length;
+			return this;
 		}
 
 		// ----------------------------------------------------------------------------------------

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.scala
 
 import scala.reflect.ClassTag
-
 import org.apache.commons.lang.Validate
 import org.apache.flink.api.common.functions.CrossFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -28,11 +27,12 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
-import org.apache.flink.streaming.api.datastream.TemporalOperator
 import org.apache.flink.streaming.api.function.co.CrossWindowFunction
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.scala.StreamingConversions._
+import org.apache.flink.streaming.api.datastream.temporaloperator.TemporalWindow
+import java.util.concurrent.TimeUnit
 
 class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
   TemporalOperator[I1, I2, StreamCrossOperator.CrossWindow[I1, I2]](i1, i2) {
@@ -72,7 +72,7 @@ object StreamCrossOperator {
 
   private[flink] class CrossWindow[I1, I2](op: StreamCrossOperator[I1, I2],
                                            javaStream: JavaStream[(I1, I2)]) extends
-    DataStream[(I1, I2)](javaStream) {
+    DataStream[(I1, I2)](javaStream) with TemporalWindow[CrossWindow[I1, I2]] {
 
     /**
      * Sets a wrapper for the crossed elements. For each crossed pair, the result of the udf
@@ -89,6 +89,17 @@ object StreamCrossOperator {
         invokable)
 
       javaStream.setType(implicitly[TypeInformation[R]])
+    }
+    
+    override def every(length: Long, timeUnit: TimeUnit): CrossWindow[I1, I2] = {
+      every(timeUnit.toMillis(length))
+    }
+
+    override def every(length: Long): CrossWindow[I1, I2] = {
+      val builder = javaStream.getExecutionEnvironment().getJobGraphBuilder()
+      val invokable = builder.getInvokable(javaStream.getId())
+      invokable.asInstanceOf[CoWindowInvokable[_,_,_]].setSlideSize(length)
+      this
     }
   }
 

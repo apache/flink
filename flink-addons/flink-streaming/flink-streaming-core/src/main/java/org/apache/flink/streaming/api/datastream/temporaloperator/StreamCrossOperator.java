@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.datastream;
+package org.apache.flink.streaming.api.datastream.temporaloperator;
+
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -24,12 +26,14 @@ import org.apache.flink.api.java.operators.CrossOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.function.co.CrossWindowFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 
 public class StreamCrossOperator<I1, I2> extends
 		TemporalOperator<I1, I2, StreamCrossOperator.CrossWindow<I1, I2>> {
-
+	
 	public StreamCrossOperator(DataStream<I1> input1, DataStream<I2> input2) {
 		super(input1, input2);
 	}
@@ -47,13 +51,24 @@ public class StreamCrossOperator<I1, I2> extends
 	}
 
 	public static class CrossWindow<I1, I2> extends
-			SingleOutputStreamOperator<Tuple2<I1, I2>, CrossWindow<I1, I2>> {
+			SingleOutputStreamOperator<Tuple2<I1, I2>, CrossWindow<I1, I2>> implements
+			TemporalWindow<CrossWindow<I1, I2>> {
 
 		private StreamCrossOperator<I1, I2> op;
 
 		public CrossWindow(StreamCrossOperator<I1, I2> op, DataStream<Tuple2<I1, I2>> ds) {
 			super(ds);
 			this.op = op;
+		}
+
+		public CrossWindow<I1, I2> every(long length, TimeUnit timeUnit) {
+			return every(timeUnit.toMillis(length));
+		}
+
+		@SuppressWarnings("unchecked")
+		public CrossWindow<I1, I2> every(long length) {
+			((CoWindowInvokable<I1, I2, ?>) jobGraphBuilder.getInvokable(id)).setSlideSize(length);
+			return this;
 		}
 
 		/**
