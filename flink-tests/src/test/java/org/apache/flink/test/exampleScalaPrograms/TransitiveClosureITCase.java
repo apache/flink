@@ -31,9 +31,9 @@ public class TransitiveClosureITCase extends JavaProgramTestBase {
 
     private static final long SEED = 0xBADC0FFEEBEEFL;
 
-    private static final int NUM_VERTICES = 1000;
+    private static final int NUM_VERTICES = 100;
 
-    private static final int NUM_EDGES = 10000;
+    private static final int NUM_EDGES = 500;
 
     private String edgesPath;
     private String resultPath;
