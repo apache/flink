@@ -34,14 +34,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CrazyNested;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
-import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.FromTuple;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.FromTupleWithCTor;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoContainingTupleAndWritable;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
-import org.hamcrest.core.IsEqual;
-import org.hamcrest.core.IsNot;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -302,14 +299,13 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				"23,2,Hi again!\n";
 	}
 
-	@Test public void testCorrectnessOfGroupReduceOnCustomTypeWithKeyExtractorAndCombine() throws
-			Exception {
+	@Test
+	public void testCorrectnessOfGroupReduceOnCustomTypeWithKeyExtractorAndCombine()
+			throws Exception {
 		/*
 		 * check correctness of groupReduce on custom type with key extractor and combine
 		 */
-
-		org.junit.Assume.assumeThat(mode, new IsNot(new IsEqual<ExecutionMode>(ExecutionMode
-				.COLLECTION)));
+		org.junit.Assume.assumeTrue(mode != ExecutionMode.COLLECTION);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -339,11 +335,11 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testCorrectnessOfGroupReduceOnTuplesWithCombine() throws Exception {
+		
 		/*
 		 * check correctness of groupReduce on tuples with combine
 		 */
-		org.junit.Assume.assumeThat(mode, new IsNot(new IsEqual<ExecutionMode>(ExecutionMode
-				.COLLECTION)));
+		org.junit.Assume.assumeTrue(mode != ExecutionMode.COLLECTION);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setDegreeOfParallelism(2); // important because it determines how often the combiner is called
@@ -365,11 +361,11 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testCorrectnessOfAllGroupReduceForTuplesWithCombine() throws Exception {
+		
 		/*
 		 * check correctness of all-groupreduce for tuples with combine
 		 */
-		org.junit.Assume.assumeThat(mode, new IsNot(new IsEqual<ExecutionMode>(ExecutionMode
-				.COLLECTION)));
+		org.junit.Assume.assumeTrue(mode != ExecutionMode.COLLECTION);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -525,16 +521,10 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	}
 
 	public static class GroupReducer2 implements GroupReduceFunction<FromTupleWithCTor, Integer> {
-		private static final long serialVersionUID = 1L;
+
 		@Override
-		public void reduce(Iterable<FromTupleWithCTor> values,
-				Collector<Integer> out)
-		throws Exception {
-			int c = 0;
-			for(FromTuple v : values) {
-				c++;
-			}
-			out.collect(c);
+		public void reduce(Iterable<FromTupleWithCTor> values, Collector<Integer> out) {
+			out.collect(countElements(values));
 		}
 	}
 
@@ -556,17 +546,10 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	}
 
 	public static class GroupReducer3 implements GroupReduceFunction<PojoContainingTupleAndWritable, Integer> {
-		private static final long serialVersionUID = 1L;
-								
+		
 		@Override
-		public void reduce(Iterable<PojoContainingTupleAndWritable> values,
-				Collector<Integer> out)
-		throws Exception {
-			int c = 0;
-			for(PojoContainingTupleAndWritable v : values) {
-				c++;
-			}
-			out.collect(c);
+		public void reduce(Iterable<PojoContainingTupleAndWritable> values, Collector<Integer> out) {
+			out.collect(countElements(values));
 		}
 	}
 
@@ -590,14 +573,8 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	public static class GroupReducer4 implements GroupReduceFunction<Tuple3<Integer,CrazyNested, POJO>, Integer> {
 		private static final long serialVersionUID = 1L;
 		@Override
-		public void reduce(Iterable<Tuple3<Integer,CrazyNested, POJO>> values,
-				Collector<Integer> out)
-		throws Exception {
-			int c = 0;
-			for(Tuple3<Integer,CrazyNested, POJO> v : values) {
-				c++;
-			}
-			out.collect(c);
+		public void reduce(Iterable<Tuple3<Integer,CrazyNested, POJO>> values, Collector<Integer> out) {
+			out.collect(countElements(values));
 		}
 	}
 
@@ -1188,8 +1165,15 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	}
 	
 	public static final class IdentityMapper<T> extends RichMapFunction<T, T> {
-
 		@Override
 		public T map(T value) { return value; }
+	}
+	
+	private static int countElements(Iterable<?> iterable) {
+		int c = 0;
+		for (@SuppressWarnings("unused") Object o : iterable) {
+			c++;
+		}
+		return c;
 	}
 }

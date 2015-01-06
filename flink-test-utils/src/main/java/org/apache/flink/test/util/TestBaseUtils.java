@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
+
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -350,5 +352,20 @@ public class TestBaseUtils {
 		} else {
 			f.delete();
 		}
+	}
+	
+	public static String constructTestPath(Class<?> forClass, String folder) {
+		// we create test path that depends on class to prevent name clashes when two tests
+		// create temp files with the same name
+		String path = System.getProperty("java.io.tmpdir");
+		if (!(path.endsWith("/") || path.endsWith("\\")) ) {
+			path += System.getProperty("file.separator");
+		}
+		path += (forClass.getName() + "-" + folder);
+		return path;
+	}
+	
+	public static String constructTestURI(Class<?> forClass, String folder) {
+		return new File(constructTestPath(forClass, folder)).toURI().toString();
 	}
 }

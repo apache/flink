@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network;
 
 import java.io.Serializable;
@@ -25,6 +24,9 @@ import org.apache.flink.runtime.io.network.channels.ChannelID;
 
 public class ConnectionInfoLookupResponse implements Serializable {
 
+	private static final long serialVersionUID = 3961171754642077522L;
+
+	
 	private enum ReturnCode {
 		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY, JOB_IS_ABORTING
 	};

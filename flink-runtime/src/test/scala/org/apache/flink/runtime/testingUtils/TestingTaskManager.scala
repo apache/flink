@@ -39,8 +39,10 @@ trait TestingTaskManager extends ActorLogMessages {
   }
 
   def receiveTestMessages: Receive = {
+    
     case RequestRunningTasks =>
       sender ! ResponseRunningTasks(runningTasks.toMap)
+      
     case NotifyWhenTaskRemoved(executionID) =>
       runningTasks.get(executionID) match {
         case Some(_) =>
@@ -48,16 +50,19 @@ trait TestingTaskManager extends ActorLogMessages {
           waitForRemoval += (executionID -> (set + sender))
         case None => sender ! true
       }
+      
     case UnregisterTask(executionID) =>
       super.receiveWithLogMessages(UnregisterTask(executionID))
       waitForRemoval.get(executionID) match {
         case Some(actors) => for(actor <- actors) actor ! true
         case None =>
       }
+      
     case RequestBroadcastVariablesWithReferences => {
       sender ! ResponseBroadcastVariablesWithReferences(
         bcVarManager.getNumberOfVariablesWithReferences)
     }
+    
     case NotifyWhenJobRemoved(jobID) => {
       if(runningTasks.values.exists(_.getJobID == jobID)){
         val set = waitForJobRemoval.getOrElse(jobID, Set())
@@ -71,13 +76,14 @@ trait TestingTaskManager extends ActorLogMessages {
         }
       }
     }
+    
     case CheckIfJobRemoved(jobID) => {
       if(runningTasks.values.forall(_.getJobID != jobID)){
         waitForJobRemoval.get(jobID) match {
           case Some(listeners) => listeners foreach (_ ! true)
           case None =>
         }
-      }else{
+      } else {
         import context.dispatcher
         context.system.scheduler.scheduleOnce(200 milliseconds, this.self, CheckIfJobRemoved(jobID))
       }

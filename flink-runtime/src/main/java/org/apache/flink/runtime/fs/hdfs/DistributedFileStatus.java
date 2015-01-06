@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.core.fs.FileStatus;
@@ -25,7 +24,6 @@ import org.apache.flink.core.fs.Path;
 /**
  * Concrete implementation of the {@link FileStatus} interface for the
  * Hadoop Distribution File System.
- * 
  */
 public final class DistributedFileStatus implements FileStatus {
 
@@ -43,13 +41,11 @@ public final class DistributedFileStatus implements FileStatus {
 
 	@Override
 	public long getLen() {
-
 		return fileStatus.getLen();
 	}
 
 	@Override
 	public long getBlockSize() {
-
 		long blocksize = fileStatus.getBlockSize();
 		if (blocksize > fileStatus.getLen()) {
 			return fileStatus.getLen();
@@ -60,19 +56,16 @@ public final class DistributedFileStatus implements FileStatus {
 
 	@Override
 	public long getAccessTime() {
-
 		return fileStatus.getAccessTime();
 	}
 
 	@Override
 	public long getModificationTime() {
-
 		return fileStatus.getModificationTime();
 	}
 
 	@Override
 	public short getReplication() {
-
 		return fileStatus.getReplication();
 	}
 
@@ -82,13 +75,12 @@ public final class DistributedFileStatus implements FileStatus {
 
 	@Override
 	public Path getPath() {
-
 		return new Path(fileStatus.getPath().toString());
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public boolean isDir() {
-
 		return fileStatus.isDir();
 	}
 }

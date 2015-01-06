@@ -86,8 +86,8 @@ public class Execution implements Serializable {
 	
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
 
-	public static FiniteDuration timeout = new FiniteDuration(ConfigConstants
-			.DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+	public static FiniteDuration timeout = new FiniteDuration(
+			ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -289,9 +289,9 @@ public class Execution implements Serializable {
 
 				@Override
 				public void onComplete(Throwable failure, Object success) throws Throwable {
-					if(failure != null){
+					if (failure != null) {
 						markFailed(failure);
-					}else{
+					} else {
 						TaskOperationResult result = (TaskOperationResult) success;
 						if (success == null) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot + ": TaskOperationResult was null"));
@@ -305,8 +305,7 @@ public class Execution implements Serializable {
 						else {
 							// deployment failed :(
 							markFailed(new Exception("Failed to deploy the task " +
-									getVertexWithAttempt() + " to slot " + slot + ": " + result
-									.description()));
+									getVertexWithAttempt() + " to slot " + slot + ": " + result.description()));
 						}
 					}
 				}

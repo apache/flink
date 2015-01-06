@@ -104,7 +104,7 @@ public class ExecutionGraphDeploymentTest {
 			ExecutionVertex vertex = ejv.getTaskVertices()[3];
 
 			// create synchronous task manager
-			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
 					Props.create(ExecutionGraphTestUtils
 					.SimpleAcknowledgingTaskManager.class));
 

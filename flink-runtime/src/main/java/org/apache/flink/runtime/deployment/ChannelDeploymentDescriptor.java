@@ -29,6 +29,8 @@ import org.apache.flink.runtime.io.network.channels.ChannelID;
  */
 public final class ChannelDeploymentDescriptor implements Serializable {
 
+	private static final long serialVersionUID = -4079084629425460213L;
+
 	/** The ID of the output channel. */
 	private final ChannelID outputChannelID;
 
