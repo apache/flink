@@ -18,12 +18,11 @@
 
 package org.apache.flink.streaming.scala.examples.windowing
 
-
 import java.util.concurrent.TimeUnit._
 
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.windowing.{Delta, Time}
-import org.apache.flink.api.scala._
+
 import scala.Stream._
 import scala.math._
 import scala.util.Random
