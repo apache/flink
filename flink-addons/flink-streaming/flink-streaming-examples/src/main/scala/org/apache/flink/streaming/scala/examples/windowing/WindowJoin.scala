@@ -18,8 +18,10 @@
 
 package org.apache.flink.streaming.scala.examples.windowing
 
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.util.Collector
+import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+
+import scala.Stream._
 import scala.util.Random
 import java.util.concurrent.TimeUnit
 
@@ -34,8 +36,8 @@ object WindowJoin {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     //Create streams for names and ages by mapping the inputs to the corresponding objects
-    val names = env.addSource(nameStream _).map(x => Name(x._1, x._2))
-    val ages = env.addSource(ageStream _).map(x => Age(x._1, x._2))
+    val names = env.fromCollection(nameStream).map(x => Name(x._1, x._2))
+    val ages = env.fromCollection(ageStream).map(x => Age(x._1, x._2))
 
     //Join the two input streams by id on the last second every 2 seconds and create new 
     //Person objects containing both name and age
@@ -48,24 +50,22 @@ object WindowJoin {
     env.execute("WindowJoin")
   }
 
-  //Stream source for generating (id, name) pairs
-  def nameStream(out: Collector[(Long, String)]) = {
-    val names = Array("tom", "jerry", "alice", "bob", "john", "grace")
-
-    for (i <- 1 to 10000) {
-      if (i % 100 == 0) Thread.sleep(1000) else {
-        out.collect((i, names(Random.nextInt(names.length))))
-      }
+  def nameStream() : Stream[(Long,String)] = {
+    def nameMapper(names: Array[String])(x: Int) : (Long, String) =
+    {
+      if(x%100==0) Thread.sleep(1000)
+      (x, names(Random.nextInt(names.length)))
     }
+    range(1,10000).map(nameMapper(Array("tom", "jerry", "alice", "bob", "john", "grace")))
   }
 
-  //Stream source for generating (id, age) pairs
-  def ageStream(out: Collector[(Long, Int)]) = {
-    for (i <- 1 to 10000) {
-      if (i % 100 == 0) Thread.sleep(1000) else {
-        out.collect((i, Random.nextInt(90)))
-      }
+  def ageStream() : Stream[(Long,Int)] = {
+    def ageMapper(x: Int) : (Long, Int) =
+    {
+      if(x%100==0) Thread.sleep(1000)
+      (x, Random.nextInt(90))
     }
+    range(1,10000).map(ageMapper)
   }
 
 }
