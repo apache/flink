@@ -20,8 +20,6 @@ package org.apache.flink.hadoopcompatibility.mapred.wrapper;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapred.OutputCollector;
 
 import java.io.IOException;
@@ -32,7 +30,7 @@ import java.io.IOException;
  * 
  */
 @SuppressWarnings("rawtypes")
-public final class HadoopOutputCollector<KEY extends WritableComparable, VALUE extends Writable>
+public final class HadoopOutputCollector<KEY,VALUE>
 		implements OutputCollector<KEY,VALUE> {
 
 	private Collector<Tuple2<KEY,VALUE>> flinkCollector;

@@ -35,7 +35,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.WritableTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -43,7 +42,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.hadoopcompatibility.mapreduce.utils.HadoopUtils;
 import org.apache.flink.hadoopcompatibility.mapreduce.wrapper.HadoopInputSplit;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
@@ -51,26 +49,27 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-public class HadoopInputFormat<K extends Writable, V extends Writable> implements InputFormat<Tuple2<K,V>, HadoopInputSplit>, ResultTypeQueryable<Tuple2<K,V>> {
-	
+public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopInputSplit>, ResultTypeQueryable<Tuple2<K,V>> {
+
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormat.class);
-	
+
 	private org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat;
 	private Class<K> keyClass;
 	private Class<V> valueClass;
 	private org.apache.hadoop.conf.Configuration configuration;
-	
+
 	private transient RecordReader<K, V> recordReader;
 	private boolean fetched = false;
 	private boolean hasNext;
-	
+
 	public HadoopInputFormat() {
 		super();
 	}
-	
+
 	public HadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
 		super();
 		this.mapreduceInputFormat = mapreduceInputFormat;
@@ -79,46 +78,46 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 		this.configuration = job.getConfiguration();
 		HadoopUtils.mergeHadoopConf(configuration);
 	}
-	
+
 	public void setConfiguration(org.apache.hadoop.conf.Configuration configuration) {
 		this.configuration = configuration;
 	}
-	
+
 	public org.apache.hadoop.mapreduce.InputFormat<K,V> getHadoopInputFormat() {
 		return this.mapreduceInputFormat;
 	}
-	
+
 	public void setHadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat) {
 		this.mapreduceInputFormat = mapreduceInputFormat;
 	}
-	
+
 	public org.apache.hadoop.conf.Configuration getConfiguration() {
 		return this.configuration;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  InputFormat
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public void configure(Configuration parameters) {
 		// nothing to do
 	}
-	
+
 	@Override
 	public BaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		// only gather base statistics for FileInputFormats
 		if(!(mapreduceInputFormat instanceof FileInputFormat)) {
 			return null;
 		}
-		
+
 		JobContext jobContext = null;
 		try {
 			jobContext = HadoopUtils.instantiateJobContext(configuration, null);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		
+
 		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
 				(FileBaseStatistics) cachedStats : null;
 				
@@ -127,7 +126,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 					return getFileStats(cachedFileStats, paths, new ArrayList<FileStatus>(1));
 				} catch (IOException ioex) {
 					if (LOG.isWarnEnabled()) {
-						LOG.warn("Could not determine statistics due to an io error: "
+						LOG.warn("Could not determine statistics due to an io error: " 
 								+ ioex.getMessage());
 					}
 				} catch (Throwable t) {
@@ -140,19 +139,19 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 				// no statistics available
 				return null;
 	}
-	
+
 	@Override
 	public HadoopInputSplit[] createInputSplits(int minNumSplits)
 			throws IOException {
 		configuration.setInt("mapreduce.input.fileinputformat.split.minsize", minNumSplits);
-		
+
 		JobContext jobContext = null;
 		try {
 			jobContext = HadoopUtils.instantiateJobContext(configuration, new JobID());
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		
+
 		List<org.apache.hadoop.mapreduce.InputSplit> splits;
 		try {
 			splits = this.mapreduceInputFormat.getSplits(jobContext);
@@ -160,18 +159,18 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 			throw new IOException("Could not get Splits.", e);
 		}
 		HadoopInputSplit[] hadoopInputSplits = new HadoopInputSplit[splits.size()];
-		
+
 		for(int i = 0; i < hadoopInputSplits.length; i++){
 			hadoopInputSplits[i] = new HadoopInputSplit(i, splits.get(i), jobContext);
 		}
 		return hadoopInputSplits;
 	}
-	
+
 	@Override
 	public InputSplitAssigner getInputSplitAssigner(HadoopInputSplit[] inputSplits) {
 		return new LocatableInputSplitAssigner(inputSplits);
 	}
-	
+
 	@Override
 	public void open(HadoopInputSplit split) throws IOException {
 		TaskAttemptContext context = null;
@@ -180,7 +179,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 		} catch(Exception e) {
 			throw new RuntimeException(e);
 		}
-		
+
 		try {
 			this.recordReader = this.mapreduceInputFormat
 					.createRecordReader(split.getHadoopInputSplit(), context);
@@ -191,7 +190,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 			this.fetched = false;
 		}
 	}
-	
+
 	@Override
 	public boolean reachedEnd() throws IOException {
 		if(!this.fetched) {
@@ -199,7 +198,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 		}
 		return !this.hasNext;
 	}
-	
+
 	private void fetchNext() throws IOException {
 		try {
 			this.hasNext = this.recordReader.nextKeyValue();
@@ -209,7 +208,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 			this.fetched = true;
 		}
 	}
-	
+
 	@Override
 	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
 		if(!this.fetched) {
@@ -225,38 +224,38 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 			throw new IOException("Could not get KeyValue pair.", e);
 		}
 		this.fetched = false;
-		
+
 		return record;
 	}
-	
+
 	@Override
 	public void close() throws IOException {
 		this.recordReader.close();
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Helper methods
 	// --------------------------------------------------------------------------------------------
-	
-	private FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths,
-			ArrayList<FileStatus> files) throws IOException {
-		
+
+	private FileBaseStatistics getFileStats(FileBaseStatistics cachedStats, org.apache.hadoop.fs.Path[] hadoopFilePaths, 
+											ArrayList<FileStatus> files) throws IOException {
+
 		long latestModTime = 0L;
-		
+
 		// get the file info and check whether the cached statistics are still valid.
 		for(org.apache.hadoop.fs.Path hadoopPath : hadoopFilePaths) {
-			
+
 			final Path filePath = new Path(hadoopPath.toUri());
 			final FileSystem fs = FileSystem.get(filePath.toUri());
-			
+
 			final FileStatus file = fs.getFileStatus(filePath);
 			latestModTime = Math.max(latestModTime, file.getModificationTime());
-			
+
 			// enumerate all files and check their modification time stamp.
 			if (file.isDir()) {
 				FileStatus[] fss = fs.listStatus(filePath);
 				files.ensureCapacity(files.size() + fss.length);
-				
+
 				for (FileStatus s : fss) {
 					if (!s.isDir()) {
 						files.add(s);
@@ -267,50 +266,50 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 				files.add(file);
 			}
 		}
-		
+
 		// check whether the cached statistics are still valid, if we have any
 		if (cachedStats != null && latestModTime <= cachedStats.getLastModificationTime()) {
 			return cachedStats;
 		}
-		
+
 		// calculate the whole length
 		long len = 0;
 		for (FileStatus s : files) {
 			len += s.getLen();
 		}
-		
+
 		// sanity check
 		if (len <= 0) {
 			len = BaseStatistics.SIZE_UNKNOWN;
 		}
-		
+
 		return new FileBaseStatistics(latestModTime, len, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Custom serialization methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		out.writeUTF(this.mapreduceInputFormat.getClass().getName());
 		out.writeUTF(this.keyClass.getName());
 		out.writeUTF(this.valueClass.getName());
 		this.configuration.write(out);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		String hadoopInputFormatClassName = in.readUTF();
 		String keyClassName = in.readUTF();
 		String valueClassName = in.readUTF();
-		
+
 		org.apache.hadoop.conf.Configuration configuration = new org.apache.hadoop.conf.Configuration();
 		configuration.readFields(in);
-		
+
 		if(this.configuration == null) {
 			this.configuration = configuration;
 		}
-		
+
 		try {
 			this.mapreduceInputFormat = (org.apache.hadoop.mapreduce.InputFormat<K,V>) Class.forName(hadoopInputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
 		} catch (Exception e) {
@@ -327,13 +326,13 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 			throw new RuntimeException("Unable to find value class.", e);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  ResultTypeQueryable
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public TypeInformation<Tuple2<K,V>> getProducedType() {
-		return new TupleTypeInfo<Tuple2<K,V>>(new WritableTypeInfo<K>((Class<K>) keyClass), new WritableTypeInfo<V>((Class<V>) valueClass));
+		return new TupleTypeInfo<Tuple2<K,V>>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
 	}
 }
