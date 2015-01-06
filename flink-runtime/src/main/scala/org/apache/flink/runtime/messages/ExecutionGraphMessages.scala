@@ -56,7 +56,7 @@ object ExecutionGraphMessages {
         ""
       }
       s"${timestampToString(timestamp)}\t$taskName(${subtaskIndex +
-        1}/${totalNumberOfSubTasks}) switched to $newExecutionState $oMsg"
+        1}/$totalNumberOfSubTasks) switched to $newExecutionState $oMsg"
     }
   }
 
@@ -71,7 +71,7 @@ object ExecutionGraphMessages {
   case class JobStatusChanged(jobID: JobID, newJobStatus: JobStatus, timestamp: Long,
                               optionalMessage: String){
     override def toString: String = {
-      s"${timestampToString(timestamp)}\tJob execution switched to status ${newJobStatus}."
+      s"${timestampToString(timestamp)}\tJob execution switched to status $newJobStatus."
     }
   }
 

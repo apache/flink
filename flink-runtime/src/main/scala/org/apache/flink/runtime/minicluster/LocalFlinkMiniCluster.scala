@@ -29,6 +29,16 @@ import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.slf4j.LoggerFactory
 
+/**
+ * Local Flink mini cluster which executes all [[TaskManager]]s and the [[JobManager]] in the same
+ * JVM. It extends the [[FlinkMiniCluster]] by providing a [[JobClient]], having convenience
+ * functions to setup Flink's configuration and implementations to create [[JobManager]] and
+ * [[TaskManager]].
+ *
+ * @param userConfiguration Configuration object with the user provided configuration values
+ * @param singleActorSystem true if all actors (JobManager and TaskManager) shall be run in the same
+ *                          [[ActorSystem]], otherwise false
+ */
 class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean = true)
   extends FlinkMiniCluster(userConfiguration, singleActorSystem){
   import LocalFlinkMiniCluster._

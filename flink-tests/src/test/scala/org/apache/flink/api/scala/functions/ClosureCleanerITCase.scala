@@ -48,58 +48,58 @@ class ClosureCleanerITCase(mode: ExecutionMode) extends MultipleProgramsTestBase
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(result, resultPath)
   }
 
   @Test
-  def testObject: Unit = {
+  def testObject(): Unit = {
     TestObject.run(resultPath)
     result = "30"
   }
 
   @Test
-  def testClass: Unit = {
+  def testClass(): Unit = {
     val obj = new TestClass
     obj.run(resultPath)
     result = "30"
   }
 
   @Test
-  def testClassWithoutDefaulConstructor: Unit = {
+  def testClassWithoutDefaulConstructor(): Unit = {
     val obj = new TestClassWithoutDefaultConstructor(5)
     obj.run(resultPath)
     result = "30"
   }
 
   @Test
-  def testClassWithoutFieldAccess: Unit = {
+  def testClassWithoutFieldAccess(): Unit = {
     val obj = new TestClassWithoutFieldAccess
     obj.run(resultPath)
     result = "30" // 6 + 7 + 8 + 9
   }
 
   @Test
-  def testObjectWithNesting: Unit = {
+  def testObjectWithNesting(): Unit = {
     TestObjectWithNesting.run(resultPath)
     result = "27"
   }
 
   @Test
-  def testClassWithNesting: Unit = {
+  def testClassWithNesting(): Unit = {
     val obj = new TestClassWithNesting(1)
     obj.run(resultPath)
     result = "27"
   }
 
   @Test
-  def testObjectWithBogusReturns: Unit = {
+  def testObjectWithBogusReturns(): Unit = {
     TestObjectWithBogusReturns.run(resultPath)
     result = "1"
   }
 
   @Test
-  def testObjectWithNestedReturns: Unit = {
+  def testObjectWithNestedReturns(): Unit = {
     TestObjectWithNestedReturns.run(resultPath)
     result = "1"
   }

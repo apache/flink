@@ -44,12 +44,12 @@ class FirstNITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testFirstNOnUngroupedDataSet: Unit = {
+  def testFirstNOnUngroupedDataSet(): Unit = {
     /*
      * First-n on ungrouped data set
      */
@@ -62,7 +62,7 @@ class FirstNITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testFirstNOnGroupedDataSet: Unit = {
+  def testFirstNOnGroupedDataSet(): Unit = {
     /*
      * First-n on grouped data set
      */
@@ -75,7 +75,7 @@ class FirstNITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testFirstNOnGroupedAndSortedDataSet: Unit = {
+  def testFirstNOnGroupedAndSortedDataSet(): Unit = {
     /*
      * First-n on grouped and sorted data set
      */

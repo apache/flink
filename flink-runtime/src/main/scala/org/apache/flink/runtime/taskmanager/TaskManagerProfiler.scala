@@ -35,6 +35,14 @@ import org.apache.flink.runtime.profiling.impl.{EnvironmentThreadSet, InstancePr
 
 import scala.concurrent.duration.FiniteDuration
 
+/**
+ * Actor which is responsible for profiling task threads on the [[TaskManager]]. The monitoring
+ * is triggered by the self-addressed message [[ProfileTasks]] which is scheduled to be sent
+ * repeatedly.
+ *
+ * @param instancePath Akka URL to [[TaskManager]] instance
+ * @param reportInterval Interval of profiling action
+ */
 class TaskManagerProfiler(val instancePath: String, val reportInterval: Int) extends Actor with
 ActorLogMessages with ActorLogging {
 
@@ -57,30 +65,26 @@ ActorLogMessages with ActorLogging {
 
 
   override def receiveWithLogMessages: Receive = {
-    case MonitorTask(task) => {
+    case MonitorTask(task) =>
       task.registerExecutionListener(self)
       environments += task.getExecutionId -> task.getEnvironment
-    }
 
-    case UnmonitorTask(executionAttemptID) => {
+    case UnmonitorTask(executionAttemptID) =>
       environments.remove(executionAttemptID)
-    }
 
-    case RegisterProfilingListener => {
+    case RegisterProfilingListener =>
       listeners += sender
       if (monitoringScheduler.isEmpty) {
-        startMonitoring
+        startMonitoring()
       }
-    }
 
-    case UnregisterProfilingListener => {
+    case UnregisterProfilingListener =>
       listeners -= sender
       if (listeners.isEmpty) {
-        stopMonitoring
+        stopMonitoring()
       }
-    }
 
-    case ProfileTasks => {
+    case ProfileTasks =>
       val timestamp = System.currentTimeMillis()
 
       val profilingDataContainer = new ProfilingDataContainer()
@@ -96,10 +100,9 @@ ActorLogMessages with ActorLogging {
           val instanceProfilingData = try {
             Some(instanceProfiler.generateProfilingData(timestamp))
           } catch {
-            case e: ProfilingException => {
+            case e: ProfilingException =>
               log.error(e, "Error while retrieving instance profiling data.")
               None
-            }
           }
 
           instanceProfilingData foreach {
@@ -115,10 +118,9 @@ ActorLogMessages with ActorLogging {
           profilingDataContainer.clear()
         }
       }
-    }
 
     case ExecutionStateChanged(_, vertexID, _, _, subtaskIndex, executionID, newExecutionState,
-    _, _) => {
+    _, _) =>
       import ExecutionState._
 
       environments.get(executionID) match {
@@ -131,14 +133,15 @@ ActorLogMessages with ActorLogging {
             case _ =>
           }
         case None =>
-          log.warning(s"Could not find environment for execution id ${executionID}.")
+          log.warning(s"Could not find environment for execution id $executionID.")
       }
-    }
   }
 
   def startMonitoring(): Unit = {
     val interval = new FiniteDuration(reportInterval, TimeUnit.MILLISECONDS)
     val delay = new FiniteDuration((reportInterval * Math.random()).toLong, TimeUnit.MILLISECONDS)
+
+    // schedule ProfileTasks message to be sent repeatedly to oneself
     monitoringScheduler = Some(context.system.scheduler.schedule(delay, interval, self,
       ProfileTasks))
   }

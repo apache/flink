@@ -30,7 +30,11 @@ import org.apache.flink.runtime.taskmanager.TaskManager
 import scala.concurrent.duration._
 
 import scala.concurrent.ExecutionContext
+import scala.language.postfixOps
 
+/**
+ * Convenience functions to test actor based components.
+ */
 object TestingUtils {
   val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
 
@@ -56,7 +60,7 @@ object TestingUtils {
                                               (implicit system: ActorSystem) = {
     val (connectionInfo, _, taskManagerConfig, networkConnectionConfig) =
       TaskManager.parseConfiguration(hostname, config,
-        localAkkaCommunication = true, localTaskManagerCommunication = false);
+        localAkkaCommunication = true, localTaskManagerCommunication = false)
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager))
   }

@@ -31,7 +31,9 @@ import scala.collection.convert.WrapAsScala
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-
+/**
+ * Mixin for [[TestingJobManager]] to support testing messages
+ */
 trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   that: JobManager =>
 
@@ -96,7 +98,7 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
         periodicCheck = None
       }
 
-    case NotifyWhenJobRemoved(jobID) => {
+		case NotifyWhenJobRemoved(jobID) =>
       val tms = instanceManager.getAllRegisteredInstances.map(_.getTaskManager)
 
       val responses = tms.map{
@@ -107,7 +109,6 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       import context.dispatcher
 
       Future.fold(responses)(true)(_ & _) pipeTo sender
-    }
 
     case RequestWorkingTaskManager(jobID) =>
       currentJobs.get(jobID) match {

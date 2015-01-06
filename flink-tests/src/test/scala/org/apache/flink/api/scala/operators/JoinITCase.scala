@@ -47,12 +47,12 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testUDFJoinOnTuplesWithKeyFieldPositions: Unit = {
+  def testUDFJoinOnTuplesWithKeyFieldPositions(): Unit = {
     /*
      * UDF Join on tuples with key field positions
      */
@@ -66,7 +66,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testUDFJoinOnTuplesWithMultipleKeyFieldPositions: Unit = {
+  def testUDFJoinOnTuplesWithMultipleKeyFieldPositions(): Unit = {
     /*
      * UDF Join on tuples with multiple key field positions
      */
@@ -81,7 +81,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testDefaultJoinOnTuples: Unit = {
+  def testDefaultJoinOnTuples(): Unit = {
     /*
      * Default Join on tuples
      */
@@ -96,7 +96,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testJoinWithHuge: Unit = {
+  def testJoinWithHuge(): Unit = {
     /*
      * Join with Huge
      */
@@ -110,7 +110,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testJoinWithTiny: Unit = {
+  def testJoinWithTiny(): Unit = {
     /*
      * Join with Tiny
      */
@@ -124,7 +124,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testJoinThatReturnsTheLeftInputObject: Unit = {
+  def testJoinThatReturnsTheLeftInputObject(): Unit = {
     /*
      * Join that returns the left input object
      */
@@ -138,7 +138,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testJoinThatReturnsTheRightInputObject: Unit = {
+  def testJoinThatReturnsTheRightInputObject(): Unit = {
     /*
      * Join that returns the right input object
      */
@@ -152,7 +152,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testJoinWithBroadcastSet: Unit ={
+  def testJoinWithBroadcastSet(): Unit ={
     /*
      * Join with broadcast set
      */
@@ -186,7 +186,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testJoinOnCustomTypeInputWithKeyExtractorAndTupleInputWithKeyFieldSelector: Unit = {
+  def testJoinOnCustomTypeInputWithKeyExtractorAndTupleInputWithKeyFieldSelector(): Unit = {
     /*
      * Join on a tuple input with key field selector and a custom type input with key extractor
      */
@@ -200,7 +200,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testJoinOnTupleInputWithKeyFieldSelectorAndCustomTypeInputWithKeyExtractor: Unit = {
+  def testJoinOnTupleInputWithKeyFieldSelectorAndCustomTypeInputWithKeyExtractor(): Unit = {
     /*
      * Join on a tuple input with key field selector and a custom type input with key extractor
      */
@@ -214,7 +214,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testDefaultJoinOnTwoCustomTypeInputsWithKeyExtractors: Unit = {
+  def testDefaultJoinOnTwoCustomTypeInputsWithKeyExtractors(): Unit = {
     /*
      * (Default) Join on two custom type inputs with key extractors
      */
@@ -229,7 +229,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testUDFJoinOnTuplesWithTupleReturningKeySelectors: Unit = {
+  def testUDFJoinOnTuplesWithTupleReturningKeySelectors(): Unit = {
     /*
      * UDF Join on tuples with tuple-returning key selectors
      */
@@ -246,7 +246,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testNestedPojoAgainstTupleAsString: Unit = {
+  def testNestedPojoAgainstTupleAsString(): Unit = {
     /*
      * Join nested pojo against tuple (selected using a string)
      */
@@ -262,7 +262,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testJoinNestedPojoAgainstTupleAsInteger: Unit = {
+  def testJoinNestedPojoAgainstTupleAsInteger(): Unit = {
     /*
      * Join nested pojo against tuple (selected as an integer)
      */
@@ -278,7 +278,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testSelectingMultipleFieldsUsingExpressionLanguage: Unit = {
+  def testSelectingMultipleFieldsUsingExpressionLanguage(): Unit = {
     /*
      * selecting multiple fields using expression language
      */
@@ -297,7 +297,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testNestedIntoTuple: Unit = {
+  def testNestedIntoTuple(): Unit = {
     /*
      * nested into tuple
      */
@@ -315,7 +315,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testNestedIntoTupleIntoPojo: Unit = {
+  def testNestedIntoTupleIntoPojo(): Unit = {
     /*
      * nested into tuple into pojo
      */
@@ -336,7 +336,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testNonPojoFullTuple: Unit = {
+  def testNonPojoFullTuple(): Unit = {
     /*
     * Non-POJO test to verify that full-tuple keys are working.
     */
@@ -353,7 +353,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testNonPojoNestedTuple: Unit = {
+  def testNonPojoNestedTuple(): Unit = {
     /*
      * Non-POJO test to verify "nested" tuple-element selection.
      */
@@ -369,7 +369,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testFullPojoWithFullTuple: Unit = {
+  def testFullPojoWithFullTuple(): Unit = {
     /*
      * full pojo with full tuple
      */

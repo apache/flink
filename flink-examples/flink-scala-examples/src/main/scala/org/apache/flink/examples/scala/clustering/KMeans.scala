@@ -112,10 +112,13 @@ object KMeans {
         centersPath = programArguments(1)
         outputPath = programArguments(2)
         numIterations = Integer.parseInt(programArguments(3))
+
+        true
       }
       else {
         System.err.println("Usage: KMeans <points path> <centers path> <result path> <num " +
           "iterations>")
+
         false
       }
     }
@@ -128,8 +131,9 @@ object KMeans {
         "program.")
       System.out.println("  Usage: KMeans <points path> <centers path> <result path> <num " +
         "iterations>")
+
+      true
     }
-    true
   }
 
   private def getPointDataSet(env: ExecutionEnvironment): DataSet[Point] = {

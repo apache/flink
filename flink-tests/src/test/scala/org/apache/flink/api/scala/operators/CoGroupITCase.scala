@@ -49,12 +49,12 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expectedResult, resultPath)
   }
 
   @Test
-  def testCoGroupOnTuplesWithKeyFieldSelector: Unit = {
+  def testCoGroupOnTuplesWithKeyFieldSelector(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get5TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
@@ -78,7 +78,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupOnTwoCustomInputsWithKeyExtractors: Unit = {
+  def testCoGroupOnTwoCustomInputsWithKeyExtractors(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getCustomTypeDataSet(env)
     val ds2 = CollectionDataSets.getCustomTypeDataSet(env)
@@ -103,7 +103,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCorrectnessIfCoGroupReturnsLeftInputObjects: Unit = {
+  def testCorrectnessIfCoGroupReturnsLeftInputObjects(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val ds2 = CollectionDataSets.get3TupleDataSet(env)
@@ -122,7 +122,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCorrectnessIfCoGroupReturnsRightInputObjects: Unit = {
+  def testCorrectnessIfCoGroupReturnsRightInputObjects(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get5TupleDataSet(env)
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
@@ -141,7 +141,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupWithBroadcastVariable: Unit = {
+  def testCoGroupWithBroadcastVariable(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val intDs = CollectionDataSets.getIntDataSet(env)
     val ds = CollectionDataSets.get5TupleDataSet(env)
@@ -182,7 +182,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupOnTupleWithKeyFieldSelectorAndCustomTypeWithKeyExtractor: Unit = {
+  def testCoGroupOnTupleWithKeyFieldSelectorAndCustomTypeWithKeyExtractor(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get5TupleDataSet(env)
     val ds2 = CollectionDataSets.getCustomTypeDataSet(env)
@@ -208,7 +208,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupOnCustomTypeWithKeyExtractorAndTupleInputKeyFieldSelector: Unit = {
+  def testCoGroupOnCustomTypeWithKeyExtractorAndTupleInputKeyFieldSelector(): Unit = {
     /*
          * CoGroup on a tuple input with key field selector and a custom type input with
          * key extractor
@@ -239,7 +239,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupWithMultipleKeyFields: Unit = {
+  def testCoGroupWithMultipleKeyFields(): Unit = {
     /*
         * CoGroup with multiple key fields
         */
@@ -263,7 +263,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupWithMultipleKeyExtractors: Unit = {
+  def testCoGroupWithMultipleKeyExtractors(): Unit = {
     /*
         * CoGroup with multiple key extractors
         */
@@ -290,7 +290,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupOnTwoCustomTypesUsingExpressionKeys: Unit = {
+  def testCoGroupOnTwoCustomTypesUsingExpressionKeys(): Unit = {
     /*
      * CoGroup on two custom type inputs using expression keys
      */
@@ -317,7 +317,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupOnTwoCustomTypesUsingExpressionKeysAndFieldSelector: Unit = {
+  def testCoGroupOnTwoCustomTypesUsingExpressionKeysAndFieldSelector(): Unit = {
     /*
      * CoGroup on two custom type inputs using expression keys
      */
@@ -339,7 +339,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupFieldSelectorAndKeySelector: Unit = {
+  def testCoGroupFieldSelectorAndKeySelector(): Unit = {
     /*
      * CoGroup field-selector (expression keys) + key selector function
      * The key selector is unnecessary complicated (Tuple1) ;)
@@ -362,7 +362,7 @@ class CoGroupITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testCoGroupKeySelectorAndFieldSelector: Unit = {
+  def testCoGroupKeySelectorAndFieldSelector(): Unit = {
     /*
          * CoGroup field-selector (expression keys) + key selector function
          * The key selector is simple here

@@ -35,7 +35,8 @@ object YarnUtils {
     val actorSystem = AkkaUtils.createActorSystem(config, Some((hostname, port)))
 
     val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration) =
-      TaskManager.parseConfiguration(hostname, config, false , false)
+      TaskManager.parseConfiguration(hostname, config, localAkkaCommunication = false,
+        localTaskManagerCommunication = false)
 
     (actorSystem, TaskManager.startActor(Props(new TaskManager(connectionInfo, jobManagerURL,
       taskManagerConfig, networkConnectionConfiguration) with YarnTaskManager))(actorSystem))

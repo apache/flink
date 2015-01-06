@@ -31,7 +31,7 @@ object JobManagerMessages {
 
   /**
    * Submits a job to the job manager. If [[registerForEvents]] is true,
-   * then the sender will be registered as listener for the state change messages. If [[detach]]
+   * then the sender will be registered as listener for the state change messages. If [[detached]]
    * is set to true, then the sender will detach from the job execution. Consequently,
    * he will not receive the job execution result [[JobResult]]. The submission result will be sent
    * back to the
@@ -39,10 +39,10 @@ object JobManagerMessages {
    *
    * @param jobGraph
    * @param registerForEvents if true, then register for state change events
-   * @param detach if true, then detach from the job execution
+   * @param detached if true, then detach from the job execution
    */
   case class SubmitJob(jobGraph: JobGraph, registerForEvents: Boolean = false,
-                       detach: Boolean = false)
+                       detached: Boolean = false)
 
   /**
    * Cancels a job with the given [[jobID]] at the JobManager. The result of the cancellation is

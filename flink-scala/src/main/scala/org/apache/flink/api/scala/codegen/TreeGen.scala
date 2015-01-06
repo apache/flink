@@ -137,7 +137,7 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
         args: List[(String, Type)],
         ret: Type,
         impl: Tree): Tree = {
-      val valParams = args map { case (name, tpe) =>
+      val valParams = args map { case (`name`, tpe) =>
         ValDef(Modifiers(Flag.PARAM), newTermName(name), TypeTree(tpe), EmptyTree)
       }
       DefDef(Modifiers(flags), newTermName(name), Nil, List(valParams), TypeTree(ret), impl)

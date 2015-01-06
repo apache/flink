@@ -29,6 +29,7 @@ import org.apache.hadoop.io.Writable
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.language.postfixOps
 
 import scala.reflect.macros.Context
 

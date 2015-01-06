@@ -46,7 +46,7 @@ object ApplicationMaster {
   def main(args: Array[String]): Unit ={
     val yarnClientUsername = System.getenv(FlinkYarnClient.ENV_CLIENT_USERNAME)
     LOG.info(s"YARN daemon runs as ${UserGroupInformation.getCurrentUser.getShortUserName}" +
-      s" setting user to execute Flink ApplicationMaster/JobManager to ${yarnClientUsername}")
+      s"' setting user to execute Flink ApplicationMaster/JobManager to $yarnClientUsername'")
 
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)
 
@@ -172,7 +172,7 @@ object ApplicationMaster {
     LOG.info("Start job manager for yarn")
     val args = Array[String]("--configDir", currDir)
 
-    LOG.info(s"Config path: ${currDir}.")
+    LOG.info(s"Config path: $currDir.")
     val (configuration, _, _) = JobManager.parseArgs(args)
 
     // add dynamic properties to JobManager configuration.

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.executiongraph
 
 import akka.actor.{Props, ActorSystem}
-import akka.testkit.{TestKit}
+import akka.testkit.TestKit
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobID, JobGraph, AbstractJobVertex}

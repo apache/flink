@@ -49,11 +49,11 @@ object TestingTaskManagerMessages {
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   
-  def getRequestRunningTasksMessage() : AnyRef = {
+  def getRequestRunningTasksMessage: AnyRef = {
     RequestRunningTasks
   }
   
-  def getRequestBroadcastVariablesWithReferencesMessage() : AnyRef = {
+  def getRequestBroadcastVariablesWithReferencesMessage: AnyRef = {
     RequestBroadcastVariablesWithReferences
   }
 }

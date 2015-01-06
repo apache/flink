@@ -18,4 +18,10 @@
 
 package org.apache.flink.runtime.taskmanager
 
+/**
+ * Command line configuration object for the [[TaskManager]]
+ *
+ * @param configDir Path to configuration directory
+ * @param tmpDir Path to temporary directory
+ */
 case class TaskManagerCLIConfiguration(configDir: String = null, tmpDir: String = null)

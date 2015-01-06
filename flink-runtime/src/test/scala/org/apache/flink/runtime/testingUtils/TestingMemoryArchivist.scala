@@ -22,6 +22,9 @@ import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.jobmanager.MemoryArchivist
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, RequestExecutionGraph}
 
+/**
+ * Mixin for the [[MemoryArchivist]] to support testing messages
+ */
 trait TestingMemoryArchivist extends ActorLogMessages {
   self: MemoryArchivist =>
 

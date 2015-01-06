@@ -91,10 +91,9 @@ object AkkaUtils {
     val defaultConfig = getBasicAkkaConfig(configuration)
 
     listeningAddress match {
-      case Some((hostname, port)) => {
+      case Some((hostname, port)) =>
         val remoteConfig = getRemoteAkkaConfig(configuration, hostname, port)
         remoteConfig.withFallback(defaultConfig)
-      }
       case None =>
         defaultConfig
     }
@@ -148,7 +147,7 @@ object AkkaUtils {
         |
         | actor {
         |   default-dispatcher {
-        |     throughput = ${akkaThroughput}
+        |     throughput = $akkaThroughput
         |
         |     fork-join-executor {
         |       parallelism-factor = 2.0
@@ -232,7 +231,7 @@ object AkkaUtils {
          |        transport-class = "akka.remote.transport.netty.NettyTransport"
          |        port = $port
          |        connection-timeout = $akkaTCPTimeout
-         |        maximum-frame-size = ${akkaFramesize}
+         |        maximum-frame-size = $akkaFramesize
          |        tcp-nodelay = on
          |      }
          |    }

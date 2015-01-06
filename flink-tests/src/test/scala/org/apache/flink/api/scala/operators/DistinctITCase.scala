@@ -45,12 +45,12 @@ class DistinctITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testCorrectnessOfDistinctOnTuplesWithKeyFieldSelector: Unit = {
+  def testCorrectnessOfDistinctOnTuplesWithKeyFieldSelector(): Unit = {
     /*
      * Check correctness of distinct on tuples with key field selector
      */
@@ -68,7 +68,7 @@ class DistinctITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testCorrectnessOfDistinctOnTuplesWithKeyFieldSelectorNotAllFieldsSelected: Unit = {
+  def testCorrectnessOfDistinctOnTuplesWithKeyFieldSelectorNotAllFieldsSelected(): Unit = {
     /*
      * check correctness of distinct on tuples with key field selector with not all fields
      * selected
@@ -84,7 +84,7 @@ class DistinctITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testCorrectnessOfDistinctOnTuplesWithKeyExtractor: Unit ={
+  def testCorrectnessOfDistinctOnTuplesWithKeyExtractor(): Unit ={
     /*
      * check correctness of distinct on tuples with key extractor
      */
@@ -99,7 +99,7 @@ class DistinctITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testCorrectnessOfDistinctOnCustomTypeWithTypeExtractor: Unit = {
+  def testCorrectnessOfDistinctOnCustomTypeWithTypeExtractor(): Unit = {
     /*
      * check correctness of distinct on custom type with type extractor
      */
@@ -114,7 +114,7 @@ class DistinctITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testCorrectnessOfDistinctOnTuples: Unit = {
+  def testCorrectnessOfDistinctOnTuples(): Unit = {
     /*
      * check correctness of distinct on tuples
      */
@@ -129,7 +129,7 @@ class DistinctITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testCorrectnessOfDistinctOnCustomTypeWithTupleReturningTypeExtractor: Unit = {
+  def testCorrectnessOfDistinctOnCustomTypeWithTupleReturningTypeExtractor(): Unit = {
     /*
      * check correctness of distinct on custom type with tuple-returning type extractor
      */
@@ -145,7 +145,7 @@ class DistinctITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testCorrectnessOfDistinctOnTuplesWithFieldExpressions: Unit = {
+  def testCorrectnessOfDistinctOnTuplesWithFieldExpressions(): Unit = {
     /*
      * check correctness of distinct on tuples with field expressions
      */
@@ -160,7 +160,7 @@ class DistinctITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testCorrectnessOfDistinctOnPojos: Unit = {
+  def testCorrectnessOfDistinctOnPojos(): Unit = {
     /*
      * check correctness of distinct on Pojos
      */

@@ -49,7 +49,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with WrapA
       val receiver = new AbstractJobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
-      receiver.setInvokableClass((classOf[Receiver]))
+      receiver.setInvokableClass(classOf[Receiver])
 
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)

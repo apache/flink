@@ -21,6 +21,9 @@ package org.apache.flink.runtime
 import _root_.akka.actor.Actor
 import _root_.akka.event.LoggingAdapter
 
+/**
+ * Mixin to add debug message logging
+ */
 trait ActorLogMessages {
   self: Actor =>
 
@@ -41,7 +44,7 @@ trait ActorLogMessages {
         _receiveWithLogMessages(x)
         
         val duration = (System.nanoTime() - start) / 1000000
-        log.debug(s"Handled message ${x} in ${duration} ms from ${self.sender}.")
+        log.debug(s"Handled message $x in $duration ms from ${self.sender}.")
       }
     }
   }

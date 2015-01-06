@@ -150,9 +150,12 @@ object LinearRegression {
         dataPath = programArguments(0)
         outputPath = programArguments(1)
         numIterations = programArguments(2).toInt
+
+        true
       }
       else {
         System.err.println("Usage: LinearRegression <data path> <result path> <num iterations>")
+
         false
       }
     }
@@ -164,8 +167,9 @@ object LinearRegression {
       System.out.println("  We provide a data generator to create synthetic input files for this " +
         "program.")
       System.out.println("  Usage: LinearRegression <data path> <result path> <num iterations>")
+
+      true
     }
-    true
   }
 
   private def getDataSet(env: ExecutionEnvironment): DataSet[Data] = {

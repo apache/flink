@@ -20,7 +20,7 @@ package org.apache.flink.runtime.minicluster
 
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
@@ -28,6 +28,16 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.{Future, Await}
 
+/**
+ * Abstract base class for Flink's mini cluster. The mini cluster starts a
+ * [[org.apache.flink.runtime.jobmanager.JobManager]] and one or multiple
+ * [[org.apache.flink.runtime.taskmanager.TaskManager]]. Depending on the settings, the different
+ * actors can all be run in the same [[ActorSystem]] or each one in its own.
+ *
+ * @param userConfiguration Configuration object with the user provided configuration values
+ * @param singleActorSystem true if all actors (JobManager and TaskManager) shall be run in the same
+ *                          [[ActorSystem]], otherwise false
+ */
 abstract class FlinkMiniCluster(userConfiguration: Configuration,
                                 val singleActorSystem: Boolean) {
   import FlinkMiniCluster._
@@ -62,21 +72,17 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
   def generateConfiguration(userConfiguration: Configuration): Configuration
 
   def startJobManager(implicit system: ActorSystem): ActorRef
-  def startTaskManager(index: Int)(implicit system: ActorSystem):
-  ActorRef
+  def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef
 
   def getJobManagerAkkaConfig(): Config = {
-    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants
-      .DEFAULT_JOB_MANAGER_IPC_PORT)
-
-
+    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
     if(singleActorSystem){
       AkkaUtils.getAkkaConfig(configuration, None)
     }else{
       AkkaUtils.getAkkaConfig(configuration, Some((HOSTNAME, port)))
     }
-
   }
 
   def startJobManagerActorSystem(): ActorSystem = {

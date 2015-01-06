@@ -48,12 +48,12 @@ class MapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testIdentityMapperWithBasicType: Unit = {
+  def testIdentityMapperWithBasicType(): Unit = {
     /*
      * Test identity map with basic type
      */
@@ -67,7 +67,7 @@ class MapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testIdentityMapperWithTuple: Unit = {
+  def testIdentityMapperWithTuple(): Unit = {
     /*
      * Test identity map with a tuple
      */
@@ -85,7 +85,7 @@ class MapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testTypeConversionMapperCustomToTuple: Unit = {
+  def testTypeConversionMapperCustomToTuple(): Unit = {
     /*
      * Test type conversion mapper (Custom -> Tuple)
      */
@@ -103,7 +103,7 @@ class MapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testTypeConversionMapperTupleToBasic: Unit = {
+  def testTypeConversionMapperTupleToBasic(): Unit = {
     /*
      * Test type conversion mapper (Tuple -> Basic)
      */
@@ -120,7 +120,7 @@ class MapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testMapperOnTupleIncrementFieldReorderSecondAndThirdFields: Unit = {
+  def testMapperOnTupleIncrementFieldReorderSecondAndThirdFields(): Unit = {
     /*
      * Test mapper on tuple - Increment Integer field, reorder second and third fields
      */
@@ -138,7 +138,7 @@ class MapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testMapperOnCustomLowercaseString: Unit = {
+  def testMapperOnCustomLowercaseString(): Unit = {
     /*
      * Test mapper on Custom - lowercase myString
      */
@@ -156,7 +156,7 @@ class MapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testMapperIfUDFReturnsInputObjectIncrementFirstFieldOfTuple: Unit = {
+  def testMapperIfUDFReturnsInputObjectIncrementFirstFieldOfTuple(): Unit = {
     /*
      * Test mapper if UDF returns input object - increment first field of a tuple
      */
@@ -176,7 +176,7 @@ class MapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testMapWithBroadcastSet: Unit = {
+  def testMapWithBroadcastSet(): Unit = {
     /*
      * Test map with broadcast set
      */
@@ -205,7 +205,7 @@ class MapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testPassingConfigurationObject: Unit = {
+  def testPassingConfigurationObject(): Unit = {
     /*
      * Test passing configuration object.
      */

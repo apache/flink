@@ -100,35 +100,34 @@ class KryoGenericTypeSerializerTest {
   }
 
   @Test
-  def testScalaListSerialization: Unit = {
     val a = List(42,1,49,1337)
 
     runTests(a)
   }
 
   @Test
-  def testScalaMutablelistSerialization: Unit = {
+  def testScalaMutablelistSerialization(): Unit = {
     val a = scala.collection.mutable.ListBuffer(42,1,49,1337)
 
     runTests(a)
   }
 
   @Test
-  def testScalaMapSerialization: Unit = {
+  def testScalaMapSerialization(): Unit = {
     val a = Map(("1" -> 1), ("2" -> 2), ("42" -> 42), ("1337" -> 1337))
 
     runTests(Seq(a))
   }
 
   @Test
-  def testMutableMapSerialization: Unit ={
+  def testMutableMapSerialization(): Unit ={
     val a = scala.collection.mutable.Map((1 -> "1"), (2 -> "2"), (3 -> "3"))
 
     runTests(Seq(a))
   }
 
   @Test
-  def testScalaListComplexTypeSerialization: Unit = {
+  def testScalaListComplexTypeSerialization(): Unit = {
     val a = ComplexType("1234", 42, List(1,2,3,4))
     val b = ComplexType("4321", 24, List(4,3,2,1))
     val c = ComplexType("1337", 1, List(1))
@@ -138,7 +137,7 @@ class KryoGenericTypeSerializerTest {
   }
 
   @Test
-  def testHeterogenousScalaList: Unit = {
+  def testHeterogenousScalaList(): Unit = {
     val a = new DerivedType("foo", "bar")
     val b = new BaseType("foobar")
     val c = new DerivedType2("bar", "foo")
