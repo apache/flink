@@ -214,8 +214,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    *
    */
-  def iterate(stepFunction: DataStream[T] => (DataStream[T], DataStream[T]),  maxWaitTimeMillis:
-    Long = 0): DataStream[T] = {
+  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R]),  
+        maxWaitTimeMillis:Long = 0): DataStream[R] = {
     val iterativeStream = javaStream.iterate(maxWaitTimeMillis)
 
     val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
