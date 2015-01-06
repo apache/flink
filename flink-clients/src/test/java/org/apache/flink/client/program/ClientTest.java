@@ -84,6 +84,7 @@ public class ClientTest {
 
 		when(configMock.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)).thenReturn("localhost");
 		when(configMock.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)).thenReturn(6123);
+		when(configMock.getString(ConfigConstants.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)).thenReturn(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
 
 		when(planMock.getJobName()).thenReturn("MockPlan");
 //		when(mockJarFile.getAbsolutePath()).thenReturn("mockFilePath");
@@ -99,7 +100,7 @@ public class ClientTest {
 
 		Whitebox.setInternalState(JobClient$.class, mockJobClient);
 
-		when(mockJobClient.startActorSystemAndActor(configMock)).thenReturn(new Tuple2<ActorSystem,
+		when(mockJobClient.startActorSystemAndActor(configMock, false)).thenReturn(new Tuple2<ActorSystem,
 				ActorRef>(mockSystem, mockJobClientActor));
 	}
 

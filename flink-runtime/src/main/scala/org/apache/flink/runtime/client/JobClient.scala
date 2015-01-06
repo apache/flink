@@ -35,7 +35,7 @@ import org.apache.flink.runtime.messages.JobClientMessages.{SubmitJobDetached, S
 import org.apache.flink.runtime.messages.JobManagerMessages._
 
 import scala.concurrent.{TimeoutException, Await}
-import scala.concurrent.duration.{FiniteDuration}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 
 class JobClient(jobManagerURL: String, timeout: FiniteDuration)
@@ -84,11 +84,12 @@ class JobClientListener(client: ActorRef) extends Actor with ActorLogMessages wi
 object JobClient{
   val JOB_CLIENT_NAME = "jobclient"
 
-  def startActorSystemAndActor(config: Configuration): (ActorSystem, ActorRef) = {
-    implicit val actorSystem = AkkaUtils.createActorSystem(host = "localhost",
-      port =0, configuration = config)
+  def startActorSystemAndActor(config: Configuration, localActorSystem: Boolean):
+  (ActorSystem, ActorRef) = {
+    implicit val actorSystem = AkkaUtils.createActorSystem(configuration = config,
+      listeningAddress = Some(("localhost", 0)))
 
-    (actorSystem, startActorWithConfiguration(config))
+    (actorSystem, startActorWithConfiguration(config, localActorSystem))
   }
 
   def startActor(jobManagerURL: String)(implicit actorSystem: ActorSystem, timeout: FiniteDuration):
@@ -96,35 +97,35 @@ object JobClient{
     actorSystem.actorOf(Props(classOf[JobClient], jobManagerURL, timeout), JOB_CLIENT_NAME)
   }
 
-  def parseConfiguration(configuration: Configuration): String = {
-    configuration.getString(ConfigConstants.JOB_MANAGER_AKKA_URL, null) match {
-      case url: String => url
-      case _ =>
-        val jobManagerAddress = configuration.getString(ConfigConstants
+  def parseConfiguration(configuration: Configuration, localActorSystem: Boolean): String = {
+    if(localActorSystem){
+      JobManager.getLocalAkkaURL
+    }else{
+      val jobManagerAddress = configuration.getString(ConfigConstants
           .JOB_MANAGER_IPC_ADDRESS_KEY, null)
-        val jobManagerRPCPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      val jobManagerRPCPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
           ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-        if (jobManagerAddress == null) {
-          throw new RuntimeException("JobManager address has not been specified in the " +
-            "configuration.")
-        }
+      if (jobManagerAddress == null) {
+        throw new RuntimeException("JobManager address has not been specified in the " +
+          "configuration.")
+      }
 
-        JobManager.getRemoteAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
+      JobManager.getRemoteAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
     }
   }
 
-  def startActorWithConfiguration(config: Configuration)(implicit actorSystem: ActorSystem):
-  ActorRef = {
-    implicit val timeout = FiniteDuration(config.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
-      ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
+  def startActorWithConfiguration(config: Configuration, localActorSystem: Boolean)
+                                 (implicit actorSystem: ActorSystem): ActorRef = {
+    implicit val timeout = AkkaUtils.getTimeout(config)
 
-    startActor(parseConfiguration(config))
+    startActor(parseConfiguration(config, localActorSystem))
   }
 
   @throws(classOf[JobExecutionException])
   def submitJobAndWait(jobGraph: JobGraph, listen: Boolean, jobClient: ActorRef)
                       (implicit timeout: FiniteDuration): JobExecutionResult = {
+
     var waitForAnswer = true
     var answer: JobExecutionResult = null
 

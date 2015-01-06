@@ -54,8 +54,7 @@ class JobManager(val configuration: Configuration)
   import context._
   import scala.collection.JavaConverters._
 
-  implicit val timeout = FiniteDuration(configuration.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
-    ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
+  implicit val timeout = AkkaUtils.getTimeout(configuration)
 
   log.info(s"Starting job manager at ${self.path}.")
 
@@ -496,21 +495,21 @@ object JobManager {
 
   def main(args: Array[String]): Unit = {
     EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager")
+    val (configuration, executionMode, listeningAddress) = parseArgs(args)
 
-    val (hostname, port, configuration, executionMode) = parseArgs(args)
 
-    val jobManagerSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
+    val jobManagerSystem = AkkaUtils.createActorSystem(configuration, listeningAddress)
 
     startActor(Props(new JobManager(configuration) with WithWebServer))(jobManagerSystem)
 
     if(executionMode.equals(LOCAL)){
-      TaskManager.startActorWithConfiguration(hostname, configuration, true)(jobManagerSystem)
+      TaskManager.startActorWithConfiguration("", configuration, true, true)(jobManagerSystem)
     }
 
     jobManagerSystem.awaitTermination()
   }
 
-  def parseArgs(args: Array[String]): (String, Int, Configuration, ExecutionMode) = {
+  def parseArgs(args: Array[String]): (Configuration, ExecutionMode, Option[(String, Int)]) = {
     val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("jobmanager") {
       head("flink jobmanager")
       opt[String]("configDir") action { (x, c) => c.copy(configDir = x) } text ("Specify " +
@@ -535,21 +534,21 @@ object JobManager {
           configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, config.configDir + "/..")
         }
 
-        val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-        val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+        val listeningAddress = if(config.executionMode.equals(LOCAL)){
+          None
+        }else{
+          val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+          val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+            ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-        (hostname, port, configuration, config.executionMode)
+          Some((hostname, port))
+        }
+
+        (configuration, config.executionMode, listeningAddress)
     } getOrElse {
       LOG.error("CLI Parsing failed. Usage: " + parser.usage)
       sys.exit(FAILURE_RETURN_CODE)
     }
-  }
-
-  def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration):
-  (ActorSystem, ActorRef) = {
-    implicit val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
-    (actorSystem, startActor(configuration))
   }
 
   def parseConfiguration(configuration: Configuration): (Int, Boolean, Long, Int, Long) = {
@@ -581,6 +580,10 @@ object JobManager {
 
   def getRemoteAkkaURL(address: String): String = {
     s"akka.tcp://flink@${address}/user/${JOB_MANAGER_NAME}"
+  }
+
+  def getLocalAkkaURL: String = {
+    s"akka://flink/user/${JOB_MANAGER_NAME}"
   }
 
   def getProfiler(jobManager: ActorRef)(implicit system: ActorSystem, timeout: FiniteDuration):

@@ -620,7 +620,8 @@ object TaskManager {
 
     val (hostname, port, configuration) = parseArgs(args)
 
-    val (taskManagerSystem, _) = startActorSystemAndActor(hostname, port, configuration)
+    val (taskManagerSystem, _) = startActorSystemAndActor(hostname, port, configuration, false,
+                                                          false)
 
     taskManagerSystem.awaitTermination()
   }
@@ -669,19 +670,25 @@ object TaskManager {
   }
 
   def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration,
-                               localExecution: Boolean = false): (ActorSystem, ActorRef) = {
-    implicit val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
+                               localAkkaCommunication: Boolean,
+                               localTaskManagerCommunication: Boolean): (ActorSystem, ActorRef) = {
+    implicit val actorSystem = AkkaUtils.createActorSystem(configuration, Some((hostname, port)))
 
-    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConfig) =
-      parseConfiguration(hostname, configuration, localExecution)
+    val (connectionInfo,
+        jobManagerURL,
+        taskManagerConfig,
+        networkConnectionConfiguration) = parseConfiguration(hostname,
+                                                            configuration,
+                                                            localAkkaCommunication,
+                                                            localTaskManagerCommunication)
 
     (actorSystem, startActor(connectionInfo, jobManagerURL, taskManagerConfig,
       networkConfig))
   }
 
   def parseConfiguration(hostname: String, configuration: Configuration,
-                         localExecution: Boolean = false):
-  (InstanceConnectionInfo, String, TaskManagerConfiguration, NetworkEnvironmentConfiguration) = {
+                         localAkkaCommunication: Boolean,
+                         localTaskManagerCommunication: Boolean):
     val dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT) match {
       case 0 => NetUtils.getAvailablePort
@@ -690,20 +697,20 @@ object TaskManager {
 
     val connectionInfo = new InstanceConnectionInfo(InetAddress.getByName(hostname), dataport)
 
-    val jobManagerURL = configuration.getString(ConfigConstants.JOB_MANAGER_AKKA_URL, null) match {
-      case url: String => url
-      case _ =>
-        val jobManagerAddress = configuration.getString(ConfigConstants
+    val jobManagerURL = if(localAkkaCommunication) {
+     JobManager.getLocalAkkaURL
+    }else {
+      val jobManagerAddress = configuration.getString(ConfigConstants
           .JOB_MANAGER_IPC_ADDRESS_KEY, null)
-        val jobManagerRPCPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      val jobManagerRPCPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
           ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-        if (jobManagerAddress == null) {
-          throw new RuntimeException("JobManager address has not been specified in the " +
-            "configuration.")
-        }
+      if (jobManagerAddress == null) {
+        throw new RuntimeException("JobManager address has not been specified in the " +
+          "configuration.")
+      }
 
-        JobManager.getRemoteAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
+      JobManager.getRemoteAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
     }
 
     val slots = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
@@ -766,8 +773,7 @@ object TaskManager {
       .LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
-    val timeout = FiniteDuration(configuration.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
-      ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
+    val timeout = AkkaUtils.getTimeout(configuration)
 
     val maxRegistrationDuration = Duration(configuration.getString(
       ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION,
@@ -793,10 +799,12 @@ object TaskManager {
   }
 
   def startActorWithConfiguration(hostname: String, configuration: Configuration,
-                                  localExecution: Boolean = false)
+                                  localAkkaCommunciation: Boolean,
+                                  localTaskManagerCommunication: Boolean)
                                  (implicit system: ActorSystem) = {
     val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration) =
-      parseConfiguration(hostname, configuration, localExecution)
+      parseConfiguration(hostname, configuration, localAkkaCommunciation,
+        localTaskManagerCommunication)
 
     startActor(connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration)
   }

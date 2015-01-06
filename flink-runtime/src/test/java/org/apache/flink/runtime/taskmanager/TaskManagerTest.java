@@ -538,10 +538,10 @@ public class TaskManagerTest {
 		Configuration cfg = new Configuration();
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
 		GlobalConfiguration.includeConfiguration(cfg);
-		String akkaURL = jm.path().toString();
-		cfg.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, akkaURL);
+		String jobManagerURL = jm.path().toString();
 
-		ActorRef taskManager = TestingUtils.startTestingTaskManagerWithConfiguration("localhost", cfg, system);
+		ActorRef taskManager = TestingUtils.startTestingTaskManagerWithConfiguration("localhost",
+				jobManagerURL, cfg, system);
 
 		Future<Object> response = Patterns.ask(taskManager, 
 				TaskManagerMessages.getNotifyWhenRegisteredAtJobManagerMessage(), timeout);

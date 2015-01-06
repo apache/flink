@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
-import java.util.concurrent.TimeUnit;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -59,9 +58,8 @@ public class JobsInfoServlet extends HttpServlet {
 	public JobsInfoServlet(Configuration flinkConfig) {
 		this.config = flinkConfig;
 		system = ActorSystem.create("JobsInfoServletActorSystem",
-				AkkaUtils.getDefaultActorSystemConfig());
-		this.timeout = new FiniteDuration(flinkConfig.getInteger(ConfigConstants
-				.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS);
+				AkkaUtils.getDefaultAkkaConfig());
+		this.timeout = AkkaUtils.getTimeout(flinkConfig);
 	}
 
 	@Override

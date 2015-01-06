@@ -65,11 +65,6 @@ public final class ConfigConstants {
 	 * for communication with the job manager.
 	 */
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
-
-	/**
-	 * The config parameter defining the akka url of the job manager
-	 */
-	public static final String JOB_MANAGER_AKKA_URL = "jobmanager.akka.url";
 	
 	/**
 	 * The config parameter defining the number of handler threads for the jobmanager RPC service.
@@ -594,21 +589,13 @@ public final class ConfigConstants {
 	
 	// ------------------------------ Akka Values ------------------------------
 
-	public static String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
-
 	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "1000 s";
 
 	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE = "6000 s";
 
 	public static double DEFAULT_AKKA_TRANSPORT_THRESHOLD = 300.0;
 
-	public static String DEFAULT_AKKA_WATCH_HEARTBEAT_INTERVAL = "5000 ms";
-
-	public static String DEFAULT_AKKA_WATCH_HEARTBEAT_PAUSE = "1 m";
-
 	public static double DEFAULT_AKKA_WATCH_THRESHOLD = 12;
-
-	public static String DEFAULT_AKKA_TCP_TIMEOUT = "100 s";
 
 	public static int DEFAULT_AKKA_DISPATCHER_THROUGHPUT = 15;
 
@@ -616,7 +603,7 @@ public final class ConfigConstants {
 
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
-	public static int DEFAULT_AKKA_ASK_TIMEOUT = 100;
+	public static String DEFAULT_AKKA_ASK_TIMEOUT = "100 s";
 	
 
 	// ----------------------------- LocalExecution ----------------------------

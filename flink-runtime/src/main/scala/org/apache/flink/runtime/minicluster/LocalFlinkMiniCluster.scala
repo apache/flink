@@ -36,7 +36,8 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
   val jobClientActorSystem = if(singleActorSystem){
     jobManagerActorSystem
   }else{
-    AkkaUtils.createActorSystem()
+    // create an actor system listening on a random port
+    AkkaUtils.createDefaultActorSystem()
   }
 
   var jobClient: Option[ActorRef] = None
@@ -81,7 +82,10 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
       false
     }
 
-    TaskManager.startActorWithConfiguration(HOSTNAME, config, localExecution)(system)
+    TaskManager.startActorWithConfiguration(HOSTNAME,
+      config,
+      singleActorSystem,
+      localExecution)(system)
   }
 
   def getJobClient(): ActorRef ={
@@ -93,11 +97,8 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
         config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
         config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getJobManagerRPCPort)
 
-        if(singleActorSystem){
-          config.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, "akka://flink/user/jobmanager")
-        }
-
-        val jc = JobClient.startActorWithConfiguration(config)(jobClientActorSystem)
+        val jc = JobClient.startActorWithConfiguration(config,
+          singleActorSystem)(jobClientActorSystem)
         jobClient = Some(jc)
         jc
     }
