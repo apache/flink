@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import com.google.common.collect.Lists;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -29,10 +31,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -52,6 +56,8 @@ public class LocalBufferPoolTest {
 
 	private BufferPool localBufferPool;
 
+	private final static ExecutorService executor = Executors.newCachedThreadPool();
+
 	@Before
 	public void setupLocalBufferPool() {
 		networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize);
@@ -63,11 +69,16 @@ public class LocalBufferPoolTest {
 	@After
 	public void destroyAndVerifyAllBuffersReturned() throws IOException {
 		if (!localBufferPool.isDestroyed()) {
-			localBufferPool.destroy();
+			localBufferPool.lazyDestroy();
 		}
 
 		String msg = "Did not return all buffers to memory segment pool after test.";
 		assertEquals(msg, numBuffers, networkBufferPool.getNumberOfAvailableMemorySegments());
+	}
+
+	@AfterClass
+	public static void shutdownExecutor() {
+		executor.shutdownNow();
 	}
 
 	@Test
@@ -99,7 +110,7 @@ public class LocalBufferPoolTest {
 
 	@Test
 	public void testRequestAfterDestroy() throws IOException {
-		localBufferPool.destroy();
+		localBufferPool.lazyDestroy();
 
 		assertNull(localBufferPool.requestBuffer());
 	}
@@ -114,7 +125,7 @@ public class LocalBufferPoolTest {
 			requests.add(localBufferPool.requestBuffer());
 		}
 
-		localBufferPool.destroy();
+		localBufferPool.lazyDestroy();
 
 		// All buffers have been requested, but can not be returned yet.
 		assertEquals(numBuffers, getNumRequestedFromMemorySegmentPool());
@@ -212,6 +223,7 @@ public class LocalBufferPoolTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testCancelPendingRequestsAfterDestroy() throws IOException {
 		EventListener<Buffer> listener = Mockito.mock(EventListener.class);
 
@@ -224,7 +236,7 @@ public class LocalBufferPoolTest {
 
 		localBufferPool.addListener(listener);
 
-		localBufferPool.destroy();
+		localBufferPool.lazyDestroy();
 
 		available.recycle();
 
@@ -236,25 +248,69 @@ public class LocalBufferPoolTest {
 	// ------------------------------------------------------------------------
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testConcurrentRequestRecycle() throws ExecutionException, InterruptedException, IOException {
 		int numConcurrentTasks = 128;
 		int numBuffersToRequestPerTask = 1024;
 
 		localBufferPool.setNumBuffers(numConcurrentTasks);
 
-		final ExecutorService executor = Executors.newCachedThreadPool();
+		Future<Boolean>[] taskResults = new Future[numConcurrentTasks];
+		for (int i = 0; i < numConcurrentTasks; i++) {
+			taskResults[i] = executor.submit(new BufferRequesterTask(localBufferPool, numBuffersToRequestPerTask));
+		}
 
-		try {
-			Future<Boolean>[] taskResults = new Future[numConcurrentTasks];
-			for (int i = 0; i < numConcurrentTasks; i++) {
-				taskResults[i] = executor.submit(new BufferRequesterTask(localBufferPool, numBuffersToRequestPerTask));
-			}
+		for (int i = 0; i < numConcurrentTasks; i++) {
+			assertTrue(taskResults[i].get());
+		}
+	}
 
-			for (int i = 0; i < numConcurrentTasks; i++) {
-				assertTrue(taskResults[i].get());
+	@Test
+	public void testDestroyDuringBlockingRequest() throws Exception {
+		// Config
+		final int numberOfBuffers = 1;
+
+		localBufferPool.setNumBuffers(numberOfBuffers);
+
+		final CountDownLatch sync = new CountDownLatch(1);
+
+		final Callable<List<Buffer>> requester = new Callable<List<Buffer>>() {
+
+			// Request all buffers in a blocking manner.
+			@Override
+			public List<Buffer> call() throws Exception {
+				final List<Buffer> requested = Lists.newArrayList();
+
+				// Request all available buffers
+				for (int i = 0; i < numberOfBuffers; i++) {
+					requested.add(localBufferPool.requestBufferBlocking());
+				}
+
+				// Notify that we've requested all buffers
+				sync.countDown();
+
+				// Try to request the next buffer (but pool should be destroyed either right before
+				// the request or more likely during the request).
+				assertNull(localBufferPool.requestBufferBlocking());
+
+				return requested;
 			}
-		} finally {
-			executor.shutdownNow();
+		};
+
+		Future<List<Buffer>> f = executor.submit(requester);
+
+		sync.await();
+
+		localBufferPool.lazyDestroy();
+
+		// Increase the likelihood that the requested is currently in the request call
+		Thread.sleep(50);
+
+		// This should return immediately if everything works as expected
+		List<Buffer> requestedBuffers = f.get(60, TimeUnit.SECONDS);
+
+		for (Buffer buffer : requestedBuffers) {
+			buffer.recycle();
 		}
 	}
 

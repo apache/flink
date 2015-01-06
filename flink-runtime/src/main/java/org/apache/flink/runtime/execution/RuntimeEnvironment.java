@@ -22,13 +22,14 @@ import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -92,9 +93,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	private final AtomicBoolean canceled = new AtomicBoolean();
 
-	private final IntermediateResultPartition[] producedPartitions;
-
-	private final BufferWriter[] writers;
+	private final ResultPartition[] producedPartitions;
+	private final ResultPartitionWriter[] writers;
 
 	private final SingleInputGate[] inputGates;
 
@@ -116,23 +116,27 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 		try {
 			// Produced intermediate result partitions
-			final List<PartitionDeploymentDescriptor> partitions = tdd.getProducedPartitions();
+			final List<ResultPartitionDeploymentDescriptor> partitions = tdd.getProducedPartitions();
 
-			this.producedPartitions = new IntermediateResultPartition[partitions.size()];
-			this.writers = new BufferWriter[partitions.size()];
+			this.producedPartitions = new ResultPartition[partitions.size()];
+			this.writers = new ResultPartitionWriter[partitions.size()];
 
 			for (int i = 0; i < this.producedPartitions.length; i++) {
-				this.producedPartitions[i] = IntermediateResultPartition.create(this, i, owner.getJobID(), owner.getExecutionId(), networkEnvironment, partitions.get(i));
-				writers[i] = new BufferWriter(this.producedPartitions[i]);
+				ResultPartitionDeploymentDescriptor desc = partitions.get(i);
+				ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), owner.getExecutionId());
+
+				this.producedPartitions[i] = new ResultPartition(owner.getJobID(), partitionId, desc.getPartitionType(), desc.getNumberOfSubpartitions(), networkEnvironment, ioManager);
+
+				writers[i] = new ResultPartitionWriter(this.producedPartitions[i]);
 			}
 
 			// Consumed intermediate result partitions
-			final List<PartitionConsumerDeploymentDescriptor> consumedPartitions = tdd.getConsumedPartitions();
+			final List<InputGateDeploymentDescriptor> consumedPartitions = tdd.getInputGates();
 
 			this.inputGates = new SingleInputGate[consumedPartitions.size()];
 
 			for (int i = 0; i < inputGates.length; i++) {
-				inputGates[i] = SingleInputGate.create(networkEnvironment, consumedPartitions.get(i));
+				inputGates[i] = SingleInputGate.create(consumedPartitions.get(i), networkEnvironment);
 
 				// The input gates are organized by key for task updates/channel updates at runtime
 				inputGatesById.put(inputGates[i].getConsumedResultId(), inputGates[i]);
@@ -211,7 +215,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 			// Finish the produced partitions
 			if (producedPartitions != null) {
-				for (IntermediateResultPartition partition : producedPartitions) {
+				for (ResultPartition partition : producedPartitions) {
 					if (partition != null) {
 						partition.finish();
 					}
@@ -340,14 +344,14 @@ public class RuntimeEnvironment implements Environment, Runnable {
 	}
 
 	@Override
-	public BufferWriter getWriter(int index) {
+	public ResultPartitionWriter getWriter(int index) {
 		checkElementIndex(index, writers.length, "Illegal environment writer request.");
 
 		return writers[checkElementIndex(index, writers.length)];
 	}
 
 	@Override
-	public BufferWriter[] getAllWriters() {
+	public ResultPartitionWriter[] getAllWriters() {
 		return writers;
 	}
 
@@ -363,7 +367,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return inputGates;
 	}
 
-	public IntermediateResultPartition[] getProducedPartitions() {
+	public ResultPartition[] getProducedPartitions() {
 		return producedPartitions;
 	}
 

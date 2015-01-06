@@ -122,8 +122,7 @@ public final class ConfigConstants {
 	 * The key for the config parameter defining whether the memory manager allocates memory lazy.
 	 */
 	public static final String TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY = "taskmanager.memory.lazyalloc";
-	
-	
+
 	/**
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
 	 * number of possible tasks and shuffles.
@@ -134,6 +133,12 @@ public final class ConfigConstants {
 	 * The config parameter defining the size of the buffers used in the network stack.
 	 */
 	public static final String TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY = "taskmanager.network.bufferSizeInBytes";
+
+	/**
+	 * The implementation to use for spillable/spilled intermediate results, which have both
+	 * synchronous and asynchronous implementations: "sync" or "async".
+	 */
+	public static final String TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "taskmanager.network.defaultIOMode";
 
 	/**
 	 * The config parameter defining the number of task slots of a task manager.
@@ -461,6 +466,12 @@ public final class ConfigConstants {
 	 * Default size of network stack buffers.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE = 32768;
+
+	/**
+	 * The implementation to use for spillable/spilled intermediate results, which have both
+	 * synchronous and asynchronous implementations: "sync" or "async".
+	 */
+	public static final String DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "sync";
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.

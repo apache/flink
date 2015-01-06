@@ -39,7 +39,7 @@ public class Buffer {
 	/** The recycler for the backing {@link MemorySegment} */
 	private final BufferRecycler recycler;
 
-	private final boolean isBuffer;
+	private boolean isBuffer;
 
 	/** The current number of references to this buffer */
 	private int referenceCount = 1;
@@ -66,6 +66,14 @@ public class Buffer {
 		return isBuffer;
 	}
 
+	public void tagAsEvent() {
+		synchronized (recycleLock) {
+			ensureNotRecycled();
+		}
+
+		isBuffer = false;
+	}
+
 	public MemorySegment getMemorySegment() {
 		synchronized (recycleLock) {
 			ensureNotRecycled();
@@ -84,8 +92,6 @@ public class Buffer {
 
 	public int getSize() {
 		synchronized (recycleLock) {
-			ensureNotRecycled();
-
 			return currentSize;
 		}
 	}
@@ -103,8 +109,6 @@ public class Buffer {
 
 	public void recycle() {
 		synchronized (recycleLock) {
-			ensureNotRecycled();
-
 			if (--referenceCount == 0) {
 				recycler.recycle(memorySegment);
 			}

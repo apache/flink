@@ -52,4 +52,6 @@ public interface BufferProvider {
 
 	boolean isDestroyed();
 
+	int getMemorySegmentSize();
+
 }
