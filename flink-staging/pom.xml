@@ -18,9 +18,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-	<modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
@@ -28,6 +28,7 @@ under the License.
 		<version>0.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
+
 
 	<artifactId>flink-staging</artifactId>
 	<name>flink-staging</name>
@@ -63,6 +64,11 @@ under the License.
 				<module>flink-tachyon</module>
 			</modules>
 		</profile>
+        <profile>
+            <id>include-tez</id>
+            <modules>
+                <module>flink-tez</module>
+            </modules>
+        </profile>
 	</profiles>
-
 </project>

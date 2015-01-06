@@ -24,6 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -56,7 +57,7 @@ import org.apache.flink.util.InstantiationUtil;
 /**
  * Configuration class which stores all relevant parameters required to set up the Pact tasks.
  */
-public class TaskConfig {
+public class TaskConfig implements Serializable {
 	
 	private static final String TASK_NAME = "taskname";
 	

@@ -7,9 +7,7 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,7 +16,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+		 xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<parent>
 		<groupId>org.apache</groupId>
@@ -88,6 +86,7 @@ under the License.
 		<protobuf.version>2.5.0</protobuf.version>
 		<chill.version>0.5.2</chill.version>
 		<asm.version>4.0</asm.version>
+        <tez.version>0.6.0</tez.version>
 	</properties>
 
 	<dependencies>
@@ -155,7 +154,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-	
+
 	<!-- this section defines the module versions that are used if nothing else is specified. -->
 	<dependencyManagement>
 		<!-- WARN: 
@@ -202,7 +201,7 @@ under the License.
 				<artifactId>avro-ipc</artifactId>
 				<version>1.7.6</version>
 			</dependency>
-			
+
 			<!-- Make sure we use a consistent commons-cli version throughout the project -->
 			<dependency>
 				<groupId>commons-cli</groupId>
@@ -215,14 +214,14 @@ under the License.
 				<artifactId>commons-io</artifactId>
 				<version>2.4</version>
 			</dependency>
-			
+
 			<!-- common-collections is used by us and by hadoop, so we need to define a common version -->
 			<dependency>
 				<groupId>commons-collections</groupId>
 				<artifactId>commons-collections</artifactId>
 				<version>3.2.1</version>
 			</dependency>
-			
+
 			<!-- Managed dependency required for HBase in flink-hbase -->
 			<dependency>
 				<groupId>org.javassist</groupId>
@@ -375,6 +374,12 @@ under the License.
 			</properties>
 		</profile>
 
+		<profile>
+			<id>include-tez</id>
+			<properties>
+				<hadoop.version>2.6.0</hadoop.version>
+			</properties>
+		</profile>
 		<profile>
 			<id>include-yarn</id>
 			<activation>
@@ -554,21 +559,21 @@ under the License.
 		
 		<profile>
 			<id>release</id>
-				<build>
+			<build>
 				<plugins>
 					<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-gpg-plugin</artifactId>
-					<version>1.4</version>
-					<executions>
-						<execution>
-						<id>sign-artifacts</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>sign</goal>
-						</goals>
-						</execution>
-					</executions>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>1.4</version>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
 					</plugin>
 				</plugins>
 				<pluginManagement>
@@ -589,36 +594,36 @@ under the License.
 		</profile>
 		<profile>
 			<id>jdk8</id>
-				<activation>
-					<activeByDefault>false</activeByDefault>
-					<jdk>1.8</jdk>
-				</activation>
-				<modules>
-					<module>flink-java8</module>
-				</modules>
-				<build>
-					<plugins>
-						<plugin>
-							<groupId>org.apache.maven.plugins</groupId>
-							<artifactId>maven-javadoc-plugin</artifactId>
-							<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-							<configuration>
-								<quiet>true</quiet>
-							</configuration>
-							<executions>
-								<execution>
-									<id>attach-javadocs</id>
-									<goals>
-										<goal>jar</goal>
-									</goals>
-									<configuration>
-										<additionalparam>-Xdoclint:none</additionalparam>
-									</configuration>
-								</execution>
-							</executions>
-						</plugin>
-					</plugins>
-				</build>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+				<jdk>1.8</jdk>
+			</activation>
+			<modules>
+				<module>flink-java8</module>
+			</modules>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
+						<configuration>
+							<quiet>true</quiet>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+								<configuration>
+									<additionalparam>-Xdoclint:none</additionalparam>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
 
@@ -637,7 +642,7 @@ under the License.
 					</archive>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
@@ -663,9 +668,7 @@ under the License.
 							to you under the Apache License, Version 2.0 (the
 							"License"); you may not use this file except in compliance
 							with the License.  You may obtain a copy of the License at
-
 							  http://www.apache.org/licenses/LICENSE-2.0
-
 							Unless required by applicable law or agreed to in writing,
 							software distributed under the License is distributed on an
 							"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -673,7 +676,7 @@ under the License.
 							specific language governing permissions and limitations
 							under the License.
 						-->
-							<license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
+						<license implementation="org.apache.rat.analysis.license.SimplePatternBasedLicense">
 							<licenseFamilyCategory>AL2 </licenseFamilyCategory>
 							<licenseFamilyName>Apache License 2.0</licenseFamilyName>
 							<notes />
