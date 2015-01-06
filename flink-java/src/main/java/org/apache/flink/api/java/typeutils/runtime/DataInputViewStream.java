@@ -24,10 +24,14 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class DataInputViewStream extends InputStream{
+/**
+ * An input stream that draws its data from a {@link DataInputView}.
+ */
+public class DataInputViewStream extends InputStream {
+	
 	protected DataInputView inputView;
 
-	public DataInputViewStream(DataInputView inputView){
+	public DataInputViewStream(DataInputView inputView) {
 		this.inputView = inputView;
 	}
 
@@ -37,9 +41,9 @@ public class DataInputViewStream extends InputStream{
 
 	@Override
 	public int read() throws IOException {
-		try{
+		try {
 			return inputView.readUnsignedByte();
-		}catch(EOFException ex){
+		} catch(EOFException ex) {
 			return -1;
 		}
 	}
@@ -47,16 +51,15 @@ public class DataInputViewStream extends InputStream{
 	@Override
 	public long skip(long n) throws IOException {
 		long counter = n;
-		while(counter > Integer.MAX_VALUE){
+		while(counter > Integer.MAX_VALUE) {
 			int skippedBytes = inputView.skipBytes(Integer.MAX_VALUE);
 
-			if(skippedBytes == 0){
+			if (skippedBytes == 0) {
 				return n - counter;
 			}
 
 			counter -= skippedBytes;
 		}
-
 		return n - counter - inputView.skipBytes((int) counter);
 	}
 
