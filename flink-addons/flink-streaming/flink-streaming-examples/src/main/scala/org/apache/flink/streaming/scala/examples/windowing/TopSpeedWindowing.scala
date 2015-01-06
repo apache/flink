@@ -21,14 +21,12 @@ package org.apache.flink.streaming.scala.examples.windowing
 
 import java.util.concurrent.TimeUnit._
 
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.util.Collector
-import scala.math.{max, min}
-
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala.windowing.{Delta, Time}
+import org.apache.flink.api.scala._
+import scala.Stream._
+import scala.math._
 import scala.util.Random
-
-import org.apache.flink.streaming.api.scala.windowing.Time
-import org.apache.flink.streaming.api.scala.windowing.Delta
 
 /**
  * An example of grouped stream windowing where different eviction and 
@@ -40,7 +38,7 @@ import org.apache.flink.streaming.api.scala.windowing.Delta
  */
 object TopSpeedWindowing {
 
-  case class CarSpeed(carId: Int, speed: Int, distance: Double, time: Long)
+  case class CarEvent(carId: Int, speed: Int, distance: Double, time: Long) extends Serializable
 
   def main(args: Array[String]) {
     if (!parseParameters(args)) {
@@ -48,10 +46,11 @@ object TopSpeedWindowing {
     }
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val cars = env.addSource(carSource _).groupBy("carId")
+    val cars = env.fromCollection(genCarStream())
+      .groupBy("carId")
       .window(Time.of(evictionSec, SECONDS))
-      .every(Delta.of[CarSpeed](triggerMeters, 
-          (oldSp,newSp) => newSp.distance-oldSp.distance, CarSpeed(0,0,0,0)))
+      .every(Delta.of[CarEvent](triggerMeters,
+          (oldSp,newSp) => newSp.distance-oldSp.distance, CarEvent(0,0,0,0)))
       .reduce((x, y) => if (x.speed > y.speed) x else y)
 
     cars print
@@ -60,19 +59,20 @@ object TopSpeedWindowing {
 
   }
 
-  def carSource(out: Collector[CarSpeed]) = {
+  def genCarStream(): Stream[CarEvent] = {
 
-    val speeds = new Array[Int](numOfCars)
-    val distances = new Array[Double](numOfCars)
-
-    while (true) {
-      Thread sleep 1000
-      for (i <- 0 until speeds.length) {
-        speeds(i) = if (Random.nextBoolean) min(100, speeds(i) + 5) else max(0, speeds(i) - 5)
-        distances(i) += speeds(i) / 3.6d
-        out.collect(new CarSpeed(i, speeds(i), distances(i), System.currentTimeMillis))
-      }
+    def nextSpeed(carEvent : CarEvent) : CarEvent =
+    {
+      val next = 
+        if (Random.nextBoolean) min(100, carEvent.speed + 5) else max(0, carEvent.speed - 5)
+      CarEvent(carEvent.carId, next, carEvent.distance + next/3.6d,System.currentTimeMillis)
     }
+    def carStream(speeds : Stream[CarEvent]) : Stream[CarEvent] =
+    {
+      Thread.sleep(1000)
+      speeds.append(carStream(speeds.map(nextSpeed)))
+    }
+    carStream(range(0, numOfCars).map(CarEvent(_,50,0,System.currentTimeMillis())))
   }
 
   def parseParameters(args: Array[String]): Boolean = {
