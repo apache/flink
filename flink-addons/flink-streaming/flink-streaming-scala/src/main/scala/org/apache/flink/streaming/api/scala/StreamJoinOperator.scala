@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.function.co.JoinWindowFunction
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
-import org.apache.flink.streaming.api.scala.StreamingConversions.javaToScalaStream
 import org.apache.flink.streaming.util.keys.KeySelectorUtil
 import org.apache.flink.streaming.api.datastream.temporaloperator.TemporalWindow
 import java.util.concurrent.TimeUnit

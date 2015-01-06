@@ -18,9 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaStream }
-import org.apache.flink.streaming.api.scala.StreamingConversions._
 
 /**
  * The SplitDataStream represents an operator that has been split using an

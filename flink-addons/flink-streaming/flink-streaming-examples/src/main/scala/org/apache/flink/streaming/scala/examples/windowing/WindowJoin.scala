@@ -18,8 +18,7 @@
 
 package org.apache.flink.streaming.scala.examples.windowing
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.util.Collector
 import scala.util.Random
 import java.util.concurrent.TimeUnit

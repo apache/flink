@@ -25,12 +25,11 @@ import scala.reflect.ClassTag
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.datastream.{ConnectedDataStream => JavaCStream}
 import org.apache.flink.streaming.api.function.co.{ CoFlatMapFunction, CoMapFunction, CoReduceFunction, CoWindowFunction }
 import org.apache.flink.streaming.api.invokable.operator.co.{ CoFlatMapInvokable, CoMapInvokable, CoReduceInvokable }
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
-import org.apache.flink.streaming.api.scala.StreamingConversions._
 import org.apache.flink.util.Collector
 
 class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
