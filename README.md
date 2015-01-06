@@ -71,7 +71,7 @@ Further details, and a guide to newer Scala IDE versions can be found in the
 **Note:** Before following this setup, make sure to run the build from the command line once
 (`mvn clean package -DskipTests`, see above)
 
-1. Download the Scala IDE (preferred) or install the plugin to Eclipse Kepler. See [here]([How to setup Eclipse](apache/incubator-flink/blob/master/docs/internal_setup_eclipse.md)
+1. Download the Scala IDE (preferred) or install the plugin to Eclipse Kepler. See [How to setup Eclipse](apache/incubator-flink/blob/master/docs/internal_setup_eclipse.md)
    for download links and instructions.
 2. Add the "macroparadise" compiler plugin to the Scala compiler.
    Open "Window" -> "Preferences" -> "Scala" -> "Compiler" -> "Advanced" and put into the "Xplugin" field the path to
