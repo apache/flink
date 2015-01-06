@@ -21,8 +21,7 @@ package org.apache.flink.streaming.scala.examples.windowing
 
 import java.util.concurrent.TimeUnit._
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.util.Collector
 import scala.math.{max, min}
 

@@ -18,10 +18,8 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream,
   SingleOutputStreamOperator, GroupedDataStream}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.functions.MapFunction
@@ -47,7 +45,6 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.streaming.api.scala.StreamingConversions._
 import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
 
 class DataStream[T](javaStream: JavaStream[T]) {
