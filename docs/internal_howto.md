@@ -31,6 +31,8 @@ that are interested in the technology behind Flink.
 
 - [How-to: Using logging in Flink](internal_logging.html)
 
+- [How-to: Setting up Eclipse to develop Flink](internal_setup_eclipse.html)
+
 ---
 
 *This documentation is maintained by the contributors of the individual components.
