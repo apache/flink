@@ -23,14 +23,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask;
 import org.apache.flink.runtime.profiling.TaskManagerProfiler;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -72,6 +73,8 @@ public class Task {
 
 	/** The current execution state of the task */
 	private volatile ExecutionState executionState = ExecutionState.DEPLOYING;
+
+	private volatile Throwable failureCause;
 
 	// --------------------------------------------------------------------------------------------	
 
@@ -160,6 +163,10 @@ public class Task {
 		}
 	}
 
+	public Throwable getFailureCause() {
+		return failureCause;
+	}
+
 	// ----------------------------------------------------------------------------------------------------------------
 	//  States and Transitions
 	// ----------------------------------------------------------------------------------------------------------------
@@ -174,7 +181,7 @@ public class Task {
 	public boolean markAsFinished() {
 		if (STATE_UPDATER.compareAndSet(this, ExecutionState.RUNNING, ExecutionState.FINISHED)) {
 			notifyObservers(ExecutionState.FINISHED, null);
-			notifyExecutionStateChange(ExecutionState.FINISHED, null);
+			unregisterTask();
 			return true;
 		}
 		else {
@@ -195,8 +202,11 @@ public class Task {
 			// after all, we may have recognized our failure state before the cancelling and never sent a canceled
 			// message back
 			else if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
+				this.failureCause = error;
+
 				notifyObservers(ExecutionState.FAILED, ExceptionUtils.stringifyException(error));
-				notifyExecutionStateChange(ExecutionState.FAILED, error);
+				unregisterTask();
+
 				return;
 			}
 		}
@@ -218,7 +228,7 @@ public class Task {
 				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELED)) {
 
 					notifyObservers(ExecutionState.CANCELED, null);
-					notifyExecutionStateChange(ExecutionState.CANCELED, null);
+					unregisterTask();
 					return;
 				}
 			}
@@ -268,9 +278,10 @@ public class Task {
 			if (current == ExecutionState.DEPLOYING) {
 				// directly set to canceled
 				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
+					this.failureCause = cause;
 
 					notifyObservers(ExecutionState.FAILED, null);
-					notifyExecutionStateChange(ExecutionState.FAILED, cause);
+					unregisterTask();
 					return;
 				}
 			}
@@ -284,8 +295,10 @@ public class Task {
 						LOG.error("Error while cancelling the task.", e);
 					}
 
+					this.failureCause = cause;
+
 					notifyObservers(ExecutionState.FAILED, null);
-					notifyExecutionStateChange(ExecutionState.FAILED, cause);
+					unregisterTask();
 
 					return;
 				}
@@ -309,7 +322,7 @@ public class Task {
 
 			if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELED)) {
 				notifyObservers(ExecutionState.CANCELED, null);
-				notifyExecutionStateChange(ExecutionState.CANCELED, null);
+				unregisterTask();
 				return;
 			}
 		}
@@ -337,6 +350,10 @@ public class Task {
 		if (memoryManager != null && env != null) {
 			memoryManager.releaseAll(env.getInvokable());
 		}
+	}
+
+	protected void unregisterTask() {
+		taskManager.tell(new UnregisterTask(executionId), ActorRef.noSender());
 	}
 
 	protected void notifyExecutionStateChange(ExecutionState executionState,
@@ -377,11 +394,11 @@ public class Task {
 		return environment != null ? environment.getAllInputGates() : null;
 	}
 
-	public BufferWriter[] getWriters() {
+	public ResultPartitionWriter[] getWriters() {
 		return environment != null ? environment.getAllWriters() : null;
 	}
 
-	public IntermediateResultPartition[] getProducedPartitions() {
+	public ResultPartition[] getProducedPartitions() {
 		return environment != null ? environment.getProducedPartitions() : null;
 	}
 

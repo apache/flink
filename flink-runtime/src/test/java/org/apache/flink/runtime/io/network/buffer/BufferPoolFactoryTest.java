@@ -124,7 +124,7 @@ public class BufferPoolFactoryTest {
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() / 2, second.getNumBuffers());
 
-		first.destroy();
+		first.lazyDestroy();
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), second.getNumBuffers());
 	}

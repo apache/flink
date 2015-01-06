@@ -20,9 +20,11 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -90,17 +92,32 @@ public class IOManagerTest {
 		}
 
 		@Override
-		public BlockChannelWriter createBlockChannelWriter(ID channelID, LinkedBlockingQueue<MemorySegment> returnQueue) {
+		public BlockChannelWriter<MemorySegment> createBlockChannelWriter(ID channelID, LinkedBlockingQueue<MemorySegment> returnQueue) {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public BlockChannelWriterWithCallback createBlockChannelWriter(ID channelID, RequestDoneCallback<MemorySegment> callback) {
+		public BlockChannelWriterWithCallback<MemorySegment> createBlockChannelWriter(ID channelID, RequestDoneCallback<MemorySegment> callback) {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public BlockChannelReader createBlockChannelReader(ID channelID, LinkedBlockingQueue<MemorySegment> returnQueue) {
+		public BlockChannelReader<MemorySegment> createBlockChannelReader(ID channelID, LinkedBlockingQueue<MemorySegment> returnQueue) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public BufferFileWriter createBufferFileWriter(ID channelID) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public BufferFileReader createBufferFileReader(ID channelID, RequestDoneCallback<Buffer> callback) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public BufferFileSegmentReader createBufferFileSegmentReader(ID channelID, RequestDoneCallback<FileSegment> callback) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 

@@ -24,7 +24,6 @@ import org.apache.flink.runtime.io.network.api.serialization.types.Serialization
 import org.apache.flink.runtime.io.network.api.serialization.types.Util;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.io.network.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.junit.Assert;
 import org.junit.Test;
 

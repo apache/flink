@@ -43,4 +43,9 @@ public class ExecutionEdge {
 	public int getInputNum() {
 		return inputNum;
 	}
+
+	@Override
+	public String toString() {
+		return "ExecutionEdge [" + source + " <=> " + target + "]";
+	}
 }

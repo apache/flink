@@ -21,15 +21,13 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.flink.core.memory.MemorySegment;
-
 /**
  * A writer that writes data in blocks to a file channel. The writer receives the data blocks in the form of 
  * {@link org.apache.flink.core.memory.MemorySegment}, which it writes entirely to the channel,
  * regardless of how space in the segment is used. The writing may be realized synchronously, or asynchronously,
  * depending on the implementation.
  */
-public interface BlockChannelWriter extends BlockChannelWriterWithCallback {
+public interface BlockChannelWriter<T> extends BlockChannelWriterWithCallback<T> {
 	
 	/**
 	 * Gets the next memory segment that has been written and is available again.
@@ -37,13 +35,13 @@ public interface BlockChannelWriter extends BlockChannelWriterWithCallback {
 	 * writer is closed.
 	 * <p>
 	 * NOTE: If this method is invoked without any segment ever returning (for example, because the
-	 * {@link #writeBlock(MemorySegment)} method has not been invoked accordingly), the method may block
+	 * {@link #writeBlock(T)} method has not been invoked accordingly), the method may block
 	 * forever.
 	 * 
 	 * @return The next memory segment from the writers's return queue.
 	 * @throws IOException Thrown, if an I/O error occurs in the writer while waiting for the request to return.
 	 */
-	MemorySegment getNextReturnedSegment() throws IOException;
+	T getNextReturnedBlock() throws IOException;
 	
 	/**
 	 * Gets the queue in which the memory segments are queued after the asynchronous write
@@ -51,5 +49,5 @@ public interface BlockChannelWriter extends BlockChannelWriterWithCallback {
 	 * 
 	 * @return The queue with the written memory segments.
 	 */
-	LinkedBlockingQueue<MemorySegment> getReturnQueue();
+	LinkedBlockingQueue<T> getReturnQueue();
 }

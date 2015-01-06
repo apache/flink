@@ -42,7 +42,7 @@ public class SpillingBuffer extends AbstractPagedOutputView {
 	
 	private final MemorySegmentSource memorySource;
 	
-	private BlockChannelWriter writer;
+	private BlockChannelWriter<MemorySegment> writer;
 	
 	private RandomAccessInputView inMemInView;
 	
@@ -86,7 +86,7 @@ public class SpillingBuffer extends AbstractPagedOutputView {
 					this.writer.writeBlock(this.fullSegments.get(i));
 				}
 				this.fullSegments.clear();
-				final MemorySegment seg = this.writer.getNextReturnedSegment();
+				final MemorySegment seg = this.writer.getNextReturnedBlock();
 				this.numMemorySegmentsInWriter--;
 				return seg;
 			}
@@ -94,7 +94,7 @@ public class SpillingBuffer extends AbstractPagedOutputView {
 			// spilling
 			this.writer.writeBlock(current);
 			this.blockCount++;
-			return this.writer.getNextReturnedSegment();
+			return this.writer.getNextReturnedBlock();
 		}
 	}
 	
@@ -116,7 +116,7 @@ public class SpillingBuffer extends AbstractPagedOutputView {
 				this.blockCount++;
 				this.writer.close();
 				for (int i = this.numMemorySegmentsInWriter; i > 0; i--) {
-					this.fullSegments.add(this.writer.getNextReturnedSegment());
+					this.fullSegments.add(this.writer.getNextReturnedBlock());
 				}
 				this.numMemorySegmentsInWriter = 0;
 			}
@@ -135,7 +135,7 @@ public class SpillingBuffer extends AbstractPagedOutputView {
 				this.externalInView.close();
 			}
 			
-			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(this.writer.getChannelID());
+			final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(this.writer.getChannelID());
 			this.externalInView = new HeaderlessChannelReaderInputView(reader, this.fullSegments, this.blockCount, this.numBytesInLastSegment, false);
 			return this.externalInView;
 		}
@@ -161,7 +161,7 @@ public class SpillingBuffer extends AbstractPagedOutputView {
 			// closing before the first flip, collect the memory in the writer
 			this.writer.close();
 			for (int i = this.numMemorySegmentsInWriter; i > 0; i--) {
-				segments.add(this.writer.getNextReturnedSegment());
+				segments.add(this.writer.getNextReturnedBlock());
 			}
 			this.writer.closeAndDelete();
 			this.writer = null;

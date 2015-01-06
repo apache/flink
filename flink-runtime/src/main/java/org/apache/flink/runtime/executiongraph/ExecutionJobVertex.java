@@ -18,13 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.api.common.io.StrictlyLocalAssignment;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -39,12 +32,18 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.slf4j.Logger;
-
 import scala.concurrent.duration.FiniteDuration;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 public class ExecutionJobVertex implements Serializable {
@@ -82,7 +81,6 @@ public class ExecutionJobVertex implements Serializable {
 	
 	private InputSplitAssigner splitAssigner;
 	
-	
 	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex,
 							int defaultParallelism, FiniteDuration timeout) throws JobException {
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
@@ -118,11 +116,14 @@ public class ExecutionJobVertex implements Serializable {
 		
 		// create the intermediate results
 		this.producedDataSets = new IntermediateResult[jobVertex.getNumberOfProducedIntermediateDataSets()];
+
 		for (int i = 0; i < jobVertex.getProducedDataSets().size(); i++) {
-			IntermediateDataSet set = jobVertex.getProducedDataSets().get(i);
-			this.producedDataSets[i] = new IntermediateResult(set.getId(), this, numTaskVertices);
+			final IntermediateDataSet result = jobVertex.getProducedDataSets().get(i);
+
+			this.producedDataSets[i] = new IntermediateResult(
+					result.getId(), this, numTaskVertices, result.getResultType());
 		}
-		
+
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {
 			ExecutionVertex vertex = new ExecutionVertex(this, i, this.producedDataSets, timeout, createTimestamp);
@@ -373,6 +374,11 @@ public class ExecutionJobVertex implements Serializable {
 			}
 			catch (Throwable t) {
 				throw new RuntimeException("Re-creating the input split assigner failed: " + t.getMessage(), t);
+			}
+
+			// Reset intermediate results
+			for (IntermediateResult result : producedDataSets) {
+				result.resetForNewExecution();
 			}
 		}
 	}

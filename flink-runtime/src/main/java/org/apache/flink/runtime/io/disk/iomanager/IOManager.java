@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +35,21 @@ import java.util.concurrent.LinkedBlockingQueue;
  * The facade for the provided I/O manager services.
  */
 public abstract class IOManager {
+
+	public enum IOMode {
+
+		SYNC(true), ASYNC(false);
+
+		private final boolean isSynchronous;
+
+		IOMode(boolean isSynchronous) {
+			this.isSynchronous = isSynchronous;
+		}
+
+		public boolean isSynchronous() {
+			return isSynchronous;
+		}
+	}
 
 	/** Logging */
 	protected static final Logger LOG = LoggerFactory.getLogger(IOManager.class);
@@ -190,7 +206,7 @@ public abstract class IOManager {
 	 * @return A block channel writer that writes to the given channel.
 	 * @throws IOException Thrown, if the channel for the writer could not be opened.
 	 */
-	public BlockChannelWriter createBlockChannelWriter(FileIOChannel.ID channelID) throws IOException {
+	public BlockChannelWriter<MemorySegment> createBlockChannelWriter(FileIOChannel.ID channelID) throws IOException {
 		return createBlockChannelWriter(channelID, new LinkedBlockingQueue<MemorySegment>());
 	}
 
@@ -203,7 +219,7 @@ public abstract class IOManager {
 	 * @return A block channel writer that writes to the given channel.
 	 * @throws IOException Thrown, if the channel for the writer could not be opened.
 	 */
-	public abstract BlockChannelWriter createBlockChannelWriter(FileIOChannel.ID channelID,
+	public abstract BlockChannelWriter<MemorySegment> createBlockChannelWriter(FileIOChannel.ID channelID,
 				LinkedBlockingQueue<MemorySegment> returnQueue) throws IOException;
 
 	/**
@@ -216,7 +232,7 @@ public abstract class IOManager {
 	 * @return A block channel writer that writes to the given channel.
 	 * @throws IOException Thrown, if the channel for the writer could not be opened.
 	 */
-	public abstract BlockChannelWriterWithCallback createBlockChannelWriter(FileIOChannel.ID channelID, RequestDoneCallback<MemorySegment> callback) throws IOException;
+	public abstract BlockChannelWriterWithCallback<MemorySegment> createBlockChannelWriter(FileIOChannel.ID channelID, RequestDoneCallback<MemorySegment> callback) throws IOException;
 
 	/**
 	 * Creates a block channel reader that reads blocks from the given channel. The reader pushed
@@ -227,7 +243,7 @@ public abstract class IOManager {
 	 * @return A block channel reader that reads from the given channel.
 	 * @throws IOException Thrown, if the channel for the reader could not be opened.
 	 */
-	public BlockChannelReader createBlockChannelReader(FileIOChannel.ID channelID) throws IOException {
+	public BlockChannelReader<MemorySegment> createBlockChannelReader(FileIOChannel.ID channelID) throws IOException {
 		return createBlockChannelReader(channelID, new LinkedBlockingQueue<MemorySegment>());
 	}
 
@@ -240,8 +256,14 @@ public abstract class IOManager {
 	 * @return A block channel reader that reads from the given channel.
 	 * @throws IOException Thrown, if the channel for the reader could not be opened.
 	 */
-	public abstract BlockChannelReader createBlockChannelReader(FileIOChannel.ID channelID,
+	public abstract BlockChannelReader<MemorySegment> createBlockChannelReader(FileIOChannel.ID channelID,
 										LinkedBlockingQueue<MemorySegment> returnQueue) throws IOException;
+
+	public abstract BufferFileWriter createBufferFileWriter(FileIOChannel.ID channelID) throws IOException;
+
+	public abstract BufferFileReader createBufferFileReader(FileIOChannel.ID channelID, RequestDoneCallback<Buffer> callback) throws IOException;
+
+	public abstract BufferFileSegmentReader createBufferFileSegmentReader(FileIOChannel.ID channelID, RequestDoneCallback<FileSegment> callback) throws IOException;
 
 	/**
 	 * Creates a block channel reader that reads all blocks from the given channel directly in one bulk.

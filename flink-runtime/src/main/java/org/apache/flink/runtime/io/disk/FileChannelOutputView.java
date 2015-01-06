@@ -35,7 +35,7 @@ import org.apache.flink.runtime.memorymanager.MemoryManager;
  */
 public class FileChannelOutputView extends AbstractPagedOutputView {
 	
-	private final BlockChannelWriter writer;		// the writer to the channel
+	private final BlockChannelWriter<MemorySegment> writer;		// the writer to the channel
 	
 	private final MemoryManager memManager;
 	
@@ -47,7 +47,7 @@ public class FileChannelOutputView extends AbstractPagedOutputView {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public FileChannelOutputView(BlockChannelWriter writer, MemoryManager memManager, List<MemorySegment> memory, int segmentSize) throws IOException {
+	public FileChannelOutputView(BlockChannelWriter<MemorySegment> writer, MemoryManager memManager, List<MemorySegment> memory, int segmentSize) throws IOException {
 		super(segmentSize, 0);
 		
 		checkNotNull(writer);
@@ -137,7 +137,7 @@ public class FileChannelOutputView extends AbstractPagedOutputView {
 		if (current != null) {
 			writeSegment(current, posInSegment);
 		}
-		return writer.getNextReturnedSegment();
+		return writer.getNextReturnedBlock();
 	}
 	
 	private void writeSegment(MemorySegment segment, int writePosition) throws IOException {

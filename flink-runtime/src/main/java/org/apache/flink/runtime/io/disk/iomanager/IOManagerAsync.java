@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import java.io.IOException;
@@ -143,7 +144,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 			}
 		}
 		finally {
-			// make sure we all the super implementation in any case and at the last point,
+			// make sure we call the super implementation in any case and at the last point,
 			// because this will clean up the I/O directories
 			super.shutdown();
 		}
@@ -182,7 +183,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public BlockChannelWriter createBlockChannelWriter(FileIOChannel.ID channelID,
+	public BlockChannelWriter<MemorySegment> createBlockChannelWriter(FileIOChannel.ID channelID,
 								LinkedBlockingQueue<MemorySegment> returnQueue) throws IOException
 	{
 		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
@@ -190,7 +191,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	}
 	
 	@Override
-	public BlockChannelWriterWithCallback createBlockChannelWriter(FileIOChannel.ID channelID, RequestDoneCallback<MemorySegment> callback) throws IOException {
+	public BlockChannelWriterWithCallback<MemorySegment> createBlockChannelWriter(FileIOChannel.ID channelID, RequestDoneCallback<MemorySegment> callback) throws IOException {
 		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
 		return new AsynchronousBlockWriterWithCallback(channelID, this.writers[channelID.getThreadNum()].requestQueue, callback);
 	}
@@ -206,13 +207,34 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	 * @throws IOException Thrown, if the channel for the reader could not be opened.
 	 */
 	@Override
-	public BlockChannelReader createBlockChannelReader(FileIOChannel.ID channelID,
+	public BlockChannelReader<MemorySegment> createBlockChannelReader(FileIOChannel.ID channelID,
 										LinkedBlockingQueue<MemorySegment> returnQueue) throws IOException
 	{
 		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
 		return new AsynchronousBlockReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, returnQueue);
 	}
-	
+
+	@Override
+	public BufferFileWriter createBufferFileWriter(FileIOChannel.ID channelID) throws IOException {
+		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
+
+		return new AsynchronousBufferFileWriter(channelID, writers[channelID.getThreadNum()].requestQueue);
+	}
+
+	@Override
+	public BufferFileReader createBufferFileReader(FileIOChannel.ID channelID, RequestDoneCallback<Buffer> callback) throws IOException {
+		checkState(!isShutdown.get(), "I/O-Manger is shut down.");
+
+		return new AsynchronousBufferFileReader(channelID, readers[channelID.getThreadNum()].requestQueue, callback);
+	}
+
+	@Override
+	public BufferFileSegmentReader createBufferFileSegmentReader(FileIOChannel.ID channelID, RequestDoneCallback<FileSegment> callback) throws IOException {
+		checkState(!isShutdown.get(), "I/O-Manger is shut down.");		
+
+		return new AsynchronousBufferFileSegmentReader(channelID, readers[channelID.getThreadNum()].requestQueue, callback);
+	}
+
 	/**
 	 * Creates a block channel reader that reads all blocks from the given channel directly in one bulk.
 	 * The reader draws segments to read the blocks into from a supplied list, which must contain as many
