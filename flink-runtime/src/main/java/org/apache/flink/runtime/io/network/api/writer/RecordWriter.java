@@ -73,10 +73,6 @@ public class RecordWriter<T extends IOReadableWritable> {
 		}
 	}
 
-	public boolean isFinished() {
-		return writer.isFinished();
-	}
-
 	public void emit(T record) throws IOException, InterruptedException {
 		for (int targetChannel : channelSelector.selectChannels(record, numChannels)) {
 			// serialize with corresponding serializer and send full buffer

@@ -77,7 +77,7 @@ public class BufferTest {
 		// declared methods as Mockito adds some of its own.
 		for (final Method method : buffer.getClass().getDeclaredMethods()) {
 			if (Modifier.isPublic(method.getModifiers()) && !method.getName().equals("toString")
-					&& !method.getName().equals("isRecycled") && !method.getName().equals("isBuffer")) {
+					&& !method.getName().equals("isRecycled") && !method.getName().equals("isBuffer") && !method.getName().equals("getSize")) {
 				// Get method of the spied buffer to allow argument matchers
 				final Method spyMethod = spyBuffer.getClass().getDeclaredMethod(method.getName(), method.getParameterTypes());
 

@@ -16,18 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.queue;
+package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public class IllegalQueueIteratorRequestException extends IOException {
+public class AsynchronousBufferFileSegmentReader extends AsynchronousFileIOChannel<FileSegment, ReadRequest> implements BufferFileSegmentReader {
 
-	private static final long serialVersionUID = 8381253563445306324L;
+	private final AtomicBoolean isConsumed = new AtomicBoolean();
 
-	public IllegalQueueIteratorRequestException() {
+	protected AsynchronousBufferFileSegmentReader(ID channelID, RequestQueue<ReadRequest> requestQueue, RequestDoneCallback<FileSegment> callback) throws IOException {
+		super(channelID, requestQueue, callback, false);
 	}
 
-	public IllegalQueueIteratorRequestException(String message) {
-		super(message);
+	@Override
+	public void read() throws IOException {
+		addRequest(new FileSegmentReadRequest(this, isConsumed));
+	}
+
+	@Override
+	public void seekTo(long position) throws IOException {
+		requestQueue.add(new SeekRequest(this, position));
+	}
+
+	@Override
+	public boolean isConsumed() {
+		return isConsumed.get();
 	}
 }

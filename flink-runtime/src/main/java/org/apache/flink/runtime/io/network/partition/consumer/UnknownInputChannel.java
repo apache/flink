@@ -23,7 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.RemoteAddress;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 
 import java.io.IOException;
 
@@ -35,7 +35,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class UnknownInputChannel extends InputChannel {
 
-	public UnknownInputChannel(int channelIndex, ExecutionAttemptID producerExecutionId, IntermediateResultPartitionID partitionId, BufferReader reader) {
+	public UnknownInputChannel(int channelIndex, ExecutionAttemptID producerExecutionId, ResultPartitionID partitionId, BufferReader reader) {
 		super(channelIndex, producerExecutionId, partitionId, reader);
 	}
 

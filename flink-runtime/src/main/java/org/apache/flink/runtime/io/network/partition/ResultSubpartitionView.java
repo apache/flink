@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.queue;
+package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.event.NotificationListener;
 
 import java.io.IOException;
 
-public interface IntermediateResultPartitionQueueIterator {
+public interface ResultSubpartitionView {
 
 	// ------------------------------------------------------------------------
 	// Properties
@@ -53,17 +53,17 @@ public interface IntermediateResultPartitionQueueIterator {
 	Buffer getNextBuffer() throws IOException;
 
 	/**
-	 * Discards the consumption of this queue iterator.
-	 */
-	void discard() throws IOException;
-
-	/**
 	 * Subscribes to data availability notifications.
 	 * <p>
 	 * Returns whether the subscription was successful. A subscription fails,
 	 * if there is data available.
 	 */
-	boolean subscribe(NotificationListener listener) throws AlreadySubscribedException;
+	boolean subscribe(NotificationListener listener) throws IOException;
+
+	/**
+	 * Discards the consumption of this queue iterator.
+	 */
+	void release() throws IOException;
 
 	// ------------------------------------------------------------------------
 

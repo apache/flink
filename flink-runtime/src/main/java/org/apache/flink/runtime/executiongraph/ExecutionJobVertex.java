@@ -18,15 +18,11 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -34,11 +30,16 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.slf4j.Logger;
 import scala.concurrent.duration.FiniteDuration;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 
 public class ExecutionJobVertex implements Serializable {
@@ -109,9 +110,22 @@ public class ExecutionJobVertex implements Serializable {
 		
 		// create the intermediate results
 		this.producedDataSets = new IntermediateResult[jobVertex.getNumberOfProducedIntermediateDataSets()];
+
+		ResultPartitionType type = null;
+
 		for (int i = 0; i < jobVertex.getProducedDataSets().size(); i++) {
 			IntermediateDataSet set = jobVertex.getProducedDataSets().get(i);
-			this.producedDataSets[i] = new IntermediateResult(set.getId(), this, numTaskVertices);
+
+			if (type == null) {
+				type = set.getRuntimeType();
+			}
+			else if (type != set.getRuntimeType()) {
+				// TODO This is currently necessary, because otherwise mixing pipelined and blocking
+				// results will result in the early deployment of blocking results.
+				throw new IllegalArgumentException("All produced intermediate results must be of the same type.");
+			}
+
+			this.producedDataSets[i] = new IntermediateResult(set.getId(), this, numTaskVertices, set.getRuntimeType());
 		}
 		
 		// create all task vertices
@@ -123,7 +137,7 @@ public class ExecutionJobVertex implements Serializable {
 		// sanity check for the double referencing between intermediate result partitions and execution vertices
 		for (IntermediateResult ir : this.producedDataSets) {
 			if (ir.getNumberOfAssignedPartitions() != parallelism) {
-				throw new RuntimeException("The intermediate result's partitions were not correctly assiged.");
+				throw new RuntimeException("The intermediate result's partitions were not correctly assigned.");
 			}
 		}
 		

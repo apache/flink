@@ -36,13 +36,13 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.UnknownInputChannel;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.util.event.EventNotificationHandler;
 import org.slf4j.Logger;
@@ -77,7 +77,7 @@ public final class BufferReader implements BufferReaderBase {
 
 	private final int queueToRequest;
 
-	private final Map<IntermediateResultPartitionID, InputChannel> inputChannels;
+	private final Map<ResultPartitionID, InputChannel> inputChannels;
 
 	private BufferPool bufferPool;
 
@@ -137,7 +137,7 @@ public final class BufferReader implements BufferReaderBase {
 		return environment.getTaskNameWithSubtasks();
 	}
 
-	public IntermediateResultPartitionProvider getIntermediateResultPartitionProvider() {
+	public ResultPartitionProvider getIntermediateResultPartitionProvider() {
 		return networkEnvironment.getPartitionManager();
 	}
 
@@ -168,7 +168,7 @@ public final class BufferReader implements BufferReaderBase {
 		return bufferPool;
 	}
 
-	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
+	public void setInputChannel(ResultPartitionID partitionId, InputChannel inputChannel) {
 		synchronized (requestLock) {
 			inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel));
 		}
@@ -181,7 +181,7 @@ public final class BufferReader implements BufferReaderBase {
 				return;
 			}
 
-			final IntermediateResultPartitionID partitionId = partitionInfo.getPartitionId();
+			final ResultPartitionID partitionId = partitionInfo.getPartitionId();
 
 			InputChannel current = inputChannels.get(partitionId);
 
@@ -346,7 +346,7 @@ public final class BufferReader implements BufferReaderBase {
 					// The buffer pool can actually be destroyed immediately after the
 					// reader received all of the data from the input channels.
 					if (bufferPool != null) {
-						bufferPool.destroy();
+						bufferPool.lazyDestroy();
 					}
 				}
 				finally {
@@ -457,7 +457,7 @@ public final class BufferReader implements BufferReaderBase {
 
 		for (PartitionInfo partition : partitions) {
 			final ExecutionAttemptID producerExecutionId = partition.getProducerExecutionId();
-			final IntermediateResultPartitionID partitionId = partition.getPartitionId();
+			final ResultPartitionID partitionId = partition.getPartitionId();
 
 			final PartitionLocation producerLocation = partition.getProducerLocation();
 

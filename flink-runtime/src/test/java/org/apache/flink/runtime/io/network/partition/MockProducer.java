@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueue;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,9 +28,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class MockProducer implements Callable<Boolean> {
 
-	private static final int SLEEP_TIME_MS = 20;
+	public static final int SLEEP_TIME_MS = 20;
 
-	private final IntermediateResultPartitionQueue queue;
+	private final ResultSubpartition queue;
 
 	private final BufferPool bufferPool;
 
@@ -43,7 +42,7 @@ public class MockProducer implements Callable<Boolean> {
 
 	private final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
-	public MockProducer(IntermediateResultPartitionQueue queue, BufferPool bufferPool, int numBuffersToProduce, boolean slowProducer) {
+	public MockProducer(ResultSubpartition queue, BufferPool bufferPool, int numBuffersToProduce, boolean slowProducer) {
 		this.queue = queue;
 		this.bufferPool = bufferPool;
 		this.numBuffersToProduce = numBuffersToProduce;
@@ -57,7 +56,7 @@ public class MockProducer implements Callable<Boolean> {
 
 			for (int i = 0; i < numBuffersToProduce; i++) {
 				if (i >= discardAfter.get()) {
-					queue.discard();
+					queue.release();
 					return true;
 				}
 
@@ -97,7 +96,7 @@ public class MockProducer implements Callable<Boolean> {
 	public static int fillBufferWithAscendingNumbers(Buffer buffer, int currentNumber) {
 		MemorySegment segment = buffer.getMemorySegment();
 
-		for (int i = 4; i < segment.size(); i += 4) {
+		for (int i = 0; i < segment.size(); i += 4) {
 			segment.putInt(i, currentNumber++);
 		}
 

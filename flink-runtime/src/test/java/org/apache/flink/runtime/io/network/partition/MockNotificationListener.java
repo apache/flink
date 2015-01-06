@@ -35,8 +35,15 @@ public class MockNotificationListener implements NotificationListener {
 		}
 	}
 
-	public void waitForNotification() throws InterruptedException {
+	public void waitForNotification(int current) throws InterruptedException {
+		synchronized (numNotifications) {
+			while (current == numNotifications.get()) {
+				numNotifications.wait();
+			}
+		}
+	}
 
+	public void waitForNotification() throws InterruptedException {
 		int current = numNotifications.get();
 
 		synchronized (numNotifications) {
@@ -48,5 +55,9 @@ public class MockNotificationListener implements NotificationListener {
 
 	public int getNumberOfNotifications() {
 		return numNotifications.get();
+	}
+
+	public void reset() {
+		numNotifications.set(0);
 	}
 }

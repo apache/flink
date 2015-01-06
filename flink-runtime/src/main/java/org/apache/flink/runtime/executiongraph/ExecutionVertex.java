@@ -67,7 +67,7 @@ public class ExecutionVertex implements Serializable {
 	
 	private final ExecutionJobVertex jobVertex;
 	
-	private transient final IntermediateResultPartition[] resultPartitions;
+	transient final IntermediateResultPartition[] resultPartitions;
 	
 	private transient final ExecutionEdge[][] inputEdges;
 	
@@ -367,7 +367,11 @@ public class ExecutionVertex implements Serializable {
 
 		IntermediateResultPartition partition = resultPartitions[partitionIndex];
 
-		return currentExecution.scheduleOrUpdateConsumers(partition.getConsumers());
+		if (partition.finish()) {
+			return currentExecution.scheduleOrUpdateConsumers(partition.getConsumers());
+		}
+
+		return true;
 	}
 
 	// --------------------------------------------------------------------------------------------

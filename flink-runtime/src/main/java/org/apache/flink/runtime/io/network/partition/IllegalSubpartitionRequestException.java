@@ -16,36 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph;
+package org.apache.flink.runtime.io.network.partition;
 
-public enum IntermediateResultPartitionType {
+import java.io.IOException;
 
-	BLOCKING(true, false, false),
+public class IllegalSubpartitionRequestException extends IOException {
 
-	PIPELINED(false, true, true),
-	PIPELINED_PERSISTENT(true, true, true);
+	private static final long serialVersionUID = 8381253563445306324L;
 
-	private final boolean isPersistent;
-
-	private final boolean isPipelined;
-
-	private final boolean hasBackPressure;
-
-	IntermediateResultPartitionType(boolean isPersistent, boolean isPipelined, boolean hasBackPressure) {
-		this.isPersistent = isPersistent;
-		this.isPipelined = isPipelined;
-		this.hasBackPressure = hasBackPressure;
+	public IllegalSubpartitionRequestException() {
 	}
 
-	public boolean hasBackPressure() {
-		return hasBackPressure;
-	}
-
-	public boolean isPipelined() {
-		return isPipelined;
-	}
-
-	public boolean isPersistent() {
-		return isPersistent;
+	public IllegalSubpartitionRequestException(String message) {
+		super(message);
 	}
 }

@@ -23,7 +23,7 @@ import com.google.common.collect.Table;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 import org.apache.flink.runtime.util.event.EventListener;
 
 import java.util.ArrayList;
@@ -39,9 +39,9 @@ import java.util.List;
  */
 public class TaskEventDispatcher {
 
-	Table<ExecutionAttemptID, IntermediateResultPartitionID, BufferWriter> registeredWriters = HashBasedTable.create();
+	Table<ExecutionAttemptID, ResultPartitionID, BufferWriter> registeredWriters = HashBasedTable.create();
 
-	public void registerWriterForIncomingTaskEvents(ExecutionAttemptID executionId, IntermediateResultPartitionID partitionId, BufferWriter listener) {
+	public void registerWriterForIncomingTaskEvents(ExecutionAttemptID executionId, ResultPartitionID partitionId, BufferWriter listener) {
 		synchronized (registeredWriters) {
 			if (registeredWriters.put(executionId, partitionId, listener) != null) {
 				throw new IllegalStateException("Event dispatcher already contains buffer writer.");
@@ -51,13 +51,13 @@ public class TaskEventDispatcher {
 
 	public void unregisterWriters(ExecutionAttemptID executionId) {
 		synchronized (registeredWriters) {
-			List<IntermediateResultPartitionID> writersToUnregister = new ArrayList<IntermediateResultPartitionID>();
+			List<ResultPartitionID> writersToUnregister = new ArrayList<ResultPartitionID>();
 
-			for (IntermediateResultPartitionID partitionId : registeredWriters.row(executionId).keySet()) {
+			for (ResultPartitionID partitionId : registeredWriters.row(executionId).keySet()) {
 				writersToUnregister.add(partitionId);
 			}
 
-			for(IntermediateResultPartitionID partitionId : writersToUnregister) {
+			for(ResultPartitionID partitionId : writersToUnregister) {
 				registeredWriters.remove(executionId, partitionId);
 			}
 		}
@@ -69,7 +69,7 @@ public class TaskEventDispatcher {
 	 * This method is either called from a local input channel or the network
 	 * I/O thread on behalf of a remote input channel.
 	 */
-	public boolean publish(ExecutionAttemptID executionId, IntermediateResultPartitionID partitionId, TaskEvent event) {
+	public boolean publish(ExecutionAttemptID executionId, ResultPartitionID partitionId, TaskEvent event) {
 		EventListener<TaskEvent> listener = registeredWriters.get(executionId, partitionId);
 
 		if (listener != null) {

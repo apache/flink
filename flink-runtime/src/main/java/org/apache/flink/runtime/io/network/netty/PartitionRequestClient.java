@@ -25,7 +25,7 @@ import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.RemoteAddress;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 import org.apache.flink.runtime.util.AtomicDisposableReferenceCounter;
 
 import java.io.IOException;
@@ -76,7 +76,7 @@ public class PartitionRequestClient {
 	 * The request goes to the remote producer, for which this partition
 	 * request client instance has been created.
 	 */
-	public void requestIntermediateResultPartition(ExecutionAttemptID producerExecutionId, final IntermediateResultPartitionID partitionId, final int requestedQueueIndex, final RemoteInputChannel inputChannel) throws IOException {
+	public void requestIntermediateResultPartition(ExecutionAttemptID producerExecutionId, final ResultPartitionID partitionId, final int requestedQueueIndex, final RemoteInputChannel inputChannel) throws IOException {
 		partitionRequestHandler.addInputChannel(inputChannel);
 
 		tcpChannel.writeAndFlush(new PartitionRequest(producerExecutionId, partitionId, requestedQueueIndex, inputChannel.getInputChannelId()))
@@ -101,7 +101,7 @@ public class PartitionRequestClient {
 	 * guaranteed to be the case when both the respective producer and
 	 * consumer task run pipelined.
 	 */
-	public void sendTaskEvent(ExecutionAttemptID producerExecutionId, IntermediateResultPartitionID partitionId, TaskEvent event, final RemoteInputChannel inputChannel) throws IOException {
+	public void sendTaskEvent(ExecutionAttemptID producerExecutionId, ResultPartitionID partitionId, TaskEvent event, final RemoteInputChannel inputChannel) throws IOException {
 
 		tcpChannel.writeAndFlush(new TaskEventRequest(event, producerExecutionId, partitionId, inputChannel.getInputChannelId()))
 				.addListener(

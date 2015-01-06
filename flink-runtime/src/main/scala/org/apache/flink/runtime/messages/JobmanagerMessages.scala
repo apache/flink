@@ -78,14 +78,14 @@ object JobManagerMessages {
    * <p>
    * There is a call to this method for each
    * [[org.apache.flink.runtime.executiongraph.ExecutionVertex]] instance once per produced
-   * [[org.apache.flink.runtime.io.network.partition.IntermediateResultPartition]] instance,
+   * [[org.apache.flink.runtime.io.network.partition.ResultPartition]] instance,
    * either when first producing data (for pipelined executions) or when all data has been produced
    * (for staged executions).
    * <p>
    * The [[org.apache.flink.runtime.jobmanager.JobManager]] then can decide when to schedule the
    * partition consumers of the given session.
    *
-   * @see [[org.apache.flink.runtime.io.network.partition.IntermediateResultPartition]]
+   * @see [[org.apache.flink.runtime.io.network.partition.ResultPartition]]
    */
   case class ScheduleOrUpdateConsumers(jobId: JobID,
                                        executionId: ExecutionAttemptID,

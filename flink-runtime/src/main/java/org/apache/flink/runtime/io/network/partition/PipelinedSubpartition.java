@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.queue;
+package org.apache.flink.runtime.io.network.partition;
 
 import com.google.common.base.Optional;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -29,9 +29,9 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 
 /**
- * An in-memory only queue, which can be consumed once by a single consumer.
+ * An in-memory only subpartition, which can be consumed once by a single consumer.
  */
-public class PipelinedPartitionQueue implements IntermediateResultPartitionQueue {
+public class PipelinedSubpartition extends ResultSubpartition {
 
 	final Queue<Buffer> queue = new ArrayDeque<Buffer>();
 
@@ -43,11 +43,17 @@ public class PipelinedPartitionQueue implements IntermediateResultPartitionQueue
 
 	private boolean hasConsumer;
 
+	public PipelinedSubpartition(int index, ResultPartition parent) {
+		super(index, parent);
+	}
+
 	@Override
 	public void add(Buffer buffer) {
 		synchronized (queue) {
 			if (!hasFinishedProduce) {
 				queue.add(buffer);
+
+				updateStatistics(buffer);
 
 				maybeNotifyListener();
 			}
@@ -80,13 +86,13 @@ public class PipelinedPartitionQueue implements IntermediateResultPartitionQueue
 	}
 
 	@Override
-	public int recycleBuffers() {
+	public int releaseMemory() {
 		// Nothing to do here. Buffers are recycled when they are consumed.
 		return 0;
 	}
 
 	@Override
-	public void discard() {
+	public void release() {
 		synchronized (queue) {
 			Buffer buffer;
 			while ((buffer = queue.poll()) != null) {
@@ -103,19 +109,19 @@ public class PipelinedPartitionQueue implements IntermediateResultPartitionQueue
 	}
 
 	@Override
-	public IntermediateResultPartitionQueueIterator getQueueIterator(Optional<BufferProvider> bufferProvider) throws IllegalQueueIteratorRequestException {
+	public ResultSubpartitionView getReadView(Optional<BufferProvider> bufferProvider) throws IllegalSubpartitionRequestException {
 		synchronized (queue) {
 			if (hasBeenDiscarded) {
-				throw new IllegalQueueIteratorRequestException("Queue has been discarded during produce phase.");
+				throw new IllegalSubpartitionRequestException("Queue has been discarded during produce phase.");
 			}
 
 			if (hasConsumer) {
-				throw new IllegalQueueIteratorRequestException("Consumable once queue has been consumed/is being consumed.");
+				throw new IllegalSubpartitionRequestException("Consumable once queue has been consumed/is being consumed.");
 			}
 
 			hasConsumer = true;
 
-			return new PipelinedPartitionQueueIterator(this);
+			return new PipelinedSubpartitionView(this);
 		}
 	}
 
@@ -130,20 +136,35 @@ public class PipelinedPartitionQueue implements IntermediateResultPartitionQueue
 		}
 	}
 
-	private static class PipelinedPartitionQueueIterator implements IntermediateResultPartitionQueueIterator {
+	private static class PipelinedSubpartitionView implements ResultSubpartitionView {
 
-		private final PipelinedPartitionQueue partitionQueue;
+		private final PipelinedSubpartition partitionQueue;
 
 		private boolean isDiscarded;
 
-		private PipelinedPartitionQueueIterator(PipelinedPartitionQueue partitionQueue) {
+		private volatile boolean isConsumed;
+
+		private PipelinedSubpartitionView(PipelinedSubpartition partitionQueue) {
 			this.partitionQueue = partitionQueue;
 		}
 
 		@Override
 		public boolean isConsumed() {
+			if (isConsumed) {
+				return true;
+			}
+
 			synchronized (partitionQueue.queue) {
-				return (partitionQueue.isFinished() && partitionQueue.queue.isEmpty()) || partitionQueue.hasBeenDiscarded;
+				isConsumed = (partitionQueue.isFinished() && partitionQueue.queue.isEmpty()) || partitionQueue.hasBeenDiscarded;
+			}
+
+			if (isConsumed) {
+				partitionQueue.notifyConsumed();
+
+				return true;
+			}
+			else {
+				return false;
 			}
 		}
 
@@ -155,10 +176,10 @@ public class PipelinedPartitionQueue implements IntermediateResultPartitionQueue
 		}
 
 		@Override
-		public void discard() {
+		public void release() {
 			synchronized (partitionQueue.queue) {
 				if (!isDiscarded) {
-					partitionQueue.discard();
+					partitionQueue.release();
 
 					isDiscarded = true;
 				}

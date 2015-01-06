@@ -28,7 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.io.network.RemoteAddress;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -45,7 +45,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 		LOCAL, REMOTE, UNKNOWN
 	}
 
-	private final IntermediateResultPartitionID partitionId;
+	private final ResultPartitionID partitionId;
 
 	private ExecutionAttemptID producerExecutionId;
 
@@ -53,7 +53,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 
 	private RemoteAddress producerAddress; // != null, iff known remote producer
 
-	public PartitionInfo(IntermediateResultPartitionID partitionId, ExecutionAttemptID producerExecutionId, PartitionLocation producerLocation, RemoteAddress producerAddress) {
+	public PartitionInfo(ResultPartitionID partitionId, ExecutionAttemptID producerExecutionId, PartitionLocation producerLocation, RemoteAddress producerAddress) {
 		this.partitionId = checkNotNull(partitionId);
 		this.producerExecutionId = checkNotNull(producerExecutionId);
 		this.producerLocation = checkNotNull(producerLocation);
@@ -61,7 +61,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 	}
 
 	public PartitionInfo() {
-		this.partitionId = new IntermediateResultPartitionID();
+		this.partitionId = new ResultPartitionID();
 		this.producerExecutionId = new ExecutionAttemptID();
 		this.producerLocation = PartitionLocation.UNKNOWN;
 		this.producerAddress = null;
@@ -71,7 +71,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 	// Properties
 	// ------------------------------------------------------------------------
 
-	public IntermediateResultPartitionID getPartitionId() {
+	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
 
@@ -116,7 +116,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 
 	public static PartitionInfo fromEdge(ExecutionEdge edge, AllocatedSlot consumerSlot) {
 		IntermediateResultPartition partition = edge.getSource();
-		IntermediateResultPartitionID partitionId = partition.getPartitionId();
+		ResultPartitionID partitionId = partition.getPartitionId();
 
 		// Intermediate result partition producer
 		Execution producer = partition.getProducer().getCurrentExecutionAttempt();
@@ -130,7 +130,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 
 		// The producer needs to be running, otherwise the consumer might request a partition,
 		// which has not been registered yet.
-		if (producerSlot != null && producerState == ExecutionState.RUNNING) {
+		if (producerSlot != null && (producerState == ExecutionState.RUNNING || producerState == ExecutionState.FINISHED)) {
 			if (producerSlot.getInstance().equals(consumerSlot.getInstance())) {
 				producerLocation = PartitionLocation.LOCAL;
 			}

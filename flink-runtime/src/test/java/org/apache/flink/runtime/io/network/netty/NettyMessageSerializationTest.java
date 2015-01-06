@@ -26,7 +26,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
@@ -123,7 +123,7 @@ public class NettyMessageSerializationTest {
 		}
 
 		{
-			NettyMessage.PartitionRequest expected = new NettyMessage.PartitionRequest(new ExecutionAttemptID(), new IntermediateResultPartitionID(), random.nextInt(), new InputChannelID());
+			NettyMessage.PartitionRequest expected = new NettyMessage.PartitionRequest(new ExecutionAttemptID(), new ResultPartitionID(), random.nextInt(), new InputChannelID());
 			NettyMessage.PartitionRequest actual = encodeAndDecode(expected);
 
 			assertEquals(expected.producerExecutionId, actual.producerExecutionId);
@@ -133,7 +133,7 @@ public class NettyMessageSerializationTest {
 		}
 
 		{
-			NettyMessage.TaskEventRequest expected = new NettyMessage.TaskEventRequest(new IntegerTaskEvent(random.nextInt()), new ExecutionAttemptID(), new IntermediateResultPartitionID(), new InputChannelID());
+			NettyMessage.TaskEventRequest expected = new NettyMessage.TaskEventRequest(new IntegerTaskEvent(random.nextInt()), new ExecutionAttemptID(), new ResultPartitionID(), new InputChannelID());
 			NettyMessage.TaskEventRequest actual = encodeAndDecode(expected);
 
 			assertEquals(expected.executionId, actual.executionId);

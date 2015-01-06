@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class IntermediateResult {
 
@@ -37,9 +39,13 @@ public class IntermediateResult {
 
 	private final int connectionIndex;
 
-	private final IntermediateResultPartitionType resultType;
+	private final ResultPartitionType runtimeType;
 
-	public IntermediateResult(IntermediateDataSetID id, ExecutionJobVertex producer, int numParallelProducers) {
+	// Counter to keep track of how many of the parallel producers have entered the finished state
+	// for this this.
+	private final AtomicInteger runtimeCounter;
+
+	public IntermediateResult(IntermediateDataSetID id, ExecutionJobVertex producer, int numParallelProducers, ResultPartitionType runtimeType) {
 		this.id = id;
 		this.producer = producer;
 		this.partitions = new IntermediateResultPartition[numParallelProducers];
@@ -52,8 +58,9 @@ public class IntermediateResult {
 		this.connectionIndex = (int) (Math.random() * Integer.MAX_VALUE);
 
 		// The runtime type for this produced result
-		// TODO The JobGraph generator has to decide which type of result this is
-		this.resultType = IntermediateResultPartitionType.PIPELINED;
+		this.runtimeType = runtimeType;
+
+		this.runtimeCounter = new AtomicInteger(numParallelProducers);
 	}
 
 	public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -85,8 +92,8 @@ public class IntermediateResult {
 		return partitionsAssigned;
 	}
 
-	public IntermediateResultPartitionType getResultType() {
-		return resultType;
+	public ResultPartitionType getRuntimeType() {
+		return runtimeType;
 	}
 
 	public int registerConsumer() {
@@ -103,5 +110,9 @@ public class IntermediateResult {
 
 	public int getConnectionIndex() {
 		return connectionIndex;
+	}
+
+	int decrementAndGetCounter() {
+		return runtimeCounter.decrementAndGet();
 	}
 }

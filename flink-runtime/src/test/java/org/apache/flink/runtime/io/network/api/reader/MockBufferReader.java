@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.OngoingStubbing;
@@ -50,7 +50,7 @@ public class MockBufferReader {
 
 	public MockBufferReader() throws IOException {
 		reader = new BufferReader(mock(RuntimeEnvironment.class), MockNetworkEnvironment.getMock(), new IntermediateDataSetID(), 1, 0);
-		reader.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+		reader.setInputChannel(new ResultPartitionID(), inputChannel);
 	}
 
 	MockBufferReader read(Buffer buffer) throws IOException {

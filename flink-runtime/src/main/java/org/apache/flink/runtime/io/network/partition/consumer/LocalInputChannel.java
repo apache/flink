@@ -23,8 +23,8 @@ import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 import org.apache.flink.runtime.util.event.NotificationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,13 +40,13 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocalInputChannel.class);
 
-	private IntermediateResultPartitionQueueIterator queueIterator;
+	private ResultSubpartitionView queueIterator;
 
 	private boolean isReleased;
 
 	private Buffer lookAhead;
 
-	public LocalInputChannel(int channelIndex, ExecutionAttemptID producerExecutionId, IntermediateResultPartitionID partitionId, BufferReader reader) {
+	public LocalInputChannel(int channelIndex, ExecutionAttemptID producerExecutionId, ResultPartitionID partitionId, BufferReader reader) {
 		super(channelIndex, producerExecutionId, partitionId, reader);
 	}
 
@@ -62,7 +62,11 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 			}
 
 			queueIterator = reader.getIntermediateResultPartitionProvider()
-					.getIntermediateResultPartitionIterator(producerExecutionId, partitionId, queueIndex, Optional.of(reader.getBufferProvider()));
+					.getSubpartition(producerExecutionId, partitionId, queueIndex, Optional.of(reader.getBufferProvider()));
+
+			if (queueIterator == null) {
+				throw new IOException("Error requesting sub partition.");
+			}
 
 			getNextLookAhead();
 		}
@@ -70,7 +74,11 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 	@Override
 	public Buffer getNextBuffer() throws IOException {
-		checkState(queueIterator != null, "Queried for a buffer before requesting a queue.");
+		if (queueIterator == null) {
+
+			checkState(queueIterator != null, "Queried for a buffer before requesting a queue.");
+		}
+
 
 		// After subscribe notification
 		if (lookAhead == null) {
@@ -120,7 +128,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 			}
 
 			if (queueIterator != null) {
-				queueIterator.discard();
+				queueIterator.release();
 				queueIterator = null;
 			}
 

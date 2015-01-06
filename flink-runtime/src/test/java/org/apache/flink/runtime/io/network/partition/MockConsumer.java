@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,13 +28,13 @@ public class MockConsumer implements Callable<Boolean> {
 
 	private static final int SLEEP_TIME_MS = 20;
 
-	private final IntermediateResultPartitionQueueIterator iterator;
+	private final ResultSubpartitionView iterator;
 
 	private final boolean slowConsumer;
 
 	private final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
-	public MockConsumer(IntermediateResultPartitionQueueIterator iterator, boolean slowConsumer) {
+	public MockConsumer(ResultSubpartitionView iterator, boolean slowConsumer) {
 		this.iterator = iterator;
 		this.slowConsumer = slowConsumer;
 	}
@@ -89,7 +88,7 @@ public class MockConsumer implements Callable<Boolean> {
 	private int verifyBufferFilledWithAscendingNumbers(Buffer buffer, int currentNumber) {
 		MemorySegment segment = buffer.getMemorySegment();
 
-		for (int i = 4; i < segment.size(); i += 4) {
+		for (int i = 0; i < segment.size(); i += 4) {
 			if (segment.getInt(i) != currentNumber++) {
 				throw new IllegalStateException("Read unexpected number from buffer.");
 			}

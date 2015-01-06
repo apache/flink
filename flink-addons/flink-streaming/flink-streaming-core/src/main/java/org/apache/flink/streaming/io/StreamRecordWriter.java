@@ -70,7 +70,7 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		}
 		@Override
 		public void run() {
-			while (running && !writer.isFinished()) {
+			while (running) {
 				try {
 					flush();
 					Thread.sleep(timeout);

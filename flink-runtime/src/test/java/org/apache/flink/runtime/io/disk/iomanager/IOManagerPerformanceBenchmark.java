@@ -112,8 +112,8 @@ public class IOManagerPerformanceBenchmark {
 		final List<MemorySegment> memory = this.memManager.allocatePages(memoryOwner, numSegments);
 		final FileIOChannel.ID channel = this.ioManager.createChannel();
 		
-		BlockChannelWriter writer = null;
-		BlockChannelReader reader = null;
+		BlockChannelWriter<MemorySegment> writer = null;
+		BlockChannelReader<MemorySegment> reader = null;
 		
 		try {	
 			writer = this.ioManager.createBlockChannelWriter(channel);

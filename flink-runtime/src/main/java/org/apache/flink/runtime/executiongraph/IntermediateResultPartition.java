@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +31,7 @@ public class IntermediateResultPartition {
 
 	private final int partitionNumber;
 
-	private final IntermediateResultPartitionID partitionId;
+	private final ResultPartitionID partitionId;
 
 	private List<List<ExecutionEdge>> consumers;
 
@@ -40,7 +40,7 @@ public class IntermediateResultPartition {
 		this.producer = producer;
 		this.partitionNumber = partitionNumber;
 		this.consumers = new ArrayList<List<ExecutionEdge>>(0);
-		this.partitionId = new IntermediateResultPartitionID();
+		this.partitionId = new ResultPartitionID();
 	}
 
 	public ExecutionVertex getProducer() {
@@ -55,7 +55,7 @@ public class IntermediateResultPartition {
 		return totalResult;
 	}
 
-	public IntermediateResultPartitionID getPartitionId() {
+	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
 
@@ -77,5 +77,16 @@ public class IntermediateResultPartition {
 
 	void addConsumer(ExecutionEdge edge, int consumerNumber) {
 		consumers.get(consumerNumber).add(edge);
+	}
+
+	boolean finish() {
+		if (totalResult.getRuntimeType().isPipelined()) {
+			return true;
+		}
+		else if (totalResult.decrementAndGetCounter() <= 0) {
+			return true;
+		}
+
+		return false;
 	}
 }

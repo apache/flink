@@ -23,8 +23,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionType;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -37,19 +37,19 @@ public class PartitionDeploymentDescriptor implements IOReadableWritable, Serial
 
 	private final IntermediateDataSetID resultId;
 
-	private final IntermediateResultPartitionID partitionId;
+	private final ResultPartitionID partitionId;
 
-	private IntermediateResultPartitionType partitionType;
+	private ResultPartitionType partitionType;
 
 	private int numberOfQueues;
 
 	public PartitionDeploymentDescriptor() {
 		this.resultId = new IntermediateDataSetID();
-		this.partitionId = new IntermediateResultPartitionID();
+		this.partitionId = new ResultPartitionID();
 		this.numberOfQueues = -1;
 	}
 
-	public PartitionDeploymentDescriptor(IntermediateDataSetID resultId, IntermediateResultPartitionID partitionId, IntermediateResultPartitionType partitionType, int numberOfQueues) {
+	public PartitionDeploymentDescriptor(IntermediateDataSetID resultId, ResultPartitionID partitionId, ResultPartitionType partitionType, int numberOfQueues) {
 		this.resultId = resultId;
 		this.partitionId = partitionId;
 		this.partitionType = partitionType;
@@ -64,15 +64,15 @@ public class PartitionDeploymentDescriptor implements IOReadableWritable, Serial
 		return resultId;
 	}
 
-	public IntermediateResultPartitionID getPartitionId() {
+	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
 
-	public IntermediateResultPartitionType getPartitionType() {
+	public ResultPartitionType getPartitionType() {
 		return partitionType;
 	}
 
-	public int getNumberOfQueues() {
+	public int getNumberOfSubpartitions() {
 		return numberOfQueues;
 	}
 
@@ -92,7 +92,7 @@ public class PartitionDeploymentDescriptor implements IOReadableWritable, Serial
 	public void read(DataInputView in) throws IOException {
 		resultId.read(in);
 		partitionId.read(in);
-		partitionType = IntermediateResultPartitionType.values()[in.readInt()];
+		partitionType = ResultPartitionType.values()[in.readInt()];
 		numberOfQueues = in.readInt();
 	}
 
@@ -100,7 +100,7 @@ public class PartitionDeploymentDescriptor implements IOReadableWritable, Serial
 
 	public static PartitionDeploymentDescriptor fromIntermediateResultPartition(IntermediateResultPartition partition) {
 
-		IntermediateResultPartitionID partitionId = partition.getPartitionId();
+		ResultPartitionID partitionId = partition.getPartitionId();
 
 		// The produced data is partitioned at runtime among a number of queues.
 		// If no consumers are known at this point, we use a single queue,
@@ -111,6 +111,6 @@ public class PartitionDeploymentDescriptor implements IOReadableWritable, Serial
 			numberOfQueues = partition.getConsumers().get(0).size();
 		}
 
-		return new PartitionDeploymentDescriptor(partition.getIntermediateResult().getId(), partitionId, partition.getIntermediateResult().getResultType(), numberOfQueues);
+		return new PartitionDeploymentDescriptor(partition.getIntermediateResult().getId(), partitionId, partition.getIntermediateResult().getRuntimeType(), numberOfQueues);
 	}
 }

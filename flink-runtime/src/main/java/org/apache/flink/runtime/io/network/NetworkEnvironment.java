@@ -26,8 +26,8 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartition;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -51,13 +51,15 @@ public class NetworkEnvironment {
 
 	private final FiniteDuration jobManagerTimeout;
 
-	private final IntermediateResultPartitionManager partitionManager;
+	private final ResultPartitionManager partitionManager;
 
 	private final TaskEventDispatcher taskEventDispatcher;
 
 	private final NetworkBufferPool networkBufferPool;
 
 	private final ConnectionManager connectionManager;
+
+	private final BufferPool nettyBufferPool;
 
 	private boolean isShutdown;
 
@@ -68,7 +70,7 @@ public class NetworkEnvironment {
 		this.jobManager = checkNotNull(jobManager);
 		this.jobManagerTimeout = checkNotNull(jobManagerTimeout);
 
-		this.partitionManager = new IntermediateResultPartitionManager();
+		this.partitionManager = new ResultPartitionManager();
 		this.taskEventDispatcher = new TaskEventDispatcher();
 
 		// --------------------------------------------------------------------
@@ -88,8 +90,10 @@ public class NetworkEnvironment {
 
 		connectionManager = nettyConfig.isDefined() ? new NettyConnectionManager(nettyConfig.get()) : new LocalConnectionManager();
 
+		nettyBufferPool = networkBufferPool.createBufferPool(128, true);
+
 		try {
-			connectionManager.start(partitionManager, taskEventDispatcher);
+			connectionManager.start(partitionManager, taskEventDispatcher, nettyBufferPool);
 		}
 		catch (Throwable t) {
 			throw new IOException("Failed to instantiate network connection manager: " + t.getMessage(), t);
@@ -107,7 +111,7 @@ public class NetworkEnvironment {
 	public void registerTask(Task task) throws IOException {
 		final ExecutionAttemptID executionId = task.getExecutionId();
 
-		final IntermediateResultPartition[] producedPartitions = task.getProducedPartitions();
+		final ResultPartition[] producedPartitions = task.getProducedPartitions();
 		final BufferWriter[] writers = task.getWriters();
 
 		if (writers.length != producedPartitions.length) {
@@ -115,20 +119,21 @@ public class NetworkEnvironment {
 		}
 
 		for (int i = 0; i < producedPartitions.length; i++) {
-			final IntermediateResultPartition partition = producedPartitions[i];
+			final ResultPartition partition = producedPartitions[i];
 			final BufferWriter writer = writers[i];
 
 			// Buffer pool for the partition
 			BufferPool bufferPool = null;
 
 			try {
-				bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfQueues(), false);
-				partition.setBufferPool(bufferPool);
+				bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(), false);
+				partition.registerBufferPool(bufferPool);
+
 				partitionManager.registerIntermediateResultPartition(partition);
 			}
 			catch (Throwable t) {
 				if (bufferPool != null) {
-					bufferPool.destroy();
+					bufferPool.lazyDestroy();
 				}
 
 				if (t instanceof IOException) {
@@ -155,7 +160,7 @@ public class NetworkEnvironment {
 			}
 			catch (Throwable t) {
 				if (bufferPool != null) {
-					bufferPool.destroy();
+					bufferPool.lazyDestroy();
 				}
 
 				if (t instanceof IOException) {
@@ -176,7 +181,7 @@ public class NetworkEnvironment {
 		final ExecutionAttemptID executionId = task.getExecutionId();
 
 		if (task.isCanceledOrFailed()) {
-			partitionManager.failIntermediateResultPartitions(executionId);
+			partitionManager.releasePartitionsProducedBy(executionId);
 		}
 
 		taskEventDispatcher.unregisterWriters(executionId);
@@ -197,7 +202,7 @@ public class NetworkEnvironment {
 		}
 	}
 
-	public IntermediateResultPartitionManager getPartitionManager() {
+	public ResultPartitionManager getPartitionManager() {
 		return partitionManager;
 	}
 

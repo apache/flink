@@ -24,8 +24,8 @@ import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartition;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.util.event.EventNotificationHandler;
 
@@ -42,11 +42,11 @@ import java.io.IOException;
  */
 public final class BufferWriter implements EventListener<TaskEvent> {
 
-	private final IntermediateResultPartition partition;
+	private final ResultPartition partition;
 
 	private final EventNotificationHandler<TaskEvent> taskEventHandler = new EventNotificationHandler<TaskEvent>();
 
-	public BufferWriter(IntermediateResultPartition partition) {
+	public BufferWriter(ResultPartition partition) {
 		this.partition = partition;
 	}
 
@@ -54,7 +54,7 @@ public final class BufferWriter implements EventListener<TaskEvent> {
 	// Attributes
 	// ------------------------------------------------------------------------
 
-	public IntermediateResultPartitionID getPartitionId() {
+	public ResultPartitionID getPartitionId() {
 		return partition.getPartitionId();
 	}
 
@@ -63,7 +63,7 @@ public final class BufferWriter implements EventListener<TaskEvent> {
 	}
 
 	public int getNumberOfOutputChannels() {
-		return partition.getNumberOfQueues();
+		return partition.getNumberOfSubpartitions();
 	}
 
 	// ------------------------------------------------------------------------
@@ -79,14 +79,14 @@ public final class BufferWriter implements EventListener<TaskEvent> {
 	}
 
 	public void writeEventToAllChannels(AbstractEvent event) throws IOException {
-		for (int i = 0; i < partition.getNumberOfQueues(); i++) {
+		for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
 			Buffer buffer = EventSerializer.toBuffer(event);
 			partition.add(buffer, i);
 		}
 	}
 
 	public void writeEndOfSuperstep() throws IOException {
-		for (int i = 0; i < partition.getNumberOfQueues(); i++) {
+		for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
 			Buffer buffer = EventSerializer.toBuffer(EndOfSuperstepEvent.INSTANCE);
 			partition.add(buffer, i);
 		}
@@ -94,10 +94,6 @@ public final class BufferWriter implements EventListener<TaskEvent> {
 
 	public void finish() throws IOException, InterruptedException {
 		partition.finish();
-	}
-
-	public boolean isFinished() {
-		return partition.isFinished();
 	}
 
 	// ------------------------------------------------------------------------

@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition;
+package org.apache.flink.runtime.io.disk.iomanager;
 
-import com.google.common.base.Optional;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.util.event.NotificationListener;
 
 import java.io.IOException;
 
-public interface IntermediateResultPartitionProvider {
+public interface BufferFileWriter extends BlockChannelWriterWithCallback<Buffer> {
 
-	IntermediateResultPartitionQueueIterator getIntermediateResultPartitionIterator(
-			ExecutionAttemptID producerExecutionId,
-			IntermediateResultPartitionID partitionId,
-			int requestedQueueIndex,
-			Optional<BufferProvider> bufferProvider) throws IOException;
+	int getNumberOfOutstandingRequests();
+
+	boolean subscribe(NotificationListener listener) throws IOException;
 
 }

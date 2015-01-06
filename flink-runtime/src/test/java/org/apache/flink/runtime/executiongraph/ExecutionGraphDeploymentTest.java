@@ -144,8 +144,8 @@ public class ExecutionGraphDeploymentTest {
 			assertEquals(2, producedPartitions.size());
 			assertEquals(1, consumedPartitions.size());
 
-			assertEquals(10, producedPartitions.get(0).getNumberOfQueues());
-			assertEquals(10, producedPartitions.get(1).getNumberOfQueues());
+			assertEquals(10, producedPartitions.get(0).getNumberOfSubpartitions());
+			assertEquals(10, producedPartitions.get(1).getNumberOfSubpartitions());
 			assertEquals(10, consumedPartitions.get(0).getPartitions().length);
 		}
 		catch (Exception e) {

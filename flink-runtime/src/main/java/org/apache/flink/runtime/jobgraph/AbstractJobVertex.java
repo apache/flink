@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -320,7 +321,11 @@ public class AbstractJobVertex implements java.io.Serializable {
 	}
 	
 	public IntermediateDataSet createAndAddResultDataSet(IntermediateDataSetID id) {
-		IntermediateDataSet result = new IntermediateDataSet(id, this);
+		return createAndAddResultDataSet(id, ResultPartitionType.PIPELINED);
+	}
+
+	public IntermediateDataSet createAndAddResultDataSet(IntermediateDataSetID id, ResultPartitionType runtimeType) {
+		IntermediateDataSet result = new IntermediateDataSet(id, runtimeType, this);
 		this.results.add(result);
 		return result;
 	}

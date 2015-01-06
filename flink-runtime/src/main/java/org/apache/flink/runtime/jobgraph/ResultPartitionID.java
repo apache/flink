@@ -21,24 +21,24 @@ package org.apache.flink.runtime.jobgraph;
 import io.netty.buffer.ByteBuf;
 import org.apache.flink.runtime.AbstractID;
 
-public class IntermediateResultPartitionID extends AbstractID {
+public class ResultPartitionID extends AbstractID {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Creates an new random intermediate result partition ID.
 	 */
-	public IntermediateResultPartitionID() {
+	public ResultPartitionID() {
 		super();
 	}
 
-	public IntermediateResultPartitionID(long lowerPart, long upperPart) {
+	public ResultPartitionID(long lowerPart, long upperPart) {
 		super(lowerPart, upperPart);
 	}
 
-	public static IntermediateResultPartitionID fromByteBuf(ByteBuf buf) {
+	public static ResultPartitionID fromByteBuf(ByteBuf buf) {
 		long lower = buf.readLong();
 		long upper = buf.readLong();
-		return new IntermediateResultPartitionID(lower, upper);
+		return new ResultPartitionID(lower, upper);
 	}
 }

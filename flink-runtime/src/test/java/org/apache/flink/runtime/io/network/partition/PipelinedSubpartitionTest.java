@@ -16,17 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.queue;
+package org.apache.flink.runtime.io.network.partition;
 
 import com.google.common.base.Optional;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.MockConsumer;
-import org.apache.flink.runtime.io.network.partition.MockNotificationListener;
-import org.apache.flink.runtime.io.network.partition.MockProducer;
-import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator.AlreadySubscribedException;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView.AlreadySubscribedException;
 import org.apache.flink.runtime.util.event.NotificationListener;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,7 +45,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-public class PipelinedPartitionQueueTest {
+public class PipelinedSubpartitionTest {
 
 	private static final int NUM_BUFFERS = 1024;
 
@@ -56,24 +53,24 @@ public class PipelinedPartitionQueueTest {
 
 	private static final NetworkBufferPool networkBuffers = new NetworkBufferPool(NUM_BUFFERS, BUFFER_SIZE);
 
-	private PipelinedPartitionQueue queue;
+	private PipelinedSubpartition queue;
 
 	@Before
 	public void setup() {
-		this.queue = new PipelinedPartitionQueue();
+		this.queue = new PipelinedSubpartition(0, mock(ResultPartition.class));
 	}
 
-	@Test(expected = IllegalQueueIteratorRequestException.class)
+	@Test(expected = IllegalSubpartitionRequestException.class)
 	public void testExceptionWhenMultipleConsumers() throws IOException {
-		queue.getQueueIterator(Optional.<BufferProvider>absent());
+		queue.getReadView(Optional.<BufferProvider>absent());
 
 		// This queue is only consumable once, so this should throw an Exception
-		queue.getQueueIterator(Optional.<BufferProvider>absent());
+		queue.getReadView(Optional.<BufferProvider>absent());
 	}
 
 	@Test(expected = AlreadySubscribedException.class)
 	public void testExceptionWhenMultipleSubscribers() throws IOException {
-		IntermediateResultPartitionQueueIterator iterator = queue.getQueueIterator(Optional.<BufferProvider>absent());
+		ResultSubpartitionView iterator = queue.getReadView(Optional.<BufferProvider>absent());
 
 		NotificationListener listener = mock(NotificationListener.class);
 
@@ -90,7 +87,7 @@ public class PipelinedPartitionQueueTest {
 
 		MockNotificationListener listener = new MockNotificationListener();
 
-		IntermediateResultPartitionQueueIterator iterator = queue.getQueueIterator(Optional.<BufferProvider>absent());
+		ResultSubpartitionView iterator = queue.getReadView(Optional.<BufferProvider>absent());
 
 		// Empty queue => should return null
 		assertNull(iterator.getNextBuffer());
@@ -124,13 +121,13 @@ public class PipelinedPartitionQueueTest {
 
 	@Test
 	public void testDiscardingProduceWhileSubscribedConsumer() throws IOException {
-		IntermediateResultPartitionQueueIterator iterator = queue.getQueueIterator(Optional.<BufferProvider>absent());
+		ResultSubpartitionView iterator = queue.getReadView(Optional.<BufferProvider>absent());
 
 		NotificationListener listener = mock(NotificationListener.class);
 
 		assertTrue(iterator.subscribe(listener));
 
-		queue.discard();
+		queue.release();
 
 		verify(listener, times(1)).onNotification();
 
@@ -185,7 +182,7 @@ public class PipelinedPartitionQueueTest {
 			producer.discardAfter(new Random().nextInt(numBuffersToProduce));
 		}
 
-		MockConsumer consumer = new MockConsumer(queue.getQueueIterator(Optional.<BufferProvider>absent()), slowConsumer);
+		MockConsumer consumer = new MockConsumer(queue.getReadView(Optional.<BufferProvider>absent()), slowConsumer);
 
 		ExecutorService executorService = Executors.newCachedThreadPool();
 
@@ -195,8 +192,8 @@ public class PipelinedPartitionQueueTest {
 
 			boolean success = false;
 			try {
-				success = producerSuccess.get(5, TimeUnit.SECONDS);
-				success &= consumerSuccess.get(5, TimeUnit.SECONDS);
+				success = producerSuccess.get(60, TimeUnit.SECONDS);
+				success &= consumerSuccess.get(60, TimeUnit.SECONDS);
 			}
 			catch (Throwable t) {
 				t.printStackTrace();
@@ -214,7 +211,7 @@ public class PipelinedPartitionQueueTest {
 				fail("Unexpected failure during test: " + t.getMessage() + ". Producer error: " + producer.getError() + ", consumer error: " + consumer.getError());
 			}
 
-			producerBufferPool.destroy();
+			producerBufferPool.lazyDestroy();
 
 			assertTrue(success);
 		} finally {

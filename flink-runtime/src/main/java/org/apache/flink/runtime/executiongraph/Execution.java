@@ -396,7 +396,7 @@ public class Execution implements Serializable {
 			final ExecutionState consumerState = consumerVertex.getExecutionState();
 
 			if (consumerState == CREATED) {
-				if (state == RUNNING) {
+				if (state == RUNNING || state == FINISHED) {
 					if (!consumerVertex.scheduleForExecution(consumerVertex.getExecutionGraph().getScheduler(), false)) {
 						success = false;
 					}
@@ -414,7 +414,6 @@ public class Execution implements Serializable {
 				if (!sendUpdateTaskRpcCall(consumerSlot, consumerExecutionId, edge.getSource().getIntermediateResult().getId(), partitionInfo)) {
 					success = false;
 				}
-
 			}
 			else if (consumerState == SCHEDULED || consumerState == DEPLOYING) {
 				success = false;
@@ -458,6 +457,17 @@ public class Execution implements Serializable {
 			if (current == RUNNING || current == DEPLOYING) {
 
 				if (transitionState(current, FINISHED)) {
+					for (IntermediateResultPartition partition : vertex.resultPartitions) {
+						if (!partition.getIntermediateResult().getRuntimeType().isPipelined()) {
+							try {
+								scheduleOrUpdateConsumers(partition.getConsumers());
+							}
+							catch (Exception e) {
+								markFailed(new Exception("Error while scheduleOrUpdateConsumers in markFinished"));
+							}
+						}
+					}
+
 					try {
 						assignedResource.releaseSlot();
 						vertex.getExecutionGraph().deregisterExecution(this);
@@ -465,6 +475,7 @@ public class Execution implements Serializable {
 					finally {
 						vertex.executionFinished();
 					}
+
 					return;
 				}
 			}
@@ -594,6 +605,9 @@ public class Execution implements Serializable {
 	private boolean switchToRunning() {
 
 		if (transitionState(DEPLOYING, RUNNING)) {
+
+			//
+
 			return true;
 		}
 		else {

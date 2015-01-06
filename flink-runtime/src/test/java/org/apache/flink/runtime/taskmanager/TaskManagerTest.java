@@ -38,8 +38,8 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionType;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -308,10 +308,10 @@ public class TaskManagerTest {
 			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator()));
 			final ActorRef tm = createTaskManager(jm);
 
-			IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
+			ResultPartitionID partitionId = new ResultPartitionID();
 
 			List<PartitionDeploymentDescriptor> irpdd = new ArrayList<PartitionDeploymentDescriptor>();
-			irpdd.add(new PartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, IntermediateResultPartitionType.PIPELINED, 1));
+			irpdd.add(new PartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1));
 
 			PartitionConsumerDeploymentDescriptor ircdd =
 					new PartitionConsumerDeploymentDescriptor(
@@ -400,10 +400,10 @@ public class TaskManagerTest {
 			ActorRef jm = system.actorOf(Props.create(new SimpleLookupFailingUpdateJobManagerCreator()));
 			final ActorRef tm = createTaskManager(jm);
 
-			IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
+			ResultPartitionID partitionId = new ResultPartitionID();
 
 			List<PartitionDeploymentDescriptor> irpdd = new ArrayList<PartitionDeploymentDescriptor>();
-			irpdd.add(new PartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, IntermediateResultPartitionType.PIPELINED, 1));
+			irpdd.add(new PartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1));
 
 			PartitionConsumerDeploymentDescriptor ircdd =
 					new PartitionConsumerDeploymentDescriptor(

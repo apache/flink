@@ -35,7 +35,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 
@@ -334,7 +334,7 @@ abstract class NettyMessage {
 
 		ExecutionAttemptID producerExecutionId;
 
-		IntermediateResultPartitionID partitionId;
+		ResultPartitionID partitionId;
 
 		int queueIndex;
 
@@ -343,7 +343,7 @@ abstract class NettyMessage {
 		public PartitionRequest() {
 		}
 
-		PartitionRequest(ExecutionAttemptID producerExecutionId, IntermediateResultPartitionID partitionId, int queueIndex, InputChannelID receiverId) {
+		PartitionRequest(ExecutionAttemptID producerExecutionId, ResultPartitionID partitionId, int queueIndex, InputChannelID receiverId) {
 			this.producerExecutionId = producerExecutionId;
 			this.partitionId = partitionId;
 			this.queueIndex = queueIndex;
@@ -376,7 +376,7 @@ abstract class NettyMessage {
 		@Override
 		public void readFrom(ByteBuf buffer) {
 			producerExecutionId = ExecutionAttemptID.fromByteBuf(buffer);
-			partitionId = IntermediateResultPartitionID.fromByteBuf(buffer);
+			partitionId = ResultPartitionID.fromByteBuf(buffer);
 			queueIndex = buffer.readInt();
 			receiverId = InputChannelID.fromByteBuf(buffer);
 		}
@@ -392,12 +392,12 @@ abstract class NettyMessage {
 
 		ExecutionAttemptID executionId;
 
-		IntermediateResultPartitionID partitionId;
+		ResultPartitionID partitionId;
 
 		public TaskEventRequest() {
 		}
 
-		TaskEventRequest(TaskEvent event, ExecutionAttemptID executionId, IntermediateResultPartitionID partitionId, InputChannelID receiverId) {
+		TaskEventRequest(TaskEvent event, ExecutionAttemptID executionId, ResultPartitionID partitionId, InputChannelID receiverId) {
 			this.event = event;
 			this.executionId = executionId;
 			this.receiverId = receiverId;
@@ -444,7 +444,7 @@ abstract class NettyMessage {
 
 			executionId = ExecutionAttemptID.fromByteBuf(buffer);
 			receiverId = InputChannelID.fromByteBuf(buffer);
-			partitionId = IntermediateResultPartitionID.fromByteBuf(buffer);
+			partitionId = ResultPartitionID.fromByteBuf(buffer);
 		}
 	}
 

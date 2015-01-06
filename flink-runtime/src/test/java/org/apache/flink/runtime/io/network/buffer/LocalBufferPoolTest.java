@@ -63,7 +63,7 @@ public class LocalBufferPoolTest {
 	@After
 	public void destroyAndVerifyAllBuffersReturned() throws IOException {
 		if (!localBufferPool.isDestroyed()) {
-			localBufferPool.destroy();
+			localBufferPool.lazyDestroy();
 		}
 
 		String msg = "Did not return all buffers to memory segment pool after test.";
@@ -99,7 +99,7 @@ public class LocalBufferPoolTest {
 
 	@Test
 	public void testRequestAfterDestroy() throws IOException {
-		localBufferPool.destroy();
+		localBufferPool.lazyDestroy();
 
 		assertNull(localBufferPool.requestBuffer());
 	}
@@ -114,7 +114,7 @@ public class LocalBufferPoolTest {
 			requests.add(localBufferPool.requestBuffer());
 		}
 
-		localBufferPool.destroy();
+		localBufferPool.lazyDestroy();
 
 		// All buffers have been requested, but can not be returned yet.
 		assertEquals(numBuffers, getNumRequestedFromMemorySegmentPool());
@@ -224,7 +224,7 @@ public class LocalBufferPoolTest {
 
 		localBufferPool.addListener(listener);
 
-		localBufferPool.destroy();
+		localBufferPool.lazyDestroy();
 
 		available.recycle();
 

@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +61,7 @@ public class RemoteInputChannel extends InputChannel {
 	public RemoteInputChannel(
 			int channelIndex,
 			ExecutionAttemptID producerExecutionId,
-			IntermediateResultPartitionID partitionId,
+			ResultPartitionID partitionId,
 			BufferReader reader,
 			RemoteAddress producerAddress) {
 

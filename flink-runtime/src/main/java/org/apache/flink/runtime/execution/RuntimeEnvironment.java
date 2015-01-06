@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -91,7 +91,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 	private final AtomicBoolean canceled = new AtomicBoolean();
 
-	private final IntermediateResultPartition[] producedPartitions;
+	private final ResultPartition[] producedPartitions;
 
 	private final BufferWriter[] writers;
 
@@ -117,11 +117,13 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			// Produced intermediate result partitions
 			final List<PartitionDeploymentDescriptor> partitions = tdd.getProducedPartitions();
 
-			this.producedPartitions = new IntermediateResultPartition[partitions.size()];
+			this.producedPartitions = new ResultPartition[partitions.size()];
 			this.writers = new BufferWriter[partitions.size()];
 
 			for (int i = 0; i < this.producedPartitions.length; i++) {
-				this.producedPartitions[i] = IntermediateResultPartition.create(this, i, owner.getJobID(), owner.getExecutionId(), networkEnvironment, partitions.get(i));
+				PartitionDeploymentDescriptor desc = partitions.get(i);
+				this.producedPartitions[i] = new ResultPartition(i, owner.getJobID(), owner.getExecutionId(), desc.getPartitionId(), desc.getPartitionType(), desc.getNumberOfSubpartitions(), networkEnvironment, ioManager);
+
 				writers[i] = new BufferWriter(this.producedPartitions[i]);
 			}
 
@@ -210,7 +212,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 			// Finish the produced partitions
 			if (producedPartitions != null) {
-				for (IntermediateResultPartition partition : producedPartitions) {
+				for (ResultPartition partition : producedPartitions) {
 					if (partition != null) {
 						partition.finish();
 					}
@@ -364,7 +366,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 		return readers;
 	}
 
-	public IntermediateResultPartition[] getProducedPartitions() {
+	public ResultPartition[] getProducedPartitions() {
 		return producedPartitions;
 	}
 

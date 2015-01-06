@@ -22,13 +22,13 @@ import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueue;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.jobgraph.ResultPartitionID;
 
 import java.io.IOException;
 
 /**
- * An input channel is the consumer of a single queue of an {@link IntermediateResultPartitionQueue}.
+ * An input channel is the consumer of a single queue of an {@link ResultSubpartition}.
  * <p>
  * For each channel, the consumption life cycle is as follows:
  * <ol>
@@ -43,11 +43,11 @@ public abstract class InputChannel {
 
 	protected final ExecutionAttemptID producerExecutionId;
 
-	protected final IntermediateResultPartitionID partitionId;
+	protected final ResultPartitionID partitionId;
 
 	protected final BufferReader reader;
 
-	protected InputChannel(int channelIndex, ExecutionAttemptID producerExecutionId, IntermediateResultPartitionID partitionId, BufferReader reader) {
+	protected InputChannel(int channelIndex, ExecutionAttemptID producerExecutionId, ResultPartitionID partitionId, BufferReader reader) {
 		this.channelIndex = channelIndex;
 		this.producerExecutionId = producerExecutionId;
 		this.partitionId = partitionId;
@@ -66,7 +66,7 @@ public abstract class InputChannel {
 		return producerExecutionId;
 	}
 
-	public IntermediateResultPartitionID getPartitionId() {
+	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
 
