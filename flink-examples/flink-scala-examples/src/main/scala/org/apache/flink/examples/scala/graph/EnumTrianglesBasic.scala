@@ -148,8 +148,11 @@ object EnumTrianglesBasic {
       if (args.length == 2) {
         edgePath = args(0)
         outputPath = args(1)
+
+        true
       } else {
         System.err.println("Usage: EnumTriangleBasic <edge path> <result path>")
+
         false
       }
     } else {
@@ -157,8 +160,9 @@ object EnumTrianglesBasic {
       System.out.println("  Provide parameters to read input data from files.")
       System.out.println("  See the documentation for the correct format of input files.")
       System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>")
+
+      true
     }
-    true
   }
 
   private def getEdgeDataSet(env: ExecutionEnvironment): DataSet[Edge] = {

@@ -24,6 +24,7 @@ import java.security.PrivilegedAction
 import akka.actor._
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.ConfigConstants
+import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.{WithWebServer, JobManager}
 import org.apache.flink.yarn.Messages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
@@ -45,7 +46,7 @@ object ApplicationMaster {
   def main(args: Array[String]): Unit ={
     val yarnClientUsername = System.getenv(FlinkYarnClient.ENV_CLIENT_USERNAME)
     LOG.info(s"YARN daemon runs as ${UserGroupInformation.getCurrentUser.getShortUserName}" +
-      s" setting user to execute Flink ApplicationMaster/JobManager to ${yarnClientUsername}")
+      s"' setting user to execute Flink ApplicationMaster/JobManager to $yarnClientUsername'")
 
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)
 
@@ -171,8 +172,8 @@ object ApplicationMaster {
     LOG.info("Start job manager for yarn")
     val args = Array[String]("--configDir", currDir)
 
-    LOG.info(s"Config path: ${currDir}.")
-    val (_, _, configuration, _) = JobManager.parseArgs(args)
+    LOG.info(s"Config path: $currDir.")
+    val (configuration, _, _) = JobManager.parseArgs(args)
 
     // add dynamic properties to JobManager configuration.
     val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)
@@ -183,7 +184,7 @@ object ApplicationMaster {
     configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, jobManagerWebPort)
 
     // set port to 0 to let Akka automatically determine the port.
-    implicit val jobManagerSystem = YarnUtils.createActorSystem(hostname, port = 0, configuration)
+   implicit val jobManagerSystem = AkkaUtils.createActorSystem(configuration, Some((hostname, 0)))
 
     LOG.info("Start job manager actor.")
     (jobManagerSystem, JobManager.startActor(Props(new JobManager(configuration) with

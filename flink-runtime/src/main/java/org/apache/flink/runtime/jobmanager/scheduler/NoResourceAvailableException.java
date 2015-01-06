@@ -35,7 +35,7 @@ public class NoResourceAvailableException extends JobException {
 		super("No resource available to schedule unit " + unit
 				+ ". You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.");
 	}
-	
+
 	public NoResourceAvailableException(int numInstances, int numSlotsTotal, int availableSlots) {
 		super(String.format("%s Resources available to scheduler: Number of instances=%d, total number of slots=%d, available slots=%d",
 				BASE_MESSAGE, numInstances, numSlotsTotal, availableSlots));

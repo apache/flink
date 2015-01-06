@@ -25,8 +25,16 @@ import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 
-class TestingCluster(userConfiguration: Configuration) extends FlinkMiniCluster(userConfiguration,
-  true) {
+/**
+ * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
+ * in the same [[ActorSystem]].
+ *
+ * @param userConfiguration Configuration object with the user provided configuration values
+ * @param singleActorSystem true if all actors shall be running in the same [[ActorSystem]],
+ *                          otherwise false
+ */
+class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolean = true) extends
+FlinkMiniCluster(userConfiguration, singleActorSystem) {
 
   override def generateConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
@@ -45,9 +53,15 @@ class TestingCluster(userConfiguration: Configuration) extends FlinkMiniCluster(
 
   override def startTaskManager(index: Int)(implicit system: ActorSystem) = {
     val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration(HOSTNAME, configuration, true)
+      TaskManager.parseConfiguration(HOSTNAME, configuration,
+        localAkkaCommunication = singleActorSystem, localTaskManagerCommunication = true)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + index)
+  }
+
+  def restartJobManager(): Unit = {
+    jobManagerActorSystem.stop(jobManagerActor)
+    jobManagerActor = startJobManager(jobManagerActorSystem)
   }
 }

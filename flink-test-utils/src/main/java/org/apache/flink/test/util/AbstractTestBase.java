@@ -20,7 +20,6 @@ package org.apache.flink.test.util;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -28,7 +27,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+
+import org.apache.flink.runtime.akka.AkkaUtils;
+
 
 public abstract class AbstractTestBase extends TestBaseUtils {
 
@@ -49,8 +50,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 		this.config = config;
 		this.tempFiles = new ArrayList<File>();
 
-		timeout = new FiniteDuration(config.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
-				ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS);
+		timeout = AkkaUtils.getTimeout(config);
 	}
 
 	// --------------------------------------------------------------------------------------------

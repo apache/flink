@@ -37,7 +37,7 @@ object ArchiveMessages {
    * Response to [[RequestArchivedJobs]] message. The response contains the archived jobs.
    * @param jobs
    */
-  case class ArchivedJobs(val jobs: Iterable[ExecutionGraph]){
+  case class ArchivedJobs(jobs: Iterable[ExecutionGraph]){
     def asJavaIterable: java.lang.Iterable[ExecutionGraph] = {
       import scala.collection.JavaConverters._
       jobs.asJava
@@ -53,7 +53,7 @@ object ArchiveMessages {
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   
-  def getRequestArchivedJobs() : AnyRef = {
+  def getRequestArchivedJobs : AnyRef = {
     RequestArchivedJobs
   }
 }

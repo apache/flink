@@ -23,6 +23,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph, ScheduleMode}
+import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingUtils
@@ -32,6 +33,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scheduler.{NoResourceAvailableException, SlotSharingGroup}
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
 class JobManagerITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
@@ -40,7 +42,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.messages
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import org.apache.flink.runtime.execution.{ExecutionState}
+import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID}
 
@@ -56,7 +56,7 @@ object ExecutionGraphMessages {
         ""
       }
       s"${timestampToString(timestamp)}\t$taskName(${subtaskIndex +
-        1}/${totalNumberOfSubTasks}) switched to $newExecutionState $oMsg"
+        1}/$totalNumberOfSubTasks) switched to $newExecutionState $oMsg"
     }
   }
 
@@ -71,7 +71,7 @@ object ExecutionGraphMessages {
   case class JobStatusChanged(jobID: JobID, newJobStatus: JobStatus, timestamp: Long,
                               optionalMessage: String){
     override def toString: String = {
-      s"${timestampToString(timestamp)}\tJob execution switched to status ${newJobStatus}."
+      s"${timestampToString(timestamp)}\tJob execution switched to status $newJobStatus."
     }
   }
 

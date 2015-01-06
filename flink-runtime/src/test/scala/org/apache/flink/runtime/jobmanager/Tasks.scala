@@ -99,7 +99,7 @@ object Tasks {
     var reader: RecordReader[IntegerRecord] = _
 
     override def registerInputOutput(): Unit = {
-      val env = getEnvironment()
+      val env = getEnvironment
 
       reader = new RecordReader[IntegerRecord](env.getReader(0), classOf[IntegerRecord])
     }
@@ -207,7 +207,7 @@ object Tasks {
     var writer: RecordWriter[IntegerRecord] = _
 
     override def registerInputOutput(): Unit = {
-      writer = new RecordWriter[IntegerRecord](getEnvironment().getWriter(0))
+      writer = new RecordWriter[IntegerRecord](getEnvironment.getWriter(0))
     }
 
     override def invoke(): Unit = {

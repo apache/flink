@@ -30,9 +30,8 @@ trait YarnTaskManager extends ActorLogMessages {
   }
 
   def receiveYarnMessages: Receive = {
-    case StopYarnSession(status) => {
+    case StopYarnSession(status) =>
       log.info(s"Stopping YARN TaskManager with final application status $status")
       context.system.shutdown()
-    }
   }
 }

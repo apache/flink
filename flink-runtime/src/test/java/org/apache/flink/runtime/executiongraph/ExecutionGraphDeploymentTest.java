@@ -101,7 +101,7 @@ public class ExecutionGraphDeploymentTest {
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 
 			ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration(),
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 
 			List<AbstractJobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
@@ -308,7 +308,7 @@ public class ExecutionGraphDeploymentTest {
 
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration(),
-				AkkaUtils.DEFAULT_TIMEOUT());
+				AkkaUtils.getDefaultTimeout());
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<AbstractJobVertex> ordered = Arrays.asList(v1, v2);

@@ -18,36 +18,38 @@
 
 package org.apache.flink.runtime.minicluster
 
-import java.util.concurrent.TimeUnit
-
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
-import com.typesafe.config.{ConfigFactory}
+import com.typesafe.config.Config
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Await}
 
+/**
+ * Abstract base class for Flink's mini cluster. The mini cluster starts a
+ * [[org.apache.flink.runtime.jobmanager.JobManager]] and one or multiple
+ * [[org.apache.flink.runtime.taskmanager.TaskManager]]. Depending on the settings, the different
+ * actors can all be run in the same [[ActorSystem]] or each one in its own.
+ *
+ * @param userConfiguration Configuration object with the user provided configuration values
+ * @param singleActorSystem true if all actors (JobManager and TaskManager) shall be run in the same
+ *                          [[ActorSystem]], otherwise false
+ */
 abstract class FlinkMiniCluster(userConfiguration: Configuration,
                                 val singleActorSystem: Boolean) {
   import FlinkMiniCluster._
 
   val HOSTNAME = "localhost"
 
-  implicit val timeout = FiniteDuration(userConfiguration.getInteger(ConfigConstants
-    .AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
+  implicit val timeout = AkkaUtils.getTimeout(userConfiguration)
 
   val configuration = generateConfiguration(userConfiguration)
 
-  if(singleActorSystem){
-    configuration.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, "akka://flink/user/jobmanager")
-  }
-
-  val jobManagerActorSystem = startJobManagerActorSystem()
-  val jobManagerActor = startJobManager(jobManagerActorSystem)
+  var jobManagerActorSystem = startJobManagerActorSystem()
+  var jobManagerActor = startJobManager(jobManagerActorSystem)
 
   val numTaskManagers = configuration.getInteger(ConfigConstants
     .LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
@@ -63,46 +65,43 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
     (actorSystem, startTaskManager(i)(actorSystem))
   }
 
-  val (taskManagerActorSystems, taskManagerActors) = actorSystemsTaskManagers.unzip
+  var (taskManagerActorSystems, taskManagerActors) = actorSystemsTaskManagers.unzip
 
   waitForTaskManagersToBeRegistered()
 
   def generateConfiguration(userConfiguration: Configuration): Configuration
 
   def startJobManager(implicit system: ActorSystem): ActorRef
-  def startTaskManager(index: Int)(implicit system: ActorSystem):
-  ActorRef
+  def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef
 
-  def getJobManagerAkkaConfigString(): String = {
-    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants
-      .DEFAULT_JOB_MANAGER_IPC_PORT)
+  def getJobManagerAkkaConfig: Config = {
+    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
     if(singleActorSystem){
-      AkkaUtils.getLocalConfigString(configuration)
+      AkkaUtils.getAkkaConfig(configuration, None)
     }else{
-      AkkaUtils.getConfigString(HOSTNAME, port, configuration)
+      AkkaUtils.getAkkaConfig(configuration, Some((HOSTNAME, port)))
     }
-
   }
 
   def startJobManagerActorSystem(): ActorSystem = {
-    val configString = getJobManagerAkkaConfigString()
-
-    val config = ConfigFactory.parseString(getJobManagerAkkaConfigString())
+    val config = getJobManagerAkkaConfig
 
     AkkaUtils.createActorSystem(config)
   }
 
-  def getTaskManagerAkkaConfigString(index: Int): String = {
+  def getTaskManagerAkkaConfig(index: Int): Config = {
     val port = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
 
-    AkkaUtils.getConfigString(HOSTNAME, if(port != 0) port + index else port,
-      configuration)
+    val resolvedPort = if(port != 0) port + index else port
+
+    AkkaUtils.getAkkaConfig(configuration, Some((HOSTNAME, resolvedPort)))
   }
 
   def startTaskManagerActorSystem(index: Int): ActorSystem = {
-    val config = ConfigFactory.parseString(getTaskManagerAkkaConfigString(index))
+    val config = getTaskManagerAkkaConfig(index)
 
     AkkaUtils.createActorSystem(config)
   }

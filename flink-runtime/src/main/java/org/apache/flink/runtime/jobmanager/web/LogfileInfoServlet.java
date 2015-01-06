@@ -33,8 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.flink.util.StringUtils;
 
-import com.google.common.base.Preconditions;
-
 public class LogfileInfoServlet extends HttpServlet {
 
 	private static final long serialVersionUID = 1L;
@@ -48,7 +46,9 @@ public class LogfileInfoServlet extends HttpServlet {
 
 
 	public LogfileInfoServlet(File[] logDirs) {
-		Preconditions.checkNotNull(logDirs, "The given log files are null.");
+		if(logDirs == null){
+			throw new NullPointerException("The given log files are null.");
+		}
 		this.logDirs = logDirs;
 	}
 

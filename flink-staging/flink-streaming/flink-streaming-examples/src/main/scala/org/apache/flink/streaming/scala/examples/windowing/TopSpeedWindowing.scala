@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.scala.windowing.{Delta, Time}
 
 import scala.Stream._
 import scala.math._
+import scala.language.postfixOps
 import scala.util.Random
 
 /**
@@ -78,13 +79,15 @@ object TopSpeedWindowing {
         numOfCars = args(0).toInt
         evictionSec = args(1).toInt
         triggerMeters = args(2).toDouble
+        true
       }
       else {
         System.err.println("Usage: TopSpeedWindowing <numCars> <evictSec> <triggerMeters>")
         false
       }
+    }else{
+      true
     }
-    true
   }
 
   var numOfCars = 2

@@ -48,12 +48,12 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testReduceOnTuplesWithKeyFieldSelector: Unit = {
+  def testReduceOnTuplesWithKeyFieldSelector(): Unit = {
     /*
      * Reduce on tuples with key field selector
      */
@@ -67,7 +67,7 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testReduceOnTuplesWithMultipleKeyFieldSelectors: Unit = {
+  def testReduceOnTuplesWithMultipleKeyFieldSelectors(): Unit = {
     /*
      * Reduce on tuples with multiple key field selectors
      */
@@ -83,7 +83,7 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testReduceOnTuplesWithKeyExtractor: Unit = {
+  def testReduceOnTuplesWithKeyExtractor(): Unit = {
     /*
      * Reduce on tuples with key extractor
      */
@@ -97,7 +97,7 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testReduceOnCustomTypeWithKeyExtractor: Unit = {
+  def testReduceOnCustomTypeWithKeyExtractor(): Unit = {
     /*
      * Reduce on custom type with key extractor
      */
@@ -116,7 +116,7 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testAllReduceForTuple: Unit = {
+  def testAllReduceForTuple(): Unit = {
     /*
      * All-reduce for tuple
      */
@@ -130,7 +130,7 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testAllReduceForCustomTypes: Unit = {
+  def testAllReduceForCustomTypes(): Unit = {
     /*
      * All-reduce for custom types
      */
@@ -149,7 +149,7 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testReduceWithBroadcastSet: Unit = {
+  def testReduceWithBroadcastSet(): Unit = {
     /*
      * Reduce with broadcast set
      */
@@ -177,7 +177,7 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testReduceWithUDFThatReturnsTheSecondInputObject: Unit = {
+  def testReduceWithUDFThatReturnsTheSecondInputObject(): Unit = {
     /*
      * Reduce with UDF that returns the second input object (check mutable object handling)
      */
@@ -201,7 +201,7 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testReduceWithATupleReturningKeySelector: Unit = {
+  def testReduceWithATupleReturningKeySelector(): Unit = {
     /*
      * Reduce with a Tuple-returning KeySelector
      */
@@ -217,7 +217,7 @@ class ReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testReduceOnGroupedDSByExpressionKey: Unit = {
+  def testReduceOnGroupedDSByExpressionKey(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get5TupleDataSet(env)
     val reduceDs = ds.groupBy("_5", "_1")

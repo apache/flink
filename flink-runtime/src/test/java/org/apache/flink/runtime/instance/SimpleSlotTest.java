@@ -29,7 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.junit.Test;
 import org.mockito.Matchers;
 
-public class AllocatedSlotTest {
+public class SimpleSlotTest {
 
 	@Test
 	public void testStateTransitions() {

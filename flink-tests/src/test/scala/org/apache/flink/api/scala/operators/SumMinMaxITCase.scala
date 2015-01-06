@@ -46,12 +46,12 @@ class SumMinMaxITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testFullAggregate: Unit = {
+  def testFullAggregate(): Unit = {
     // Full aggregate
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
@@ -71,7 +71,7 @@ class SumMinMaxITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testGroupedAggregate: Unit = {
+  def testGroupedAggregate(): Unit = {
     // Grouped aggregate
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
@@ -91,7 +91,7 @@ class SumMinMaxITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testNestedAggregate: Unit = {
+  def testNestedAggregate(): Unit = {
     // Nested aggregate
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)

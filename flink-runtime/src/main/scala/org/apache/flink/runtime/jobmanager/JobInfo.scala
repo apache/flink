@@ -20,9 +20,18 @@ package org.apache.flink.runtime.jobmanager
 
 import akka.actor.ActorRef
 
-class JobInfo(val client: ActorRef,val start: Long){
+/**
+ * Utility class to store job information on the [[JobManager]]. The JobInfo stores which actor
+ * submitted the job, when the start time and, if already terminated, the end time was.
+ * Additionally, it stores whether the job was started in the detached mode. Detached means that
+ * the submitting actor does not wait for the job result once the job has terminated.
+ *
+ * @param client Actor which submitted the job
+ * @param start Starting time
+ */
+class JobInfo(val client: ActorRef, val start: Long){
   var end: Long = -1
-  var detach: Boolean = false
+  var detached: Boolean = false
 
   def duration: Long = {
     if(end != -1){

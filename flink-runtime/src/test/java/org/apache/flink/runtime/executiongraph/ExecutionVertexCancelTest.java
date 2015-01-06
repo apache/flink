@@ -76,7 +76,7 @@ public class ExecutionVertexCancelTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -103,7 +103,7 @@ public class ExecutionVertexCancelTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			
 			setVertexState(vertex, ExecutionState.SCHEDULED);
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
@@ -137,7 +137,7 @@ public class ExecutionVertexCancelTest {
 				final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 				final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-						AkkaUtils.DEFAULT_TIMEOUT());
+						AkkaUtils.getDefaultTimeout());
 				final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 				setVertexState(vertex, ExecutionState.SCHEDULED);
@@ -210,7 +210,7 @@ public class ExecutionVertexCancelTest {
 					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-							AkkaUtils.DEFAULT_TIMEOUT());
+							AkkaUtils.getDefaultTimeout());
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 					setVertexState(vertex, ExecutionState.SCHEDULED);
@@ -288,7 +288,7 @@ public class ExecutionVertexCancelTest {
 					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-							AkkaUtils.DEFAULT_TIMEOUT());
+							AkkaUtils.getDefaultTimeout());
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 					final TestActorRef<? extends Actor> taskManager = TestActorRef.create(system,
@@ -336,7 +336,7 @@ public class ExecutionVertexCancelTest {
 					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-							AkkaUtils.DEFAULT_TIMEOUT());
+							AkkaUtils.getDefaultTimeout());
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 					final ActorRef taskManager = TestActorRef.create(system, Props.create(new
@@ -392,7 +392,7 @@ public class ExecutionVertexCancelTest {
 					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-							AkkaUtils.DEFAULT_TIMEOUT());
+							AkkaUtils.getDefaultTimeout());
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 					final ActorRef taskManager = TestActorRef.create(system,Props.create(new
@@ -435,7 +435,7 @@ public class ExecutionVertexCancelTest {
 					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-							AkkaUtils.DEFAULT_TIMEOUT());
+							AkkaUtils.getDefaultTimeout());
 
 					final ActorRef taskManager = TestActorRef.create(system, Props.create(new
 							CancelSequenceTaskManagerCreator()));
@@ -478,7 +478,7 @@ public class ExecutionVertexCancelTest {
 					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-							AkkaUtils.DEFAULT_TIMEOUT());
+							AkkaUtils.getDefaultTimeout());
 					final ExecutionAttemptID execID = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 					final ActorRef taskManager = system.actorOf(
@@ -524,7 +524,7 @@ public class ExecutionVertexCancelTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			setVertexState(vertex, ExecutionState.CANCELED);
 			
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
@@ -569,7 +569,7 @@ public class ExecutionVertexCancelTest {
 			// scheduling while canceling is an illegal state transition
 			try {
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-						AkkaUtils.DEFAULT_TIMEOUT());
+						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
 				
 				Scheduler scheduler = mock(Scheduler.class);
@@ -583,7 +583,7 @@ public class ExecutionVertexCancelTest {
 			// deploying while in canceling state is illegal (should immediately go to canceled)
 			try {
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-						AkkaUtils.DEFAULT_TIMEOUT());
+						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
 				
 				Instance instance = getInstance(ActorRef.noSender());
@@ -598,7 +598,7 @@ public class ExecutionVertexCancelTest {
 			// fail while canceling
 			{
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-						AkkaUtils.DEFAULT_TIMEOUT());
+						AkkaUtils.getDefaultTimeout());
 				
 				Instance instance = getInstance(ActorRef.noSender());
 				SimpleSlot slot = instance.allocateSimpleSlot(new JobID());

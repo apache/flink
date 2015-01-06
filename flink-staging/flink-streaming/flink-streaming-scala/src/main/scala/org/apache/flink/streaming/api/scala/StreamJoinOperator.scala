@@ -165,7 +165,7 @@ object StreamJoinOperator {
         }
       }
 
-      return op.input1.groupBy(keys1).connect(op.input2.groupBy(keys2))
+      op.input1.groupBy(keys1).connect(op.input2.groupBy(keys2))
         .addGeneralWindowCombine(getJoinWindowFunction(this, (_, _)),
           returnType, op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2)
     }

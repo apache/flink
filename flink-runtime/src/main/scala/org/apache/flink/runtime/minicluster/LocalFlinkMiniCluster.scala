@@ -29,6 +29,16 @@ import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.slf4j.LoggerFactory
 
+/**
+ * Local Flink mini cluster which executes all [[TaskManager]]s and the [[JobManager]] in the same
+ * JVM. It extends the [[FlinkMiniCluster]] by providing a [[JobClient]], having convenience
+ * functions to setup Flink's configuration and implementations to create [[JobManager]] and
+ * [[TaskManager]].
+ *
+ * @param userConfiguration Configuration object with the user provided configuration values
+ * @param singleActorSystem true if all actors (JobManager and TaskManager) shall be run in the same
+ *                          [[ActorSystem]], otherwise false
+ */
 class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean = true)
   extends FlinkMiniCluster(userConfiguration, singleActorSystem){
   import LocalFlinkMiniCluster._
@@ -36,7 +46,8 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
   val jobClientActorSystem = if(singleActorSystem){
     jobManagerActorSystem
   }else{
-    AkkaUtils.createActorSystem()
+    // create an actor system listening on a random port
+    AkkaUtils.createDefaultActorSystem()
   }
 
   var jobClient: Option[ActorRef] = None
@@ -81,7 +92,10 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
       false
     }
 
-    TaskManager.startActorWithConfiguration(HOSTNAME, config, localExecution)(system)
+    TaskManager.startActorWithConfiguration(HOSTNAME,
+      config,
+      singleActorSystem,
+      localExecution)(system)
   }
 
   def getJobClient(): ActorRef ={
@@ -93,11 +107,8 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
         config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
         config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getJobManagerRPCPort)
 
-        if(singleActorSystem){
-          config.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, "akka://flink/user/jobmanager")
-        }
-
-        val jc = JobClient.startActorWithConfiguration(config)(jobClientActorSystem)
+        val jc = JobClient.startActorWithConfiguration(config,
+          singleActorSystem)(jobClientActorSystem)
         jobClient = Some(jc)
         jc
     }

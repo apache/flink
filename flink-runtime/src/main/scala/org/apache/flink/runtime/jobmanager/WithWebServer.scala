@@ -21,6 +21,9 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.Actor
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 
+/**
+ * Mixin for the [[JobManager]] which starts a [[WebInfoServer]] for the JobManager.
+ */
 trait WithWebServer extends Actor {
   that: JobManager =>
 

@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.scala._
 import scala.Stream._
 import scala.util.Random
 import java.util.concurrent.TimeUnit
+import scala.language.postfixOps
 
 object WindowJoin {
 

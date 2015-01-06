@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import akka.actor.ActorRef
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.taskmanager.Task
@@ -44,16 +45,20 @@ object TestingTaskManagerMessages {
   case object RequestRunningTasks
   
   case object RequestBroadcastVariablesWithReferences
+
+  case class NotifyWhenJobManagerTerminated(jobManager: ActorRef)
+
+  case class JobManagerTerminated(jobManager: ActorRef)
   
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   
-  def getRequestRunningTasksMessage() : AnyRef = {
+  def getRequestRunningTasksMessage: AnyRef = {
     RequestRunningTasks
   }
   
-  def getRequestBroadcastVariablesWithReferencesMessage() : AnyRef = {
+  def getRequestBroadcastVariablesWithReferencesMessage: AnyRef = {
     RequestBroadcastVariablesWithReferences
   }
 }

@@ -49,12 +49,12 @@ class FlatMapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testNonPassingFlatMap: Unit = {
+  def testNonPassingFlatMap(): Unit = {
     /*
      * Test non-passing flatmap
      */
@@ -67,7 +67,7 @@ class FlatMapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testDataDuplicatingFlatMap: Unit = {
+  def testDataDuplicatingFlatMap(): Unit = {
     /*
      * Test data duplicating flatmap
      */
@@ -83,7 +83,7 @@ class FlatMapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testFlatMapWithVaryingNumberOfEmittedTuples: Unit = {
+  def testFlatMapWithVaryingNumberOfEmittedTuples(): Unit = {
     /*
      * Test flatmap with varying number of emitted tuples
      */
@@ -105,7 +105,7 @@ class FlatMapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testTypeConversionFlatMapperCustomToTuple: Unit = {
+  def testTypeConversionFlatMapperCustomToTuple(): Unit = {
     /*
      * Test type conversion flatmapper (Custom -> Tuple)
      */
@@ -123,7 +123,7 @@ class FlatMapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testTypeConversionFlatMapperTupleToBasic: Unit = {
+  def testTypeConversionFlatMapperTupleToBasic(): Unit = {
     /*
          * Test type conversion flatmapper (Tuple -> Basic)
          */
@@ -140,7 +140,7 @@ class FlatMapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testFlatMapperIfUDFReturnsInputObjectMultipleTimesWhileChangingIt: Unit = {
+  def testFlatMapperIfUDFReturnsInputObjectMultipleTimesWhileChangingIt(): Unit = {
     /*
      * Test flatmapper if UDF returns input object
      * multiple times and changes it in between
@@ -168,7 +168,7 @@ class FlatMapITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) 
   }
 
   @Test
-  def testFlatMapWithBroadcastSet: Unit = {
+  def testFlatMapWithBroadcastSet(): Unit = {
     /*
      * Test flatmap with broadcast set
      */

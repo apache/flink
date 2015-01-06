@@ -26,19 +26,19 @@ import org.apache.flink.runtime.profiling.types.ThreadProfilingEvent
 
 import scala.collection.convert.WrapAsScala
 
+/**
+ * Basic skeleton for the JobManager profiler. Currently, it simply logs the received messages.
+ */
 class JobManagerProfiler extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
   override def receiveWithLogMessages: Receive = {
-    case ReportProfilingData(profilingContainer) => {
-
+    case ReportProfilingData(profilingContainer) =>
       profilingContainer.getIterator foreach {
         case x: InternalExecutionVertexThreadProfilingData =>
-          log.info(s"Received InternalExecutionVertexThreadProfilingData ${x}.")
+          log.info(s"Received InternalExecutionVertexThreadProfilingData $x.")
         case x: InternalInstanceProfilingData =>
-          log.info(s"Received InternalInstanceProfilingData ${x}.")
-
+          log.info(s"Received InternalInstanceProfilingData $x.")
         case x =>
           log.error(s"Received unknown profiling data: ${x.getClass.getName}" )
       }
-    }
   }
 }

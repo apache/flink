@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{Cancellable, ActorRef, Props}
+import akka.actor.{Cancellable, Terminated, ActorRef, Props}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.execution.ExecutionState
@@ -31,13 +31,18 @@ import scala.collection.convert.WrapAsScala
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
+import scala.language.postfixOps
 
+/**
+ * Mixin for [[TestingJobManager]] to support testing messages
+ */
 trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   that: JobManager =>
 
   import context._
 
   val waitForAllVerticesToBeRunning = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
+  val waitForTaskManagerToBeTerminated = scala.collection.mutable.HashMap[String, Set[ActorRef]]()
 
   val waitForAllVerticesToBeRunningOrFinished =
     scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
@@ -96,7 +101,8 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
         periodicCheck = None
       }
 
-    case NotifyWhenJobRemoved(jobID) => {
+
+    case NotifyWhenJobRemoved(jobID) =>
       val tms = instanceManager.getAllRegisteredInstances.map(_.getTaskManager)
 
       val responses = tms.map{
@@ -107,8 +113,18 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       import context.dispatcher
 
       Future.fold(responses)(true)(_ & _) pipeTo sender
-    }
+    case NotifyWhenTaskManagerTerminated(taskManager) =>
+      val waiting = waitForTaskManagerToBeTerminated.getOrElse(taskManager.path.name, Set())
+      waitForTaskManagerToBeTerminated += taskManager.path.name -> (waiting + sender)
+    case msg@Terminated(taskManager) =>
+      super.receiveWithLogMessages(msg)
 
+      waitForTaskManagerToBeTerminated.get(taskManager.path.name) foreach {
+        _ foreach {
+          listener =>
+            listener ! TaskManagerTerminated(taskManager)
+        }
+      }
     case RequestWorkingTaskManager(jobID) =>
       currentJobs.get(jobID) match {
         case Some((eg, _)) =>

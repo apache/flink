@@ -18,22 +18,28 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.ActorRef
+import akka.actor.{Terminated, ActorRef}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
+import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
+/**
+ * Mixin for the [[TaskManager]] to support testing messages
+ */
 trait TestingTaskManager extends ActorLogMessages {
   that: TaskManager =>
 
   val waitForRemoval = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val waitForJobRemoval = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
+  val waitForJobManagerToBeTerminated = scala.collection.mutable.HashMap[String, Set[ActorRef]]()
 
   abstract override def receiveWithLogMessages = {
     receiveTestMessages orElse super.receiveWithLogMessages
@@ -59,21 +65,19 @@ trait TestingTaskManager extends ActorLogMessages {
         case None =>
       }
       
-    case RequestBroadcastVariablesWithReferences => {
+    case RequestBroadcastVariablesWithReferences =>
       sender ! ResponseBroadcastVariablesWithReferences(
         bcVarManager.getNumberOfVariablesWithReferences)
-    }
 
-    case RequestNumActiveConnections => {
+    case RequestNumActiveConnections =>
       networkEnvironment match {
         case Some(ne) => sender ! ResponseNumActiveConnections(
           ne.getConnectionManager.getNumberOfActiveConnections)
 
         case None => sender ! ResponseNumActiveConnections(0)
       }
-    }
 
-    case NotifyWhenJobRemoved(jobID) => {
+  case NotifyWhenJobRemoved(jobID) =>
       if(runningTasks.values.exists(_.getJobID == jobID)){
         val set = waitForJobRemoval.getOrElse(jobID, Set())
         waitForJobRemoval += (jobID -> (set + sender))
@@ -85,9 +89,8 @@ trait TestingTaskManager extends ActorLogMessages {
           case None => sender ! true
         }
       }
-    }
-    
-    case CheckIfJobRemoved(jobID) => {
+
+    case CheckIfJobRemoved(jobID) =>
       if(runningTasks.values.forall(_.getJobID != jobID)){
         waitForJobRemoval.get(jobID) match {
           case Some(listeners) => listeners foreach (_ ! true)
@@ -97,6 +100,18 @@ trait TestingTaskManager extends ActorLogMessages {
         import context.dispatcher
         context.system.scheduler.scheduleOnce(200 milliseconds, this.self, CheckIfJobRemoved(jobID))
       }
-    }
+
+    case NotifyWhenJobManagerTerminated(jobManager) =>
+      val waiting = waitForJobManagerToBeTerminated.getOrElse(jobManager.path.name, Set())
+      waitForJobManagerToBeTerminated += jobManager.path.name -> (waiting + sender)
+
+    case msg@Terminated(jobManager) =>
+      super.receiveWithLogMessages(msg)
+
+      waitForJobManagerToBeTerminated.get(jobManager.path.name) foreach {
+        _ foreach {
+          _ ! JobManagerTerminated(jobManager)
+        }
+      }
   }
 }

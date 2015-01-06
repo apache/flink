@@ -113,9 +113,12 @@ object ConnectedComponents {
         edgesPath = args(1)
         outputPath = args(2)
         maxIterations = args(3).toInt
+
+        true
       } else {
         System.err.println("Usage: ConnectedComponents <vertices path> <edges path> <result path>" +
           " <max number of iterations>")
+
         false
       }
     } else {
@@ -123,8 +126,9 @@ object ConnectedComponents {
       System.out.println("  Provide parameters to read input data from a file.")
       System.out.println("  Usage: ConnectedComponents <vertices path> <edges path> <result path>" +
         " <max number of iterations>")
+
+      true
     }
-    true
   }
 
   private def getVerticesDataSet(env: ExecutionEnvironment): DataSet[Long] = {

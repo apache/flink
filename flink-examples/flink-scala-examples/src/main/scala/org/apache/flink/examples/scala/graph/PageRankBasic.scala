@@ -159,9 +159,12 @@ object PageRankBasic {
         outputPath = args(2)
         numPages = args(3).toLong
         maxIterations = args(4).toInt
+
+        true
       } else {
         System.err.println("Usage: PageRankBasic <pages path> <links path> <output path> <num " +
           "pages> <num iterations>")
+
         false
       }
     } else {
@@ -173,8 +176,9 @@ object PageRankBasic {
         "pages> <num iterations>")
 
       numPages = PageRankData.getNumberOfPages
+
+      true
     }
-    true
   }
 
   private def getPagesDataSet(env: ExecutionEnvironment): DataSet[Long] = {

@@ -56,14 +56,14 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     if(expected != null) {
       compareResultsByLinesInMemory(expected, resultPath)
     }
   }
 
   @Test
-  def testCorrectnessOfGroupReduceOnTuplesWithKeyFieldSelector: Unit = {
+  def testCorrectnessOfGroupReduceOnTuplesWithKeyFieldSelector(): Unit = {
     /*
      * check correctness of groupReduce on tuples with key field selector
      */
@@ -79,7 +79,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceOnTuplesWithMultipleKeyFieldSelector: Unit = {
+  def testCorrectnessOfGroupReduceOnTuplesWithMultipleKeyFieldSelector(): Unit = {
     /*
      * check correctness of groupReduce on tuples with multiple key field selector
      */
@@ -101,7 +101,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceOnTuplesWithKeyFieldSelectorAndGroupSorting: Unit = {
+  def testCorrectnessOfGroupReduceOnTuplesWithKeyFieldSelectorAndGroupSorting(): Unit = {
     /*
      * check correctness of groupReduce on tuples with key field selector and group sorting
      */
@@ -123,7 +123,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceOnTuplesWithKeyExtractor: Unit = {
+  def testCorrectnessOfGroupReduceOnTuplesWithKeyExtractor(): Unit = {
     /*
      * check correctness of groupReduce on tuples with key extractor
      */
@@ -139,7 +139,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceOnCustomTypeWithTypeExtractor: Unit = {
+  def testCorrectnessOfGroupReduceOnCustomTypeWithTypeExtractor(): Unit = {
     /*
      * check correctness of groupReduce on custom type with type extractor
      */
@@ -168,7 +168,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfAllGroupReduceForTuples: Unit = {
+  def testCorrectnessOfAllGroupReduceForTuples(): Unit = {
     /*
      * check correctness of all-groupreduce for tuples
      */
@@ -190,7 +190,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfAllGroupReduceForCustomTypes: Unit = {
+  def testCorrectnessOfAllGroupReduceForCustomTypes(): Unit = {
     /*
      * check correctness of all-groupreduce for custom types
      */
@@ -211,7 +211,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceWithBroadcastSet: Unit = {
+  def testCorrectnessOfGroupReduceWithBroadcastSet(): Unit = {
     /*
      * check correctness of groupReduce with broadcast set
      */
@@ -245,7 +245,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceIfUDFReturnsInputObjectMultipleTimesWhileChangingIt: Unit = {
+  def testCorrectnessOfGroupReduceIfUDFReturnsInputObjectMultipleTimesWhileChangingIt(): Unit = {
     /*
      * check correctness of groupReduce if UDF returns input objects multiple times and
      * changes it in between
@@ -273,7 +273,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceOnCustomTypeWithKeyExtractorAndCombine: Unit = {
+  def testCorrectnessOfGroupReduceOnCustomTypeWithKeyExtractorAndCombine(): Unit = {
     /*
      * check correctness of groupReduce on custom type with key extractor and combine
      */
@@ -293,7 +293,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceOnTuplesWithCombine: Unit = {
+  def testCorrectnessOfGroupReduceOnTuplesWithCombine(): Unit = {
     /*
      * check correctness of groupReduce on tuples with combine
      */
@@ -314,7 +314,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfAllGroupReduceForTuplesWithCombine: Unit = {
+  def testCorrectnessOfAllGroupReduceForTuplesWithCombine(): Unit = {
     /*
      * check correctness of all-groupreduce for tuples with combine
      */
@@ -336,7 +336,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceWithDescendingGroupSort: Unit = {
+  def testCorrectnessOfGroupReduceWithDescendingGroupSort(): Unit = {
     /*
      * check correctness of groupReduce with descending group sort
      */
@@ -357,7 +357,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testCorrectnessOfGroupReduceOnTuplesWithTupleReturningKeySelector: Unit = {
+  def testCorrectnessOfGroupReduceOnTuplesWithTupleReturningKeySelector(): Unit = {
     /*
      * check correctness of groupReduce on tuples with tuple-returning key selector
      */
@@ -380,7 +380,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testInputOfCombinerIsSortedForCombinableGroupReduceWithGroupSorting: Unit = {
+  def testInputOfCombinerIsSortedForCombinableGroupReduceWithGroupSorting(): Unit = {
     /*
      * check that input of combiner is also sorted for combinable groupReduce with group
      * sorting
@@ -400,7 +400,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testDeepNestingAndNullValueInPojo: Unit = {
+  def testDeepNestingAndNullValueInPojo(): Unit = {
     /*
      * Deep nesting test
      * + null value in pojo
@@ -425,7 +425,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testPojoContainigAWritableAndTuples: Unit = {
+  def testPojoContainigAWritableAndTuples(): Unit = {
     /*
      * Test Pojo containing a Writable and Tuples
      */
@@ -450,7 +450,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testTupleContainingPojosAndRegularFields: Unit ={
+  def testTupleContainingPojosAndRegularFields(): Unit ={
     /*
      * Test Tuple containing pojos and regular fields
      */
@@ -472,7 +472,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testStringBasedDefinitionOnGroupSort: Unit = {
+  def testStringBasedDefinitionOnGroupSort(): Unit = {
     /*
      * Test string-based definition on group sort, based on test:
      * check correctness of groupReduce with descending group sort
@@ -495,7 +495,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testIntBasedDefinitionOnGroupSortForFullNestedTuple: Unit = {
+  def testIntBasedDefinitionOnGroupSortForFullNestedTuple(): Unit = {
     /*
      * Test int-based definition on group sort, for (full) nested Tuple
      */
@@ -510,7 +510,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testIntBasedDefinitionOnGroupSortForPartialNestedTuple: Unit = {
+  def testIntBasedDefinitionOnGroupSortForPartialNestedTuple(): Unit = {
     /*
      * Test int-based definition on group sort, for (partial) nested Tuple ASC
      */
@@ -527,7 +527,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testStringBasedDefinitionOnGroupSortForPartialNestedTuple: Unit = {
+  def testStringBasedDefinitionOnGroupSortForPartialNestedTuple(): Unit = {
     /*
      * Test string-based definition on group sort, for (partial) nested Tuple DESC
      */
@@ -544,7 +544,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testStringBasedDefinitionOnGroupSortForTwoGroupingKeys: Unit = {
+  def testStringBasedDefinitionOnGroupSortForTwoGroupingKeys(): Unit = {
     /*
      * Test string-based definition on group sort, for two grouping keys
      */
@@ -561,7 +561,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
   }
 
   @Test
-  def testStringBasedDefinitionOnGroupSortForTwoGroupingKeysWithPojos: Unit = {
+  def testStringBasedDefinitionOnGroupSortForTwoGroupingKeysWithPojos(): Unit = {
     /*
      * Test string-based definition on group sort, for two grouping keys with Pojos
      */
@@ -725,18 +725,19 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
     env.setDegreeOfParallelism(1)
     val ds =  CollectionDataSets.getPojoWithMultiplePojos(env)
     val reduceDs =  ds.groupBy("p2.a2")
-      .reduceGroup(
-        new GroupReduceFunction[CollectionDataSets.PojoWithMultiplePojos, String] {
-          def reduce(
-                      values: Iterable[CollectionDataSets.PojoWithMultiplePojos],
-                      out: Collector[String]) {
-            val concat: StringBuilder = new StringBuilder
-            for (value <- values.asScala) {
-              concat.append(value.p2.a2)
-            }
-            out.collect(concat.toString())
+      .reduceGroup {
+      new GroupReduceFunction[CollectionDataSets.PojoWithMultiplePojos, String] {
+        def reduce(
+                    values: Iterable[CollectionDataSets.PojoWithMultiplePojos],
+                    out: Collector[String]) {
+          val concat: StringBuilder = new StringBuilder
+          for (value <- values.asScala) {
+            concat.append(value.p2.a2)
           }
-        })
+          out.collect(concat.toString())
+        }
+      }
+    }
     reduceDs.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "b\nccc\nee\n"

@@ -33,7 +33,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -796,8 +795,8 @@ public class CliFrontend {
 		}
 
 		return JobManager.getJobManager(RemoteExecutor.getInetFromHostport(jobManagerAddressStr),
-				ActorSystem.create("CliFrontendActorSystem", AkkaUtils
-						.getDefaultActorSystemConfig()),getAkkaTimeout());
+				ActorSystem.create("CliFrontendActorSystem",
+						AkkaUtils.getDefaultAkkaConfig()),getAkkaTimeout());
 	}
 	
 
@@ -867,8 +866,7 @@ public class CliFrontend {
 	protected FiniteDuration getAkkaTimeout(){
 		Configuration config = getGlobalConfiguration();
 
-		return new FiniteDuration(config.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
-				ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS);
+		return AkkaUtils.getTimeout(config);
 	}
 	
 	public static List<Tuple2<String, String>> getDynamicProperties(String dynamicPropertiesEncoded) {

@@ -52,7 +52,7 @@ class AggregateITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testFullAggregate: Unit = {
+  def testFullAggregate(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
@@ -73,7 +73,7 @@ class AggregateITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testGroupedAggregate: Unit = {
+  def testGroupedAggregate(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
@@ -93,7 +93,7 @@ class AggregateITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testNestedAggregate: Unit = {
+  def testNestedAggregate(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
 

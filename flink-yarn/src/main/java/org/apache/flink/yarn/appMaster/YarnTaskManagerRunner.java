@@ -35,7 +35,6 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import scala.Tuple2;
 
-
 public class YarnTaskManagerRunner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnTaskManagerRunner.class);
@@ -60,9 +59,7 @@ public class YarnTaskManagerRunner {
 			@Override
 			public Object run() {
 				try {
-					Tuple2<ActorSystem, ActorRef> tuple = YarnUtils
-							.startActorSystemAndTaskManager(newArgs);
-
+					Tuple2<ActorSystem, ActorRef> tuple = YarnUtils.startActorSystemAndTaskManager(newArgs);
 					tuple._1().awaitTermination();
 				} catch (Exception e) {
 					LOG.error("Error while running the TaskManager", e);

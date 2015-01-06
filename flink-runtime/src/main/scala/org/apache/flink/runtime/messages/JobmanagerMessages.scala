@@ -31,7 +31,7 @@ object JobManagerMessages {
 
   /**
    * Submits a job to the job manager. If [[registerForEvents]] is true,
-   * then the sender will be registered as listener for the state change messages. If [[detach]]
+   * then the sender will be registered as listener for the state change messages. If [[detached]]
    * is set to true, then the sender will detach from the job execution. Consequently,
    * he will not receive the job execution result [[JobResult]]. The submission result will be sent
    * back to the
@@ -39,10 +39,10 @@ object JobManagerMessages {
    *
    * @param jobGraph
    * @param registerForEvents if true, then register for state change events
-   * @param detach if true, then detach from the job execution
+   * @param detached if true, then detach from the job execution
    */
   case class SubmitJob(jobGraph: JobGraph, registerForEvents: Boolean = false,
-                       detach: Boolean = false)
+                       detached: Boolean = false)
 
   /**
    * Cancels a job with the given [[jobID]] at the JobManager. The result of the cancellation is
@@ -330,31 +330,31 @@ object JobManagerMessages {
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   
-  def getRequestNumberRegisteredTaskManager() : AnyRef = {
+  def getRequestNumberRegisteredTaskManager : AnyRef = {
     RequestNumberRegisteredTaskManager
   }
   
-  def getRequestTotalNumberOfSlots() : AnyRef = {
+  def getRequestTotalNumberOfSlots : AnyRef = {
     RequestTotalNumberOfSlots
   }
   
-  def getRequestBlobManagerPort() : AnyRef = {
+  def getRequestBlobManagerPort : AnyRef = {
     RequestBlobManagerPort
   }
   
-  def getRequestRunningJobs() : AnyRef = {
+  def getRequestRunningJobs : AnyRef = {
     RequestRunningJobs
   }
   
-  def getRequestRegisteredTaskManagers() : AnyRef = {
+  def getRequestRegisteredTaskManagers : AnyRef = {
     RequestRegisteredTaskManagers
   }
   
-  def getRequestJobManagerStatus() : AnyRef = {
+  def getRequestJobManagerStatus : AnyRef = {
     RequestJobManagerStatus
   }
   
-  def getJobManagerStatusAlive() : AnyRef = {
+  def getJobManagerStatusAlive : AnyRef = {
     JobManagerStatusAlive
   }
 }

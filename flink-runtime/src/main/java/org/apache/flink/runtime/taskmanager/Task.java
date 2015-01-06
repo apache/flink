@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
@@ -39,7 +40,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-public final class Task {
+public class Task {
 
 	/** For atomic state updates */
 	private static final AtomicReferenceFieldUpdater<Task, ExecutionState> STATE_UPDATER =
@@ -62,7 +63,7 @@ public final class Task {
 
 	private final String taskName;
 
-	private final TaskManager taskManager;
+	private final ActorRef taskManager;
 
 	private final List<ActorRef> executionListenerActors = new CopyOnWriteArrayList<ActorRef>();
 
@@ -75,7 +76,7 @@ public final class Task {
 	// --------------------------------------------------------------------------------------------	
 
 	public Task(JobID jobId, JobVertexID vertexId, int taskIndex, int parallelism,
-				ExecutionAttemptID executionId, String taskName, TaskManager taskManager) {
+			ExecutionAttemptID executionId, String taskName, ActorRef taskManager) {
 
 		this.jobId = jobId;
 		this.vertexId = vertexId;
@@ -164,7 +165,7 @@ public final class Task {
 	public boolean markAsFinished() {
 		if (STATE_UPDATER.compareAndSet(this, ExecutionState.RUNNING, ExecutionState.FINISHED)) {
 			notifyObservers(ExecutionState.FINISHED, null);
-			taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.FINISHED, null);
+			notifyExecutionStateChange(ExecutionState.FINISHED, null);
 			return true;
 		}
 		else {
@@ -186,7 +187,7 @@ public final class Task {
 			// message back
 			else if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
 				notifyObservers(ExecutionState.FAILED, ExceptionUtils.stringifyException(error));
-				taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.FAILED, error);
+				notifyExecutionStateChange(ExecutionState.FAILED, error);
 				return;
 			}
 		}
@@ -208,7 +209,7 @@ public final class Task {
 				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELED)) {
 
 					notifyObservers(ExecutionState.CANCELED, null);
-					taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.CANCELED, null);
+					notifyExecutionStateChange(ExecutionState.CANCELED, null);
 					return;
 				}
 			}
@@ -260,7 +261,7 @@ public final class Task {
 				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
 
 					notifyObservers(ExecutionState.FAILED, null);
-					taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.FAILED, cause);
+					notifyExecutionStateChange(ExecutionState.FAILED, cause);
 					return;
 				}
 			}
@@ -275,7 +276,7 @@ public final class Task {
 					}
 
 					notifyObservers(ExecutionState.FAILED, null);
-					taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.FAILED, cause);
+					notifyExecutionStateChange(ExecutionState.FAILED, cause);
 
 					return;
 				}
@@ -299,7 +300,7 @@ public final class Task {
 
 			if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELED)) {
 				notifyObservers(ExecutionState.CANCELED, null);
-				taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.CANCELED, null);
+				notifyExecutionStateChange(ExecutionState.CANCELED, null);
 				return;
 			}
 		}
@@ -327,6 +328,15 @@ public final class Task {
 		if (memoryManager != null && env != null) {
 			memoryManager.releaseAll(env.getInvokable());
 		}
+	}
+
+	protected void notifyExecutionStateChange(ExecutionState executionState,
+											Throwable optionalError) {
+		LOG.info("Update execution state to " + executionState);
+		taskManager.tell(new JobManagerMessages.UpdateTaskExecutionState(
+				new TaskExecutionState(jobId, executionId, executionState, optionalError)),
+				ActorRef.noSender());
+
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------

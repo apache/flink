@@ -45,12 +45,12 @@ class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testHashPartitionByTupleField: Unit = {
+  def testHashPartitionByTupleField(): Unit = {
     /*
      * Test hash partition by tuple field
      */
@@ -66,7 +66,7 @@ class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testHashPartitionByKeySelector: Unit = {
+  def testHashPartitionByKeySelector(): Unit = {
     /*
      * Test hash partition by key selector
      */
@@ -80,7 +80,7 @@ class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testForcedRebalancing: Unit = {
+  def testForcedRebalancing(): Unit = {
     /*
      * Test forced rebalancing
      */
@@ -111,7 +111,7 @@ class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testMapPartitionAfterRepartitionHasCorrectDOP: Unit = {
+  def testMapPartitionAfterRepartitionHasCorrectDOP(): Unit = {
     // Verify that mapPartition operation after repartition picks up correct
     // DOP
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -129,7 +129,7 @@ class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testMapAfterRepartitionHasCorrectDOP: Unit = {
+  def testMapAfterRepartitionHasCorrectDOP(): Unit = {
     // Verify that map operation after repartition picks up correct
     // DOP
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -157,7 +157,7 @@ class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testFilterAfterRepartitionHasCorrectDOP: Unit = {
+  def testFilterAfterRepartitionHasCorrectDOP(): Unit = {
     // Verify that filter operation after repartition picks up correct
     // DOP
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -186,7 +186,7 @@ class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
   }
 
   @Test
-  def testPartitionNestedPojo: Unit = {
+  def testPartitionNestedPojo(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     env.setDegreeOfParallelism(3)
     val ds = CollectionDataSets.getDuplicatePojoDataSet(env)

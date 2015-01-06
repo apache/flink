@@ -48,4 +48,7 @@ object TestingJobManagerMessages {
   case class JobStatusIs(jobID: JobID, state: JobStatus)
 
   case object NotifyListeners
+
+  case class NotifyWhenTaskManagerTerminated(taskManager: ActorRef)
+  case class TaskManagerTerminated(taskManager: ActorRef)
 }

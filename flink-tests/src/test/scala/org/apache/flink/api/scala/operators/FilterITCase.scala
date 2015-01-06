@@ -47,12 +47,12 @@ class FilterITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testAllRejectingFilter: Unit = {
+  def testAllRejectingFilter(): Unit = {
     /*
      * Test all-rejecting filter.
      */
@@ -65,7 +65,7 @@ class FilterITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testAllPassingFilter: Unit = {
+  def testAllPassingFilter(): Unit = {
     /*
      * Test all-passing filter.
      */
@@ -83,7 +83,7 @@ class FilterITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testFilterOnStringTupleField: Unit = {
+  def testFilterOnStringTupleField(): Unit = {
     /*
      * Test filter on String tuple field.
      */
@@ -96,7 +96,7 @@ class FilterITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testFilterOnIntegerTupleField: Unit = {
+  def testFilterOnIntegerTupleField(): Unit = {
     /*
      * Test filter on Integer tuple field.
      */
@@ -111,7 +111,7 @@ class FilterITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testFilterBasicType: Unit = {
+  def testFilterBasicType(): Unit = {
     /*
      * Test filter on basic type
      */
@@ -124,7 +124,7 @@ class FilterITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testFilterOnCustomType: Unit = {
+  def testFilterOnCustomType(): Unit = {
     /*
      * Test filter on custom type
      */
@@ -137,7 +137,7 @@ class FilterITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testRichFilterOnStringTupleField: Unit = {
+  def testRichFilterOnStringTupleField(): Unit = {
     /*
      * Test filter on String tuple field.
      */

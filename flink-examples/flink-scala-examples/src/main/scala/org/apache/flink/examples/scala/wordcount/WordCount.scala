@@ -70,6 +70,7 @@ object WordCount {
       if (args.length == 2) {
         textPath = args(0)
         outputPath = args(1)
+        true
       } else {
         System.err.println("Usage: WordCount <text path> <result path>")
         false
@@ -78,8 +79,8 @@ object WordCount {
       System.out.println("Executing WordCount example with built-in default data.")
       System.out.println("  Provide parameters to read input data from a file.")
       System.out.println("  Usage: WordCount <text path> <result path>")
+      true
     }
-    true
   }
 
   private def getTextDataSet(env: ExecutionEnvironment): DataSet[String] = {

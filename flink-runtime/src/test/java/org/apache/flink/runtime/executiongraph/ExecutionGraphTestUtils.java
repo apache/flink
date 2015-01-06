@@ -151,10 +151,10 @@ public class ExecutionGraphTestUtils {
 		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 		
 		ExecutionGraph graph = new ExecutionGraph(new JobID(), "test job", new Configuration(),
-				AkkaUtils.DEFAULT_TIMEOUT());
+				AkkaUtils.getDefaultTimeout());
 		
 		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1,
-				AkkaUtils.DEFAULT_TIMEOUT()));
+				AkkaUtils.getDefaultTimeout()));
 		
 		Answer<Void> noop = new Answer<Void>() {
 			@Override

@@ -20,7 +20,7 @@ package org.apache.flink.yarn
 
 import java.io.{IOException, File}
 import java.nio.ByteBuffer
-import java.util.{ Collections}
+import java.util.Collections
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.ConfigConstants
@@ -41,6 +41,7 @@ import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest
 import org.apache.hadoop.yarn.util.Records
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 
 trait YarnJobManager extends ActorLogMessages {
@@ -100,7 +101,7 @@ trait YarnJobManager extends ActorLogMessages {
       sender() ! new FlinkYarnClusterStatus(instanceManager.getNumberOfRegisteredTaskManagers,
         instanceManager.getTotalNumberOfSlots)
 
-    case StartYarnSession(conf, actorSystemPort: Int) => {
+    case StartYarnSession(conf, actorSystemPort: Int) =>
       log.info("Start yarn session.")
       val memoryPerTaskManager = env.get(FlinkYarnClient.ENV_TM_MEMORY).toInt
       val heapLimit = Utils.calculateHeapSize(memoryPerTaskManager)
@@ -109,7 +110,7 @@ trait YarnJobManager extends ActorLogMessages {
       require(applicationMasterHost != null, s"Application master (${Environment.NM_HOST} not set.")
 
       numTaskManager = env.get(FlinkYarnClient.ENV_TM_COUNT).toInt
-      log.info(s"Requesting ${numTaskManager} task managers.")
+      log.info(s"Requesting $numTaskManager task managers.")
 
       val remoteFlinkJarPath = env.get(FlinkYarnClient.FLINK_JAR_PATH)
       val fs = FileSystem.get(conf)
@@ -194,34 +195,31 @@ trait YarnJobManager extends ActorLogMessages {
         yarnClientUsername, conf, taskManagerLocalResources))
 
       context.system.scheduler.scheduleOnce(ALLOCATION_DELAY, self, PollContainerCompletion)
-    }
 
-    case PollContainerCompletion => {
+    case PollContainerCompletion =>
       rmClientOption match {
-        case Some(rmClient) => {
+        case Some(rmClient) =>
           val response = rmClient.allocate(completedContainers.toFloat / numTaskManager)
 
           for (container <- response.getAllocatedContainers.asScala) {
             log.info(s"Got new container for TM ${container.getId} on host ${
-              container.getNodeId.getHost}")
+              container.getNodeId.getHost
+            }")
 
             allocatedContainers += 1
 
             log.info(s"Launching container #$allocatedContainers.")
             nmClientOption match {
-              case Some(nmClient) => {
+              case Some(nmClient) =>
                 containerLaunchContext match {
                   case Some(ctx) => nmClient.startContainer(container, ctx)
-                  case None => {
+                  case None =>
                     log.error("The ContainerLaunchContext was not set.")
                     self ! StopYarnSession(FinalApplicationStatus.FAILED)
-                  }
                 }
-              }
-              case None => {
+              case None =>
                 log.error("The NMClient was not set.")
                 self ! StopYarnSession(FinalApplicationStatus.FAILED)
-              }
             }
           }
 
@@ -244,13 +242,10 @@ trait YarnJobManager extends ActorLogMessages {
           } else {
             self ! StopYarnSession(FinalApplicationStatus.FAILED)
           }
-        }
-        case None => {
+        case None =>
           log.error("The AMRMClient was not set.")
           self ! StopYarnSession(FinalApplicationStatus.FAILED)
-        }
       }
-    }
   }
 
   def createContainerLaunchContext(heapLimit: Int, hasLogback: Boolean, hasLog4j: Boolean,

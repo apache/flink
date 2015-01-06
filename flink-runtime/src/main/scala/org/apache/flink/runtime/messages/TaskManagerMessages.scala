@@ -134,23 +134,23 @@ object TaskManagerMessages {
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   
-  def getNotifyWhenRegisteredAtJobManagerMessage() : AnyRef = {
+  def getNotifyWhenRegisteredAtJobManagerMessage : AnyRef = {
     NotifyWhenRegisteredAtJobManager
   }
   
-  def getRegisteredAtJobManagerMessage() : AnyRef = {
+  def getRegisteredAtJobManagerMessage : AnyRef = {
     RegisteredAtJobManager
   }
   
-  def getRegisterAtJobManagerMessage() : AnyRef = {
+  def getRegisterAtJobManagerMessage : AnyRef = {
     RegisterAtJobManager
   }
 
-  def getSendHeartbeatMessage() : AnyRef = {
+  def getSendHeartbeatMessage : AnyRef = {
     SendHeartbeat
   }
 
-  def getLogMemoryUsageMessage() : AnyRef = {
+  def getLogMemoryUsageMessage : AnyRef = {
     RegisteredAtJobManager
   }
 }

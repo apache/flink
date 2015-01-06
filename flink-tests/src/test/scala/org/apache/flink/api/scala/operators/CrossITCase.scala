@@ -48,12 +48,12 @@ class CrossITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testCorrectnessOfCrossOnTwoTupleInputs: Unit = {
+  def testCorrectnessOfCrossOnTwoTupleInputs(): Unit = {
     /*
      * check correctness of cross on two tuple inputs
      */
@@ -71,7 +71,7 @@ class CrossITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testCorrectnessOfCrossIfUDFReturnsLeftInput: Unit = {
+  def testCorrectnessOfCrossIfUDFReturnsLeftInput(): Unit = {
     /*
      * check correctness of cross if UDF returns left input object
      */
@@ -87,7 +87,7 @@ class CrossITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testCorrectnessOfCrossIfUDFReturnsRightInput: Unit = {
+  def testCorrectnessOfCrossIfUDFReturnsRightInput(): Unit = {
     /*
      * check correctness of cross if UDF returns right input object
      */
@@ -104,7 +104,7 @@ class CrossITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testCorrectnessOfCrossWithBroadcastSet: Unit = {
+  def testCorrectnessOfCrossWithBroadcastSet(): Unit = {
     /*
      * check correctness of cross with broadcast set
      */
@@ -138,7 +138,7 @@ class CrossITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testCorrectnessOfCrossWithHuge: Unit = {
+  def testCorrectnessOfCrossWithHuge(): Unit = {
     /*
      * check correctness of crossWithHuge (only correctness of result -> should be the same
      * as with normal cross)
@@ -156,7 +156,7 @@ class CrossITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testCorrectnessOfCrossWithTiny: Unit = {
+  def testCorrectnessOfCrossWithTiny(): Unit = {
     /*
      * check correctness of crossWithTiny (only correctness of result -> should be the same
      * as with normal cross)
@@ -176,7 +176,7 @@ class CrossITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testCorrectnessOfDefaultCross: Unit = {
+  def testCorrectnessOfDefaultCross(): Unit = {
     /*
      * check correctness of default cross
      */
@@ -194,7 +194,7 @@ class CrossITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testCorrectnessOfCrossOnTwoCutomTypeInputs: Unit = {
+  def testCorrectnessOfCrossOnTwoCutomTypeInputs(): Unit = {
     /*
      * check correctness of cross on two custom type inputs
      */
@@ -212,7 +212,7 @@ class CrossITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testCorrectnessOfcrossTupleInputAndCustomTypeInput: Unit = {
+  def testCorrectnessOfcrossTupleInputAndCustomTypeInput(): Unit = {
     /*
      * check correctness of cross a tuple input and a custom type input
      */

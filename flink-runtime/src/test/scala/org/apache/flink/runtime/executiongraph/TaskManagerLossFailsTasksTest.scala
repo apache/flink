@@ -59,7 +59,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         val jobGraph = new JobGraph("Pointwise job", sender)
 
         val eg = new ExecutionGraph(new JobID(), "test job", new Configuration(),
-          AkkaUtils.DEFAULT_TIMEOUT)
+          AkkaUtils.getDefaultTimeout)
         eg.setNumberOfRetriesLeft(0)
         eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)
 

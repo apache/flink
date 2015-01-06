@@ -66,7 +66,7 @@ public class ExecutionStateProgressTest {
 			ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 			
 			ExecutionGraph graph = new ExecutionGraph(jid, "test job", new Configuration(),
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			graph.attachJobGraph(Arrays.asList(ajv));
 			
 			setGraphStatus(graph, JobStatus.RUNNING);

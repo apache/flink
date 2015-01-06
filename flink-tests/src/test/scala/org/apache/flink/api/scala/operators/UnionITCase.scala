@@ -50,12 +50,12 @@ class UnionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testUnionOf2IdenticalDS: Unit = {
+  def testUnionOf2IdenticalDS(): Unit = {
     /*
      * Union of 2 Same Data Sets
      */
@@ -68,7 +68,7 @@ class UnionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testUnionOf5IdenticalDSWithMultipleUnions: Unit = {
+  def testUnionOf5IdenticalDSWithMultipleUnions(): Unit = {
     /*
      * Union of 5 same Data Sets, with multiple unions
      */
@@ -86,7 +86,7 @@ class UnionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   }
 
   @Test
-  def testUnionWithEmptyDS: Unit = {
+  def testUnionWithEmptyDS(): Unit = {
     /*
      * Test on union with empty dataset
      */

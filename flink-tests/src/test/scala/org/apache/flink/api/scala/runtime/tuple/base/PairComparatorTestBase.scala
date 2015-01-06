@@ -33,7 +33,7 @@ abstract class PairComparatorTestBase[T, R] {
   @Test
   def testEqualityWithReference(): Unit = {
     try {
-      val comparator = getComparator(true)
+      val comparator = getComparator(ascending = true)
       
       val (dataT, dataR) = getSortedData
       for (i <- 0 until dataT.length) {
@@ -51,8 +51,8 @@ abstract class PairComparatorTestBase[T, R] {
 
   @Test
   def testInequalityWithReference(): Unit = {
-    testGreatSmallAscDescWithReference(true)
-    testGreatSmallAscDescWithReference(false)
+    testGreatSmallAscDescWithReference(ascending = true)
+    testGreatSmallAscDescWithReference(ascending = false)
   }
 
   protected def testGreatSmallAscDescWithReference(ascending: Boolean) {

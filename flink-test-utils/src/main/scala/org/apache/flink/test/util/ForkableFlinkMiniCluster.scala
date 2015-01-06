@@ -76,7 +76,7 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
     }
 
     val (connectionInfo, jobManagerAkkaURL, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration(HOSTNAME, config, localExecution)
+      TaskManager.parseConfiguration(HOSTNAME, config, singleActorSystem, localExecution)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerAkkaURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + index)

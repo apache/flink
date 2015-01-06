@@ -76,12 +76,12 @@ class ExamplesITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @After
-  def after: Unit = {
+  def after(): Unit = {
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
   @Test
-  def testNestesdTuplesWithIntOffset: Unit = {
+  def testNestesdTuplesWithIntOffset(): Unit = {
     /*
      * Test nested tuples with int offset
      */
@@ -95,7 +95,7 @@ class ExamplesITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testNestedTuplesWithExpressionKeys: Unit = {
+  def testNestedTuplesWithExpressionKeys(): Unit = {
     /*
      * Test nested tuples with expression keys
      */
@@ -111,7 +111,7 @@ class ExamplesITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testNestedPojos: Unit = {
+  def testNestedPojos(): Unit = {
     /*
      * Test nested pojos
      */
@@ -132,7 +132,7 @@ class ExamplesITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode)
   }
 
   @Test
-  def testPojoWithNestedCaseClass: Unit = {
+  def testPojoWithNestedCaseClass(): Unit = {
     /*
      * Test pojo with nested case class
      */

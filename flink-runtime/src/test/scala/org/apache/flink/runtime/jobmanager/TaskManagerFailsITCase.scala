@@ -22,9 +22,9 @@ import akka.actor.{Kill, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultFailed, SubmissionSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{WorkingTaskManager,
-RequestWorkingTaskManager, AllVerticesRunning, WaitForAllVerticesToBeRunningOrFinished}
+import org.apache.flink.runtime.messages.JobManagerMessages.{RequestNumberRegisteredTaskManager,
+JobResultFailed, SubmissionSuccess, SubmitJob}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -36,11 +36,40 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
-  override def afterAll(): Unit ={
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 
   "The JobManager" should {
+
+    "detect a failing task manager" in {
+      val num_slots = 11
+
+      val cluster = TestingUtils.startTestingClusterDeathWatch(num_slots, 2)
+
+      val taskManagers = cluster.getTaskManagers
+      val jm = cluster.getJobManager
+
+      try{
+        within(TestingUtils.TESTING_DURATION){
+          jm ! RequestNumberRegisteredTaskManager
+          expectMsg(2)
+
+          jm ! NotifyWhenTaskManagerTerminated(taskManagers(0))
+
+          taskManagers(0) ! PoisonPill
+
+          val TaskManagerTerminated(tm) = expectMsgClass(classOf[TaskManagerTerminated])
+
+          jm ! RequestNumberRegisteredTaskManager
+          expectMsg(1)
+        }
+      }finally{
+        cluster.stop()
+      }
+
+    }
+
     "handle gracefully failing task manager" in {
       val num_tasks = 31
       val sender = new AbstractJobVertex("Sender")

@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -305,14 +305,14 @@ public class Client {
 	}
 
 	public JobExecutionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
-		Tuple2<ActorSystem, ActorRef> pair = JobClient.startActorSystemAndActor(configuration);
+		Tuple2<ActorSystem, ActorRef> pair = JobClient.startActorSystemAndActor(configuration,
+				false);
 
 		ActorRef client = pair._2();
 
 		String hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 
-		FiniteDuration timeout = new FiniteDuration(configuration.getInteger(ConfigConstants
-				.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS);
+		FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
 
 		if(hostname == null){
 			throw new ProgramInvocationException("Could not find hostname of job manager.");
