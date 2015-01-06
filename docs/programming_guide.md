@@ -494,7 +494,11 @@ data.mapPartition(new MapPartitionFunction<String, Long>() {
       <td><strong>Filter</strong></td>
       <td>
         <p>Evaluates a boolean function for each element and retains those for which the function
-        returns true.</p>
+        returns true.<br/>
+        
+        <strong>IMPORTANT:</strong> The system assumes that the function does not modify the elements on which the predicate is applied. Violating this assumption
+        can lead to incorrect results.
+        </p>
 {% highlight java %}
 data.filter(new FilterFunction<Integer>() {
   public boolean filter(Integer value) { return value > 1000; }
@@ -729,7 +733,9 @@ data.mapPartition { in => in map { (_, 1) } }
       <td><strong>Filter</strong></td>
       <td>
         <p>Evaluates a boolean function for each element and retains those for which the function
-        returns true.</p>
+        returns true.<br/>
+        <strong>IMPORTANT:</strong> The system assumes that the function does not modify the element on which the predicate is applied.
+        Violating this assumption can lead to incorrect results.</p>
 {% highlight scala %}
 data.filter { _ > 1000 }
 {% endhighlight %}

@@ -175,6 +175,9 @@ val naturalNumbers = intNumbers.filter { _ > 0 }
 </div>
 </div>
 
+**IMPORTANT:** The system assumes that the function does not modify the elements on which the predicate is applied. Violating this assumption
+can lead to incorrect results.
+
 ### Project (Tuple DataSets only) (Java API Only)
 
 The Project transformation removes or moves Tuple fields of a Tuple DataSet.

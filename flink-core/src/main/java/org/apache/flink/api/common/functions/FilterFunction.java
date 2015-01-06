@@ -21,8 +21,8 @@ package org.apache.flink.api.common.functions;
 import java.io.Serializable;
 
 /**
- * base interface for Filter functions. A filter function take elements and evaluates a
- * predicate on them to decide whether to keep the element, or to discard it.
+ * A filter function is a predicate applied individually to each record.
+ * The predicate decides whether to keep the element, or to discard it.
  * <p>
  * The basic syntax for using a FilterFunction is as follows:
  * <pre><blockquote>
@@ -30,6 +30,10 @@ import java.io.Serializable;
  * 
  * DataSet<X> result = input.filter(new MyFilterFunction());
  * </blockquote></pre>
+ * <p>
+ * <strong>IMPORTANT:</strong> The system assumes that the function does not
+ * modify the elements on which the predicate is applied. Violating this assumption
+ * can lead to incorrect results.
  * 
  * @param <T> The type of the filtered elements.
  */
@@ -37,6 +41,10 @@ public interface FilterFunction<T> extends Function, Serializable {
 	
 	/**
 	 * The filter function that evaluates the predicate.
+	 * <p>
+	 * <strong>IMPORTANT:</strong> The system assumes that the function does not
+	 * modify the elements on which the predicate is applied. Violating this assumption
+	 * can lead to incorrect results.
 	 * 
 	 * @param value The value to be filtered.
 	 * @return True for values that should be retained, false for values to be filtered out.
