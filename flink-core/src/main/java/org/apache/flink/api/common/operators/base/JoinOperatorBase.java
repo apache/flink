@@ -53,8 +53,9 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 	 * An enumeration of hints, optionally usable to tell the system how exactly execute the join.
 	 */
 	public static enum JoinHint {
+		
 		/**
-		 * leave the choice how to do the join to the optimizer. If in doubt, the
+		 * Leave the choice how to do the join to the optimizer. If in doubt, the
 		 * optimizer will choose a repartitioning join.
 		 */
 		OPTIMIZER_CHOOSES,
@@ -91,7 +92,7 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 		 * Hint that the join should repartitioning both inputs and use sorting and merging
 		 * as the join strategy.
 		 */
-		REPARTITION_SORT_MERGE,
+		REPARTITION_SORT_MERGE
 	};
 	
 	// --------------------------------------------------------------------------------------------

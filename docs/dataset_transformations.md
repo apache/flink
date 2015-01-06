@@ -885,6 +885,65 @@ val result1 = input1.joinWithHuge(input2).where(0).equalTo(0)
 </div>
 </div>
 
+#### Join Algorithm Hints
+
+The Flink runtime can execute joins in various ways. Each possible way outperforms the others under
+different circumstances. The system tries to pick a reasonable way automatically, but allows you
+to manually pick a strategy, in case you want to enforce a specific way of executing the join.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<SomeType> input1 = // [...]
+DataSet<AnotherType> input2 = // [...]
+
+DataSet<Tuple2<SomeType, AnotherType> result = 
+      input1.join(input2, BROADCAST_HASH_FIRST)
+            .where("id").equalTo("key");
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input1: DataSet[SomeType] = // [...]
+val input2: DataSet[AnotherType] = // [...]
+
+// hint that the second DataSet is very small
+val result1 = input1.join(input2, BROADCAST_HASH_FIRST).where("id").equalTo("key")
+
+~~~
+
+</div>
+</div>
+
+The following hints are available:
+
+* OPTIMIZER_CHOOSES: Equivalent to not giving a hint at all, leaves the choice to the system.
+
+* BROADCAST_HASH_FIRST: Broadcasts the first input and builds a hash table from it, which is
+  probed by the second input. A good strategy if the first input is very small.
+
+* BROADCAST_HASH_SECOND: Broadcasts the second input and builds a hash table from it, which is
+  probed by the first input. A good strategy if the second input is very small.
+
+* REPARTITION_HASH_FIRST: The system partitions (shuffles) each input (unless the input is already
+  partitioned) and builds a hash table from the first input. This strategy is good if the first
+  input is smaller than the second, but both inputs are still large.
+  *Note:* This is the default fallback strategy that the system uses if no size estimates can be made
+  and no pre-existing partitiongs and sort-orders can be re-used.
+
+* REPARTITION_HASH_SECOND: The system partitions (shuffles) each input (unless the input is already
+  partitioned) and builds a hash table from the second input. This strategy is good if the second
+  input is smaller than the first, but both inputs are still large.
+
+* REPARTITION_SORT_MERGE: The system partitions (shuffles) each input (unless the input is already
+  partitioned) and sorts each input (unless it is already sorted). The inputs are joined by
+  a streamed merge of the sorted inputs. This strategy is good if one or both of the inputs are
+  already sorted.
+
+
 ### Cross
 
 The Cross transformation combines two DataSets into one DataSet. It builds all pairwise combinations of the elements of both input DataSets, i.e., it builds a Cartesian product.
