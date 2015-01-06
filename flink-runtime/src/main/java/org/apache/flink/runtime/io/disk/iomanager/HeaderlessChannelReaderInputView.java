@@ -60,7 +60,7 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 	 * @throws IOException Thrown, if the read requests for the first blocks fail to be
 	 *                     served by the reader.
 	 */
-	public HeaderlessChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, int numBlocks,
+	public HeaderlessChannelReaderInputView(BlockChannelReader<MemorySegment> reader, List<MemorySegment> memory, int numBlocks,
 			int numBytesInLastBlock, boolean waitForFirstBlock)
 	throws IOException
 	{
@@ -87,7 +87,7 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 		
 		// get the next segment
 		this.numBlocksRemaining--;
-		return this.reader.getNextReturnedSegment();
+		return this.reader.getNextReturnedBlock();
 	}
 	
 

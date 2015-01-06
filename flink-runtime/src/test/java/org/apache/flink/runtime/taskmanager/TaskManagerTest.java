@@ -29,16 +29,18 @@ import akka.util.Timeout;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.PartitionInfo;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -101,8 +103,8 @@ public class TaskManagerTest {
 
 				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
 						new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
-						Collections.<PartitionDeploymentDescriptor>emptyList(),
-						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
+						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+						Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				new Within(duration("1 seconds")){
@@ -140,14 +142,14 @@ public class TaskManagerTest {
 
 				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid1, vid1, eid1, "TestTask1", 1, 5,
 						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
-						Collections.<PartitionDeploymentDescriptor>emptyList(),
-						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
+						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+						Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid2, vid2, eid2, "TestTask2", 2, 7,
 						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
-						Collections.<PartitionDeploymentDescriptor>emptyList(),
-						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
+						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+						Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				final FiniteDuration d = duration("1 second");
@@ -243,14 +245,14 @@ public class TaskManagerTest {
 
 				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
 						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
-						Collections.<PartitionDeploymentDescriptor>emptyList(),
-						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
+						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+						Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 						new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
-						Collections.<PartitionDeploymentDescriptor>emptyList(),
-						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
+						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+						Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				new Within(duration("1 second")){
@@ -310,24 +312,24 @@ public class TaskManagerTest {
 
 			IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
-			List<PartitionDeploymentDescriptor> irpdd = new ArrayList<PartitionDeploymentDescriptor>();
-			irpdd.add(new PartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, IntermediateResultPartitionType.PIPELINED, 1));
+			List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
+			irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1));
 
-			PartitionConsumerDeploymentDescriptor ircdd =
-					new PartitionConsumerDeploymentDescriptor(
+			InputGateDeploymentDescriptor ircdd =
+					new InputGateDeploymentDescriptor(
 							new IntermediateDataSetID(),
-							new PartitionInfo[]{
-									new PartitionInfo(partitionId, eid1, PartitionInfo.PartitionLocation.LOCAL, null)
-							},
-							0);
+							0, new InputChannelDeploymentDescriptor[]{
+									new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal())
+							}
+					);
 
 			final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
 					new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
-					irpdd, Collections.<PartitionConsumerDeploymentDescriptor>emptyList(), new ArrayList<BlobKey>(), 0);
+					irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(), new ArrayList<BlobKey>(), 0);
 
 			final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
-					Collections.<PartitionDeploymentDescriptor>emptyList(),
+					Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.singletonList(ircdd),
 					new ArrayList<BlobKey>(), 0);
 
@@ -402,25 +404,25 @@ public class TaskManagerTest {
 
 			IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
-			List<PartitionDeploymentDescriptor> irpdd = new ArrayList<PartitionDeploymentDescriptor>();
-			irpdd.add(new PartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, IntermediateResultPartitionType.PIPELINED, 1));
+			List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
+			irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1));
 
-			PartitionConsumerDeploymentDescriptor ircdd =
-					new PartitionConsumerDeploymentDescriptor(
+			InputGateDeploymentDescriptor ircdd =
+					new InputGateDeploymentDescriptor(
 							new IntermediateDataSetID(),
-							new PartitionInfo[]{
-									new PartitionInfo(partitionId, eid1, PartitionInfo.PartitionLocation.LOCAL, null)
-							},
-							0);
+							0, new InputChannelDeploymentDescriptor[]{
+									new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal())
+							}
+					);
 
 			final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
 					new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
-					irpdd, Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
+					irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 			final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), Tasks.BlockingReceiver.class.getName(),
-					Collections.<PartitionDeploymentDescriptor>emptyList(),
+					Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.singletonList(ircdd),
 					new ArrayList<BlobKey>(), 0);
 

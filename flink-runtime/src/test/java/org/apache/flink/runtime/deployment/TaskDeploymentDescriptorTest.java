@@ -48,8 +48,8 @@ public class TaskDeploymentDescriptorTest {
 			final Configuration jobConfiguration = new Configuration();
 			final Configuration taskConfiguration = new Configuration();
 			final Class<? extends AbstractInvokable> invokableClass = RegularPactTask.class;
-			final List<PartitionDeploymentDescriptor> producedResults = new ArrayList<PartitionDeploymentDescriptor>(0);
-			final List<PartitionConsumerDeploymentDescriptor> inputGates = new ArrayList<PartitionConsumerDeploymentDescriptor>(0);
+			final List<ResultPartitionDeploymentDescriptor> producedResults = new ArrayList<ResultPartitionDeploymentDescriptor>(0);
+			final List<InputGateDeploymentDescriptor> inputGates = new ArrayList<InputGateDeploymentDescriptor>(0);
 			final List<BlobKey> requiredJars = new ArrayList<BlobKey>(0);
 	
 			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, execId, taskName,
@@ -70,7 +70,7 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getIndexInSubtaskGroup(), copy.getIndexInSubtaskGroup());
 			assertEquals(orig.getNumberOfSubtasks(), copy.getNumberOfSubtasks());
 			assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
-			assertEquals(orig.getConsumedPartitions(), copy.getConsumedPartitions());
+			assertEquals(orig.getInputGates(), copy.getInputGates());
 
 			assertEquals(orig.getRequiredJarFiles(), copy.getRequiredJarFiles());
 		}

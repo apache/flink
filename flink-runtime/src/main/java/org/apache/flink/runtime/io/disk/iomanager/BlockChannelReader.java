@@ -21,15 +21,13 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.flink.core.memory.MemorySegment;
-
 /**
  * A reader that reads data in blocks from a file channel. The reader reads the blocks into a 
  * {@link org.apache.flink.core.memory.MemorySegment}. To support asynchronous implementations,
  * the read method does not immediately return the full memory segment, but rather adds it to
  * a blocking queue of finished read operations.
  */
-public interface BlockChannelReader extends FileIOChannel {
+public interface BlockChannelReader<T> extends FileIOChannel {
 
 	/**
 	 * Issues a read request, which will fill the given segment with the next block in the
@@ -39,33 +37,27 @@ public interface BlockChannelReader extends FileIOChannel {
 	 * @param segment The segment to read the block into.
 	 * @throws IOException Thrown, when the reader encounters an I/O error.
 	 */
-	void readBlock(MemorySegment segment) throws IOException;
+	void readBlock(T segment) throws IOException;
+
+	void seekToPosition(long position) throws IOException;
 	
 	/**
 	 * Gets the next memory segment that has been filled with data by the reader. This method blocks until
 	 * such a segment is available, or until an error occurs in the reader, or the reader is closed.
 	 * <p>
 	 * WARNING: If this method is invoked without any segment ever returning (for example, because the
-	 * {@link #readBlock(MemorySegment)} method has not been invoked appropriately), the method may block
+	 * {@link #readBlock(T)} method has not been invoked appropriately), the method may block
 	 * forever.
 	 * 
 	 * @return The next memory segment from the reader's return queue.
 	 * @throws IOException Thrown, if an I/O error occurs in the reader while waiting for the request to return.
 	 */
-	public MemorySegment getNextReturnedSegment() throws IOException;
+	public T getNextReturnedBlock() throws IOException;
 	
 	/**
 	 * Gets the queue in which the full memory segments are queued after the read is complete.
 	 * 
 	 * @return The queue with the full memory segments.
 	 */
-	LinkedBlockingQueue<MemorySegment> getReturnQueue();
-	
-	/**
-	 * Seeks the underlying file channel to the given position.
-	 * 
-	 * @param position The position to seek to.
-	 */
-	void seekToPosition(long position) throws IOException;
+	LinkedBlockingQueue<T> getReturnQueue();
 }
-	

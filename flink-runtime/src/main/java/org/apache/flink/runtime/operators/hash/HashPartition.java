@@ -93,9 +93,9 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	
 	// ------------------------------------------ Spilling ----------------------------------------------
 	
-	private BlockChannelWriter buildSideChannel;		// the channel writer for the build side, if partition is spilled
+	private BlockChannelWriter<MemorySegment> buildSideChannel;		// the channel writer for the build side, if partition is spilled
 	
-	protected BlockChannelWriter probeSideChannel;		// the channel writer from the probe side, if partition is spilled
+	protected BlockChannelWriter<MemorySegment> probeSideChannel;		// the channel writer from the probe side, if partition is spilled
 	
 	// ------------------------------------------ Restoring ----------------------------------------------
 	
@@ -219,12 +219,12 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		return this.probeSideRecordCounter;
 	}
 
-	public BlockChannelWriter getBuildSideChannel() {
+	public BlockChannelWriter<MemorySegment> getBuildSideChannel() {
 		return this.buildSideChannel;
 	}
 	
 	
-	public BlockChannelWriter getProbeSideChannel() {
+	public BlockChannelWriter<MemorySegment> getProbeSideChannel() {
 		return this.probeSideChannel;
 	}
 	
@@ -506,7 +506,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		
 		private final MemorySegmentSource memSource;
 		
-		private BlockChannelWriter writer;
+		private BlockChannelWriter<MemorySegment> writer;
 		
 		private int currentBlockNumber;
 		
@@ -553,7 +553,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			return this.currentBlockNumber + 1;
 		}
 		
-		int spill(BlockChannelWriter writer) throws IOException
+		int spill(BlockChannelWriter<MemorySegment> writer) throws IOException
 		{
 			this.writer = writer;
 			final int numSegments = this.targetList.size();

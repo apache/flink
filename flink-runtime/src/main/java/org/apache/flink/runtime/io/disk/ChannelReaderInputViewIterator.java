@@ -61,7 +61,7 @@ public class ChannelReaderInputViewIterator<E> implements MutableObjectIterator<
 			segments, freeMemTarget, accessors, numBlocks);
 	}
 		
-	public ChannelReaderInputViewIterator(BlockChannelReader reader, LinkedBlockingQueue<MemorySegment> returnQueue,
+	public ChannelReaderInputViewIterator(BlockChannelReader<MemorySegment> reader, LinkedBlockingQueue<MemorySegment> returnQueue,
 			List<MemorySegment> segments, List<MemorySegment> freeMemTarget, TypeSerializer<E> accessors, int numBlocks)
 	throws IOException
 	{

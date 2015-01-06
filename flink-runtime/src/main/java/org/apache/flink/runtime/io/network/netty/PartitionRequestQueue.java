@@ -23,8 +23,10 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.util.event.NotificationListener;
 import org.slf4j.Logger;
@@ -50,9 +52,9 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 	private final ChannelFutureListener writeListener = new WriteAndFlushNextMessageIfPossibleListener();
 
-	private final Queue<SequenceNumberingPartitionQueueIterator> queue = new ArrayDeque<SequenceNumberingPartitionQueueIterator>();
+	private final Queue<SequenceNumberingSubpartitionView> queue = new ArrayDeque<SequenceNumberingSubpartitionView>();
 
-	private SequenceNumberingPartitionQueueIterator currentPartitionQueue;
+	private SequenceNumberingSubpartitionView currentPartitionQueue;
 
 	private boolean fatalError;
 
@@ -97,18 +99,18 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		super.channelRegistered(ctx);
 	}
 
-	public void enqueue(IntermediateResultPartitionQueueIterator partitionQueue, InputChannelID receiverId) throws Exception {
+	public void enqueue(ResultSubpartitionView partitionQueue, InputChannelID receiverId) throws Exception {
 		numEnqueueCalls.incrementAndGet();
-		ctx.pipeline().fireUserEventTriggered(new SequenceNumberingPartitionQueueIterator(partitionQueue, receiverId));
+		ctx.pipeline().fireUserEventTriggered(new SequenceNumberingSubpartitionView(partitionQueue, receiverId));
 	}
 
 	@Override
 	public void userEventTriggered(ChannelHandlerContext ctx, Object msg) throws Exception {
-		if (msg.getClass() == SequenceNumberingPartitionQueueIterator.class) {
+		if (msg.getClass() == SequenceNumberingSubpartitionView.class) {
 			boolean triggerWrite = queue.isEmpty();
 
 			numTotalEnqueueOperations++;
-			queue.add((SequenceNumberingPartitionQueueIterator) msg);
+			queue.add((SequenceNumberingSubpartitionView) msg);
 
 			if (triggerWrite) {
 				writeAndFlushNextMessageIfPossible(ctx.channel());
@@ -141,20 +143,27 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 					buffer = currentPartitionQueue.getNextBuffer();
 
 					if (buffer == null) {
-						if (currentPartitionQueue.subscribe(null)) {
+						if (currentPartitionQueue.registerListener(null)) {
 							numTotalSubscribeCalls++;
 							numOutstandingSubscribeCalls.incrementAndGet();
 
 							currentPartitionQueue = null;
 						}
-						else if (currentPartitionQueue.isConsumed()) {
-							numConsumedPartitions++;
-
+						else if (currentPartitionQueue.isReleased()) {
 							currentPartitionQueue = null;
 						}
 					}
 					else {
 						BufferResponse resp = new BufferResponse(buffer, currentPartitionQueue.getSequenceNumber(), currentPartitionQueue.getReceiverId());
+
+						if (!buffer.isBuffer() &&
+								EventSerializer.fromBuffer(buffer, getClass().getClassLoader()).getClass() == EndOfPartitionEvent.class) {
+
+							currentPartitionQueue.notifySubpartitionConsumed();
+							currentPartitionQueue.releaseAllResources();
+							currentPartitionQueue = null;
+
+						}
 
 						channel.writeAndFlush(resp).addListener(writeListener);
 
@@ -164,13 +173,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			}
 		}
 		catch (Throwable t) {
-			try {
-				if (buffer != null) {
-					buffer.recycle();
-				}
-			}
-			catch (Throwable ignored) {
-				// Make sure that this buffer is recycled in any case
+			if (buffer != null) {
+				buffer.recycle();
 			}
 
 			throw new IOException(t.getMessage(), t);
@@ -200,12 +204,12 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 	private void releaseAllResources() throws IOException {
 		if (currentPartitionQueue != null) {
-			currentPartitionQueue.discard();
+			currentPartitionQueue.releaseAllResources();
 			currentPartitionQueue = null;
 		}
 
 		while ((currentPartitionQueue = queue.poll()) != null) {
-			currentPartitionQueue.discard();
+			currentPartitionQueue.releaseAllResources();
 		}
 	}
 
@@ -232,15 +236,15 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	 * Simple wrapper for the partition queue iterator, which increments a
 	 * sequence number for each returned buffer and remembers the receiver ID.
 	 */
-	private class SequenceNumberingPartitionQueueIterator implements IntermediateResultPartitionQueueIterator, NotificationListener {
+	private class SequenceNumberingSubpartitionView implements ResultSubpartitionView, NotificationListener {
 
-		private final IntermediateResultPartitionQueueIterator queueIterator;
+		private final ResultSubpartitionView queueIterator;
 
 		private final InputChannelID receiverId;
 
 		private int sequenceNumber = -1;
 
-		private SequenceNumberingPartitionQueueIterator(IntermediateResultPartitionQueueIterator queueIterator, InputChannelID receiverId) {
+		private SequenceNumberingSubpartitionView(ResultSubpartitionView queueIterator, InputChannelID receiverId) {
 			this.queueIterator = checkNotNull(queueIterator);
 			this.receiverId = checkNotNull(receiverId);
 		}
@@ -254,7 +258,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		}
 
 		@Override
-		public Buffer getNextBuffer() throws IOException {
+		public Buffer getNextBuffer() throws IOException, InterruptedException {
 			Buffer buffer = queueIterator.getNextBuffer();
 
 			if (buffer != null) {
@@ -265,18 +269,23 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		}
 
 		@Override
-		public void discard() throws IOException {
-			queueIterator.discard();
+		public void notifySubpartitionConsumed() throws IOException {
+			queueIterator.notifySubpartitionConsumed();
 		}
 
 		@Override
-		public boolean subscribe(NotificationListener ignored) throws AlreadySubscribedException {
-			return queueIterator.subscribe(this);
+		public boolean isReleased() {
+			return queueIterator.isReleased();
 		}
 
 		@Override
-		public boolean isConsumed() {
-			return queueIterator.isConsumed();
+		public boolean registerListener(NotificationListener ignored) throws IOException {
+			return queueIterator.registerListener(this);
+		}
+
+		@Override
+		public void releaseAllResources() throws IOException {
+			queueIterator.releaseAllResources();
 		}
 
 		/**

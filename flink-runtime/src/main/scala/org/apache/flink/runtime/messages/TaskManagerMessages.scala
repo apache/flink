@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.core.io.InputSplit
-import org.apache.flink.runtime.deployment.{PartitionInfo, TaskDeploymentDescriptor}
+import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceID
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
@@ -65,17 +65,21 @@ object TaskManagerMessages {
     def executionID: ExecutionAttemptID
   }
 
-  case class UpdateTaskSinglePartitionInfo(executionID: ExecutionAttemptID,
-                        resultId: IntermediateDataSetID,
-                        partitionInfo: PartitionInfo) extends UpdateTask
+  case class UpdateTaskSinglePartitionInfo(
+    executionID: ExecutionAttemptID,
+    resultId: IntermediateDataSetID,
+    partitionInfo: InputChannelDeploymentDescriptor)
+    extends UpdateTask
 
-  case class UpdateTaskMultiplePartitionInfos(executionID: ExecutionAttemptID,
-                                              partitionInfos: Seq[(IntermediateDataSetID,
-                                                PartitionInfo)]) extends UpdateTask
+  case class UpdateTaskMultiplePartitionInfos(
+    executionID: ExecutionAttemptID,
+    partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)])
+    extends UpdateTask
 
-  def createUpdateTaskMultiplePartitionInfos(executionID: ExecutionAttemptID,
-                                             resultIDs: java.util.List[IntermediateDataSetID],
-                                             partitionInfos: java.util.List[PartitionInfo]):
+  def createUpdateTaskMultiplePartitionInfos(
+    executionID: ExecutionAttemptID,
+    resultIDs: java.util.List[IntermediateDataSetID],
+    partitionInfos: java.util.List[InputChannelDeploymentDescriptor]):
   UpdateTaskMultiplePartitionInfos = {
     require(resultIDs.size() == partitionInfos.size(), "ResultIDs must have the same length as" +
       "partitionInfos.")

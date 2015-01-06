@@ -41,7 +41,7 @@ import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
-import org.apache.flink.runtime.jobgraph.{ScheduleMode,JobGraph,JobStatus,JobID}
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobID}
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -97,7 +97,7 @@ class JobManager(val configuration: Configuration,
                  val delayBetweenRetries: Long,
                  val timeout: FiniteDuration)
   extends Actor with ActorLogMessages with ActorLogging {
-  
+
   /** Reference to the log, for debugging */
   val LOG = JobManager.LOG
 
@@ -283,20 +283,20 @@ class JobManager(val configuration: Configuration,
           if(newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
 
-            // is the client waiting for the job result?
+          // is the client waiting for the job result?
             newJobStatus match {
               case JobStatus.FINISHED =>
                 val accumulatorResults = accumulatorManager.getJobAccumulatorResults(jobID)
-                jobInfo.client ! JobResultSuccess(jobID,jobInfo.duration,accumulatorResults)
+                jobInfo.client ! JobResultSuccess(jobID, jobInfo.duration, accumulatorResults)
               case JobStatus.CANCELED =>
                 jobInfo.client ! Failure(new JobCancellationException(jobID,
-                  "Job was cancelled.",error))
+                  "Job was cancelled.", error))
               case JobStatus.FAILED =>
                 jobInfo.client ! Failure(new JobExecutionException(jobID,
-                  "Job execution failed.",error))
+                  "Job execution failed.", error))
               case x =>
-                val exception = new JobExecutionException(jobID,s"$x is not a " +
-                        "terminal state.")
+                val exception = new JobExecutionException(jobID, s"$x is not a " +
+                  "terminal state.")
                 jobInfo.client ! Failure(exception)
                 throw exception
             }
@@ -321,11 +321,11 @@ class JobManager(val configuration: Configuration,
         case None =>
       }
       
-    case ScheduleOrUpdateConsumers(jobId, executionId, partitionIndex) =>
+case ScheduleOrUpdateConsumers(jobId, partitionId) =>
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
           sender ! Acknowledge
-          executionGraph.scheduleOrUpdateConsumers(executionId, partitionIndex)
+          executionGraph.scheduleOrUpdateConsumers(partitionId)
         case None =>
           log.error("Cannot find execution graph for job ID {} to schedule or update consumers",
             jobId)

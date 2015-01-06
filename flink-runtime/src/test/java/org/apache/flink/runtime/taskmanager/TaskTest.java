@@ -22,8 +22,8 @@ import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
@@ -37,7 +37,6 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.junit.Test;
-import org.mockito.Matchers;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,7 +50,6 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -67,7 +65,7 @@ public class TaskTest {
 			final RuntimeEnvironment env = mock(RuntimeEnvironment.class);
 			
 			Task task = spy(new Task(jid, vid, 2, 7, eid, "TestTask", ActorRef.noSender()));
-			doNothing().when(task).notifyExecutionStateChange(any(ExecutionState.class), any(Throwable.class));
+			doNothing().when(task).unregisterTask();
 			task.setEnvironment(env);
 			
 			assertEquals(ExecutionState.DEPLOYING, task.getExecutionState());
@@ -86,8 +84,8 @@ public class TaskTest {
 			
 			task.markFailed(new Exception("test"));
 			assertTrue(ExecutionState.CANCELED == task.getExecutionState());
-			
-			verify(task, times(1)).notifyExecutionStateChange(ExecutionState.CANCELED, null);
+
+			verify(task).unregisterTask();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -103,11 +101,12 @@ public class TaskTest {
 			final ExecutionAttemptID eid = new ExecutionAttemptID();
 			
 			final Task task = spy(new Task(jid, vid, 2, 7, eid, "TestTask", ActorRef.noSender()));
-			doNothing().when(task).notifyExecutionStateChange(any(ExecutionState.class), any(Throwable.class));
+			doNothing().when(task).unregisterTask();
 			
 			final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 			
 			Thread operation = new Thread() {
+				@Override
 				public void run() {
 					try {
 						assertTrue(task.markAsFinished());
@@ -135,8 +134,8 @@ public class TaskTest {
 			}
 			
 			assertEquals(ExecutionState.FINISHED, task.getExecutionState());
-			
-			verify(task).notifyExecutionStateChange(ExecutionState.FINISHED, null);
+
+			verify(task).unregisterTask();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -152,11 +151,12 @@ public class TaskTest {
 			final ExecutionAttemptID eid = new ExecutionAttemptID();
 			
 			final Task task = spy(new Task(jid, vid, 2, 7, eid, "TestTask", ActorRef.noSender()));
-			doNothing().when(task).notifyExecutionStateChange(any(ExecutionState.class), any(Throwable.class));
-			
+			doNothing().when(task).unregisterTask();
+
 			final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 			
 			Thread operation = new Thread() {
+				@Override
 				public void run() {
 					try {
 						task.markFailed(new Exception("test exception message"));
@@ -185,7 +185,7 @@ public class TaskTest {
 			
 			// make sure the final state is correct and the task manager knows the changes
 			assertEquals(ExecutionState.FAILED, task.getExecutionState());
-			verify(task).notifyExecutionStateChange(Matchers.eq(ExecutionState.FAILED), any(Throwable.class));
+			verify(task).unregisterTask();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -201,7 +201,7 @@ public class TaskTest {
 			final ExecutionAttemptID eid = new ExecutionAttemptID();
 
 			final Task task = spy(new Task(jid, vid, 2, 7, eid, "TestTask", ActorRef.noSender()));
-			doNothing().when(task).notifyExecutionStateChange(any(ExecutionState.class), any(Throwable.class));
+			doNothing().when(task).unregisterTask();
 			
 			final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 			
@@ -210,6 +210,7 @@ public class TaskTest {
 			final OneShotLatch afterCanceling = new OneShotLatch();
 			
 			Thread operation = new Thread() {
+				@Override
 				public void run() {
 					try {
 						toRunning.trigger();
@@ -245,7 +246,7 @@ public class TaskTest {
 			
 			// make sure the final state is correct and the task manager knows the changes
 			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
-			verify(task).notifyExecutionStateChange(ExecutionState.CANCELED, null);
+			verify(task).unregisterTask();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -262,12 +263,12 @@ public class TaskTest {
 			
 			TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
 					new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
-					Collections.<PartitionDeploymentDescriptor>emptyList(),
-					Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
+					Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+					Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			Task task = spy(new Task(jid, vid, 2, 7, eid, "TestTask", ActorRef.noSender()));
-			doNothing().when(task).notifyExecutionStateChange(any(ExecutionState.class), any(Throwable.class));
+			doNothing().when(task).unregisterTask();
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(mock(ActorRef.class), task, tdd, getClass().getClassLoader(),
 					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
@@ -281,8 +282,8 @@ public class TaskTest {
 			task.getEnvironment().getExecutingThread().join();
 			
 			assertEquals(ExecutionState.FINISHED, task.getExecutionState());
-			
-			verify(task).notifyExecutionStateChange(ExecutionState.FINISHED, null);
+
+			verify(task).unregisterTask();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -299,12 +300,12 @@ public class TaskTest {
 			
 			TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
 					new Configuration(), new Configuration(), TestInvokableWithException.class.getName(),
-					Collections.<PartitionDeploymentDescriptor>emptyList(),
-					Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
+					Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
+					Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			Task task = spy(new Task(jid, vid, 2, 7, eid, "TestTask", ActorRef.noSender()));
-			doNothing().when(task).notifyExecutionStateChange(any(ExecutionState.class), any(Throwable.class));
+			doNothing().when(task).unregisterTask();
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(mock(ActorRef.class), task, tdd, getClass().getClassLoader(),
 					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
@@ -318,11 +319,8 @@ public class TaskTest {
 			task.getEnvironment().getExecutingThread().join();
 			
 			assertEquals(ExecutionState.FAILED, task.getExecutionState());
-			
-			verify(task).notifyExecutionStateChange(Matchers.eq(ExecutionState.FAILED), any(Throwable.class));
-			verify(task, times(0)).notifyExecutionStateChange(ExecutionState.CANCELING, null);
-			verify(task, times(0)).notifyExecutionStateChange(ExecutionState.CANCELED, null);
-			verify(task, times(0)).notifyExecutionStateChange(ExecutionState.FINISHED, null);
+
+			verify(task).unregisterTask();
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -1068,10 +1068,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			default:
 				throw new RuntimeException("Unknown runtime ship strategy: " + channel.getShipStrategy());
 		}
-		
+
 		targetVertex.connectNewDataSetAsInput(sourceVertex, distributionPattern);
-		
-//		sourceVertex.conn/ectTo(targetVertex, channelType, distributionPattern);
 
 		// -------------- configure the source task's ship strategy strategies in task config --------------
 		final int outputIndex = sourceConfig.getNumOutputs();
@@ -1140,6 +1138,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			final TempMode tm = channel.getTempMode();
 
 			boolean needsMemory = false;
+			// Don't add a pipeline breaker if the data exchange is already blocking.
 			if (tm.breaksPipeline()) {
 				config.setInputAsynchronouslyMaterialized(inputNum, true);
 				needsMemory = true;
