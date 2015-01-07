@@ -18,9 +18,14 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -43,7 +48,10 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class DriverTestBase<S extends Function> implements PactTaskContext<S, Record> {
 	
 	protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
@@ -79,12 +87,14 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private PactDriver<S, Record> driver;
 	
 	private volatile boolean running;
+
+	private ExecutionConfig executionConfig;
 	
-	protected DriverTestBase(long memory, int maxNumSorters) {
-		this(memory, maxNumSorters, DEFAULT_PER_SORT_MEM);
+	protected DriverTestBase(ExecutionConfig executionConfig, long memory, int maxNumSorters) {
+		this(executionConfig, memory, maxNumSorters, DEFAULT_PER_SORT_MEM);
 	}
 	
-	protected DriverTestBase(long memory, int maxNumSorters, long perSortMemory) {
+	protected DriverTestBase(ExecutionConfig executionConfig, long memory, int maxNumSorters, long perSortMemory) {
 		if (memory < 0 || maxNumSorters < 0 || perSortMemory < 0) {
 			throw new IllegalArgumentException();
 		}
@@ -104,6 +114,27 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		
 		this.config = new Configuration();
 		this.taskConfig = new TaskConfig(this.config);
+
+		this.executionConfig = executionConfig;
+	}
+
+	@Parameterized.Parameters
+	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+
+		LinkedList<Object[]> configs = new LinkedList<Object[]>();
+
+		ExecutionConfig withReuse = new ExecutionConfig();
+		withReuse.enableObjectReuse();
+
+		ExecutionConfig withoutReuse = new ExecutionConfig();
+		withoutReuse.disableObjectReuse();
+
+		Object[] a = { withoutReuse };
+		configs.add(a);
+		Object[] b = { withReuse };
+		configs.add(b);
+
+		return configs;
 	}
 
 	public void addInput(MutableObjectIterator<Record> input) {
@@ -141,16 +172,21 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 
 	@SuppressWarnings({"unchecked","rawtypes"})
 	public void testDriver(PactDriver driver, Class stubClass) throws Exception {
-		
+		testDriverInternal(driver, stubClass);
+	}
+
+	@SuppressWarnings({"unchecked","rawtypes"})
+	public void testDriverInternal(PactDriver driver, Class stubClass) throws Exception {
+
 		this.driver = driver;
 		driver.setup(this);
-		
+
 		this.stub = (S)stubClass.newInstance();
-		
+
 		// regular running logic
 		this.running = true;
 		boolean stubOpen = false;
-		
+
 		try {
 			// run the data preparation
 			try {
@@ -159,7 +195,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 			catch (Throwable t) {
 				throw new Exception("The data preparation caused an error: " + t.getMessage(), t);
 			}
-			
+
 			// open stub implementation
 			try {
 				FunctionUtils.openFunction(this.stub, getTaskConfig().getStubParameters());
@@ -168,16 +204,16 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 			catch (Throwable t) {
 				throw new Exception("The user defined 'open()' method caused an exception: " + t.getMessage(), t);
 			}
-			
+
 			// run the user code
 			driver.run();
-			
+
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
 			if (this.running) {
 				FunctionUtils.closeFunction (this.stub);
 				stubOpen = false;
 			}
-			
+
 			this.output.close();
 		}
 		catch (Exception ex) {
@@ -188,7 +224,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 				}
 				catch (Throwable t) {}
 			}
-			
+
 			// if resettable driver invoke treardown
 			if (this.driver instanceof ResettablePactDriver) {
 				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
@@ -198,18 +234,18 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 					throw new Exception("Error while shutting down an iterative operator: " + t.getMessage(), t);
 				}
 			}
-			
+
 			// drop exception, if the task was canceled
 			if (this.running) {
 				throw ex;
 			}
-			
+
 		}
 		finally {
 			driver.cleanup();
 		}
 	}
-	
+
 	@SuppressWarnings({"unchecked","rawtypes"})
 	public void testResettableDriver(ResettablePactDriver driver, Class stubClass, int iterations) throws Exception {
 
@@ -241,6 +277,13 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	@Override
 	public TaskConfig getTaskConfig() {
 		return this.taskConfig;
+	}
+
+
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
 	}
 	
 	@Override

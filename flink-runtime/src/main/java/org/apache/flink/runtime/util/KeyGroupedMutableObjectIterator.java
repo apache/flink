@@ -167,5 +167,42 @@ public final class KeyGroupedMutableObjectIterator<E> {
 					ioex.getMessage(), ioex);
 			}
 		}
+
+		@Override
+		public E next()
+		{
+			if (KeyGroupedMutableObjectIterator.this.next == null || KeyGroupedMutableObjectIterator.this.nextIsFresh) {
+				return null;
+			}
+			if (this.nextIsUnconsumed) {
+				return this.serializer.copy(KeyGroupedMutableObjectIterator.this.next);
+			}
+
+			E result = null;
+			try {
+				if ((result = KeyGroupedMutableObjectIterator.this.iterator.next()) != null) {
+					// check whether the keys are equal
+					if (!this.comparator.equalToReference(result)) {
+						// moved to the next key, no more values here
+						KeyGroupedMutableObjectIterator.this.next =
+								this.serializer.copy(result);
+						KeyGroupedMutableObjectIterator.this.nextIsFresh = true;
+						return null;
+					}
+					// same key, next value is in "next"
+					return result;
+				}
+				else {
+					// backing iterator is consumed
+					KeyGroupedMutableObjectIterator.this.next = null;
+					return null;
+				}
+			}
+			catch (IOException ioex) {
+				throw new RuntimeException("An error occurred while reading the next record: " +
+						ioex.getMessage(), ioex);
+			}
+		}
+
 	}
 }

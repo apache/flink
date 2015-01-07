@@ -19,13 +19,15 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.util.NonReusingMutableToRegularIteratorWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.runtime.util.MutableToRegularIteratorWrapper;
+import org.apache.flink.runtime.util.ReusingMutableToRegularIteratorWrapper;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -50,6 +52,8 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 	private TypeSerializer<IT> serializer;
 	
 	private DriverStrategy strategy;
+
+	private boolean objectReuseEnabled = false;
 
 	// ------------------------------------------------------------------------
 
@@ -92,6 +96,13 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 		}
 		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();
 		this.input = this.taskContext.getInput(0);
+
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("AllGroupReduceDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
 	}
 
 	@Override
@@ -100,21 +111,36 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 			LOG.debug(this.taskContext.formatLogString("AllGroupReduce preprocessing done. Running Reducer code."));
 		}
 
-		final MutableToRegularIteratorWrapper<IT> inIter = new MutableToRegularIteratorWrapper<IT>(this.input, this.serializer);
+		if (objectReuseEnabled) {
+			final ReusingMutableToRegularIteratorWrapper<IT> inIter = new ReusingMutableToRegularIteratorWrapper<IT>(this.input, this.serializer);
 
-		// single UDF call with the single group
-		if (inIter.hasNext()) {
-			if (strategy == DriverStrategy.ALL_GROUP_REDUCE) {
-				final GroupReduceFunction<IT, OT> reducer = this.taskContext.getStub();
-				final Collector<OT> output = this.taskContext.getOutputCollector();
-				reducer.reduce(inIter, output);
+			// single UDF call with the single group
+			if (inIter.hasNext()) {
+				if (strategy == DriverStrategy.ALL_GROUP_REDUCE) {
+					final GroupReduceFunction<IT, OT> reducer = this.taskContext.getStub();
+					final Collector<OT> output = this.taskContext.getOutputCollector();
+					reducer.reduce(inIter, output);
+				} else {
+					@SuppressWarnings("unchecked") final FlatCombineFunction<IT> combiner = (FlatCombineFunction<IT>) this.taskContext.getStub();
+					@SuppressWarnings("unchecked") final Collector<IT> output = (Collector<IT>) this.taskContext.getOutputCollector();
+					combiner.combine(inIter, output);
+				}
 			}
-			else {
-				@SuppressWarnings("unchecked")
-				final FlatCombineFunction<IT> combiner = (FlatCombineFunction<IT>) this.taskContext.getStub();
-				@SuppressWarnings("unchecked")
-				final Collector<IT> output = (Collector<IT>) this.taskContext.getOutputCollector();
-				combiner.combine(inIter, output);
+
+		} else {
+			final NonReusingMutableToRegularIteratorWrapper<IT> inIter = new NonReusingMutableToRegularIteratorWrapper<IT>(this.input, this.serializer);
+
+			// single UDF call with the single group
+			if (inIter.hasNext()) {
+				if (strategy == DriverStrategy.ALL_GROUP_REDUCE) {
+					final GroupReduceFunction<IT, OT> reducer = this.taskContext.getStub();
+					final Collector<OT> output = this.taskContext.getOutputCollector();
+					reducer.reduce(inIter, output);
+				} else {
+					@SuppressWarnings("unchecked") final FlatCombineFunction<IT> combiner = (FlatCombineFunction<IT>) this.taskContext.getStub();
+					@SuppressWarnings("unchecked") final Collector<IT> output = (Collector<IT>) this.taskContext.getOutputCollector();
+					combiner.combine(inIter, output);
+				}
 			}
 		}
 	}

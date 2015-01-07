@@ -358,6 +358,31 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 					return null;
 				}
 			}
+
+			@Override
+			public T next() {
+				if (this.currentTotal < this.numTotal) {
+
+					if (this.currentInSegment >= this.numPerSegment) {
+						this.currentInSegment = 0;
+						this.currentSegmentIndex++;
+						this.in.set(sortBuffer.get(this.currentSegmentIndex), 0);
+					}
+
+					this.currentTotal++;
+					this.currentInSegment++;
+
+					try {
+						return this.comp.readWithKeyDenormalization(serializer.createInstance(), this.in);
+					}
+					catch (IOException ioe) {
+						throw new RuntimeException(ioe);
+					}
+				}
+				else {
+					return null;
+				}
+			}
 		};
 	}
 	

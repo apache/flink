@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.execution.Environment;
@@ -43,9 +44,13 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 	
 	private DistributedRuntimeUDFContext udfContext;
 
+	protected ExecutionConfig executionConfig;
+
+	protected boolean objectReuseEnabled = false;
+
 	
 	public void setup(TaskConfig config, String taskName, Collector<OT> outputCollector,
-			AbstractInvokable parent, ClassLoader userCodeClassLoader)
+			AbstractInvokable parent, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig)
 	{
 		this.config = config;
 		this.taskName = taskName;
@@ -59,6 +64,9 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 			this.udfContext = new DistributedRuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), 
 					env.getIndexInSubtaskGroup(), userCodeClassLoader, env.getCopyTask());
 		}
+
+		this.executionConfig = executionConfig;
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
 		setup(parent);
 	}

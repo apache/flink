@@ -30,7 +30,7 @@ import org.apache.flink.util.TraversableOnceException;
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  * 
  */
-public final class KeyGroupedIteratorImmutable<E> {
+public final class NonReusingKeyGroupedIterator<E> {
 	
 	private final MutableObjectIterator<E> iterator;
 
@@ -54,8 +54,8 @@ public final class KeyGroupedIteratorImmutable<E> {
 	 * @param serializer The serializer for the data type iterated over.
 	 * @param comparator The comparator for the data type iterated over.
 	 */
-	public KeyGroupedIteratorImmutable(MutableObjectIterator<E> iterator,
-			TypeSerializer<E> serializer, TypeComparator<E> comparator)
+	public NonReusingKeyGroupedIterator(MutableObjectIterator<E> iterator, TypeSerializer<E>
+			serializer, TypeComparator<E> comparator)
 	{
 		if (iterator == null || serializer == null || comparator == null) {
 			throw new NullPointerException();
@@ -92,9 +92,9 @@ public final class KeyGroupedIteratorImmutable<E> {
 		if (this.valuesIterator != null) {
 			// values was not entirely consumed. move to the next key
 			// Required if user code / reduce() method did not read the whole value iterator.
-			E next = this.serializer.createInstance();
+			E next;
 			while (true) {
-				if ((next = this.iterator.next(next)) != null) {
+				if ((next = this.iterator.next()) != null) {
 					if (!this.comparator.equalToReference(next)) {
 						// the keys do not match, so we have a new group. store the current key
 						this.comparator.setReference(next);
@@ -117,7 +117,7 @@ public final class KeyGroupedIteratorImmutable<E> {
 		else {
 			// first element
 			// get the next element
-			E first = this.iterator.next(this.serializer.createInstance());
+			E first = this.iterator.next();
 			if (first != null) {
 				this.comparator.setReference(first);
 				this.valuesIterator = new ValuesIterator(first);
@@ -134,7 +134,7 @@ public final class KeyGroupedIteratorImmutable<E> {
 	
 	private E advanceToNext() {
 		try {
-			E next = this.iterator.next(serializer.createInstance());
+			E next = this.iterator.next();
 			if (next != null) {
 				if (comparator.equalToReference(next)) {
 					// same key
@@ -196,7 +196,7 @@ public final class KeyGroupedIteratorImmutable<E> {
 		public E next() {
 			if (this.next != null) {
 				E current = this.next;
-				this.next = KeyGroupedIteratorImmutable.this.advanceToNext();
+				this.next = NonReusingKeyGroupedIterator.this.advanceToNext();
 				return current;
 			} else {
 				throw new NoSuchElementException();

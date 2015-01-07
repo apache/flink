@@ -57,4 +57,22 @@ public class UnionIterator<E> implements MutableObjectIterator<E>
 			}
 		}
 	}
+
+	@Override
+	public E next() throws IOException
+	{
+		E targetStaging = this.currentSource.next();
+		if (targetStaging != null) {
+			return targetStaging;
+		} else {
+			if (this.nextSources.size() > 0) {
+				this.currentSource = this.nextSources.remove(0);
+				return next();
+			}
+			else {
+				return null;
+			}
+		}
+	}
+
 }

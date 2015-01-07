@@ -67,4 +67,37 @@ public class UniformIntPairGenerator implements MutableObjectIterator<IntPair>
 		
 		return target;
 	}
+
+	@Override
+	public IntPair next() {
+		IntPair result = new IntPair();
+		if(!repeatKey) {
+			if(valCnt >= numVals) {
+				return null;
+			}
+
+			result.setKey(keyCnt++);
+			result.setValue(valCnt);
+
+			if(keyCnt == numKeys) {
+				keyCnt = 0;
+				valCnt++;
+			}
+		} else {
+			if(keyCnt >= numKeys) {
+				return null;
+			}
+
+			result.setKey(keyCnt);
+			result.setValue(valCnt++);
+
+			if(valCnt == numVals) {
+				valCnt = 0;
+				keyCnt++;
+			}
+		}
+
+		return result;
+	}
+
 }

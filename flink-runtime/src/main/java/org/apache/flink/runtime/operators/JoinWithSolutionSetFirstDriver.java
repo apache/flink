@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.operators.util.JoinHashMap;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -48,7 +49,9 @@ public class JoinWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettableP
 	private IT2 probeSideRecord;
 	
 	protected volatile boolean running;
-	
+
+	private boolean objectReuseEnabled = false;
+
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
@@ -125,10 +128,15 @@ public class JoinWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettableP
 		
 		TypeComparatorFactory<IT2> probeSideComparatorFactory = config.getDriverComparator(0, classLoader);
 		this.probeSideComparator = probeSideComparatorFactory.createComparator();
-		
-		solutionSideRecord = solutionSetSerializer.createInstance();
-		probeSideRecord = probeSideSerializer.createInstance();
-		
+
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (objectReuseEnabled) {
+			solutionSideRecord = solutionSetSerializer.createInstance();
+			probeSideRecord = probeSideSerializer.createInstance();
+		}
+
 		TypePairComparatorFactory<IT1, IT2> factory = taskContext.getTaskConfig().getPairComparatorFactory(taskContext.getUserCodeClassLoader());
 		pairComparator = factory.createComparator21(solutionSetComparator, this.probeSideComparator);
 	}
@@ -146,32 +154,59 @@ public class JoinWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettableP
 		final Collector<OT> collector = taskContext.getOutputCollector();
 		final MutableObjectIterator<IT2> probeSideInput = taskContext.<IT2>getInput(0);
 		
-		
-		IT2 probeSideRecord = this.probeSideRecord;
-		
-		if (hashTable != null) {
-			final CompactingHashTable<IT1> join = hashTable;
-			final CompactingHashTable<IT1>.HashTableProber<IT2> prober = join.getProber(probeSideComparator, pairComparator);
-			
-			IT1 buildSideRecord = this.solutionSideRecord;
-			
-			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-				buildSideRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
-				joinFunction.join(buildSideRecord, probeSideRecord, collector);
+
+		if (objectReuseEnabled) {
+			IT2 probeSideRecord = this.probeSideRecord;
+
+			if (hashTable != null) {
+				final CompactingHashTable<IT1> join = hashTable;
+				final CompactingHashTable<IT1>.HashTableProber<IT2> prober = join.getProber(probeSideComparator, pairComparator);
+
+
+				IT1 buildSideRecord = this.solutionSideRecord;
+
+				while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
+					buildSideRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
+					joinFunction.join(buildSideRecord, probeSideRecord, collector);
+				}
+			} else if (objectMap != null) {
+				final JoinHashMap<IT1> hashTable = this.objectMap;
+				final JoinHashMap<IT1>.Prober<IT2> prober = this.objectMap.createProber(probeSideComparator, pairComparator);
+				final TypeSerializer<IT1> buildSerializer = hashTable.getBuildSerializer();
+
+				while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
+					IT1 match = prober.lookupMatch(probeSideRecord);
+					joinFunction.join(buildSerializer.copy(match), probeSideRecord, collector);
+				}
+			} else {
+				throw new RuntimeException();
 			}
-		}
-		else if (objectMap != null) {
-			final JoinHashMap<IT1> hashTable = this.objectMap;
-			final JoinHashMap<IT1>.Prober<IT2> prober = this.objectMap.createProber(probeSideComparator, pairComparator);
-			final TypeSerializer<IT1> buildSerializer = hashTable.getBuildSerializer();
-			
-			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-				IT1 match = prober.lookupMatch(probeSideRecord);
-				joinFunction.join(buildSerializer.copy(match), probeSideRecord, collector);
+		} else {
+			IT2 probeSideRecord;
+
+			if (hashTable != null) {
+				final CompactingHashTable<IT1> join = hashTable;
+				final CompactingHashTable<IT1>.HashTableProber<IT2> prober = join.getProber(probeSideComparator, pairComparator);
+
+
+				IT1 buildSideRecord;
+
+				while (this.running && ((probeSideRecord = probeSideInput.next()) != null)) {
+					buildSideRecord = prober.getMatchFor(probeSideRecord);
+					joinFunction.join(buildSideRecord, probeSideRecord, collector);
+				}
+			} else if (objectMap != null) {
+				final JoinHashMap<IT1> hashTable = this.objectMap;
+				final JoinHashMap<IT1>.Prober<IT2> prober = this.objectMap.createProber(probeSideComparator, pairComparator);
+				final TypeSerializer<IT1> buildSerializer = hashTable.getBuildSerializer();
+
+				while (this.running && ((probeSideRecord = probeSideInput.next()) != null)) {
+					IT1 match = prober.lookupMatch(probeSideRecord);
+					joinFunction.join(buildSerializer.copy(match), probeSideRecord, collector);
+				}
+			} else {
+				throw new RuntimeException();
 			}
-		}
-		else {
-			throw new RuntimeException();
 		}
 	}
 

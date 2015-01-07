@@ -37,5 +37,13 @@ public class DelayingInfinitiveInputIterator extends InfiniteInputIterator
 		catch (InterruptedException e) { }
 		return super.next(reuse);
 	}
-	
+
+	@Override
+	public Record next() {
+		try {
+			Thread.sleep(delay);
+		}
+		catch (InterruptedException e) { }
+		return super.next();
+	}
 }

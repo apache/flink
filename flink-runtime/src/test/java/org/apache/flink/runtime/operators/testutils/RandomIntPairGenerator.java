@@ -56,6 +56,18 @@ public class RandomIntPairGenerator implements MutableObjectIterator<IntPair>
 			return null;
 		}
 	}
+
+	@Override
+	public IntPair next() {
+		if (this.count++ < this.numRecords) {
+			IntPair result = new IntPair();
+			result.setKey(this.rnd.nextInt());
+			result.setValue(this.rnd.nextInt());
+			return result;
+		} else {
+			return null;
+		}
+	}
 	
 	public void reset() {
 		this.rnd = new Random(this.seed);

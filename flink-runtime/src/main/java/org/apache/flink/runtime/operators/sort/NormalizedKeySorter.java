@@ -322,6 +322,11 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		this.recordBuffer.setReadPosition(pointer);
 		return this.serializer.deserialize(reuse, this.recordBuffer);
 	}
+
+	private final T getRecordFromBuffer(long pointer) throws IOException {
+		this.recordBuffer.setReadPosition(pointer);
+		return this.serializer.deserialize(this.recordBuffer);
+	}
 	
 	private final int compareRecords(long pointer1, long pointer2) {
 		this.recordBuffer.setReadPosition(pointer1);
@@ -422,6 +427,31 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 					
 					try {
 						return getRecordFromBuffer(target, pointer);
+					}
+					catch (IOException ioe) {
+						throw new RuntimeException(ioe);
+					}
+				}
+				else {
+					return null;
+				}
+			}
+
+			@Override
+			public T next()
+			{
+				if (this.current < this.size) {
+					this.current++;
+					if (this.currentOffset > lastIndexEntryOffset) {
+						this.currentOffset = 0;
+						this.currentIndexSegment = sortIndex.get(++this.currentSegment);
+					}
+
+					long pointer = this.currentIndexSegment.getLong(this.currentOffset);
+					this.currentOffset += indexEntrySize;
+
+					try {
+						return getRecordFromBuffer(pointer);
 					}
 					catch (IOException ioe) {
 						throw new RuntimeException(ioe);

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
@@ -52,8 +53,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 	private final CountingOutputCollector output = new CountingOutputCollector();
 	
 	
-	public CoGroupTaskTest() {
-		super(0, 2, SORT_MEM);
+	public CoGroupTaskTest(ExecutionConfig config) {
+		super(config, 0, 2, SORT_MEM);
 	}
 	
 	@Test

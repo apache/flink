@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.api.common.typeutils.record.RecordPairComparatorFactory;
@@ -66,8 +67,8 @@ public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Recor
 	private final List<Record> outList = new ArrayList<Record>();
 	
 	
-	public MatchTaskTest() {
-		super(HASH_MEM, NUM_SORTER, SORT_MEM);
+	public MatchTaskTest(ExecutionConfig config) {
+		super(config, HASH_MEM, NUM_SORTER, SORT_MEM);
 		bnljn_frac = (double)BNLJN_MEM/this.getMemoryManager().getMemorySize();
 		hash_frac = (double)HASH_MEM/this.getMemoryManager().getMemorySize();
 	}

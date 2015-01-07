@@ -93,6 +93,35 @@ public class MergeIterator<E> implements MutableObjectIterator<E> {
 		}
 	}
 
+	/**
+	 * Gets the next smallest element, with respect to the definition of order implied by
+	 * the {@link TypeSerializer} provided to this iterator.
+	 *
+	 * @return True, if the iterator had another element, false otherwise.
+	 *
+	 * @see org.apache.flink.util.MutableObjectIterator#next(java.lang.Object)
+	 */
+	@Override
+	public E next() throws IOException
+	{
+		if (this.heap.size() > 0) {
+			// get the smallest element
+			final HeadStream<E> top = this.heap.peek();
+			E result = this.serializer.copy(top.getHead());
+
+			// read an element
+			if (!top.nextHead()) {
+				this.heap.poll();
+			} else {
+				this.heap.adjustTop();
+			}
+			return result;
+		}
+		else {
+			return null;
+		}
+	}
+
 	// ============================================================================================
 	//                      Internal Classes that wrap the sorted input streams
 	// ============================================================================================

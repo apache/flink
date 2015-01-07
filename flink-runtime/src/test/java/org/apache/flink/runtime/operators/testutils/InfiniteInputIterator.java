@@ -37,4 +37,13 @@ public class InfiniteInputIterator implements MutableObjectIterator<Record>
 		reuse.setField(1, val2);
 		return reuse;
 	}
+
+	@Override
+	public Record next() {
+		Record result = new Record(2);
+		result.setField(0, val1);
+		result.setField(1, val2);
+		return result;
+	}
+
 }

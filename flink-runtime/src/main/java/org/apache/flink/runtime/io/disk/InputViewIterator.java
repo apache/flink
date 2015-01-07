@@ -45,4 +45,13 @@ public class InputViewIterator<E> implements MutableObjectIterator<E>
 			return null;
 		}
 	}
+
+	@Override
+	public E next() throws IOException {
+		try {
+			return this.serializer.deserialize(this.inputView);
+		} catch (EOFException e) {
+			return null;
+		}
+	}
 }

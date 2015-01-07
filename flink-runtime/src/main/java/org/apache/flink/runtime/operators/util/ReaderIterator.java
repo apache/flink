@@ -24,6 +24,8 @@ import java.io.IOException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.runtime.plugable.ReusingDeserializationDelegate;
 import org.apache.flink.util.MutableObjectIterator;
 
 
@@ -32,9 +34,10 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public final class ReaderIterator<T> implements MutableObjectIterator<T> {
 	
-	private final MutableReader<DeserializationDelegate<T>> reader;		// the source
+	private final MutableReader reader;		// the source
 	
-	private final DeserializationDelegate<T> delegate;
+	private final ReusingDeserializationDelegate<T> reusingDelegate;
+	private final NonReusingDeserializationDelegate<T> nonReusingDelegate;
 
 	/**
 	 * Creates a new iterator, wrapping the given reader.
@@ -43,15 +46,33 @@ public final class ReaderIterator<T> implements MutableObjectIterator<T> {
 	 */
 	public ReaderIterator(MutableReader<DeserializationDelegate<T>> reader, TypeSerializer<T> serializer) {
 		this.reader = reader;
-		this.delegate = new DeserializationDelegate<T>(serializer);
+		this.reusingDelegate = new ReusingDeserializationDelegate<T>(serializer);
+		this.nonReusingDelegate = new NonReusingDeserializationDelegate<T>(serializer);
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public T next(T target) throws IOException {
-		this.delegate.setInstance(target);
+		this.reusingDelegate.setInstance(target);
 		try {
-			if (this.reader.next(this.delegate)) {
-				return this.delegate.getInstance();
+			if (this.reader.next(this.reusingDelegate)) {
+				return this.reusingDelegate.getInstance();
+			} else {
+				return null;
+			}
+
+		}
+		catch (InterruptedException e) {
+			throw new IOException("Reader interrupted.", e);
+		}
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public T next() throws IOException {
+		try {
+			if (this.reader.next(this.nonReusingDelegate)) {
+				return this.nonReusingDelegate.getInstance();
 			} else {
 				return null;
 			}

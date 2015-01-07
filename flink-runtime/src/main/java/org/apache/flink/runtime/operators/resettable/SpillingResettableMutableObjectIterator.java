@@ -159,7 +159,40 @@ public class SpillingResettableMutableObjectIterator<T> implements ResettableMut
 			}
 		}
 	}
-	
+
+	@Override
+	public T next() throws IOException {
+		T result = null;
+		if (this.inView != null) {
+			// reading, any subsequent pass
+			if (this.currentElementNum < this.elementCount) {
+				try {
+					result = this.serializer.deserialize(this.inView);
+				} catch (IOException e) {
+					throw new RuntimeException("SpillingIterator: Error reading element from buffer.", e);
+				}
+				this.currentElementNum++;
+				return result;
+			} else {
+				return null;
+			}
+		} else {
+			// writing pass (first)
+			if ((result = this.input.next()) != null) {
+				try {
+					this.serializer.serialize(result, this.buffer);
+				} catch (IOException e) {
+					throw new RuntimeException("SpillingIterator: Error writing element to buffer.", e);
+				}
+				this.elementCount++;
+				return result;
+			} else {
+				return null;
+			}
+		}
+	}
+
+
 	public void consumeAndCacheRemainingData() throws IOException {
 		// check that we are in the first pass and that more input data is left
 		if (this.inView == null) {

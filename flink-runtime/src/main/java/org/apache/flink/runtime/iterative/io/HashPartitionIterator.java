@@ -65,6 +65,24 @@ public class HashPartitionIterator<BT, PT> implements MutableObjectIterator<BT> 
 		return reuse;
 	}
 
+	@Override
+	public BT next() throws IOException {
+		if (currentPartition == null) {
+			if (!partitions.hasNext()) {
+				return null;
+			}
+			currentPartition = partitions.next();
+			currentPartition.setReadPosition(0);
+		}
+
+		try {
+			return serializer.deserialize(currentPartition);
+		} catch (EOFException e) {
+			return advanceAndRead();
+		}
+
+	}
+
 	/* jump to the next partition and continue reading from that */
 	private BT advanceAndRead(BT reuse) throws IOException {
 		if (!partitions.hasNext()) {
@@ -79,6 +97,21 @@ public class HashPartitionIterator<BT, PT> implements MutableObjectIterator<BT> 
 			reuse = advanceAndRead(reuse);
 		}
 		return reuse;
+	}
+
+	/* jump to the next partition and continue reading from that */
+	private BT advanceAndRead() throws IOException {
+		if (!partitions.hasNext()) {
+			return null;
+		}
+		currentPartition = partitions.next();
+		currentPartition.setReadPosition(0);
+
+		try {
+			return serializer.deserialize(currentPartition);
+		} catch (EOFException e) {
+			return advanceAndRead();
+		}
 	}
 
 }

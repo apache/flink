@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,15 +18,6 @@
 
 
 package org.apache.flink.runtime.operators.sort;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
@@ -44,9 +35,18 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 /**
  */
-public class SortMergeCoGroupIteratorITCase
+public class NonReusingSortMergeCoGroupIteratorITCase
 {
 	// the size of the left and right inputs
 	private static final int INPUT_1_SIZE = 20000;
@@ -106,7 +106,7 @@ public class SortMergeCoGroupIteratorITCase
 			generator2.reset();
 	
 			// compare with iterator values
-			SortMergeCoGroupIterator<Record, Record> iterator =	new SortMergeCoGroupIterator<Record, Record>(
+			NonReusingSortMergeCoGroupIterator<Record, Record> iterator =	new NonReusingSortMergeCoGroupIterator<Record, Record>(
 					this.reader1, this.reader2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator);
 	

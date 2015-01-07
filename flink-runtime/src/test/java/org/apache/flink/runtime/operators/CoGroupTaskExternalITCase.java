@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
@@ -45,8 +46,8 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<CoGroupFunction<Re
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 	
-	public CoGroupTaskExternalITCase() {
-		super(0, 2, SORT_MEM);
+	public CoGroupTaskExternalITCase(ExecutionConfig config) {
+		super(config, 0, 2, SORT_MEM);
 	}
 
 	@Test

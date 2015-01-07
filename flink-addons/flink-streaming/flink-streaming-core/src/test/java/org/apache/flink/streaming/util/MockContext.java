@@ -72,6 +72,17 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 			}
 			return reuse;
 		}
+
+		@Override
+		public StreamRecord<IN> next() throws IOException {
+			if (listIterator.hasNext()) {
+				StreamRecord<IN> result = new StreamRecord<IN>();
+				result.setObject(listIterator.next());
+				return result;
+			} else {
+				 return null;
+			}
+		}
 	}
 
 	public List<OUT> getOutputs() {

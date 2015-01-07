@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
@@ -39,8 +40,8 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 
-	public CrossTaskTest() {
-		super(CROSS_MEM, 0);
+	public CrossTaskTest(ExecutionConfig config) {
+		super(config, CROSS_MEM, 0);
 
 		cross_frac = (double)CROSS_MEM/this.getMemoryManager().getMemorySize();
 	}

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
@@ -45,8 +46,8 @@ public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Reco
 	private final CountingOutputCollector output = new CountingOutputCollector();
 	
 	
-	public MapTaskTest() {
-		super(0, 0);
+	public MapTaskTest(ExecutionConfig config) {
+		super(config, 0, 0);
 	}
 	
 	@Test

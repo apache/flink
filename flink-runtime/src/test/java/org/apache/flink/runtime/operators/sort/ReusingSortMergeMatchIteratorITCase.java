@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,13 +17,6 @@
  */
 
 package org.apache.flink.runtime.operators.sort;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
@@ -37,8 +30,6 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.sort.MergeIterator;
-import org.apache.flink.runtime.operators.sort.MergeMatchIterator;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
@@ -54,9 +45,16 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
 @SuppressWarnings("deprecation")
-public class SortMergeMatchIteratorITCase {
-	
+public class ReusingSortMergeMatchIteratorITCase {
+
 	// total memory
 	private static final int MEMORY_SIZE = 1024 * 1024 * 16;
 	private static final int PAGES_FOR_BNLJN = 2;
@@ -70,19 +68,19 @@ public class SortMergeMatchIteratorITCase {
 	private static final long SEED1 = 561349061987311L;
 
 	private static final long SEED2 = 231434613412342L;
-	
+
 	// dummy abstract task
 	private final AbstractInvokable parentTask = new DummyInvokable();
 
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
-	
+
 	private TypeSerializer<Record> serializer1;
 	private TypeSerializer<Record> serializer2;
 	private TypeComparator<Record> comparator1;
 	private TypeComparator<Record> comparator2;
 	private TypePairComparator<Record, Record> pairComparator;
-	
+
 
 	@SuppressWarnings("unchecked")
 	@Before
@@ -92,7 +90,7 @@ public class SortMergeMatchIteratorITCase {
 		this.comparator1 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
 		this.comparator2 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
 		this.pairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
-		
+
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManagerAsync();
 	}
@@ -106,7 +104,7 @@ public class SortMergeMatchIteratorITCase {
 			}
 			this.ioManager = null;
 		}
-		
+
 		if (this.memoryManager != null) {
 			Assert.assertTrue("Memory Leak: Not all memory has been returned to the memory manager.",
 				this.memoryManager.verifyEmpty());
@@ -116,44 +114,44 @@ public class SortMergeMatchIteratorITCase {
 	}
 
 
-	
+
 	@Test
 	public void testMerge() {
 		try {
-			
-			final TestData.Generator generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
-			final TestData.Generator generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+
+			final Generator generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+			final Generator generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
 
 			final TestData.GeneratorIterator input1 = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
 			final TestData.GeneratorIterator input2 = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
-			
+
 			// collect expected data
 			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
 				collectData(input1),
 				collectData(input2));
-			
+
 			final JoinFunction matcher = new MatchRemovingMatcher(expectedMatchesMap);
-			
+
 			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
-	
+
 			// reset the generators
 			generator1.reset();
 			generator2.reset();
 			input1.reset();
 			input2.reset();
-	
+
 			// compare with iterator values
-			MergeMatchIterator<Record, Record, Record> iterator = 
-				new MergeMatchIterator<Record, Record, Record>(
+			ReusingMergeMatchIterator<Record, Record, Record> iterator =
+				new ReusingMergeMatchIterator<Record, Record, Record>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator, this.memoryManager, this.ioManager, PAGES_FOR_BNLJN, this.parentTask);
-	
+
 			iterator.open();
-			
+
 			while (iterator.callWithNextKey(matcher, collector));
-			
+
 			iterator.close();
-	
+
 			// assert that each expected match was seen
 			for (Entry<TestData.Key, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
 				Assert.assertTrue("Collection for key " + entry.getKey() + " is not empty", entry.getValue().isEmpty());
@@ -164,21 +162,21 @@ public class SortMergeMatchIteratorITCase {
 			Assert.fail("An exception occurred during the test: " + e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testMergeWithHighNumberOfCommonKeys()
 	{
 		// the size of the left and right inputs
 		final int INPUT_1_SIZE = 200;
 		final int INPUT_2_SIZE = 100;
-		
+
 		final int INPUT_1_DUPLICATES = 10;
 		final int INPUT_2_DUPLICATES = 4000;
 		final int DUPLICATE_KEY = 13;
-		
+
 		try {
-			final TestData.Generator generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
-			final TestData.Generator generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+			final Generator generator1 = new Generator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
+			final Generator generator2 = new Generator(SEED2, 500, 2048, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
 			
 			final TestData.GeneratorIterator gen1Iter = new TestData.GeneratorIterator(generator1, INPUT_1_SIZE);
 			final TestData.GeneratorIterator gen2Iter = new TestData.GeneratorIterator(generator2, INPUT_2_SIZE);
@@ -230,8 +228,8 @@ public class SortMergeMatchIteratorITCase {
 			
 			// we create this sort-merge iterator with little memory for the block-nested-loops fall-back to make sure it
 			// needs to spill for the duplicate keys
-			MergeMatchIterator<Record, Record, Record> iterator = 
-				new MergeMatchIterator<Record, Record, Record>(
+			ReusingMergeMatchIterator<Record, Record, Record> iterator =
+				new ReusingMergeMatchIterator<Record, Record, Record>(
 					input1, input2, this.serializer1, this.comparator1, this.serializer2, this.comparator2,
 					this.pairComparator, this.memoryManager, this.ioManager, PAGES_FOR_BNLJN, this.parentTask);
 	

@@ -244,29 +244,6 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testReduceWithUDFThatReturnsTheSecondInputObject() throws Exception {
-		/*
-		 * Reduce with UDF that returns the second input object (check mutable object handling)
-		 */
-
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
-				groupBy(1).reduce(new InputReturningTuple3Reduce());
-
-		reduceDs.writeAsCsv(resultPath);
-		env.execute();
-
-		expected = "1,1,Hi\n" +
-				"5,2,Hi again!\n" +
-				"15,3,Hi again!\n" +
-				"34,4,Hi again!\n" +
-				"65,5,Hi again!\n" +
-				"111,6,Hi again!\n";
-	}
-
-	@Test
 	public void testReduceATupleReturningKeySelector() throws Exception {
 		/*
 		 * Reduce with a Tuple-returning KeySelector
@@ -448,20 +425,6 @@ public class ReduceITCase extends MultipleProgramsTestBase {
 			out.myLong = in1.myLong + in2.myLong;
 			out.myString = "Hello!";
 			return out;
-		}
-	}
-	
-	public static class InputReturningTuple3Reduce implements ReduceFunction<Tuple3<Integer, Long, String>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public Tuple3<Integer, Long, String> reduce(
-				Tuple3<Integer, Long, String> in1,
-				Tuple3<Integer, Long, String> in2) throws Exception {
-
-			in2.f0 = in1.f0 + in2.f0;
-			in2.f2 = "Hi again!";
-			return in2;
 		}
 	}
 	

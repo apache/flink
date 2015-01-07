@@ -19,9 +19,12 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Map task which is executed by a Nephele task manager. The task has a single
@@ -38,12 +41,16 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 @SuppressWarnings("deprecation")
 public class CollectorMapDriver<IT, OT> implements PactDriver<GenericCollectorMap<IT, OT>, OT> {
-	
+
+	private static final Logger LOG = LoggerFactory.getLogger(CollectorMapDriver.class);
+
+
 	private PactTaskContext<GenericCollectorMap<IT, OT>, OT> taskContext;
 	
 	private volatile boolean running;
-	
-	
+
+	private boolean objectReuseEnabled = false;
+
 	@Override
 	public void setup(PactTaskContext<GenericCollectorMap<IT, OT>, OT> context) {
 		this.taskContext = context;
@@ -69,7 +76,12 @@ public class CollectorMapDriver<IT, OT> implements PactDriver<GenericCollectorMa
 
 	@Override
 	public void prepare() {
-		// nothing, since a mapper does not need any preparation
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("CollectorMapDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
 	}
 
 	@Override
@@ -79,10 +91,18 @@ public class CollectorMapDriver<IT, OT> implements PactDriver<GenericCollectorMa
 		final GenericCollectorMap<IT, OT> stub = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 
-		IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();
+		if (objectReuseEnabled) {
+			IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();
 
-		while (this.running && ((record = input.next(record)) != null)) {
-			stub.map(record, output);
+
+			while (this.running && ((record = input.next(record)) != null)) {
+				stub.map(record, output);
+			}
+		} else {
+			IT record;
+			while (this.running && ((record = input.next()) != null)) {
+				stub.map(record, output);
+			}
 		}
 	}
 

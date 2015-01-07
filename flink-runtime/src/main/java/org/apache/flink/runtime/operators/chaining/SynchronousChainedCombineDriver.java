@@ -38,10 +38,16 @@ import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
-import org.apache.flink.runtime.util.KeyGroupedIterator;
+import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
+import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SynchronousChainedCombineDriver.class);
+
 
 	/**
 	 * Fix length records with a length below this threshold will be in-place sorted, if possible.
@@ -109,6 +115,10 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 			this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.sortingComparator, memory);
 		} else {
 			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.sortingComparator.duplicate(), memory);
+		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("SynchronousChainedCombineDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
 	}
 
@@ -183,19 +193,37 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	private void sortAndCombine() throws Exception {
 		final InMemorySorter<T> sorter = this.sorter;
 
-		if (!sorter.isEmpty()) {
-			this.sortAlgo.sort(sorter);
-			// run the combiner
-			final KeyGroupedIterator<T> keyIter = new KeyGroupedIterator<T>(sorter.getIterator(), this.serializer,
-				this.groupingComparator);
+		if (objectReuseEnabled) {
+			if (!sorter.isEmpty()) {
+				this.sortAlgo.sort(sorter);
+				// run the combiner
+				final ReusingKeyGroupedIterator<T> keyIter = new ReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
 
-			// cache references on the stack
-			final FlatCombineFunction<T> stub = this.combiner;
-			final Collector<T> output = this.outputCollector;
 
-			// run stub implementation
-			while (this.running && keyIter.nextKey()) {
-				stub.combine(keyIter.getValues(), output);
+				// cache references on the stack
+				final FlatCombineFunction<T> stub = this.combiner;
+				final Collector<T> output = this.outputCollector;
+
+				// run stub implementation
+				while (this.running && keyIter.nextKey()) {
+					stub.combine(keyIter.getValues(), output);
+				}
+			}
+		} else {
+			if (!sorter.isEmpty()) {
+				this.sortAlgo.sort(sorter);
+				// run the combiner
+				final NonReusingKeyGroupedIterator<T> keyIter = new NonReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
+
+
+				// cache references on the stack
+				final FlatCombineFunction<T> stub = this.combiner;
+				final Collector<T> output = this.outputCollector;
+
+				// run stub implementation
+				while (this.running && keyIter.nextKey()) {
+					stub.combine(keyIter.getValues(), output);
+				}
 			}
 		}
 	}

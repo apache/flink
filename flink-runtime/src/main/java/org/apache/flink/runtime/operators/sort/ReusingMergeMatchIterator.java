@@ -33,10 +33,10 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.resettable.BlockResettableIterator;
+import org.apache.flink.runtime.operators.resettable.NonReusingBlockResettableIterator;
 import org.apache.flink.runtime.operators.resettable.SpillingResettableIterator;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
-import org.apache.flink.runtime.util.KeyGroupedIterator;
+import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -45,20 +45,20 @@ import org.apache.flink.util.MutableObjectIterator;
  * An implementation of the {@link JoinTaskIterator} that realizes the
  * matching through a sort-merge join strategy.
  */
-public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O> {
+public class ReusingMergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O> {
 	
 	/**
 	 * The log used by this iterator to log messages.
 	 */
-	private static final Logger LOG = LoggerFactory.getLogger(MergeMatchIterator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ReusingMergeMatchIterator.class);
 	
 	// --------------------------------------------------------------------------------------------
 	
 	private TypePairComparator<T1, T2> comp;
 	
-	private KeyGroupedIterator<T1> iterator1;
+	private ReusingKeyGroupedIterator<T1> iterator1;
 
-	private KeyGroupedIterator<T2> iterator2;
+	private ReusingKeyGroupedIterator<T2> iterator2;
 	
 	private final TypeSerializer<T1> serializer1;
 	
@@ -72,7 +72,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	
 	private T2 blockHeadCopy;
 	
-	private final BlockResettableIterator<T2> blockIt;				// for N:M cross products with same key
+	private final NonReusingBlockResettableIterator<T2> blockIt;				// for N:M cross products with same key
 	
 	private final List<MemorySegment> memoryForSpillingIterator;
 	
@@ -82,10 +82,16 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public MergeMatchIterator(MutableObjectIterator<T1> input1, MutableObjectIterator<T2> input2,
+	public ReusingMergeMatchIterator(
+			MutableObjectIterator<T1> input1,
+			MutableObjectIterator<T2> input2,
 			TypeSerializer<T1> serializer1, TypeComparator<T1> comparator1,
-			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2, TypePairComparator<T1, T2> pairComparator,
-			MemoryManager memoryManager, IOManager ioManager, int numMemoryPages, AbstractInvokable parentTask)
+			TypeSerializer<T2> serializer2, TypeComparator<T2> comparator2,
+			TypePairComparator<T1, T2> pairComparator,
+			MemoryManager memoryManager,
+			IOManager ioManager,
+			int numMemoryPages,
+			AbstractInvokable parentTask)
 	throws MemoryAllocationException
 	{
 		if (numMemoryPages < 2) {
@@ -104,11 +110,11 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		
-		this.iterator1 = new KeyGroupedIterator<T1>(input1, this.serializer1, comparator1.duplicate());
-		this.iterator2 = new KeyGroupedIterator<T2>(input2, this.serializer2, comparator2.duplicate());
+		this.iterator1 = new ReusingKeyGroupedIterator<T1>(input1, this.serializer1, comparator1.duplicate());
+		this.iterator2 = new ReusingKeyGroupedIterator<T2>(input2, this.serializer2, comparator2.duplicate());
 		
 		final int numPagesForSpiller = numMemoryPages > 20 ? 2 : 1;
-		this.blockIt = new BlockResettableIterator<T2>(this.memoryManager, this.serializer2,
+		this.blockIt = new NonReusingBlockResettableIterator<T2>(this.memoryManager, this.serializer2,
 			(numMemoryPages - numPagesForSpiller), parentTask);
 		this.memoryForSpillingIterator = memoryManager.allocatePages(parentTask, numPagesForSpiller);
 	}
@@ -190,8 +196,8 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 		
 		// here, we have a common key! call the match function with the cross product of the
 		// values
-		final KeyGroupedIterator<T1>.ValuesIterator values1 = this.iterator1.getValues();
-		final KeyGroupedIterator<T2>.ValuesIterator values2 = this.iterator2.getValues();
+		final ReusingKeyGroupedIterator<T1>.ValuesIterator values1 = this.iterator1.getValues();
+		final ReusingKeyGroupedIterator<T2>.ValuesIterator values2 = this.iterator2.getValues();
 		
 		final T1 firstV1 = values1.next();
 		final T2 firstV2 = values2.next();	

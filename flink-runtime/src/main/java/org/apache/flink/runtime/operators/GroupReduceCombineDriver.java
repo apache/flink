@@ -19,6 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
@@ -31,7 +33,7 @@ import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
-import org.apache.flink.runtime.util.KeyGroupedIterator;
+import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -71,6 +73,8 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 	private Collector<T> output;
 
 	private volatile boolean running = true;
+
+	private boolean objectReuseEnabled = false;
 
 	// ------------------------------------------------------------------------
 
@@ -125,6 +129,13 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 		} else {
 			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.sortingComparator.duplicate(), memory);
 		}
+
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("GroupReduceCombineDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
 	}
 
 	@Override
@@ -162,19 +173,37 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 	private void sortAndCombine() throws Exception {
 		final InMemorySorter<T> sorter = this.sorter;
 
-		if (!sorter.isEmpty()) {
-			this.sortAlgo.sort(sorter);
+		if (objectReuseEnabled) {
+			if (!sorter.isEmpty()) {
+				this.sortAlgo.sort(sorter);
 
-			final KeyGroupedIterator<T> keyIter = new KeyGroupedIterator<T>(sorter.getIterator(), this.serializer,
-					this.groupingComparator);
+				final ReusingKeyGroupedIterator<T> keyIter = new ReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
 
-			final FlatCombineFunction<T> combiner = this.combiner;
-			final Collector<T> output = this.output;
 
-			// iterate over key groups
-			while (this.running && keyIter.nextKey()) {
-				combiner.combine(keyIter.getValues(), output);
+				final FlatCombineFunction<T> combiner = this.combiner;
+				final Collector<T> output = this.output;
+
+				// iterate over key groups
+				while (this.running && keyIter.nextKey()) {
+					combiner.combine(keyIter.getValues(), output);
+				}
 			}
+		} else {
+			if (!sorter.isEmpty()) {
+				this.sortAlgo.sort(sorter);
+
+				final NonReusingKeyGroupedIterator<T> keyIter = new NonReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
+
+
+				final FlatCombineFunction<T> combiner = this.combiner;
+				final Collector<T> output = this.output;
+
+				// iterate over key groups
+				while (this.running && keyIter.nextKey()) {
+					combiner.combine(keyIter.getValues(), output);
+				}
+			}
+
 		}
 	}
 

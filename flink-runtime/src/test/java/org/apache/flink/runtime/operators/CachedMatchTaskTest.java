@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
@@ -56,8 +57,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 	private final List<Record> outList = new ArrayList<Record>();
 	
 	
-	public CachedMatchTaskTest() {
-		super(HASH_MEM, 2, SORT_MEM);
+	public CachedMatchTaskTest(ExecutionConfig config) {
+		super(config, HASH_MEM, 2, SORT_MEM);
 	}
 	
 	@Test

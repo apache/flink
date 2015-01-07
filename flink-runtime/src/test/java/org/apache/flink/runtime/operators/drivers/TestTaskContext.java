@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators.drivers;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -58,6 +59,8 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 	private Collector<T> outputCollector;
 	
 	private MemoryManager memoryManager;
+
+	private ExecutionConfig executionConfig = new ExecutionConfig();
 
 	// --------------------------------------------------------------------------------------------
 	//  Constructors
@@ -130,6 +133,11 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 	@Override
 	public TaskConfig getTaskConfig() {
 		return this.config;
+	}
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
 	}
 
 	@Override
