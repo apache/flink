@@ -146,10 +146,21 @@ public class JobSubmissionServlet extends HttpServlet {
 			}
 
 			String assemblerClass = null;
-			if (params.size() >= 2 && params.get(0).equals("assembler")) {
-				assemblerClass = params.get(1);
-				params.remove(0);
-				params.remove(0);
+			int parallelism = -1;
+			while(params.size() >= 2) {
+				if (params.get(0).equals("-c")) {
+					assemblerClass = params.get(1);
+					params.remove(0);
+					params.remove(0);
+				}
+				else if (params.get(0).equals("-p")) {
+					parallelism = Integer.parseInt(params.get(1));
+					params.remove(0);
+					params.remove(0);
+				}
+				else {
+					break;
+				}
 			}
 
 			// create the plan
@@ -167,7 +178,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				
 				client = new Client(nepheleConfig, program.getUserCodeClassLoader());
 				
-				optPlan = client.getOptimizedPlan(program, -1);
+				optPlan = client.getOptimizedPlan(program, parallelism);
 				
 				if (optPlan == null) {
 					throw new Exception("The optimized plan could not be produced.");
@@ -272,7 +283,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				// don't show any plan. directly submit the job and redirect to the
 				// nephele runtime monitor
 				try {
-					client.run(program, -1, false);
+					client.run(program, parallelism, false);
 				} catch (Exception ex) {
 					LOG.error("Error submitting job to the job-manager.", ex);
 					// HACK: Is necessary because Message contains whole stack trace
