@@ -19,20 +19,26 @@
 
 package org.apache.flink.runtime.memory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.lang.reflect.Constructor;
+import java.util.*;
 
-import org.junit.Assert;
-
+import org.apache.flink.runtime.memorymanager.DirectMemoryManager;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
+import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
+import org.junit.Assert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import static org.junit.Assert.fail;
+
+@RunWith(Parameterized.class)
 public class MemoryManagerTest
 {
 	private static final long RANDOM_SEED = 643196033469871L;
@@ -40,18 +46,41 @@ public class MemoryManagerTest
 	private static final int MEMORY_SIZE = 1024 * 1024 * 72; // 72 MiBytes
 
 	private static final int PAGE_SIZE = 1024 * 32; // 32 KiBytes
-	
+
 	private static final int NUM_PAGES = MEMORY_SIZE / PAGE_SIZE;
 
-	private HeapMemoryManager memoryManager;
+	private Class<MemoryManager> memoryManagerClass;
+	private MemoryManager memoryManager;
 
 	private Random random;
 
+	public MemoryManagerTest(Class memoryManagerClass) {
+		this.memoryManagerClass = memoryManagerClass;
+	}
+
+	@Parameterized.Parameters
+	/* Instantiates the test class two times with different memory manager classes (heap and direct) */
+	public static Collection<Object[]> generateParameters() {
+		Class<HeapMemoryManager> heapMemoryManagerClass = HeapMemoryManager.class;
+		Class<DirectMemoryManager> directMemoryManagerClass = DirectMemoryManager.class;
+
+		return Arrays.asList(new Object[][]{
+				{heapMemoryManagerClass}, {directMemoryManagerClass}
+		});
+	}
+
 	@Before
+	/* Instantiates the memory manager from the current memory manager class */
 	public void setUp()
 	{
-		this.memoryManager = new HeapMemoryManager(MEMORY_SIZE, PAGE_SIZE);
-		this.random = new Random(RANDOM_SEED);
+		try {
+			Constructor<MemoryManager> constructor = this.memoryManagerClass.getConstructor(long.class, int.class);
+			this.memoryManager = constructor.newInstance(MEMORY_SIZE, PAGE_SIZE);
+			this.random = new Random(RANDOM_SEED);
+		} catch (Exception e){
+			e.printStackTrace();
+			fail("Test setup failed.");
+		}
 	}
 
 	@After
