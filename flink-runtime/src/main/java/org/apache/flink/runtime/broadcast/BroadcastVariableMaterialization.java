@@ -191,6 +191,7 @@ public class BroadcastVariableMaterialization<T, C> {
 			if (references.isEmpty()) {
 				disposed = true;
 				data = null;
+				transformed = null;
 				return true;
 			} else {
 				return false;
