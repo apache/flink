@@ -43,4 +43,24 @@ package object scala {
 
   implicit def javaToScalaConnectedStream[IN1, IN2](javaStream: JavaConStream[IN1, IN2]): 
   ConnectedDataStream[IN1, IN2] = new ConnectedDataStream[IN1, IN2](javaStream)
+
+   private[flink] def fieldNames2Indices(
+      typeInfo: TypeInformation[_],
+      fields: Array[String]): Array[Int] = {
+    typeInfo match {
+      case ti: CaseClassTypeInfo[_] =>
+        val result = ti.getFieldIndices(fields)
+
+        if (result.contains(-1)) {
+          throw new IllegalArgumentException("Fields '" + fields.mkString(", ") +
+            "' are not valid for '" + ti.toString + "'.")
+        }
+
+        result
+
+      case _ =>
+        throw new UnsupportedOperationException("Specifying fields by name is only" +
+          "supported on Case Classes (for now).")
+    }
+  }
 }
