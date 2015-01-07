@@ -243,10 +243,10 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 				}
 				disposeSortBuffers(true);
 				
-				// set lazy iterator
+				// set result iterator
 				MutableObjectIterator<E> resIter = iterators.isEmpty() ? EmptyMutableObjectIterator.<E>get() :
 						iterators.size() == 1 ? iterators.get(0) : 
-						new MergeIterator<E>(iterators,	this.serializer, this.comparator);
+						new MergeIterator<E>(iterators, this.comparator);
 				
 				setResultIterator(resIter);
 				return;

@@ -192,8 +192,8 @@ public class ReusingSortMergeMatchIteratorITCase {
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 			
-			MutableObjectIterator<Record> input1 = new MergeIterator<Record>(inList1, serializer1, comparator1.duplicate());
-			MutableObjectIterator<Record> input2 = new MergeIterator<Record>(inList2, serializer2, comparator2.duplicate());
+			MutableObjectIterator<Record> input1 = new MergeIterator<Record>(inList1, comparator1.duplicate());
+			MutableObjectIterator<Record> input2 = new MergeIterator<Record>(inList2, comparator2.duplicate());
 			
 			// collect expected data
 			final Map<TestData.Key, Collection<Match>> expectedMatchesMap = matchValues(
@@ -218,8 +218,8 @@ public class ReusingSortMergeMatchIteratorITCase {
 			inList2.add(gen2Iter);
 			inList2.add(const2Iter);
 	
-			input1 = new MergeIterator<Record>(inList1, serializer1, comparator1.duplicate());
-			input2 = new MergeIterator<Record>(inList2, serializer2, comparator2.duplicate());
+			input1 = new MergeIterator<Record>(inList1, comparator1.duplicate());
+			input2 = new MergeIterator<Record>(inList2, comparator2.duplicate());
 			
 			final JoinFunction matcher = new MatchRemovingMatcher(expectedMatchesMap);
 			

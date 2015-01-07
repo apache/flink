@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.chaining;
 
 import java.io.IOException;
@@ -213,7 +212,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 				// run the combiner
-				final NonReusingKeyGroupedIterator<T> keyIter = new NonReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
+				final NonReusingKeyGroupedIterator<T> keyIter = new NonReusingKeyGroupedIterator<T>(sorter.getIterator(), this.groupingComparator);
 
 
 				// cache references on the stack

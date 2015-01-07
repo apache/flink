@@ -24,8 +24,7 @@ public class StringPair {
 	private String value;
 	
 	
-	public StringPair()
-	{}
+	public StringPair() {}
 	
 	public StringPair(String key, String value) {
 		this.key = key;

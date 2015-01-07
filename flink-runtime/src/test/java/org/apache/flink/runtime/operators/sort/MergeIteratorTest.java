@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 import java.util.ArrayList;
@@ -24,9 +23,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.runtime.operators.sort.MergeIterator;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.Key;
@@ -37,10 +34,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-
-public class MergeIteratorTest
-{
-	private TypeSerializer<Record> serializer;
+public class MergeIteratorTest {
 	
 	private TypeComparator<Record> comparator;
 	
@@ -48,23 +42,21 @@ public class MergeIteratorTest
 	@SuppressWarnings("unchecked")
 	@Before
 	public void setup() {
-		this.serializer = RecordSerializer.get();
 		this.comparator = new RecordComparator(new int[] {0}, new Class[] { TestData.Key.class});
 	}
 	
 	
-	private MutableObjectIterator<Record> newIterator(final int[] keys, final String[] values)
-	{
-		return new MutableObjectIterator<Record>()
-		{
+	private MutableObjectIterator<Record> newIterator(final int[] keys, final String[] values) {
+		
+		return new MutableObjectIterator<Record>() {
+			
 			private Key key = new Key();
 			private Value value = new Value();
 			
 			private int current = 0;
 
 			@Override
-			public Record next(Record reuse)
-			{
+			public Record next(Record reuse) {
 				if (current < keys.length) {
 					key.setKey(keys[current]);
 					value.setValue(values[current]);
@@ -79,15 +71,10 @@ public class MergeIteratorTest
 			}
 
 			@Override
-			public Record next()
-			{
+			public Record next() {
 				if (current < keys.length) {
-					key.setKey(keys[current]);
-					value.setValue(values[current]);
+					Record result = new Record(new Key(keys[current]), new Value(values[current]));
 					current++;
-					Record result = new Record(2);
-					result.setField(0, key);
-					result.setField(1, value);
 					return result;
 				}
 				else {
@@ -111,7 +98,7 @@ public class MergeIteratorTest
 		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
 
 		// merge iterator
-		MutableObjectIterator<Record> iterator = new MergeIterator<Record>(iterators, this.serializer, this.comparator);
+		MutableObjectIterator<Record> iterator = new MergeIterator<Record>(iterators, this.comparator);
 
 		// check expected order
 		Record rec1 = new Record();
@@ -157,7 +144,7 @@ public class MergeIteratorTest
 		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
 
 		// merge iterator
-		MutableObjectIterator<Record> iterator = new MergeIterator<Record>(iterators, this.serializer, this.comparator);
+		MutableObjectIterator<Record> iterator = new MergeIterator<Record>(iterators, this.comparator);
 
 		int elementsFound = 1;
 		// check expected order
@@ -201,7 +188,7 @@ public class MergeIteratorTest
 		Comparator<TestData.Key> comparator = new TestData.KeyComparator();
 
 		// merge iterator
-		MutableObjectIterator<Record> iterator = new MergeIterator<Record>(iterators, this.serializer, this.comparator);
+		MutableObjectIterator<Record> iterator = new MergeIterator<Record>(iterators, this.comparator);
 
 		boolean violationFound = false;
 		

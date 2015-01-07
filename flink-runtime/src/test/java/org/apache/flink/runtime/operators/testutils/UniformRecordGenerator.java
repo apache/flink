@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.types.IntValue;
@@ -25,8 +24,8 @@ import org.apache.flink.util.MutableObjectIterator;
 
 public class UniformRecordGenerator implements MutableObjectIterator<Record> {
 
-	private final IntValue key = new IntValue();
-	private final IntValue value = new IntValue();
+	private IntValue key = new IntValue();
+	private IntValue value = new IntValue();
 	
 	int numKeys;
 	int numVals;
@@ -84,35 +83,8 @@ public class UniformRecordGenerator implements MutableObjectIterator<Record> {
 
 	@Override
 	public Record next() {
-		if(!repeatKey) {
-			if(valCnt >= numVals+startVal) {
-				return null;
-			}
-
-			key.setValue(keyCnt++);
-			value.setValue(valCnt);
-
-			if(keyCnt == numKeys+startKey) {
-				keyCnt = startKey;
-				valCnt++;
-			}
-		} else {
-			if(keyCnt >= numKeys+startKey) {
-				return null;
-			}
-			key.setValue(keyCnt);
-			value.setValue(valCnt++);
-
-			if(valCnt == numVals+startVal) {
-				valCnt = startVal;
-				keyCnt++;
-			}
-		}
-
-		Record result = new Record(2);
-		result.setField(0, this.key);
-		result.setField(1, this.value);
-		result.updateBinaryRepresenation();
-		return result;
+		key = new IntValue();
+		value = new IntValue();
+		return next(new Record(2));
 	}
 }

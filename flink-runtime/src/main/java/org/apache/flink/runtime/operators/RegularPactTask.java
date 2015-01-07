@@ -1088,9 +1088,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			} else {
 				return new ExecutionConfig();
 			}
-		} catch (IOException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
-		} catch (ClassNotFoundException e) {
+		} catch (Exception e) {
 			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
 		}
 	}

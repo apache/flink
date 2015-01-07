@@ -20,6 +20,7 @@ package org.apache.flink.runtime.plugable;
 import org.apache.flink.core.io.IOReadableWritable;
 
 public interface DeserializationDelegate<T> extends IOReadableWritable {
+	
 	void setInstance(T instance);
 
 	T getInstance();

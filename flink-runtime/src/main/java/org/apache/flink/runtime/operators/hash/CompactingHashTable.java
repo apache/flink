@@ -1220,28 +1220,11 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 
 		@Override
 		public T next(T reuse) throws IOException {
-			if(done || this.table.closed.get()) {
-				return null;
-			} else if(!cache.isEmpty()) {
-				reuse = cache.remove(cache.size()-1);
-				return reuse;
-			} else {
-				while(!done && cache.isEmpty()) {
-					done = !fillCache();
-				}
-				if(!done) {
-					reuse = cache.remove(cache.size()-1);
-					return reuse;
-				} else {
-					return null;
-				}
-			}
+			return next();
 		}
 
 		@Override
 		public T next() throws IOException {
-			// This is just a copy of the above, I wanted to keep the two separate,
-			// in case we change something later. Plus, it keeps the diff clean... :D
 			if(done || this.table.closed.get()) {
 				return null;
 			} else if(!cache.isEmpty()) {

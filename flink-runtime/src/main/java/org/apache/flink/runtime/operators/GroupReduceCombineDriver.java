@@ -177,8 +177,8 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 
-				final ReusingKeyGroupedIterator<T> keyIter = new ReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
-
+				final ReusingKeyGroupedIterator<T> keyIter = 
+						new ReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
 
 				final FlatCombineFunction<T> combiner = this.combiner;
 				final Collector<T> output = this.output;
@@ -192,8 +192,8 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 
-				final NonReusingKeyGroupedIterator<T> keyIter = new NonReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
-
+				final NonReusingKeyGroupedIterator<T> keyIter = 
+						new NonReusingKeyGroupedIterator<T>(sorter.getIterator(), this.groupingComparator);
 
 				final FlatCombineFunction<T> combiner = this.combiner;
 				final Collector<T> output = this.output;

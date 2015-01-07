@@ -200,7 +200,8 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 				}
 			}
 		} else {
-			final NonReusingKeyGroupedIterator<IT1> probeSideInput = new NonReusingKeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), probeSideSerializer, probeSideComparator);
+			final NonReusingKeyGroupedIterator<IT1> probeSideInput = 
+					new NonReusingKeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), probeSideComparator);
 
 			if (this.hashTable != null) {
 				final CompactingHashTable<IT2> join = hashTable;

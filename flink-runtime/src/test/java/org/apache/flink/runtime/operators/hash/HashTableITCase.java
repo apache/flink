@@ -1406,15 +1406,14 @@ public class HashTableITCase {
 	/**
 	 * An iterator that returns the Key/Value pairs with identical value a given number of times.
 	 */
-	public static final class ConstantsKeyValuePairsIterator implements MutableObjectIterator<Record>
-	{
+	public static final class ConstantsKeyValuePairsIterator implements MutableObjectIterator<Record> {
+		
 		private final IntValue key;
 		private final IntValue value;
 		
 		private int numLeft;
 		
-		public ConstantsKeyValuePairsIterator(int key, int value, int count)
-		{
+		public ConstantsKeyValuePairsIterator(int key, int value, int count) {
 			this.key = new IntValue(key);
 			this.value = new IntValue(value);
 			this.numLeft = count;
@@ -1436,16 +1435,7 @@ public class HashTableITCase {
 
 		@Override
 		public Record next() {
-			if (this.numLeft > 0) {
-				this.numLeft--;
-				Record result = new Record(2);
-				result.setField(0, this.key);
-				result.setField(1, this.value);
-				return result;
-			}
-			else {
-				return null;
-			}
+			return next(new Record(2));
 		}
 	}
 	
@@ -1454,15 +1444,14 @@ public class HashTableITCase {
 	/**
 	 * An iterator that returns the Key/Value pairs with identical value a given number of times.
 	 */
-	private static final class ConstantsIntPairsIterator implements MutableObjectIterator<IntPair>
-	{
+	private static final class ConstantsIntPairsIterator implements MutableObjectIterator<IntPair> {
+		
 		private final int key;
 		private final int value;
 		
 		private int numLeft;
 		
-		public ConstantsIntPairsIterator(int key, int value, int count)
-		{
+		public ConstantsIntPairsIterator(int key, int value, int count) {
 			this.key = key;
 			this.value = value;
 			this.numLeft = count;
@@ -1483,17 +1472,7 @@ public class HashTableITCase {
 
 		@Override
 		public IntPair next() {
-			if (this.numLeft > 0) {
-				this.numLeft--;
-
-				IntPair result = new IntPair();
-				result.setKey(this.key);
-				result.setValue(this.value);
-				return result;
-			}
-			else {
-				return null;
-			}
+			return next(new IntPair());
 		}
 
 	}
@@ -1522,7 +1501,6 @@ public class HashTableITCase {
 			}
 		}
 
-
 		@Override
 		public int compareToReference(Record candidate) {
 			try {
@@ -1531,7 +1509,6 @@ public class HashTableITCase {
 			} catch (NullPointerException npex) {
 				throw new NullKeyFieldException();
 			}
-				
 		}
 	}
 }

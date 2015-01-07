@@ -16,14 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import java.util.Iterator;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.MutableObjectIterator;
-
 
 public class RegularToMutableObjectIterator<T> implements MutableObjectIterator<T> {
 
@@ -51,7 +49,7 @@ public class RegularToMutableObjectIterator<T> implements MutableObjectIterator<
 	@Override
 	public T next() {
 		if (this.iterator.hasNext()) {
-			return this.serializer.copy(this.iterator.next());
+			return this.iterator.next();
 		} else {
 			return null;
 		}

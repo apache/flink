@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
 import java.io.IOException;
@@ -25,16 +24,14 @@ import java.util.Iterator;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
-
 /**
  *
  */
-public class MutableObjectIteratorWrapper implements MutableObjectIterator<Record>
-{
+public class MutableObjectIteratorWrapper implements MutableObjectIterator<Record> {
+	
 	private final Iterator<Record> source;
 	
-	public MutableObjectIteratorWrapper(Iterator<Record> source)
-	{
+	public MutableObjectIteratorWrapper(Iterator<Record> source) {
 		this.source = source;
 	}
 
@@ -42,8 +39,7 @@ public class MutableObjectIteratorWrapper implements MutableObjectIterator<Recor
 	@Override
 	public Record next(Record reuse) throws IOException {
 		if (this.source.hasNext()) {
-			this.source.next().copyTo(reuse);
-			return reuse;
+			return this.source.next();
 		}
 		else {
 			return null;
@@ -52,6 +48,7 @@ public class MutableObjectIteratorWrapper implements MutableObjectIterator<Recor
 
 	@Override
 	public Record next() throws IOException {
+		// copy to be on the safe side
 		if (this.source.hasNext()) {
 			Record result = new Record();
 			this.source.next().copyTo(result);
@@ -61,6 +58,4 @@ public class MutableObjectIteratorWrapper implements MutableObjectIterator<Recor
 			return null;
 		}
 	}
-
-
 }

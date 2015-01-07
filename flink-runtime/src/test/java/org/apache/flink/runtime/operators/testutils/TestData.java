@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
 import java.util.Comparator;
@@ -31,11 +30,11 @@ import org.apache.flink.util.MutableObjectIterator;
  * Test data utilities classes.
  */
 public final class TestData {
+	
 	/**
 	 * Private constructor (container class should not be instantiated)
 	 */
-	private TestData() {
-	}
+	private TestData() {}
 
 	/**
 	 * Key comparator.
@@ -74,6 +73,7 @@ public final class TestData {
 	 * Value implementation.
 	 */
 	public static class Value extends StringValue {
+		
 		private static final long serialVersionUID = 1L;
 
 		public Value() {
@@ -84,13 +84,8 @@ public final class TestData {
 			super(v);
 		}
 		
-		/*
-		 * (non-Javadoc)
-		 * @see java.lang.Object#equals(java.lang.Object)
-		 */
 		@Override
-		public boolean equals(final Object obj)
-		{
+		public boolean equals(final Object obj) {
 			if (this == obj) {
 				return true;
 			}
@@ -119,7 +114,8 @@ public final class TestData {
 	/**
 	 * Pair generator.
 	 */
-	public static class Generator implements MutableObjectIterator<Record>{
+	public static class Generator implements MutableObjectIterator<Record> {
+		
 		public enum KeyMode {
 			SORTED, RANDOM
 		};
@@ -152,8 +148,7 @@ public final class TestData {
 			this(seed, keyMax, valueLength, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
 		}
 
-		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode)
-		{
+		public Generator(long seed, int keyMax, int valueLength, KeyMode keyMode, ValueMode valueMode) {
 			this(seed, keyMax, valueLength, keyMode, valueMode, null);
 		}
 		
@@ -182,14 +177,7 @@ public final class TestData {
 		}
 
 		public Record next() {
-			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
-			if (this.valueMode != ValueMode.CONSTANT) {
-				this.value.setValue(randomString());
-			}
-			Record result = new Record(2);
-			result.setField(0, this.key);
-			result.setField(1, this.value);
-			return result;
+			return next(new Record(2));
 		}
 
 		public boolean next(org.apache.flink.types.Value[] target) {
@@ -294,8 +282,8 @@ public final class TestData {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static class ConstantValueIterator implements MutableObjectIterator<Record>
-	{
+	public static class ConstantValueIterator implements MutableObjectIterator<Record> {
+		
 		private final Key key;
 		private final Value value;
 		
@@ -307,10 +295,9 @@ public final class TestData {
 		private int pos;
 		
 		
-		public ConstantValueIterator(int keyValue, String valueValue, int numPairs)
-		{
+		public ConstantValueIterator(int keyValue, String valueValue, int numPairs) {
 			this.key = new Key(keyValue);
-			this.value = new Value();			
+			this.value = new Value();
 			this.valueValue = valueValue;
 			this.numPairs = numPairs;
 		}
@@ -331,19 +318,8 @@ public final class TestData {
 
 		@Override
 		public Record next() {
-			if (pos < this.numPairs) {
-				this.value.setValue(this.valueValue + ' ' + pos);
-				Record result = new Record(2);
-				result.setField(0, this.key);
-				result.setField(1, this.value);
-				pos++;
-				return result;
-			}
-			else {
-				return null;
-			}
+			return next(new Record(2));
 		}
-
 
 		public void reset() {
 			this.pos = 0;

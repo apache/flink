@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.io;
 
 import java.io.EOFException;
@@ -28,7 +27,7 @@ import org.apache.flink.runtime.operators.hash.HashPartition;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * {@link Iterator} over the buildside entries of a {@link HashPartition}
+ * {@link Iterator} over the build side entries of a {@link HashPartition}
  * 
  * @param <BT>
  */

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -84,10 +83,19 @@ public class MapDriver<IT, OT> implements PactDriver<MapFunction<IT, OT>, OT> {
 		final MapFunction<IT, OT> function = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 
-		IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();
-
-		while (this.running && ((record = input.next(record)) != null)) {
-			output.collect(function.map(record));
+		if (objectReuseEnabled) {
+			IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();
+	
+			while (this.running && ((record = input.next(record)) != null)) {
+				output.collect(function.map(record));
+			}
+		}
+		else {
+			IT record = null;
+			
+			while (this.running && ((record = input.next()) != null)) {
+				output.collect(function.map(record));
+			}
 		}
 	}
 

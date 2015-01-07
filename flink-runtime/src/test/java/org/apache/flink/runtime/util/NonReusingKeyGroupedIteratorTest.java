@@ -24,7 +24,6 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
-import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -94,11 +93,10 @@ public class NonReusingKeyGroupedIteratorTest {
 			}
 		};
 		
-		final RecordSerializer serializer = RecordSerializer.get();
 		@SuppressWarnings("unchecked")
 		final RecordComparator comparator = new RecordComparator(new int[] {0}, new Class[] {IntValue.class});
 		
-		this.psi = new NonReusingKeyGroupedIterator<Record>(this.sourceIter, serializer, comparator);
+		this.psi = new NonReusingKeyGroupedIterator<Record>(this.sourceIter, comparator);
 	}
 
 	@Test

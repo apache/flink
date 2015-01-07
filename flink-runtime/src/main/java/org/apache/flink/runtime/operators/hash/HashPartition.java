@@ -44,8 +44,8 @@ import org.apache.flink.util.MutableObjectIterator;
 
 /**
  * 
- * @tparam BT The type of the build side records.
- * @tparam PT The type of the probe side records.
+ * @param <BT> The type of the build side records.
+ * @param <PT> The type of the probe side records.
  */
 public class HashPartition<BT, PT> extends AbstractPagedInputView implements SeekableDataInputView
 {
@@ -637,19 +637,12 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			}
 		}
 
-
-		protected final long getPointer()
-		{
+		protected final long getPointer() {
 			return this.currentPointer;
 		}
 		
-		protected final int getCurrentHashCode()
-		{
+		protected final int getCurrentHashCode() {
 			return this.currentHashCode;
 		}
 	}
-
-	
-
-	
 }

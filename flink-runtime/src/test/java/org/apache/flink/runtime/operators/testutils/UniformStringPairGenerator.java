@@ -25,12 +25,12 @@ import org.apache.flink.util.MutableObjectIterator;
 
 public class UniformStringPairGenerator implements MutableObjectIterator<StringPair> {
 
-	final int numKeys;
-	final int numVals;
+	private final int numKeys;
+	private final int numVals;
 	
-	int keyCnt = 0;
-	int valCnt = 0;
-	boolean repeatKey;
+	private int keyCnt = 0;
+	private int valCnt = 0;
+	private boolean repeatKey;
 	
 	public UniformStringPairGenerator(int numKeys, int numVals, boolean repeatKey) {
 		this.numKeys = numKeys;
@@ -71,35 +71,6 @@ public class UniformStringPairGenerator implements MutableObjectIterator<StringP
 
 	@Override
 	public StringPair next() throws IOException {
-		StringPair result = new StringPair();
-		if(!repeatKey) {
-			if(valCnt >= numVals) {
-				return null;
-			}
-
-			result.setKey(Integer.toString(keyCnt++));
-			result.setValue(Integer.toBinaryString(valCnt));
-
-			if(keyCnt == numKeys) {
-				keyCnt = 0;
-				valCnt++;
-			}
-		} else {
-			if(keyCnt >= numKeys) {
-				return null;
-			}
-
-			result.setKey(Integer.toString(keyCnt));
-			result.setValue(Integer.toBinaryString(valCnt++));
-
-			if(valCnt == numVals) {
-				valCnt = 0;
-				keyCnt++;
-			}
-		}
-
-		return result;
+		return next(new StringPair());
 	}
-
-
 }

@@ -201,7 +201,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 				}
 			}
 		} else {
-			final NonReusingKeyGroupedIterator<IT2> probeSideInput = new NonReusingKeyGroupedIterator<IT2>(taskContext.<IT2>getInput(0), probeSideSerializer, probeSideComparator);
+			final NonReusingKeyGroupedIterator<IT2> probeSideInput = new NonReusingKeyGroupedIterator<IT2>(taskContext.<IT2>getInput(0), probeSideComparator);
 			if (this.hashTable != null) {
 				final CompactingHashTable<IT1> join = hashTable;
 				final CompactingHashTable<IT1>.HashTableProber<IT2> prober = join.getProber(this

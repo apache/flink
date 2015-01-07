@@ -1250,13 +1250,13 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				// set lazy iterator
 				setResultIterator(iterators.isEmpty() ? EmptyMutableObjectIterator.<E>get() :
 						iterators.size() == 1 ? iterators.get(0) : 
-						new MergeIterator<E>(iterators,	this.serializer, this.comparator));
+						new MergeIterator<E>(iterators, this.comparator));
 				return;
 			}			
 			
 			// ------------------- Spilling Phase ------------------------
 			
-			final FileIOChannel.Enumerator enumerator = this.ioManager.createChannelEnumerator();			
+			final FileIOChannel.Enumerator enumerator = this.ioManager.createChannelEnumerator();
 			List<ChannelWithBlockCount> channelIDs = new ArrayList<ChannelWithBlockCount>();
 
 			
@@ -1430,7 +1430,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				iterators.add(new ChannelReaderInputViewIterator<E>(inView, null, this.serializer));
 			}
 
-			return new MergeIterator<E>(iterators, this.serializer, this.comparator);
+			return new MergeIterator<E>(iterators, this.comparator);
 		}
 
 		/**

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -120,7 +119,7 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction
 			}
 		}
 		else {
-			final NonReusingKeyGroupedIterator<IT> iter = new NonReusingKeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
+			final NonReusingKeyGroupedIterator<IT> iter = new NonReusingKeyGroupedIterator<IT>(this.input, this.comparator);
 			// run stub implementation
 			while (this.running && iter.nextKey()) {
 				stub.reduce(iter.getValues(), output);

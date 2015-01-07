@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.util;
 
 import java.io.IOException;
@@ -28,13 +27,16 @@ import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.plugable.ReusingDeserializationDelegate;
 import org.apache.flink.util.MutableObjectIterator;
 
-
 /**
- * A {@link MutableObjectIterator} that wraps a Nephele Reader producing records of a certain type.
+ * A {@link MutableObjectIterator} that wraps a reader from an input channel and
+ * produces the reader's records.
+ * 
+ * The reader supports reading objects with possible reuse of mutable types, and
+ * without reuse of mutable types.
  */
 public final class ReaderIterator<T> implements MutableObjectIterator<T> {
 	
-	private final MutableReader reader;		// the source
+	private final MutableReader<DeserializationDelegate<T>> reader;   // the source
 	
 	private final ReusingDeserializationDelegate<T> reusingDelegate;
 	private final NonReusingDeserializationDelegate<T> nonReusingDelegate;
@@ -51,7 +53,6 @@ public final class ReaderIterator<T> implements MutableObjectIterator<T> {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public T next(T target) throws IOException {
 		this.reusingDelegate.setInstance(target);
 		try {
@@ -60,7 +61,6 @@ public final class ReaderIterator<T> implements MutableObjectIterator<T> {
 			} else {
 				return null;
 			}
-
 		}
 		catch (InterruptedException e) {
 			throw new IOException("Reader interrupted.", e);
@@ -68,7 +68,6 @@ public final class ReaderIterator<T> implements MutableObjectIterator<T> {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public T next() throws IOException {
 		try {
 			if (this.reader.next(this.nonReusingDelegate)) {
@@ -76,7 +75,6 @@ public final class ReaderIterator<T> implements MutableObjectIterator<T> {
 			} else {
 				return null;
 			}
-
 		}
 		catch (InterruptedException e) {
 			throw new IOException("Reader interrupted.", e);

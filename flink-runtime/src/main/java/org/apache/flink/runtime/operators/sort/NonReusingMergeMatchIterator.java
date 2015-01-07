@@ -40,7 +40,6 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
-
 /**
  * An implementation of the {@link org.apache.flink.runtime.operators.util.JoinTaskIterator} that realizes the
  * matching through a sort-merge join strategy.
@@ -64,7 +63,7 @@ public class NonReusingMergeMatchIterator<T1, T2, O> implements JoinTaskIterator
 
 	private final TypeSerializer<T2> serializer2;
 
-	private final NonReusingBlockResettableIterator<T2> blockIt;				// for N:M cross products with same key
+	private final NonReusingBlockResettableIterator<T2> blockIt;	// for N:M cross products with same key
 
 	private final List<MemorySegment> memoryForSpillingIterator;
 
@@ -97,8 +96,8 @@ public class NonReusingMergeMatchIterator<T1, T2, O> implements JoinTaskIterator
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 
-		this.iterator1 = new NonReusingKeyGroupedIterator<T1>(input1, this.serializer1, comparator1.duplicate());
-		this.iterator2 = new NonReusingKeyGroupedIterator<T2>(input2, this.serializer2, comparator2.duplicate());
+		this.iterator1 = new NonReusingKeyGroupedIterator<T1>(input1, comparator1.duplicate());
+		this.iterator2 = new NonReusingKeyGroupedIterator<T2>(input2, comparator2.duplicate());
 
 		final int numPagesForSpiller = numMemoryPages > 20 ? 2 : 1;
 		this.blockIt = new NonReusingBlockResettableIterator<T2>(this.memoryManager, this.serializer2,

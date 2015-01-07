@@ -23,18 +23,15 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TraversableOnceException;
+
 /**
- * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
- * 
+ * The key grouped iterator returns a key and all values that share the same key.
  */
 public final class NonReusingKeyGroupedIterator<E> {
 	
 	private final MutableObjectIterator<E> iterator;
-
-	private final TypeSerializer<E> serializer;
 	
 	private final TypeComparator<E> comparator;
 	
@@ -51,18 +48,14 @@ public final class NonReusingKeyGroupedIterator<E> {
 	 * sorted by the key fields.
 	 * 
 	 * @param iterator An iterator over records, which are sorted by the key fields, in any order.
-	 * @param serializer The serializer for the data type iterated over.
 	 * @param comparator The comparator for the data type iterated over.
 	 */
-	public NonReusingKeyGroupedIterator(MutableObjectIterator<E> iterator, TypeSerializer<E>
-			serializer, TypeComparator<E> comparator)
-	{
-		if (iterator == null || serializer == null || comparator == null) {
+	public NonReusingKeyGroupedIterator(MutableObjectIterator<E> iterator, TypeComparator<E> comparator) {
+		if (iterator == null || comparator == null) {
 			throw new NullPointerException();
 		}
 		
 		this.iterator = iterator;
-		this.serializer = serializer;
 		this.comparator = comparator;
 	}
 

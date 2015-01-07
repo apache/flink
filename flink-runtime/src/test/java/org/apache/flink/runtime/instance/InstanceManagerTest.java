@@ -84,9 +84,9 @@ public class InstanceManagerTest{
 			final JavaTestKit probe2 = new JavaTestKit(system);
 			final JavaTestKit probe3 = new JavaTestKit(system);
 
-			InstanceID i1 = cm.registerTaskManager(probe1.getRef(), ici1, hardwareDescription, 1);
-			InstanceID i2 = cm.registerTaskManager(probe2.getRef(), ici2, hardwareDescription, 2);
-			InstanceID i3 = cm.registerTaskManager(probe3.getRef(), ici3, hardwareDescription, 5);
+			cm.registerTaskManager(probe1.getRef(), ici1, hardwareDescription, 1);
+			cm.registerTaskManager(probe2.getRef(), ici2, hardwareDescription, 2);
+			cm.registerTaskManager(probe3.getRef(), ici3, hardwareDescription, 5);
 			
 			assertEquals(3, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(8, cm.getTotalNumberOfSlots());

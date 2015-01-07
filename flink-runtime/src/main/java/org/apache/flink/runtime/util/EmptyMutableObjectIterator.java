@@ -16,15 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.util.MutableObjectIterator;
 
-
 /**
  * An empty mutable object iterator that never returns anything.
- *
  */
 public final class EmptyMutableObjectIterator<E> implements MutableObjectIterator<E> {
 
@@ -64,5 +61,4 @@ public final class EmptyMutableObjectIterator<E> implements MutableObjectIterato
 	public E next() {
 		return null;
 	}
-
 }

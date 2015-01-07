@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,11 +96,11 @@ public class BroadcastVariableMaterialization<T, C> {
 
 		try {
 			@SuppressWarnings("unchecked")
-			final MutableReader typedReader = (MutableReader) reader;
+			final MutableReader<DeserializationDelegate<T>> typedReader = (MutableReader<DeserializationDelegate<T>>) reader;
+			
 			@SuppressWarnings("unchecked")
 			final TypeSerializer<T> serializer = ((TypeSerializerFactory<T>) serializerFactory).getSerializer();
 
-			@SuppressWarnings("unchecked")
 			final ReaderIterator<T> readerIterator = new ReaderIterator<T>(typedReader, serializer);
 			
 			if (materializer) {

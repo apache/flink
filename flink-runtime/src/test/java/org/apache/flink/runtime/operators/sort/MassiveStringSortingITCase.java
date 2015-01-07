@@ -304,16 +304,7 @@ public class MassiveStringSortingITCase {
 
 		@Override
 		public Tuple2<String, String[]> next() throws IOException {
-			String line = reader.readLine();
-			if (line == null) {
-				return null;
-			}
-
-			String[] parts = line.split(" ");
-			Tuple2<String, String[]> result = new Tuple2<String, String[]>();
-			result.f0 = parts[0];
-			result.f1 = parts;
-			return result;
+			return next(new Tuple2<String, String[]>());
 		}
 	}
 	

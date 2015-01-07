@@ -285,16 +285,18 @@ public class Plan implements Visitable<Operator<?>> {
 	}
 
 	/**
-	 * Sets the runtime config object.
-	 * @return
+	 * Gets the execution config object.
+	 * 
+	 * @return The execution config object.
 	 */
 	public ExecutionConfig getExecutionConfig() {
 		return executionConfig;
 	}
 
 	/**
-	 * Gets the runtime config object.
-	 * @param executionConfig
+	 * Sets the runtime config object defining execution parameters.
+	 * 
+	 * @param executionConfig The execution config to use.
 	 */
 	public void setExecutionConfig(ExecutionConfig executionConfig) {
 		this.executionConfig = executionConfig;

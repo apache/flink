@@ -170,7 +170,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.numFileHandles = numFileHandles;
 	}
 
-	@SuppressWarnings({"unchecked","rawtypes"})
+	@SuppressWarnings("rawtypes")
 	public void testDriver(PactDriver driver, Class stubClass) throws Exception {
 		testDriverInternal(driver, stubClass);
 	}

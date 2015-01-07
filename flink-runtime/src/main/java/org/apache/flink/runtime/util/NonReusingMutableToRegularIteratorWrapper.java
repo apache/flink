@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -41,13 +40,9 @@ public class NonReusingMutableToRegularIteratorWrapper<T> implements Iterator<T>
 
 	private boolean iteratorAvailable = true;
 
-	private TypeSerializer<T> serializer;
-
-	public NonReusingMutableToRegularIteratorWrapper(MutableObjectIterator<T> source,
-			TypeSerializer<T> serializer) {
+	public NonReusingMutableToRegularIteratorWrapper(MutableObjectIterator<T> source, TypeSerializer<T> serializer) {
 		this.source = source;
 		this.current = null;
-		this.serializer = serializer;
 	}
 
 	@Override
