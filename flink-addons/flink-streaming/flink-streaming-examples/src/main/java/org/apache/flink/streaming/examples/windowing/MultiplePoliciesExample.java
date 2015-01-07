@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.examples.windowing;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
@@ -43,7 +44,13 @@ public class MultiplePoliciesExample {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<String> stream = env.addSource(new BasicSource())
-				.groupBy(0)
+				.groupBy(new KeySelector<String, String>(){
+					private static final long serialVersionUID = 1L;
+					@Override
+					public String getKey(String value) throws Exception {
+						return value;
+					}	
+				})
 				.window(Count.of(2))
 				.every(Count.of(3), Count.of(5))
 				.reduceGroup(new Concat());

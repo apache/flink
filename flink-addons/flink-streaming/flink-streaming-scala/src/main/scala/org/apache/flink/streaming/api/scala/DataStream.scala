@@ -127,39 +127,6 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Sets the partitioning of the DataStream so that the output is
-   * partitioned by the selected fields. This setting only effects the how the outputs will be
-   * distributed between the parallel instances of the next processing operator.
-   *
-   */
-  def partitionBy(fields: Int*): DataStream[T] =
-    javaStream.partitionBy(fields: _*)
-
-  /**
-   * Sets the partitioning of the DataStream so that the output is
-   * partitioned by the selected fields. This setting only effects the how the outputs will be
-   * distributed between the parallel instances of the next processing operator.
-   *
-   */
-  def partitionBy(firstField: String, otherFields: String*): DataStream[T] =
-   javaStream.partitionBy(firstField +: otherFields.toArray: _*)
-
-  /**
-   * Sets the partitioning of the DataStream so that the output is
-   * partitioned by the given Key. This setting only effects the how the outputs will be
-   * distributed between the parallel instances of the next processing operator.
-   *
-   */
-  def partitionBy[K: TypeInformation](fun: T => K): DataStream[T] = {
-
-    val keyExtractor = new KeySelector[T, K] {
-      val cleanFun = clean(fun)
-      def getKey(in: T) = cleanFun(in)
-    }
-    javaStream.partitionBy(keyExtractor)
-  }
-
-  /**
    * Sets the partitioning of the DataStream so that the output tuples
    * are broadcasted to every parallel instance of the next component. This
    * setting only effects the how the outputs will be distributed between the
@@ -167,6 +134,13 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def broadcast: DataStream[T] = javaStream.broadcast()
+  
+  /**
+   * Sets the partitioning of the DataStream so that the output values all go to 
+   * the first instance of the next processing operator. Use this setting with care
+   * since it might cause a serious performance bottlenect in the application.
+   */
+  def global: DataStream[T] = javaStream.global()
 
   /**
    * Sets the partitioning of the DataStream so that the output tuples

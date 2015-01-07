@@ -71,7 +71,7 @@ public class TwitterStream {
 
 		DataStream<Tuple2<String, Integer>> tweets = streamSource
 		// selecting English tweets and splitting to words
-				.flatMap(new SelectEnglishAndTokenizeFlatMap()).partitionBy(0)
+				.flatMap(new SelectEnglishAndTokenizeFlatMap())
 				// returning (word, 1)
 				.map(new MapFunction<String, Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
