@@ -25,35 +25,63 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Random;
 
+import org.apache.flink.core.memory.DirectMemorySegment;
 import org.apache.flink.core.memory.HeapMemorySegment;
+import org.apache.flink.runtime.memorymanager.DirectMemoryManager;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
+import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.junit.Assert;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class MemorySegmentTest {
-	
+
 	public static final long RANDOM_SEED = 643196033469871L;
 
 	public static final int MANAGED_MEMORY_SIZE = 1024 * 1024 * 16;
 
 	public static final int PAGE_SIZE = 1024 * 512;
 
-	private HeapMemoryManager manager;
+	private MemoryManager manager;
 
 	private MemorySegment segment;
 
 	private Random random;
 
-	@Before
-	public void setUp() throws Exception{
+	public MemorySegmentTest(MemoryManager manager) {
+		this.manager = manager;
+	}
+
+	@Parameterized.Parameters
+	/* Instantiates all of the tests in this class with the HeapMemoryManager and the DirectMemoryManager */
+	public static Collection<Object[]> generateParameters() {
 		try {
-			this.manager = new HeapMemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE);
-			this.segment = manager.allocatePages(new HeapMemoryManagerTest.DummyInvokable(), 1).get(0);
+			HeapMemoryManager heapMemoryManager = new HeapMemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE);
+			DirectMemoryManager directMemoryManager = new DirectMemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE);
+
+			return Arrays.asList(new Object[][] {
+					{heapMemoryManager}, {directMemoryManager}
+			});
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Test setup failed.");
+		}
+		return null;
+	}
+
+	@Before
+	public void setUp() {
+		try {
+			this.segment = this.manager.allocatePages(new HeapMemoryManagerTest.DummyInvokable(), 1).get(0);
 			this.random = new Random(RANDOM_SEED);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -66,7 +94,7 @@ public class MemorySegmentTest {
 		this.manager.release(this.segment);
 		this.random = null;
 		this.segment = null;
-		
+
 		if (!this.manager.verifyEmpty()) {
 			Assert.fail("Not all memory has been properly released.");
 		}
@@ -549,23 +577,32 @@ public class MemorySegmentTest {
 	
 	@Test
 	public void testByteBufferWrapping() {
+		int numBytes = 1024;
+		MemorySegment seg = null;
 		try {
-			MemorySegment seg = new HeapMemorySegment(new byte[1024]);
-			
+			if (segment instanceof HeapMemorySegment) {
+				seg = new HeapMemorySegment(new byte[numBytes]);
+			} else if (segment instanceof DirectMemorySegment) {
+				seg = new DirectMemorySegment(numBytes);
+			} else {
+				fail("Unknown MemorySegment implementation was loaded!");
+			}
+
 			ByteBuffer buf1 = seg.wrap(13, 47);
 			assertEquals(13, buf1.position());
 			assertEquals(60, buf1.limit());
 			assertEquals(47, buf1.remaining());
-			
+
 			ByteBuffer buf2 = seg.wrap(500, 267);
 			assertEquals(500, buf2.position());
 			assertEquals(767, buf2.limit());
 			assertEquals(267, buf2.remaining());
-			
+
 			ByteBuffer buf3 = seg.wrap(0, 1024);
 			assertEquals(0, buf3.position());
-			assertEquals(1024, buf3.limit());
-			assertEquals(1024, buf3.remaining());
+			assertEquals(numBytes, buf3.limit());
+			assertEquals(numBytes, buf3.remaining());
+
 		}
 		catch (Exception e) {
 			e.printStackTrace();

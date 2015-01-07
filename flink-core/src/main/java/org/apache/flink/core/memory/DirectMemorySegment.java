@@ -26,26 +26,6 @@ import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 
-//
-//  TESTS NEEDED
-//
-//  - All get and put method for primitives
-//    - in range aligned address
-//    - in range unaligned address
-//    - out of range (< 0 pos and >= size pos)
-//    - on disposed buffer in range
-//    - on disposed buffer out of range (< 0 pos and >= size pos)
-// 
-//  - get and put methods with byte buffers :
-//    - with direct byte buffers
-//    - with heap byte buffers
-//    - with sliced direct byte buffers
-//    - with sliced heap byte buffers
-//    - out of range and in range
-//
-//
-//
-
 /**
  * This class uses in parts code from Java's direct byte buffer API.
  * 
