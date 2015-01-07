@@ -24,7 +24,6 @@ import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
@@ -148,21 +147,6 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		}
 
 		return this;
-	}
-
-	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> partitionBy(int... keypositions) {
-		return (SingleOutputStreamOperator<OUT, O>) super.partitionBy(keypositions);
-	}
-
-	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> partitionBy(String... fields) {
-		return (SingleOutputStreamOperator<OUT, O>) super.partitionBy(fields);
-	}
-
-	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> partitionBy(KeySelector<OUT, ?> keySelector) {
-		return (SingleOutputStreamOperator<OUT, O>) super.partitionBy(keySelector);
 	}
 
 	@SuppressWarnings("unchecked")

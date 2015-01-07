@@ -29,10 +29,8 @@ import org.apache.sling.commons.json.JSONException;
  * This program demonstrate the use of TwitterSource. 
  * Its aim is to count the frequency of the languages of tweets
  */
-public class TwitterLocal {
+public class TwitterTopology {
 
-	private static final int PARALLELISM = 1;
-	private static final int SOURCE_PARALLELISM = 1;
 	private static final int NUMBEROFTWEETS = 100;
 	
 	/**
@@ -69,18 +67,14 @@ public class TwitterLocal {
 			return;
 		}
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<String> streamSource = env.addSource(new TwitterSource(path, NUMBEROFTWEETS))
-				.setParallelism(SOURCE_PARALLELISM);
+		DataStream<String> streamSource = env.addSource(new TwitterSource(path, NUMBEROFTWEETS));
 
 
 		DataStream<Tuple2<String, Integer>> dataStream = streamSource
 				.flatMap(new SelectLanguageFlatMap())
-				.partitionBy(0)
 				.map(new MapFunction<String, Tuple2<String, Integer>>() {
-
 					private static final long serialVersionUID = 1L;
 					
 					@Override

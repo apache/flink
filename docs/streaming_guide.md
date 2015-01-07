@@ -162,11 +162,11 @@ Usage: `dataStream.shuffle()`
  * *Distribute*: Distribute partitioning directs the output data stream to the next operator in a round-robin fashion, achieving a balanced distribution.
 Usage: `dataStream.distribute()`
  * *Field/Key*: Field/Key partitioning partitions the output data stream based on the hash code of a selected key of the tuples. Data points with the same key are directed to the same operator instance. The user can define keys by field positions (for tuple and array types), field expressions (for Pojo types) and custom keys using the `KeySelector` interface. 
-Usage: `dataStream.partitionBy(keys)`
+Usage: `dataStream.groupBy(keys)`
  * *Broadcast*: Broadcast partitioning sends the output data stream to all parallel instances of the next operator.
 Usage: `dataStream.broadcast()`
- * *Global*: All data points end up at the same operator instance. To achieve this use the parallelism setting of the corresponding operator.
-Usage: `operator.setParallelism(1)`
+ * *Global*: All data are sent to the first instance of the next processing operator. Use this option with care to avoid serious performance bottlenecks.
+Usage: `dataStream.global()`
 
 ### Sources
 

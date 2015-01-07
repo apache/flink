@@ -67,6 +67,7 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
+import org.apache.flink.streaming.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
@@ -239,7 +240,9 @@ public class DataStream<OUT> {
 	/**
 	 * Groups the elements of a {@link DataStream} by the given key positions to
 	 * be used with grouped operators like
-	 * {@link GroupedDataStream#reduce(ReduceFunction)}
+	 * {@link GroupedDataStream#reduce(ReduceFunction)}</p> This operator also
+	 * affects the partitioning of the stream, by forcing values with the same
+	 * key to go to the same processing instance.
 	 * 
 	 * @param fields
 	 *            The position of the fields on which the {@link DataStream}
@@ -259,7 +262,9 @@ public class DataStream<OUT> {
 	 * is either the name of a public field or a getter method with parentheses
 	 * of the {@link DataStream}S underlying type. A dot can be used to drill
 	 * down into objects, as in {@code "field1.getInnerField2()" }. This method
-	 * returns an {@link GroupedDataStream}.
+	 * returns an {@link GroupedDataStream}.</p> This operator also affects the
+	 * partitioning of the stream, by forcing values with the same key to go to
+	 * the same processing instance.
 	 * 
 	 * @param fields
 	 *            One or more field expressions on which the DataStream will be
@@ -275,7 +280,10 @@ public class DataStream<OUT> {
 	/**
 	 * Groups the elements of a {@link DataStream} by the key extracted by the
 	 * {@link KeySelector} to be used with grouped operators like
-	 * {@link GroupedDataStream#reduce(ReduceFunction)}
+	 * {@link GroupedDataStream#reduce(ReduceFunction)}.
+	 * <p/>
+	 * This operator also affects the partitioning of the stream, by forcing
+	 * values with the same key to go to the same processing instance.
 	 * 
 	 * @param keySelector
 	 *            The {@link KeySelector} that will be used to extract keys for
@@ -293,42 +301,6 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned by the selected fields. This setting only effects the how the
-	 * outputs will be distributed between the parallel instances of the next
-	 * processing operator.
-	 * 
-	 * @param fields
-	 *            The fields to partition by.
-	 * @return The DataStream with fields partitioning set.
-	 */
-	public DataStream<OUT> partitionBy(int... fields) {
-		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
-			return partitionBy(new KeySelectorUtil.ArrayKeySelector<OUT>(fields));
-		} else {
-			return partitionBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
-		}
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned by the given field expressions. This setting only effects the
-	 * how the outputs will be distributed between the parallel instances of the
-	 * next processing operator.
-	 * 
-	 * @param fields
-	 *            The fields expressions to partition by.
-	 * @return The DataStream with fields partitioning set.
-	 */
-	public DataStream<OUT> partitionBy(String... fields) {
-		return partitionBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
-	}
-
-	private DataStream<OUT> partitionBy(Keys<OUT> keys) {
-		return partitionBy(KeySelectorUtil.getSelectorForKeys(keys, getType()));
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
 	 * partitioned using the given {@link KeySelector}. This setting only
 	 * effects the how the outputs will be distributed between the parallel
 	 * instances of the next processing operator.
@@ -336,7 +308,7 @@ public class DataStream<OUT> {
 	 * @param keySelector
 	 * @return
 	 */
-	public DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
+	protected DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
 		return setConnectionType(new FieldsPartitioner<OUT>(clean(keySelector)));
 	}
 
@@ -387,6 +359,18 @@ public class DataStream<OUT> {
 	 */
 	public DataStream<OUT> distribute() {
 		return setConnectionType(new DistributePartitioner<OUT>(false));
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output values
+	 * all go to the first instance of the next processing operator. Use this
+	 * setting with care since it might cause a serious performance bottleneck
+	 * in the application.
+	 * 
+	 * @return The DataStream with shuffle partitioning set.
+	 */
+	public DataStream<OUT> global() {
+		return setConnectionType(new GlobalPartitioner<OUT>());
 	}
 
 	/**
@@ -1007,7 +991,8 @@ public class DataStream<OUT> {
 
 	protected <R> DataStream<OUT> addIterationSource(Integer iterationID, long waitTime) {
 
-		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null, true);
+		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null,
+				true);
 
 		jobGraphBuilder.addIterationHead(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism, waitTime);
