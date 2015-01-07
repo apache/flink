@@ -138,7 +138,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   /**
    * Sets the partitioning of the DataStream so that the output values all go to 
    * the first instance of the next processing operator. Use this setting with care
-   * since it might cause a serious performance bottlenect in the application.
+   * since it might cause a serious performance bottleneck in the application.
    */
   def global: DataStream[T] = javaStream.global()
 
@@ -203,39 +203,78 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    */
   def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
-
+  
+  /**
+   * Applies an aggregation that that gives the current maximum of the data stream at
+   * the given field.
+   *
+   */
+  def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
+  
   /**
    * Applies an aggregation that that gives the current minimum of the data stream at
    * the given position.
    *
    */
   def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
+  
+  /**
+   * Applies an aggregation that that gives the current minimum of the data stream at
+   * the given field.
+   *
+   */
+  def min(field: String): DataStream[T] = aggregate(AggregationType.MIN, field)
 
   /**
    * Applies an aggregation that sums the data stream at the given position.
    *
    */
   def sum(position: Int): DataStream[T] = aggregate(AggregationType.SUM, position)
+  
+  /**
+   * Applies an aggregation that sums the data stream at the given field.
+   *
+   */
+  def sum(field: String): DataStream[T] =  aggregate(AggregationType.SUM, field)
 
   /**
    * Applies an aggregation that that gives the current minimum element of the data stream by
-   * the given position. When equality, the user can set to get the first or last element with
-   * the minimal value.
+   * the given position. When equality, the first element is returned with the minimal value.
    *
    */
-  def minBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType
-    .MINBY, position, first)
+  def minBy(position: Int): DataStream[T] = aggregate(AggregationType
+    .MINBY, position)
+    
+   /**
+   * Applies an aggregation that that gives the current minimum element of the data stream by
+   * the given field. When equality, the first element is returned with the minimal value.
+   *
+   */
+  def minBy(field: String): DataStream[T] = aggregate(AggregationType
+    .MINBY, field )
 
-  /**
+   /**
    * Applies an aggregation that that gives the current maximum element of the data stream by
-   * the given position. When equality, the user can set to get the first or last element with
-   * the maximal value.
+   * the given position. When equality, the first element is returned with the maximal value.
    *
    */
-  def maxBy(position: Int, first: Boolean = true): DataStream[T] =
-    aggregate(AggregationType.MAXBY, position, first)
+  def maxBy(position: Int): DataStream[T] =
+    aggregate(AggregationType.MAXBY, position)
+    
+   /**
+   * Applies an aggregation that that gives the current maximum element of the data stream by
+   * the given field. When equality, the first element is returned with the maximal value.
+   *
+   */
+  def maxBy(field: String): DataStream[T] =
+    aggregate(AggregationType.MAXBY, field)
+    
+  private def aggregate(aggregationType: AggregationType, field: String): DataStream[T] = {
+    val position = fieldNames2Indices(javaStream.getType(), Array(field))(0)
+    aggregate(aggregationType, position)
+  }
 
-  private def aggregate(aggregationType: AggregationType, position: Int, first: Boolean = true):
+  private def aggregate(aggregationType: AggregationType, position: Int):
     DataStream[T] = {
 
     val jStream = javaStream.asInstanceOf[JavaStream[Product]]
@@ -246,7 +285,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     val reducer = aggregationType match {
       case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(outType.getTypeAt(position).
         getTypeClass()));
-      case _ => new agg.ProductComparableAggregator(aggregationType, first)
+      case _ => new agg.ProductComparableAggregator(aggregationType, true)
     }
 
     val invokable = jStream match {

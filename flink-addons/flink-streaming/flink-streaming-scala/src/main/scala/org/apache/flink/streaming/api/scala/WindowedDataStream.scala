@@ -157,6 +157,13 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    *
    */
   def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
+  
+  /**
+   * Applies an aggregation that that gives the maximum of the elements in the window at
+   * the given field.
+   *
+   */
+  def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
 
   /**
    * Applies an aggregation that that gives the minimum of the elements in the window at
@@ -164,30 +171,64 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    *
    */
   def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
+  
+  /**
+   * Applies an aggregation that that gives the minimum of the elements in the window at
+   * the given field.
+   *
+   */
+  def min(field: String): DataStream[T] = aggregate(AggregationType.MIN, field)
 
   /**
    * Applies an aggregation that sums the elements in the window at the given position.
    *
    */
   def sum(position: Int): DataStream[T] = aggregate(AggregationType.SUM, position)
+  
+  /**
+   * Applies an aggregation that sums the elements in the window at the given field.
+   *
+   */
+  def sum(field: String): DataStream[T] = aggregate(AggregationType.SUM, field)
 
   /**
    * Applies an aggregation that that gives the maximum element of the window by
    * the given position. When equality, returns the first.
    *
    */
-  def maxBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MAXBY,
-    position, first)
+  def maxBy(position: Int): DataStream[T] = aggregate(AggregationType.MAXBY,
+    position)
+    
+  /**
+   * Applies an aggregation that that gives the maximum element of the window by
+   * the given field. When equality, returns the first.
+   *
+   */
+  def maxBy(field: String): DataStream[T] = aggregate(AggregationType.MAXBY,
+    field)
 
   /**
    * Applies an aggregation that that gives the minimum element of the window by
    * the given position. When equality, returns the first.
    *
    */
-  def minBy(position: Int, first: Boolean = true): DataStream[T] = aggregate(AggregationType.MINBY,
-    position, first)
+  def minBy(position: Int): DataStream[T] = aggregate(AggregationType.MINBY,
+    position)
+    
+   /**
+   * Applies an aggregation that that gives the minimum element of the window by
+   * the given field. When equality, returns the first.
+   *
+   */
+  def minBy(field: String): DataStream[T] = aggregate(AggregationType.MINBY,
+    field)
+    
+  private def aggregate(aggregationType: AggregationType, field: String): DataStream[T] = {
+    val position = fieldNames2Indices(javaStream.getType(), Array(field))(0)
+    aggregate(aggregationType, position)
+  }  
 
-  def aggregate(aggregationType: AggregationType, position: Int, first: Boolean = true):
+  def aggregate(aggregationType: AggregationType, position: Int):
   DataStream[T] = {
 
     val jStream = javaStream.asInstanceOf[JavaWStream[Product]]
@@ -198,7 +239,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     val reducer = aggregationType match {
       case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(
         outType.getTypeAt(position).getTypeClass()));
-      case _ => new agg.ProductComparableAggregator(aggregationType, first)
+      case _ => new agg.ProductComparableAggregator(aggregationType, true)
     }
 
     new DataStream[Product](jStream.reduce(reducer)).asInstanceOf[DataStream[T]]
