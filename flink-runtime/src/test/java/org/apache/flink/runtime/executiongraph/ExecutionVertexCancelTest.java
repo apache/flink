@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 
+import akka.actor.Actor;
 import akka.testkit.TestActorRef;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -210,9 +211,9 @@ public class ExecutionVertexCancelTest {
 					setVertexState(vertex, ExecutionState.SCHEDULED);
 					assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 
-					// task manager mock actor
+					// task manager cancel sequence mock actor
 					// first return NOT SUCCESS (task not found, cancel call overtook deploy call), then success (cancel call after deploy call)
-					TestActorRef<?> taskManager = TestActorRef.create(system, Props.create(new
+					TestActorRef<? extends Actor> taskManager = TestActorRef.create(system, Props.create(new
 							CancelSequenceTaskManagerCreator(new
 							TaskOperationResult(execId, false), new TaskOperationResult(execId, true))));
 
@@ -284,7 +285,7 @@ public class ExecutionVertexCancelTest {
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-					final TestActorRef<?> taskManager = TestActorRef.create(system,
+					final TestActorRef<? extends Actor> taskManager = TestActorRef.create(system,
 							Props.create(new CancelSequenceTaskManagerCreator(new
 									TaskOperationResult(execId, true))));
 
@@ -468,8 +469,12 @@ public class ExecutionVertexCancelTest {
 					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+					final ExecutionAttemptID execID = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-					final ActorRef taskManager = system.actorOf(Props.create(new CancelSequenceTaskManagerCreator()));
+					final ActorRef taskManager = system.actorOf(
+							Props.create(new CancelSequenceTaskManagerCreator(
+									new TaskOperationResult(execID, true)
+							)));
 
 					Instance instance = getInstance(taskManager);
 					AllocatedSlot slot = instance.allocateSlot(new JobID());
