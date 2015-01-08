@@ -30,6 +30,7 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 
 public class KryoSerializer<T> extends TypeSerializer<T> {
@@ -114,8 +115,19 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			previousOut = target;
 		}
 		
-		kryo.writeClassAndObject(output, record);
-		output.flush();
+		try {
+			kryo.writeClassAndObject(output, record);
+			output.flush();
+		}
+		catch (KryoException ke) {
+			Throwable cause = ke.getCause();
+			if (cause instanceof EOFException) {
+				throw (EOFException) cause;
+			}
+			else {
+				throw ke;
+			}
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -172,5 +184,14 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			this.kryo.register(type);
 			this.kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
 		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// for testing
+	// --------------------------------------------------------------------------------------------
+	
+	Kryo getKryo() {
+		checkKryoInitialized();
+		return this.kryo;
 	}
 }
