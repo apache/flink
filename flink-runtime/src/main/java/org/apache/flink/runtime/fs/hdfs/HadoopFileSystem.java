@@ -263,8 +263,8 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 	@Override
 	public void initialize(URI path) throws IOException {
 		
-		// For HDFS we have to have an authority
-		if (path.getAuthority() == null && path.getScheme().equals("hdfs")) {
+		// If the authority is not part of the path, we initialize with the fs.defaultFS entry.
+		if (path.getAuthority() == null) {
 			
 			String configEntry = this.conf.get("fs.defaultFS", null);
 			if (configEntry == null) {
