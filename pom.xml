@@ -384,6 +384,10 @@ under the License.
 						<groupId>javax.servlet</groupId>
 						<artifactId>servlet-api</artifactId>
 					</exclusion>
+					<exclusion>
+						<groupId>javax.servlet.jsp</groupId>
+						<artifactId>jsp-api</artifactId>
+					</exclusion>
 				</exclusions>
 			</dependency>
 			<dependency>
@@ -598,6 +602,7 @@ under the License.
 						<artifactId>hadoop-common</artifactId>
 						<version>${hadoop.version}</version>
 						<exclusions>
+							<!-- This is an additional exclusion (Netty) -->
 							<exclusion>
 								<groupId>org.jboss.netty</groupId>
 								<artifactId>netty</artifactId>
@@ -617,6 +622,10 @@ under the License.
 							<exclusion>
 								<groupId>org.mortbay.jetty</groupId>
 								<artifactId>jetty</artifactId>
+							</exclusion>
+							<exclusion>
+								<groupId>javax.servlet</groupId>
+								<artifactId>servlet-api</artifactId>
 							</exclusion>
 							<exclusion>
 								<groupId>org.mortbay.jetty</groupId>
@@ -641,6 +650,7 @@ under the License.
 						<artifactId>hadoop-mapreduce-client-core</artifactId>
 						<version>${hadoop.version}</version>
 						<exclusions>
+							<!-- This is an additional exclusion (Netty) -->
 							<exclusion>
 								<groupId>org.jboss.netty</groupId>
 								<artifactId>netty</artifactId>
