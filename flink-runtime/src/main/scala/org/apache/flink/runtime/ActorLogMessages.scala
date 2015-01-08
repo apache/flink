@@ -37,7 +37,7 @@ trait ActorLogMessages {
         _receiveWithLogMessages(x)
       }
       else {
-        log.debug(s"Received message ${x} from ${self.sender}.")
+        log.debug(s"Received message $x from ${self.sender}.")
         
         val start = System.nanoTime()
         

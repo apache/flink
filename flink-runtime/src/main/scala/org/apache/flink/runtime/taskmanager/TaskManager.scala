@@ -49,7 +49,8 @@ import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionS
 import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
 RefuseRegistration, AcknowledgeRegistration, RegisterTaskManager}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
-import org.apache.flink.runtime.messages.TaskManagerProfilerMessages.{MonitorTask, RegisterProfilingListener, UnmonitorTask}
+import org.apache.flink.runtime.messages.TaskManagerProfilerMessages
+.{UnregisterProfilingListener, UnmonitorTask, MonitorTask, RegisterProfilingListener}
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.runtime.util.EnvironmentInformation
@@ -217,18 +218,15 @@ import scala.collection.JavaConverters._
     case AcknowledgeRegistration(id, blobPort) =>
       if(!registered) {
         finishRegistration(id, blobPort)
-        registered = true
       } else {
         log.info("The TaskManager {} is already registered at the JobManager {}, but received " +
           "another AcknowledgeRegistration message.", self.path, currentJobManager.path)
       }
     }
-
     case AlreadyRegistered(id, blobPort) =>
       if(!registered) {
         log.warning("The TaskManager {} seems to be already registered at the JobManager {} even" +
           "though it has not yet finished the registration process.", self.path, sender.path)
-        // schedule regular heartbeat message for oneself
 
         finishRegistration(id, blobPort)
         registered = true
@@ -302,6 +300,9 @@ import scala.collection.JavaConverters._
         "reregister.", jobManager.path)
 
       cancelAndClearEverything(new Throwable("Lost connection to JobManager"))
+
+      cleanupTaskManager()
+
       tryJobManagerRegistration()
   }
 
@@ -314,6 +315,10 @@ import scala.collection.JavaConverters._
     (jobID, executionID, executionState, optionalError)))(timeout)
 
     val selfActorRef = self
+
+    if(futureResponse == null){
+      println(s"Future response is null: ${optionalError.toString}")
+    }
 
     futureResponse.mapTo[Boolean].onComplete {
       case Success(result) =>
@@ -435,6 +440,56 @@ import scala.collection.JavaConverters._
 
         sender ! new TaskOperationResult(executionID, false, message)
     }
+  }
+
+  private def setupTaskManager(jobManager: ActorRef, id: InstanceID, blobPort: Int): Unit = {
+    registered = true
+    currentJobManager = sender
+    instanceID = id
+
+    // watch job manager to detect when it dies
+    context.watch(currentJobManager)
+
+    setupChannelManager()
+    setupLibraryCacheManager(blobPort)
+
+    // schedule regular heartbeat message for oneself
+    heartbeatScheduler = Some(context.system.scheduler.schedule(
+      TaskManager.HEARTBEAT_INTERVAL, TaskManager.HEARTBEAT_INTERVAL, self, SendHeartbeat))
+
+    profiler foreach {
+      _.tell(RegisterProfilingListener, JobManager.getProfiler(currentJobManager))
+    }
+  }
+
+  private def cleanupTaskManager(): Unit = {
+    context.unwatch(currentJobManager)
+
+    channelManager foreach {
+      _.shutdown()
+    }
+
+    channelManager = None
+
+    if(libraryCacheManager != null){
+      libraryCacheManager.shutdown()
+    }
+
+    libraryCacheManager = null
+
+    heartbeatScheduler foreach {
+      _.cancel()
+    }
+
+    heartbeatScheduler = None
+
+    profiler foreach {
+      _.tell(UnregisterProfilingListener, JobManager.getProfiler(currentJobManager))
+    }
+
+    currentJobManager = ActorRef.noSender
+    instanceID = null
+    registered = false
   }
 
   private def updateTask(executionId: ExecutionAttemptID, resultId: IntermediateDataSetID,

@@ -48,8 +48,8 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
 
   val configuration = generateConfiguration(userConfiguration)
 
-  val jobManagerActorSystem = startJobManagerActorSystem()
-  val jobManagerActor = startJobManager(jobManagerActorSystem)
+  var jobManagerActorSystem = startJobManagerActorSystem()
+  var jobManagerActor = startJobManager(jobManagerActorSystem)
 
   val numTaskManagers = configuration.getInteger(ConfigConstants
     .LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
@@ -65,7 +65,7 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
     (actorSystem, startTaskManager(i)(actorSystem))
   }
 
-  val (taskManagerActorSystems, taskManagerActors) = actorSystemsTaskManagers.unzip
+  var (taskManagerActorSystems, taskManagerActors) = actorSystemsTaskManagers.unzip
 
   waitForTaskManagersToBeRegistered()
 

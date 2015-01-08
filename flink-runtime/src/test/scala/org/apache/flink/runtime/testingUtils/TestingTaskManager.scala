@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.ActorRef
+import akka.actor.{Terminated, ActorRef}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.JobID
@@ -39,6 +39,7 @@ trait TestingTaskManager extends ActorLogMessages {
 
   val waitForRemoval = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val waitForJobRemoval = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
+  val waitForJobManagerToBeTerminated = scala.collection.mutable.HashMap[String, Set[ActorRef]]()
 
   abstract override def receiveWithLogMessages = {
     receiveTestMessages orElse super.receiveWithLogMessages
@@ -99,6 +100,19 @@ trait TestingTaskManager extends ActorLogMessages {
       } else {
         import context.dispatcher
         context.system.scheduler.scheduleOnce(200 milliseconds, this.self, CheckIfJobRemoved(jobID))
+      }
+
+    case NotifyWhenJobManagerTerminated(jobManager) =>
+      val waiting = waitForJobManagerToBeTerminated.getOrElse(jobManager.path.name, Set())
+      waitForJobManagerToBeTerminated += jobManager.path.name -> (waiting + sender)
+
+    case msg@Terminated(jobManager) =>
+      super.receiveWithLogMessages(msg)
+
+      waitForJobManagerToBeTerminated.get(jobManager.path.name) foreach {
+        _ foreach {
+          _ ! JobManagerTerminated(jobManager)
+        }
       }
   }
 }

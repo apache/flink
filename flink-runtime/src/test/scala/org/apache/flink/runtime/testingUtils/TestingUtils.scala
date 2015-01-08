@@ -25,7 +25,6 @@ import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ActionQueue
 import org.apache.flink.runtime.jobmanager.JobManager
-import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
 import scala.concurrent.duration._
 
@@ -49,6 +48,7 @@ object TestingUtils {
       |akka.test.timefactor = 10
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
       |akka.loglevel = $logLevel
+      |akka.loglevel = "OFF"
       |akka.stdout-loglevel = "OFF"
       |akka.jvm-exit-on-fata-error = off
       |akka.log-config-on-start = off
@@ -84,13 +84,28 @@ object TestingUtils {
 
   def startTestingCluster(numSlots: Int, numTMs: Int = 1,
                           timeout: String = DEFAULT_AKKA_ASK_TIMEOUT):
-  FlinkMiniCluster = {
+  TestingCluster = {
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTMs)
     config.setInteger(ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY, 1000)
     config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, timeout)
     new TestingCluster(config)
+  }
+
+  def startTestingClusterDeathWatch(numSlots: Int, numTMs: Int,
+                                            timeout: String = DEFAULT_AKKA_ASK_TIMEOUT):
+  TestingCluster = {
+    val config = new Configuration()
+    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
+    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTMs)
+    config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, timeout)
+    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms")
+    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "50 ms")
+    config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 1)
+    config.setString(ConfigConstants.AKKA_LOG_LEVEL, "OFF")
+
+    new TestingCluster(config, singleActorSystem = false)
   }
 
   def setGlobalExecutionContext(): Unit = {
