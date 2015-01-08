@@ -68,9 +68,11 @@ public class HadoopInputFormatTest {
 			
 			if(tupleType.isTupleType()) {
 				if(!((TupleTypeInfo)tupleType).equals(testTupleType)) {
-					fail("Tuple information was not set correctly" + tupleType.getTypeClass());
+					fail("Tuple type information was not set correctly!");
 				}
-			}			
+			} else {
+				fail("Type information was not set to tuple type information!");
+			}
 
 		}
 		catch (Exception ex) {
