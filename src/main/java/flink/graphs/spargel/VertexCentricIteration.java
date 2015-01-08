@@ -18,6 +18,7 @@
 
 package flink.graphs.spargel;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -33,12 +34,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+
+import flink.graphs.Edge;
+import flink.graphs.Vertex;
 
 /**
  * This class represents iterative graph computations, programmed in a vertex-centric perspective.
@@ -70,16 +73,15 @@ import org.apache.flink.util.Collector;
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EdgeValue> The type of the values that are associated with the edges.
  */
-public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> 
-	implements CustomUnaryOperation<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>
+public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Serializable, VertexValue extends Serializable, 
+	Message, EdgeValue extends Serializable> 
+	implements CustomUnaryOperation<Vertex<VertexKey, VertexValue>, Vertex<VertexKey, VertexValue>>
 {
 	private final VertexUpdateFunction<VertexKey, VertexValue, Message> updateFunction;
 	
 	private final MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> messagingFunction;
 	
-	private final DataSet<Tuple2<VertexKey, VertexKey>> edgesWithoutValue;
-	
-	private final DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue;
+	private final DataSet<Edge<VertexKey, EdgeValue>> edgesWithValue;
 	
 	private final Map<String, Aggregator<?>> aggregators;
 	
@@ -91,7 +93,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	
 	private final TypeInformation<Message> messageType;
 	
-	private DataSet<Tuple2<VertexKey, VertexValue>> initialVertices;
+	private DataSet<Vertex<VertexKey, VertexValue>> initialVertices;
 	
 	private String name;
 	
@@ -101,64 +103,21 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	
 	// ----------------------------------------------------------------------------------
 	
-	private  VertexCentricIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
-			MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
-			DataSet<Tuple2<VertexKey, VertexKey>> edgesWithoutValue,
-			int maximumNumberOfIterations)
-	{
-		Validate.notNull(uf);
-		Validate.notNull(mf);
-		Validate.notNull(edgesWithoutValue);
-		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
-		
-		// check that the edges are actually a valid tuple set of vertex key types
-		TypeInformation<Tuple2<VertexKey, VertexKey>> edgesType = edgesWithoutValue.getType();
-		Validate.isTrue(edgesType.isTupleType() && edgesType.getArity() == 2, "The edges data set (for edges without edge values) must consist of 2-tuples.");
-		
-		TupleTypeInfo<?> tupleInfo = (TupleTypeInfo<?>) edgesType;
-		Validate.isTrue(tupleInfo.getTypeAt(0).equals(tupleInfo.getTypeAt(1))
-			&& Comparable.class.isAssignableFrom(tupleInfo.getTypeAt(0).getTypeClass()),
-			"Both tuple fields (source and target vertex id) must be of the data type that represents the vertex key and implement the java.lang.Comparable interface.");
-		
-		this.updateFunction = uf;
-		this.messagingFunction = mf;
-		this.edgesWithoutValue = edgesWithoutValue;
-		this.edgesWithValue = null;
-		this.maximumNumberOfIterations = maximumNumberOfIterations;
-		this.aggregators = new HashMap<String, Aggregator<?>>();
-		
-		this.messageType = getMessageType(mf);
-	}
-	
 	private VertexCentricIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
 			MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
-			DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue, 
-			int maximumNumberOfIterations,
-			boolean edgeHasValueMarker)
+			DataSet<Edge<VertexKey, EdgeValue>> edgesWithValue, 
+			int maximumNumberOfIterations, boolean edgeHasValueMarker)
 	{
 		Validate.notNull(uf);
 		Validate.notNull(mf);
 		Validate.notNull(edgesWithValue);
 		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
-		
-		// check that the edges are actually a valid tuple set of vertex key types
-		TypeInformation<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesType = edgesWithValue.getType();
-		Validate.isTrue(edgesType.isTupleType() && edgesType.getArity() == 3, "The edges data set (for edges with edge values) must consist of 3-tuples.");
-		
-		TupleTypeInfo<?> tupleInfo = (TupleTypeInfo<?>) edgesType;
-		Validate.isTrue(tupleInfo.getTypeAt(0).equals(tupleInfo.getTypeAt(1))
-			&& Comparable.class.isAssignableFrom(tupleInfo.getTypeAt(0).getTypeClass()),
-			"The first two tuple fields (source and target vertex id) must be of the data type that represents the vertex key and implement the java.lang.Comparable interface.");
-		
-		Validate.isTrue(maximumNumberOfIterations > 0, "The maximum number of iterations must be at least one.");
-		
+
 		this.updateFunction = uf;
 		this.messagingFunction = mf;
-		this.edgesWithoutValue = null;
 		this.edgesWithValue = edgesWithValue;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
-		this.aggregators = new HashMap<String, Aggregator<?>>();
-		
+		this.aggregators = new HashMap<String, Aggregator<?>>();		
 		this.messageType = getMessageType(mf);
 	}
 	
@@ -271,20 +230,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @see org.apache.flink.api.java.operators.CustomUnaryOperation#setInput(org.apache.flink.api.java.DataSet)
 	 */
 	@Override
-	public void setInput(DataSet<Tuple2<VertexKey, VertexValue>> inputData) {
-		// sanity check that we really have two tuples
-		TypeInformation<Tuple2<VertexKey, VertexValue>> inputType = inputData.getType();
-		Validate.isTrue(inputType.isTupleType() && inputType.getArity() == 2, "The input data set (the initial vertices) must consist of 2-tuples.");
-
-		// check that the key type here is the same as for the edges
-		TypeInformation<VertexKey> keyType = ((TupleTypeInfo<?>) inputType).getTypeAt(0);
-		TypeInformation<?> edgeType = edgesWithoutValue != null ? edgesWithoutValue.getType() : edgesWithValue.getType();
-		TypeInformation<VertexKey> edgeKeyType = ((TupleTypeInfo<?>) edgeType).getTypeAt(0);
-		
-		Validate.isTrue(keyType.equals(edgeKeyType), "The first tuple field (the vertex id) of the input data set (the initial vertices) " +
-				"must be the same data type as the first fields of the edge data set (the source vertex id). " +
-				"Here, the key type for the vertex ids is '%s' and the key type  for the edges is '%s'.", keyType, edgeKeyType);
-
+	public void setInput(DataSet<Vertex<VertexKey, VertexValue>> inputData) {
 		this.initialVertices = inputData;
 	}
 	
@@ -294,22 +240,22 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @return The operator that represents this vertex-centric graph computation.
 	 */
 	@Override
-	public DataSet<Tuple2<VertexKey, VertexValue>> createResult() {
+	public DataSet<Vertex<VertexKey, VertexValue>> createResult() {
 		if (this.initialVertices == null) {
 			throw new IllegalStateException("The input data set has not been set.");
 		}
 		
 		// prepare some type information
-		TypeInformation<Tuple2<VertexKey, VertexValue>> vertexTypes = initialVertices.getType();
+		TypeInformation<Vertex<VertexKey, VertexValue>> vertexTypes = initialVertices.getType();
 		TypeInformation<VertexKey> keyType = ((TupleTypeInfo<?>) initialVertices.getType()).getTypeAt(0);
-		TypeInformation<Tuple2<VertexKey, Message>> messageTypeInfo = new TupleTypeInfo<Tuple2<VertexKey,Message>>(keyType, messageType);		
-		
+		TypeInformation<Tuple2<VertexKey, Message>> messageTypeInfo = new TupleTypeInfo<Tuple2<VertexKey,Message>>(keyType, messageType);
+
 		// set up the iteration operator
 		final String name = (this.name != null) ? this.name :
 			"Vertex-centric iteration (" + updateFunction + " | " + messagingFunction + ")";
 		final int[] zeroKeyPos = new int[] {0};
 	
-		final DeltaIteration<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>> iteration =
+		final DeltaIteration<Vertex<VertexKey, VertexValue>, Vertex<VertexKey, VertexValue>> iteration =
 			this.initialVertices.iterateDelta(this.initialVertices, this.maximumNumberOfIterations, zeroKeyPos);
 		iteration.name(name);
 		iteration.parallelism(parallelism);
@@ -322,14 +268,8 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		
 		// build the messaging function (co group)
 		CoGroupOperator<?, ?, Tuple2<VertexKey, Message>> messages;
-		if (edgesWithoutValue != null) {
-			MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message> messenger = new MessagingUdfNoEdgeValues<VertexKey, VertexValue, Message>(messagingFunction, messageTypeInfo);
-			messages = this.edgesWithoutValue.coGroup(iteration.getWorkset()).where(0).equalTo(0).with(messenger);
-		}
-		else {
-			MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue> messenger = new MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue>(messagingFunction, messageTypeInfo);
-			messages = this.edgesWithValue.coGroup(iteration.getWorkset()).where(0).equalTo(0).with(messenger);
-		}
+		MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue> messenger = new MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue>(messagingFunction, messageTypeInfo);
+		messages = this.edgesWithValue.coGroup(iteration.getWorkset()).where(0).equalTo(0).with(messenger);
 		
 		// configure coGroup message function with name and broadcast variables
 		messages = messages.name("Messaging");
@@ -340,7 +280,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		VertexUpdateUdf<VertexKey, VertexValue, Message> updateUdf = new VertexUpdateUdf<VertexKey, VertexValue, Message>(updateFunction, vertexTypes);
 		
 		// build the update function (co group)
-		CoGroupOperator<?, ?, Tuple2<VertexKey, VertexValue>> updates =
+		CoGroupOperator<?, ?, Vertex<VertexKey, VertexValue>> updates =
 				messages.coGroup(iteration.getSolutionSet()).where(0).equalTo(0).with(updateUdf);
 		
 		// configure coGroup update function with name and broadcast variables
@@ -355,43 +295,12 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		return iteration.closeWith(updates, updates);
 		
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	// Constructor builders to avoid signature conflicts with generic type erasure
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Creates a new vertex-centric iteration operator for graphs where the edges are not associated with a value.
-	 * 
-	 * @param edgesWithoutValue The data set containing edges. Edges are represented as 2-tuples: (source-id, target-id)
-	 * @param vertexUpdateFunction The function that updates the state of the vertices from the incoming messages.
-	 * @param messagingFunction The function that turns changed vertex states into messages along the edges.
-	 * 
-	 * @param <VertexKey> The type of the vertex key (the vertex identifier).
-	 * @param <VertexValue> The type of the vertex value (the state of the vertex).
-	 * @param <Message> The type of the message sent between vertices along the edges.
-	 * 
-	 * @return An in stance of the vertex-centric graph computation operator.
-	 */
-	public static final <VertexKey extends Comparable<VertexKey>, VertexValue, Message>
-			VertexCentricIteration<VertexKey, VertexValue, Message, ?> withPlainEdges(
-					DataSet<Tuple2<VertexKey, VertexKey>> edgesWithoutValue,
-						VertexUpdateFunction<VertexKey, VertexValue, Message> vertexUpdateFunction,
-						MessagingFunction<VertexKey, VertexValue, Message, ?> messagingFunction,
-						int maximumNumberOfIterations)
-	{
-		@SuppressWarnings("unchecked")
-		MessagingFunction<VertexKey, VertexValue, Message, Object> tmf = 
-								(MessagingFunction<VertexKey, VertexValue, Message, Object>) messagingFunction;
-		
-		return new VertexCentricIteration<VertexKey, VertexValue, Message, Object>(vertexUpdateFunction, tmf, edgesWithoutValue, maximumNumberOfIterations);
-	}
-	
+
 	/**
 	 * Creates a new vertex-centric iteration operator for graphs where the edges are associated with a value (such as
 	 * a weight or distance).
 	 * 
-	 * @param edgesWithValue The data set containing edges. Edges are represented as 2-tuples: (source-id, target-id)
+	 * @param edgesWithValue The data set containing edges.
 	 * @param uf The function that updates the state of the vertices from the incoming messages.
 	 * @param mf The function that turns changed vertex states into messages along the edges.
 	 * 
@@ -402,9 +311,10 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return An in stance of the vertex-centric graph computation operator.
 	 */
-	public static final <VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue>
-			VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue> withValuedEdges(
-					DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue,
+	public static final <VertexKey extends Comparable<VertexKey> & Serializable, VertexValue extends Serializable, 
+		Message, EdgeValue extends Serializable>
+			VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue> withEdges(
+					DataSet<Edge<VertexKey, EdgeValue>> edgesWithValue,
 					VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
 					MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
 					int maximumNumberOfIterations)
@@ -416,9 +326,10 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	//  Wrapping UDFs
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class VertexUpdateUdf<VertexKey extends Comparable<VertexKey>, VertexValue, Message> 
-		extends RichCoGroupFunction<Tuple2<VertexKey, Message>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>
-		implements ResultTypeQueryable<Tuple2<VertexKey, VertexValue>>
+	private static final class VertexUpdateUdf<VertexKey extends Comparable<VertexKey> & Serializable, 
+		VertexValue extends Serializable, Message> 
+		extends RichCoGroupFunction<Tuple2<VertexKey, Message>, Vertex<VertexKey, VertexValue>, Vertex<VertexKey, VertexValue>>
+		implements ResultTypeQueryable<Vertex<VertexKey, VertexValue>>
 	{
 		private static final long serialVersionUID = 1L;
 		
@@ -426,25 +337,25 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 
 		private final MessageIterator<Message> messageIter = new MessageIterator<Message>();
 		
-		private transient TypeInformation<Tuple2<VertexKey, VertexValue>> resultType;
+		private transient TypeInformation<Vertex<VertexKey, VertexValue>> resultType;
 		
 		
 		private VertexUpdateUdf(VertexUpdateFunction<VertexKey, VertexValue, Message> vertexUpdateFunction,
-				TypeInformation<Tuple2<VertexKey, VertexValue>> resultType)
+				TypeInformation<Vertex<VertexKey, VertexValue>> resultType)
 		{
 			this.vertexUpdateFunction = vertexUpdateFunction;
 			this.resultType = resultType;
 		}
 
 		@Override
-		public void coGroup(Iterable<Tuple2<VertexKey, Message>> messages, Iterable<Tuple2<VertexKey, VertexValue>> vertex,
-				Collector<Tuple2<VertexKey, VertexValue>> out)
+		public void coGroup(Iterable<Tuple2<VertexKey, Message>> messages, Iterable<Vertex<VertexKey, VertexValue>> vertex,
+				Collector<Vertex<VertexKey, VertexValue>> out)
 			throws Exception
 		{
-			final Iterator<Tuple2<VertexKey, VertexValue>> vertexIter = vertex.iterator();
+			final Iterator<Vertex<VertexKey, VertexValue>> vertexIter = vertex.iterator();
 			
 			if (vertexIter.hasNext()) {
-				Tuple2<VertexKey, VertexValue> vertexState = vertexIter.next();
+				Vertex<VertexKey, VertexValue> vertexState = vertexIter.next();
 				
 				@SuppressWarnings("unchecked")
 				Iterator<Tuple2<?, Message>> downcastIter = (Iterator<Tuple2<?, Message>>) (Iterator<?>) messages.iterator();
@@ -482,71 +393,17 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		}
 
 		@Override
-		public TypeInformation<Tuple2<VertexKey, VertexValue>> getProducedType() {
+		public TypeInformation<Vertex<VertexKey, VertexValue>> getProducedType() {
 			return this.resultType;
 		}
 	}
-	
-	/*
-	 * UDF that encapsulates the message sending function for graphs where the edges have no associated values.
-	 */
-	private static final class MessagingUdfNoEdgeValues<VertexKey extends Comparable<VertexKey>, VertexValue, Message> 
-		extends RichCoGroupFunction<Tuple2<VertexKey, VertexKey>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
-		implements ResultTypeQueryable<Tuple2<VertexKey, Message>>
-	{
-		private static final long serialVersionUID = 1L;
-		
-		private final MessagingFunction<VertexKey, VertexValue, Message, ?> messagingFunction;
-		
-		private transient TypeInformation<Tuple2<VertexKey, Message>> resultType;
-		
-		
-		private MessagingUdfNoEdgeValues(MessagingFunction<VertexKey, VertexValue, Message, ?> messagingFunction,
-				TypeInformation<Tuple2<VertexKey, Message>> resultType)
-		{
-			this.messagingFunction = messagingFunction;
-			this.resultType = resultType;
-		}
-		
-		@Override
-		public void coGroup(Iterable<Tuple2<VertexKey, VertexKey>> edges,
-				Iterable<Tuple2<VertexKey, VertexValue>> state, Collector<Tuple2<VertexKey, Message>> out)
-			throws Exception
-		{
-			final Iterator<Tuple2<VertexKey, VertexValue>> stateIter = state.iterator();
-			
-			if (stateIter.hasNext()) {
-				Tuple2<VertexKey, VertexValue> newVertexState = stateIter.next();
-				messagingFunction.set((Iterator<?>) edges.iterator(), out);
-				messagingFunction.sendMessages(newVertexState.f0, newVertexState.f1);
-			}
-		}
-		
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
-				this.messagingFunction.init(getIterationRuntimeContext(), false);
-			}
-			
-			this.messagingFunction.preSuperstep();
-		}
-		
-		@Override
-		public void close() throws Exception {
-			this.messagingFunction.postSuperstep();
-		}
 
-		@Override
-		public TypeInformation<Tuple2<VertexKey, Message>> getProducedType() {
-			return this.resultType;
-		}
-	}
-	
 	/*
 	 * UDF that encapsulates the message sending function for graphs where the edges have an associated value.
 	 */
-	private static final class MessagingUdfWithEdgeValues<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> 
-		extends RichCoGroupFunction<Tuple3<VertexKey, VertexKey, EdgeValue>, Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
+	private static final class MessagingUdfWithEdgeValues<VertexKey extends Comparable<VertexKey> & Serializable, 
+		VertexValue extends Serializable, Message, EdgeValue extends Serializable> 
+		extends RichCoGroupFunction<Edge<VertexKey, EdgeValue>, Vertex<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
 		implements ResultTypeQueryable<Tuple2<VertexKey, Message>>
 	{
 		private static final long serialVersionUID = 1L;
@@ -564,14 +421,14 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		}
 
 		@Override
-		public void coGroup(Iterable<Tuple3<VertexKey, VertexKey, EdgeValue>> edges,
-				Iterable<Tuple2<VertexKey, VertexValue>> state, Collector<Tuple2<VertexKey, Message>> out)
+		public void coGroup(Iterable<Edge<VertexKey, EdgeValue>> edges,
+				Iterable<Vertex<VertexKey, VertexValue>> state, Collector<Tuple2<VertexKey, Message>> out)
 			throws Exception
 		{
-			final Iterator<Tuple2<VertexKey, VertexValue>> stateIter = state.iterator();
+			final Iterator<Vertex<VertexKey, VertexValue>> stateIter = state.iterator();
 			
 			if (stateIter.hasNext()) {
-				Tuple2<VertexKey, VertexValue> newVertexState = stateIter.next();
+				Vertex<VertexKey, VertexValue> newVertexState = stateIter.next();
 				messagingFunction.set((Iterator<?>) edges.iterator(), out);
 				messagingFunction.sendMessages(newVertexState.f0, newVertexState.f1);
 			}
@@ -580,7 +437,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			if (getIterationRuntimeContext().getSuperstepNumber() == 1) {
-				this.messagingFunction.init(getIterationRuntimeContext(), true);
+				this.messagingFunction.init(getIterationRuntimeContext());
 			}
 			
 			this.messagingFunction.preSuperstep();
