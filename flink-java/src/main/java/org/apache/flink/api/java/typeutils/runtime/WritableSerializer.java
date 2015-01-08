@@ -43,6 +43,7 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 		this.typeClass = typeClass;
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public T createInstance() {
 		if(typeClass == NullWritable.class) {
