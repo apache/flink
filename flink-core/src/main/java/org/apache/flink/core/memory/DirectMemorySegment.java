@@ -127,7 +127,7 @@ public class DirectMemorySegment extends MemorySegment {
 			return UNSAFE.getByte(pos);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -144,7 +144,7 @@ public class DirectMemorySegment extends MemorySegment {
 			UNSAFE.putByte(pos, b);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -187,7 +187,7 @@ public class DirectMemorySegment extends MemorySegment {
 			}
 		}
 		else if (address <= 0) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -217,7 +217,7 @@ public class DirectMemorySegment extends MemorySegment {
 			}
 		}
 		else if (address <= 0) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -243,7 +243,7 @@ public class DirectMemorySegment extends MemorySegment {
 			return UNSAFE.getChar(pos);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -259,7 +259,7 @@ public class DirectMemorySegment extends MemorySegment {
 			UNSAFE.putChar(pos, value);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -275,7 +275,7 @@ public class DirectMemorySegment extends MemorySegment {
 			return UNSAFE.getShort(pos);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -291,7 +291,7 @@ public class DirectMemorySegment extends MemorySegment {
 			UNSAFE.putShort(pos, value);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -307,7 +307,7 @@ public class DirectMemorySegment extends MemorySegment {
 			return UNSAFE.getInt(pos);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -323,7 +323,7 @@ public class DirectMemorySegment extends MemorySegment {
 			UNSAFE.putInt(pos, value);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -339,7 +339,7 @@ public class DirectMemorySegment extends MemorySegment {
 			return UNSAFE.getLong(pos);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -355,7 +355,7 @@ public class DirectMemorySegment extends MemorySegment {
 			UNSAFE.putLong(pos, value);
 		}
 		else if (address > addressLimit) {
-			throw new IllegalStateException("disposed");
+			throw new IllegalStateException("This segment has been freed.");
 		}
 		else {
 			// index is in fact invalid
@@ -420,7 +420,7 @@ public class DirectMemorySegment extends MemorySegment {
 				UNSAFE.copyMemory(sourcePointer, targetPointer, numBytes);
 			}
 			else if (address > addressLimit) {
-				throw new IllegalStateException("disposed");
+				throw new IllegalStateException("This segment has been freed.");
 			}
 			else {
 				throw new IndexOutOfBoundsException();
@@ -467,7 +467,7 @@ public class DirectMemorySegment extends MemorySegment {
 				UNSAFE.copyMemory(sourcePointer, targetPointer, numBytes);
 			}
 			else if (address > addressLimit) {
-				throw new IllegalStateException("disposed");
+				throw new IllegalStateException("This segment has been freed.");
 			}
 			else {
 				throw new IndexOutOfBoundsException();
@@ -502,7 +502,7 @@ public class DirectMemorySegment extends MemorySegment {
 				UNSAFE.copyMemory(thisPointer, otherPointer, numBytes);
 			}
 			else if (address > addressLimit || directOther.address > directOther.addressLimit) {
-				throw new IllegalStateException("disposed");
+				throw new IllegalStateException("This segment has been freed.");
 			}
 			else {
 				throw new IndexOutOfBoundsException();
@@ -581,7 +581,7 @@ public class DirectMemorySegment extends MemorySegment {
 			ADDRESS_FIELD.setAccessible(true);
 		}
 		catch (Throwable t) {
-			throw new RuntimeException("Cannot initialize DirectMemorySegment - direct memory not supported by Flink");
+			throw new RuntimeException("Cannot initialize DirectMemorySegment - direct memory not supported by the JVM.");
 		}
 	}
 	
