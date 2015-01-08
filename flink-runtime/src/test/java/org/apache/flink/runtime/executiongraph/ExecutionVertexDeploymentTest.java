@@ -69,7 +69,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
@@ -112,7 +112,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -156,7 +156,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -211,7 +211,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -247,7 +247,7 @@ public class ExecutionVertexDeploymentTest {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -295,7 +295,7 @@ public class ExecutionVertexDeploymentTest {
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
@@ -334,7 +334,7 @@ public class ExecutionVertexDeploymentTest {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			final TestActorRef simpleTaskManager = TestActorRef.create(system, Props.create(new

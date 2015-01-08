@@ -31,6 +31,8 @@ import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.concurrent.duration._
 
+import scala.language.postfixOps
+
 class TaskManagerRegistrationITCase(_system: ActorSystem) extends TestKit(_system) with
 ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -108,10 +110,10 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     "shutdown after the maximum registration duration has been exceeded" in {
 
       val config = new Configuration()
-      config.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, self.path.toString)
       config.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, "1 second")
 
-      val tm = TestingUtils.startTestingTaskManagerWithConfiguration("LOCALHOST", config)
+      val tm = TestingUtils.startTestingTaskManagerWithConfiguration("LOCALHOST",
+        self.path.toString, config)
 
       watch(tm)
 

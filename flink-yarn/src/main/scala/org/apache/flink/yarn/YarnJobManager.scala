@@ -101,7 +101,7 @@ trait YarnJobManager extends ActorLogMessages {
       sender() ! new FlinkYarnClusterStatus(instanceManager.getNumberOfRegisteredTaskManagers,
         instanceManager.getTotalNumberOfSlots)
 
-    case StartYarnSession(conf, actorSystemPort: Int) => {
+    case StartYarnSession(conf, actorSystemPort: Int) =>
       log.info("Start yarn session.")
       val memoryPerTaskManager = env.get(FlinkYarnClient.ENV_TM_MEMORY).toInt
       val heapLimit = Utils.calculateHeapSize(memoryPerTaskManager)
@@ -203,7 +203,8 @@ trait YarnJobManager extends ActorLogMessages {
 
           for (container <- response.getAllocatedContainers.asScala) {
             log.info(s"Got new container for TM ${container.getId} on host ${
-              container.getNodeId.getHost}")
+              container.getNodeId.getHost
+            }")
 
             allocatedContainers += 1
 

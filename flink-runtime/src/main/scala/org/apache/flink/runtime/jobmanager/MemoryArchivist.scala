@@ -25,6 +25,9 @@ import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
 
+import scala.collection.mutable
+import scala.ref.SoftReference
+
 /**
  * Actor which stores terminated Flink jobs. The number of stored Flink jobs is set by max_entries.
  * If this number is exceeded, the oldest job will be discarded. One can interact with the actor by
@@ -51,9 +54,7 @@ ActorLogging {
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last
    * received job event. The insert order is preserved through a LinkedHashMap.
    */
-  val graphs = LinkedHashMap[JobID, SoftReference[ExecutionGraph]]()
-
-  
+  val graphs = mutable.LinkedHashMap[JobID, SoftReference[ExecutionGraph]]()
 
   override def receiveWithLogMessages: Receive = {
     
@@ -65,7 +66,7 @@ ActorLogging {
       trimHistory()
 
     case RequestArchivedJobs =>
-      sender ! ArchivedJobs(getAllGraphs())
+      sender ! ArchivedJobs(getAllGraphs)
 
     case RequestJob(jobID) =>
       getGraph(jobID) match {
@@ -84,7 +85,7 @@ ActorLogging {
    * Gets all graphs that have not been garbage collected.
    * @return An iterable with all valid ExecutionGraphs
    */
-  protected def getAllGraphs(): Iterable[ExecutionGraph] = graphs.values.flatMap(_.get)
+  protected def getAllGraphs: Iterable[ExecutionGraph] = graphs.values.flatMap(_.get)
 
   /**
    * Gets a graph with a jobID if it has not been garbage collected.

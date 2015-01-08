@@ -53,7 +53,7 @@ object ArchiveMessages {
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   
-  def getRequestArchivedJobs() : AnyRef = {
+  def getRequestArchivedJobs : AnyRef = {
     RequestArchivedJobs
   }
 }

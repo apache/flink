@@ -49,10 +49,9 @@ abstract class CaseClassSerializer[T <: Product](
         createInstance(fields)
       }
       catch {
-        case t: Throwable => {
+        case t: Throwable =>
           instanceCreationFailed = true
           null.asInstanceOf[T]
-        }
       }
     }
   }

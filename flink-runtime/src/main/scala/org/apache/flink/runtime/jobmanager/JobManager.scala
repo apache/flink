@@ -75,9 +75,6 @@ import scala.language.postfixOps
  * - [[JobStatusChanged]] indicates that the status of job (RUNNING, CANCELING, FINISHED, etc.) has
  * changed. This message is sent by the ExecutionGraph.
  *
- * - [[LookupConnectionInformation]] requests the connection information for a given channel. The
- * lookup information is returned to the sender as [[ConnectionInformation]].
- *
  * @param configuration object with user provided configuration values
  */
 class JobManager(val configuration: Configuration) extends 
@@ -162,14 +159,13 @@ Actor with ActorLogMessages with ActorLogging {
 
         taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
       }
-    }
+
 
     case RequestNumberRegisteredTaskManager =>
       sender ! instanceManager.getNumberOfRegisteredTaskManagers
 
     case RequestTotalNumberOfSlots =>
       sender ! instanceManager.getTotalNumberOfSlots
-            executionGraph.setScheduleMode(jobGraph.getScheduleMode)
 
     case SubmitJob(jobGraph, listen, d) =>
       submitJob(jobGraph, listenToEvents = listen, detached = d)
@@ -294,16 +290,15 @@ Actor with ActorLogMessages with ActorLogging {
           archive forward RequestJobStatus(jobID)
       }
 
-    case ScheduleOrUpdateConsumers(jobId, executionId, partitionIndex) => {
+    case ScheduleOrUpdateConsumers(jobId, executionId, partitionIndex) =>
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
-          sender ! ConsumerNotificationResult(executionGraph
-            .scheduleOrUpdateConsumers(executionId, partitionIndex))
-              )
-            )
+          sender ! ConsumerNotificationResult(
+            executionGraph.scheduleOrUpdateConsumers(executionId, partitionIndex)
+          )
         case None =>
           log.error("Cannot find execution graph for job ID {}.", jobId)
-          sender ! ConsumerNotificationResult(false, Some(
+          sender ! ConsumerNotificationResult(success = false, Some(
             new IllegalStateException("Cannot find execution graph for job ID " + jobId)))
       }
 
@@ -393,7 +388,7 @@ Actor with ActorLogMessages with ActorLogging {
           // see if there already exists an ExecutionGraph for the corresponding job ID
           val (executionGraph, jobInfo) = currentJobs.getOrElseUpdate(jobGraph.getJobID,
             (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
-              jobGraph.getJobConfiguration, jobGraph.getUserJarBlobKeys, userCodeLoader),
+              jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader),
               JobInfo(sender, System.currentTimeMillis())))
 
           val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {
@@ -441,6 +436,7 @@ Actor with ActorLogMessages with ActorLogging {
               s"${jobGraph.getJobID} (${jobGraph.getName}).")
           }
 
+          executionGraph.setScheduleMode(jobGraph.getScheduleMode)
           executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
 
           // get notified about job status changes
@@ -513,10 +509,10 @@ Actor with ActorLogMessages with ActorLogging {
    */
   private def removeJob(jobID: JobID): Unit = {
     currentJobs.remove(jobID) match {
-      case Some((eg, _)) => {
+      case Some((eg, _)) =>
         eg.prepareForArchiving()
         archive ! ArchiveExecutionGraph(jobID, eg)
-      }
+
       case None =>
     }
 
@@ -528,7 +524,7 @@ Actor with ActorLogMessages with ActorLogging {
     }
   }
 
-  private def checkJavaVersion {
+  private def checkJavaVersion(): Unit = {
     if (System.getProperty("java.version").substring(0, 3).toDouble < 1.7) {
       log.warning("Warning: Flink is running with Java 6. " +
         "Java 6 is not maintained any more by Oracle or the OpenJDK community. " +
@@ -591,7 +587,7 @@ object JobManager {
       config =>
         GlobalConfiguration.loadConfiguration(config.configDir)
 
-        val configuration = GlobalConfiguration.getConfiguration()
+        val configuration = GlobalConfiguration.getConfiguration
 
         if (config.configDir != null && new File(config.configDir).isDirectory) {
           configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, config.configDir + "/..")

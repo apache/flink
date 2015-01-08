@@ -69,15 +69,14 @@ trait TestingTaskManager extends ActorLogMessages {
       sender ! ResponseBroadcastVariablesWithReferences(
         bcVarManager.getNumberOfVariablesWithReferences)
 
-    case RequestNumActiveConnections => {
+    case RequestNumActiveConnections =>
       networkEnvironment match {
         case Some(ne) => sender ! ResponseNumActiveConnections(
           ne.getConnectionManager.getNumberOfActiveConnections)
 
         case None => sender ! ResponseNumActiveConnections(0)
       }
-    }
-	
+
   case NotifyWhenJobRemoved(jobID) =>
       if(runningTasks.values.exists(_.getJobID == jobID)){
         val set = waitForJobRemoval.getOrElse(jobID, Set())

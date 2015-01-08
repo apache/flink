@@ -185,10 +185,9 @@ object JobClient{
           try {
             Await.result(jmStatus, timeout)
           } catch {
-            case t: Throwable => {
+            case t: Throwable =>
               throw new JobExecutionException("JobManager not reachable anymore. Terminate " +
                 "waiting for job answer.", false)
-            }
           }
       }
     }

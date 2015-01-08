@@ -25,6 +25,7 @@ import akka.actor.{ActorSelection, ActorRef, ActorSystem}
 import akka.pattern.{Patterns, ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.slf4j.LoggerFactory
 import scala.concurrent.{ExecutionContext, Future, Await}
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -35,7 +36,7 @@ import scala.language.postfixOps
  * actor systems resides in this class.
  */
 object AkkaUtils {
-  val DEFAULT_TIMEOUT: FiniteDuration = 1 minute
+  val LOG = LoggerFactory.getLogger(AkkaUtils.getClass)
 
   val INF_TIMEOUT = 21474835 seconds
 
@@ -123,8 +124,7 @@ object AkkaUtils {
 
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
 
-    val logLevel = configuration.getString(ConfigConstants.AKKA_LOG_LEVEL,
-      ConfigConstants.DEFAULT_AKKA_LOG_LEVEL)
+    val logLevel = getLogLevel
 
     val config =
       s"""
@@ -201,8 +201,7 @@ object AkkaUtils {
 
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
 
-    val logLevel = configuration.getString(ConfigConstants.AKKA_LOG_LEVEL,
-      ConfigConstants.DEFAULT_AKKA_LOG_LEVEL)
+    val logLevel = getLogLevel
 
     val configString =
       s"""
@@ -260,6 +259,26 @@ object AkkaUtils {
       }
 
     ConfigFactory.parseString(configString + hostnameConfigString)
+  }
+
+  def getLogLevel: String = {
+    if(LOG.isDebugEnabled) {
+      "DEBUG"
+    } else {
+      if (LOG.isInfoEnabled) {
+        "INFO"
+      } else {
+        if(LOG.isWarnEnabled){
+          "WARNING"
+        } else {
+          if (LOG.isErrorEnabled) {
+            "ERROR"
+          } else {
+            "OFF"
+          }
+        }
+      }
+    }
   }
 
   def getChild(parent: ActorRef, child: String)(implicit system: ActorSystem, timeout:

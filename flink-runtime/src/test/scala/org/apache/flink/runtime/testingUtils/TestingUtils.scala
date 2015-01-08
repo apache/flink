@@ -48,8 +48,7 @@ object TestingUtils {
       |akka.test.timefactor = 10
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
       |akka.loglevel = $logLevel
-      |akka.loglevel = "OFF"
-      |akka.stdout-loglevel = "OFF"
+      |akka.stdout-loglevel = $logLevel
       |akka.jvm-exit-on-fata-error = off
       |akka.log-config-on-start = off
     """.stripMargin
@@ -74,11 +73,11 @@ object TestingUtils {
   def startTestingTaskManager(jobManager: ActorRef)(implicit system: ActorSystem): ActorRef = {
     val jmURL = jobManager.path.toString
     val config = new Configuration()
-    config.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, jmURL)
-    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration("LOCALHOST", config)
+    val (connectionInfo, _, taskManagerConfig, networkConnectionConfig) =
+      TaskManager.parseConfiguration("localhost", config,
+        localAkkaCommunication = true, localTaskManagerCommunication = true)
 
-    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
+    system.actorOf(Props(new TaskManager(connectionInfo, jmURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager))
   }
 
@@ -103,7 +102,6 @@ object TestingUtils {
     config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms")
     config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "50 ms")
     config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 1)
-    config.setString(ConfigConstants.AKKA_LOG_LEVEL, "OFF")
 
     new TestingCluster(config, singleActorSystem = false)
   }

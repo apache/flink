@@ -330,31 +330,31 @@ object JobManagerMessages {
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   
-  def getRequestNumberRegisteredTaskManager() : AnyRef = {
+  def getRequestNumberRegisteredTaskManager : AnyRef = {
     RequestNumberRegisteredTaskManager
   }
   
-  def getRequestTotalNumberOfSlots() : AnyRef = {
+  def getRequestTotalNumberOfSlots : AnyRef = {
     RequestTotalNumberOfSlots
   }
   
-  def getRequestBlobManagerPort() : AnyRef = {
+  def getRequestBlobManagerPort : AnyRef = {
     RequestBlobManagerPort
   }
   
-  def getRequestRunningJobs() : AnyRef = {
+  def getRequestRunningJobs : AnyRef = {
     RequestRunningJobs
   }
   
-  def getRequestRegisteredTaskManagers() : AnyRef = {
+  def getRequestRegisteredTaskManagers : AnyRef = {
     RequestRegisteredTaskManagers
   }
   
-  def getRequestJobManagerStatus() : AnyRef = {
+  def getRequestJobManagerStatus : AnyRef = {
     RequestJobManagerStatus
   }
   
-  def getJobManagerStatusAlive() : AnyRef = {
+  def getJobManagerStatusAlive : AnyRef = {
     JobManagerStatusAlive
   }
 }

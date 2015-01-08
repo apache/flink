@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{Terminated, ActorRef, Props}
+import akka.actor.{Cancellable, Terminated, ActorRef, Props}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.execution.ExecutionState
@@ -30,6 +30,8 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import scala.collection.convert.WrapAsScala
 import scala.concurrent.Future
 import scala.concurrent.duration._
+
+import scala.language.postfixOps
 
 /**
  * Mixin for [[TestingJobManager]] to support testing messages
@@ -99,7 +101,8 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
         periodicCheck = None
       }
 
-		case NotifyWhenJobRemoved(jobID) =>
+
+    case NotifyWhenJobRemoved(jobID) =>
       val tms = instanceManager.getAllRegisteredInstances.map(_.getTaskManager)
 
       val responses = tms.map{

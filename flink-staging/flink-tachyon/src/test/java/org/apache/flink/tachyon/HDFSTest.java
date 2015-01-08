@@ -18,12 +18,9 @@
 
 package org.apache.flink.tachyon;
 
-
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.java.io.AvroOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.WordCount;

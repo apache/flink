@@ -45,13 +45,13 @@ public class AllVerticesIteratorTest {
 			ExecutionGraph eg = Mockito.mock(ExecutionGraph.class);
 					
 			ExecutionJobVertex ejv1 = new ExecutionJobVertex(eg, v1, 1,
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			ExecutionJobVertex ejv2 = new ExecutionJobVertex(eg, v2, 1,
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			ExecutionJobVertex ejv3 = new ExecutionJobVertex(eg, v3, 1,
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			ExecutionJobVertex ejv4 = new ExecutionJobVertex(eg, v4, 1,
-					AkkaUtils.DEFAULT_TIMEOUT());
+					AkkaUtils.getDefaultTimeout());
 			
 			AllVerticesIterator iter = new AllVerticesIterator(Arrays.asList(ejv1, ejv2, ejv3, ejv4).iterator());
 			

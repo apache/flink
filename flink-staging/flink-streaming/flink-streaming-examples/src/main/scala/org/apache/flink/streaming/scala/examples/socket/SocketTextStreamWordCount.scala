@@ -20,6 +20,8 @@ package org.apache.flink.streaming.scala.examples.socket
 
 import org.apache.flink.streaming.api.scala._
 
+import scala.language.postfixOps
+
 /**
  * This example shows an implementation of WordCount with data from a text socket. 
  * To run the example make sure that the service providing the text data is already up and running.

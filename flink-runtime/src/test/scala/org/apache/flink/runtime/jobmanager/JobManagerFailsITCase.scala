@@ -57,7 +57,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
         expectMsgClass(classOf[JobManagerTerminated])
 
-        cluster.restartJobManager
+        cluster.restartJobManager()
 
         cluster.waitForTaskManagersToBeRegistered()
 

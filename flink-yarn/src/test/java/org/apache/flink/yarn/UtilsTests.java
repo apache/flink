@@ -17,7 +17,6 @@
  */
 package org.apache.flink.yarn;
 
-import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.Test;
 

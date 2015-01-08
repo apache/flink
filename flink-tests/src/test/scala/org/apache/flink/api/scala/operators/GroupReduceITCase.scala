@@ -717,6 +717,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
 
 
   @Test
+  def testGroupingWithPojoContainingMultiplePojos: Unit = {
     /*
      * Test grouping with pojo containing multiple pojos (was a bug)
      */
@@ -724,18 +725,19 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
     env.setDegreeOfParallelism(1)
     val ds =  CollectionDataSets.getPojoWithMultiplePojos(env)
     val reduceDs =  ds.groupBy("p2.a2")
-      .reduceGroup(
-        new GroupReduceFunction[CollectionDataSets.PojoWithMultiplePojos, String] {
-          def reduce(
-                      values: Iterable[CollectionDataSets.PojoWithMultiplePojos],
-                      out: Collector[String]) {
-            val concat: StringBuilder = new StringBuilder
-            for (value <- values.asScala) {
-              concat.append(value.p2.a2)
-            }
-            out.collect(concat.toString())
+      .reduceGroup {
+      new GroupReduceFunction[CollectionDataSets.PojoWithMultiplePojos, String] {
+        def reduce(
+                    values: Iterable[CollectionDataSets.PojoWithMultiplePojos],
+                    out: Collector[String]) {
+          val concat: StringBuilder = new StringBuilder
+          for (value <- values.asScala) {
+            concat.append(value.p2.a2)
           }
-        })
+          out.collect(concat.toString())
+        }
+      }
+    }
     reduceDs.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "b\nccc\nee\n"

@@ -74,7 +74,7 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
   def startJobManager(implicit system: ActorSystem): ActorRef
   def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef
 
-  def getJobManagerAkkaConfig(): Config = {
+  def getJobManagerAkkaConfig: Config = {
     val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
       ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
@@ -86,7 +86,7 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
   }
 
   def startJobManagerActorSystem(): ActorSystem = {
-    val config = getJobManagerAkkaConfig()
+    val config = getJobManagerAkkaConfig
 
     AkkaUtils.createActorSystem(config)
   }

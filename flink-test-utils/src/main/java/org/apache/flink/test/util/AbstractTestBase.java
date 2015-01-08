@@ -20,7 +20,6 @@ package org.apache.flink.test.util;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -30,6 +29,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
+
+
 public abstract class AbstractTestBase extends TestBaseUtils {
 
 

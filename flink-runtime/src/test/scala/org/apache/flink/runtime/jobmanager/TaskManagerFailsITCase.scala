@@ -24,8 +24,7 @@ import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
 import org.apache.flink.runtime.messages.JobManagerMessages.{RequestNumberRegisteredTaskManager,
 JobResultFailed, SubmissionSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{TaskManagerTerminated,
-NotifyWhenTaskManagerTerminated, AllVerticesRunning, WaitForAllVerticesToBeRunning}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -71,6 +70,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
     }
 
+    "handle gracefully failing task manager" in {
       val num_tasks = 31
       val sender = new AbstractJobVertex("Sender")
       val receiver = new AbstractJobVertex("Receiver")

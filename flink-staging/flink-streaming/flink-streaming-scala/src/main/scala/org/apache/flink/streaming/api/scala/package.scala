@@ -18,9 +18,10 @@
 
 package org.apache.flink.streaming.api
 
+import _root_.scala.reflect.ClassTag
 import language.experimental.macros
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala.typeutils.TypeUtils
+import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.datastream.{ WindowedDataStream => JavaWStream }
 import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaStream }

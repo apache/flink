@@ -115,14 +115,14 @@ public abstract class CancellingTestBase {
 			boolean jobSuccessfullyCancelled = false;
 
 			Future<Object> result = Patterns.ask(client, new JobClientMessages.SubmitJobAndWait
-					(jobGraph, false), new Timeout(AkkaUtils.DEFAULT_TIMEOUT()));
+					(jobGraph, false), new Timeout(AkkaUtils.getDefaultTimeout()));
 
 			actorSystem.scheduler().scheduleOnce(new FiniteDuration(msecsTillCanceling,
 							TimeUnit.MILLISECONDS), client, new JobManagerMessages.CancelJob(jobGraph.getJobID()),
 					actorSystem.dispatcher(), ActorRef.noSender());
 
 			try {
-				Await.result(result, AkkaUtils.DEFAULT_TIMEOUT());
+				Await.result(result, AkkaUtils.getDefaultTimeout());
 			} catch (JobExecutionException exception) {
 				if (!exception.isJobCanceledByUser()) {
 					throw new IllegalStateException("Job Failed.");
