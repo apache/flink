@@ -258,7 +258,6 @@ public abstract class FileSystem {
 				} else {
 					fs = instantiateFileSystem(fsClass);
 				}
-				System.out.println("Initializing new instance of native class for "+fsClass);
 				// Initialize new file system object
 				fs.initialize(uri);
 
