@@ -22,6 +22,8 @@ import java.io.IOException;
 
 public class IllegalQueueIteratorRequestException extends IOException {
 
+	private static final long serialVersionUID = 8381253563445306324L;
+
 	public IllegalQueueIteratorRequestException() {
 	}
 

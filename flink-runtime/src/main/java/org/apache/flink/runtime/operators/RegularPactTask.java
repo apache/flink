@@ -39,12 +39,12 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.BufferWriter;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
-import org.apache.flink.runtime.io.network.api.MutableReader;
-import org.apache.flink.runtime.io.network.api.MutableRecordReader;
-import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.reader.BufferReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
@@ -110,7 +110,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * The output writers for the data that this task forwards to the next task. The latest driver (the central, if no chained
 	 * drivers exist, otherwise the last chained driver) produces its output to these writers.
 	 */
-	protected List<RecordWriter> eventualOutputs;
+	protected List<RecordWriter<?>> eventualOutputs;
 
 	/**
 	 * The input readers to this task.
@@ -563,8 +563,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 *          Each chained task might have accumulators which will be merged
 	 *          with the accumulators of the stub.
 	 */
-	protected static void reportAndClearAccumulators(Environment env, Map<String, Accumulator<?, ?>> accumulators,
-			ArrayList<ChainedDriver<?, ?>> chainedTasks) {
+	protected static void reportAndClearAccumulators(
+			Environment env, Map<String, Accumulator<?, ?>> accumulators, ArrayList<ChainedDriver<?, ?>> chainedTasks) {
 
 		// We can merge here the accumulators from the stub and the chained
 		// tasks. Type conflicts can occur here if counters with same name but
@@ -858,8 +858,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		for (int i = 0; i < numInputs; i++) {
 			final int memoryPages;
-			final boolean cached =  this.config.isInputCached(i);
 			final boolean async = this.config.isInputAsynchronouslyMaterialized(i);
+			final boolean cached =  this.config.isInputCached(i);
 
 			this.inputIsAsyncMaterialized[i] = async;
 			this.inputIsCached[i] = cached;
@@ -1059,7 +1059,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected void initOutputs() throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.eventualOutputs = new ArrayList<RecordWriter>();
+		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
@@ -1243,7 +1243,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 *
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
-	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<RecordWriter> eventualOutputs, int outputOffset, int numOutputs)
+	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs)
 			throws Exception
 	{
 		if (numOutputs == 0) {
@@ -1325,7 +1325,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
-					List<ChainedDriver<?, ?>> chainedTasksTarget, List<RecordWriter> eventualOutputs, ExecutionConfig executionConfig)
+					List<ChainedDriver<?, ?>> chainedTasksTarget, List<RecordWriter<?>> eventualOutputs, this.getExecutionConfig())
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -1359,7 +1359,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 				if (i == numChained -1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, chainedStubConf.getNumOutputs());
+					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs());
 				}
 
 				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl);
@@ -1512,14 +1512,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		return a;
 	}
 
-	public static void clearWriters(List<RecordWriter> writers) {
+	public static void clearWriters(List<RecordWriter<?>> writers) {
 		for (RecordWriter<?> writer : writers) {
 			writer.clearBuffers();
 		}
 	}
 
 	public static void clearReaders(MutableReader<?>[] readers) {
-		for (MutableReader reader : readers) {
+		for (MutableReader<?> reader : readers) {
 			reader.clearBuffers();
 		}
 	}

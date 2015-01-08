@@ -186,7 +186,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	}
 	
 	@Override
-	public BlockChannelWriterWithCallback createBlockChannelWriter(FileIOChannel.ID channelID, RequestDoneCallback callback) throws IOException {
+	public BlockChannelWriterWithCallback createBlockChannelWriter(FileIOChannel.ID channelID, RequestDoneCallback<MemorySegment> callback) throws IOException {
 		checkState(!shutdown, "I/O-Manger is closed.");
 		return new AsynchronousBlockWriterWithCallback(channelID, this.writers[channelID.getThreadNum()].requestQueue, callback);
 	}

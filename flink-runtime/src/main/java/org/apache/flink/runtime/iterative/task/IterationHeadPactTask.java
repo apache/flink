@@ -85,7 +85,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private Collector<X> finalOutputCollector;
 
-	private List<RecordWriter> finalOutputWriters;
+	private List<RecordWriter<?>> finalOutputWriters;
 
 	private TypeSerializerFactory<Y> feedbackTypeSerializer;
 
@@ -115,7 +115,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 		// at this time, the outputs to the step function are created
 		// add the outputs for the final solution
-		this.finalOutputWriters = new ArrayList<RecordWriter>();
+		this.finalOutputWriters = new ArrayList<RecordWriter<?>>();
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
 		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,

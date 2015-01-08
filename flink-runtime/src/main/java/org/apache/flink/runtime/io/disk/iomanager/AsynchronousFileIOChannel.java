@@ -72,7 +72,7 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends 
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
 	protected AsynchronousFileIOChannel(FileIOChannel.ID channelID, RequestQueue<R> requestQueue, 
-			RequestDoneCallback callback, boolean writeEnabled) throws IOException
+			RequestDoneCallback<T> callback, boolean writeEnabled) throws IOException
 	{
 		super(channelID, writeEnabled);
 
@@ -113,7 +113,7 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends 
 						this.closeLock.wait(1000);
 						checkErroneous();
 					}
-					catch (InterruptedException iex) {}
+					catch (InterruptedException ignored) {}
 				}
 			}
 			finally {

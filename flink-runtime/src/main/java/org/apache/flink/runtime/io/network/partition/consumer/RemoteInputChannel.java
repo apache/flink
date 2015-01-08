@@ -222,6 +222,8 @@ public class RemoteInputChannel extends InputChannel {
 
 	public static class BufferReorderingException extends IOException {
 
+		private static final long serialVersionUID = -888282210356266816L;
+
 		private final int expectedSequenceNumber;
 
 		private final int actualSequenceNumber;

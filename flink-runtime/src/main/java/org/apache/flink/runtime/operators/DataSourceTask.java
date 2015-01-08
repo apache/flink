@@ -53,7 +53,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DataSourceTask.class);
 
-	private List<RecordWriter> eventualOutputs;
+	private List<RecordWriter<?>> eventualOutputs;
 
 	// Output collector
 	private Collector<OT> output;
@@ -300,7 +300,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	 */
 	private void initOutputs(ClassLoader cl) throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.eventualOutputs = new ArrayList<RecordWriter>();
+		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
 		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs);
 	}
 

@@ -37,7 +37,7 @@ public class AsynchronousBlockWriterWithCallback extends AsynchronousFileIOChann
 	 * @throws IOException Thrown, if the underlying file channel could not be opened exclusively.
 	 */
 	protected AsynchronousBlockWriterWithCallback(FileIOChannel.ID channelID, RequestQueue<WriteRequest> requestQueue,
-			RequestDoneCallback callback) throws IOException
+			RequestDoneCallback<MemorySegment> callback) throws IOException
 	{
 		super(channelID, requestQueue, callback, true);
 	}

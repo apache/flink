@@ -98,7 +98,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> implements Rea
 	}
 
 	public void clearBuffers() {
-		for (RecordDeserializer deserializer : recordDeserializers) {
+		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			Buffer buffer = deserializer.getCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycle();

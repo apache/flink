@@ -69,5 +69,6 @@ public interface IntermediateResultPartitionQueueIterator {
 
 	public class AlreadySubscribedException extends IOException {
 
+		private static final long serialVersionUID = -5583394817361970668L;
 	}
 }
