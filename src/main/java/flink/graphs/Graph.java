@@ -222,6 +222,129 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	/**
+	 * Method that joins the edge DataSet with an input DataSet on a composite key of both source and target
+	 * and applies a UDF on the resulted values.
+	 * @param inputDataSet
+	 * @param mapper - the UDF applied
+	 * @param <T>
+	 * @return - a new graph where the edge values have been updated.
+	 */
+	public <T> Graph<K, VV, EV> joinWithEdges(DataSet<Tuple3<K, K, T>> inputDataSet,
+											  final MapFunction<Tuple2<EV, T>, EV> mapper) {
+
+		DataSet<Edge<K, EV>> resultedEdges = this.getEdges()
+				.coGroup(inputDataSet).where(0,1).equalTo(0,1)
+				.with(new ApplyCoGroupToEdgeValues<K, EV, T>(mapper));
+
+		return Graph.create(this.getVertices(), resultedEdges, this.getContext());
+	}
+
+	private static final class ApplyCoGroupToEdgeValues<K extends Comparable<K> & Serializable,
+			EV extends Serializable, T>
+			implements CoGroupFunction<Edge<K, EV>, Tuple3<K, K, T>, Edge<K, EV>> {
+
+		private MapFunction<Tuple2<EV, T>, EV> mapper;
+
+		public ApplyCoGroupToEdgeValues(MapFunction<Tuple2<EV, T>, EV> mapper) {
+			this.mapper = mapper;
+		}
+
+		@Override
+		public void coGroup(Iterable<Edge<K, EV>> iterableDS1,
+							Iterable<Tuple3<K, K, T>> iterableDS2,
+							Collector<Edge<K, EV>> collector) throws Exception {
+
+			Iterator<Edge<K, EV>> iteratorDS1 = iterableDS1.iterator();
+			Iterator<Tuple3<K, K, T>> iteratorDS2 = iterableDS2.iterator();
+
+			if(iteratorDS2.hasNext() && iteratorDS1.hasNext()) {
+				Tuple3<K, K, T> iteratorDS2Next = iteratorDS2.next();
+
+				collector.collect(new Edge<K, EV>(iteratorDS2Next.f0, iteratorDS2Next.f1, mapper
+						.map(new Tuple2<EV, T>(iteratorDS1.next().f2, iteratorDS2Next.f2))));
+
+			} else if(iteratorDS1.hasNext()) {
+				collector.collect(iteratorDS1.next());
+			}
+		}
+	}
+
+	/**
+	 * Method that joins the edge DataSet with an input DataSet on the source key of the edges and the first attribute
+	 * of the input DataSet and applies a UDF on the resulted values.
+	 * Should the inputDataSet contain the same key more than once, only the first value will be considered.
+	 * @param inputDataSet
+	 * @param mapper - the UDF applied
+	 * @param <T>
+	 * @return - a new graph where the edge values have been updated.
+	 */
+	public <T> Graph<K, VV, EV> joinWithEdgesOnSource(DataSet<Tuple2<K, T>> inputDataSet,
+												 final MapFunction<Tuple2<EV, T>, EV> mapper) {
+
+		DataSet<Edge<K, EV>> resultedEdges = this.getEdges()
+				.coGroup(inputDataSet).where(0).equalTo(0)
+				.with(new ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>(mapper));
+
+		return Graph.create(this.getVertices(), resultedEdges, this.getContext());
+	}
+
+	private static final class ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K extends Comparable<K> & Serializable,
+			EV extends Serializable, T>
+			implements CoGroupFunction<Edge<K, EV>, Tuple2<K, T>, Edge<K, EV>> {
+
+		private MapFunction<Tuple2<EV, T>, EV> mapper;
+
+		public ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget(MapFunction<Tuple2<EV, T>, EV> mapper) {
+			this.mapper = mapper;
+		}
+
+
+		@Override
+		public void coGroup(Iterable<Edge<K, EV>> iterableDS1,
+							Iterable<Tuple2<K, T>> iterableDS2,
+							Collector<Edge<K, EV>> collector) throws Exception {
+
+			Iterator<Edge<K, EV>> iteratorDS1 = iterableDS1.iterator();
+			Iterator<Tuple2<K, T>> iteratorDS2 = iterableDS2.iterator();
+
+			if(iteratorDS2.hasNext()) {
+				Tuple2<K, T> iteratorDS2Next = iteratorDS2.next();
+
+				while(iteratorDS1.hasNext()) {
+					Edge<K, EV> iteratorDS1Next = iteratorDS1.next();
+
+					collector.collect(new Edge<K, EV>(iteratorDS1Next.f0, iteratorDS1Next.f1, mapper
+							.map(new Tuple2<EV, T>(iteratorDS1Next.f2, iteratorDS2Next.f1))));
+				}
+
+			} else {
+				while(iteratorDS1.hasNext()) {
+					collector.collect(iteratorDS1.next());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Method that joins the edge DataSet with an input DataSet on the target key of the edges and the first attribute
+	 * of the input DataSet and applies a UDF on the resulted values.
+	 * Should the inputDataSet contain the same key more than once, only the first value will be considered.
+	 * @param inputDataSet
+	 * @param mapper - the UDF applied
+	 * @param <T>
+	 * @return - a new graph where the edge values have been updated.
+	 */
+	public <T> Graph<K, VV, EV> joinWithEdgesOnTarget(DataSet<Tuple2<K, T>> inputDataSet,
+													  final MapFunction<Tuple2<EV, T>, EV> mapper) {
+
+		DataSet<Edge<K, EV>> resultedEdges = this.getEdges()
+				.coGroup(inputDataSet).where(1).equalTo(0)
+				.with(new ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>(mapper));
+
+		return Graph.create(this.getVertices(), resultedEdges, this.getContext());
+	}
+
+	/**
      * Apply value-based filtering functions to the graph 
      * and return a sub-graph that satisfies the predicates
      * for both vertex values and edge values.
