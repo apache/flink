@@ -369,12 +369,30 @@ public class DirectMemorySegment extends MemorySegment {
 	
 	@Override
 	public final void get(DataOutput out, int offset, int length) throws IOException {
-		throw new UnsupportedOperationException("not implemented");
+		while(length >= 8) {
+			out.writeLong(getLong(offset));
+			offset += 8;
+			length -= 8;
+		}
+		while(length > 0) {
+			out.writeByte(get(offset));
+			offset++;
+			length--;
+		}
 	}
 
 	@Override
 	public final void put(DataInput in, int offset, int length) throws IOException {
-		throw new UnsupportedOperationException("not implemented");
+		while(length >= 8) {
+			putLong(offset, in.readLong());
+			offset += 8;
+			length -= 8;
+		}
+		while(length > 0) {
+			put(offset, in.readByte());
+			offset++;
+			length--;
+		}
 	}
 	
 	@Override
