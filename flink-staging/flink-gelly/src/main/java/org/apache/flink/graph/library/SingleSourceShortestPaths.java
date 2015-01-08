@@ -3,7 +3,6 @@ package flink.graphs.library;
 import flink.graphs.*;
 import flink.graphs.spargel.MessageIterator;
 import flink.graphs.spargel.MessagingFunction;
-import flink.graphs.spargel.OutgoingEdge;
 import flink.graphs.spargel.VertexUpdateFunction;
 
 import org.apache.flink.api.common.functions.MapFunction;
@@ -87,8 +86,8 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable> i
 
         @Override
         public void sendMessages(K vertexKey, Double newDistance) throws Exception {
-            for (OutgoingEdge<K, Double> edge : getOutgoingEdges()) {
-                sendMessageTo(edge.target(), newDistance + edge.edgeValue());
+            for (Edge<K, Double> edge : getOutgoingEdges()) {
+                sendMessageTo(edge.getTarget(), newDistance + edge.getValue());
             }
         }
     }

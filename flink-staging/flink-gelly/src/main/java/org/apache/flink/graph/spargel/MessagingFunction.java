@@ -26,9 +26,10 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
+
+import flink.graphs.Edge;
 
 /**
  * The base class for functions that produce messages between vertices as a part of a {@link VertexCentricIteration}.
@@ -38,7 +39,8 @@ import org.apache.flink.util.Collector;
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EdgeValue> The type of the values that are associated with the edges.
  */
-public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> implements Serializable {
+public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey> & Serializable, 
+	VertexValue extends Serializable, Message, EdgeValue extends Serializable> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -79,19 +81,13 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	 * @return An iterator with all outgoing edges.
 	 */
 	@SuppressWarnings("unchecked")
-	public Iterable<OutgoingEdge<VertexKey, EdgeValue>> getOutgoingEdges() {
+	public Iterable<Edge<VertexKey, EdgeValue>> getOutgoingEdges() {
 		if (edgesUsed) {
 			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()' exactly once.");
 		}
 		edgesUsed = true;
-		
-		if (this.edgeWithValueIter != null) {
-			this.edgeWithValueIter.set((Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>>) edges);
-			return this.edgeWithValueIter;
-		} else {
-			this.edgeNoValueIter.set((Iterator<Tuple2<VertexKey, VertexKey>>) edges);
-			return this.edgeNoValueIter;
-		}
+		this.edgeIterator.set((Iterator<Edge<VertexKey, EdgeValue>>) edges);
+		return this.edgeIterator;
 	}
 	
 	/**
@@ -186,22 +182,15 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	
 	private Collector<Tuple2<VertexKey, Message>> out;
 	
-	private EdgesIteratorNoEdgeValue<VertexKey, EdgeValue> edgeNoValueIter;
-	
-	private EdgesIteratorWithEdgeValue<VertexKey, EdgeValue> edgeWithValueIter;
+	private EdgesIterator<VertexKey, EdgeValue> edgeIterator;
 	
 	private boolean edgesUsed;
 	
 	
-	void init(IterationRuntimeContext context, boolean hasEdgeValue) {
+	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
 		this.outValue = new Tuple2<VertexKey, Message>();
-		
-		if (hasEdgeValue) {
-			this.edgeWithValueIter = new EdgesIteratorWithEdgeValue<VertexKey, EdgeValue>();
-		} else {
-			this.edgeNoValueIter = new EdgesIteratorNoEdgeValue<VertexKey, EdgeValue>();
-		}
+		this.edgeIterator = new EdgesIterator<VertexKey, EdgeValue>();
 	}
 	
 	void set(Iterator<?> edges, Collector<Tuple2<VertexKey, Message>> out) {
@@ -210,17 +199,15 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		this.edgesUsed = false;
 	}
 	
-	
-	
-	private static final class EdgesIteratorNoEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> 
-		implements Iterator<OutgoingEdge<VertexKey, EdgeValue>>, Iterable<OutgoingEdge<VertexKey, EdgeValue>>
+	private static final class EdgesIterator<VertexKey extends Comparable<VertexKey> & Serializable, 
+		EdgeValue extends Serializable> 
+		implements Iterator<Edge<VertexKey, EdgeValue>>, Iterable<Edge<VertexKey, EdgeValue>>
 	{
-		private Iterator<Tuple2<VertexKey, VertexKey>> input;
+		private Iterator<Edge<VertexKey, EdgeValue>> input;
 		
-		private OutgoingEdge<VertexKey, EdgeValue> edge = new OutgoingEdge<VertexKey, EdgeValue>();
+		private Edge<VertexKey, EdgeValue> edge = new Edge<VertexKey, EdgeValue>();
 		
-		
-		void set(Iterator<Tuple2<VertexKey, VertexKey>> input) {
+		void set(Iterator<Edge<VertexKey, EdgeValue>> input) {
 			this.input = input;
 		}
 		
@@ -230,44 +217,10 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 		}
 
 		@Override
-		public OutgoingEdge<VertexKey, EdgeValue> next() {
-			Tuple2<VertexKey, VertexKey> next = input.next();
-			edge.set(next.f1, null);
-			return edge;
-		}
-
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public Iterator<OutgoingEdge<VertexKey, EdgeValue>> iterator() {
-			return this;
-		}
-	}
-	
-	
-	private static final class EdgesIteratorWithEdgeValue<VertexKey extends Comparable<VertexKey>, EdgeValue> 
-		implements Iterator<OutgoingEdge<VertexKey, EdgeValue>>, Iterable<OutgoingEdge<VertexKey, EdgeValue>>
-	{
-		private Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>> input;
-		
-		private OutgoingEdge<VertexKey, EdgeValue> edge = new OutgoingEdge<VertexKey, EdgeValue>();
-		
-		void set(Iterator<Tuple3<VertexKey, VertexKey, EdgeValue>> input) {
-			this.input = input;
-		}
-		
-		@Override
-		public boolean hasNext() {
-			return input.hasNext();
-		}
-
-		@Override
-		public OutgoingEdge<VertexKey, EdgeValue> next() {
-			Tuple3<VertexKey, VertexKey, EdgeValue> next = input.next();
-			edge.set(next.f1, next.f2);
+		public Edge<VertexKey, EdgeValue> next() {
+			Edge<VertexKey, EdgeValue> next = input.next();
+			edge.setTarget(next.f1);
+			edge.setValue(next.f2);
 			return edge;
 		}
 
@@ -276,7 +229,7 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 			throw new UnsupportedOperationException();
 		}
 		@Override
-		public Iterator<OutgoingEdge<VertexKey, EdgeValue>> iterator() {
+		public Iterator<Edge<VertexKey, EdgeValue>> iterator() {
 			return this;
 		}
 	}
