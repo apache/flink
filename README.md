@@ -25,7 +25,7 @@ Flink is highlighted by some unique features:
 * Custom type analysis and serialization stack for high performance
 
 
-Learn more about Flink at http://flink.incubator.apache.org/
+Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
 
 
 ## Building Apache Flink from Source
@@ -62,17 +62,17 @@ The IntelliJ IDE supports Maven out of the box and offers a plugin for Scala dev
 
 ### Eclipse Scala IDE
 
-We recommend using Scala IDE 3.0.3, based on Eclipse Kepler. While this is a slightly older version,
+For Eclipse users, we recommend using Scala IDE 3.0.3, based on Eclipse Kepler. While this is a slightly older version,
 we found it to be the verstion that works most robustly for a complex project like Flink.
 
 Further details, and a guide to newer Scala IDE versions can be found in the
-[How to setup Eclipse](https://github.com/StephanEwen/incubator-flink/blob/master/docs/internal_setup_eclipse.md) docs.
+[How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internal_setup_eclipse.md) docs.
 
 **Note:** Before following this setup, make sure to run the build from the command line once
 (`mvn clean package -DskipTests`, see above)
 
-1. Download the Scala IDE (preferred) or install the plugin to Eclipse Kepler. See [How to setup Eclipse](apache/incubator-flink/blob/master/docs/internal_setup_eclipse.md)
-   for download links and instructions.
+1. Download the Scala IDE (preferred) or install the plugin to Eclipse Kepler. See 
+   [How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internal_setup_eclipse.md) for download links and instructions.
 2. Add the "macroparadise" compiler plugin to the Scala compiler.
    Open "Window" -> "Preferences" -> "Scala" -> "Compiler" -> "Advanced" and put into the "Xplugin" field the path to
    the *macroparadise* jar file (typically "/home/*-your-user-*/.m2/repository/org/scalamacros/paradise_2.10.4/2.0.1/paradise_2.10.4-2.0.1.jar").
@@ -86,14 +86,14 @@ Further details, and a guide to newer Scala IDE versions can be found in the
 
 Don’t hesitate to ask!
 
-Please contact the developers on our [mailing lists](http://flink.incubator.apache.org/community.html#mailing-lists) if you need help.
+Please contact the developers on our [mailing lists](http://flink.apache.org/community.html#mailing-lists) if you need help.
 
 [Open an issue](https://issues.apache.org/jira/browse/FLINK) if you found a bug in Flink.
 
 
 ## Documentation
 
-The documentation of Apache Flink is located on the website: [http://flink.incubator.apache.org](http://flink.incubator.apache.org)
+The documentation of Apache Flink is located on the website: [http://flink.apache.org](http://flink.apache.org)
 or in the `docs/` directory of the source code.
 
 
@@ -101,10 +101,11 @@ or in the `docs/` directory of the source code.
 
 This is an active open-source project. We are always open to people who want to use the system or contribute to it. 
 Contact us if you are looking for implementation tasks that fit your skills.
-This article describes [how to contribute to Apache Flink](http://flink.incubator.apache.org/how-to-contribute.html).
+This article describes [how to contribute to Apache Flink](http://flink.apache.org/how-to-contribute.html).
 
 
 ## About
 
 Apache Flink is an open source project of The Apache Software Foundation (ASF).
 The Apache Flink project originated from the [Stratosphere](http://stratosphere.eu) research project.
+

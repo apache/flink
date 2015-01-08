@@ -44,8 +44,8 @@ parallism of 3. A pipeline consists of the sequence Source - Map - Reduce. On a 
 <img src="img/slots.svg" alt="Assigning Pipelines of Tasks to Slots" height="250px" style="text-align: center;"/>
 </div>
 
-Internally, Flink defines through [SlotSharingGroup](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/jobmanager/scheduler/SlotSharingGroup.java) 
-and [CoLocationGroup](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/jobmanager/scheduler/CoLocationGroup.java)
+Internally, Flink defines through {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobmanager/scheduler/SlotSharingGroup.java "SlotSharingGroup" %} 
+and {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobmanager/scheduler/CoLocationGroup.java "CoLocationGroup" %}
 which tasks may share a slot (permissive), respectively which tasks must be strictly placed into the same slot.
 
 
@@ -54,18 +54,18 @@ which tasks may share a slot (permissive), respectively which tasks must be stri
 During job execution, the JobManager keeps track of distributed tasks, decides when to schedule the next task (or set of tasks),
 and reacts to finished tasks or execution failures.
 
-The JobManager receives the [JobGraph](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/),
-which is a representation of the data flow consisting of operators ([JobVertex](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/AbstractJobVertex.java))
-and intermediate results ([IntermediateDataSet](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/IntermediateDataSet.java)).
+The JobManager receives the {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/ "JobGraph" %},
+which is a representation of the data flow consisting of operators ({% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/AbstractJobVertex.java "JobVertex" %})
+and intermediate results ({% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/jobgraph/IntermediateDataSet.java "IntermediateDataSet" %}).
 Each operator has properies, like the degree of parallelism and the code that it executes.
 In addition, the JobGraph has a set of attached libraries, that are neccessary to execute the code of the operators.
 
-The JobManager transforms the JobGraph into an [ExecutionGraph](https://github.com/apache/incubator-flink/tree/master/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph).
-The ExecutionGraph is a parallel version of the JobGraph: For each JobVertex, it contains an [ExecutionVertex](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/ExecutionVertex.java) per parallel subtask. An operator with a parallelism of 100 will have one JobVertex and 100 ExecutionVertices.
+The JobManager transforms the JobGraph into an {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/ "ExecutionGraph" %}.
+The ExecutionGraph is a parallel version of the JobGraph: For each JobVertex, it contains an {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/ExecutionVertex.java "ExecutionVertex" %} per parallel subtask. An operator with a parallelism of 100 will have one JobVertex and 100 ExecutionVertices.
 The ExecutionVertex tracks the state of execution of a particular subtask. All ExecutionVertices from one JobVertex are held in an
-[ExecutionJobVertex](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/ExecutionJobVertex.java),
+{% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/ExecutionJobVertex.java "ExecutionJobVertex" %},
 which tracks the status of the operator as a whole. 
-Besides the vertices, the ExecutionGraph also contains the [IntermediateResult](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResult.java) and the [IntermediateResultPartition](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResultPartition.java). The former tracks the state of the *IntermediateDataSet*, the latter the state of each of its partitions.
+Besides the vertices, the ExecutionGraph also contains the {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResult.java "IntermediateResult" %} and the {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResultPartition.java "IntermediateResultPartition" %}. The former tracks the state of the *IntermediateDataSet*, the latter the state of each of its partitions.
 
 <div style="text-align: center;">
 <img src="img/job_and_execution_graph.svg" alt="JobGraph and ExecutionGraph" height="400px" style="text-align: center;"/>
@@ -73,7 +73,7 @@ Besides the vertices, the ExecutionGraph also contains the [IntermediateResult](
 
 During its execution, each parallel task goes through multiple stages, from *created* to *finished* or *failed*. The diagram below illustrates the 
 states and possible transitions between them. A task may be executed multiple times (for example in the course of failure recovery).
-For that reason, the execution of an ExecutionVertex is tracked in an [Execution](https://github.com/apache/incubator-flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/Execution.java). Each ExecutionVertex has a current Execution, and prior Executions.
+For that reason, the execution of an ExecutionVertex is tracked in an {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/Execution.java "Execution" %}. Each ExecutionVertex has a current Execution, and prior Executions.
 
 <div style="text-align: center;">
 <img src="img/state_machine.svg" alt="States and Transitions of Task Executions" height="300px" style="text-align: center;"/>
