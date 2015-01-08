@@ -46,12 +46,12 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.spargel.java.MessagingFunction;
-import org.apache.flink.spargel.java.VertexCentricIteration;
-import org.apache.flink.spargel.java.VertexUpdateFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.types.NullValue;
 
+import flink.graphs.spargel.MessagingFunction;
+import flink.graphs.spargel.VertexCentricIteration;
+import flink.graphs.spargel.VertexUpdateFunction;
 import flink.graphs.utils.GraphUtils;
 import flink.graphs.utils.Tuple2ToVertexMap;
 import flink.graphs.validation.GraphValidator;

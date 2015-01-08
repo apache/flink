@@ -3,11 +3,10 @@ package flink.graphs.library;
 
 import flink.graphs.Graph;
 import flink.graphs.GraphAlgorithm;
-
-import org.apache.flink.spargel.java.MessageIterator;
-import org.apache.flink.spargel.java.MessagingFunction;
-import org.apache.flink.spargel.java.OutgoingEdge;
-import org.apache.flink.spargel.java.VertexUpdateFunction;
+import flink.graphs.spargel.MessageIterator;
+import flink.graphs.spargel.MessagingFunction;
+import flink.graphs.spargel.OutgoingEdge;
+import flink.graphs.spargel.VertexUpdateFunction;
 
 import java.io.Serializable;
 
