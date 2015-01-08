@@ -25,12 +25,13 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.spargel.java.MessageIterator;
-import org.apache.flink.spargel.java.MessagingFunction;
-import org.apache.flink.spargel.java.VertexUpdateFunction;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.NullValue;
+
+import flink.graphs.spargel.MessageIterator;
+import flink.graphs.spargel.MessagingFunction;
+import flink.graphs.spargel.VertexUpdateFunction;
 
 @SuppressWarnings("serial")
 public class TestVertexCentricConnectedComponents extends JavaProgramTestBase {
