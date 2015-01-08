@@ -166,11 +166,10 @@ class TupleGenerator {
 		
 		// method comment
 		sb.append("\t\t/**\n");
-		sb.append("\t\t * Chooses a projectTupleX according to the length of {@link CrossProjection#fieldIndexes} \n");
+		sb.append("\t\t * Chooses a projectTupleX according to the length of\n");
+		sb.append("\t\t * {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#fieldIndexes} \n");
 		sb.append("\t\t * \n");
 		sb.append("\t\t * @return The projected DataSet.\n");
-		sb.append("\t\t * \n");
-		sb.append("\t\t * @see Projection\n");
 		sb.append("\t\t */\n");
 		
 		// method signature
@@ -224,7 +223,7 @@ class TupleGenerator {
 			// create and return new project operator
 			sb.append("\t\t\treturn new ProjectCross<I1, I2, Tuple"+numFields+"<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);\n");
+			sb.append(">>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);\n");
 
 			// method end
 			sb.append("\t\t}\n");
@@ -246,11 +245,10 @@ class TupleGenerator {
 		
 		// method comment
 		sb.append("\t\t/**\n");
-		sb.append("\t\t * Chooses a projectTupleX according to the length of {@link Projection#fieldIndexes} \n");
+		sb.append("\t\t * Chooses a projectTupleX according to the length of\n");
+		sb.append("\t\t * {@link org.apache.flink.api.java.operators.ProjectOperator.Projection#fieldIndexes} \n");
 		sb.append("\t\t * \n");
 		sb.append("\t\t * @return The projected DataSet.\n");
-		sb.append("\t\t * \n");
-		sb.append("\t\t * @see Projection\n");
 		sb.append("\t\t */\n");
 		
 		// method signature
@@ -326,11 +324,10 @@ class TupleGenerator {
 		
 		// method comment
 		sb.append("\t\t/**\n");
-		sb.append("\t\t * Chooses a projectTupleX according to the length of {@link JoinProjection#fieldIndexes} \n");
+		sb.append("\t\t * Chooses a projectTupleX according to the length of\n");
+		sb.append("\t\t * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#fieldIndexes}\n");
 		sb.append("\t\t * \n");
 		sb.append("\t\t * @return The projected DataSet.\n");
-		sb.append("\t\t * \n");
-		sb.append("\t\t * @see Projection\n");
 		sb.append("\t\t */\n");
 		
 		// method signature

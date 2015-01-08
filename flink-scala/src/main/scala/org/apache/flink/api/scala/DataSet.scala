@@ -26,7 +26,8 @@ import org.apache.flink.api.common.operators.base.PartitionOperatorBase.Partitio
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
@@ -36,7 +37,6 @@ import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
-
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
@@ -254,10 +254,9 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     javaSet match {
       case udfOp: UdfOperator[_] => udfOp.withParameters(parameters)
       case source: DataSource[_] => source.withParameters(parameters)
-      case sink: DataSink[_] => sink.withParameters(parameters)
       case _ =>
-        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
-          "parameters")
+        throw new UnsupportedOperationException("Operator " + javaSet.toString 
+            + " cannot have parameters")
     }
     this
   }
@@ -836,21 +835,21 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * }}}
    */
   def cross[O](other: DataSet[O]): CrossDataSet[T, O] =
-    CrossDataSet.createCrossOperator(this, other)
+    CrossDataSet.createCrossOperator(this, other, CrossHint.OPTIMIZER_CHOOSES)
 
   /**
    * Special [[cross]] operation for explicitly telling the system that the right side is assumed
    * to be a lot smaller than the left side of the cartesian product.
    */
   def crossWithTiny[O](other: DataSet[O]): CrossDataSet[T, O] =
-    CrossDataSet.createCrossOperator(this, other)
+    CrossDataSet.createCrossOperator(this, other, CrossHint.SECOND_IS_SMALL)
 
   /**
    * Special [[cross]] operation for explicitly telling the system that the left side is assumed
    * to be a lot smaller than the right side of the cartesian product.
    */
   def crossWithHuge[O](other: DataSet[O]): CrossDataSet[T, O] =
-    CrossDataSet.createCrossOperator(this, other)
+    CrossDataSet.createCrossOperator(this, other, CrossHint.FIRST_IS_SMALL)
 
   // --------------------------------------------------------------------------------------------
   //  Iterations

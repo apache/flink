@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
@@ -35,7 +36,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
-//CHECKSTYLE.ON: AvoidStarImport
 
 import com.google.common.base.Preconditions;
 
@@ -53,21 +53,29 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	private final CrossFunction<I1, I2, OUT> function;
 	
 	private final String defaultName;
+	
+	private final CrossHint hint;
 
 	public CrossOperator(DataSet<I1> input1, DataSet<I2> input2,
 							CrossFunction<I1, I2, OUT> function,
 							TypeInformation<OUT> returnType,
+							CrossHint hint,
 							String defaultName)
 	{
 		super(input1, input2, returnType);
 
 		this.function = function;
 		this.defaultName = defaultName;
+		this.hint = hint;
 	}
 	
 	@Override
 	protected CrossFunction<I1, I2, OUT> getFunction() {
 		return function;
+	}
+	
+	public CrossHint getCrossHint() {
+		return hint;
 	}
 	
 	private String getDefaultName() {
@@ -80,13 +88,15 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		String name = getName() != null ? getName() : "Cross at "+defaultName;
 		// create operator
 		CrossOperatorBase<I1, I2, OUT, CrossFunction<I1, I2, OUT>> po =
-				new CrossOperatorBase<I1, I2, OUT, CrossFunction<I1, I2, OUT>>(function, new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), getResultType()), name);
-		// set inputs
+				new CrossOperatorBase<I1, I2, OUT, CrossFunction<I1, I2, OUT>>(function, 
+						new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), getResultType()),
+						name);
+		
+
 		po.setFirstInput(input1);
 		po.setSecondInput(input2);
-
-		// set dop
-		po.setDegreeOfParallelism(this.getParallelism());
+		po.setDegreeOfParallelism(getParallelism());
+		po.setCrossHint(hint);
 
 		return po;
 	}
@@ -110,9 +120,11 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		private final DataSet<I1> input1;
 		private final DataSet<I2> input2;
 
-		public DefaultCross(DataSet<I1> input1, DataSet<I2> input2, String defaultName) {
+		public DefaultCross(DataSet<I1> input1, DataSet<I2> input2, CrossHint hint, String defaultName) {
+			
 			super(input1, input2, new DefaultCrossFunction<I1, I2>(),
-					new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()), defaultName);
+					new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()),
+					hint, defaultName);
 
 			if (input1 == null || input2 == null) {
 				throw new NullPointerException();
@@ -138,7 +150,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			}
 			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType(),
 					super.getDefaultName(), true);
-			return new CrossOperator<I1, I2, R>(input1, input2, clean(function), returnType, Utils.getCallLocationName());
+			return new CrossOperator<I1, I2, R>(input1, input2, clean(function), returnType, 
+					getCrossHint(), Utils.getCallLocationName());
 		}
 		
 		/**
@@ -162,7 +175,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
 		 */
 		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectFirst(int... firstFieldIndexes) {
-			return new CrossProjection<I1, I2>(getInput1(), getInput2(), firstFieldIndexes, null).projectTupleX();
+			return new CrossProjection<I1, I2>(getInput1(), getInput2(), firstFieldIndexes, null, getCrossHint())
+						.projectTupleX();
 		}
 		
 		/**
@@ -186,7 +200,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
 		 */
 		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectSecond(int... secondFieldIndexes) {
-			return new CrossProjection<I1, I2>(getInput1(), getInput2(), null, secondFieldIndexes).projectTupleX();
+			return new CrossProjection<I1, I2>(getInput1(), getInput2(), null, secondFieldIndexes, getCrossHint())
+						.projectTupleX();
 		}
 		
 	}
@@ -207,16 +222,22 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		
 		private CrossProjection<I1, I2> crossProjection;
 
-		protected ProjectCross(DataSet<I1> input1, DataSet<I2> input2, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType) {
+		protected ProjectCross(DataSet<I1> input1, DataSet<I2> input2, int[] fields, boolean[] isFromFirst,
+				TupleTypeInfo<OUT> returnType, CrossHint hint)
+		{
 			super(input1, input2,
-				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()), returnType, "unknown");
+					new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()),
+					returnType, hint, "unknown");
 			
 			crossProjection = null;
 		}
 		
-		protected ProjectCross(DataSet<I1> input1, DataSet<I2> input2, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType, CrossProjection<I1, I2> crossProjection) {
+		protected ProjectCross(DataSet<I1> input1, DataSet<I2> input2, int[] fields, boolean[] isFromFirst,
+				TupleTypeInfo<OUT> returnType, CrossProjection<I1, I2> crossProjection, CrossHint hint)
+		{
 			super(input1, input2,
-				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()), returnType, "unknown");
+				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()),
+				returnType, hint, "unknown");
 			
 			this.crossProjection = crossProjection;
 		}
@@ -375,20 +396,23 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	}
 
 	public static final class CrossProjection<I1, I2> {
+		
 		private final DataSet<I1> ds1;
 		private final DataSet<I2> ds2;
-
 
 		private int[] fieldIndexes;
 		private boolean[] isFieldInFirst;
 
 		private final int numFieldsDs1;
 		private final int numFieldsDs2;
+		
+		private final CrossHint hint;
 
-		public CrossProjection(DataSet<I1> ds1, DataSet<I2> ds2, int[] firstFieldIndexes, int[] secondFieldIndexes) {
+		public CrossProjection(DataSet<I1> ds1, DataSet<I2> ds2, int[] firstFieldIndexes, int[] secondFieldIndexes, CrossHint hint) {
 
 			this.ds1 = ds1;
 			this.ds2 = ds2;
+			this.hint = hint;
 
 			boolean isFirstTuple;
 			boolean isSecondTuple;
@@ -604,7 +628,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	// GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 
 		/**
-		 * Chooses a projectTupleX according to the length of {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#fieldIndexes} 
+		 * Chooses a projectTupleX according to the length of
+		 * {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#fieldIndexes} 
 		 * 
 		 * @return The projected DataSet.
 		 */
@@ -656,7 +681,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple1<T0>> tType = new TupleTypeInfo<Tuple1<T0>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple1<T0>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple1<T0>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -671,7 +696,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple2<T0, T1>> tType = new TupleTypeInfo<Tuple2<T0, T1>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple2<T0, T1>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple2<T0, T1>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -686,7 +711,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple3<T0, T1, T2>> tType = new TupleTypeInfo<Tuple3<T0, T1, T2>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple3<T0, T1, T2>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple3<T0, T1, T2>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -701,7 +726,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple4<T0, T1, T2, T3>> tType = new TupleTypeInfo<Tuple4<T0, T1, T2, T3>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple4<T0, T1, T2, T3>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple4<T0, T1, T2, T3>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -716,7 +741,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>> tType = new TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple5<T0, T1, T2, T3, T4>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple5<T0, T1, T2, T3, T4>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -731,7 +756,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>> tType = new TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple6<T0, T1, T2, T3, T4, T5>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple6<T0, T1, T2, T3, T4, T5>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -746,7 +771,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>> tType = new TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple7<T0, T1, T2, T3, T4, T5, T6>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple7<T0, T1, T2, T3, T4, T5, T6>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -761,7 +786,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> tType = new TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -776,7 +801,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> tType = new TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -791,7 +816,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> tType = new TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -806,7 +831,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> tType = new TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -821,7 +846,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> tType = new TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -836,7 +861,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> tType = new TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -851,7 +876,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> tType = new TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -866,7 +891,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> tType = new TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -881,7 +906,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> tType = new TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -896,7 +921,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> tType = new TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -911,7 +936,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> tType = new TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -926,7 +951,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> tType = new TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -941,7 +966,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> tType = new TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -956,7 +981,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> tType = new TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -971,7 +996,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> tType = new TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -986,7 +1011,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> tType = new TupleTypeInfo<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -1001,7 +1026,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> tType = new TupleTypeInfo<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		/**
@@ -1016,7 +1041,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
 			TupleTypeInfo<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> tType = new TupleTypeInfo<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(fTypes);
 
-			return new ProjectCross<I1, I2, Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+			return new ProjectCross<I1, I2, Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this, hint);
 		}
 
 		// END_OF_TUPLE_DEPENDENT_CODE

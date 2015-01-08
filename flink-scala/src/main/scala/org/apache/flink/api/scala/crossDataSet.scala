@@ -25,6 +25,7 @@ import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 
 import scala.reflect.ClassTag
 
@@ -69,6 +70,7 @@ class CrossDataSet[L, R](
       rightInput.javaSet,
       crosser,
       implicitly[TypeInformation[O]],
+      defaultCross.getCrossHint(),
       getCallLocationName())
     wrap(crossOperator)
   }
@@ -88,6 +90,7 @@ class CrossDataSet[L, R](
       rightInput.javaSet,
       crosser,
       implicitly[TypeInformation[O]],
+      defaultCross.getCrossHint(),
       getCallLocationName())
     wrap(crossOperator)
   }
@@ -98,7 +101,11 @@ private[flink] object CrossDataSet {
   /**
    * Creates a default cross operation with Tuple2 as result.
    */
-  def createCrossOperator[L, R](leftInput: DataSet[L], rightInput: DataSet[R]) = {
+  def createCrossOperator[L, R](
+      leftInput: DataSet[L],
+      rightInput: DataSet[R],
+      crossHint: CrossHint) = {
+    
     val crosser = new CrossFunction[L, R, (L, R)] {
       def cross(left: L, right: R) = {
         (left, right)
@@ -125,6 +132,7 @@ private[flink] object CrossDataSet {
       rightInput.javaSet,
       crosser,
       returnType,
+      crossHint,
       getCallLocationName())
 
     new CrossDataSet(crossOperator, leftInput, rightInput)

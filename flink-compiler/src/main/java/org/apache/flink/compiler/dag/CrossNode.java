@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
@@ -48,21 +49,16 @@ public class CrossNode extends TwoInputNode {
 	public CrossNode(CrossOperatorBase<?, ?, ?, ?> operation) {
 		super(operation);
 		
-		// check small / large hints to decide upon which side is to be broadcasted
-		boolean allowBCfirst = true;
-		boolean allowBCsecond = true;
-		
-		if (operation instanceof CrossOperatorBase.CrossWithSmall) {
-			allowBCfirst = false;
-		}
-		else if (operation instanceof CrossOperatorBase.CrossWithLarge) {
-			allowBCsecond = false;
-		}
-		
 		Configuration conf = operation.getParameters();
 		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
 	
+		CrossHint hint = operation.getCrossHint();
+		
 		if (localStrategy != null) {
+			
+			final boolean allowBCfirst = hint != CrossHint.SECOND_IS_SMALL;
+			final boolean allowBCsecond = hint != CrossHint.FIRST_IS_SMALL;
+			
 			final OperatorDescriptorDual fixedDriverStrat;
 			if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST.equals(localStrategy)) {
 				fixedDriverStrat = new CrossBlockOuterFirstDescriptor(allowBCfirst, allowBCsecond);
@@ -78,13 +74,13 @@ public class CrossNode extends TwoInputNode {
 			
 			this.dataProperties = Collections.singletonList(fixedDriverStrat);
 		}
-		else if (operation instanceof CrossOperatorBase.CrossWithSmall) {
+		else if (hint == CrossHint.SECOND_IS_SMALL) {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(new CrossBlockOuterSecondDescriptor(false, true));
 			list.add(new CrossStreamOuterFirstDescriptor(false, true));
 			this.dataProperties = list;
 		}
-		else if (operation instanceof CrossOperatorBase.CrossWithLarge) {
+		else if (hint == CrossHint.FIRST_IS_SMALL) {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(new CrossBlockOuterFirstDescriptor(true, false));
 			list.add(new CrossStreamOuterSecondDescriptor(true, false));

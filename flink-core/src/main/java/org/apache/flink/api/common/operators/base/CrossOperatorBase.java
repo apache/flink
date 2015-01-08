@@ -36,8 +36,32 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  */
 public class CrossOperatorBase<IN1, IN2, OUT, FT extends CrossFunction<IN1, IN2, OUT>> extends DualInputOperator<IN1, IN2, OUT, FT> {
 	
+	/**
+	 * The cross hint tells the system which sizes to expect from the data sets
+	 */
+	public static enum CrossHint {
+		
+		OPTIMIZER_CHOOSES,
+		
+		FIRST_IS_SMALL,
+		
+		SECOND_IS_SMALL
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private CrossHint hint = CrossHint.OPTIMIZER_CHOOSES;
+	
+	
 	public CrossOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, String name) {
 		super(udf, operatorInfo, name);
+		
+		if (this instanceof CrossWithSmall) {
+			setCrossHint(CrossHint.SECOND_IS_SMALL);
+		}
+		else if (this instanceof CrossWithLarge) {
+			setCrossHint(CrossHint.FIRST_IS_SMALL);
+		}
 	}
 	
 	public CrossOperatorBase(FT udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, String name) {
@@ -46,6 +70,15 @@ public class CrossOperatorBase<IN1, IN2, OUT, FT extends CrossFunction<IN1, IN2,
 	
 	public CrossOperatorBase(Class<? extends FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, String name) {
 		this(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+	}
+	
+	
+	public void setCrossHint(CrossHint hint) {
+		this.hint = hint == null ? CrossHint.OPTIMIZER_CHOOSES : hint;
+	}
+	
+	public CrossHint getCrossHint() {
+		return hint;
 	}
 	
 	// --------------------------------------------------------------------------------------------

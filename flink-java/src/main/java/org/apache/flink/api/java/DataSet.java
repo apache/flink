@@ -31,6 +31,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -791,7 +792,7 @@ public abstract class DataSet<T> {
 	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> cross(DataSet<R> other) {
-		return new CrossOperator.DefaultCross<T, R>(this, other, Utils.getCallLocationName());
+		return new CrossOperator.DefaultCross<T, R>(this, other, CrossHint.OPTIMIZER_CHOOSES, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -821,7 +822,7 @@ public abstract class DataSet<T> {
 	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithTiny(DataSet<R> other) {
-		return new CrossOperator.DefaultCross<T, R>(this, other, Utils.getCallLocationName());
+		return new CrossOperator.DefaultCross<T, R>(this, other, CrossHint.SECOND_IS_SMALL, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -851,7 +852,7 @@ public abstract class DataSet<T> {
 	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithHuge(DataSet<R> other) {
-		return new CrossOperator.DefaultCross<T, R>(this, other, Utils.getCallLocationName());
+		return new CrossOperator.DefaultCross<T, R>(this, other, CrossHint.FIRST_IS_SMALL, Utils.getCallLocationName());
 	}
 
 	// --------------------------------------------------------------------------------------------
