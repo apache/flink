@@ -7,6 +7,7 @@ import java.util.List;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 
 public class TestGraphUtils {
 
@@ -62,6 +63,48 @@ public class TestGraphUtils {
 		return env.fromCollection(tuples);
 	}
 
+	public static final DataSet<Tuple2<Long, Long>> getLongLongTuple2SourceData(
+			ExecutionEnvironment env) {
+		List<Tuple2<Long, Long>> tuples = new ArrayList<Tuple2<Long, Long>>();
+		tuples.add(new Tuple2<Long, Long>(1L, 10L));
+		tuples.add(new Tuple2<Long, Long>(1L, 20L));
+		tuples.add(new Tuple2<Long, Long>(2L, 30L));
+		tuples.add(new Tuple2<Long, Long>(3L, 40L));
+		tuples.add(new Tuple2<Long, Long>(3L, 50L));
+		tuples.add(new Tuple2<Long, Long>(4L, 60L));
+		tuples.add(new Tuple2<Long, Long>(6L, 70L));
+
+		return env.fromCollection(tuples);
+	}
+
+	public static final DataSet<Tuple2<Long, Long>> getLongLongTuple2TargetData(
+			ExecutionEnvironment env) {
+		List<Tuple2<Long, Long>> tuples = new ArrayList<Tuple2<Long, Long>>();
+		tuples.add(new Tuple2<Long, Long>(2L, 10L));
+		tuples.add(new Tuple2<Long, Long>(3L, 20L));
+		tuples.add(new Tuple2<Long, Long>(3L, 30L));
+		tuples.add(new Tuple2<Long, Long>(4L, 40L));
+		tuples.add(new Tuple2<Long, Long>(6L, 50L));
+		tuples.add(new Tuple2<Long, Long>(6L, 60L));
+		tuples.add(new Tuple2<Long, Long>(1L, 70L));
+
+		return env.fromCollection(tuples);
+	}
+
+	public static final DataSet<Tuple3<Long, Long, Long>> getLongLongLongTuple3Data(
+			ExecutionEnvironment env) {
+		List<Tuple3<Long, Long, Long>> tuples = new ArrayList<>();
+		tuples.add(new Tuple3<Long, Long, Long>(1L, 2L, 12L));
+		tuples.add(new Tuple3<Long, Long, Long>(1L, 3L, 13L));
+		tuples.add(new Tuple3<Long, Long, Long>(2L, 3L, 23L));
+		tuples.add(new Tuple3<Long, Long, Long>(3L, 4L, 34L));
+		tuples.add(new Tuple3<Long, Long, Long>(3L, 6L, 36L));
+		tuples.add(new Tuple3<Long, Long, Long>(4L, 6L, 46L));
+		tuples.add(new Tuple3<Long, Long, Long>(6L, 1L, 61L));
+
+		return env.fromCollection(tuples);
+	}
+
 	public static final DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2Data(
 			ExecutionEnvironment env) {
 		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<Tuple2<Long,
@@ -74,6 +117,53 @@ public class TestGraphUtils {
 				new DummyCustomParameterizedType<Float>(30, 30f)));
 		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(4L,
 				new DummyCustomParameterizedType<Float>(40, 40f)));
+		return env.fromCollection(tuples);
+	}
+
+	public static final DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2SourceData(
+			ExecutionEnvironment env) {
+		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<Tuple2<Long,
+				DummyCustomParameterizedType<Float>>>();
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(1L,
+				new DummyCustomParameterizedType<Float>(10, 10f)));
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(1L,
+				new DummyCustomParameterizedType<Float>(20, 20f)));
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(2L,
+				new DummyCustomParameterizedType<Float>(30, 30f)));
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(3L,
+				new DummyCustomParameterizedType<Float>(40, 40f)));
+
+		return env.fromCollection(tuples);
+	}
+
+	public static final DataSet<Tuple2<Long, DummyCustomParameterizedType<Float>>> getLongCustomTuple2TargetData(
+			ExecutionEnvironment env) {
+		List<Tuple2<Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<Tuple2<Long,
+				DummyCustomParameterizedType<Float>>>();
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(2L,
+				new DummyCustomParameterizedType<Float>(10, 10f)));
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(3L,
+				new DummyCustomParameterizedType<Float>(20, 20f)));
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(3L,
+				new DummyCustomParameterizedType<Float>(30, 30f)));
+		tuples.add(new Tuple2<Long, DummyCustomParameterizedType<Float>>(4L,
+				new DummyCustomParameterizedType<Float>(40, 40f)));
+
+		return env.fromCollection(tuples);
+	}
+
+	public static final DataSet<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>> getLongLongCustomTuple3Data(
+			ExecutionEnvironment env) {
+		List<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<>();
+		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(1L, 2L,
+				new DummyCustomParameterizedType<Float>(10, 10f)));
+		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(1L, 3L,
+				new DummyCustomParameterizedType<Float>(20, 20f)));
+		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(2L, 3L,
+				new DummyCustomParameterizedType<Float>(30, 30f)));
+		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(3L, 4L,
+				new DummyCustomParameterizedType<Float>(40, 40f)));
+
 		return env.fromCollection(tuples);
 	}
 
