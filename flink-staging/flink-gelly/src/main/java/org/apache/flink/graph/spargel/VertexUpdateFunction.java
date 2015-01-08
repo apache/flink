@@ -23,9 +23,10 @@ import java.util.Collection;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
+
+import flink.graphs.Vertex;
 
 /**
  * This class must be extended by functions that compute the state of the vertex depending on the old state and the
@@ -36,7 +37,8 @@ import org.apache.flink.util.Collector;
  * <VertexValue> The vertex value type.
  * <Message> The message type.
  */
-public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKey>, VertexValue, Message> implements Serializable {
+public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKey> & Serializable, 
+	VertexValue extends Serializable, Message> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -129,16 +131,16 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	
 	private IterationRuntimeContext runtimeContext;
 	
-	private Collector<Tuple2<VertexKey, VertexValue>> out;
+	private Collector<Vertex<VertexKey, VertexValue>> out;
 	
-	private Tuple2<VertexKey, VertexValue> outVal;
+	private Vertex<VertexKey, VertexValue> outVal;
 	
 	
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
 	}
 	
-	void setOutput(Tuple2<VertexKey, VertexValue> val, Collector<Tuple2<VertexKey, VertexValue>> out) {
+	void setOutput(Vertex<VertexKey, VertexValue> val, Collector<Vertex<VertexKey, VertexValue>> out) {
 		this.out = out;
 		this.outVal = val;
 	}
