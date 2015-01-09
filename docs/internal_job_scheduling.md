@@ -35,7 +35,7 @@ each of which can run one pipeline of parallel tasks. A pipeline consists of mul
 Note that Flink often executes successive tasks concurrently: For Streaming programs, that happens in any case,
 but also for batch programs, it happens frequently.
 
-The figure below illustrates that. Consider a program with a data source, a *MapFunction*, and a *ReduceFunctoin*.
+The figure below illustrates that. Consider a program with a data source, a *MapFunction*, and a *ReduceFunction*.
 The source and MapFunction are executed with a parallelism of 4, while the ReduceFunction is executed with a
 parallism of 3. A pipeline consists of the sequence Source - Map - Reduce. On a cluster with 2 TaskManagers with
 3 slots each, the program will be executed as described below.
