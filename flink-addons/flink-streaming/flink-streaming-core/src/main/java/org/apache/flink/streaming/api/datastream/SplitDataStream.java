@@ -19,34 +19,23 @@ package org.apache.flink.streaming.api.datastream;
 
 import java.util.Arrays;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 
 /**
  * The SplitDataStream represents an operator that has been split using an
  * {@link OutputSelector}. Named outputs can be selected using the
- * {@link #select} function.
- *
+ * {@link #select} function. To apply transformation on the whole output simply
+ * call the transformation on the SplitDataStream
+ * 
  * @param <OUT>
  *            The type of the output.
  */
-public class SplitDataStream<OUT> {
-
-	DataStream<OUT> dataStream;
+public class SplitDataStream<OUT> extends DataStream<OUT> {
 
 	protected SplitDataStream(DataStream<OUT> dataStream) {
-		this.dataStream = dataStream.copy();
+		super(dataStream);
 	}
 
-	/**
-	 * Gets the output type.
-	 * 
-	 * @return The output type.
-	 */
-	public TypeInformation<OUT> getOutputType() {
-		return dataStream.getType();
-	}
-	
 	/**
 	 * Sets the output names for which the next operator will receive values.
 	 * 
@@ -59,19 +48,9 @@ public class SplitDataStream<OUT> {
 		return selectOutput(outputNames);
 	}
 
-	/**
-	 * Selects all output names from a split data stream.
-	 * 
-	 * @return Returns the selected DataStream
-	 */
-	public DataStream<OUT> selectAll() {
-		DataStream<OUT> returnStream = dataStream.copy();
-		returnStream.selectAll = true;
-		return returnStream;
-	}
-
 	private DataStream<OUT> selectOutput(String[] outputNames) {
-		DataStream<OUT> returnStream = dataStream.copy();
+		DataStream<OUT> returnStream = copy();
+		returnStream.selectAll = false;
 		returnStream.userDefinedNames = Arrays.asList(outputNames);
 		return returnStream;
 	}

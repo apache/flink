@@ -124,7 +124,7 @@ public class DataStream<OUT> {
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
 		this.jobGraphBuilder = environment.getJobGraphBuilder();
 		this.userDefinedNames = new ArrayList<String>();
-		this.selectAll = false;
+		this.selectAll = true;
 		this.partitioner = new DistributePartitioner<OUT>(true);
 		this.typeInfo = typeInfo;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();

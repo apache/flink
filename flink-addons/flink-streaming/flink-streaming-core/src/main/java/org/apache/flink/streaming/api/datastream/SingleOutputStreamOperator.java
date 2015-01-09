@@ -41,14 +41,21 @@ import org.apache.flink.streaming.state.OperatorState;
 public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperator<OUT, O>> extends
 		DataStream<OUT> {
 
+	protected boolean isSplit;
+
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment,
 			String operatorType, TypeInformation<OUT> outTypeInfo) {
 		super(environment, operatorType, outTypeInfo);
 		setBufferTimeout(environment.getBufferTimeout());
+		this.isSplit = false;
 	}
 
+	@SuppressWarnings("unchecked")
 	protected SingleOutputStreamOperator(DataStream<OUT> dataStream) {
 		super(dataStream);
+		if (dataStream instanceof SingleOutputStreamOperator) {
+			this.isSplit = ((SingleOutputStreamOperator<OUT, ?>) dataStream).isSplit;
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -101,15 +108,21 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * @return The {@link SplitDataStream}
 	 */
 	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
-		try {
-			jobGraphBuilder.setOutputSelector(id,
-					SerializationUtils.serialize(clean(outputSelector)));
+		if (!isSplit) {
+			this.isSplit = true;
+			try {
+				jobGraphBuilder.setOutputSelector(id,
+						SerializationUtils.serialize(clean(outputSelector)));
 
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize OutputSelector");
+			} catch (SerializationException e) {
+				throw new RuntimeException("Cannot serialize OutputSelector");
+			}
+
+			return new SplitDataStream<OUT>(this);
+		} else {
+			throw new RuntimeException("Currently operators can only be split once");
 		}
 
-		return new SplitDataStream<OUT>(this);
 	}
 
 	/**
