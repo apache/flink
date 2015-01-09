@@ -21,6 +21,7 @@ import java.io.DataInput
 import java.io.DataOutput
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.java.typeutils._
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.types.{IntValue, StringValue}
 import org.apache.hadoop.io.Writable
 import org.junit.Assert
@@ -57,6 +58,26 @@ class TypeInformationGenTest {
     Assert.assertTrue(ti.isBasicType)
     Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti)
     Assert.assertEquals(classOf[java.lang.Boolean], ti.getTypeClass)
+  }
+
+  @Test
+  def testTypeParameters(): Unit = {
+
+    val data = Seq(1.0d, 2.0d)
+
+    def f[T: TypeInformation](data: Seq[T]): (T, Seq[T]) = {
+
+      val ti = createTypeInformation[(T, Seq[T])]
+
+      Assert.assertTrue(ti.isTupleType)
+      val ccti = ti.asInstanceOf[CaseClassTypeInfo[(T, Seq[T])]]
+      Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, ccti.getTypeAt(0))
+
+      (data.head, data)
+    }
+
+    f(data)
+
   }
 
   @Test
