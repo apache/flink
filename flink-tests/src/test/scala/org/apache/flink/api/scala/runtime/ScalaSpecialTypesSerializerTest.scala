@@ -25,6 +25,8 @@ import org.junit.{Assert, Test}
 
 import org.apache.flink.api.scala._
 
+import scala.util.{Failure, Success}
+
 class ScalaSpecialTypesSerializerTest {
 
   @Test
@@ -63,6 +65,26 @@ class ScalaSpecialTypesSerializerTest {
     runTests(testData)
   }
 
+  @Test
+  def testTry(): Unit = {
+    val testData = Array(Success("Hell"), Failure(new RuntimeException("test")))
+    runTests(testData)
+  }
+
+  @Test
+  def testSuccess(): Unit = {
+    val testData = Array(Success("Hell"), Success("Yeah"))
+    runTests(testData)
+  }
+
+  @Test
+  def testFailure(): Unit = {
+    val testData = Array(
+      Failure(new RuntimeException("test")),
+      Failure(new RuntimeException("one, two")))
+    runTests(testData)
+  }
+
 
   private final def runTests[T : TypeInformation](instances: Array[T]) {
     try {
@@ -83,10 +105,10 @@ class ScalaSpecialTypesSerializerTest {
 }
 
 class ScalaSpecialTypesSerializerTestInstance[T](
-                                                serializer: TypeSerializer[T],
-                                                typeClass: Class[T],
-                                                length: Int,
-                                                testData: Array[T])
+    serializer: TypeSerializer[T],
+    typeClass: Class[T],
+    length: Int,
+    testData: Array[T])
   extends SerializerTestInstance[T](serializer, typeClass, length, testData: _*) {
 
   @Test
@@ -122,6 +144,9 @@ class ScalaSpecialTypesSerializerTestInstance[T](
           val is = isIt.next()
           assertEquals(message, should, is)
         }
+
+      case Failure(t) =>
+        is.asInstanceOf[Failure[_]].exception.equals(t)
 
       case _ =>
         super.deepEquals(message, should, is)
