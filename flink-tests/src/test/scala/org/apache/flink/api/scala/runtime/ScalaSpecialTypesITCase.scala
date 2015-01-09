@@ -25,11 +25,11 @@ import org.apache.flink.test.util.JavaProgramTestBase
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
 import org.apache.flink.api.scala._
+import scala.util.Success
+import scala.util.Failure
 
 
 @RunWith(classOf[Parameterized])
@@ -149,6 +149,60 @@ class ScalaSpecialTypesITCase(config: Configuration) extends JavaProgramTestBase
 
         "80"
 
+      case 7 =>
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val nums = env.fromElements(1, 2, 1, 2)
+
+        val trys = nums.map(_ match {
+          case 1 => Success(10)
+          case 2 => Failure(new RuntimeException("20"))
+        })
+
+        val result = trys.map{
+          _ match {
+            case Success(i) => i
+            case Failure(t) => t.getMessage.toInt
+          }}.reduce(_ + _).writeAsText(resultPath)
+
+        env.execute()
+
+        "60"
+ 
+      case 8 =>
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val nums = env.fromElements(1, 2, 1, 2)
+
+        val trys = nums.map(_ match {
+          case 1 => Success(10)
+          case 2 => Success(20)
+        })
+
+
+        val result = trys.map(_ match {
+          case Success(i) => i
+        }).reduce(_ + _).writeAsText(resultPath)
+
+        env.execute()
+
+        "60"
+
+      case 9 =>
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val nums = env.fromElements(1, 2, 1, 2)
+
+        val trys = nums.map(_ match {
+          case 1 => Failure(new RuntimeException("10"))
+          case 2 => Failure(new IllegalAccessError("20"))
+        })
+
+        val result = trys.map(_ match {
+          case Failure(t) => t.getMessage.toInt
+        }).reduce(_ + _).writeAsText(resultPath)
+
+        env.execute()
+
+        "60"        
+        
       case _ =>
         throw new IllegalArgumentException("Invalid program id")
     }
@@ -160,7 +214,7 @@ class ScalaSpecialTypesITCase(config: Configuration) extends JavaProgramTestBase
 }
 
 object ScalaSpecialTypesITCase {
-  var NUM_PROGRAMS: Int = 6
+  var NUM_PROGRAMS: Int = 9
 
   @Parameters
   def getConfigurations: java.util.Collection[Array[AnyRef]] = {

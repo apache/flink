@@ -69,6 +69,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case EitherType(leftTpe, rightTpe) => analyzeEither(id, tpe, leftTpe, rightTpe)
 
+          case TryType(elemTpe) => analyzeTry(id, tpe, elemTpe)
+
           case OptionType(elemTpe) => analyzeOption(id, tpe, elemTpe)
 
           case CaseClassType() => analyzeCaseClass(id, tpe)
@@ -114,6 +116,14 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
         case UnsupportedDescriptor(_, _, errs) => UnsupportedDescriptor(id, tpe, errs)
         case rightDesc => EitherDescriptor(id, tpe, leftDesc, rightDesc)
       }
+    }
+
+    private def analyzeTry(
+        id: Int,
+        tpe: Type,
+        elemTpe: Type): UDTDescriptor = analyze(elemTpe) match {
+      case UnsupportedDescriptor(_, _, errs) => UnsupportedDescriptor(id, tpe, errs)
+      case elemDesc => TryDescriptor(id, tpe, elemDesc)
     }
 
     private def analyzeOption(
@@ -303,6 +313,20 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           either match {
             case TypeRef(_, _, leftTpe :: rightTpe :: Nil) =>
               Some(leftTpe, rightTpe)
+          }
+        } else {
+          None
+        }
+      }
+    }
+
+    private object TryType {
+      def unapply(tpe: Type): Option[Type] = {
+        if (tpe <:< typeOf[scala.util.Try[_]]) {
+          val option = tpe.baseType(typeOf[scala.util.Try[_]].typeSymbol)
+          option match {
+            case TypeRef(_, _, elemTpe :: Nil) =>
+              Some(elemTpe)
           }
         } else {
           None

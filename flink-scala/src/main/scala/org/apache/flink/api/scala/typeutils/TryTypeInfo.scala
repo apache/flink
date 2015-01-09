@@ -19,11 +19,14 @@ package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
+
+import scala.util.Try
 
 /**
- * TypeInformation for [[Option]].
+ * TypeInformation for [[scala.util.Try]].
  */
-class OptionTypeInfo[A, T <: Option[A]](elemTypeInfo: TypeInformation[A])
+class TryTypeInfo[A, T <: Try[A]](elemTypeInfo: TypeInformation[A])
   extends TypeInformation[T] {
 
   override def isBasicType: Boolean = false
@@ -31,16 +34,16 @@ class OptionTypeInfo[A, T <: Option[A]](elemTypeInfo: TypeInformation[A])
   override def isKeyType: Boolean = false
   override def getTotalFields: Int = 1
   override def getArity: Int = 1
-  override def getTypeClass = classOf[Option[_]].asInstanceOf[Class[T]]
+  override def getTypeClass = classOf[Try[_]].asInstanceOf[Class[T]]
 
   def createSerializer(): TypeSerializer[T] = {
     if (elemTypeInfo == null) {
-      // this happens when the type of a DataSet is None, i.e. DataSet[None]
-      new OptionSerializer(new NothingSerializer).asInstanceOf[TypeSerializer[T]]
+      // this happens when the type of a DataSet is None, i.e. DataSet[Failure]
+      new TrySerializer(new NothingSerializer).asInstanceOf[TypeSerializer[T]]
     } else {
-      new OptionSerializer(elemTypeInfo.createSerializer()).asInstanceOf[TypeSerializer[T]]
+      new TrySerializer(elemTypeInfo.createSerializer()).asInstanceOf[TypeSerializer[T]]
     }
   }
 
-  override def toString = s"Option[$elemTypeInfo]"
+  override def toString = s"Try[$elemTypeInfo]"
 }

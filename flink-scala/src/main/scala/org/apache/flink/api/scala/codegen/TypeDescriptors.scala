@@ -100,6 +100,13 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     override def canBeKey = false
   }
 
+  case class TryDescriptor(id: Int, tpe: Type, elem: UDTDescriptor)
+    extends UDTDescriptor {
+    override val isPrimitiveProduct = false
+    override def flatten = Seq(this)
+    override def canBeKey = false
+  }
+
   case class OptionDescriptor(id: Int, tpe: Type, elem: UDTDescriptor)
     extends UDTDescriptor {
     override val isPrimitiveProduct = false
