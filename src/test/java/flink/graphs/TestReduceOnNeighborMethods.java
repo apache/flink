@@ -170,18 +170,14 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 							public Tuple2<Long, Long> iterateNeighbors(
 									Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
 								long sum = 0;
-								Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> first = 
-										new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>();
-								Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator = 
+								Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
+								Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
 										neighbors.iterator();
-								if (neighborsIterator.hasNext()) {
-									first = neighborsIterator.next();
-									sum = first.f2.getValue();
-								}
 								while(neighborsIterator.hasNext()) {
-									sum += neighborsIterator.next().f2.getValue();
+									next = neighborsIterator.next();
+									sum += next.f2.getValue();
 								}
-								return new Tuple2<Long, Long>(first.f0, sum);
+								return new Tuple2<Long, Long>(next.f0, sum);
 							}
 						}, EdgeDirection.OUT);
 
@@ -208,19 +204,14 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 							public Tuple2<Long, Long> iterateNeighbors(
 									Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
 								long sum = 0;
-								Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> first = 
-										new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>();
-								Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator = 
+								Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
+								Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
 										neighbors.iterator();
-								if (neighborsIterator.hasNext()) {
-									first = neighborsIterator.next();
-									sum = first.f2.getValue() * first.f1.getValue();
-								}
 								while(neighborsIterator.hasNext()) {
-									Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = neighborsIterator.next();
+									next = neighborsIterator.next();
 									sum += next.f2.getValue() * next.f1.getValue();
 								}
-								return new Tuple2<Long, Long>(first.f0, sum);
+								return new Tuple2<Long, Long>(next.f0, sum);
 							}
 						}, EdgeDirection.IN);
 
@@ -248,18 +239,14 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 							public Tuple2<Long, Long> iterateNeighbors(
 									Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
 								long sum = 0;
-								Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> first = 
-										new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>();
-								Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator = 
+								Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
+								Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
 										neighbors.iterator();
-								if (neighborsIterator.hasNext()) {
-									first = neighborsIterator.next();
-									sum = first.f2.getValue();
-								}
 								while(neighborsIterator.hasNext()) {
-									sum += neighborsIterator.next().f2.getValue();
+									next = neighborsIterator.next();
+									sum += next.f2.getValue();
 								}
-								return new Tuple2<Long, Long>(first.f0, sum);
+								return new Tuple2<Long, Long>(next.f0, sum);
 							}
 						}, EdgeDirection.ALL);
 
