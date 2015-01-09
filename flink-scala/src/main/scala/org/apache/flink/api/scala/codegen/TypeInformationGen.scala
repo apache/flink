@@ -63,6 +63,8 @@ private[flink] trait TypeInformationGen[C <: Context] {
 
     case e: EitherDescriptor => mkEitherTypeInfo(e)
 
+    case tr: TryDescriptor => mkTryTypeInfo(tr)
+
     case o: OptionDescriptor => mkOptionTypeInfo(o)
 
     case a : ArrayDescriptor => mkArrayTypeInfo(a)
@@ -124,6 +126,19 @@ private[flink] trait TypeInformationGen[C <: Context] {
         $eitherClass,
         $leftTypeInfo,
         $rightTypeInfo)
+    """
+
+    c.Expr[TypeInformation[T]](result)
+  }
+
+  def mkTryTypeInfo[T: c.WeakTypeTag](desc: TryDescriptor): c.Expr[TypeInformation[T]] = {
+
+    val elemTypeInfo = mkTypeInfo(desc.elem)(c.WeakTypeTag(desc.elem.tpe))
+
+    val result = q"""
+      import org.apache.flink.api.scala.typeutils.TryTypeInfo
+
+      new TryTypeInfo[${desc.elem.tpe}, ${desc.tpe}]($elemTypeInfo)
     """
 
     c.Expr[TypeInformation[T]](result)

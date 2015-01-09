@@ -28,6 +28,8 @@ import org.apache.flink.api.scala._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+import scala.util.{Failure, Success}
+
 @RunWith(classOf[Parameterized])
 class ScalaSpecialTypesITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
 
@@ -93,6 +95,71 @@ class ScalaSpecialTypesITCase(mode: ExecutionMode) extends MultipleProgramsTestB
 
     val result = eithers.map(_ match {
       case Right(i) => i
+    }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+
+    env.execute()
+
+    compareResultsByLinesInMemory("60", resultPath)
+  }
+
+  @Test
+  def testTry1(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val nums = env.fromElements(1, 2, 1, 2)
+
+    val trys = nums.map(_ match {
+      case 1 => Success(10)
+      case 2 => Failure(new RuntimeException("20"))
+    })
+
+    val resultPath = tempFolder.newFile().toURI.toString
+
+    val result = trys.map{
+      _ match {
+        case Success(i) => i
+        case Failure(t) => t.getMessage.toInt
+      }}.reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+
+    env.execute()
+
+    compareResultsByLinesInMemory("60", resultPath)
+  }
+
+  @Test
+  def testTry2(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val nums = env.fromElements(1, 2, 1, 2)
+
+    val trys = nums.map(_ match {
+      case 1 => Success(10)
+      case 2 => Success(20)
+    })
+
+    val resultPath = tempFolder.newFile().toURI.toString
+
+    val result = trys.map(_ match {
+      case Success(i) => i
+    }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
+
+    env.execute()
+
+    compareResultsByLinesInMemory("60", resultPath)
+  }
+
+  @Test
+  def testTry3(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val nums = env.fromElements(1, 2, 1, 2)
+
+    val trys = nums.map(_ match {
+      case 1 => Failure(new RuntimeException("10"))
+      case 2 => Failure(new IllegalAccessError("20"))
+    })
+
+    val resultPath = tempFolder.newFile().toURI.toString
+
+    val result = trys.map(_ match {
+      case Failure(t) => t.getMessage.toInt
     }).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
