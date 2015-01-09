@@ -347,8 +347,8 @@ import scala.collection.JavaConverters._
       val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID,
         executionID, timeout)
 
-      val env = new RuntimeEnvironment(currentJobManager, task, tdd, userCodeClassLoader, memoryManager,
-        ioManager, splitProvider, bcVarManager, networkEnvironment.get)
+      val env = new RuntimeEnvironment(currentJobManager, task, tdd, userCodeClassLoader,
+        memoryManager, ioManager, splitProvider, bcVarManager, networkEnvironment.get)
 
       task.setEnvironment(env)
 
@@ -405,7 +405,9 @@ import scala.collection.JavaConverters._
     }
   }
 
-  private def updateTask(executionId: ExecutionAttemptID, resultId: IntermediateDataSetID, partitionInfo: PartitionInfo): Unit = {
+  private def updateTask(executionId: ExecutionAttemptID, resultId: IntermediateDataSetID,
+                         partitionInfo: PartitionInfo): Unit = {
+
     partitionInfo.getProducerLocation match {
       case PartitionInfo.PartitionLocation.UNKNOWN =>
         sender ! TaskOperationResult(executionId, false,
