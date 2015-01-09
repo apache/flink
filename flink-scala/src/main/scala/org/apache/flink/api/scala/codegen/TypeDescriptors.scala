@@ -73,6 +73,12 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     def canBeKey = tpe <:< typeOf[Comparable[_]]
   }
 
+  case class TypeParameterDescriptor(id: Int, tpe: Type) extends UDTDescriptor {
+    override val isPrimitiveProduct = false
+    override def flatten = Seq(this)
+    override def canBeKey = false
+  }
+
   case class PrimitiveDescriptor(id: Int, tpe: Type, default: Literal, wrapper: Type)
       extends UDTDescriptor {
     override val isPrimitiveProduct = true

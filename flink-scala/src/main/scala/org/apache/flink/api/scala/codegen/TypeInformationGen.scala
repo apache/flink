@@ -54,6 +54,8 @@ private[flink] trait TypeInformationGen[C <: Context] {
       mkCaseClassTypeInfo(cc)(c.WeakTypeTag(tpe).asInstanceOf[c.WeakTypeTag[Product]])
         .asInstanceOf[c.Expr[TypeInformation[T]]]
 
+    case tp: TypeParameterDescriptor => mkTypeParameter(tp)
+
     case p : PrimitiveDescriptor => mkPrimitiveTypeInfo(p.tpe)
     case p : BoxedPrimitiveDescriptor => mkPrimitiveTypeInfo(p.tpe)
 
@@ -269,6 +271,24 @@ private[flink] trait TypeInformationGen[C <: Context] {
     reify {
       TypeExtractor.createTypeInfo(tpeClazz.splice).asInstanceOf[TypeInformation[T]]
     }
+  }
+
+  def mkTypeParameter[T: c.WeakTypeTag](
+      typeParameter: TypeParameterDescriptor): c.Expr[TypeInformation[T]] = {
+
+    val result = c.inferImplicitValue(
+      c.weakTypeOf[TypeInformation[T]],
+      silent = true,
+      withMacrosDisabled =  false,
+      pos = c.enclosingPosition)
+
+    if (result.isEmpty) {
+      c.error(
+        c.enclosingPosition,
+        s"could not find implicit value of type TypeInformation[${typeParameter.tpe}].")
+    }
+
+    c.Expr[TypeInformation[T]](result)
   }
 
   def mkPrimitiveTypeInfo[T: c.WeakTypeTag](tpe: Type): c.Expr[TypeInformation[T]] = {

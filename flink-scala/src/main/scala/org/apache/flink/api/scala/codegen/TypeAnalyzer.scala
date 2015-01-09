@@ -31,7 +31,6 @@ import org.apache.flink.types.StringValue
 import org.apache.flink.types.LongValue
 import org.apache.flink.types.ShortValue
 
-
 private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
   with TypeDescriptors[C] =>
 
@@ -54,6 +53,9 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
       cache.getOrElseUpdate(tpe) { id =>
         tpe match {
+
+          case TypeParameter() => TypeParameterDescriptor(id, tpe)
+
           case PrimitiveType(default, wrapper) => PrimitiveDescriptor(id, tpe, default, wrapper)
 
           case BoxedPrimitiveType(default, wrapper, box, unbox) =>
@@ -280,6 +282,10 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
         case _ => None
       }
+    }
+
+    private object TypeParameter {
+      def unapply(tpe: Type): Boolean = tpe.typeSymbol.isParameter
     }
 
     private object CaseClassType {
