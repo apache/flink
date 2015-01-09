@@ -20,6 +20,7 @@ package org.apache.flink.client.minicluster;
 
 import java.lang.reflect.Method;
 
+import org.apache.flink.runtime.ipc.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -221,7 +222,7 @@ public class NepheleMiniCluster {
 			for (int i = 0; i < numThreads; i++) {
 				Thread t = allThreads[i];
 				String name = t.getName();
-				if (name.startsWith("IPC")) {
+				if (name.startsWith(Server.IPC_THREAD_NAME_PREFIX)) {
 					t.join();
 				}
 			}

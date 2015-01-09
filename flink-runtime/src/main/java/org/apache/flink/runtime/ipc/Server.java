@@ -76,6 +76,8 @@ public abstract class Server {
 
 	public static final ByteBuffer HEADER = ByteBuffer.wrap("crpc".getBytes());
 
+	public static final String IPC_THREAD_NAME_PREFIX = "Flink-IPC";
+
 	/**
 	 * How many calls/handler are allowed in the queue.
 	 */
@@ -272,7 +274,7 @@ public abstract class Server {
 
 			// Register accepts on the server socket with the selector.
 			acceptChannel.register(selector, SelectionKey.OP_ACCEPT);
-			this.setName("IPC Server listener on " + port);
+			this.setName(IPC_THREAD_NAME_PREFIX + " Server listener on " + port);
 			this.setDaemon(true);
 		}
 
@@ -486,7 +488,7 @@ public abstract class Server {
 
 		Responder()
 					throws IOException {
-			this.setName("IPC Server Responder");
+			this.setName(IPC_THREAD_NAME_PREFIX + " Server Responder");
 			this.setDaemon(true);
 			writeSelector = Selector.open(); // create a selector
 			pending = 0;
@@ -926,7 +928,7 @@ public abstract class Server {
 
 		public Handler(int instanceNumber) {
 			this.setDaemon(true);
-			this.setName("IPC Server handler " + instanceNumber + " on " + port);
+			this.setName(IPC_THREAD_NAME_PREFIX + " Server handler " + instanceNumber + " on " + port);
 		}
 
 		@Override

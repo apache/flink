@@ -242,7 +242,6 @@ public abstract class FileSystem {
 					// by now we know that the HadoopFileSystem wrapper can wrap the file system.
 					fs = instantiateHadoopFileSystemWrapper(wrapperClass);
 					fs.initialize(uri);
-					System.out.println("Initializing new instance of wrapper for "+wrapperClass);
 					CACHE.put(wrappedKey, fs);
 
 				} else {

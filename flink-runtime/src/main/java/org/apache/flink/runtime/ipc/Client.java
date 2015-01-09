@@ -198,7 +198,7 @@ public class Client {
 			Class<?> protocol = remoteId.getProtocol();
 			header = new ConnectionHeader(protocol == null ? null : protocol.getName());
 
-			this.setName("IPC Client (" + socketFactory.hashCode() + ") connection to "
+			this.setName(Server.IPC_THREAD_NAME_PREFIX + " Client (" + socketFactory.hashCode() + ") connection to "
 				+ remoteId.getAddress().toString() + " from an unknown user");
 			this.setDaemon(true);
 		}
