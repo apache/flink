@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
+import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.JobID
+import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.{ActorLogMessages}
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
-import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask
+
 import scala.concurrent.duration._
 
 trait TestingTaskManager extends ActorLogMessages {

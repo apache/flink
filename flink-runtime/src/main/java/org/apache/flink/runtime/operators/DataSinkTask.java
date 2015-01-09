@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -29,9 +27,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.api.MutableReader;
-import org.apache.flink.runtime.io.network.api.MutableRecordReader;
-import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
@@ -39,7 +37,12 @@ import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /**
  * DataSinkTask which is executed by a task manager. The task hands the data to an output format.
@@ -55,13 +58,12 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	
 	// OutputFormat instance. volatile, because the asynchronous canceller may access it
 	private volatile OutputFormat<IT> format;
-	
+
+	private MutableReader<?> inputReader;
+
 	// input reader
 	private MutableObjectIterator<IT> reader;
-	
-	// input iterator
-	private MutableObjectIterator<IT> input;
-	
+
 	// The serializer for the input type
 	private TypeSerializerFactory<IT> inputTypeSerializerFactory;
 	
@@ -125,11 +127,12 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		try {
 			
 			// initialize local strategies
+			MutableObjectIterator<IT> input1;
 			switch (this.config.getInputLocalStrategy(0)) {
 			case NONE:
 				// nothing to do
 				localStrategy = null;
-				input = reader;
+				input1 = reader;
 				break;
 			case SORT:
 				// initialize sort local strategy
@@ -150,7 +153,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 							this.config.getSpillingThresholdInput(0));
 					
 					this.localStrategy = sorter;
-					this.input = sorter.getIterator();
+					input1 = sorter.getIterator();
 				} catch (Exception e) {
 					throw new RuntimeException("Initializing the input processing failed" +
 						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
@@ -163,7 +166,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			// read the reader and write it to the output
 			
 			final TypeSerializer<IT> serializer = this.inputTypeSerializerFactory.getSerializer();
-			final MutableObjectIterator<IT> input = this.input;
+			final MutableObjectIterator<IT> input = input1;
 			final OutputFormat<IT> format = this.format;
 
 
@@ -350,14 +353,12 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		} else {
 			throw new Exception("Illegal input group size in task configuration: " + groupSize);
 		}
-		
+
 		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, getUserCodeClassLoader());
-		
-		MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
 		@SuppressWarnings({ "rawtypes" })
-		final MutableObjectIterator<?> iter = new ReaderIterator(reader, this.inputTypeSerializerFactory.getSerializer());
+		final MutableObjectIterator<?> iter = new ReaderIterator(inputReader, this.inputTypeSerializerFactory.getSerializer());
 		this.reader = (MutableObjectIterator<IT>)iter;
-		
+
 		// final sanity check
 		if (numGates != this.config.getNumInputs()) {
 			throw new Exception("Illegal configuration: Number of input gates and group sizes are not consistent.");

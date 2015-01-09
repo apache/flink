@@ -16,8 +16,30 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
+
+import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
+import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.api.reader.MockIteratorBufferReader;
+import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
+import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
+import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
+import org.apache.flink.runtime.operators.testutils.TaskTestBase;
+import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.Key;
+import org.apache.flink.types.Record;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -28,26 +50,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
-import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
-import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
-import org.apache.flink.runtime.operators.testutils.TaskTestBase;
-import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
-import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Key;
-import org.apache.flink.types.Record;
-import org.junit.After;
-import org.junit.Test;
-
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({Task.class, BufferWriter.class})public class DataSinkTaskTest extends TaskTestBase
+@PrepareForTest({Task.class, BufferWriter.class})
+public class DataSinkTaskTest extends TaskTestBase
 {
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTaskTest.class);
 
@@ -139,7 +144,7 @@ import org.junit.Test;
 
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 
-		MockIteratorBufferReader[] readers = new MockIteratorBufferReader[4];
+		MockIteratorBufferReader<?>[] readers = new MockIteratorBufferReader[4];
 		readers[0] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, 0, 0, false), 0, false);
 		readers[1] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0, false);
 		readers[2] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 2, 0, false), 0, false);
@@ -152,7 +157,7 @@ import org.junit.Test;
 		try {
 			// For the union reader to work, we need to start notifications *after* the union reader
 			// has been initialized.
-			for (MockIteratorBufferReader reader : readers) {
+			for (MockIteratorBufferReader<?> reader : readers) {
 				reader.read();
 			}
 

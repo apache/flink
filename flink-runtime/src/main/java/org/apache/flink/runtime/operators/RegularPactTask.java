@@ -19,9 +19,7 @@
 package org.apache.flink.runtime.operators;
 
 import akka.actor.ActorRef;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
@@ -47,6 +45,7 @@ import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
@@ -68,6 +67,8 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -1082,6 +1083,23 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	}
 
 	@Override
+	public ExecutionConfig getExecutionConfig() {
+		try {
+			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
+					getOwningNepheleTask().getJobConfiguration(),
+					ExecutionConfig.CONFIG_KEY,
+					this.getClass().getClassLoader());
+			if (c != null) {
+				return c;
+			} else {
+				return new ExecutionConfig();
+			}
+		} catch (Exception e) {
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+		}
+	}
+
+	@Override
 	public MemoryManager getMemoryManager() {
 		return getEnvironment().getMemoryManager();
 	}
@@ -1325,7 +1343,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
-					List<ChainedDriver<?, ?>> chainedTasksTarget, List<RecordWriter<?>> eventualOutputs, this.getExecutionConfig())
+					List<ChainedDriver<?, ?>> chainedTasksTarget, List<RecordWriter<?>> eventualOutputs, ExecutionConfig executionConfig)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -1362,7 +1380,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs());
 				}
 
-				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl);
+				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl, executionConfig);
 				chainedTasksTarget.add(0, ct);
 
 				previous = ct;

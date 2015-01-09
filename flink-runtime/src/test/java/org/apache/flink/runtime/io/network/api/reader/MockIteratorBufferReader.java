@@ -61,7 +61,7 @@ public class MockIteratorBufferReader<T extends IOReadableWritable> extends Mock
 		wrapIterator(iterator);
 	}
 
-	public MockIteratorBufferReader wrapIterator(MutableObjectIterator<T> iterator) throws IOException {
+	public MockIteratorBufferReader<T> wrapIterator(MutableObjectIterator<T> iterator) throws IOException {
 		checkState(inputIterator == null, "Iterator has already been set.");
 		checkState(stubbing == null, "There is already an ongoing stubbing from the MockBufferReader, which can't be mixed with an Iterator.");
 
@@ -97,7 +97,7 @@ public class MockIteratorBufferReader<T extends IOReadableWritable> extends Mock
 		return this;
 	}
 
-	public MockIteratorBufferReader read() {
+	public MockIteratorBufferReader<T> read() {
 		checkState(inputIterator != null && serializer != null, "Iterator/serializer has not been set. Call wrapIterator() first.");
 
 		reader.onAvailableInputChannel(inputChannel);

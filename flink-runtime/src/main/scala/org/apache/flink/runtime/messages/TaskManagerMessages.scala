@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.core.io.InputSplit
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
+import org.apache.flink.runtime.deployment.{PartitionInfo, TaskDeploymentDescriptor}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceID
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 
 object TaskManagerMessages {
 
