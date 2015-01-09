@@ -26,6 +26,13 @@ import scala.reflect._
 class KryoGenericTypeSerializerTest {
 
   @Test
+  def testThrowableSerialization: Unit = {
+    val a = List(new RuntimeException("Hello"), new RuntimeException("there"))
+
+    runTests(a)
+  }
+
+  @Test
   def testScalaListSerialization: Unit = {
     val a = List(42,1,49,1337)
 
@@ -43,14 +50,14 @@ class KryoGenericTypeSerializerTest {
   def testScalaMapSerialization: Unit = {
     val a = Map(("1" -> 1), ("2" -> 2), ("42" -> 42), ("1337" -> 1337))
 
-    runTests(a)
+    runTests(Seq(a))
   }
 
   @Test
   def testMutableMapSerialization: Unit ={
     val a = scala.collection.mutable.Map((1 -> "1"), (2 -> "2"), (3 -> "3"))
 
-    runTests(a)
+    runTests(Seq(a))
   }
 
   @Test
@@ -115,7 +122,7 @@ class KryoGenericTypeSerializerTest {
     }
   }
 
-  def runTests[T : ClassTag](objects: T *): Unit ={
+  def runTests[T : ClassTag](objects: Seq[T]): Unit ={
     val clsTag = classTag[T]
     val typeInfo = new GenericTypeInfo[T](clsTag.runtimeClass.asInstanceOf[Class[T]])
     val serializer = typeInfo.createSerializer()

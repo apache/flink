@@ -22,8 +22,9 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.twitter.chill.ScalaKryoInstantiator;
+
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -70,22 +71,24 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		return null;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public T copy(T from) {
-		if(from == null) {
+		if (from == null) {
 			return null;
 		}
 		checkKryoInitialized();
 		try {
 			return kryo.copy(from);
-		} catch(KryoException ke) {
+		}
+		catch(KryoException ke) {
 			// kryo was unable to copy it, so we do it through serialization:
 			ByteArrayOutputStream baout = new ByteArrayOutputStream();
 			Output output = new Output(baout);
 
 			kryo.writeObject(output, from);
 
-			output.flush();
+			output.close();
 
 			ByteArrayInputStream bain = new ByteArrayInputStream(baout.toByteArray());
 			Input input = new Input(bain);
@@ -128,6 +131,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public T deserialize(DataInputView source) throws IOException {
 		checkKryoInitialized();
@@ -177,6 +181,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new ScalaKryoInstantiator().newKryo();
+			this.kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
 			this.kryo.setRegistrationRequired(false);
 			this.kryo.register(type);
 			this.kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
