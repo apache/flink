@@ -22,6 +22,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.twitter.chill.ScalaKryoInstantiator;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -114,7 +115,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			output = new Output(outputStream);
 			previousOut = target;
 		}
-		
+
 		try {
 			kryo.writeClassAndObject(output, record);
 			output.flush();
@@ -180,6 +181,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new ScalaKryoInstantiator().newKryo();
+			this.kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
 			this.kryo.setRegistrationRequired(false);
 			this.kryo.register(type);
 			this.kryo.setClassLoader(Thread.currentThread().getContextClassLoader());

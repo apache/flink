@@ -384,6 +384,9 @@ public abstract class SerializerTestBase<T> {
 				assertArrayEquals(message, (Object[]) should, (Object[]) is);
 			}
 		}
+		else if (should instanceof Throwable) {
+			assertEquals(((Throwable)should).getMessage(), ((Throwable)is).getMessage());
+		}
 		else {
 			assertEquals(message,  should, is);
 		}
