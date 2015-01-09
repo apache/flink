@@ -63,7 +63,7 @@ The IntelliJ IDE supports Maven out of the box and offers a plugin for Scala dev
 ### Eclipse Scala IDE
 
 For Eclipse users, we recommend using Scala IDE 3.0.3, based on Eclipse Kepler. While this is a slightly older version,
-we found it to be the verstion that works most robustly for a complex project like Flink.
+we found it to be the version that works most robustly for a complex project like Flink.
 
 Further details, and a guide to newer Scala IDE versions can be found in the
 [How to setup Eclipse](https://github.com/apache/flink/blob/master/docs/internal_setup_eclipse.md) docs.
@@ -76,7 +76,7 @@ Further details, and a guide to newer Scala IDE versions can be found in the
 2. Add the "macroparadise" compiler plugin to the Scala compiler.
    Open "Window" -> "Preferences" -> "Scala" -> "Compiler" -> "Advanced" and put into the "Xplugin" field the path to
    the *macroparadise* jar file (typically "/home/*-your-user-*/.m2/repository/org/scalamacros/paradise_2.10.4/2.0.1/paradise_2.10.4-2.0.1.jar").
-   Note: If you do not have the jar file, you probably did not ran the command line build.
+   Note: If you do not have the jar file, you probably did not run the command line build.
 3. Import the Flink Maven projects ("File" -> "Import" -> "Maven" -> "Existing Maven Projects") 
 4. During the import, Eclipse will ask to automatically install additional Maven build helper plugins.
 5. Close the "flink-java8" project. Since Eclipse Kepler does not support Java 8, you cannot develop this project.
