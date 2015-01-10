@@ -25,7 +25,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.Assert;
@@ -114,7 +113,7 @@ public class TachyonFileSystemWrapperTest {
 			Configuration conf = new Configuration();
 			conf.addResource(HADOOP_CONFIG_PATH);
 			Assert.assertEquals("tachyon.hadoop.TFS", conf.get("fs.tachyon.impl", null));
-			FileSystem hfs = tPath.getFileSystem(conf);
+			tPath.getFileSystem(conf);
 		} catch(Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test failed with exception: "+e.getMessage());
