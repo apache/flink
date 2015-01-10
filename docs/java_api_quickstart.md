@@ -49,7 +49,7 @@ Use one of the following commands to __create a project__:
     $ mvn archetype:generate                             \
       -DarchetypeGroupId=org.apache.flink              \
       -DarchetypeArtifactId=flink-quickstart-java            \
-      -DarchetypeVersion={{site.FLINK_VERSION_STABLE}}
+      -DarchetypeVersion={{site.FLINK_VERSION_SHORT}}
     {% endhighlight %}
         This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
