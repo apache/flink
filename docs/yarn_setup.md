@@ -29,8 +29,8 @@ Start YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 
 ~~~bash
 wget {{ site.FLINK_WGET_URL_YARN_STABLE }}
-tar xvzf flink-{{ site.FLINK_VERSION_STABLE }}-bin-hadoop2-yarn.tgz
-cd flink-yarn-{{ site.FLINK_VERSION_STABLE }}/
+tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2-yarn.tgz
+cd flink-yarn-{{ site.FLINK_VERSION_SHORT }}/
 ./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
 ~~~
 
@@ -60,11 +60,11 @@ Download the YARN tgz package on the [download page]({{site.baseurl}}/downloads.
 Extract the package using:
 
 ~~~bash
-tar xvzf flink-{{ site.FLINK_VERSION_STABLE }}-bin-hadoop2-yarn.tgz
-cd flink-yarn-{{site.FLINK_VERSION_STABLE }}/
+tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2-yarn.tgz
+cd flink-yarn-{{site.FLINK_VERSION_SHORT }}/
 ~~~
 
-If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). Make sure to use the `-Dhadoop.profile=2` profile. You can find the result of the build in `flink-dist/target/flink-{{ site.FLINK_VERSION_STABLE }}-bin/flink-yarn-{{ site.FLINK_VERSION_STABLE }}/` (*Note: The version might be different for you* ).
+If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). You can find the result of the build in `flink-dist/target/flink-{{ site.FLINK_VERSION_SHORT }}-bin/flink-yarn-{{ site.FLINK_VERSION_SHORT }}/` (*Note: The version might be different for you* ).
 
 
 #### Start a Session
@@ -157,14 +157,14 @@ Use the *run* action to submit a job to YARN. The client is able to determine th
 ~~~bash
 wget -O apache-license-v2.txt http://www.apache.org/licenses/LICENSE-2.0.txt
 
-./bin/flink run -j ./examples/flink-java-examples-{{site.FLINK_VERSION_STABLE }}-WordCount.jar \
+./bin/flink run -j ./examples/flink-java-examples-{{site.FLINK_VERSION_SHORT }}-WordCount.jar \
                        -a 1 file://`pwd`/apache-license-v2.txt file://`pwd`/wordcount-result.txt 
 ~~~
 
 If there is the following error, make sure that all TaskManagers started:
 
 ~~~bash
-Exception in thread "main" org.apache.flinkcompiler.CompilerException:
+Exception in thread "main" org.apache.flink.compiler.CompilerException:
     Available instances could not be determined from job manager: Connection timed out.
 ~~~
 
