@@ -42,7 +42,7 @@ Add the following dependency to your `pom.xml` to use the Flink Streaming.
 <dependency>
     <groupId>org.apache.flink</groupId>
     <artifactId>flink-streaming-core</artifactId>
-    <version>{{site.FLINK_VERSION_STABLE}}</version>
+    <version>{{site.FLINK_VERSION_SHORT}}</version>
 </dependency>
 ~~~
 

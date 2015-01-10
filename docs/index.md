@@ -32,10 +32,10 @@ a thorough introduction of the Flink API please refer to the
 ## Download
 
 You can download Flink from the [downloads]({{ site.FLINK_DOWNLOAD_URL }}) page
-of the [project website]({{ site.FLINK_WEBSITE_URL }}). This documentation is for version {{ site.FLINK_VERSION_STABLE }}. Be careful
+of the [project website]({{ site.FLINK_WEBSITE_URL }}). This documentation is for version {{ site.FLINK_VERSION_SHORT }}. Be careful
 when picking a version, there are different versions depending on the Hadoop and/or
 HDFS version that you want to use with Flink. Please refer to [building](building.html) if you
 want to build Flink yourself from the source.
 
-In Version {{ site.FLINK_VERSION_STABLE}} the Scala API uses Scala {{ site.FLINK_SCALA_VERSION_SHORT }}. Please make
+In Version {{ site.FLINK_VERSION_SHORT}} the Scala API uses Scala {{ site.FLINK_SCALA_VERSION_SHORT }}. Please make
 sure to use a compatible version.
