@@ -581,4 +581,3 @@ public class TestJoinWithEdges extends JavaProgramTestBase {
         }
     }
 }
-
