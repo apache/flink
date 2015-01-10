@@ -60,6 +60,8 @@ Actor with ActorLogMessages with ActorLogging {
 
   log.info(s"Starting job manager at ${self.path}.")
 
+  checkJavaVersion
+
   val (archiveCount,
     profiling,
     cleanupInterval,
@@ -441,6 +443,16 @@ Actor with ActorLogMessages with ActorLogging {
     } catch {
       case t: Throwable =>
         log.error(t, s"Could not properly unregister job ${jobID} form the library cache.")
+    }
+  }
+
+  private def checkJavaVersion {
+    var javaVersion = System.getProperty("java.version")
+    if (javaVersion.substring(0, 3).toDouble < 1.7) {
+      JobManager.LOG.warn("Warning: Flink is running with Java 6. " +
+        "Java 6 is not maintained any more by Oracle or the OpenJDK community. " +
+        "Flink currently supports Java 6, but may not in future releases," +
+        " due to the unavailability of bug fixes security patched.")
     }
   }
 }
