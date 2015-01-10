@@ -32,9 +32,9 @@ under the License.
 	<artifactId>flink-parent</artifactId>
 	<version>0.9-SNAPSHOT</version>
 
-	<name>flink</name>
+	<name>Apache Flink</name>
 	<packaging>pom</packaging>
-	<url>http://flink.incubator.apache.org/</url>
+	<url>http://flink.apache.org</url>
 	<inceptionYear>2014</inceptionYear>
 
 	<licenses>
@@ -47,7 +47,7 @@ under the License.
 
 	<scm>
 		<url>https://github.com/apache/incubator-flink</url>
-		<connection>git@github.com:apache/incubator-flink.git</connection>
+		<connection>git@github.com:apache/flink.git</connection>
 		<developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-flink.git</developerConnection>
 	</scm>
 
@@ -231,6 +231,13 @@ under the License.
 				<groupId>stax</groupId>
 				<artifactId>stax-api</artifactId>
 				<version>1.0.1</version>
+			</dependency>
+			
+			<!-- kryo used in different versions by Flink an chill -->
+			<dependency>
+				<groupId>com.esotericsoftware.kryo</groupId>
+				<artifactId>kryo</artifactId>
+				<version>2.24.0</version>
 			</dependency>
 
 			<dependency>
@@ -512,6 +519,18 @@ under the License.
 					<exclusion>
 						<groupId>org.eclipse.jdt</groupId>
 						<artifactId>core</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-yarn-common</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.google.inject.extensions</groupId>
+						<artifactId>guice-servlet</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>io.netty</groupId>
+						<artifactId>netty</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
