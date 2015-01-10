@@ -220,25 +220,29 @@ under the Apache License (v 2.0):
 
  - Apache Commons Logging (http://commons.apache.org/proper/commons-logging/)
  - Apache Commons Codec (http://commons.apache.org/proper/commons-codec/)
+ - Apache Commons Collections (http://commons.apache.org/collections/)
  - Apache Commons CLI (http://commons.apache.org/cli/)
  - Apache Commons FileUpload (http://commons.apache.org/fileupload/)
  - Apache Commons IO (http://commons.apache.org/io/)
+ - Apache Commons Lang v.3.3.2 (http://commons.apache.org/proper/commons-lang/)
  - Apache Commons Math (http://commons.apache.org/proper/commons-math/)
  - Apache Avro (http://avro.apache.org)
  - Apache Hadoop (http://hadoop.apache.org)
+ - Apache HBase Client (http://hbase.apache.org)
  - Apache Derby (http://db.apache.org/derby/)
  - Apache Kafka (http://kafka.apache.org)
  - Apache Flume (http://flume.apache.org)
+ - Apache Sling (http://sling.apache.org)
  - Google Guava (https://code.google.com/p/guava-libraries/)
- - Netty (http://netty.io)
- - Powermock (http://www.powermock.org)
- - Javassist (http://www.javassist.org)
+ - Netty v4.0.21 (http://netty.io)
+ - Chill_2.10 v0.5.1 (https://github.com/twitter/chill)
  - Jetty Web Container (http://www.eclipse.org/jetty/)
  - Amazon Web Services SDK for Java (http://aws.amazon.com/sdkforjava/)
- - ScalaTest (http://www.scalatest.org)
  - StartBootstrap (http://startbootstrap.com)
  - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
  - Twitter Hosebird Client (hbc) (https://github.com/twitter/hbc)
+ - Jettison (http://jettison.codehaus.org)
+ - Akka (http://akka.io)
  
 
 -----------------------------------------------------------------------
@@ -249,13 +253,17 @@ The Apache Flink project bundles the following components under the MIT License:
 
  - SLF4J (http://www.slf4j.org) - Copyright (c) 2004-2013 QOS.ch
  - jQuery v2.1.0. (http://jquery.com) - Copyright 2014 jQuery Foundation and other contributors
+ - jQuery resize event v1.1 (http://benalman.com/projects/jquery-resize-plugin/) - Copyright (c) 2010 "Cowboy" Ben Alman
  - Sizzle.js (http://sizzlejs.com) - Copyright 2010, The Dojo Foundation
  - jCanvas 13.11.21 (http://calebevans.me/projects/jcanvas/) - Copyright 2014 Caleb Evans
  - Flot 0.8.1 (http://www.flotcharts.org) - Copyright (c) 2007-2013 IOLA and Ole Laursen
+ - query.flot.tooltip (https://github.com/krzysu/flot.tooltip) - Copyright (c) Krzysztof Urbas
  - Bootstrap 3.1.0 (http://getbootstrap.com) - Copyright (c) 2011-2014 Twitter, Inc
+ - Bootswatch Lumen Theme v3.1.1+1 (http://bootswatch.com) - Copyright (c) 2012-2014 Thomas Park
  - normalize.css v3.0.0 (http://git.io/normalize) - Copyright (c) Nicolas Gallagher and Jonathan Neal
  - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
  - D3 dagre renderer (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2012-2013 Chris Pettitt
+ - spymemcached (http://code.google.com/p/spymemcached/) - Copyright (c) 2006-2009  Dustin Sallings, Copyright (c) 2009-2011  Couchbase, Inc.
 
 
 All rights reserved.
@@ -290,15 +298,14 @@ BSD-style licenses:
  - Kryo (https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
  - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
  - LevelDB JNI (https://github.com/fusesource/leveldbjni/) - Copyright (c) 2011, FuseSource Corp.
- - Memcached (https://github.com/memcached/memcached) - Copyright (c) 2003, Danga Interactive, Inc.
  - Redis (http://redis.io/) - Copyright (c) 2009, Salvatore Sanfilippo and Pieter Noordhuis
  
 [BSD-like License]
  - Scala Library (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - Scala Compiler (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - Scala Compiler Reflect (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - Scala Quasiquotes (BSD-like) - (http://scalamacros.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
- - ASM (BSD-like) - (http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
+ - Scala Compiler (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
+ - Scala Compiler Reflect (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
+ - Scala Quasiquotes (http://scalamacros.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
+ - ASM (http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
 
 
 (Below is the 3-clause BSD license)
@@ -374,7 +381,6 @@ Open Font License (OFT) - http://scripts.sil.org/OFL/
  For Apache Hadoop Subcomponents
 -----------------------------------------------------------------------
 
-The Apache Flink project bundles components from the Apache Hadoop project.
 The Apache Hadoop project contains subcomponents with separate copyright
 notices and license terms. Your use of the source code for the these
 subcomponents is subject to the terms and conditions of the following
@@ -423,13 +429,12 @@ in src/main/native/src/org/apache/hadoop/util:
  *   BSD-style license that can be found in the LICENSE file.
  */
 
-For src/main/native/src/org/apache/hadoop/io/compress/lz4/{lz4.h,lz4.c,
-lz4_encoder.h,lz4hc.h,lz4hc.c,lz4hc_encoder.h},
+For src/main/native/src/org/apache/hadoop/io/compress/lz4/{lz4.h,lz4.c,lz4hc.h,lz4hc.c},
 
 /*
    LZ4 - Fast LZ compression algorithm
    Header File
-   Copyright (C) 2011-2013, Yann Collet.
+   Copyright (C) 2011-2014, Yann Collet.
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
    Redistribution and use in source and binary forms, with or without
@@ -456,6 +461,106 @@ lz4_encoder.h,lz4hc.h,lz4hc.c,lz4hc_encoder.h},
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
    You can contact the author at :
-   - LZ4 homepage : http://fastcompression.blogspot.com/p/lz4.html
    - LZ4 source repository : http://code.google.com/p/lz4/
+   - LZ4 public forum : https://groups.google.com/forum/#!forum/lz4c
 */
+
+
+For hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-nativetask/src/main/native/gtest
+---------------------------------------------------------------------
+Copyright 2008, Google Inc.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following disclaimer
+in the documentation and/or other materials provided with the
+distribution.
+    * Neither the name of Google Inc. nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-----------------------------------------------------------------------
+ For Apache Sling Subcomponents
+-----------------------------------------------------------------------
+
+Apache Sling includes subcomponents with separate copyright notices and
+license terms. Your use of these subcomponents is subject to the terms
+and conditions of the following licenses.
+
+JSON in Java
+
+   Copyright (c) 2002 JSON.org
+
+   Permission is hereby granted, free of charge, to any person obtaining
+   a copy of this software and associated documentation files (the
+   "Software"), to deal in the Software without restriction, including
+   without limitation the rights to use, copy, modify, merge, publish,
+   distribute, sublicense, and/or sell copies of the Software, and to
+   permit persons to whom the Software is furnished to do so, subject to
+   the following conditions:
+
+   The above copyright notice and this permission notice shall be included
+   in all copies or substantial portions of the Software.
+
+   The Software shall be used for Good, not Evil.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+-----------------------------------------------------------------------
+ For Apache Kafka
+-----------------------------------------------------------------------
+
+Apache Kafka depends on SBT licensed under the following license
+
+SBT LICENSE
+
+Copyright (c) 2008, 2009, 2010 Mark Harrah, Jason Zaugg
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+3. The name of the author may not be used to endorse or promote products
+   derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-----------------------------------------------------------------------

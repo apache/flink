@@ -20,4 +20,4 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The coding guidelines are now located [on the project website](http://flink.incubator.apache.org/coding_guidelines.html).
+The coding guidelines are now located [on the project website](http://flink.apache.org/coding_guidelines.html).

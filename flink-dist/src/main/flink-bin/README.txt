@@ -1,10 +1,10 @@
 For the latest information about Flink, please visit our website at:
 
-   http://flink.incubator.apache.org
+   http://flink.apache.org
 
 and our GitHub Account 
 
-   https://github.com/apache/incubator-flink
+   https://github.com/apache/flink
 
 If you have any questions, ask on our Mailing lists:
 
