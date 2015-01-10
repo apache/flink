@@ -1,3 +1,10 @@
+/**
+ * D3 renderer from http://d3js.org/
+ * Copyright (c) 2010-2014, Michael Bostock
+ * 
+ * Under BSD License (as stated under http://d3js.org/)
+ */
+
 !function() {
   var d3 = {
     version: "3.4.6"

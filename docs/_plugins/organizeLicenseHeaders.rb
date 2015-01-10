@@ -15,6 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# ---------------------------------------------------------
+# Ensures that teh documentation contains the Apache License
+# headers once, not repeatedly for each include.
+#
+# Written by Fabian Hueske
+# ---------------------------------------------------------
+
 module Jekyll
 
   module LicenseRemover
