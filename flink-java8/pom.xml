@@ -69,12 +69,6 @@ under the License.
 			<artifactId>flink-java-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.7</version>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -87,7 +81,6 @@ under the License.
 				<configuration>
 					<source>1.8</source>
 					<target>1.8</target>
-					<!-- High optimization, no debugging <compilerArgument>-g:none -O</compilerArgument> -->
 				</configuration>
 			</plugin>
 			<plugin>
