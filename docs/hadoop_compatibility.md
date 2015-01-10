@@ -46,7 +46,7 @@ Add the following dependency to your `pom.xml` to use the Hadoop Compatibility L
 <dependency>
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-hadoop-compatibility</artifactId>
-	<version>{{site.FLINK_VERSION_STABLE}}</version>
+	<version>{{site.FLINK_VERSION_SHORT}}</version>
 </dependency>
 ~~~
 

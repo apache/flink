@@ -46,33 +46,33 @@ The command line can be used to
 
 -   Run example program with no arguments.
 
-        ./bin/flink run ./examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar
+        ./bin/flink run ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar
 
 -   Run example program with arguments for input and result files
 
-        ./bin/flink run ./examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
+        ./bin/flink run ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
                                file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Run example program with parallelism 16 and arguments for input and result files
 
-        ./bin/flink run -p 16 ./examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
+        ./bin/flink run -p 16 ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
                                 file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Run example program on a specific JobManager:
 
         ./bin/flink run -m myJMHost:6123 \
-                               ./examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
+                               ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
                                -file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 
 -   Display the expected arguments for the WordCount example program:
 
-        ./bin/flink info -d ./examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar
+        ./bin/flink info -d ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar
 
 -   Display the optimized execution plan for the WordCount example program as JSON:
 
         ./bin/flink info -e 
-                                ./examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
+                                ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
                                 file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   List scheduled and running jobs (including their JobIDs):

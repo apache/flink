@@ -40,7 +40,7 @@ interface. Hadoop ships adapters for FTP, [Hftp](http://hadoop.apache.org/docs/r
 
 Flink has integrated testcases to validate the integration with [Tachyon](http://tachyon-project.org/).
 Other file systems we tested the integration is the
-[Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector).
+[Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) and [XtreemFS](http://www.xtreemfs.org/).
 
 In order to use a Hadoop file system with Flink, make sure that the `flink-conf.yaml` has set the
 `fs.hdfs.hadoopconf` property set to the Hadoop configuration directory.
@@ -90,16 +90,16 @@ Execute the following commands:
    curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-quickstart/quickstart.sh | bash
    ~~~
 
-3. Set the the version of Flink to `{{site.FLINK_VERSION_HADOOP_2_STABLE}}` in the `pom.xml` file. The quickstart.sh script sets the version to the `hadoop1` version of Flink. Since the `microsoft-hadoop-azure` has been written for Hadoop 2.2 (mapreduce-API) version, we need to use the appropriate Flink version. 
+3. Set the the version of Flink to `{{site.FLINK_VERSION_HADOOP2_STABLE}}` in the `pom.xml` file. The quickstart.sh script sets the version to the `hadoop1` version of Flink. Since the `microsoft-hadoop-azure` has been written for Hadoop 2.2 (mapreduce-API) version, we need to use the appropriate Flink version. 
 
-    Replace all occurences of `<version>{{site.FLINK_VERSION_STABLE}}</version>` with `<version>{{site.FLINK_VERSION_HADOOP_2_STABLE}}</version>`.
+    Replace all occurences of `<version>{{site.FLINK_VERSION_SHORT}}</version>` with `<version>{{site.FLINK_VERSION_HADOOP2_STABLE}}</version>`.
 4. Add the following dependencies (in the `<dependencies>` section) to your `pom.xml` file:
 
    ~~~xml
    <dependency>
        <groupId>org.apache.flink</groupId>
        <artifactId>flink-hadoop-compatibility</artifactId>
-       <version>{{site.FLINK_VERSION_HADOOP_2_STABLE}}</version>
+       <version>{{site.FLINK_VERSION_HADOOP2_STABLE}}</version>
    </dependency>
    <dependency>
      <groupId>com.microsoft.hadoop</groupId>
