@@ -30,7 +30,7 @@ import org.apache.flink.api.scala._
  *   - use Tuple data types.
  *   - write and use user-defined functions.
  */
-object WordCountJob {
+object WordCount {
   def main(args: Array[String]) {
 
     // set up the execution environment
