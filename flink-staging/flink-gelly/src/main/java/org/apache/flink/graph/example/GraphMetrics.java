@@ -34,7 +34,7 @@ public class GraphMetrics implements ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return null;
+		return "Graph Metrics Example";
 	}
 
 	public static void main(String[] args) throws Exception {
