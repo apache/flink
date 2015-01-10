@@ -20,7 +20,6 @@ package ${package};
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
@@ -38,11 +37,10 @@ import org.apache.flink.util.Collector;
  * </ul>
  *
  */
-@SuppressWarnings("serial")
-public class WordCountJob {
+public class WordCount {
 
 	//
-	//	Program.
+	//	Program
 	//
 
 	public static void main(String[] args) throws Exception {
@@ -63,7 +61,7 @@ public class WordCountJob {
 				text.flatMap(new LineSplitter())
 				// group by the tuple field "0" and sum up tuple field "1"
 				.groupBy(0)
-				.aggregate(Aggregations.SUM, 1);
+				.sum(1);
 
 		// emit result
 		counts.print();

@@ -42,7 +42,7 @@ echo -e "\\tImport the project there using your favorite IDE (Import it as a mav
 echo -e "\\tBuild a jar inside the directory using"
 echo -e "\\t\\t mvn clean package"
 echo -e "\\tYou will find the runnable jar in $PACKAGE/target"
-echo -e "\\tConsult our website if you have any troubles: http://flink.incubator.apache.org/community.html#mailing-lists"
+echo -e "\\tConsult our website if you have any troubles: http://flink.apache.org/community.html#mailing-lists"
 echo -e "\\n\\n"
 
 
