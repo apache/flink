@@ -19,8 +19,8 @@
 
 
 #
-# See https://github.com/stratosphere/stratosphere/issues/95
-# Inspired by: https://github.com/apache/hbase/blob/trunk/dev-support/generate-hadoopX-poms.sh
+# Inspired by and modified from:
+# https://github.com/apache/hbase/blob/trunk/dev-support/generate-hadoopX-poms.sh
 #
 
 function usage {

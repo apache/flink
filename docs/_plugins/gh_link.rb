@@ -15,6 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# ---------------------------------------------------------
+# Expands a github link shortcut into a proper markdown link
+#
+# Written by Ufuk Celebi
+# ---------------------------------------------------------
+
 module Jekyll
   class GitHubLinkTag < Liquid::Tag
 
