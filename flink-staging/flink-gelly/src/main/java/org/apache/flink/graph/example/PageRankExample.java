@@ -8,11 +8,13 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
 public class PageRankExample implements ProgramDescription {
 
-    public static void main (String [] args) throws Exception {
+    @SuppressWarnings("serial")
+	public static void main (String [] args) throws Exception {
 
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -21,9 +23,19 @@ public class PageRankExample implements ProgramDescription {
         DataSet<Edge<Long,Double>> links = getLinksDataSet(env);
 
         Graph<Long, Double, Double> network = new Graph<Long, Double, Double>(pages, links, env);
+        
+        DataSet<Tuple2<Long, Long>> vertexOutDegrees = network.outDegrees();
+        
+        // assign the transition probabilities as the edge weights
+        Graph<Long, Double, Double> networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, 
+        		new MapFunction<Tuple2<Double, Long>, Double>() {
+					public Double map(Tuple2<Double, Long> value) {
+						return value.f0 / value.f1;
+					}
+				});
 
         DataSet<Vertex<Long,Double>> pageRanks =
-                network.run(new PageRank<Long>(numPages, DAMPENING_FACTOR, maxIterations)).getVertices();
+        		networkWithWeights.run(new PageRank<Long>(numPages, DAMPENING_FACTOR, maxIterations)).getVertices();
 
         pageRanks.print();
 
@@ -60,7 +72,7 @@ public class PageRankExample implements ProgramDescription {
                             int numOutEdges = (int) (Math.random() * (numPages / 2));
                             for (int i = 0; i < numOutEdges; i++) {
                                 long target = (long) (Math.random() * numPages) + 1;
-                                out.collect(new Edge<Long, Double>(key, target, 1.0 / numOutEdges));
+                                out.collect(new Edge<Long, Double>(key, target, 1.0));
                             }
                         }
                     });
