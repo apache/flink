@@ -394,25 +394,22 @@ public class Client {
 			yarnClient.stop();
 			System.exit(1);
 		}
+
+		final String NOTE = "\nThe Flink YARN client will try to allocate the YARN session, but maybe not all TaskManagers are " +
+				"connecting from the beginning. The allocation might take more time than usual!";
 		int totalMemoryRequired = jmMemory + tmMemory * taskManagerCount;
 		ClusterResourceDescription freeClusterMem = getCurrentFreeClusterResources(yarnClient);
 		if(freeClusterMem.totalFreeMemory < totalMemoryRequired) {
-			LOG.error("This YARN session requires "+totalMemoryRequired+"MB of memory in the cluster. "
-					+ "There are currently only "+freeClusterMem.totalFreeMemory+"MB available.");
-			yarnClient.stop();
-			System.exit(1);
+			LOG.warn("This YARN session requires " + totalMemoryRequired + "MB of memory in the cluster. "
+					+ "There are currently only " + freeClusterMem.totalFreeMemory + "MB available." + NOTE);
 		}
 		if( tmMemory > freeClusterMem.containerLimit) {
-			LOG.error("The requested amount of memory for the TaskManagers ("+tmMemory+"MB) is more than "
-					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
-			yarnClient.stop();
-			System.exit(1);
+			LOG.warn("The requested amount of memory for the TaskManagers (" + tmMemory + "MB) is more than "
+					+ "currently the largest possible YARN container: " + freeClusterMem.containerLimit + NOTE);
 		}
 		if( jmMemory > freeClusterMem.containerLimit) {
-			LOG.error("The requested amount of memory for the JobManager ("+jmMemory+"MB) is more than "
-					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
-			yarnClient.stop();
-			System.exit(1);
+			LOG.warn("The requested amount of memory for the JobManager (" + jmMemory + "MB) is more than "
+					+ "currently the largest possible YARN container: " + freeClusterMem.containerLimit + NOTE);
 		}
 
 		// respect custom JVM options in the YAML file
