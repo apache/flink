@@ -146,21 +146,20 @@ public class JobSubmissionServlet extends HttpServlet {
 			}
 
 			String assemblerClass = null;
-			int pos = 0;
 			int parallelism = -1;
-			while(pos < params.size()) {
-				if (params.get(pos).equals("-c")) {
-					assemblerClass = params.get(pos + 1);
-					params.remove(pos);
-					params.remove(pos);
+			while(params.size() >= 2) {
+				if (params.get(0).equals("-c")) {
+					assemblerClass = params.get(1);
+					params.remove(0);
+					params.remove(0);
 				}
-				else if (params.get(pos).equals("-p")) {
-					parallelism = Integer.parseInt(params.get(pos + 1));
-					params.remove(pos);
-					params.remove(pos);
+				else if (params.get(0).equals("-p")) {
+					parallelism = Integer.parseInt(params.get(1));
+					params.remove(0);
+					params.remove(0);
 				}
 				else {
-					pos++;
+					break;
 				}
 			}
 
