@@ -102,6 +102,11 @@ the source of the error. Solutions are to
 - make the enclosing class serializable
 - use a Java 8 lambda function.
 
+### In Scala API, I get an error about implicit values and evidence parameters
+
+It means that the implicit value for the type information could not be provided.
+Make sure that you have an `import org.apache.flink.api.scala._` statement in your code.
+
 ### I get an error message saying that not enough buffers are available. How do I fix this?
 
 If you run Flink in a massively parallel setting (100+ parallel threads),
