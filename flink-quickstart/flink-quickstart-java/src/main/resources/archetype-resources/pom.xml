@@ -61,6 +61,11 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-connectors</artifactId>
+			<version>0.9-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
 			<version>0.9-SNAPSHOT</version>
 		</dependency>
@@ -109,7 +114,6 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- We use the JDT compiler because it adds the generic types of methods (also lambdas) to the class files-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -117,21 +121,31 @@ under the License.
 				<configuration>
 					<source>1.6</source> <!-- If you want to use Java 8, change this to "1.8" -->
 					<target>1.6</target> <!-- If you want to use Java 8, change this to "1.8" -->
-					<compilerId>jdt</compilerId>
 				</configuration>
-				<dependencies>
-					<dependency>
-						<groupId>org.eclipse.tycho</groupId>
-						<artifactId>tycho-compiler-jdt</artifactId>
-						<version>0.21.0</version>
-					</dependency>
-				</dependencies>
 			</plugin>
 		</plugins>
 		
-		<!-- Eclipse should not evaluate the compiler plugin, but use its own settings -->
+			
+		<!-- If you want to use Java 8 Lambda Expressions uncomment the following lines -->
+		<!--
 		<pluginManagement>
 			<plugins>
+				<plugin>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<configuration>
+						<source>1.8</source>
+						<target>1.8</target>
+						<compilerId>jdt</compilerId>
+					</configuration>
+					<dependencies>
+						<dependency>
+							<groupId>org.eclipse.tycho</groupId>
+							<artifactId>tycho-compiler-jdt</artifactId>
+							<version>0.21.0</version>
+						</dependency>
+					</dependencies>
+				</plugin>
+		
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
@@ -149,7 +163,7 @@ under the License.
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<ignore></ignore>
+										<ignore/>
 									</action>
 								</pluginExecution>
 								<pluginExecution>
@@ -159,11 +173,10 @@ under the License.
 										<versionRange>[3.1,)</versionRange>
 										<goals>
 											<goal>testCompile</goal>
-											<goal>compile</goal>
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<ignore></ignore>
+										<ignore/>
 									</action>
 								</pluginExecution>
 							</pluginExecutions>
@@ -172,6 +185,7 @@ under the License.
 				</plugin>
 			</plugins>
 		</pluginManagement>
+		-->
 		
 	</build>
 </project>
