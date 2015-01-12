@@ -1027,7 +1027,7 @@ under the License.
 						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/timeline.js</exclude>
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
-						<exclude>flink-staging/flink-avro/src/test/resources/avro/user.avsc</exclude>
+						<exclude>flink-staging/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>flink-staging/flink-avro/src/test/resources/testdata.avro</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>

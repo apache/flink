@@ -63,6 +63,13 @@ under the License.
 			<version>0.5.1</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-avro_2.10</artifactId>
+			<version>0.5.1</version>
+		</dependency>
+
+
 		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -87,7 +94,7 @@ under the License.
 		
 	</dependencies>
 
-	<!-- Because flink-scala uses it in tests -->
+	<!-- Because flink-scala and flink-avro uses it in tests -->
 	<build>
 		<plugins>
 			<plugin>
