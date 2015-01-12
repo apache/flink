@@ -26,11 +26,10 @@ import java.util.Set;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.profiling.impl.types.InternalInstanceProfilingData;
 import org.apache.flink.runtime.profiling.types.InstanceSummaryProfilingEvent;
-
 
 public class JobProfilingData {
 
@@ -59,7 +58,7 @@ public class JobProfilingData {
 	public boolean addIfInstanceIsAllocatedByJob(InternalInstanceProfilingData instanceProfilingData) {
 
 		for (ExecutionVertex executionVertex : this.executionGraph.getAllExecutionVertices()) {
-			AllocatedSlot slot = executionVertex.getCurrentAssignedResource();
+			SimpleSlot slot = executionVertex.getCurrentAssignedResource();
 			if (slot != null && slot.getInstance().getPath().equals(
 					instanceProfilingData.getInstancePath()))
 			{
@@ -76,7 +75,7 @@ public class JobProfilingData {
 		final Set<Instance> tempSet = new HashSet<Instance>();
 		
 		for (ExecutionVertex executionVertex : this.executionGraph.getAllExecutionVertices()) {
-			AllocatedSlot slot = executionVertex.getCurrentAssignedResource();
+			SimpleSlot slot = executionVertex.getCurrentAssignedResource();
 			if (slot != null) {
 				tempSet.add(slot.getInstance());
 			}

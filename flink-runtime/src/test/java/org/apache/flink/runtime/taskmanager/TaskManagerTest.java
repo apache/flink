@@ -338,10 +338,10 @@ public class TaskManagerTest {
 				@Override
 				protected void run() {
 					try {
-						tm.tell(new SubmitTask(tdd2), getRef());
-						expectMsgEquals(new TaskOperationResult(eid2, true));
 						tm.tell(new SubmitTask(tdd1), getRef());
 						expectMsgEquals(new TaskOperationResult(eid1, true));
+						tm.tell(new SubmitTask(tdd2), getRef());
+						expectMsgEquals(new TaskOperationResult(eid2, true));
 
 						tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 						Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages.ResponseRunningTasks

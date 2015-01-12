@@ -35,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import akka.actor.ActorRef;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchivedJobs;
 import org.apache.flink.runtime.messages.ArchiveMessages.RequestArchivedJobs$;
 import org.apache.flink.runtime.messages.JobManagerMessages.AccumulatorResultsResponse;
@@ -56,7 +57,6 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -66,12 +66,11 @@ import org.apache.flink.util.StringUtils;
 import org.eclipse.jetty.io.EofException;
 import scala.concurrent.duration.FiniteDuration;
 
-
-public class JobmanagerInfoServlet extends HttpServlet {
+public class JobManagerInfoServlet extends HttpServlet {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private static final Logger LOG = LoggerFactory.getLogger(JobmanagerInfoServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobManagerInfoServlet.class);
 	
 	/** Underlying JobManager */
 	private final ActorRef jobmanager;
@@ -79,7 +78,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	private final FiniteDuration timeout;
 	
 	
-	public JobmanagerInfoServlet(ActorRef jobmanager, ActorRef archive, FiniteDuration timeout) {
+	public JobManagerInfoServlet(ActorRef jobmanager, ActorRef archive, FiniteDuration timeout) {
 		this.jobmanager = jobmanager;
 		this.archive = archive;
 		this.timeout = timeout;
@@ -293,7 +292,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				boolean first = true;
 				for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
 					if (vertex.getExecutionState() == ExecutionState.FAILED) {
-						AllocatedSlot slot = vertex.getCurrentAssignedResource();
+						SimpleSlot slot = vertex.getCurrentAssignedResource();
 						Throwable failureCause = vertex.getFailureCause();
 						if (slot != null || failureCause != null) {
 							if (first) {

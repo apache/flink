@@ -62,7 +62,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         within(1 second) {
           jm ! SubmitJob(jobGraph)
 
-          expectMsg(SubmissionFailure(jobGraph.getJobID, new NoResourceAvailableException(1,1)))
+          expectMsg(SubmissionFailure(jobGraph.getJobID, new NoResourceAvailableException(1,1,0)))
 
           expectNoMsg()
         }
