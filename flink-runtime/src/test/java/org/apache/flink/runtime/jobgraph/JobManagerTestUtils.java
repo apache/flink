@@ -103,4 +103,20 @@ public class JobManagerTestUtils {
 			}
 		}
 	}
+
+	public static void killRandomHeartbeatThread() throws InterruptedException {
+		Thread[] threads = new Thread[Thread.activeCount()];
+		Thread.enumerate(threads);
+
+		for (Thread t : threads) {
+			if (t == null) {
+				continue;
+			}
+			if (t.getName().equals("Heartbeat Thread")) {
+				t.stop();
+				t.join();
+				return;
+			}
+		}
+	}
 }

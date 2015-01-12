@@ -22,6 +22,7 @@ import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.instance.Instance;
 
 import com.google.common.base.Preconditions;
+import org.apache.flink.runtime.instance.SharedSlot;
 
 public class CoLocationConstraint {
 	
@@ -42,7 +43,7 @@ public class CoLocationConstraint {
 	
 	public Instance getLocation() {
 		if (sharedSlot != null) {
-			return sharedSlot.getAllocatedSlot().getInstance();
+			return sharedSlot.getInstance();
 		} else {
 			throw new IllegalStateException("Not assigned");
 		}
@@ -52,7 +53,7 @@ public class CoLocationConstraint {
 		if (this.sharedSlot == sharedSlot) {
 			return;
 		}
-		else if (this.sharedSlot == null || this.sharedSlot.isDisposed()) {
+		else if (this.sharedSlot == null || this.sharedSlot.isDead()) {
 			this.sharedSlot = sharedSlot;
 		} else {
 			throw new IllegalStateException("Overriding shared slot that is still alive.");
@@ -64,7 +65,7 @@ public class CoLocationConstraint {
 	}
 	
 	public boolean isUnassignedOrDisposed() {
-		return this.sharedSlot == null || this.sharedSlot.isDisposed();
+		return this.sharedSlot == null || this.sharedSlot.isDead();
 	}
 	
 	public AbstractID getGroupId() {

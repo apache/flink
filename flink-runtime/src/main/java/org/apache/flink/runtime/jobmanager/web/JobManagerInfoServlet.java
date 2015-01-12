@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -43,7 +44,6 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -53,18 +53,17 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StringUtils;
 import org.eclipse.jetty.io.EofException;
 
-
-public class JobmanagerInfoServlet extends HttpServlet {
+public class JobManagerInfoServlet extends HttpServlet {
 	
 	private static final long serialVersionUID = 1L;
 	
-	private static final Logger LOG = LoggerFactory.getLogger(JobmanagerInfoServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobManagerInfoServlet.class);
 	
 	/** Underlying JobManager */
 	private final JobManager jobmanager;
 	
 	
-	public JobmanagerInfoServlet(JobManager jobmanager) {
+	public JobManagerInfoServlet(JobManager jobmanager) {
 		this.jobmanager = jobmanager;
 	}
 	
@@ -251,7 +250,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				boolean first = true;
 				for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
 					if (vertex.getExecutionState() == ExecutionState.FAILED) {
-						AllocatedSlot slot = vertex.getCurrentAssignedResource();
+						SimpleSlot slot = vertex.getCurrentAssignedResource();
 						Throwable failureCause = vertex.getFailureCause();
 						if (slot != null || failureCause != null) {
 							if (first) {

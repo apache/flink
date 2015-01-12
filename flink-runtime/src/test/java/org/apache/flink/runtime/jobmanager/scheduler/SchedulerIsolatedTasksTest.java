@@ -24,6 +24,7 @@ import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.g
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
 import static org.junit.Assert.*;
 
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -38,7 +39,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 
@@ -123,11 +123,11 @@ public class SchedulerIsolatedTasksTest {
 			assertEquals(5, scheduler.getNumberOfAvailableSlots());
 			
 			// schedule something into all slots
-			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
-			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
-			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
-			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
-			AllocatedSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			SimpleSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			SimpleSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			SimpleSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			SimpleSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
 			
 			// the slots should all be different
 			assertTrue(areAllDistinct(s1, s2, s3, s4, s5));
@@ -146,8 +146,8 @@ public class SchedulerIsolatedTasksTest {
 			assertEquals(2, scheduler.getNumberOfAvailableSlots());
 			
 			// now we can schedule some more slots
-			AllocatedSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
-			AllocatedSlot s7 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			SimpleSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			SimpleSlot s7 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
 			
 			assertTrue(areAllDistinct(s1, s2, s3, s4, s5, s6, s7));
 			
@@ -201,7 +201,7 @@ public class SchedulerIsolatedTasksTest {
 			List<SlotAllocationFuture> allAllocatedSlots = new ArrayList<SlotAllocationFuture>();
 			
 			// slots that need to be released
-			final Set<AllocatedSlot> toRelease = new HashSet<AllocatedSlot>();
+			final Set<SimpleSlot> toRelease = new HashSet<SimpleSlot>();
 			
 			// flag to track errors in the concurrent thread
 			final AtomicBoolean errored = new AtomicBoolean(false);
@@ -209,7 +209,7 @@ public class SchedulerIsolatedTasksTest {
 			
 			SlotAllocationFutureAction action = new SlotAllocationFutureAction() {
 				@Override
-				public void slotAllocated(AllocatedSlot slot) {
+				public void slotAllocated(SimpleSlot slot) {
 					synchronized (toRelease) {
 						toRelease.add(slot);
 						toRelease.notifyAll();
@@ -230,8 +230,8 @@ public class SchedulerIsolatedTasksTest {
 									toRelease.wait();
 								}
 								
-								Iterator<AllocatedSlot> iter = toRelease.iterator();
-								AllocatedSlot next = iter.next();
+								Iterator<SimpleSlot> iter = toRelease.iterator();
+								SimpleSlot next = iter.next();
 								iter.remove();
 								
 								next.releaseSlot();
@@ -258,7 +258,7 @@ public class SchedulerIsolatedTasksTest {
 			
 			assertFalse("The slot releasing thread caused an error.", errored.get());
 			
-			List<AllocatedSlot> slotsAfter = new ArrayList<AllocatedSlot>();
+			List<SimpleSlot> slotsAfter = new ArrayList<SimpleSlot>();
 			for (SlotAllocationFuture future : allAllocatedSlots) {
 				slotsAfter.add(future.waitTillAllocated());
 			}
@@ -293,7 +293,7 @@ public class SchedulerIsolatedTasksTest {
 			scheduler.newInstanceAvailable(i2);
 			scheduler.newInstanceAvailable(i3);
 			
-			List<AllocatedSlot> slots = new ArrayList<AllocatedSlot>();
+			List<SimpleSlot> slots = new ArrayList<SimpleSlot>();
 			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask())));
 			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask())));
 			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask())));
@@ -302,7 +302,7 @@ public class SchedulerIsolatedTasksTest {
 			
 			i2.markDead();
 			
-			for (AllocatedSlot slot : slots) {
+			for (SimpleSlot slot : slots) {
 				if (slot.getInstance() == i2) {
 					assertTrue(slot.isCanceled());
 				} else {
@@ -354,7 +354,7 @@ public class SchedulerIsolatedTasksTest {
 			scheduler.newInstanceAvailable(i3);
 			
 			// schedule something on an arbitrary instance
-			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Collections.<Instance>emptyList())));
+			SimpleSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Collections.<Instance>emptyList())));
 			
 			// figure out how we use the location hints
 			Instance first = s1.getInstance();
@@ -362,28 +362,28 @@ public class SchedulerIsolatedTasksTest {
 			Instance third = first == i3 ? i2 : i3;
 			
 			// something that needs to go to the first instance again
-			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Collections.singletonList(s1.getInstance()))));
+			SimpleSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Collections.singletonList(s1.getInstance()))));
 			assertEquals(first, s2.getInstance());
 
 			// first or second --> second, because first is full
-			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, second))));
+			SimpleSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, second))));
 			assertEquals(second, s3.getInstance());
 			
 			// first or third --> third (because first is full)
-			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, third))));
-			AllocatedSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, third))));
+			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, third))));
+			SimpleSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, third))));
 			assertEquals(third, s4.getInstance());
 			assertEquals(third, s5.getInstance());
 			
 			// first or third --> second, because all others are full
-			AllocatedSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, third))));
+			SimpleSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, third))));
 			assertEquals(second, s6.getInstance());
 			
 			// release something on the first and second instance
 			s2.releaseSlot();
 			s6.releaseSlot();
 			
-			AllocatedSlot s7 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, third))));
+			SimpleSlot s7 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(Arrays.asList(first, third))));
 			assertEquals(first, s7.getInstance());
 			
 			assertEquals(1, scheduler.getNumberOfUnconstrainedAssignments());

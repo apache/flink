@@ -30,8 +30,8 @@ import static org.mockito.Matchers.any;
 
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
@@ -52,7 +52,7 @@ public class ExecutionVertexDeploymentTest {
 			TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 			
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
 			
@@ -88,7 +88,7 @@ public class ExecutionVertexDeploymentTest {
 			// mock taskmanager to simply accept the call
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
 			
@@ -133,7 +133,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getJobVertexExecutingAsynchronously(jid);
 			
@@ -189,7 +189,7 @@ public class ExecutionVertexDeploymentTest {
 			// mock taskmanager to simply accept the call
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
 			
@@ -225,7 +225,7 @@ public class ExecutionVertexDeploymentTest {
 			// mock taskmanager to simply accept the call
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getJobVertexExecutingAsynchronously(jid);
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
@@ -269,7 +269,7 @@ public class ExecutionVertexDeploymentTest {
 			TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 			
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
 			
@@ -306,7 +306,7 @@ public class ExecutionVertexDeploymentTest {
 			TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 			
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getJobVertexExecutingTriggered(jid, queue);
 			

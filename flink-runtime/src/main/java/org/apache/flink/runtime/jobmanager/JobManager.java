@@ -63,7 +63,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Hardware;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -71,6 +70,7 @@ import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.InstanceManager;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.ipc.RPC;
@@ -460,7 +460,6 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	public boolean updateTaskExecutionState(TaskExecutionState executionState) throws IOException {
 		Preconditions.checkNotNull(executionState);
 
-
 		final ExecutionGraph eg = this.currentJobs.get(executionState.getJobID());
 		if (eg == null) {
 			if (LOG.isDebugEnabled()) {
@@ -470,7 +469,9 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			return false;
 		}
 
-		return eg.updateState(executionState);
+		boolean result =  eg.updateState(executionState);
+
+		return result;
 	}
 	
 	@Override
@@ -500,7 +501,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		if(execution == null) {
 			LOG.error("Can not find Execution for attempt " + executionAttempt);
 		} else {
-			AllocatedSlot slot = execution.getAssignedResource();
+			SimpleSlot slot = execution.getAssignedResource();
 			if(slot != null) {
 				host = slot.getInstance().getInstanceConnectionInfo().getHostname();
 			}

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.instance.SimpleSlot;
 
 /**
  * An action that is invoked once a {@link SlotAllocationFuture} is triggered.
@@ -30,5 +30,5 @@ public interface SlotAllocationFutureAction {
 	 * 
 	 * @param slot The slot that has been allocated.
 	 */
-	void slotAllocated(AllocatedSlot slot);
+	void slotAllocated(SimpleSlot slot);
 }
