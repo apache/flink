@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
@@ -607,6 +608,53 @@ public class MemorySegmentTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
+		}
+	}
+
+
+	@Test
+	public void testBulkOperations() {
+
+		int numBytes = 1024;
+		MemorySegment seg = null;
+		if (segment instanceof HeapMemorySegment) {
+			seg = new HeapMemorySegment(new byte[numBytes]);
+		} else if (segment instanceof DirectMemorySegment) {
+			seg = new DirectMemorySegment(numBytes);
+		} else {
+			fail("Unknown MemorySegment implementation was loaded!");
+		}
+
+		byte[] dataExpected = new byte[numBytes];
+		long seed = random.nextLong();
+		random.setSeed(seed);
+		random.nextBytes(dataExpected);
+
+		try {
+			RandomAccessFile file = new RandomAccessFile("/tmp/mem_segment_test.file", "rw");
+			// write expected data to file
+			file.write(dataExpected);
+			file.seek(0);
+			// test bulk put method
+			// load file contents into memory segment
+			seg.put(file, 0, numBytes);
+			file.close();
+
+			RandomAccessFile file2 = new RandomAccessFile("/tmp/mem_segment_test2.file", "rw");
+			// test bulk get method
+			// write second file with data from memory segment
+			seg.get(file2, 0, numBytes);
+			file2.seek(0);
+
+			// read file previously written by memory segment
+			byte[] data = new byte[numBytes];
+			file2.read(data);
+
+			Assert.assertArrayEquals(dataExpected, data);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Could not create/read/write random access file.");
 		}
 	}
 }
