@@ -144,8 +144,38 @@ public class FileOutputFormatTest {
 		Assert.assertTrue(!exception);
 		Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
 		Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
-		
+
+		// check custom file name inside directory if directory exists
+		(new File(tmpOutPath.getAbsoluteFile()+"/1")).delete();
+		dfof = new DummyFileOutputFormat();
+		dfof.setOutputFilePath(new Path(tmpFilePath));
+		dfof.setWriteMode(WriteMode.NO_OVERWRITE);
+		dfof.setOutputDirectoryMode(OutputDirectoryMode.ALWAYS);
+		dfof.testFileName = true;
+		Configuration c = new Configuration();
+		dfof.configure(c);
+
+		exception = false;
+		try {
+			dfof.open(0, 1);
+			dfof.close();
+		} catch (Exception e) {
+			exception = true;
+		}
+		File customOutFile = new File(tmpOutPath.getAbsolutePath()+"/fancy-1-0.avro");
+		Assert.assertTrue(!exception);
+		Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
+		Assert.assertTrue(customOutFile.exists() && customOutFile.isFile());
+		customOutFile.delete();
+
 		// check fail if file in directory exists
+		// create file for test
+		customOutFile = new File(tmpOutPath.getAbsolutePath()+"/1");
+		try {
+			customOutFile.createNewFile();
+		} catch (IOException e) {
+			Assert.fail("Error creating file");
+		}
 		dfof = new DummyFileOutputFormat();
 		dfof.setOutputFilePath(new Path(tmpFilePath));
 		dfof.setWriteMode(WriteMode.NO_OVERWRITE);
@@ -562,10 +592,19 @@ public class FileOutputFormatTest {
 	
 	public static class DummyFileOutputFormat extends FileOutputFormat<IntValue> {
 		private static final long serialVersionUID = 1L;
-
+		public boolean testFileName = false;
 		@Override
 		public void writeRecord(IntValue record) throws IOException {
 			// DO NOTHING
+		}
+
+		@Override
+		protected String getDirectoryFileName(int taskNumber) {
+			if(testFileName) {
+				return "fancy-"+(taskNumber+1)+"-"+taskNumber+".avro";
+			} else {
+				return super.getDirectoryFileName(taskNumber);
+			}
 		}
 	}
 	

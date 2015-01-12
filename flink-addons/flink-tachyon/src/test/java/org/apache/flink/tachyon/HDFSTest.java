@@ -18,13 +18,19 @@
 
 package org.apache.flink.tachyon;
 
+
 import org.apache.commons.io.IOUtils;
+import org.apache.flink.api.common.io.FileOutputFormat;
+import org.apache.flink.api.java.io.AvroOutputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
@@ -114,6 +120,41 @@ public class HDFSTest {
 		} catch (IOException e) {
 			e.printStackTrace();
 			Assert.fail("Error in test: " + e.getMessage() );
+		}
+	}
+
+	@Test
+	public void testAvroOut() {
+		String type = "one";
+		AvroOutputFormat<String> avroOut =
+				new AvroOutputFormat<String>( String.class );
+
+		org.apache.hadoop.fs.Path result = new org.apache.hadoop.fs.Path(hdfsURI + "/avroTest");
+
+		avroOut.setOutputFilePath(new Path(result.toString()));
+		avroOut.setWriteMode(FileSystem.WriteMode.NO_OVERWRITE);
+		avroOut.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.ALWAYS);
+
+		try {
+			avroOut.open(0, 2);
+			avroOut.writeRecord(type);
+			avroOut.close();
+
+			avroOut.open(1, 2);
+			avroOut.writeRecord(type);
+			avroOut.close();
+
+
+			Assert.assertTrue("No result file present", hdfs.exists(result));
+			FileStatus[] files = hdfs.listStatus(result);
+			Assert.assertEquals(2, files.length);
+			for(FileStatus file : files) {
+				Assert.assertTrue("1.avro".equals(file.getPath().getName()) || "2.avro".equals(file.getPath().getName()));
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 	}
 }
