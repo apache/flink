@@ -40,8 +40,9 @@ public class TypeInfoParser {
 	private static final Pattern writablePattern = Pattern.compile("^((" + WRITABLE_PACKAGE.replaceAll("\\.", "\\\\.") + "\\.)?Writable)<([^\\s,>]*)(,|>|$)");
 	private static final Pattern enumPattern = Pattern.compile("^((java\\.lang\\.)?Enum)<([^\\s,>]*)(,|>|$)");
 	private static final Pattern basicTypePattern = Pattern
-			.compile("^((java\\.lang\\.)?(String|Integer|Byte|Short|Character|Double|Float|Long|Boolean))(,|>|$)");
-	private static final Pattern basicType2Pattern = Pattern.compile("^(int|byte|short|char|double|float|long|boolean)(,|>|$)");
+			.compile("^((java\\.lang\\.)?(String|Integer|Byte|Short|Character|Double|Float|Long|Boolean|Void))(,|>|$)");
+	private static final Pattern basicTypeDatePattern = Pattern.compile("^((java\\.util\\.)?Date)(,|>|$)");
+	private static final Pattern basicType2Pattern = Pattern.compile("^(int|byte|short|char|double|float|long|boolean|void)(,|>|$)");
 	private static final Pattern valueTypePattern = Pattern.compile("^((" + VALUE_PACKAGE.replaceAll("\\.", "\\\\.")
 			+ "\\.)?(String|Int|Byte|Short|Char|Double|Float|Long|Boolean|List|Map|Null))Value(,|>|$)");
 	private static final Pattern basicArrayTypePattern = Pattern
@@ -105,6 +106,7 @@ public class TypeInfoParser {
 		final Matcher enumMatcher = enumPattern.matcher(infoString);
 
 		final Matcher basicTypeMatcher = basicTypePattern.matcher(infoString);
+		final Matcher basicTypeDateMatcher = basicTypeDatePattern.matcher(infoString);
 		final Matcher basicType2Matcher = basicType2Pattern.matcher(infoString);
 
 		final Matcher valueTypeMatcher = valueTypePattern.matcher(infoString);
@@ -194,6 +196,19 @@ public class TypeInfoParser {
 			}
 			returnType = BasicTypeInfo.getInfoFor(clazz);
 		}
+		// special basic type "Date"
+		else if (basicTypeDateMatcher.find()) {
+			String className = basicTypeDateMatcher.group(1);
+			sb.delete(0, className.length());
+			Class<?> clazz;
+			// check if fully qualified
+			if (className.startsWith("java.util")) {
+				clazz = Class.forName(className);
+			} else {
+				clazz = Class.forName("java.util." + className);
+			}
+			returnType = BasicTypeInfo.getInfoFor(clazz);
+		}
 		// basic type of primitives
 		else if (basicType2Matcher.find()) {
 			String className = basicType2Matcher.group(1);
@@ -216,6 +231,8 @@ public class TypeInfoParser {
 				clazz = Long.class;
 			} else if (className.equals("boolean")) {
 				clazz = Boolean.class;
+			} else if (className.equals("void")) {
+				clazz = Void.class;
 			}
 			returnType = BasicTypeInfo.getInfoFor(clazz);
 		}
