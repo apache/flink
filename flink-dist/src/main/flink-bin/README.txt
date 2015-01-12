@@ -8,8 +8,8 @@ and our GitHub Account
 
 If you have any questions, ask on our Mailing lists:
 
-   user@flink.incubator.apache.org
-   dev@flink.incubator.apache.org
+   user@flink.apache.org
+   dev@flink.apache.org
 
 This distribution includes cryptographic software.  The country in 
 which you currently reside may have restrictions on the import, 
