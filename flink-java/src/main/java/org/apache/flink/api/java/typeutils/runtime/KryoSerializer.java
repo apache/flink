@@ -20,21 +20,39 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.CollectionSerializer;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.twitter.chill.ScalaKryoInstantiator;
 
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import scala.reflect.ClassTag;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.lang.reflect.Modifier;
 
+/**
+ * A type serializer that serializes its type using the Kryo serialization
+ * framework (https://github.com/EsotericSoftware/kryo).
+ * 
+ * This serializer is intended as a fallback serializer for the cases that are
+ * not covered by the basic types, tuples, and POJOs.
+ *
+ * @param <T> The type to be serialized.
+ */
 public class KryoSerializer<T> extends TypeSerializer<T> {
 	private static final long serialVersionUID = 2L;
 
@@ -48,6 +66,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	
 	private transient Input input;
 	private transient Output output;
+	
+	// ------------------------------------------------------------------------
 
 	public KryoSerializer(Class<T> type){
 		if(type == null){
@@ -56,6 +76,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		this.type = type;
 	}
 
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean isImmutableType() {
@@ -191,15 +212,92 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new ScalaKryoInstantiator().newKryo();
-			this.kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
-			this.kryo.setRegistrationRequired(false);
-			this.kryo.register(type);
-			this.kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
+
+			// Throwable and all subclasses should be serialized via java serialization
+			kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
+
+			// If the type we have to serialize as a GenricType is implementing SpecificRecordBase,
+			// we have to register the avro serializer
+			// This rule only applies if users explicitly use the GenericTypeInformation for the avro types
+			// usually, we are able to handle Avro POJOs with the POJO serializer.
+			if(SpecificRecordBase.class.isAssignableFrom(type)) {
+				ClassTag<SpecificRecordBase> tag = scala.reflect.ClassTag$.MODULE$.apply(type);
+				this.kryo.register(type, com.twitter.chill.avro.AvroSerializer.SpecificRecordSerializer(tag));
+
+			}
+			// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
+			// because Kryo is not able to serialize them properly, we use this serializer for them
+			this.kryo.register(GenericData.Array.class, new SpecificInstanceCollectionSerializer(ArrayList.class));
+			// We register this serializer for users who want to use untyped Avro records (GenericData.Record).
+			// Kryo is able to serialize everything in there, except for the Schema.
+			// This serializer is very slow, but using the GenericData.Records of Kryo is in general a bad idea.
+			// we add the serializer as a default serializer because Avro is using a private sub-type at runtime.
+			this.kryo.addDefaultSerializer(Schema.class, new AvroSchemaSerializer());
+
+
+			// register the type of our class
+			kryo.register(type);
+			
+			// register given types. we do this first so that any registration of a
+			// more specific serializer overrides this
+			for (Class<?> type : registeredTypes) {
+				kryo.register(type);
+			}
+			
+			
+			kryo.setRegistrationRequired(false);
+			kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	// for testing
+	// Custom Serializers
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Special serializer for Java collections enforcing certain instance types.
+	 * Avro is serializing collections with an "GenericData.Array" type. Kryo is not able to handle
+	 * this type, so we use ArrayLists.
+	 */
+	public static class SpecificInstanceCollectionSerializer<T extends Collection> extends CollectionSerializer {
+		Class<T> type;
+		public SpecificInstanceCollectionSerializer(Class<T> type) {
+			this.type = type;
+		}
+
+		@Override
+		protected Collection create(Kryo kryo, Input input, Class<Collection> type) {
+			return kryo.newInstance(this.type);
+		}
+
+		@Override
+		protected Collection createCopy(Kryo kryo, Collection original) {
+			return kryo.newInstance(this.type);
+		}
+	}
+
+	/**
+	 * Slow serialization approach for Avro schemas.
+	 * This is only used with {{@link org.apache.avro.generic.GenericData.Record}} types.
+	 * Having this serializer, we are able to handle avro Records.
+	 */
+	public static class AvroSchemaSerializer extends Serializer<Schema> {
+		@Override
+		public void write(Kryo kryo, Output output, Schema object) {
+			String schemaAsString = object.toString(false);
+			output.writeString(schemaAsString);
+		}
+
+		@Override
+		public Schema read(Kryo kryo, Input input, Class<Schema> type) {
+			String schemaAsString = input.readString();
+			// the parser seems to be stateful, to we need a new one for every type.
+			Schema.Parser sParser = new Schema.Parser();
+			return sParser.parse(schemaAsString);
+		}
+	}
+	// --------------------------------------------------------------------------------------------
+	// For testing
 	// --------------------------------------------------------------------------------------------
 	
 	Kryo getKryo() {
