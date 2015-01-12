@@ -18,7 +18,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 9;
+	private static int NUM_PROGRAMS = 10;
 
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -109,14 +109,14 @@ public class TestGraphOperations extends JavaProgramTestBase {
 
 					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.subgraph(new FilterFunction<Long>() {
-									   public boolean filter(Long value) throws Exception {
-										   return (value > 2);
+					graph.subgraph(new FilterFunction<Vertex<Long, Long>>() {
+									   public boolean filter(Vertex<Long, Long> vertex) throws Exception {
+										   return (vertex.getValue() > 2);
 									   }
 								   },
-							new FilterFunction<Long>() {
-								public boolean filter(Long value) throws Exception {
-									return (value > 34);
+							new FilterFunction<Edge<Long, Long>>() {
+								public boolean filter(Edge<Long, Long> edge) throws Exception {
+									return (edge.getValue() > 34);
 								}
 							}).getEdges().writeAsCsv(resultPath);
 
@@ -125,6 +125,44 @@ public class TestGraphOperations extends JavaProgramTestBase {
 							"4,5,45\n";
 				}
 				case 4: {
+				/*
+				 * Test filterOnVertices:
+				 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+							TestGraphUtils.getLongLongEdgeData(env), env);
+					graph.filterOnVertices(new FilterFunction<Vertex<Long, Long>>() {
+						public boolean filter(Vertex<Long, Long> vertex) throws Exception {
+							return (vertex.getValue() > 2);
+						}
+					}).getEdges().writeAsCsv(resultPath);
+
+					env.execute();
+					return  "3,4,34\n" +
+							"3,5,35\n" +
+							"4,5,45\n";
+				}
+				case 5: {
+				/*
+				 * Test filterOnEdges:
+				 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+							TestGraphUtils.getLongLongEdgeData(env), env);
+					graph.filterOnEdges(new FilterFunction<Edge<Long, Long>>() {
+						public boolean filter(Edge<Long, Long> edge) throws Exception {
+							return (edge.getValue() > 34);
+						}
+					}).getEdges().writeAsCsv(resultPath);
+
+					env.execute();
+					return "3,5,35\n" +
+							"4,5,45\n" +
+							"5,1,51\n";
+				}
+				case 6: {
 				/*
 				 * Test numberOfVertices()
 				 */
@@ -137,7 +175,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "5";
 				}
-				case 5: {
+				case 7: {
 				/*
 				 * Test numberOfEdges()
 				 */
@@ -150,7 +188,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "7";
 				}
-				case 6: {
+				case 8: {
 				/*
 				 * Test getVertexIds()
 				 */
@@ -163,7 +201,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "1\n2\n3\n4\n5\n";
 				}
-				case 7: {
+				case 9: {
 				/*
 				 * Test getEdgeIds()
 				 */
@@ -179,7 +217,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 							"3,5\n" + "4,5\n" +
 							"5,1\n";
 				}
-				case 8: {
+				case 10: {
 				/*
 				 * Test union()
 				 */
@@ -210,23 +248,6 @@ public class TestGraphOperations extends JavaProgramTestBase {
 							"5,1,51\n" +
 							"6,1,61\n";
 				}
-				case 9: {
-				/*
-				 * Test getDegrees() with disconnected data
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, NullValue, Long> graph = 
-							Graph.create(TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
-
-					graph.outDegrees().writeAsCsv(resultPath);
-					env.execute();
-					return "1,2\n" +
-							"2,1\n" +
-							"3,0\n" +
-							"4,1\n" +
-							"5,0\n";
-					}
 				default:
 					throw new IllegalArgumentException("Invalid program id");
 			}
