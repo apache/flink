@@ -52,7 +52,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala</artifactId>
-			<version>0.8-SNAPSHOT</version>
+			<version>0.8.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -62,7 +62,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
-			<version>0.8-SNAPSHOT</version>
+			<version>0.8.0</version>
 		</dependency>
 	</dependencies>
 
