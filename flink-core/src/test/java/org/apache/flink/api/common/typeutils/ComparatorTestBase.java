@@ -448,7 +448,7 @@ public abstract class ComparatorTestBase<T> {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	protected static final class TestOutputView extends DataOutputStream implements DataOutputView {
+	public static final class TestOutputView extends DataOutputStream implements DataOutputView {
 
 		public TestOutputView() {
 			super(new ByteArrayOutputStream(4096));
@@ -474,7 +474,7 @@ public abstract class ComparatorTestBase<T> {
 		}
 	}
 
-	protected static final class TestInputView extends DataInputStream implements DataInputView {
+	public static final class TestInputView extends DataInputStream implements DataInputView {
 
 		public TestInputView(byte[] data) {
 			super(new ByteArrayInputStream(data));
