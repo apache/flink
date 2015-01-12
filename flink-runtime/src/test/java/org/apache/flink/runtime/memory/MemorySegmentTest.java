@@ -657,4 +657,116 @@ public class MemorySegmentTest {
 			fail("Could not create/read/write random access file.");
 		}
 	}
+
+	@Test
+	public void testCompare() {
+		int numBytes = segment.size();
+		MemorySegment seg2 = null;
+		if (segment instanceof HeapMemorySegment) {
+			seg2 = new HeapMemorySegment(new byte[numBytes]);
+		} else if (segment instanceof DirectMemorySegment) {
+			seg2 = new DirectMemorySegment(numBytes);
+		} else {
+			fail("Unknown MemorySegment implementation was loaded!");
+		}
+		long seed = random.nextLong();
+		random.setSeed(seed);
+
+		int cmp = 0;
+		byte[] expected = new byte[numBytes];
+		random.nextBytes(expected);
+		// compare bytes without offset (equal)
+		segment.put(0, expected);
+		seg2.put(0, expected);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(0, cmp);
+		// compare byte with offset
+		segment.put(6, expected, 6, numBytes - 6);
+		seg2.put(6, expected, 6, numBytes - 6);
+		cmp = segment.compare(seg2, 6, 6, numBytes - 6);
+		Assert.assertEquals(0, cmp);
+
+		// not equal check
+		segment.put(0, (byte) 1);
+		seg2.put(0, (byte) 2);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(cmp < 0, true);
+		// not equal check
+		segment.put(0, (byte) 2);
+		seg2.put(0, (byte) 1);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(cmp > 0, true);
+
+		// restore equality
+		segment.put(0, (byte) 0);
+		seg2.put(0, (byte) 0);
+
+		// not equal check with offset
+		segment.put(6, (byte) 1);
+		seg2.put(6, (byte) 2);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(cmp < 0, true);
+		// not equal check with offset
+		segment.put(6, (byte) 2);
+		seg2.put(6, (byte) 1);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(cmp > 0, true);
+
+	}
+
+	@Test
+	public void testSwapBytes() {
+		int numBytes = segment.size();
+		MemorySegment seg2 = null;
+		if (segment instanceof HeapMemorySegment) {
+			seg2 = new HeapMemorySegment(new byte[numBytes]);
+		} else if (segment instanceof DirectMemorySegment) {
+			seg2 = new DirectMemorySegment(numBytes);
+		} else {
+			fail("Unknown MemorySegment implementation was loaded!");
+		}
+		long seed = random.nextLong();
+		random.setSeed(seed);
+
+		int cmp = 0;
+		byte[] b1 = new byte[numBytes];
+		byte[] b2 = new byte[numBytes];
+		random.nextBytes(b1);
+		random.nextBytes(b2);
+
+		/* swap without offset */
+		segment.put(0, b1);
+		seg2.put(0, b2);
+		// swap bytes
+		segment.swapBytes(seg2, 0, 0, numBytes);
+
+		byte[] result = new byte[numBytes];
+		segment.get(0, result);
+		Assert.assertArrayEquals(result, b2);
+
+		result = new byte[numBytes];
+		seg2.get(0, result);
+		Assert.assertArrayEquals(result, b1);
+
+		/* swap with offset */
+		segment.put(0, b1);
+		seg2.put(0, b2);
+
+		// swap bytes
+		segment.swapBytes(seg2, 6, 6, numBytes - 6);
+
+		for(int i = 0; i < 6; i++) {
+			byte tmp = b1[i];
+			b1[i] = b2[i];
+			b2[i] = tmp;
+		}
+		result = new byte[numBytes];
+		segment.get(0, result, 0, numBytes);
+		Assert.assertArrayEquals(result, b2);
+
+		result = new byte[numBytes];
+		seg2.get(0, result, 0, numBytes);
+		Assert.assertArrayEquals(result, b1);
+
+	}
 }
