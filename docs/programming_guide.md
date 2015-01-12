@@ -1015,7 +1015,7 @@ These are valid expressions for the example POJO above:
 - `complex.word.f2`: Selects the last field in the Tuple3.
 - `complex.hadoopCitizen`: Selects a Hadoop-`Writable` type as a key.
 
-Please note that you can only use types inside POJOs that Flink is able to serialize. Currently, we are using [Avro](http://avro.apache.org) to serialize arbitrary objects (such as `Date`).
+Please note that you can only use types inside POJOs that Flink is able to serialize. Currently, we are using [Kryo](https://github.com/EsotericSoftware/kryo) to serialize arbitrary objects (such as `java.util.Collection`).
 
 ### Define key using a Key Selector Function
 {:.no_toc}

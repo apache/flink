@@ -210,7 +210,12 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 		int code = 0;
 		for (; i < this.keyFields.length; i++) {
 			code *= TupleComparatorBase.HASH_SALT[i & 0x1F];
-			code += this.comparators[i].hash(accessField(keyFields[i], value));
+			try {
+				code += this.comparators[i].hash(accessField(keyFields[i], value));
+			}catch(NullPointerException npe) {
+				throw new RuntimeException("A NullPointerException occured while accessing a key field in a POJO. " +
+						"Most likely, the value grouped/joined on is null. Field name: "+keyFields[i].getName(), npe);
+			}
 		}
 		return code;
 
