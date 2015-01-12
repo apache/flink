@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.instance.SimpleSlot;
 
 public class SlotAllocationFuture {
 	
 	private final Object monitor = new Object();
 	
-	private volatile AllocatedSlot slot;
+	private volatile SimpleSlot slot;
 	
 	private volatile SlotAllocationFutureAction action;
 	
@@ -32,17 +32,17 @@ public class SlotAllocationFuture {
 
 	public SlotAllocationFuture() {}
 	
-	public SlotAllocationFuture(AllocatedSlot slot) {
+	public SlotAllocationFuture(SimpleSlot slot) {
 		this.slot = slot;
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public AllocatedSlot waitTillAllocated() throws InterruptedException {
+	public SimpleSlot waitTillAllocated() throws InterruptedException {
 		return waitTillAllocated(0);
 	}
 	
-	public AllocatedSlot waitTillAllocated(long timeout) throws InterruptedException {
+	public SimpleSlot waitTillAllocated(long timeout) throws InterruptedException {
 		synchronized (monitor) {
 			while (slot == null) {
 				monitor.wait(timeout);
@@ -66,7 +66,7 @@ public class SlotAllocationFuture {
 		}
 	}
 	
-	public void setSlot(AllocatedSlot slot) {
+	public void setSlot(SimpleSlot slot) {
 		if (slot == null) {
 			throw new NullPointerException();
 		}

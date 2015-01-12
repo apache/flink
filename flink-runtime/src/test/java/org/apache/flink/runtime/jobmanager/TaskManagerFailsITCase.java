@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.killRandomHeartbeatThread;
 import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.startJobManager;
 import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.waitForTaskThreadsToBeTerminated;
 import static org.junit.Assert.*;
@@ -102,6 +103,67 @@ public class TaskManagerFailsITCase {
 				waitForTaskThreadsToBeTerminated();
 				assertTrue(bp1.isDestroyed() || bp1.numBuffers() == bp1.numAvailableBuffers());
 				assertTrue(bp2.isDestroyed() || bp2.numBuffers() == bp2.numAvailableBuffers());
+			}
+			finally {
+				jm.shutdown();
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testExecutionWithFailingHeartbeat() {
+		final int NUM_TASKS = 31;
+
+		try {
+			final AbstractJobVertex sender = new AbstractJobVertex("Sender");
+			final AbstractJobVertex receiver = new AbstractJobVertex("Receiver");
+			sender.setInvokableClass(Sender.class);
+			receiver.setInvokableClass(BlockingReceiver.class);
+			sender.setParallelism(NUM_TASKS);
+			receiver.setParallelism(NUM_TASKS);
+			receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE);
+
+			final JobGraph jobGraph = new JobGraph("Pointwise Job", sender, receiver);
+
+			final JobManager jm = startJobManager(2, NUM_TASKS);
+
+			try {
+
+				JobSubmissionResult result = jm.submitJob(jobGraph);
+
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
+				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
+
+				ExecutionGraph eg = jm.getCurrentJobs().get(jobGraph.getJobID());
+
+				// wait until everyone has settled in
+				long deadline = System.currentTimeMillis() + 2000;
+				while (System.currentTimeMillis() < deadline) {
+
+					boolean allrunning = true;
+					for (ExecutionVertex v : eg.getJobVertex(receiver.getID()).getTaskVertices()) {
+						if (v.getCurrentExecutionAttempt().getState() != ExecutionState.RUNNING) {
+							allrunning = false;
+							break;
+						}
+					}
+
+					if (allrunning) {
+						break;
+					}
+					Thread.sleep(200);
+				}
+
+				// kill one task manager's heartbeat
+				killRandomHeartbeatThread();
+
+				eg.waitForJobEnd();
 			}
 			finally {
 				jm.shutdown();

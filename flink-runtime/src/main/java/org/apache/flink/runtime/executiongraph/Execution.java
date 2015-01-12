@@ -32,8 +32,8 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -87,7 +87,7 @@ public class Execution {
 	
 	private volatile ExecutionState state = CREATED;
 	
-	private volatile AllocatedSlot assignedResource;  // once assigned, never changes
+	private volatile SimpleSlot assignedResource;  // once assigned, never changes
 	
 	private volatile Throwable failureCause;          // once assigned, never changes
 	
@@ -125,7 +125,7 @@ public class Execution {
 		return state;
 	}
 	
-	public AllocatedSlot getAssignedResource() {
+	public SimpleSlot getAssignedResource() {
 		return assignedResource;
 	}
 	
@@ -169,7 +169,7 @@ public class Execution {
 		
 		// sanity check
 		if (locationConstraint != null && sharingGroup == null) {
-			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing allowed.");
+			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing not allowed.");
 		}
 		
 		if (transitionState(CREATED, SCHEDULED)) {
@@ -185,7 +185,7 @@ public class Execution {
 				
 				future.setFutureAction(new SlotAllocationFutureAction() {
 					@Override
-					public void slotAllocated(AllocatedSlot slot) {
+					public void slotAllocated(SimpleSlot slot) {
 						try {
 							deployToSlot(slot);
 						}
@@ -200,7 +200,7 @@ public class Execution {
 				});
 			}
 			else {
-				AllocatedSlot slot = scheduler.scheduleImmediately(toSchedule);
+				SimpleSlot slot = scheduler.scheduleImmediately(toSchedule);
 				try {
 					deployToSlot(slot);
 				}
@@ -219,7 +219,7 @@ public class Execution {
 		}
 	}
 	
-	public void deployToSlot(final AllocatedSlot slot) throws JobException {
+	public void deployToSlot(final SimpleSlot slot) throws JobException {
 		// sanity checks
 		if (slot == null) {
 			throw new NullPointerException();
@@ -470,7 +470,6 @@ public class Execution {
 	// --------------------------------------------------------------------------------------------
 	
 	private boolean processFail(Throwable t, boolean isCallback) {
-		
 		// damn, we failed. This means only that we keep our books and notify our parent JobExecutionVertex
 		// the actual computation on the task manager is cleaned up by the TaskManager that noticed the failure
 		
@@ -572,7 +571,7 @@ public class Execution {
 	}
 	
 	private void sendCancelRpcCall() {
-		final AllocatedSlot slot = this.assignedResource;
+		final SimpleSlot slot = this.assignedResource;
 		if (slot == null) {
 			return;
 		}
