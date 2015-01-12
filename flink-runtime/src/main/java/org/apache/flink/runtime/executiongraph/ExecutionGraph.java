@@ -390,7 +390,6 @@ public class ExecutionGraph {
 			long now = System.currentTimeMillis();
 			long deadline = timeout == 0 ? Long.MAX_VALUE : now + timeout;
 			
-			
 			while (now < deadline && !state.isTerminalState()) {
 				progressLock.wait(deadline - now);
 				now = System.currentTimeMillis();

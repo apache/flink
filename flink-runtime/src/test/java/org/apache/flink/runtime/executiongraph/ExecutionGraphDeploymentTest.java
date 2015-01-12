@@ -38,8 +38,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -117,7 +117,7 @@ public class ExecutionGraphDeploymentTest {
 			});
 			
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(jobId);
+			final SimpleSlot slot = instance.allocateSimpleSlot(jobId);
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			

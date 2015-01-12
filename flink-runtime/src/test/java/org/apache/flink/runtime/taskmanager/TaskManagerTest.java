@@ -274,6 +274,7 @@ public class TaskManagerTest {
 			assertTrue(result2.isSuccess());
 			assertEquals(eid1, result1.getExecutionId());
 			assertEquals(eid2, result2.getExecutionId());
+
 			
 			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
 			

@@ -25,8 +25,8 @@ import static org.mockito.Mockito.*;
 
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
@@ -47,7 +47,7 @@ public class ExecutionVertexSchedulingTest {
 			// a slot than cannot be deployed to
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			slot.cancel();
 			assertFalse(slot.isReleased());
 			
@@ -80,7 +80,7 @@ public class ExecutionVertexSchedulingTest {
 			// a slot than cannot be deployed to
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			slot.cancel();
 			assertFalse(slot.isReleased());
 			
@@ -119,7 +119,7 @@ public class ExecutionVertexSchedulingTest {
 			// a slot than cannot be deployed to
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 			final Instance instance = getInstance(taskManager);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
