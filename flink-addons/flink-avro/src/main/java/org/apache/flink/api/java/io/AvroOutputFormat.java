@@ -41,7 +41,6 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> {
 
 	private transient DataFileWriter<E> dataFileWriter;
 
-
 	public AvroOutputFormat(Path filePath, Class<E> type) {
 		super(filePath);
 		this.avroValueType = type;
@@ -49,6 +48,11 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> {
 
 	public AvroOutputFormat(Class<E> type) {
 		this.avroValueType = type;
+	}
+
+	@Override
+	protected String getDirectoryFileName(int taskNumber) {
+		return super.getDirectoryFileName(taskNumber) + ".avro";
 	}
 
 	public void setSchema(Schema schema) {
@@ -63,6 +67,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> {
 	@Override
 	public void open(int taskNumber, int numTasks) throws IOException {
 		super.open(taskNumber, numTasks);
+
 		DatumWriter<E> datumWriter;
 		Schema schema = null;
 		if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)) {
