@@ -346,10 +346,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @param edgeFilter
      * @return
      */
-    public Graph<K, VV, EV> subgraph(FilterFunction<VV> vertexFilter, FilterFunction<EV> edgeFilter) {
+    public Graph<K, VV, EV> subgraph(FilterFunction<Vertex<K, VV>> vertexFilter, FilterFunction<Edge<K, EV>> edgeFilter) {
 
-        DataSet<Vertex<K, VV>> filteredVertices = this.vertices.filter(
-        		new ApplyVertexFilter<K, VV>(vertexFilter));
+        DataSet<Vertex<K, VV>> filteredVertices = this.vertices.filter(vertexFilter);
 
         DataSet<Edge<K, EV>> remainingEdges = this.edges.join(filteredVertices)
         		.where(0).equalTo(0)
@@ -357,8 +356,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         		.join(filteredVertices).where(1).equalTo(0)
         		.with(new ProjectEdge<K, VV, EV>());
 
-        DataSet<Edge<K, EV>> filteredEdges = remainingEdges.filter(
-        		new ApplyEdgeFilter<K, EV>(edgeFilter));
+        DataSet<Edge<K, EV>> filteredEdges = remainingEdges.filter(edgeFilter);
 
         return new Graph<K, VV, EV>(filteredVertices, filteredEdges, this.context);
     }
@@ -370,10 +368,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param vertexFilter
 	 * @return
 	 */
-	public Graph<K, VV, EV> filterOnVertices(FilterFunction<VV> vertexFilter) {
+	public Graph<K, VV, EV> filterOnVertices(FilterFunction<Vertex<K, VV>> vertexFilter) {
 
-		DataSet<Vertex<K, VV>> filteredVertices = this.vertices.filter(
-				new ApplyVertexFilter<K, VV>(vertexFilter));
+		DataSet<Vertex<K, VV>> filteredVertices = this.vertices.filter(vertexFilter);
 
 		DataSet<Edge<K, EV>> remainingEdges = this.edges.join(filteredVertices)
 				.where(0).equalTo(0)
@@ -391,9 +388,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param edgeFilter
 	 * @return
 	 */
-	public Graph<K, VV, EV> filterOnEdges(FilterFunction<EV> edgeFilter) {
-		DataSet<Edge<K, EV>> filteredEdges = this.edges.filter(
-				new ApplyEdgeFilter<K, EV>(edgeFilter));
+	public Graph<K, VV, EV> filterOnEdges(FilterFunction<Edge<K, EV>> edgeFilter) {
+		DataSet<Edge<K, EV>> filteredEdges = this.edges.filter(edgeFilter);
 
 		return new Graph<K, VV, EV>(this.vertices, filteredEdges, this.context);
 	}
@@ -408,34 +404,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
     }
     
-    private static final class ApplyVertexFilter<K extends Comparable<K> & Serializable, 
-    	VV extends Serializable> implements FilterFunction<Vertex<K, VV>> {
-
-    	private FilterFunction<VV> innerFilter;
-    	
-    	public ApplyVertexFilter(FilterFunction<VV> theFilter) {
-    		this.innerFilter = theFilter;
-    	}
-
-		public boolean filter(Vertex<K, VV> value) throws Exception {
-			return innerFilter.filter(value.f1);
-		}
-    	
-    }
-
-    private static final class ApplyEdgeFilter<K extends Comparable<K> & Serializable, 
-		EV extends Serializable> implements FilterFunction<Edge<K, EV>> {
-
-    	private FilterFunction<EV> innerFilter;
-    	
-    	public ApplyEdgeFilter(FilterFunction<EV> theFilter) {
-    		this.innerFilter = theFilter;
-    	}    	
-        public boolean filter(Edge<K, EV> value) throws Exception {
-            return innerFilter.filter(value.f2);
-        }
-    }
-
     /**
      * Return the out-degree of all vertices in the graph
      * @return A DataSet of Tuple2<vertexId, outDegree>

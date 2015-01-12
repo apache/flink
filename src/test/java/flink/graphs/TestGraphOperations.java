@@ -109,14 +109,14 @@ public class TestGraphOperations extends JavaProgramTestBase {
 
 					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.subgraph(new FilterFunction<Long>() {
-									   public boolean filter(Long value) throws Exception {
-										   return (value > 2);
+					graph.subgraph(new FilterFunction<Vertex<Long, Long>>() {
+									   public boolean filter(Vertex<Long, Long> vertex) throws Exception {
+										   return (vertex.getValue() > 2);
 									   }
 								   },
-							new FilterFunction<Long>() {
-								public boolean filter(Long value) throws Exception {
-									return (value > 34);
+							new FilterFunction<Edge<Long, Long>>() {
+								public boolean filter(Edge<Long, Long> edge) throws Exception {
+									return (edge.getValue() > 34);
 								}
 							}).getEdges().writeAsCsv(resultPath);
 
@@ -132,9 +132,9 @@ public class TestGraphOperations extends JavaProgramTestBase {
 
 					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.filterOnVertices(new FilterFunction<Long>() {
-						public boolean filter(Long value) throws Exception {
-							return (value > 2);
+					graph.filterOnVertices(new FilterFunction<Vertex<Long, Long>>() {
+						public boolean filter(Vertex<Long, Long> vertex) throws Exception {
+							return (vertex.getValue() > 2);
 						}
 					}).getEdges().writeAsCsv(resultPath);
 
@@ -151,9 +151,9 @@ public class TestGraphOperations extends JavaProgramTestBase {
 
 					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.filterOnEdges(new FilterFunction<Long>() {
-						public boolean filter(Long value) throws Exception {
-							return (value > 34);
+					graph.filterOnEdges(new FilterFunction<Edge<Long, Long>>() {
+						public boolean filter(Edge<Long, Long> edge) throws Exception {
+							return (edge.getValue() > 34);
 						}
 					}).getEdges().writeAsCsv(resultPath);
 
