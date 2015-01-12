@@ -29,7 +29,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -74,7 +74,7 @@ public class ExecutionStateProgressTest {
 			// mock resources and mock taskmanager
 			ActorRef taskManager = system.actorOf(Props.create(SimpleAcknowledgingTaskManager.class));
 			for (ExecutionVertex ee : ejv.getTaskVertices()) {
-				AllocatedSlot slot = getInstance(taskManager).allocateSlot(jid);
+				SimpleSlot slot = getInstance(taskManager).allocateSimpleSlot(jid);
 				ee.deployToSlot(slot);
 			}
 			

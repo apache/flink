@@ -45,10 +45,10 @@ public class InstanceTest {
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());
 			
-			AllocatedSlot slot1 = instance.allocateSlot(new JobID());
-			AllocatedSlot slot2 = instance.allocateSlot(new JobID());
-			AllocatedSlot slot3 = instance.allocateSlot(new JobID());
-			AllocatedSlot slot4 = instance.allocateSlot(new JobID());
+			SimpleSlot slot1 = instance.allocateSimpleSlot(new JobID());
+			SimpleSlot slot2 = instance.allocateSimpleSlot(new JobID());
+			SimpleSlot slot3 = instance.allocateSimpleSlot(new JobID());
+			SimpleSlot slot4 = instance.allocateSimpleSlot(new JobID());
 			
 			assertNotNull(slot1);
 			assertNotNull(slot2);
@@ -61,7 +61,7 @@ public class InstanceTest {
 					slot3.getSlotNumber() + slot4.getSlotNumber());
 			
 			// no more slots
-			assertNull(instance.allocateSlot(new JobID()));
+			assertNull(instance.allocateSimpleSlot(new JobID()));
 			try {
 				instance.returnAllocatedSlot(slot2);
 				fail("instance accepted a non-cancelled slot.");
@@ -109,9 +109,9 @@ public class InstanceTest {
 			
 			assertEquals(3, instance.getNumberOfAvailableSlots());
 			
-			AllocatedSlot slot1 = instance.allocateSlot(new JobID());
-			AllocatedSlot slot2 = instance.allocateSlot(new JobID());
-			AllocatedSlot slot3 = instance.allocateSlot(new JobID());
+			SimpleSlot slot1 = instance.allocateSimpleSlot(new JobID());
+			SimpleSlot slot2 = instance.allocateSimpleSlot(new JobID());
+			SimpleSlot slot3 = instance.allocateSimpleSlot(new JobID());
 			
 			instance.markDead();
 			
@@ -139,9 +139,9 @@ public class InstanceTest {
 			
 			assertEquals(3, instance.getNumberOfAvailableSlots());
 			
-			AllocatedSlot slot1 = instance.allocateSlot(new JobID());
-			AllocatedSlot slot2 = instance.allocateSlot(new JobID());
-			AllocatedSlot slot3 = instance.allocateSlot(new JobID());
+			SimpleSlot slot1 = instance.allocateSimpleSlot(new JobID());
+			SimpleSlot slot2 = instance.allocateSimpleSlot(new JobID());
+			SimpleSlot slot3 = instance.allocateSimpleSlot(new JobID());
 			
 			instance.cancelAndReleaseAllSlots();
 			

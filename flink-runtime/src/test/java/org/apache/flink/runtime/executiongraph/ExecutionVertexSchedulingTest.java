@@ -29,8 +29,8 @@ import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import akka.testkit.TestActorRef;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
@@ -64,7 +64,7 @@ public class ExecutionVertexSchedulingTest {
 		try {
 			// a slot than cannot be deployed to
 			final Instance instance = getInstance(ActorRef.noSender());
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			slot.cancel();
 			assertFalse(slot.isReleased());
 			
@@ -94,7 +94,7 @@ public class ExecutionVertexSchedulingTest {
 		try {
 			// a slot than cannot be deployed to
 			final Instance instance = getInstance(ActorRef.noSender());
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			slot.cancel();
 			assertFalse(slot.isReleased());
 			
@@ -133,7 +133,7 @@ public class ExecutionVertexSchedulingTest {
 					.SimpleAcknowledgingTaskManager.class));
 
 			final Instance instance = getInstance(tm);
-			final AllocatedSlot slot = instance.allocateSlot(new JobID());
+			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
