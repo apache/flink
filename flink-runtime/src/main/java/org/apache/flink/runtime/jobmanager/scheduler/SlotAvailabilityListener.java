@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.runtime.instance.Instance;
 
 /**
- * A SlotAvailabilityListener can be notified when new {@link org.apache.flink.runtime.instance.AllocatedSlot}s become available
+ * A SlotAvailabilityListener can be notified when new {@link org.apache.flink.runtime.instance.AllocatedSlot2}s become available
  * on an {@link org.apache.flink.runtime.instance.Instance}.
  */
 public interface SlotAvailabilityListener {

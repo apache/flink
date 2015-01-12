@@ -437,6 +437,7 @@ class JobManager(val configuration: Configuration)
 
     case Terminated(taskManager) => {
       log.info("Task manager {} terminated.", taskManager.path)
+      JobManager.LOG.warn(s"Task manager ${taskManager.path} terminated.")
       instanceManager.unregisterTaskManager(taskManager)
       context.unwatch(taskManager)
     }

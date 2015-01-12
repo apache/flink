@@ -27,8 +27,10 @@ import java.util.Queue;
 import java.util.Set;
 
 import akka.actor.ActorRef;
+import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroupAssignment;
 
 /**
  * An taskManager represents a resource a {@link org.apache.flink.runtime.taskmanager.TaskManager} runs on.
@@ -59,7 +61,7 @@ public class Instance implements Serializable {
 	private transient final Queue<Integer> availableSlots;
 	
 	/** Allocated slots on this taskManager */
-	private final Set<AllocatedSlot> allocatedSlots = new HashSet<AllocatedSlot>();
+	private final Set<Slot> allocatedSlots = new HashSet<Slot>();
 
 	
 	/** A listener to be notified upon new slot availability */
@@ -121,20 +123,27 @@ public class Instance implements Serializable {
 	}
 
 	public void markDead() {
-		if (isDead) {
-			return;
-		}
-		
-		isDead = true;
-		
 		synchronized (instanceLock) {
-			
+			if (isDead) {
+				return;
+			}
+
+			isDead = true;
+
 			// no more notifications for the slot releasing
 			this.slotAvailabilityListener = null;
-			
-			for (AllocatedSlot slot : allocatedSlots) {
-				slot.releaseSlot();
-			}
+		}
+
+		/*
+		 * releaseSlot must not own the instanceLock in order to avoid dead locks where a slot
+		 * owning the assignment group lock wants to give itself back to the instance which requires
+		 * the instance lock
+		 */
+		for (Slot slot : allocatedSlots) {
+			slot.releaseSlot();
+		}
+
+		synchronized (instanceLock) {
 			allocatedSlots.clear();
 			availableSlots.clear();
 		}
@@ -176,8 +185,12 @@ public class Instance implements Serializable {
 	// --------------------------------------------------------------------------------------------
 	// Resource allocation
 	// --------------------------------------------------------------------------------------------
+
+	public SimpleSlot allocateSimpleSlot(JobID jobID) throws InstanceDiedException {
+		return allocateSimpleSlot(jobID, jobID);
+	}
 	
-	public AllocatedSlot allocateSlot(JobID jobID) throws InstanceDiedException {
+	public SimpleSlot allocateSimpleSlot(JobID jobID, AbstractID groupID) throws InstanceDiedException {
 		if (jobID == null) {
 			throw new IllegalArgumentException();
 		}
@@ -191,15 +204,38 @@ public class Instance implements Serializable {
 			if (nextSlot == null) {
 				return null;
 			} else {
-				AllocatedSlot slot = new AllocatedSlot(jobID, this, nextSlot);
+				SimpleSlot slot = new SimpleSlot(jobID, this, nextSlot, null, groupID);
 				allocatedSlots.add(slot);
 				return slot;
 			}
 		}
 	}
-	
-	public boolean returnAllocatedSlot(AllocatedSlot slot) {
+
+	public SharedSlot allocateSharedSlot(JobID jobID, SlotSharingGroupAssignment sharingGroupAssignment, AbstractID groupID) throws
+	InstanceDiedException {
 		// the slot needs to be in the returned to taskManager state
+		if (jobID == null) {
+			throw new IllegalArgumentException();
+		}
+
+		synchronized (instanceLock) {
+			if (isDead) {
+				throw new InstanceDiedException(this);
+			}
+
+			Integer nextSlot = availableSlots.poll();
+			if (nextSlot == null) {
+				return null;
+			} else {
+				SharedSlot slot = new SharedSlot(jobID, this, nextSlot,
+						sharingGroupAssignment, null, groupID);
+				allocatedSlots.add(slot);
+				return slot;
+			}
+		}
+	}
+
+	public boolean returnAllocatedSlot(Slot slot) {
 		if (slot == null || slot.getInstance() != this) {
 			throw new IllegalArgumentException("Slot is null or belongs to the wrong taskManager.");
 		}
@@ -231,14 +267,15 @@ public class Instance implements Serializable {
 	}
 	
 	public void cancelAndReleaseAllSlots() {
+		List<Slot> copy = null;
+
 		synchronized (instanceLock) {
 			// we need to do this copy because of concurrent modification exceptions
-			List<AllocatedSlot> copy = new ArrayList<AllocatedSlot>(this.allocatedSlots);
+			copy = new ArrayList<Slot>(this.allocatedSlots);
+		}
 			
-			for (AllocatedSlot slot : copy) {
-				slot.releaseSlot();
-			}
-			allocatedSlots.clear();
+		for (Slot slot : copy) {
+			slot.releaseSlot();
 		}
 	}
 
@@ -293,6 +330,6 @@ public class Instance implements Serializable {
 	@Override
 	public String toString() {
 		return instanceId + " @" + (taskManager != null ? taskManager.path() : "ActorRef.noSender") + " " +
-				numberOfSlots + " slots";
+				numberOfSlots + " slots" + " - " + hashCode();
 	}
 }

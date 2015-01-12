@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{ActorSystem, PoisonPill}
+import akka.actor.{Kill, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
@@ -41,7 +41,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
   }
 
   "The JobManager" should {
-    "handle failing task manager" in {
+    "handle gracefully failing task manager" in {
       val num_tasks = 31
       val sender = new AbstractJobVertex("Sender")
       val receiver = new AbstractJobVertex("Receiver")
@@ -72,6 +72,41 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
           val tm = expectMsgType[WorkingTaskManager].taskManager
           // kill one task manager
           tm ! PoisonPill
+          expectMsgType[JobResultFailed]
+        }
+      }finally{
+        cluster.stop()
+      }
+    }
+
+    "handle hard failing task manager" in {
+      val num_tasks = 31
+      val sender = new AbstractJobVertex("Sender")
+      val receiver = new AbstractJobVertex("Receiver")
+      sender.setInvokableClass(classOf[Sender])
+      receiver.setInvokableClass(classOf[BlockingReceiver])
+      sender.setParallelism(num_tasks)
+      receiver.setParallelism(num_tasks)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+
+      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobID = jobGraph.getJobID
+
+      val cluster = TestingUtils.startTestingCluster(num_tasks, 2)
+
+      val taskManagers = cluster.getTaskManagers
+      val jm = cluster.getJobManager
+
+      try {
+        within(TestingUtils.TESTING_DURATION) {
+          jm ! SubmitJob(jobGraph)
+          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+
+          jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
+          expectMsg(AllVerticesRunning(jobID))
+
+          // kill one task manager
+          taskManagers(0) ! Kill
           expectMsgType[JobResultFailed]
         }
       }finally{

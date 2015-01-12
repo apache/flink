@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
@@ -25,7 +26,6 @@ import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartitionInfo;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -178,7 +178,7 @@ public class ExecutionVertex implements Serializable {
 		return currentExecution.getFailureCause();
 	}
 	
-	public AllocatedSlot getCurrentAssignedResource() {
+	public SimpleSlot getCurrentAssignedResource() {
 		return currentExecution.getAssignedResource();
 	}
 	
@@ -304,7 +304,7 @@ public class ExecutionVertex implements Serializable {
 			ExecutionEdge[] sources = inputEdges[i];
 			if (sources != null) {
 				for (int k = 0; k < sources.length; k++) {
-					AllocatedSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
+					SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
 					if (sourceSlot != null) {
 						locations.add(sourceSlot.getInstance());
 						if (locations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
@@ -346,7 +346,7 @@ public class ExecutionVertex implements Serializable {
 		return this.currentExecution.scheduleForExecution(scheduler, queued);
 	}
 
-	public void deployToSlot(AllocatedSlot slot) throws JobException {
+	public void deployToSlot(SimpleSlot slot) throws JobException {
 		this.currentExecution.deployToSlot(slot);
 	}
 
@@ -397,7 +397,7 @@ public class ExecutionVertex implements Serializable {
 		getExecutionGraph().notifyExecutionChange(getJobvertexId(), subTaskIndex, executionId, newState, error);
 	}
 	
-	TaskDeploymentDescriptor createDeploymentDescriptor(ExecutionAttemptID executionId, AllocatedSlot slot) {
+	TaskDeploymentDescriptor createDeploymentDescriptor(ExecutionAttemptID executionId, SimpleSlot slot) {
 		// Produced intermediate results
 		List<PartitionDeploymentDescriptor> producedPartitions = new ArrayList<PartitionDeploymentDescriptor>(resultPartitions.length);
 

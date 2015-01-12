@@ -42,8 +42,8 @@ import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor
 import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -120,7 +120,7 @@ public class ExecutionGraphDeploymentTest {
 
 			final Instance instance = getInstance(simpleTaskManager);
 
-			final AllocatedSlot slot = instance.allocateSlot(jobId);
+			final SimpleSlot slot = instance.allocateSimpleSlot(jobId);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 

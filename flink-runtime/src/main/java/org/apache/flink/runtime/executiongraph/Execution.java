@@ -101,8 +101,8 @@ public class Execution implements Serializable {
 
 
 	private volatile ExecutionState state = CREATED;
-
-	private volatile AllocatedSlot assignedResource;  // once assigned, never changes
+	
+	private volatile SimpleSlot assignedResource;  // once assigned, never changes
 	
 	private volatile Throwable failureCause;          // once assigned, never changes
 	
@@ -141,7 +141,7 @@ public class Execution implements Serializable {
 		return state;
 	}
 	
-	public AllocatedSlot getAssignedResource() {
+	public SimpleSlot getAssignedResource() {
 		return assignedResource;
 	}
 	
@@ -185,7 +185,7 @@ public class Execution implements Serializable {
 
 		// sanity check
 		if (locationConstraint != null && sharingGroup == null) {
-			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing allowed.");
+			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing not allowed.");
 		}
 
 		if (transitionState(CREATED, SCHEDULED)) {
@@ -201,7 +201,7 @@ public class Execution implements Serializable {
 
 				future.setFutureAction(new SlotAllocationFutureAction() {
 					@Override
-					public void slotAllocated(AllocatedSlot slot) {
+					public void slotAllocated(SimpleSlot slot) {
 						try {
 							deployToSlot(slot);
 						}
@@ -216,7 +216,7 @@ public class Execution implements Serializable {
 				});
 			}
 			else {
-				AllocatedSlot slot = scheduler.scheduleImmediately(toSchedule);
+				SimpleSlot slot = scheduler.scheduleImmediately(toSchedule);
 				try {
 					deployToSlot(slot);
 				}
@@ -237,7 +237,7 @@ public class Execution implements Serializable {
 		}
 	}
 
-	public void deployToSlot(final AllocatedSlot slot) throws JobException {
+	public void deployToSlot(final SimpleSlot slot) throws JobException {
 		// sanity checks
 		if (slot == null) {
 			throw new NullPointerException();
@@ -406,7 +406,7 @@ public class Execution implements Serializable {
 				}
 			}
 			else if (consumerState == RUNNING) {
-				AllocatedSlot consumerSlot = consumerVertex.getCurrentAssignedResource();
+				SimpleSlot consumerSlot = consumerVertex.getCurrentAssignedResource();
 				ExecutionAttemptID consumerExecutionId = consumerVertex.getCurrentExecutionAttempt().getAttemptId();
 
 				PartitionInfo partitionInfo = PartitionInfo.fromEdge(edge, consumerSlot);
@@ -635,7 +635,7 @@ public class Execution implements Serializable {
 	}
 
 	private void sendCancelRpcCall() {
-		final AllocatedSlot slot = this.assignedResource;
+		final SimpleSlot slot = this.assignedResource;
 		if (slot == null) {
 			return;
 		}
@@ -662,7 +662,7 @@ public class Execution implements Serializable {
 	}
 
 	private void sendFailIntermediateResultPartitionsRPCCall() {
-		final AllocatedSlot slot = this.assignedResource;
+		final SimpleSlot slot = this.assignedResource;
 		if (slot == null) {
 			return;
 		}
@@ -680,7 +680,7 @@ public class Execution implements Serializable {
 		}
 	}
 
-	private boolean sendUpdateTaskRpcCall(final AllocatedSlot consumerSlot, final ExecutionAttemptID executionId, final IntermediateDataSetID resultId, final PartitionInfo partitionInfo) throws Exception {
+	private boolean sendUpdateTaskRpcCall(final SimpleSlot consumerSlot, final ExecutionAttemptID executionId, final IntermediateDataSetID resultId, final PartitionInfo partitionInfo) throws Exception {
 		final Instance instance = consumerSlot.getInstance();
 
 		final TaskManagerMessages.TaskOperationResult result = AkkaUtils.ask(

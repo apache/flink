@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{ActorSystem, PoisonPill}
+import akka.actor.{Kill, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
@@ -41,7 +41,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
   }
 
   "The JobManager" should {
-    "handle task manager failures with slot sharing" in {
+    "handle gracefully failing task manager with slot sharing" in {
       val num_tasks = 20
 
       val sender = new AbstractJobVertex("Sender")
@@ -76,6 +76,48 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
           //kill task manager
           taskManagers(0) ! PoisonPill
+
+          expectMsgType[JobResultFailed]
+        }
+      }finally{
+        cluster.stop()
+      }
+    }
+
+    "handle hard failing task manager with slot sharing" in {
+      val num_tasks = 20
+
+      val sender = new AbstractJobVertex("Sender")
+      val receiver = new AbstractJobVertex("Receiver")
+
+      sender.setInvokableClass(classOf[Sender])
+      receiver.setInvokableClass(classOf[BlockingReceiver])
+
+      sender.setParallelism(num_tasks)
+      receiver.setParallelism(num_tasks)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+
+      val sharingGroup = new SlotSharingGroup()
+      sender.setSlotSharingGroup(sharingGroup)
+      receiver.setSlotSharingGroup(sharingGroup)
+
+      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobID = jobGraph.getJobID
+
+      val cluster = TestingUtils.startTestingCluster(num_tasks/2, 2)
+      val jm = cluster.getJobManager
+      val taskManagers = cluster.getTaskManagers
+
+      try{
+        within(TestingUtils.TESTING_DURATION) {
+          jm ! SubmitJob(jobGraph)
+          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+
+          jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
+          expectMsg(AllVerticesRunning(jobID))
+
+          //kill task manager
+          taskManagers(0) ! Kill
 
           expectMsgType[JobResultFailed]
         }
