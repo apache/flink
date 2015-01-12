@@ -292,6 +292,6 @@ public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopI
 	
 	@Override
 	public TypeInformation<Tuple2<K,V>> getProducedType() {
-		return new TupleTypeInfo<Tuple2<K,V>>(TypeExtractor.getForClass((Class<K>) keyClass), TypeExtractor.getForClass((Class<V>) valueClass));
+		return new TupleTypeInfo<Tuple2<K,V>>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
 	}
 }
