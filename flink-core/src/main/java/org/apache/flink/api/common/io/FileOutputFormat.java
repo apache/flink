@@ -89,7 +89,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 	 * The key under which the name of the target path is stored in the configuration. 
 	 */
 	public static final String FILE_PARAMETER_KEY = "flink.output.file";
-	
+
 	/**
 	 * The path of the file to be written.
 	 */
@@ -104,7 +104,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 	 * The output directory mode
 	 */
 	private OutputDirectoryMode outputDirectoryMode;
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	/** The stream to which the data is written; */
@@ -161,7 +161,8 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 	public OutputDirectoryMode getOutputDirectoryMode() {
 		return this.outputDirectoryMode;
 	}
-	
+
+
 	// ----------------------------------------------------------------
 
 	@Override
@@ -233,16 +234,21 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 				}
 			}
 		}
-			
-			
+
+
+
 		// Suffix the path with the parallel instance index, if needed
-		this.actualFilePath = (numTasks > 1 || outputDirectoryMode == OutputDirectoryMode.ALWAYS) ? p.suffix("/" + (taskNumber+1)) : p;
+		this.actualFilePath = (numTasks > 1 || outputDirectoryMode == OutputDirectoryMode.ALWAYS) ? p.suffix("/" + getDirectoryFileName(taskNumber)) : p;
 
 		// create output file
 		this.stream = fs.create(this.actualFilePath, writeMode == WriteMode.OVERWRITE);
 		
 		// at this point, the file creation must have succeeded, or an exception has been thrown
 		this.fileCreated = true;
+	}
+
+	protected String getDirectoryFileName(int taskNumber) {
+		return Integer.toString(taskNumber + 1);
 	}
 
 	@Override

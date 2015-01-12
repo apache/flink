@@ -84,12 +84,17 @@ public class AvroOutputFormatTest extends JavaProgramTestBase {
 		File file1 = asFile(outputPath1);
 		if (file1.isDirectory()) {
 			output1 = file1.listFiles();
+			// check for avro ext in dir.
+			for (File avroOutput : output1) {
+				Assert.assertTrue("Expect extension '.avro'", avroOutput.toString().endsWith(".avro"));
+			}
 		} else {
 			output1 = new File[] {file1};
 		}
 		List<String> result1 = new ArrayList<String>();
 		DatumReader<User> userDatumReader1 = new SpecificDatumReader<User>(User.class);
 		for (File avroOutput : output1) {
+
 			DataFileReader<User> dataFileReader1 = new DataFileReader<User>(avroOutput, userDatumReader1);
 			while (dataFileReader1.hasNext()) {
 				User user = dataFileReader1.next();
