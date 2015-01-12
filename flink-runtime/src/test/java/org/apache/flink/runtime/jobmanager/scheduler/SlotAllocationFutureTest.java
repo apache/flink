@@ -23,7 +23,7 @@ import static org.junit.Assert.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ public class SlotAllocationFutureTest {
 			
 			SlotAllocationFutureAction action = new SlotAllocationFutureAction() {
 				@Override
-				public void slotAllocated(AllocatedSlot slot) {}
+				public void slotAllocated(SimpleSlot slot) {}
 			};
 			
 			future.setFutureAction(action);
@@ -47,8 +47,8 @@ public class SlotAllocationFutureTest {
 				// expected
 			}
 			
-			final AllocatedSlot slot1 = new AllocatedSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0);
-			final AllocatedSlot slot2 = new AllocatedSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0);
+			final SimpleSlot slot1 = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
+			final SimpleSlot slot2 = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
 			
 			future.setSlot(slot1);
 			try {
@@ -71,13 +71,13 @@ public class SlotAllocationFutureTest {
 			// action before the slot
 			{
 				final AtomicInteger invocations = new AtomicInteger();
-				final AllocatedSlot thisSlot = new AllocatedSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0);
+				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
 				
 				SlotAllocationFuture future = new SlotAllocationFuture();
 				
 				future.setFutureAction(new SlotAllocationFutureAction() {
 					@Override
-					public void slotAllocated(AllocatedSlot slot) {
+					public void slotAllocated(SimpleSlot slot) {
 						assertEquals(thisSlot, slot);
 						invocations.incrementAndGet();
 					}
@@ -91,14 +91,14 @@ public class SlotAllocationFutureTest {
 			// slot before action
 			{
 				final AtomicInteger invocations = new AtomicInteger();
-				final AllocatedSlot thisSlot = new AllocatedSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0);
+				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
 				
 				SlotAllocationFuture future = new SlotAllocationFuture();
 				future.setSlot(thisSlot);
 				
 				future.setFutureAction(new SlotAllocationFutureAction() {
 					@Override
-					public void slotAllocated(AllocatedSlot slot) {
+					public void slotAllocated(SimpleSlot slot) {
 						assertEquals(thisSlot, slot);
 						invocations.incrementAndGet();
 					}
@@ -121,7 +121,7 @@ public class SlotAllocationFutureTest {
 				final AtomicInteger invocations = new AtomicInteger();
 				final AtomicBoolean error = new AtomicBoolean();
 				
-				final AllocatedSlot thisSlot = new AllocatedSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0);
+				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
 				
 				final SlotAllocationFuture future = new SlotAllocationFuture();
 				
@@ -130,7 +130,7 @@ public class SlotAllocationFutureTest {
 					@Override
 					public void run() {
 						try {
-							AllocatedSlot syncSlot = future.waitTillAllocated();
+							SimpleSlot syncSlot = future.waitTillAllocated();
 							if (syncSlot == null || syncSlot != thisSlot) {
 								error.set(true);
 								return;
@@ -158,12 +158,12 @@ public class SlotAllocationFutureTest {
 			
 			// setting slot before syncing
 			{
-				final AllocatedSlot thisSlot = new AllocatedSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0);
+				final SimpleSlot thisSlot = new SimpleSlot(new JobID(), SchedulerTestUtils.getRandomInstance(1), 0, null, null);
 				final SlotAllocationFuture future = new SlotAllocationFuture();
 
 				future.setSlot(thisSlot);
 				
-				AllocatedSlot retrieved = future.waitTillAllocated();
+				SimpleSlot retrieved = future.waitTillAllocated();
 				
 				assertNotNull(retrieved);
 				assertEquals(thisSlot, retrieved);
