@@ -78,6 +78,13 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
+		
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<scope>test</scope>
+		</dependency>
+		
 	</dependencies>
 
 	<!-- Because flink-scala uses it in tests -->

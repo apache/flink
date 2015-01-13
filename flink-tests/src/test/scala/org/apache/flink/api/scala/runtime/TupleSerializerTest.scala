@@ -18,19 +18,17 @@
 package org.apache.flink.api.scala.runtime
 
 import java.util
-
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.StringUtils
+import org.joda.time.LocalDate
 import org.junit.Assert
 import org.junit.Test
-
 import org.apache.flink.api.scala._
-
 import scala.collection.JavaConverters._
-
 import java.util.Random
+import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
 
 class TupleSerializerTest {
 
@@ -89,6 +87,23 @@ class TupleSerializerTest {
       ("", rnd.nextDouble),
       (StringUtils.getRandomString(rnd, 10, 100), rnd.nextDouble),
       (StringUtils.getRandomString(rnd, 10, 100), rnd.nextDouble))
+    runTests(testTuples)
+  }
+
+  @Test
+  def testTuple2StringJodaTime(): Unit = {
+    val rnd: Random = new Random(807346528946L)
+
+    val testTuples = Array(
+      (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)),
+      (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)),
+      (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)),
+      ("", rnd.nextDouble),
+      (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)),
+      (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)))
+      
+    KryoSerializer.registerSerializer(classOf[LocalDate], new LocalDateSerializer())
+    
     runTests(testTuples)
   }
 

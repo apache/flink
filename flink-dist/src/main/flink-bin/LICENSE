@@ -238,6 +238,7 @@ under the Apache License (v 2.0):
  - Chill_2.10 v0.5.1 (https://github.com/twitter/chill)
  - Jetty Web Container (http://www.eclipse.org/jetty/)
  - Amazon Web Services SDK for Java (http://aws.amazon.com/sdkforjava/)
+ - ScalaTest (http://www.scalatest.org)
  - StartBootstrap (http://startbootstrap.com)
  - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
  - Twitter Hosebird Client (hbc) (https://github.com/twitter/hbc)
@@ -298,6 +299,7 @@ BSD-style licenses:
  - Kryo (https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
  - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
  - LevelDB JNI (https://github.com/fusesource/leveldbjni/) - Copyright (c) 2011, FuseSource Corp.
+ - Memcached (https://github.com/memcached/memcached) - Copyright (c) 2003, Danga Interactive, Inc.
  - Redis (http://redis.io/) - Copyright (c) 2009, Salvatore Sanfilippo and Pieter Noordhuis
  
 [BSD-like License]
@@ -461,6 +463,7 @@ For src/main/native/src/org/apache/hadoop/io/compress/lz4/{lz4.h,lz4.c,lz4hc.h,l
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
    You can contact the author at :
+   - LZ4 homepage : http://fastcompression.blogspot.com/p/lz4.html
    - LZ4 source repository : http://code.google.com/p/lz4/
    - LZ4 public forum : https://groups.google.com/forum/#!forum/lz4c
 */

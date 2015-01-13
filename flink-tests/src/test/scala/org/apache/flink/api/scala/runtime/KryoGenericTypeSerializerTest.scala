@@ -19,15 +19,30 @@ package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.typeutils.SerializerTestInstance
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.joda.time.DateTime
 import org.junit.Test
-
 import scala.reflect._
+import org.joda.time.LocalDate
+import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
+import com.esotericsoftware.kryo.Serializer
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.Output
+import com.esotericsoftware.kryo.io.Input
 
 class KryoGenericTypeSerializerTest {
 
   @Test
   def testThrowableSerialization: Unit = {
     val a = List(new RuntimeException("Hello"), new RuntimeException("there"))
+
+    runTests(a)
+  }
+
+  @Test
+  def jodaSerialization: Unit = {
+    val a = List(new LocalDate(1), new LocalDate(2))
+    
+    KryoSerializer.registerSerializer(classOf[LocalDate], new LocalDateSerializer())
 
     runTests(a)
   }
@@ -131,5 +146,18 @@ class KryoGenericTypeSerializerTest {
     val instance = new SerializerTestInstance[T](serializer, typeClass, -1, objects: _*)
 
     instance.testAll()
+  }
+}
+
+class LocalDateSerializer extends Serializer[LocalDate] with java.io.Serializable {
+
+  override def write(kryo: Kryo, output: Output, obj: LocalDate) {
+    output.writeInt(obj.getYear());
+    output.writeInt(obj.getMonthOfYear());
+    output.writeInt(obj.getDayOfMonth());
+  }
+
+  override def read(kryo: Kryo, input: Input, typeClass: Class[LocalDate]) : LocalDate = {
+    new LocalDate(input.readInt(), input.readInt(), input.readInt());
   }
 }

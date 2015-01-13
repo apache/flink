@@ -35,13 +35,17 @@ import org.junit.Assert;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.junit.Test;
 
 /**
  * Abstract test base for serializers.
+ *
+ * We have a toString() call on all deserialized
+ * values because this is further evidence that the deserialized value is actually correct.
+ * (JodaTime DataTime) with the default KryoSerializer used to pass this test but the
+ * internal state would be corrupt, which becomes evident when toString is called.
  */
 public abstract class SerializerTestBase<T> {
 	
@@ -99,6 +103,7 @@ public abstract class SerializerTestBase<T> {
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum);
+				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 			}
 		}
@@ -117,6 +122,7 @@ public abstract class SerializerTestBase<T> {
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, serializer.createInstance());
+				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 			}
 		}
@@ -137,6 +143,7 @@ public abstract class SerializerTestBase<T> {
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, target);
+				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 				target = copy;
 			}
@@ -162,6 +169,8 @@ public abstract class SerializerTestBase<T> {
 				assertTrue("No data available during deserialization.", in.available() > 0);
 				
 				T deserialized = serializer.deserialize(serializer.createInstance(), in);
+ 				deserialized.toString();
+
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
 				assertTrue("Trailing data available after deserialization.", in.available() == 0);
@@ -190,6 +199,8 @@ public abstract class SerializerTestBase<T> {
 				assertTrue("No data available during deserialization.", in.available() > 0);
 				
 				T deserialized = serializer.deserialize(reuseValue, in);
+				deserialized.toString();
+
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
 				assertTrue("Trailing data available after deserialization.", in.available() == 0);
@@ -220,6 +231,8 @@ public abstract class SerializerTestBase<T> {
 			int num = 0;
 			while (in.available() > 0) {
 				T deserialized = serializer.deserialize(in);
+				deserialized.toString();
+
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				num++;
 			}
@@ -250,6 +263,8 @@ public abstract class SerializerTestBase<T> {
 			int num = 0;
 			while (in.available() > 0) {
 				T deserialized = serializer.deserialize(reuseValue, in);
+				deserialized.toString();
+
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				reuseValue = deserialized;
 				num++;
@@ -283,6 +298,8 @@ public abstract class SerializerTestBase<T> {
 				assertTrue("No data available copying.", toVerify.available() > 0);
 				
 				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
+				deserialized.toString();
+
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
 				assertTrue("Trailing data available after deserialization.", toVerify.available() == 0);
@@ -318,6 +335,8 @@ public abstract class SerializerTestBase<T> {
 			
 			while (toVerify.available() > 0) {
 				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
+				deserialized.toString();
+
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				num++;
 			}
