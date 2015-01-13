@@ -62,6 +62,16 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 		runTests(c);
 	}
 
+	@Test
+	public void testJodaTime(){
+		Collection<DateTime> b = new HashSet<DateTime>();
+
+		b.add(new DateTime(1));
+		b.add(new DateTime(2));
+
+		runTests(b);
+	}
+
 	private void fillCollection(Collection<Integer> coll){
 		coll.add(42);
 		coll.add(1337);

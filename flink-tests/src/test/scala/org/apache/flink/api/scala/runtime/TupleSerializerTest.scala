@@ -24,6 +24,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.StringUtils
+import org.joda.time.DateTime
 import org.joda.time.LocalDate
 import org.junit.Assert
 import org.junit.Test
@@ -93,6 +94,20 @@ class TupleSerializerTest {
 
   @Test
   def testTuple2StringJodaTime(): Unit = {
+    val rnd: Random = new Random(807346528946L)
+
+    val testTuples = Array(
+      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
+      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
+      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
+      ("", rnd.nextDouble),
+      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)),
+      (StringUtils.getRandomString(rnd, 10, 100), new DateTime(rnd.nextInt)))
+    runTests(testTuples)
+  }
+
+  @Test
+  def testTuple2StringJodaTime2(): Unit = {
     val rnd: Random = new Random(807346528946L)
 
     val testTuples = Array(

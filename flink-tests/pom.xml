@@ -122,6 +122,12 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<version>2.7</version>
+		</dependency>
 		
 		<!--<dependency>-->
 			<!--<groupId>com.google.guava</groupId>-->
