@@ -277,7 +277,8 @@ under the License.
 					</exclusion>
 				</exclusions>
 			</dependency>
-			<!-- YARN -->
+
+			<!-- Hadoop 2 Dependencies -->
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
@@ -853,6 +854,9 @@ under the License.
 						<relocation>
 							<pattern>com.google</pattern>
 							<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+							<excludes>
+								<exclude>com.google.protobuf.**</exclude>
+							</excludes>
 						</relocation>
 					</relocations>
 				</configuration>
