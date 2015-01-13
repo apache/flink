@@ -22,7 +22,7 @@ package org.apache.flink.runtime.operators.testutils;
 import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -114,7 +114,7 @@ public class MockEnvironment implements Environment {
 
 				@Override
 				public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
-					return new Buffer(new MemorySegment(new byte[bufferSize]), mock(BufferRecycler.class));
+					return new Buffer(new HeapMemorySegment(new byte[bufferSize]), mock(BufferRecycler.class));
 				}
 			});
 

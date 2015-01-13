@@ -27,6 +27,7 @@ import static org.junit.Assert.fail;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.junit.Assert;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
@@ -549,7 +550,7 @@ public class MemorySegmentTest {
 	@Test
 	public void testByteBufferWrapping() {
 		try {
-			MemorySegment seg = new MemorySegment(new byte[1024]);
+			MemorySegment seg = new HeapMemorySegment(new byte[1024]);
 			
 			ByteBuffer buf1 = seg.wrap(13, 47);
 			assertEquals(13, buf1.position());

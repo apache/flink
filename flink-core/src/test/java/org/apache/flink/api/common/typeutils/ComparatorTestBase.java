@@ -28,6 +28,7 @@ import static org.junit.Assert.*;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.junit.Assert;
 import org.junit.Test;
@@ -237,7 +238,7 @@ public abstract class ComparatorTestBase<T> {
 	
 	// Help Function for setting up a memory segment and normalize the keys of the data array in it
 	public MemorySegment setupNormalizedKeysMemSegment(T[] data, int normKeyLen, TypeComparator<T> comparator) {
-		MemorySegment memSeg = new MemorySegment(new byte[2048]);
+		MemorySegment memSeg = new HeapMemorySegment(new byte[2048]);
 
 		// Setup normalized Keys in the memory segment
 		int offset = 0;
@@ -293,7 +294,7 @@ public abstract class ComparatorTestBase<T> {
 			MemorySegment memSeg2 = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
 
 			for (int i = 0; i < data.length; i++) {
-				assertTrue(MemorySegment.compare(memSeg1, memSeg2, i * normKeyLen, i * normKeyLen, normKeyLen) == 0);
+				assertTrue(HeapMemorySegment.compare(memSeg1, memSeg2, i * normKeyLen, i * normKeyLen, normKeyLen) == 0);
 			}
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -342,14 +343,14 @@ public abstract class ComparatorTestBase<T> {
 				for (int h = l + 1; h < data.length; h++) {
 					int cmp;
 					if (greater) {
-						cmp = MemorySegment.compare(memSegLow, memSegHigh, l * normKeyLen, h * normKeyLen, normKeyLen);
+						cmp = HeapMemorySegment.compare(memSegLow, memSegHigh, l * normKeyLen, h * normKeyLen, normKeyLen);
 						if (fullyDetermines) {
 							assertTrue(cmp < 0);
 						} else {
 							assertTrue(cmp <= 0);
 						}
 					} else {
-						cmp = MemorySegment.compare(memSegHigh, memSegLow, h * normKeyLen, l * normKeyLen, normKeyLen);
+						cmp = HeapMemorySegment.compare(memSegHigh, memSegLow, h * normKeyLen, l * normKeyLen, normKeyLen);
 						if (fullyDetermines) {
 							assertTrue(cmp > 0);
 						} else {

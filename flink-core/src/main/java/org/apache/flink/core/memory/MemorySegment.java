@@ -817,4 +817,5 @@ public abstract class MemorySegment {
 //	public abstract int compare(MemorySegment seg1, MemorySegment seg2, int offset1, int offset2, int len);
 //	
 //	public abstract void swapBytes(MemorySegment seg1, MemorySegment seg2, byte[] tempBuffer, int offset1, int offset2, int len);
+
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +66,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 		try {
 			for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
-				availableMemorySegments.add(new MemorySegment(new byte[segmentSize]));
+				availableMemorySegments.add(new HeapMemorySegment(new byte[segmentSize]));
 			}
 		}
 		catch (OutOfMemoryError err) {

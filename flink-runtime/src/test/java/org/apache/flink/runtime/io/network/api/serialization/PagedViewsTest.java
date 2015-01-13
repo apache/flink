@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestType;
 import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestTypeFactory;
@@ -375,7 +376,7 @@ public class PagedViewsTest {
 		private final int segmentSize;
 
 		private TestOutputView(int segmentSize) {
-			super(new MemorySegment(new byte[segmentSize]), segmentSize, 0);
+			super(new HeapMemorySegment(new byte[segmentSize]), segmentSize, 0);
 
 			this.segmentSize = segmentSize;
 		}
@@ -383,7 +384,7 @@ public class PagedViewsTest {
 		@Override
 		protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
 			segments.add(new SegmentWithPosition(current, positionInCurrent));
-			return new MemorySegment(new byte[segmentSize]);
+			return new HeapMemorySegment(new byte[segmentSize]);
 		}
 
 		public void close() {

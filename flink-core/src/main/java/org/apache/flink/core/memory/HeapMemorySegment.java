@@ -65,7 +65,7 @@ import java.nio.ByteBuffer;
  *   0x00007fc403e1994a: retq 
  * </pre>
  */
-public final class HeapMemorySegment extends MemorySegment {
+public class HeapMemorySegment extends MemorySegment {
 	
 	// flag to enable / disable boundary checks. Note that the compiler eliminates the
 	// code paths of the checks (as dead code) when this constant is set to false.
@@ -332,21 +332,23 @@ public final class HeapMemorySegment extends MemorySegment {
 	//                      Comparisons & Swapping
 	// -------------------------------------------------------------------------
 	
-//	public final int compare(MemorySegment seg1, MemorySegment seg2, int offset1, int offset2, int len) {
-//		final byte[] b1 = seg1.memory;
-//		final byte[] b2 = seg2.memory;
-//		
-//		int val = 0;
-//		for (int pos = 0; pos < len && (val = (b1[offset1 + pos] & 0xff) - (b2[offset2 + pos] & 0xff)) == 0; pos++);
-//		return val;
-//	}
-//	
-//	public final void swapBytes(MemorySegment seg1, MemorySegment seg2, byte[] tempBuffer, int offset1, int offset2, int len) {
-//		// system arraycopy does the boundary checks anyways, no need to check extra
-//		System.arraycopy(seg1.memory, offset1, tempBuffer, 0, len);
-//		System.arraycopy(seg2.memory, offset2, seg1.memory, offset1, len);
-//		System.arraycopy(tempBuffer, 0, seg2.memory, offset2, len);
-//	}
+	public static int compare(MemorySegment seg1, MemorySegment seg2, int offset1, int offset2, int len) {
+		final byte[] b1 = ((HeapMemorySegment)seg1).memory;
+		final byte[] b2 = ((HeapMemorySegment)seg2).memory;
+
+		int val = 0;
+		for (int pos = 0; pos < len && (val = (b1[offset1 + pos] & 0xff) - (b2[offset2 + pos] & 0xff)) == 0; pos++);
+		return val;
+	}
+
+	public static void swapBytes(MemorySegment seg1, MemorySegment seg2, byte[] tempBuffer, int offset1, int offset2, int len) {
+		final byte[] b1 = ((HeapMemorySegment)seg1).memory;
+		final byte[] b2 = ((HeapMemorySegment)seg2).memory;
+		// system arraycopy does the boundary checks anyways, no need to check extra
+		System.arraycopy(b1, offset1, tempBuffer, 0, len);
+		System.arraycopy(b2, offset2, b1, offset1, len);
+		System.arraycopy(tempBuffer, 0, b2, offset2, len);
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	//                     Utilities for native memory accesses and checks

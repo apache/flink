@@ -19,6 +19,7 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.junit.Assert;
 
 import org.apache.flink.core.memory.MemorySegment;
@@ -136,7 +137,7 @@ public class NormalizableKeyTest {
 	private <T extends Comparable<T>> void assertNormalizableKey(NormalizableKey<T> key1, NormalizableKey<T> key2, int len) {
 		
 		byte[] normalizedKeys = new byte[2*len];
-		MemorySegment wrapper = new MemorySegment(normalizedKeys);
+		MemorySegment wrapper = new HeapMemorySegment(normalizedKeys);
 		
 		key1.copyNormalizedKey(wrapper, 0, len);
 		key2.copyNormalizedKey(wrapper, len, len);
