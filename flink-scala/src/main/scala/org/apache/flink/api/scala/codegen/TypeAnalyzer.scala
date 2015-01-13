@@ -81,8 +81,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case JavaType() =>
             // It's a Java Class, let the TypeExtractor deal with it...
-            c.warning(c.enclosingPosition, s"Type $tpe is a java class. Will be analyzed by " +
-              s"TypeExtractor at runtime.")
             GenericClassDescriptor(id, tpe)
 
           case _ => analyzePojo(id, tpe)
