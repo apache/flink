@@ -58,11 +58,11 @@ public class LogfileInfoServlet extends HttpServlet {
 		try {
 			if("stdout".equals(req.getParameter("get"))) {
 				// Find current stdout file
-				sendFile(".*-jobmanager-[^\\.]*\\.out", resp);
+				sendFile(".*jobmanager-[^\\.]*\\.out", resp);
 			}
 			else {
 				// Find current logfile
-				sendFile(".*-jobmanager-[^\\.]*\\.log", resp);
+				sendFile(".*jobmanager-[^\\.]*\\.log", resp);
 			}
 		} catch (Throwable t) {
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
