@@ -23,18 +23,21 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.api.java.typeutils.TypeInfoParserTest.MyWritable;
 import org.apache.flink.api.java.typeutils.WritableTypeInfo;
 import org.junit.Assert;
@@ -208,6 +211,7 @@ public class PojoTypeExtractionTest {
 		checkWCPojoAsserts(typeForObject);
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void checkWCPojoAsserts(TypeInformation<?> typeInfo) {
 		Assert.assertFalse(typeInfo.isBasicType());
 		Assert.assertFalse(typeInfo.isTupleType());
@@ -406,7 +410,6 @@ public class PojoTypeExtractionTest {
 		Assert.assertEquals(typeInfo.getArity(), 2);
 	}
 
-	// Kryo is required for this, so disable for now.
 	@Test
 	public void testPojoAllPublic() {
 		TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(AllPublic.class);
@@ -615,5 +618,196 @@ public class PojoTypeExtractionTest {
 	public void testGetterSetterWithVertex() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
+	}
+
+	public static class MyMapper<T> implements MapFunction<PojoWithGenerics<Long, T>, PojoWithGenerics<T,T>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public PojoWithGenerics<T, T> map(PojoWithGenerics<Long, T> value)
+				throws Exception {
+			return null;
+		}
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testGenericPojoTypeInference1() {
+		MapFunction<?, ?> function = new MyMapper<String>();
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
+				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithGenerics<key=int,field1=Long,field2=String>"));
+		Assert.assertTrue(ti instanceof PojoTypeInfo<?>);
+		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
+		for(int i = 0; i < pti.getArity(); i++) {
+			PojoField field = pti.getPojoFieldAt(i);
+			String name = field.field.getName();
+			if(name.equals("field1")) {
+				Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, field.type);
+			} else if (name.equals("field2")) {
+				Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, field.type);
+			} else if (name.equals("key")) {
+				Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, field.type);
+			} else {
+				Assert.fail("Unexpected field "+field);
+			}
+		}
+	}
+
+	public static class PojoTuple<A, B, C> extends Tuple3<B, C, Long> {
+		private static final long serialVersionUID = 1L;
+
+		public A extraField;
+	}
+
+	public static class MyMapper2<D, E> implements MapFunction<Tuple2<E, D>, PojoTuple<E, D, D>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public PojoTuple<E, D, D> map(Tuple2<E, D> value) throws Exception {
+			return null;
+		}
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testGenericPojoTypeInference2() {
+		MapFunction<?, ?> function = new MyMapper2<Boolean, Character>();
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
+				TypeInfoParser.parse("Tuple2<Character,Boolean>"));
+		Assert.assertTrue(ti instanceof PojoTypeInfo<?>);
+		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
+		for(int i = 0; i < pti.getArity(); i++) {
+			PojoField field = pti.getPojoFieldAt(i);
+			String name = field.field.getName();
+			if(name.equals("extraField")) {
+				Assert.assertEquals(BasicTypeInfo.CHAR_TYPE_INFO, field.type);
+			} else if (name.equals("f0")) {
+				Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, field.type);
+			} else if (name.equals("f1")) {
+				Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, field.type);
+			} else if (name.equals("f2")) {
+				Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, field.type);
+			} else {
+				Assert.fail("Unexpected field "+field);
+			}
+		}
+	}
+
+	public static class MyMapper3<D, E> implements MapFunction<PojoTuple<E, D, D>, Tuple2<E, D>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<E, D> map(PojoTuple<E, D, D> value) throws Exception {
+			return null;
+		}
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testGenericPojoTypeInference3() {
+		MapFunction<?, ?> function = new MyMapper3<Boolean, Character>();
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
+				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoTuple<extraField=char,f0=boolean,f1=boolean,f2=long>"));
+		Assert.assertTrue(ti instanceof TupleTypeInfo<?>);
+		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
+		Assert.assertEquals(BasicTypeInfo.CHAR_TYPE_INFO, tti.getTypeAt(0));
+		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, tti.getTypeAt(1));
+	}
+
+	public static class PojoWithParameterizedFields1<Z> {
+		public Tuple2<Z, Z> field;
+	}
+
+	public static class MyMapper4<A> implements MapFunction<PojoWithParameterizedFields1<A>, A> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public A map(PojoWithParameterizedFields1<A> value) throws Exception {
+			return null;
+		}
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testGenericPojoTypeInference4() {
+		MapFunction<?, ?> function = new MyMapper4<Byte>();
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
+				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithParameterizedFields1<field=Tuple2<byte,byte>>"));
+		Assert.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, ti);
+	}
+
+	public static class PojoWithParameterizedFields2<Z> {
+		public PojoWithGenerics<Z, Z> field;
+	}
+
+	public static class MyMapper5<A> implements MapFunction<PojoWithParameterizedFields2<A>, A> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public A map(PojoWithParameterizedFields2<A> value) throws Exception {
+			return null;
+		}
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testGenericPojoTypeInference5() {
+		MapFunction<?, ?> function = new MyMapper5<Byte>();
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
+				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithParameterizedFields2<"
+						+ "field=org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithGenerics<key=int,field1=byte,field2=byte>"
+						+ ">"));
+		Assert.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, ti);
+	}
+	
+	public static class PojoWithParameterizedFields3<Z> {
+		public Z[] field;
+	}
+
+	public static class MyMapper6<A> implements MapFunction<PojoWithParameterizedFields3<A>, A> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public A map(PojoWithParameterizedFields3<A> value) throws Exception {
+			return null;
+		}
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testGenericPojoTypeInference6() {
+		MapFunction<?, ?> function = new MyMapper6<Integer>();
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
+				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithParameterizedFields3<"
+						+ "field=int[]"
+						+ ">"));
+		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
+	}
+
+	public static class MyMapper7<A> implements MapFunction<PojoWithParameterizedFields4<A>, A> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public A map(PojoWithParameterizedFields4<A> value) throws Exception {
+			return null;
+		}
+	}
+
+	public static class PojoWithParameterizedFields4<Z> {
+		public Tuple1<Z>[] field;
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testGenericPojoTypeInference7() {
+		MapFunction<?, ?> function = new MyMapper7<Integer>();
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
+				TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest$PojoWithParameterizedFields4<"
+						+ "field=Tuple1<int>[]"
+						+ ">"));
+		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
 	}
 }

@@ -1260,7 +1260,7 @@ public class TypeExtractorTest {
 	public static class InType extends MyObject<String> {}
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
-	public void testParamertizedCustomObject() {
+	public void testParameterizedPojo() {
 		RichMapFunction<?, ?> function = new RichMapFunction<InType, MyObject<String>>() {
 			private static final long serialVersionUID = 1L;
 
@@ -1618,6 +1618,24 @@ public class TypeExtractorTest {
 	public void testInputInference3() {
 		EdgeMapper3<Boolean, String> em = new EdgeMapper3<Boolean, String>();
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInfoParser.parse("Tuple3<Boolean,Boolean,String>"));
+		Assert.assertTrue(ti.isBasicType());
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
+	}
+	
+	public static class EdgeMapper4<K, V> implements MapFunction<Edge<K, V>[], V> {
+		private static final long serialVersionUID = 1L;
+		
+		@Override
+		public V map(Edge<K, V>[] value) throws Exception {
+			return null;
+		}
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testInputInference4() {
+		EdgeMapper4<Boolean, String> em = new EdgeMapper4<Boolean, String>();
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInfoParser.parse("Tuple3<Boolean,Boolean,String>[]"));
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
 	}

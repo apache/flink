@@ -159,6 +159,7 @@ public class TypeInfoParser {
 					} else {
 						arrayClazz = Class.forName("[L" + TUPLE_PACKAGE + "." + className + ";");
 					}
+					sb.delete(0, 2);
 					returnType = ObjectArrayTypeInfo.getInfoFor(arrayClazz, new TupleTypeInfo(clazz, types));
 				} else if (sb.length() < 1 || sb.charAt(0) != '[') {
 					returnType = new TupleTypeInfo(clazz, types);
@@ -308,10 +309,8 @@ public class TypeInfoParser {
 					String fieldName = fieldMatcher.group(1);
 					sb.delete(0, fieldName.length() + 1);
 
-					Field field = null;
-					try {
-						field = clazz.getDeclaredField(fieldName);
-					} catch (Exception e) {
+					Field field = TypeExtractor.getDeclaredField(clazz, fieldName);
+					if (field == null) {
 						throw new IllegalArgumentException("Field '" + fieldName + "'could not be accessed.");
 					}
 					fields.add(new PojoField(field, parse(sb)));
