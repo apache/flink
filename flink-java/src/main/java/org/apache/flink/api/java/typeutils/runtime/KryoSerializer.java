@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
+import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
@@ -33,9 +34,17 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class KryoSerializer<T> extends TypeSerializer<T> {
-	private static final long serialVersionUID = 2L;
+	private static final long serialVersionUID = 3L;
+
+	private static Map<Class<?>, Serializer<?>> staticRegisteredSerializers = new HashMap<Class<?>, Serializer<?>>();
+	private static Map<Class<?>, Class<? extends Serializer<?>>> staticRegisteredSerializersClasses = new HashMap<Class<?>, Class<? extends Serializer<?>>>();
+
+	private static Map<Class<?>, Serializer<?>> registeredSerializers;
+	private static Map<Class<?>, Class<? extends Serializer<?>>> registeredSerializersClasses;
 
 	private final Class<T> type;
 
@@ -53,6 +62,9 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			throw new NullPointerException("Type class cannot be null.");
 		}
 		this.type = type;
+
+		this.registeredSerializers = staticRegisteredSerializers;
+		this.registeredSerializersClasses = staticRegisteredSerializersClasses;
 	}
 
 
@@ -182,12 +194,38 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		if (this.kryo == null) {
 			this.kryo = new ScalaKryoInstantiator().newKryo();
 			this.kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
+
+			for (Map.Entry<Class<?>, Serializer<?>> e: registeredSerializers.entrySet()) {
+				this.kryo.addDefaultSerializer(e.getKey(), e.getValue());
+			}
+
+			for (Map.Entry<Class<?>, Class<? extends Serializer<?>>> e: registeredSerializersClasses.entrySet()) {
+				this.kryo.addDefaultSerializer(e.getKey(), e.getValue());
+			}
+
 			this.kryo.setRegistrationRequired(false);
 			this.kryo.register(type);
+
 			this.kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
 		}
 	}
-	
+
+	/**
+	 * Registers the given Serializer as a default serializer for the given class at the Kryo
+	 * instance.
+	 */
+	public static void addDefaultSerializer(Class<?> clazz, Serializer<?> serializer) {
+		staticRegisteredSerializers.put(clazz, serializer);
+	}
+
+	/**
+	 * Registers the given Serializer as a default serializer for the given class at the Kryo
+	 * instance.
+	 */
+	public static void addDefaultSerializer(Class<?> clazz, Class<? extends Serializer<?>> serializer) {
+		staticRegisteredSerializersClasses.put(clazz, serializer);
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// for testing
 	// --------------------------------------------------------------------------------------------
