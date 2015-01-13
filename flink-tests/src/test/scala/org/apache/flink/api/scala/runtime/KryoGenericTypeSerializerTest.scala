@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.typeutils.SerializerTestInstance
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.joda.time.DateTime
 import org.junit.Test
 
 import scala.reflect._
@@ -28,6 +29,13 @@ class KryoGenericTypeSerializerTest {
   @Test
   def testThrowableSerialization: Unit = {
     val a = List(new RuntimeException("Hello"), new RuntimeException("there"))
+
+    runTests(a)
+  }
+
+  @Test
+  def jodaSerialization: Unit = {
+    val a = List(new DateTime(1), new DateTime(2))
 
     runTests(a)
   }
@@ -125,6 +133,7 @@ class KryoGenericTypeSerializerTest {
   def runTests[T : ClassTag](objects: Seq[T]): Unit ={
     val clsTag = classTag[T]
     val typeInfo = new GenericTypeInfo[T](clsTag.runtimeClass.asInstanceOf[Class[T]])
+    println("TPE: " + typeInfo)
     val serializer = typeInfo.createSerializer()
     val typeClass = typeInfo.getTypeClass
 

@@ -25,9 +25,11 @@ import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.twitter.chill.ScalaKryoInstantiator;
 
+import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.joda.time.DateTime;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -185,6 +187,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			this.kryo.setRegistrationRequired(false);
 			this.kryo.register(type);
 			this.kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
+
+			kryo.register(DateTime.class, new JodaDateTimeSerializer());
 		}
 	}
 	

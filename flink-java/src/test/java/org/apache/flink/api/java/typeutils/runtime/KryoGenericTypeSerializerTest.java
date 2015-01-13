@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import static org.junit.Assert.*;
 
+import org.joda.time.DateTime;
 import org.junit.Test;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -50,6 +51,8 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 		runTests(b);
 	}
 
+
+
 	@Test
 	public void testJavaDequeue(){
 		Collection<Integer> c = new LinkedList<Integer>();
@@ -57,6 +60,16 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 		fillCollection(c);
 
 		runTests(c);
+	}
+
+	@Test
+	public void testJodaTime(){
+		Collection<DateTime> b = new HashSet<DateTime>();
+
+		b.add(new DateTime(1));
+		b.add(new DateTime(2));
+
+		runTests(b);
 	}
 
 	private void fillCollection(Collection<Integer> coll){
