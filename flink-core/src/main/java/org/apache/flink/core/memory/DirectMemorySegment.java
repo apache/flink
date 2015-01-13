@@ -107,7 +107,7 @@ public final class DirectMemorySegment extends MemorySegment {
 
 	@Override
 	public final boolean isFreed() {
-		return this.address <= this.addressLimit;
+		return this.address > this.addressLimit;
 	}
 
 	public final void free() {
