@@ -193,7 +193,7 @@ public final class DirectMemorySegment extends MemorySegment {
 		
 		long pos = address + index;
 		
-		if (index >= 0 && pos < addressLimit - length) {
+		if (index >= 0 && pos <= addressLimit - length) {
 			long arrayAddress = BYTE_ARRAY_BASE_OFFSET + offset;
 			
 			// the copy must proceed in batches not too large, because the JVM may
@@ -225,7 +225,7 @@ public final class DirectMemorySegment extends MemorySegment {
 		
 		long pos = address + index;
 		
-		if (index >= 0 && pos < addressLimit - length) {
+		if (index >= 0 && pos <= addressLimit - length) {
 		
 			long arrayAddress = BYTE_ARRAY_BASE_OFFSET + offset;
 			while (length > 0) {
