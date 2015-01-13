@@ -238,7 +238,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
 
     val reducer = aggregationType match {
       case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(
-        outType.getTypeAt(position).getTypeClass()));
+        outType.getTypeAt(position).getTypeClass()))
       case _ => new agg.ProductComparableAggregator(aggregationType, true)
     }
 

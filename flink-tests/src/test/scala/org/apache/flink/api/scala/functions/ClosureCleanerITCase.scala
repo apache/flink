@@ -18,19 +18,14 @@
 package org.apache.flink.api.scala.functions
 
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
-import org.apache.flink.test.util.{MultipleProgramsTestBase, JavaProgramTestBase}
+import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.junit.Assert.fail
 import org.junit.{After, Before, Test, Rule}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.InvalidProgramException

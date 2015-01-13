@@ -64,7 +64,7 @@ package object scala {
     }
   }
   def getCallLocationName(depth: Int = 3) : String = {
-    val st = Thread.currentThread().getStackTrace();
+    val st = Thread.currentThread().getStackTrace()
     if(st.length < depth) {
       return "<unknown>"
     }

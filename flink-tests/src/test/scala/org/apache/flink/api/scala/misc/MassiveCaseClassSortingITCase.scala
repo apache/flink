@@ -32,7 +32,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger
 import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory
-import org.junit.Assert._;
+import org.junit.Assert._
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 
 class MassiveCaseClassSortingITCase {
@@ -79,7 +79,7 @@ class MassiveCaseClassSortingITCase {
         val inputIterator = new StringTupleReader(reader)
         
         val typeInfo = implicitly[TypeInformation[StringTuple]]
-                                             .asInstanceOf[CompositeType[StringTuple]];
+          .asInstanceOf[CompositeType[StringTuple]]
         
         val serializer = typeInfo.createSerializer()
         val comparator = typeInfo.createComparator(Array(0, 1), Array(true, true), 0)
@@ -99,7 +99,7 @@ class MassiveCaseClassSortingITCase {
         val verifyIterator = new StringTupleReader(verifyReader)
         
         var num = 0
-        var hasMore = true;
+        var hasMore = true
         
         while (hasMore) {
           val next = verifyIterator.next(null)
@@ -127,7 +127,7 @@ class MassiveCaseClassSortingITCase {
         }
         
         assertNull(sortedData.next(null))
-        assertEquals(NUM_STRINGS, num);
+        assertEquals(NUM_STRINGS, num)
       }
       finally {
         if (reader != null) {
@@ -200,7 +200,7 @@ class MassiveCaseClassSortingITCase {
 object MassiveCaseClassSortingITCase {
   
   def main(args: Array[String]) {
-    new MassiveCaseClassSortingITCase().testStringTuplesSorting;
+    new MassiveCaseClassSortingITCase().testStringTuplesSorting()
   }
 }
 

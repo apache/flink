@@ -38,8 +38,8 @@ import scala.concurrent.{TimeoutException, Await}
 import scala.concurrent.duration.{FiniteDuration}
 
 
-class JobClient(jobManagerURL: String, timeout: FiniteDuration) extends Actor with ActorLogMessages
-with  ActorLogging{
+class JobClient(jobManagerURL: String, timeout: FiniteDuration)
+  extends Actor with ActorLogMessages with  ActorLogging{
   import context._
 
   val jobManager = AkkaUtils.getReference(jobManagerURL)(system, timeout)
@@ -100,9 +100,9 @@ object JobClient{
       case url: String => url
       case _ =>
         val jobManagerAddress = configuration.getString(ConfigConstants
-          .JOB_MANAGER_IPC_ADDRESS_KEY, null);
+          .JOB_MANAGER_IPC_ADDRESS_KEY, null)
         val jobManagerRPCPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
         if (jobManagerAddress == null) {
           throw new RuntimeException("JobManager address has not been specified in the " +

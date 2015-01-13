@@ -301,8 +301,7 @@ public class Client {
 
 		ActorRef client = pair._2();
 
-		String hostname = configuration.getString(ConfigConstants
-				.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		String hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 
 		FiniteDuration timeout = new FiniteDuration(configuration.getInteger(ConfigConstants
 				.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS);
@@ -320,8 +319,7 @@ public class Client {
 		try {
 
 			if (wait) {
-				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client,
-						timeout);
+				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client, timeout);
 			}
 			else {
 				SubmissionResponse response =JobClient.submitJobDetached(jobGraph, client, timeout);

@@ -33,7 +33,6 @@ import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
@@ -1105,7 +1104,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       def getKey(in: T) = cleanFun(in)
     }
     
-    val keyType = implicitly[TypeInformation[K]];
+    val keyType = implicitly[TypeInformation[K]]
 
     val op = new PartitionOperator[T](
       javaSet,

@@ -146,7 +146,7 @@ object TPCHQuery10 {
           "  Due to legal restrictions, we can not ship generated data.\n" +
           "  You can find the TPC-H data generator at http://www.tpc.org/tpch/.\n" +
           "  Usage: TPCHQuery10 <customer-csv path> <orders-csv path> " + 
-                                "<lineitem-csv path> <nation-csv path> <result path>");
+                                "<lineitem-csv path> <nation-csv path> <result path>")
       false
     }
   }
