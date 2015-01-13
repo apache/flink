@@ -17,12 +17,43 @@
 
 package org.apache.flink.streaming.api.function.sink;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.io.OutputFormat;
 
-public abstract class RichSinkFunction<IN> extends AbstractRichFunction implements SinkFunction<IN> {
-
+/**
+ * Implementation of FileSinkFunction. Writes tuples to file in every millis
+ * milliseconds.
+ * 
+ * @param <IN>
+ *            Input type
+ */
+public class FileSinkFunctionByMillis<IN> extends FileSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
-	public abstract void invoke(IN value) throws Exception;
+	private final long millis;
+	private long lastTime;
 
+	public FileSinkFunctionByMillis(OutputFormat<IN> format, long millis) {
+		super(format);
+		this.millis = millis;
+		lastTime = System.currentTimeMillis();
+	}
+
+	/**
+	 * Condition for writing the contents of tupleList and clearing it.
+	 * 
+	 * @return value of the updating condition
+	 */
+	@Override
+	protected boolean updateCondition() {
+		return System.currentTimeMillis() - lastTime >= millis;
+	}
+
+	/**
+	 * Statements to be executed after writing a batch goes here.
+	 */
+	@Override
+	protected void resetParameters() {
+		tupleList.clear();
+		lastTime = System.currentTimeMillis();
+	}
 }

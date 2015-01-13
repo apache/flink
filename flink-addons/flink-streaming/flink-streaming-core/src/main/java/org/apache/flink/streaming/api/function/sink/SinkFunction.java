@@ -23,6 +23,6 @@ import org.apache.flink.api.common.functions.Function;
 
 public interface SinkFunction<IN> extends Function, Serializable {
 
-	public abstract void invoke(IN value);
+	public abstract void invoke(IN value) throws Exception;
 
 }

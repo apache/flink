@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -28,15 +29,20 @@ import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.io.CsvOutputFormat;
+import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.datastream.temporaloperator.StreamCrossOperator;
 import org.apache.flink.streaming.api.datastream.temporaloperator.StreamJoinOperator;
@@ -45,12 +51,9 @@ import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
+import org.apache.flink.streaming.api.function.sink.FileSinkFunctionByMillis;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.api.function.sink.WriteFormat;
-import org.apache.flink.streaming.api.function.sink.WriteFormatAsCsv;
-import org.apache.flink.streaming.api.function.sink.WriteFormatAsText;
-import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByMillis;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.CounterInvokable;
@@ -897,34 +900,17 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically, in every millis milliseconds. For
-	 * every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param millis
-	 *            is the file update frequency
-	 * 
-	 * @return The closed DataStream
-	 */
-	public DataStreamSink<OUT> writeAsText(String path, long millis) {
-		return writeAsText(path, new WriteFormatAsText<OUT>(), millis);
-	}
-
-	/**
 	 * Writes a DataStream to the file specified by path in text format. For
 	 * every element of the DataStream the result of {@link Object#toString()}
 	 * is written.
 	 * 
 	 * @param path
-	 *            is the path to the location where the tuples are written
+	 *            the path pointing to the location the text file is written to
 	 * 
-	 * @return The closed DataStream
+	 * @return the closed DataStream.
 	 */
 	public DataStreamSink<OUT> writeAsText(String path) {
-		return writeAsText(path, 0);
+		return writeToFile(new TextOutputFormat<OUT>(new Path(path)), 0L);
 	}
 
 	/**
@@ -934,17 +920,15 @@ public class DataStream<OUT> {
 	 * is written.
 	 * 
 	 * @param path
-	 *            is the path to the location where the tuples are written
+	 *            the path pointing to the location the text file is written to
 	 * @param millis
-	 *            is the file update frequency
+	 *            the file update frequency
 	 * 
-	 * @return The closed DataStream
+	 * @return the closed DataStream
 	 */
-	public DataStreamSink<OUT> writeAsCsv(String path, long millis) {
-		if (!getType().isTupleType()) {
-			throw new RuntimeException("Only tuple data streams can be written in csv format");
-		}
-		return writeAsText(path, new WriteFormatAsCsv<OUT>(), millis);
+	public DataStreamSink<OUT> writeAsText(String path, long millis) {
+		TextOutputFormat<OUT> tof = new TextOutputFormat<OUT>(new Path(path));
+		return writeToFile(tof, millis);
 	}
 
 	/**
@@ -953,30 +937,137 @@ public class DataStream<OUT> {
 	 * is written.
 	 * 
 	 * @param path
-	 *            is the path to the location where the tuples are written
+	 *            the path pointing to the location the text file is written to
+	 * @param writeMode
+	 *            Control the behavior for existing files. Options are
+	 *            NO_OVERWRITE and OVERWRITE.
 	 * 
-	 * @return The closed DataStream
+	 * @return the closed DataStream.
 	 */
-	public DataStreamSink<OUT> writeAsCsv(String path) {
-		return writeAsCsv(path, 0);
+	public DataStreamSink<OUT> writeAsText(String path, WriteMode writeMode) {
+		TextOutputFormat<OUT> tof = new TextOutputFormat<OUT>(new Path(path));
+		tof.setWriteMode(writeMode);
+		return writeToFile(tof, 0L);
 	}
 
 	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically, in every millis milliseconds. For
+	 * Writes a DataStream to the file specified by path in text format. For
 	 * every element of the DataStream the result of {@link Object#toString()}
 	 * is written.
 	 * 
 	 * @param path
-	 *            is the path to the location where the tuples are written
+	 *            the path pointing to the location the text file is written to
+	 * @param writeMode
+	 *            Controls the behavior for existing files. Options are
+	 *            NO_OVERWRITE and OVERWRITE.
 	 * @param millis
-	 *            is the file update frequency
+	 *            the file update frequency
 	 * 
-	 * @return the data stream constructed
+	 * @return the closed DataStream.
 	 */
-	private DataStreamSink<OUT> writeAsText(String path, WriteFormat<OUT> format, long millis) {
-		DataStreamSink<OUT> returnStream = addSink(new WriteSinkFunctionByMillis<OUT>(path, format,
-				millis));
+	public DataStreamSink<OUT> writeAsText(String path, WriteMode writeMode, long millis) {
+		TextOutputFormat<OUT> tof = new TextOutputFormat<OUT>(new Path(path));
+		tof.setWriteMode(writeMode);
+		return writeToFile(tof, millis);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in csv format. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written. This method can only be used on data streams of tuples.
+	 * 
+	 * @param path
+	 *            the path pointing to the location the text file is written to
+	 * 
+	 * @return the closed DataStream
+	 */
+	@SuppressWarnings("unchecked")
+	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path) {
+		Validate.isTrue(getType().isTupleType(),
+				"The writeAsCsv() method can only be used on data sets of tuples.");
+		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
+				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+		return writeToFile((OutputFormat<OUT>) of, 0L);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in csv format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written. This method can only be used on data streams of tuples.
+	 * 
+	 * @param path
+	 *            the path pointing to the location the text file is written to
+	 * @param millis
+	 *            the file update frequency
+	 * 
+	 * @return the closed DataStream
+	 */
+	@SuppressWarnings("unchecked")
+	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path, long millis) {
+		Validate.isTrue(getType().isTupleType(),
+				"The writeAsCsv() method can only be used on data sets of tuples.");
+		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
+				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+		return writeToFile((OutputFormat<OUT>) of, millis);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in csv format. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written. This method can only be used on data streams of tuples.
+	 * 
+	 * @param path
+	 *            the path pointing to the location the text file is written to
+	 * @param writeMode
+	 *            Controls the behavior for existing files. Options are
+	 *            NO_OVERWRITE and OVERWRITE.
+	 * 
+	 * @return the closed DataStream
+	 */
+	@SuppressWarnings("unchecked")
+	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path, WriteMode writeMode) {
+		Validate.isTrue(getType().isTupleType(),
+				"The writeAsCsv() method can only be used on data sets of tuples.");
+		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
+				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+		if (writeMode != null) {
+			of.setWriteMode(writeMode);
+		}
+		return writeToFile((OutputFormat<OUT>) of, 0L);
+	}
+
+	/**
+	 * Writes a DataStream to the file specified by path in csv format. The
+	 * writing is performed periodically, in every millis milliseconds. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written. This method can only be used on data streams of tuples.
+	 * 
+	 * @param path
+	 *            the path pointing to the location the text file is written to
+	 * @param writeMode
+	 *            Controls the behavior for existing files. Options are
+	 *            NO_OVERWRITE and OVERWRITE.
+	 * @param millis
+	 *            the file update frequency
+	 * 
+	 * @return the closed DataStream
+	 */
+	@SuppressWarnings("unchecked")
+	public <X extends Tuple> DataStreamSink<OUT> writeAsCsv(String path, WriteMode writeMode,
+			long millis) {
+		Validate.isTrue(getType().isTupleType(),
+				"The writeAsCsv() method can only be used on data sets of tuples.");
+		CsvOutputFormat<X> of = new CsvOutputFormat<X>(new Path(path),
+				CsvOutputFormat.DEFAULT_LINE_DELIMITER, CsvOutputFormat.DEFAULT_FIELD_DELIMITER);
+		if (writeMode != null) {
+			of.setWriteMode(writeMode);
+		}
+		return writeToFile((OutputFormat<OUT>) of, millis);
+	}
+
+	private DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {
+		DataStreamSink<OUT> returnStream = addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
 		return returnStream;
 	}
 
