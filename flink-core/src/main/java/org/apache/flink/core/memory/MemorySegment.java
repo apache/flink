@@ -31,6 +31,11 @@ import java.nio.ByteOrder;
 public abstract class MemorySegment {
 	
 	private static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
+
+	/**
+	 * Frees the memory of the memory segment for reuse but does not necessarily delete the memory.
+	 */
+	public abstract void free();
 	
 	/**
 	 * Checks whether this memory segment has already been freed. In that case, the
