@@ -256,7 +256,7 @@ class CoGroupDataSet[L, R](
                                       new ImmutablePair[java.lang.Integer, Order](position, order))
         
         case ( Right(expression), order ) => {
-          if (! (typeInfo.isInstanceOf[CompositeType[_]])) {
+          if (!typeInfo.isInstanceOf[CompositeType[_]]) {
             throw new InvalidProgramException("Specifying order keys via field positions is only "
                                    + "valid for composite data types (pojo / tuple / case class)")
           }
