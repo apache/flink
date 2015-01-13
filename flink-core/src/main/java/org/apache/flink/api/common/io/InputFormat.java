@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.io;
 
 import java.io.IOException;
-import java.io.Serializable;
 
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
@@ -60,7 +59,7 @@ import org.apache.flink.core.io.InputSplitSource;
  * @param <OT> The type of the produced records.
  * @param <T> The type of input split.
  */
-public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<T>, Serializable {
+public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<T> {
 	
 	/**
 	 * Configures this input format. Since input formats are instantiated generically and hence parameterless, 
