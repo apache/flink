@@ -69,6 +69,39 @@ under the License.
 			<version>0.5.1</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-protobuf</artifactId>
+			<version>0.5.1</version>
+		</dependency>
+		<!-- We need protobuf for chill-protobuf -->
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<version>2.5.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-thrift</artifactId>
+			<version>0.5.1</version>
+		</dependency>
+		<!-- libthrift is required by chill-thrift -->
+		<dependency>
+			<groupId>org.apache.thrift</groupId>
+			<artifactId>libthrift</artifactId>
+			<version>0.6.1</version>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 
 		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
 		<dependency>
