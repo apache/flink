@@ -101,6 +101,11 @@ public final class ConfigConstants {
 	 * by {@link #TASK_MANAGER_MEMORY_FRACTION_KEY}.
 	 */
 	public static final String TASK_MANAGER_MEMORY_SIZE_KEY = "taskmanager.memory.size";
+
+	/**
+	 * The config parameter defining the memory allocation method (JVM heap or direct).
+	 */
+	public static final String TASK_MANAGER_MEMORY_DIRECT_ALLOCATION_KEY = "taskmanager.memory.directAllocation";
 	
 	/**
 	 * The config parameter defining the fraction of free memory allocated by the memory manager.
@@ -417,6 +422,11 @@ public final class ConfigConstants {
 	 * The default directory for temporary files of the task manager.
 	 */
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
+
+	/**
+	 * The default flag whether memory should be allocated in JVM heap or directly.
+	 */
+	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_DIRECT_ALLOCATION = false;
 	
 	/**
 	 * The default fraction of the free memory allocated by the task manager's memory manager.
