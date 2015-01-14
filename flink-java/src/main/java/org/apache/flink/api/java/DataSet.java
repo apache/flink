@@ -46,9 +46,9 @@ import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 import org.apache.flink.api.java.operators.*;
 import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import org.apache.flink.api.java.functions.FirstReducer;
+import org.apache.flink.api.java.operators.ExtractOperator.Extraction;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
-import org.apache.flink.api.java.operators.ExtractOperator.Extraction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
@@ -280,6 +280,30 @@ public abstract class DataSet<T> {
 
 	public <OUT> ExtractOperator<?, OUT> extractSingleField(int fieldIndex, Class<OUT> outputType) {
 		return new Extraction(this, fieldIndex, outputType).extractElementX();
+	}
+
+	public SingleInputUdfOperator extractSingleFieldByMap(int fieldIndex, Class outputType) {
+
+		TupleTypeInfo tupleInfo = (TupleTypeInfo) this.getType();
+		if(!tupleInfo.getTypeAt(fieldIndex).equals(TypeExtractor.createTypeInfo(outputType))) {
+			throw new IllegalArgumentException("The output class type has to be: " + tupleInfo.getTypeAt(fieldIndex).toString());
+		}
+		
+		return map(new ExtractElement(fieldIndex)).returns(tupleInfo.getTypeAt(fieldIndex));
+	}
+
+	public static final class ExtractElement<T extends Tuple, R> implements MapFunction<T,R>{
+		private int id;		
+
+		public ExtractElement (int id){			
+			this.id = id;		
+		}
+
+		@Override
+		public R map(T value) {
+			return (R) value.getField(id);
+
+		}
 	}
 	
 	

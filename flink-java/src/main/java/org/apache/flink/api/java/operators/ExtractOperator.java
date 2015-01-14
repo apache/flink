@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
-import com.google.common.base.Preconditions;
+
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
@@ -26,12 +26,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.translation.PlanExtractOperator;
-import org.apache.flink.api.java.operators.translation.PlanProjectOperator;
-import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-
-import java.util.Arrays;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 //CHECKSTYLE.ON: AvoidStarImport
