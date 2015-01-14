@@ -423,7 +423,7 @@ public class TaskManager implements TaskOperationProtocol {
 		LOG.info("Shutting down TaskManager");
 		
 		cancelAndClearEverything(new Exception("Task Manager is shutting down"));
-		
+
 		// first, stop the heartbeat thread and wait for it to terminate
 		this.heartbeatThread.interrupt();
 		try {

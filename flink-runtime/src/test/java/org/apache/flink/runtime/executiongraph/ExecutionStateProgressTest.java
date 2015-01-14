@@ -25,7 +25,7 @@ import static org.mockito.Mockito.mock;
 import java.util.Arrays;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -56,7 +56,7 @@ public class ExecutionStateProgressTest {
 			// mock resources and mock taskmanager
 			TaskOperationProtocol taskManager = getSimpleAcknowledgingTaskmanager();
 			for (ExecutionVertex ee : ejv.getTaskVertices()) {
-				AllocatedSlot slot = getInstance(taskManager).allocateSlot(jid);
+				SimpleSlot slot = getInstance(taskManager).allocateSimpleSlot(jid);
 				ee.deployToSlot(slot);
 			}
 			
