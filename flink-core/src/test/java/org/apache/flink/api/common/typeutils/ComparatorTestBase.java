@@ -294,7 +294,7 @@ public abstract class ComparatorTestBase<T> {
 			MemorySegment memSeg2 = setupNormalizedKeysMemSegment(data, normKeyLen, comparator);
 
 			for (int i = 0; i < data.length; i++) {
-				assertTrue(HeapMemorySegment.compare(memSeg1, memSeg2, i * normKeyLen, i * normKeyLen, normKeyLen) == 0);
+				assertTrue(memSeg1.compare(memSeg2, i * normKeyLen, i * normKeyLen, normKeyLen) == 0);
 			}
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -343,14 +343,14 @@ public abstract class ComparatorTestBase<T> {
 				for (int h = l + 1; h < data.length; h++) {
 					int cmp;
 					if (greater) {
-						cmp = HeapMemorySegment.compare(memSegLow, memSegHigh, l * normKeyLen, h * normKeyLen, normKeyLen);
+						cmp = memSegLow.compare(memSegHigh, l * normKeyLen, h * normKeyLen, normKeyLen);
 						if (fullyDetermines) {
 							assertTrue(cmp < 0);
 						} else {
 							assertTrue(cmp <= 0);
 						}
 					} else {
-						cmp = HeapMemorySegment.compare(memSegHigh, memSegLow, h * normKeyLen, l * normKeyLen, normKeyLen);
+						cmp = memSegHigh.compare(memSegLow, h * normKeyLen, l * normKeyLen, normKeyLen);
 						if (fullyDetermines) {
 							assertTrue(cmp > 0);
 						} else {

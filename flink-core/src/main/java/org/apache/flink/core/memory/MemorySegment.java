@@ -813,9 +813,24 @@ public abstract class MemorySegment {
 	// -------------------------------------------------------------------------
 	//                      Comparisons & Swapping
 	// -------------------------------------------------------------------------
-	
-//	public abstract int compare(MemorySegment seg1, MemorySegment seg2, int offset1, int offset2, int len);
-//	
-//	public abstract void swapBytes(MemorySegment seg1, MemorySegment seg2, byte[] tempBuffer, int offset1, int offset2, int len);
+
+	/**
+	 * Compares two memory segment regions
+	 * @return 0 if equal, -1 if seg1 < seg2, 1 otherwise
+	 * @param seg2 Segment to compare this segment with
+	 * @param offset1 Offset of this segment to start comparing
+	 * @param offset2 Offset of seg2 to start comparing
+	 * @param len Length of the compared memory region
+	 */
+	public abstract int compare(MemorySegment seg2, int offset1, int offset2, int len);
+
+	/**
+	 * Swaps bytes between two memory segments
+	 * @param seg2 Segment to swap bytes with
+	 * @param offset1 Offset of this segment to start swapping
+	 * @param offset2 Offset of seg2 to start swapping
+	 * @param len Length of the swapped memory region
+	 */
+	public abstract void swapBytes(MemorySegment seg2, int offset1, int offset2, int len);
 
 }

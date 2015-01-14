@@ -331,9 +331,10 @@ public class HeapMemorySegment extends MemorySegment {
 	// -------------------------------------------------------------------------
 	//                      Comparisons & Swapping
 	// -------------------------------------------------------------------------
-	
-	public static int compare(MemorySegment seg1, MemorySegment seg2, int offset1, int offset2, int len) {
-		final byte[] b1 = ((HeapMemorySegment)seg1).memory;
+
+	// CAUTION: current implementation works only when data is stored in big endian format
+	public int compare(MemorySegment seg2, int offset1, int offset2, int len) {
+		final byte[] b1 = this.memory;
 		final byte[] b2 = ((HeapMemorySegment)seg2).memory;
 
 		int val = 0;
@@ -341,13 +342,23 @@ public class HeapMemorySegment extends MemorySegment {
 		return val;
 	}
 
-	public static void swapBytes(MemorySegment seg1, MemorySegment seg2, byte[] tempBuffer, int offset1, int offset2, int len) {
-		final byte[] b1 = ((HeapMemorySegment)seg1).memory;
-		final byte[] b2 = ((HeapMemorySegment)seg2).memory;
-		// system arraycopy does the boundary checks anyways, no need to check extra
-		System.arraycopy(b1, offset1, tempBuffer, 0, len);
-		System.arraycopy(b2, offset2, b1, offset1, len);
-		System.arraycopy(tempBuffer, 0, b2, offset2, len);
+	public void swapBytes(MemorySegment seg2, int offset1, int offset2, int len) {
+		while(len >= 8) {
+			long tmp = this.getLong(offset1);
+			this.putLong(offset1, seg2.getLong(offset2));
+			seg2.putLong(offset2, tmp);
+			offset1 += 8;
+			offset2 += 8;
+			len -= 8;
+		}
+		while(len > 0) {
+			byte tmp = this.get(offset1);
+			this.put(offset1, seg2.get(offset2));
+			seg2.put(offset2, tmp);
+			offset1++;
+			offset2++;
+			len--;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

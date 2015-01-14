@@ -514,7 +514,55 @@ public final class DirectMemorySegment extends MemorySegment {
 			throw new IllegalArgumentException("Can only copy to other direct memory segments");
 		}
 	}
-	
+
+	@Override
+	// CAUTION: current implementation works only when data is stored in big endian format
+	public int compare(MemorySegment seg2, int offset1, int offset2, int len) {
+		while(len >= 8) {
+			long b1 = this.getLong(offset1);
+			long b2 = seg2.getLong(offset2);
+			int cmp = Long.compare(b1, b2);
+			if (cmp != 0) {
+				return cmp;
+			}
+			offset1 += 8;
+			offset2 += 8;
+			len -= 8;
+		}
+		while(len > 0) {
+			byte b1 = this.get(offset1);
+			byte b2 = seg2.get(offset2);
+			int cmp = Byte.compare(b1, b2);
+			if (cmp != 0) {
+				return cmp;
+			}
+			offset1++;
+			offset2++;
+			len--;
+		}
+		return 0;
+	}
+
+	@Override
+	public void swapBytes(MemorySegment seg2, int offset1, int offset2, int len) {
+		while(len >= 8) {
+			long tmp = this.getLong(offset1);
+			this.putLong(offset1, seg2.getLong(offset2));
+			seg2.putLong(offset2, tmp);
+			offset1+=8;
+			offset2+=8;
+			len-=8;
+		}
+		while(len > 0) {
+			byte tmp = this.get(offset1);
+			this.put(offset1, seg2.get(offset2));
+			seg2.put(offset2, tmp);
+			offset1++;
+			offset2++;
+			len--;
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//                     Utilities for native memory accesses and checks
 	// --------------------------------------------------------------------------------------------
