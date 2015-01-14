@@ -43,30 +43,12 @@ import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
-import org.apache.flink.api.java.operators.AggregateOperator;
-import org.apache.flink.api.java.operators.CoGroupOperator;
+import org.apache.flink.api.java.operators.*;
 import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
-import org.apache.flink.api.java.operators.CrossOperator;
-import org.apache.flink.api.java.operators.CustomUnaryOperation;
-import org.apache.flink.api.java.operators.DataSink;
-import org.apache.flink.api.java.operators.DeltaIteration;
-import org.apache.flink.api.java.operators.DistinctOperator;
-import org.apache.flink.api.java.operators.FilterOperator;
-import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.functions.FirstReducer;
-import org.apache.flink.api.java.operators.FlatMapOperator;
-import org.apache.flink.api.java.operators.GroupReduceOperator;
-import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
-import org.apache.flink.api.java.operators.Keys;
-import org.apache.flink.api.java.operators.MapOperator;
-import org.apache.flink.api.java.operators.MapPartitionOperator;
-import org.apache.flink.api.java.operators.PartitionOperator;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
-import org.apache.flink.api.java.operators.ReduceOperator;
-import org.apache.flink.api.java.operators.SortedGrouping;
-import org.apache.flink.api.java.operators.UnionOperator;
-import org.apache.flink.api.java.operators.UnsortedGrouping;
+import org.apache.flink.api.java.operators.ExtractOperator.Extraction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
@@ -295,6 +277,11 @@ public abstract class DataSet<T> {
 	public <OUT extends Tuple> ProjectOperator<?, OUT> project(int... fieldIndexes) {
 		return new Projection<T>(this, fieldIndexes).projectTupleX();
 	}
+
+	public <OUT> ExtractOperator<?, OUT> extractSingleField(int fieldIndex, Class<OUT> outputType) {
+		return new Extraction(this, fieldIndex, outputType).extractElementX();
+	}
+	
 	
 	// --------------------------------------------------------------------------------------------
 	//  Non-grouped aggregations

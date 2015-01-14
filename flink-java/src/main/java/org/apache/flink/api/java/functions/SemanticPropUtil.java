@@ -62,6 +62,13 @@ public class SemanticPropUtil {
 		return ssp;
 	}
 
+	public static SingleInputSemanticProperties createExtractionPropertiesSingle(int field) {
+		SingleInputSemanticProperties ssp = new SingleInputSemanticProperties();
+		ssp.addForwardedField(field, 0);
+		return ssp;
+	}
+	
+
 	public static DualInputSemanticProperties createProjectionPropertiesDual(int[] fields, boolean[] isFromFirst) {
 		DualInputSemanticProperties dsp = new DualInputSemanticProperties();
 
