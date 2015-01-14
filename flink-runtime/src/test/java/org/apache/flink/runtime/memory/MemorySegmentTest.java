@@ -81,7 +81,7 @@ public class MemorySegmentTest {
 	@Before
 	public void setUp() {
 		try {
-			this.segment = this.manager.allocatePages(new HeapMemoryManagerTest.DummyInvokable(), 1).get(0);
+			this.segment = this.manager.allocatePages(new MemoryManagerTest.DummyInvokable(), 1).get(0);
 			this.random = new Random(RANDOM_SEED);
 		} catch (Exception e) {
 			e.printStackTrace();

@@ -33,7 +33,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class HeapMemoryManagerTest
+public class MemoryManagerTest
 {
 	private static final long RANDOM_SEED = 643196033469871L;
 

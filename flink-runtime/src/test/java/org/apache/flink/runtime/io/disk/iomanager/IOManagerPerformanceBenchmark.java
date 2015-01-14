@@ -40,7 +40,7 @@ import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.HeapMemoryManagerTest;
+import org.apache.flink.runtime.memory.MemoryManagerTest;
 import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.After;
@@ -66,7 +66,7 @@ public class IOManagerPerformanceBenchmark {
 	private static final int NUM_INTS_WRITTEN = 100000000;
 	
 	
-	private static final AbstractInvokable memoryOwner = new HeapMemoryManagerTest.DummyInvokable();
+	private static final AbstractInvokable memoryOwner = new MemoryManagerTest.DummyInvokable();
 	
 	private HeapMemoryManager memManager;
 	
