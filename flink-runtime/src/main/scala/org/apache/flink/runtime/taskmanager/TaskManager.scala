@@ -44,7 +44,7 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.jobmanager.JobManager
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
 import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered, RefuseRegistration, AcknowledgeRegistration, RegisterTaskManager}
@@ -111,8 +111,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
   var registrationAttempts: Int = 0
 
   val ioManager = new IOManagerAsync(tmpDirPaths)
-  val memoryManager = new DefaultMemoryManager(memorySize, numberOfSlots, pageSize)
-  val bcVarManager = new BroadcastVariableManager()
+  val memoryManager = new HeapMemoryManager(memorySize, numberOfSlots, pageSize)
+  val bcVarManager = new BroadcastVariableManager();
   val hardwareDescription = HardwareDescription.extractFromSystem(memoryManager.getMemorySize)
   val fileCache = new FileCache()
   val runningTasks = scala.collection.mutable.HashMap[ExecutionAttemptID, Task]()

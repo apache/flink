@@ -30,7 +30,7 @@ import java.util.Random;
 import org.apache.flink.core.memory.HeapMemorySegment;
 import org.junit.Assert;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -43,7 +43,7 @@ public class MemorySegmentTest {
 
 	public static final int PAGE_SIZE = 1024 * 512;
 
-	private DefaultMemoryManager manager;
+	private HeapMemoryManager manager;
 
 	private MemorySegment segment;
 
@@ -52,8 +52,8 @@ public class MemorySegmentTest {
 	@Before
 	public void setUp() throws Exception{
 		try {
-			this.manager = new DefaultMemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE);
-			this.segment = manager.allocatePages(new DefaultMemoryManagerTest.DummyInvokable(), 1).get(0);
+			this.manager = new HeapMemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE);
+			this.segment = manager.allocatePages(new HeapMemoryManagerTest.DummyInvokable(), 1).get(0);
 			this.random = new Random(RANDOM_SEED);
 		} catch (Exception e) {
 			e.printStackTrace();

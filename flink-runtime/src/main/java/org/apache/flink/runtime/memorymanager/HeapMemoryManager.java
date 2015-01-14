@@ -35,7 +35,7 @@ import java.util.Set;
 
 import org.apache.flink.core.memory.HeapMemorySegment;
 
-public class DefaultMemoryManager implements MemoryManager {
+public class HeapMemoryManager implements MemoryManager {
 	
 	/**
 	 * The default memory page size. Currently set to 32 KiBytes.
@@ -50,7 +50,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	/**
 	 * The Logger.
 	 */
-	private static final Logger LOG = LoggerFactory.getLogger(DefaultMemoryManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HeapMemoryManager.class);
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -86,7 +86,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * 
 	 * @param memorySize The total size of the memory to be managed by this memory manager.
 	 */
-	public DefaultMemoryManager(long memorySize, int numberOfSlots) {
+	public HeapMemoryManager(long memorySize, int numberOfSlots) {
 		this(memorySize, numberOfSlots, DEFAULT_PAGE_SIZE);
 	}
 
@@ -96,7 +96,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * @param memorySize The total size of the memory to be managed by this memory manager.
 	 * @param pageSize The size of the pages handed out by the memory manager.
 	 */
-	public DefaultMemoryManager(long memorySize, int numberOfSlots, int pageSize) {
+	public HeapMemoryManager(long memorySize, int numberOfSlots, int pageSize) {
 		// sanity checks
 		if (memorySize <= 0) {
 			throw new IllegalArgumentException("Size of total memory must be positive.");

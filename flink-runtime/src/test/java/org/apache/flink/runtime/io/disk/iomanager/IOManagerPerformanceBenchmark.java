@@ -39,15 +39,9 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.DefaultMemoryManagerTest;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memory.HeapMemoryManagerTest;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.After;
 import org.junit.Before;
@@ -72,16 +66,16 @@ public class IOManagerPerformanceBenchmark {
 	private static final int NUM_INTS_WRITTEN = 100000000;
 	
 	
-	private static final AbstractInvokable memoryOwner = new DefaultMemoryManagerTest.DummyInvokable();
+	private static final AbstractInvokable memoryOwner = new HeapMemoryManagerTest.DummyInvokable();
 	
-	private DefaultMemoryManager memManager;
+	private HeapMemoryManager memManager;
 	
 	private IOManager ioManager;
 	
 	
 	@Before
 	public void startup() {
-		memManager = new DefaultMemoryManager(MEMORY_SIZE,1);
+		memManager = new HeapMemoryManager(MEMORY_SIZE,1);
 		ioManager = new IOManagerAsync();
 	}
 	

@@ -20,6 +20,11 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
+import org.apache.flink.runtime.memory.HeapMemoryManagerTest.DummyInvokable;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
