@@ -35,6 +35,12 @@ import java.util.Set;
 
 import org.apache.flink.core.memory.HeapMemorySegment;
 
+/*
+ * This class represents the default memory manager in Flink. It allocates a fixed number of memory segments.
+ * It is nearly identical to the DirectMemoryManager which can be enabled through the config. Essentially, this is because
+ * of the native type byte[] which is used for the free segments. Using a Byte[] wrapper would impose an unnecessary
+ * overhead.
+ */
 public class HeapMemoryManager implements MemoryManager {
 	
 	/**
