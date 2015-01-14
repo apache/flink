@@ -62,10 +62,10 @@ import java.nio.ByteBuffer;
  * This is harder to do and control with byte buffers, where different code paths use different versions of the class
  * (heap, direct, mapped) and thus virtual method invocations are polymorphic and are not as easily inlined.
  */
-public final class DirectMemorySegment extends MemorySegment {
+public class DirectMemorySegment extends MemorySegment {
 	
 	/** The direct byte buffer that allocated the memory */
-	private final ByteBuffer buffer;
+	protected final ByteBuffer buffer;
 	
 	/** The address to the off-heap data */
 	private long address;
