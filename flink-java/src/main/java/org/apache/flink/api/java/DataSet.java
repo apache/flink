@@ -282,7 +282,7 @@ public abstract class DataSet<T> {
 		return new Extraction(this, fieldIndex, outputType).extractElementX();
 	}
 
-	public SingleInputUdfOperator extractSingleFieldByMap(int fieldIndex, Class outputType) {
+	public <IN, OUT> SingleInputUdfOperator<IN, OUT, MapOperator<IN, OUT>> extractSingleFieldByMap(int fieldIndex, Class<OUT> outputType) {
 
 		TupleTypeInfo tupleInfo = (TupleTypeInfo) this.getType();
 		if(!tupleInfo.getTypeAt(fieldIndex).equals(TypeExtractor.createTypeInfo(outputType))) {
