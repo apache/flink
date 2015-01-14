@@ -35,7 +35,7 @@ under the License.
 	<name>Apache Flink</name>
 	<packaging>pom</packaging>
 	<url>http://flink.apache.org</url>
-	<inceptionYear>2014</inceptionYear>
+	<inceptionYear>2015</inceptionYear>
 
 	<licenses>
 		<license>
