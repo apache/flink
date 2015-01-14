@@ -294,7 +294,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		}
 		else if (typeInfo instanceof AtomicType) {
 			// handle grouping of atomic types
-			throw new UnsupportedOperationException("Grouping on atomic types is currently not implemented. " + typeInfo);
+			comparator = ((AtomicType) typeInfo).createComparator(sortOrder[0]);
 		}
 		else {
 			throw new RuntimeException("Unrecognized type: " + typeInfo);
