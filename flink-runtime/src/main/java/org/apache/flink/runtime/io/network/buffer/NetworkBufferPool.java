@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.memory.DirectMemorySegment;
 import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.slf4j.Logger;
@@ -64,9 +67,17 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		this.memorySegmentSize = segmentSize;
 		this.availableMemorySegments = new ArrayBlockingQueue<MemorySegment>(numberOfSegmentsToAllocate);
 
+		boolean useDirectMemoryAllocation = GlobalConfiguration.getBoolean(
+				ConfigConstants.TASK_MANAGER_MEMORY_DIRECT_ALLOCATION_KEY,
+				ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_DIRECT_ALLOCATION);
+
 		try {
 			for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
-				availableMemorySegments.add(new HeapMemorySegment(new byte[segmentSize]));
+				if (useDirectMemoryAllocation) {
+					availableMemorySegments.add(new DirectMemorySegment(segmentSize));
+				} else {
+					availableMemorySegments.add(new HeapMemorySegment(new byte[segmentSize]));
+				}
 			}
 		}
 		catch (OutOfMemoryError err) {
