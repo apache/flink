@@ -20,32 +20,30 @@ package org.apache.flink.hadoopcompatibility.mapred.wrapper;
 
 import java.util.Iterator;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.operators.translation.TupleUnwrappingIterator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
-
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 /**
  * Wraps a Flink Tuple2 (key-value-pair) iterator into an iterator over the second (value) field.
  */
 @SuppressWarnings("rawtypes")
-public class HadoopTupleUnwrappingIterator<KEY extends WritableComparable, VALUE extends Writable> 
+public class HadoopTupleUnwrappingIterator<KEY,VALUE> 
 									extends TupleUnwrappingIterator<VALUE, KEY> implements java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
 	
 	private Iterator<Tuple2<KEY,VALUE>> iterator;
 	
-	private final WritableSerializer<KEY> keySerializer;
+	private final TypeSerializer<KEY> keySerializer;
 	
 	private boolean atFirst = false;
 	private KEY curKey = null;
 	private VALUE firstValue = null;
 	
 	public HadoopTupleUnwrappingIterator(Class<KEY> keyClass) {
-		this.keySerializer = new WritableSerializer<KEY>(keyClass);
+		this.keySerializer = TypeExtractor.getForClass((Class<KEY>) keyClass).createSerializer();
 	}
 	
 	/**
