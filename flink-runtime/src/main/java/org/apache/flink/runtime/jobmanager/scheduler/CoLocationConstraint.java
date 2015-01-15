@@ -75,6 +75,11 @@ public class CoLocationConstraint implements Serializable {
 	public AbstractID getGroupId() {
 		return this.group.getId();
 	}
+
+	@Override
+	public String toString() {
+		return "CoLocation constraint id " + getGroupId() + " shared slot " + sharedSlot;
+	}
 	
 
 }

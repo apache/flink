@@ -330,6 +330,6 @@ public class Instance implements Serializable {
 	@Override
 	public String toString() {
 		return instanceId + " @" + (taskManager != null ? taskManager.path() : "ActorRef.noSender") + " " +
-				numberOfSlots + " slots";
+				numberOfSlots + " slots" + " - " + hashCode();
 	}
 }

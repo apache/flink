@@ -129,7 +129,7 @@ public abstract class Slot {
 
 	@Override
 	public String toString() {
-		return instance.getId() + " (" + slotNumber + ") - " + getStateName(status);
+		return instance.getId() + " - " + instance.hashCode() + " (" + slotNumber + ") - " + getStateName(status);
 	}
 
 	private static final String getStateName(int state) {

@@ -129,6 +129,10 @@ public class SimpleSlot extends Slot {
 
 	@Override
 	public String toString() {
-		return super.toString() + " - " + hashCode();
+		if(parent != null){
+			return parent.toString() + " - Subslot #" + slotNumber;
+		} else {
+			return super.toString();
+		}
 	}
 }
