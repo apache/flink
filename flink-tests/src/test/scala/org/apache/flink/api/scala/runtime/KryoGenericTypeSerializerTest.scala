@@ -133,7 +133,6 @@ class KryoGenericTypeSerializerTest {
   def runTests[T : ClassTag](objects: Seq[T]): Unit ={
     val clsTag = classTag[T]
     val typeInfo = new GenericTypeInfo[T](clsTag.runtimeClass.asInstanceOf[Class[T]])
-    println("TPE: " + typeInfo)
     val serializer = typeInfo.createSerializer()
     val typeClass = typeInfo.getTypeClass
 

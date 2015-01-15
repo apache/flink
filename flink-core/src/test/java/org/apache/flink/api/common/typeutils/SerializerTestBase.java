@@ -35,7 +35,6 @@ import org.junit.Assert;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.junit.Test;
@@ -104,7 +103,7 @@ public abstract class SerializerTestBase<T> {
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum);
-				String str = copy.toString();
+				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 			}
 		}
@@ -123,7 +122,7 @@ public abstract class SerializerTestBase<T> {
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, serializer.createInstance());
-				String str = copy.toString();
+				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 			}
 		}
@@ -144,7 +143,7 @@ public abstract class SerializerTestBase<T> {
 			
 			for (T datum : testData) {
 				T copy = serializer.copy(datum, target);
-				String str = copy.toString();
+				copy.toString();
 				deepEquals("Copied element is not equal to the original element.", datum, copy);
 				target = copy;
 			}
@@ -170,7 +169,7 @@ public abstract class SerializerTestBase<T> {
 				assertTrue("No data available during deserialization.", in.available() > 0);
 				
 				T deserialized = serializer.deserialize(serializer.createInstance(), in);
- 				String str = deserialized.toString();
+ 				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
@@ -200,7 +199,7 @@ public abstract class SerializerTestBase<T> {
 				assertTrue("No data available during deserialization.", in.available() > 0);
 				
 				T deserialized = serializer.deserialize(reuseValue, in);
-				String str = deserialized.toString();
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
@@ -232,7 +231,7 @@ public abstract class SerializerTestBase<T> {
 			int num = 0;
 			while (in.available() > 0) {
 				T deserialized = serializer.deserialize(in);
-				String str = deserialized.toString();
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				num++;
@@ -264,7 +263,7 @@ public abstract class SerializerTestBase<T> {
 			int num = 0;
 			while (in.available() > 0) {
 				T deserialized = serializer.deserialize(reuseValue, in);
-				String str = deserialized.toString();
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				reuseValue = deserialized;
@@ -299,7 +298,7 @@ public abstract class SerializerTestBase<T> {
 				assertTrue("No data available copying.", toVerify.available() > 0);
 				
 				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
-				String str = deserialized.toString();
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", value, deserialized);
 				
@@ -336,7 +335,7 @@ public abstract class SerializerTestBase<T> {
 			
 			while (toVerify.available() > 0) {
 				T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
-				String str = deserialized.toString();
+				deserialized.toString();
 
 				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
 				num++;
