@@ -29,11 +29,6 @@ public class Edge<K extends Comparable<K> & Serializable, V extends Serializable
 
 	public Edge(){}
 
-	public Edge(K src, K trg) {
-		this.f0 = src;
-		this.f1 = trg;
-	}
-
 	public Edge(K src, K trg, V val) {
 		this.f0 = src;
 		this.f1 = trg;
