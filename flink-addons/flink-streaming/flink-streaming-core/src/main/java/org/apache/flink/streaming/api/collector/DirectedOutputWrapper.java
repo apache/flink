@@ -17,12 +17,13 @@
 
 package org.apache.flink.streaming.api.collector;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.StringUtils;
@@ -36,13 +37,16 @@ import org.slf4j.LoggerFactory;
  * @param <OUT>
  *            Type of the Tuple collected.
  */
-public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
+public class DirectedOutputWrapper<OUT> extends StreamOutputWrapper<OUT> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DirectedStreamCollector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DirectedOutputWrapper.class);
 
 	OutputSelector<OUT> outputSelector;
-	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> selectAllOutputs;
-	private Set<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
+
+	protected Map<String, List<StreamOutput<OUT>>> outputMap;
+
+	private List<StreamOutput<OUT>> selectAllOutputs;
+	private Set<StreamOutput<OUT>> emitted;
 
 	/**
 	 * Creates a new DirectedStreamCollector
@@ -54,38 +58,50 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 	 * @param outputSelector
 	 *            User defined {@link OutputSelector}
 	 */
-	public DirectedStreamCollector(int channelID,
+	public DirectedOutputWrapper(int channelID,
 			SerializationDelegate<StreamRecord<OUT>> serializationDelegate,
 			OutputSelector<OUT> outputSelector) {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
-		this.emitted = new HashSet<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
-		this.selectAllOutputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
+		this.emitted = new HashSet<StreamOutput<OUT>>();
+		this.selectAllOutputs = new LinkedList<StreamOutput<OUT>>();
+		this.outputMap = new HashMap<String, List<StreamOutput<OUT>>>();
+
 	}
 
 	@Override
-	public void addOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
-			List<String> outputNames, boolean isSelectAllOutput) {
+	public void addOutput(StreamOutput<OUT> output) {
 
-		if (isSelectAllOutput) {
+		super.addOutput(output);
+
+		if (output.isSelectAll()) {
 			selectAllOutputs.add(output);
 		} else {
-			addOneOutput(output, outputNames, isSelectAllOutput);
+			for (String selectedName : output.getSelectedNames()) {
+				if (selectedName != null) {
+					if (!outputMap.containsKey(selectedName)) {
+						outputMap.put(selectedName, new LinkedList<StreamOutput<OUT>>());
+						outputMap.get(selectedName).add(output);
+					} else {
+						if (!outputMap.get(selectedName).contains(output)) {
+							outputMap.get(selectedName).add(output);
+						}
+					}
+
+				}
+			}
 		}
 	}
 
-	/**
-	 * Emits a StreamRecord to the outputs selected by the user defined
-	 * OutputSelector
-	 *
-	 */
-	protected void emitToOutputs() {
-		Iterable<String> outputNames = outputSelector.select(streamRecord.getObject());
+	@Override
+	protected void emit() {
+		Iterable<String> outputNames = outputSelector.select(serializationDelegate.getInstance()
+				.getObject());
 		emitted.clear();
 
-		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : selectAllOutputs) {
+		for (StreamOutput<OUT> output : selectAllOutputs) {
 			try {
-				output.emit(serializationDelegate);
+				output.collect(serializationDelegate);
 			} catch (Exception e) {
 				if (LOG.isErrorEnabled()) {
 					LOG.error("Emit to {} failed due to: {}", output,
@@ -93,11 +109,9 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 				}
 			}
 		}
-		emitted.addAll(selectAllOutputs);
 
 		for (String outputName : outputNames) {
-			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputList = outputMap
-					.get(outputName);
+			List<StreamOutput<OUT>> outputList = outputMap.get(outputName);
 			try {
 				if (outputList == null) {
 					if (LOG.isErrorEnabled()) {
@@ -109,9 +123,9 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 					}
 				} else {
 
-					for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputList) {
+					for (StreamOutput<OUT> output : outputList) {
 						if (!emitted.contains(output)) {
-							output.emit(serializationDelegate);
+							output.collect(serializationDelegate);
 							emitted.add(output);
 						}
 					}

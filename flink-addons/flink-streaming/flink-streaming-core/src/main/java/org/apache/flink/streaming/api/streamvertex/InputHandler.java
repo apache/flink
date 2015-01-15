@@ -49,7 +49,6 @@ public class InputHandler<IN> {
 
 	}
 
-	@SuppressWarnings("unchecked")
 	protected void setConfigInputs() throws StreamVertexException {
 		inputSerializer = configuration.getTypeSerializerIn1(streamVertex.userClassLoader);
 

@@ -21,9 +21,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
-import org.apache.flink.streaming.api.collector.DirectedStreamCollector;
+import org.apache.flink.streaming.api.collector.DirectedOutputWrapper;
 import org.apache.flink.streaming.api.collector.OutputSelector;
-import org.apache.flink.streaming.api.collector.StreamCollector;
+import org.apache.flink.streaming.api.collector.StreamOutputWrapper;
+import org.apache.flink.streaming.api.collector.StreamOutput;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -43,7 +44,7 @@ public class OutputHandler<OUT> {
 	private StreamConfig configuration;
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
-	private StreamCollector<OUT> collector;
+	private StreamOutputWrapper<OUT> collector;
 	private long bufferTimeout;
 
 	TypeInformation<OUT> outTypeInfo = null;
@@ -79,21 +80,21 @@ public class OutputHandler<OUT> {
 		}
 	}
 
-	private StreamCollector<OUT> setCollector() {
+	private StreamOutputWrapper<OUT> setCollector() {
 		if (streamVertex.configuration.getDirectedEmit()) {
 			OutputSelector<OUT> outputSelector = streamVertex.configuration
 					.getOutputSelector(streamVertex.userClassLoader);
 
-			collector = new DirectedStreamCollector<OUT>(streamVertex.getInstanceID(),
+			collector = new DirectedOutputWrapper<OUT>(streamVertex.getInstanceID(),
 					outSerializationDelegate, outputSelector);
 		} else {
-			collector = new StreamCollector<OUT>(streamVertex.getInstanceID(),
+			collector = new StreamOutputWrapper<OUT>(streamVertex.getInstanceID(),
 					outSerializationDelegate);
 		}
 		return collector;
 	}
 
-	public StreamCollector<OUT> getCollector() {
+	public StreamOutputWrapper<OUT> getCollector() {
 		return collector;
 	}
 
@@ -121,16 +122,16 @@ public class OutputHandler<OUT> {
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
 
 		if (bufferTimeout >= 0) {
-			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex.getEnvironment().getWriter(outputNumber),
-					outputPartitioner, bufferTimeout);
+			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex
+					.getEnvironment().getWriter(outputNumber), outputPartitioner, bufferTimeout);
 
 			if (LOG.isTraceEnabled()) {
 				LOG.trace("StreamRecordWriter initiated with {} bufferTimeout for {}",
 						bufferTimeout, streamVertex.getClass().getSimpleName());
 			}
 		} else {
-			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex.getEnvironment().getWriter(outputNumber),
-					outputPartitioner);
+			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex
+					.getEnvironment().getWriter(outputNumber), outputPartitioner);
 
 			if (LOG.isTraceEnabled()) {
 				LOG.trace("RecordWriter initiated for {}", streamVertex.getClass().getSimpleName());
@@ -142,7 +143,8 @@ public class OutputHandler<OUT> {
 		boolean isSelectAllOutput = configuration.getSelectAll(outputNumber);
 
 		if (collector != null) {
-			collector.addOutput(output, outputName, isSelectAllOutput);
+			collector
+					.addOutput(new StreamOutput<OUT>(output, isSelectAllOutput ? null : outputName));
 		}
 
 		if (LOG.isTraceEnabled()) {

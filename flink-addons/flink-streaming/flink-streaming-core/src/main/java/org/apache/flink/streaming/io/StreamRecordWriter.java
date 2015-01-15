@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
 
 import java.io.IOException;
 
-public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWriter {
+public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 
 	private long timeout;
 

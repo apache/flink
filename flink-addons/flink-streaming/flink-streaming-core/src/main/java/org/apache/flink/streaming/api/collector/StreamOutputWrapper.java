@@ -17,10 +17,8 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -38,14 +36,13 @@ import org.slf4j.LoggerFactory;
  * @param <OUT>
  *            Type of the Tuples/Objects collected.
  */
-public class StreamCollector<OUT> implements Collector<OUT> {
+public class StreamOutputWrapper<OUT> implements Collector<OUT> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamCollector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamOutputWrapper.class);
 
 	protected StreamRecord<OUT> streamRecord;
 	protected int channelID;
-	protected List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
-	protected Map<String, List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>> outputMap;
+	protected List<StreamOutput<OUT>> outputs;
 	protected SerializationDelegate<StreamRecord<OUT>> serializationDelegate;
 
 	/**
@@ -56,7 +53,7 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 	 * @param serializationDelegate
 	 *            Serialization delegate used for serialization
 	 */
-	public StreamCollector(int channelID,
+	public StreamOutputWrapper(int channelID,
 			SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
 		this.serializationDelegate = serializationDelegate;
 
@@ -66,8 +63,7 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 			this.streamRecord = new StreamRecord<OUT>();
 		}
 		this.channelID = channelID;
-		this.outputs = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
-		this.outputMap = new HashMap<String, List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>>();
+		this.outputs = new LinkedList<StreamOutput<OUT>>();
 	}
 
 	/**
@@ -80,29 +76,13 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 	 * @param isSelectAllOutput
 	 *            Marks whether all the outputs are selected.
 	 */
-	public void addOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
-			List<String> outputNames, boolean isSelectAllOutput) {
-		addOneOutput(output, outputNames, isSelectAllOutput);
+	public void addOutput(StreamOutput<OUT> output) {
+		outputs.add(output);
 	}
 
 	protected void addOneOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
 			List<String> outputNames, boolean isSelectAllOutput) {
-		outputs.add(output);
-		for (String outputName : outputNames) {
-			if (outputName != null) {
-				if (!outputMap.containsKey(outputName)) {
-					outputMap
-							.put(outputName,
-									new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>());
-					outputMap.get(outputName).add(output);
-				} else {
-					if (!outputMap.get(outputName).contains(output)) {
-						outputMap.get(outputName).add(output);
-					}
-				}
 
-			}
-		}
 	}
 
 	/**
@@ -115,25 +95,19 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 	@Override
 	public void collect(OUT outputObject) {
 		streamRecord.setObject(outputObject);
-		emit(streamRecord);
+		streamRecord.newId(channelID);
+		serializationDelegate.setInstance(streamRecord);
+
+		emit();
 	}
 
 	/**
-	 * Emits a StreamRecord to the outputs.
-	 * 
-	 * @param streamRecord
-	 *            StreamRecord to emit.
+	 * Emits the current streamrecord to the outputs.
 	 */
-	private void emit(StreamRecord<OUT> streamRecord) {
-		streamRecord.newId(channelID);
-		serializationDelegate.setInstance(streamRecord);
-		emitToOutputs();
-	}
-
-	protected void emitToOutputs() {
-		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
+	protected void emit() {
+		for (StreamOutput<OUT> output : outputs) {
 			try {
-				output.emit(serializationDelegate);
+				output.collect(serializationDelegate);
 			} catch (Exception e) {
 				if (LOG.isErrorEnabled()) {
 					LOG.error("Emit failed due to: {}", StringUtils.stringifyException(e));

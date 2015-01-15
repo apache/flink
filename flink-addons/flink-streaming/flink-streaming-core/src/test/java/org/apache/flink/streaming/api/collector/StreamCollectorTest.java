@@ -37,8 +37,8 @@ public class StreamCollectorTest {
 				null);
 		sd.setInstance(new StreamRecord<Tuple1<Integer>>().setObject(new Tuple1<Integer>()));
 
-		StreamCollector<Tuple1<Integer>> collector = new StreamCollector<Tuple1<Integer>>(2, sd);
-		collector.addOutput(recWriter, new ArrayList<String>(), false);
+		StreamOutputWrapper<Tuple1<Integer>> collector = new StreamOutputWrapper<Tuple1<Integer>>(2, sd);
+		collector.addOutput(new StreamOutput<Tuple1<Integer>>(recWriter, new ArrayList<String>()));
 		collector.collect(new Tuple1<Integer>(3));
 		collector.collect(new Tuple1<Integer>(4));
 		collector.collect(new Tuple1<Integer>(5));

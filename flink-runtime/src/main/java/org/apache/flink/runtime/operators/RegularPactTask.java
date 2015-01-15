@@ -706,7 +706,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 *
 	 * This method requires that the task configuration, the driver, and the user-code class loader are set.
 	 */
-	@SuppressWarnings("unchecked")
 	protected void initInputReaders() throws Exception {
 		final int numInputs = getNumTaskInputs();
 		final MutableReader<?>[] inputReaders = new MutableReader[numInputs];
@@ -748,7 +747,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 *
 	 * This method requires that the task configuration, the driver, and the user-code class loader are set.
 	 */
-	@SuppressWarnings("unchecked")
 	protected void initBroadcastInputReaders() throws Exception {
 		final int numBroadcastInputs = this.config.getNumBroadcastInputs();
 		final MutableReader<?>[] broadcastInputReaders = new MutableReader[numBroadcastInputs];
