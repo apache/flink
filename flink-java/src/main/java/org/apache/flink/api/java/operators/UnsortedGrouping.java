@@ -134,7 +134,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
-		return new ReduceOperator<T>(this, reducer, Utils.getCallLocationName());
+		return new ReduceOperator<T>(this, dataSet.clean(reducer), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -156,7 +156,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getDataSet().getType());
 
-		return new GroupReduceOperator<T, R>(this, resultType, reducer, Utils.getCallLocationName());
+		return new GroupReduceOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName());
 	}
 	
 	/**
