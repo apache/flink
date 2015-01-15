@@ -42,7 +42,6 @@ public class RemoteExecutor extends PlanExecutor {
 	
 	private final InetSocketAddress address;
 	
-	
 	public RemoteExecutor(String hostname, int port) {
 		this(hostname, port, Collections.<String>emptyList());
 	}
@@ -63,7 +62,6 @@ public class RemoteExecutor extends PlanExecutor {
 		this.jarFiles = jarFiles;
 		this.address = inet;
 	}
-
 	
 	public static InetSocketAddress getInetFromHostport(String hostport) {
 		// from http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
@@ -84,9 +82,7 @@ public class RemoteExecutor extends PlanExecutor {
 	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		JobWithJars p = new JobWithJars(plan, this.jarFiles);
-		
-		Client c = new Client(this.address, new Configuration(), p.getUserCodeClassLoader());
-		return c.run(p, -1, true);
+		return executePlanWithJars(p);
 	}
 	
 	public JobExecutionResult executePlanWithJars(JobWithJars p) throws Exception {
