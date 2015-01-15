@@ -40,7 +40,7 @@ public class GroupedReduceInvokable<IN> extends StreamReduceInvokable<IN> {
 	protected void reduce() throws Exception {
 		Object key = nextRecord.getKey(keySelector);
 		currentValue = values.get(key);
-		nextValue = nextRecord.getObject();
+		nextValue = nextObject;
 		if (currentValue != null) {
 			callUserFunctionAndLogException();
 			values.put(key, reduced);
@@ -54,6 +54,11 @@ public class GroupedReduceInvokable<IN> extends StreamReduceInvokable<IN> {
 	@Override
 	protected void callUserFunction() throws Exception {
 		reduced = reducer.reduce(currentValue, nextValue);
+	}
+
+	@Override
+	public boolean isChainable() {
+		return false;
 	}
 
 }

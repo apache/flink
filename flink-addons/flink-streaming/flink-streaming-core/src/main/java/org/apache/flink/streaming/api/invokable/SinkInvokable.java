@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.invokable;
 
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
-public class SinkInvokable<IN> extends StreamInvokable<IN, IN> {
+public class SinkInvokable<IN> extends ChainableInvokable<IN, IN> {
 	private static final long serialVersionUID = 1L;
 
 	private SinkFunction<IN> sinkFunction;
@@ -38,7 +38,13 @@ public class SinkInvokable<IN> extends StreamInvokable<IN, IN> {
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		sinkFunction.invoke((IN) nextRecord.getObject());
+		sinkFunction.invoke(nextObject);
+	}
+
+	@Override
+	public void collect(IN record) {
+		nextObject = copy(record);
+		callUserFunctionAndLogException();
 	}
 
 }

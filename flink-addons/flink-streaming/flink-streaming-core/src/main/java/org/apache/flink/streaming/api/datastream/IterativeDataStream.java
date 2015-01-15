@@ -67,7 +67,7 @@ public class IterativeDataStream<IN> extends
 				iterationTail.getParallelism(), waitTime);
 
 		jobGraphBuilder.setIterationSourceSettings(iterationID.toString(), iterationTail.getId());
-		connectGraph(iterationTail, iterationSink.getId(), 0);
+		connectGraph(iterationTail.forward(), iterationSink.getId(), 0);
 		return iterationTail;
 	}
 

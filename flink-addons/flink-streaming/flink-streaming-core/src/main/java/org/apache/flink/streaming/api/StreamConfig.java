@@ -27,6 +27,7 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
@@ -39,6 +40,9 @@ public class StreamConfig {
 	private static final String INPUT_TYPE = "inputType_";
 	private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
 	private static final String NUMBER_OF_INPUTS = "numberOfInputs";
+	private static final String NUMBER_OF_CHAINED_TASKS = "numOfChained";
+	private static final String CHAINED_IN_SERIALIZER = "chainedSerializer_";
+	private static final String CHAINED_INVOKABLE = "chainedInvokable_";
 	private static final String OUTPUT_NAME = "outputName_";
 	private static final String OUTPUT_SELECT_ALL = "outputSelectAll_";
 	private static final String PARTITIONER_OBJECT = "partitionerObject_";
@@ -46,8 +50,6 @@ public class StreamConfig {
 	private static final String ITERATION_ID = "iteration-id";
 	private static final String OUTPUT_SELECTOR = "outputSelector";
 	private static final String DIRECTED_EMIT = "directedEmit";
-	private static final String FUNCTION_NAME = "operatorName";
-	private static final String VERTEX_NAME = "vertexName";
 	private static final String SERIALIZEDUDF = "serializedudf";
 	private static final String USER_FUNCTION = "userfunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
@@ -164,18 +166,6 @@ public class StreamConfig {
 		}
 	}
 
-	public void setVertexName(String vertexName) {
-		config.setString(VERTEX_NAME, vertexName);
-	}
-
-	public String getVertexName() {
-		return config.getString(VERTEX_NAME, null);
-	}
-
-	public String getFunctionName() {
-		return config.getString(FUNCTION_NAME, "");
-	}
-
 	public void setDirectedEmit(boolean directedEmit) {
 		config.setBoolean(DIRECTED_EMIT, directedEmit);
 	}
@@ -261,7 +251,7 @@ public class StreamConfig {
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<String> getOutputName(int outputIndex) {
+	public List<String> getOutputNames(int outputIndex) {
 		return (List<String>) SerializationUtils.deserialize(config.getBytes(OUTPUT_NAME
 				+ outputIndex, null));
 	}
@@ -314,6 +304,42 @@ public class StreamConfig {
 		} catch (Exception e) {
 			throw new RuntimeException("Could not load operator state");
 		}
+	}
+
+	public int getNumberofChainedTasks() {
+		return config.getInteger(NUMBER_OF_CHAINED_TASKS, 0);
+	}
+
+	public void setNumberofChainedTasks(int n) {
+		config.setInteger(NUMBER_OF_CHAINED_TASKS, n);
+	}
+
+	public ChainableInvokable<?, ?> getChainedInvokable(int chainedTaskIndex, ClassLoader cl) {
+		try {
+			return (ChainableInvokable<?, ?>) InstantiationUtil.readObjectFromConfig(this.config,
+					CHAINED_INVOKABLE + chainedTaskIndex, cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not instantiate invokable.");
+		}
+	}
+
+	public StreamRecordSerializer<?> getChainedInSerializer(int chainedTaskIndex, ClassLoader cl) {
+		try {
+			return (StreamRecordSerializer<?>) InstantiationUtil.readObjectFromConfig(this.config,
+					CHAINED_IN_SERIALIZER + chainedTaskIndex, cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not instantiate serializer.");
+		}
+	}
+
+	public void setChainedSerializer(StreamRecordSerializer<?> typeWrapper, int chainedTaskIndex) {
+		config.setBytes(CHAINED_IN_SERIALIZER + chainedTaskIndex,
+				SerializationUtils.serialize(typeWrapper));
+	}
+
+	public void setChainedInvokable(ChainableInvokable<?, ?> invokable, int chainedTaskIndex) {
+		config.setBytes(CHAINED_INVOKABLE + chainedTaskIndex,
+				SerializationUtils.serialize(invokable));
 	}
 
 }

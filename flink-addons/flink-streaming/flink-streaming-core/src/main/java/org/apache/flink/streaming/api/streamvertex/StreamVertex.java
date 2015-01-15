@@ -22,6 +22,7 @@ import java.util.Map;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.StreamConfig;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
@@ -35,10 +36,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	protected StreamConfig configuration;
 	protected int instanceID;
-	protected String name;
 	private static int numVertices = 0;
-
-	protected String functionName;
 
 	private InputHandler<IN> inputHandler;
 	protected OutputHandler<OUT> outputHandler;
@@ -70,17 +68,26 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	protected void initialize() {
 		this.userClassLoader = getUserCodeClassLoader();
 		this.configuration = new StreamConfig(getTaskConfiguration());
-		this.name = configuration.getVertexName();
-		this.functionName = configuration.getFunctionName();
 		this.states = configuration.getOperatorStates(userClassLoader);
-		this.context = createRuntimeContext(name, this.states);
+		this.context = createRuntimeContext(getEnvironment().getTaskName(), this.states);
 	}
 
 	protected <T> void invokeUserFunction(StreamInvokable<?, T> userInvokable) throws Exception {
 		userInvokable.setRuntimeContext(context);
 		userInvokable.open(getTaskConfiguration());
+
+		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+			invokable.setRuntimeContext(context);
+			invokable.open(getTaskConfiguration());
+		}
+
 		userInvokable.invoke();
 		userInvokable.close();
+
+		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+			invokable.close();
+		}
+
 	}
 
 	public void setInputsOutputs() {
@@ -94,14 +101,15 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	}
 
 	public String getName() {
-		return name;
+		return getEnvironment().getTaskName();
 	}
 
 	public int getInstanceID() {
 		return instanceID;
 	}
 
-	public StreamingRuntimeContext createRuntimeContext(String taskName, Map<String, OperatorState<?>> states) {
+	public StreamingRuntimeContext createRuntimeContext(String taskName,
+			Map<String, OperatorState<?>> states) {
 		Environment env = getEnvironment();
 		return new StreamingRuntimeContext(taskName, env, getUserCodeClassLoader(), states);
 	}

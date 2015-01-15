@@ -182,6 +182,11 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		return (SingleOutputStreamOperator<OUT, O>) super.distribute();
 	}
 
+	@SuppressWarnings("unchecked")
+	public SingleOutputStreamOperator<OUT, O> global() {
+		return (SingleOutputStreamOperator<OUT, O>) super.global();
+	}
+
 	@Override
 	public SingleOutputStreamOperator<OUT, O> copy() {
 		return new SingleOutputStreamOperator<OUT, O>(this);

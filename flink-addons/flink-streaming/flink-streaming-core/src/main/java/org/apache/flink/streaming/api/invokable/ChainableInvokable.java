@@ -15,41 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator;
+package org.apache.flink.streaming.api.invokable;
 
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.util.Collector;
 
-public class FilterInvokable<IN> extends ChainableInvokable<IN, IN> {
+public abstract class ChainableInvokable<IN, OUT> extends StreamInvokable<IN, OUT> implements
+		Collector<IN> {
 
 	private static final long serialVersionUID = 1L;
 
-	FilterFunction<IN> filterFunction;
-	private boolean collect;
-
-	public FilterInvokable(FilterFunction<IN> filterFunction) {
-		super(filterFunction);
-		this.filterFunction = filterFunction;
+	public ChainableInvokable(Function userFunction) {
+		super(userFunction);
 	}
 
-	@Override
-	public void invoke() throws Exception {
-		while (readNext() != null) {
-			callUserFunctionAndLogException();
-		}
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		collect = filterFunction.filter(copy(nextObject));
-		if (collect) {
-			collector.collect(nextObject);
-		}
-	}
-
-	@Override
-	public void collect(IN record) {
-		nextObject = copy(record);
-		callUserFunctionAndLogException();
+	public void setup(Collector<OUT> collector, StreamRecordSerializer<IN> inSerializer) {
+		this.collector = collector;
+		this.inSerializer = inSerializer;
+		this.objectSerializer = inSerializer.getObjectSerializer();
 	}
 }

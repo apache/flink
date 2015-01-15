@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 
-public class MapInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
+public class MapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private MapFunction<IN, OUT> mapper;
@@ -39,6 +39,12 @@ public class MapInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		collector.collect(mapper.map(nextRecord.getObject()));
+		collector.collect(mapper.map(nextObject));
+	}
+
+	@Override
+	public void collect(IN record) {
+		nextObject = copy(record);
+		callUserFunctionAndLogException();
 	}
 }

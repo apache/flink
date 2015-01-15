@@ -17,9 +17,9 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 
-public class CounterInvokable<IN> extends StreamInvokable<IN, Long> {
+public class CounterInvokable<IN> extends ChainableInvokable<IN, Long> {
 	private static final long serialVersionUID = 1L;
 
 	Long count = 0L;
@@ -34,4 +34,10 @@ public class CounterInvokable<IN> extends StreamInvokable<IN, Long> {
 			collector.collect(++count);
 		}
 	}
+
+	@Override
+	public void collect(IN record) {
+		collector.collect(++count);
+	}
+
 }

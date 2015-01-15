@@ -17,25 +17,29 @@
 
 package org.apache.flink.streaming.api.streamvertex;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
+import org.apache.flink.streaming.api.collector.CollectorWrapper;
 import org.apache.flink.streaming.api.collector.DirectedOutputWrapper;
 import org.apache.flink.streaming.api.collector.OutputSelector;
-import org.apache.flink.streaming.api.collector.StreamOutputWrapper;
 import org.apache.flink.streaming.api.collector.StreamOutput;
+import org.apache.flink.streaming.api.collector.StreamOutputWrapper;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.StreamRecordWriter;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
 
 public class OutputHandler<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(OutputHandler.class);
@@ -44,17 +48,21 @@ public class OutputHandler<OUT> {
 	private StreamConfig configuration;
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
-	private StreamOutputWrapper<OUT> collector;
-	private long bufferTimeout;
+	private Collector<OUT> endCollector;
 
 	TypeInformation<OUT> outTypeInfo = null;
 	StreamRecordSerializer<OUT> outSerializer = null;
 	SerializationDelegate<StreamRecord<OUT>> outSerializationDelegate = null;
 
+	public List<ChainableInvokable<?, ?>> chainedInvokables;
+
+	private int numberOfChainedTasks;
+
 	public OutputHandler(StreamVertex<?, OUT> streamComponent) {
 		this.streamVertex = streamComponent;
 		this.outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 		this.configuration = new StreamConfig(streamComponent.getTaskConfiguration());
+		this.chainedInvokables = new ArrayList<ChainableInvokable<?, ?>>();
 
 		try {
 			setConfigOutputs();
@@ -62,6 +70,7 @@ public class OutputHandler<OUT> {
 			throw new StreamVertexException("Cannot register outputs for "
 					+ streamComponent.getClass().getSimpleName(), e);
 		}
+
 	}
 
 	public List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> getOutputs() {
@@ -69,18 +78,42 @@ public class OutputHandler<OUT> {
 	}
 
 	private void setConfigOutputs() {
-		setSerializers();
-		setCollector();
-
-		int numberOfOutputs = configuration.getNumberOfOutputs();
-		bufferTimeout = configuration.getBufferTimeout();
-
-		for (int i = 0; i < numberOfOutputs; i++) {
-			setPartitioner(i, outputs);
-		}
+		numberOfChainedTasks = configuration.getNumberofChainedTasks();
+		endCollector = createChainedOutputs(0);
 	}
 
-	private StreamOutputWrapper<OUT> setCollector() {
+	@SuppressWarnings("unchecked")
+	private Collector<OUT> createChainedOutputs(int chainedTaskIndex) {
+
+		if (numberOfChainedTasks == chainedTaskIndex) {
+			return createEndCollector();
+		} else {
+			CollectorWrapper<OUT> chainedCollector = new CollectorWrapper<OUT>();
+
+			@SuppressWarnings("rawtypes")
+			ChainableInvokable chainableInvokable = configuration.getChainedInvokable(
+					chainedTaskIndex, streamVertex.getUserCodeClassLoader());
+
+			chainableInvokable.setup(
+					createChainedOutputs(chainedTaskIndex + 1),
+					configuration.getChainedInSerializer(chainedTaskIndex,
+							streamVertex.getUserCodeClassLoader()));
+
+			chainedInvokables.add(chainableInvokable);
+
+			chainedCollector.addChainedOutput((Collector<OUT>) chainableInvokable);
+
+			return chainedCollector;
+		}
+
+	}
+
+	private Collector<OUT> createEndCollector() {
+
+		setSerializers();
+
+		StreamOutputWrapper<OUT> collector;
+
 		if (streamVertex.configuration.getDirectedEmit()) {
 			OutputSelector<OUT> outputSelector = streamVertex.configuration
 					.getOutputSelector(streamVertex.userClassLoader);
@@ -91,11 +124,17 @@ public class OutputHandler<OUT> {
 			collector = new StreamOutputWrapper<OUT>(streamVertex.getInstanceID(),
 					outSerializationDelegate);
 		}
+
+		int numberOfOutputs = configuration.getNumberOfOutputs();
+		for (int i = 0; i < numberOfOutputs; i++) {
+			collector = (StreamOutputWrapper<OUT>) setPartitioner(i, collector);
+		}
+
 		return collector;
 	}
 
-	public StreamOutputWrapper<OUT> getCollector() {
-		return collector;
+	public Collector<OUT> getCollector() {
+		return endCollector;
 	}
 
 	void setSerializers() {
@@ -106,8 +145,7 @@ public class OutputHandler<OUT> {
 		}
 	}
 
-	void setPartitioner(int outputNumber,
-			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs) {
+	Collector<OUT> setPartitioner(int outputNumber, StreamOutputWrapper<OUT> endCollector) {
 		StreamPartitioner<OUT> outputPartitioner = null;
 
 		try {
@@ -120,6 +158,8 @@ public class OutputHandler<OUT> {
 		}
 
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
+
+		long bufferTimeout = configuration.getBufferTimeout();
 
 		if (bufferTimeout >= 0) {
 			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex
@@ -139,18 +179,20 @@ public class OutputHandler<OUT> {
 		}
 
 		outputs.add(output);
-		List<String> outputName = configuration.getOutputName(outputNumber);
+		List<String> outputNames = configuration.getOutputNames(outputNumber);
 		boolean isSelectAllOutput = configuration.getSelectAll(outputNumber);
 
-		if (collector != null) {
-			collector
-					.addOutput(new StreamOutput<OUT>(output, isSelectAllOutput ? null : outputName));
+		if (endCollector != null) {
+			endCollector.addOutput(new StreamOutput<OUT>(output, isSelectAllOutput ? null
+					: outputNames));
 		}
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()
 					.getSimpleName(), outputNumber, streamVertex.getClass().getSimpleName());
 		}
+
+		return endCollector;
 	}
 
 	public void flushOutputs() throws IOException, InterruptedException {

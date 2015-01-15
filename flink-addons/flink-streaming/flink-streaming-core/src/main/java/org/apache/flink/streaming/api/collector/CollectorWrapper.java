@@ -37,7 +37,7 @@ public class CollectorWrapper<OUT> implements Collector<OUT> {
 	@Override
 	public void collect(OUT record) {
 		for(Collector<OUT> output: outputs){
-			output.collect(record);;
+			output.collect(record);
 		}
 	}
 

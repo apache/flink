@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 
-public class StreamReduceInvokable<IN> extends StreamInvokable<IN, IN> {
+public class StreamReduceInvokable<IN> extends ChainableInvokable<IN, IN> {
 	private static final long serialVersionUID = 1L;
 
 	protected ReduceFunction<IN> reducer;
@@ -41,13 +41,15 @@ public class StreamReduceInvokable<IN> extends StreamInvokable<IN, IN> {
 	}
 
 	protected void reduce() throws Exception {
-		nextValue = nextRecord.getObject();
 		callUserFunctionAndLogException();
 
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
+
+		nextValue = nextObject;
+
 		if (currentValue != null) {
 			currentValue = reducer.reduce(currentValue, nextValue);
 		} else {
@@ -57,4 +59,11 @@ public class StreamReduceInvokable<IN> extends StreamInvokable<IN, IN> {
 		collector.collect(currentValue);
 
 	}
+
+	@Override
+	public void collect(IN record) {
+		nextObject = copy(record);
+		callUserFunctionAndLogException();
+	}
+
 }

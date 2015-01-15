@@ -175,7 +175,7 @@ public class CoWindowInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT>
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		if (!window.miniBatchEnd()) {
 			callUserFunctionAndLogException();
 		}

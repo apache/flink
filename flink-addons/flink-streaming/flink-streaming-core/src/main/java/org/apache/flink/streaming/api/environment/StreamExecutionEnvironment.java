@@ -434,7 +434,7 @@ public abstract class StreamExecutionEnvironment {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, sourceName,
 				outTypeInfo, isParallel);
 
-		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
+		jobGraphBuilder.addSourceVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
 				null, outTypeInfo, sourceName, dop);
 
 		return returnStream;

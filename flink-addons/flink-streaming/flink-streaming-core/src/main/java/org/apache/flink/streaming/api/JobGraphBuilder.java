@@ -22,7 +22,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
@@ -32,8 +34,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.streaming.api.collector.OutputSelector;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.api.invokable.SourceInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -56,6 +57,8 @@ public class JobGraphBuilder {
 	private final static String DEAFULT_JOB_NAME = "Streaming Job";
 	private JobGraph jobGraph;
 
+	private boolean chaining = true;
+
 	// Graph attributes
 	private Map<String, AbstractJobVertex> streamVertices;
 	private Map<String, Integer> vertexParallelism;
@@ -65,7 +68,7 @@ public class JobGraphBuilder {
 	private Map<String, List<List<String>>> outEdgeNames;
 	private Map<String, List<Boolean>> outEdgeSelectAll;
 	private Map<String, List<String>> inEdgeList;
-	private Map<String, List<StreamPartitioner<?>>> connectionTypes;
+	private Map<String, List<StreamPartitioner<?>>> outPartitioning;
 	private Map<String, String> operatorNames;
 	private Map<String, StreamInvokable<?, ?>> invokableObjects;
 	private Map<String, StreamRecordSerializer<?>> typeSerializersIn1;
@@ -81,6 +84,12 @@ public class JobGraphBuilder {
 	private Map<String, Long> iterationWaitTime;
 	private Map<String, Map<String, OperatorState<?>>> operatorStates;
 	private Map<String, InputFormat<String, ?>> inputFormatList;
+	private Map<String, List<String>> chainedVertices;
+	private Map<String, List<ChainableInvokable<?, ?>>> chainedInvokable;
+	private Map<String, List<StreamRecordSerializer<?>>> chainedSerializer;
+
+	private Set<String> sources;
+	private Set<String> builtVertices;
 
 	/**
 	 * Creates an new {@link JobGraph} with the given name. A JobGraph is a DAG
@@ -96,7 +105,7 @@ public class JobGraphBuilder {
 		outEdgeNames = new HashMap<String, List<List<String>>>();
 		outEdgeSelectAll = new HashMap<String, List<Boolean>>();
 		inEdgeList = new HashMap<String, List<String>>();
-		connectionTypes = new HashMap<String, List<StreamPartitioner<?>>>();
+		outPartitioning = new HashMap<String, List<StreamPartitioner<?>>>();
 		operatorNames = new HashMap<String, String>();
 		invokableObjects = new HashMap<String, StreamInvokable<?, ?>>();
 		typeSerializersIn1 = new HashMap<String, StreamRecordSerializer<?>>();
@@ -112,6 +121,12 @@ public class JobGraphBuilder {
 		iterationWaitTime = new HashMap<String, Long>();
 		operatorStates = new HashMap<String, Map<String, OperatorState<?>>>();
 		inputFormatList = new HashMap<String, InputFormat<String, ?>>();
+		chainedInvokable = new HashMap<String, List<ChainableInvokable<?, ?>>>();
+		chainedSerializer = new HashMap<String, List<StreamRecordSerializer<?>>>();
+		chainedVertices = new HashMap<String, List<String>>();
+
+		sources = new HashSet<String>();
+		builtVertices = new HashSet<String>();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("JobGraph created");
@@ -152,32 +167,12 @@ public class JobGraphBuilder {
 		}
 	}
 
-	/**
-	 * Adds a source vertex to the streaming JobGraph with the given parameters
-	 * 
-	 * @param vertexName
-	 *            Name of the vertex
-	 * @param function
-	 *            User defined function
-	 * @param inTypeInfo
-	 *            Input type for serialization
-	 * @param outTypeInfo
-	 *            Output type for serialization
-	 * @param operatorName
-	 *            Operator type
-	 * @param parallelism
-	 *            Number of parallel instances created
-	 */
-	public <IN, OUT> void addSourceVertex(String vertexName, SourceFunction<OUT> function,
-			TypeInformation<IN> inTypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName,
-			byte[] serializedFunction, int parallelism) {
-
-		@SuppressWarnings("unchecked")
-		StreamInvokable<IN, OUT> invokableObject = (StreamInvokable<IN, OUT>) new SourceInvokable<OUT>(
-				function);
-
+	public <IN, OUT> void addSourceVertex(String vertexName,
+			StreamInvokable<IN, OUT> invokableObject, TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo, String operatorName, int parallelism) {
 		addStreamVertex(vertexName, invokableObject, inTypeInfo, outTypeInfo, operatorName,
 				parallelism);
+		sources.add(vertexName);
 	}
 
 	/**
@@ -205,7 +200,7 @@ public class JobGraphBuilder {
 
 		setBytesFrom(iterationHead, vertexName);
 
-		setEdge(vertexName, iterationHead, connectionTypes
+		setEdge(vertexName, iterationHead, outPartitioning
 				.get(inEdgeList.get(iterationHead).get(0)).get(0), 0, new ArrayList<String>(),
 				false);
 
@@ -214,6 +209,8 @@ public class JobGraphBuilder {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("ITERATION SOURCE: {}", vertexName);
 		}
+
+		sources.add(vertexName);
 	}
 
 	/**
@@ -295,7 +292,7 @@ public class JobGraphBuilder {
 		outEdgeNames.put(vertexName, new ArrayList<List<String>>());
 		outEdgeSelectAll.put(vertexName, new ArrayList<Boolean>());
 		inEdgeList.put(vertexName, new ArrayList<String>());
-		connectionTypes.put(vertexName, new ArrayList<StreamPartitioner<?>>());
+		outPartitioning.put(vertexName, new ArrayList<StreamPartitioner<?>>());
 		iterationTailCount.put(vertexName, 0);
 	}
 
@@ -317,50 +314,134 @@ public class JobGraphBuilder {
 	 */
 	private void createVertex(String vertexName) {
 
-		// Get vertex attributes
-		Class<? extends AbstractInvokable> vertexClass = vertexClasses.get(vertexName);
-		StreamInvokable<?, ?> invokableObject = invokableObjects.get(vertexName);
-		int parallelism = vertexParallelism.get(vertexName);
-		byte[] outputSelector = outputSelectors.get(vertexName);
-		Map<String, OperatorState<?>> state = operatorStates.get(vertexName);
+		if (!builtVertices.contains(vertexName)) {
+			if (!outEdgeList.get(vertexName).isEmpty()) {
 
-		// Create vertex object
-		AbstractJobVertex vertex = new AbstractJobVertex(vertexName);
+				for (String outName : outEdgeList.get(vertexName)) {
+					if (isChainable(vertexName, outName)) {
+						chainRecursively(vertexName, vertexName, outName);
+					} else {
+						createVertex(outName);
+					}
 
-		this.jobGraph.addVertex(vertex);
+				}
+			}
 
-		vertex.setInvokableClass(vertexClass);
-		vertex.setParallelism(parallelism);
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Parallelism set: {} for {}", parallelism, vertexName);
+			// Get vertex attributes
+			Class<? extends AbstractInvokable> vertexClass = vertexClasses.get(vertexName);
+			StreamInvokable<?, ?> invokableObject = invokableObjects.get(vertexName);
+			int parallelism = vertexParallelism.get(vertexName);
+			byte[] outputSelector = outputSelectors.get(vertexName);
+			Map<String, OperatorState<?>> state = operatorStates.get(vertexName);
+
+			// Create vertex object
+			String cname = chainedVertices.get(vertexName) == null ? "" : " => "
+					+ StringUtils.join(chainedVertices.get(vertexName), " => ");
+			AbstractJobVertex vertex = new AbstractJobVertex(vertexName + cname);
+
+			this.jobGraph.addVertex(vertex);
+
+			vertex.setInvokableClass(vertexClass);
+			vertex.setParallelism(parallelism);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Parallelism set: {} for {}", parallelism, vertexName);
+			}
+
+			StreamConfig config = new StreamConfig(vertex.getConfiguration());
+
+			config.setBufferTimeout(bufferTimeout.get(vertexName));
+
+			config.setTypeSerializerIn1(typeSerializersIn1.get(vertexName));
+			config.setTypeSerializerIn2(typeSerializersIn2.get(vertexName));
+			config.setTypeSerializerOut1(typeSerializersOut1.get(vertexName));
+			config.setTypeSerializerOut2(typeSerializersOut2.get(vertexName));
+
+			// Set vertex config
+			config.setUserInvokable(invokableObject);
+			config.setOutputSelector(outputSelector);
+			config.setOperatorStates(state);
+
+			if (vertexClass.equals(StreamIterationHead.class)
+					|| vertexClass.equals(StreamIterationTail.class)) {
+				config.setIterationId(iterationIds.get(vertexName));
+				config.setIterationWaitTime(iterationWaitTime.get(vertexName));
+			}
+
+			if (inputFormatList.containsKey(vertexName)) {
+				vertex.setInputSplitSource(inputFormatList.get(vertexName));
+			}
+
+			List<ChainableInvokable<?, ?>> chainedInvokables = chainedInvokable.get(vertexName);
+			List<StreamRecordSerializer<?>> chainedSerializers = chainedSerializer.get(vertexName);
+
+			int numChained = chainedInvokables == null ? 0 : chainedInvokables.size();
+			config.setNumberofChainedTasks(numChained);
+
+			for (int i = 0; i < numChained; i++) {
+				config.setChainedInvokable(chainedInvokables.get(i), i);
+				config.setChainedSerializer(chainedSerializers.get(i), i);
+			}
+
+			streamVertices.put(vertexName, vertex);
+			builtVertices.add(vertexName);
+
 		}
 
-		StreamConfig config = new StreamConfig(vertex.getConfiguration());
+	}
 
-		config.setBufferTimeout(bufferTimeout.get(vertexName));
-
-		config.setTypeSerializerIn1(typeSerializersIn1.get(vertexName));
-		config.setTypeSerializerIn2(typeSerializersIn2.get(vertexName));
-		config.setTypeSerializerOut1(typeSerializersOut1.get(vertexName));
-		config.setTypeSerializerOut2(typeSerializersOut2.get(vertexName));
-
-		// Set vertex config
-		config.setUserInvokable(invokableObject);
-		config.setVertexName(vertexName);
-		config.setOutputSelector(outputSelector);
-		config.setOperatorStates(state);
-
-		if (vertexClass.equals(StreamIterationHead.class)
-				|| vertexClass.equals(StreamIterationTail.class)) {
-			config.setIterationId(iterationIds.get(vertexName));
-			config.setIterationWaitTime(iterationWaitTime.get(vertexName));
+	private void chainRecursively(String chainStart, String current, String next) {
+		chainTasks(chainStart, next);
+		// Add multiple chaining here
+		for (String output : outEdgeList.get(next)) {
+			if (isChainable(next, output)) {
+				chainRecursively(chainStart, next, output);
+			} else {
+				createVertex(output);
+			}
 		}
+	}
 
-		if (inputFormatList.containsKey(vertexName)) {
-			vertex.setInputSplitSource(inputFormatList.get(vertexName));
+	private boolean isChainable(String vertexName, String outName) {
+		return outEdgeList.get(vertexName).size() == 1
+				&& inEdgeList.get(outName).size() == 1
+				&& outputSelectors.get(vertexName) == null
+				&& invokableObjects.get(outName).isChainable()
+				&& outPartitioning.get(vertexName).get(0).getStrategy() == PartitioningStrategy.FORWARD
+				&& vertexParallelism.get(vertexName) == vertexParallelism.get(outName) && chaining;
+	}
+
+	private void chainTasks(String first, String second) {
+		List<ChainableInvokable<?, ?>> chainedInvokables = chainedInvokable.get(first);
+		if (chainedInvokables == null) {
+			chainedInvokables = new ArrayList<ChainableInvokable<?, ?>>();
 		}
+		chainedInvokables.add((ChainableInvokable<?, ?>) invokableObjects.get(second));
+		chainedInvokable.put(first, chainedInvokables);
 
-		streamVertices.put(vertexName, vertex);
+		List<StreamRecordSerializer<?>> chainedSerializers = chainedSerializer.get(first);
+		if (chainedSerializers == null) {
+			chainedSerializers = new ArrayList<StreamRecordSerializer<?>>();
+		}
+		chainedSerializers.add(typeSerializersIn1.get(second));
+		chainedSerializer.put(first, chainedSerializers);
+
+		List<String> chained = chainedVertices.get(first);
+		if (chained == null) {
+			chained = new ArrayList<String>();
+		}
+		chained.add(second);
+		chainedVertices.put(first, chained);
+
+		outEdgeList.put(first, outEdgeList.get(second));
+		typeSerializersOut1.put(first, typeSerializersOut1.get(second));
+		outPartitioning.put(first, outPartitioning.get(second));
+		outEdgeType.put(first, outEdgeType.get(second));
+		outEdgeNames.put(first, outEdgeNames.get(second));
+		outEdgeSelectAll.put(first, outEdgeSelectAll.get(second));
+		outPartitioning.put(first, outPartitioning.get(second));
+		bufferTimeout.put(first, bufferTimeout.get(second));
+		outputSelectors.put(first, outputSelectors.get(second));
+
 	}
 
 	/**
@@ -385,8 +466,8 @@ public class JobGraphBuilder {
 			downStreamVertex
 					.connectNewDataSetAsInput(upStreamVertex, DistributionPattern.POINTWISE);
 		} else {
-			downStreamVertex
-					.connectNewDataSetAsInput(upStreamVertex, DistributionPattern.ALL_TO_ALL);
+			downStreamVertex.connectNewDataSetAsInput(upStreamVertex,
+					DistributionPattern.ALL_TO_ALL);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -468,7 +549,7 @@ public class JobGraphBuilder {
 		outEdgeList.get(upStreamVertexName).add(downStreamVertexName);
 		outEdgeType.get(upStreamVertexName).add(typeNumber);
 		inEdgeList.get(downStreamVertexName).add(upStreamVertexName);
-		connectionTypes.get(upStreamVertexName).add(partitionerObject);
+		outPartitioning.get(upStreamVertexName).add(partitionerObject);
 		outEdgeNames.get(upStreamVertexName).add(outputNames);
 		outEdgeSelectAll.get(upStreamVertexName).add(selectAll);
 	}
@@ -602,11 +683,12 @@ public class JobGraphBuilder {
 	 * provided.
 	 */
 	private void buildJobGraph() {
-		for (String vertexName : outEdgeList.keySet()) {
-			createVertex(vertexName);
+
+		for (String sourceName : sources) {
+			createVertex(sourceName);
 		}
 
-		for (String upStreamVertexName : outEdgeList.keySet()) {
+		for (String upStreamVertexName : builtVertices) {
 			int i = 0;
 
 			List<Integer> outEdgeTypeList = outEdgeType.get(upStreamVertexName);
@@ -621,7 +703,7 @@ public class JobGraphBuilder {
 				downStreamVertexConfig.setNumberOfInputs(inputNumber);
 
 				connect(upStreamVertexName, downStreamVertexName,
-						connectionTypes.get(upStreamVertexName).get(i));
+						outPartitioning.get(upStreamVertexName).get(i));
 				i++;
 			}
 		}
@@ -629,6 +711,10 @@ public class JobGraphBuilder {
 		setSlotSharing();
 		setNumberOfJobInputs();
 		setNumberOfJobOutputs();
+	}
+
+	public void setChaining(boolean chaining) {
+		this.chaining = chaining;
 	}
 
 }

@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 /**
  * The StreamInvokable represents the base class for all invokables in the
  * streaming topology.
- *
+ * 
  * @param <OUT>
  *            The output type of the invokable
  */
@@ -52,6 +52,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	protected StreamRecordSerializer<IN> inSerializer;
 	protected TypeSerializer<IN> objectSerializer;
 	protected StreamRecord<IN> nextRecord;
+	protected IN nextObject;
 	protected boolean isMutable;
 
 	protected Collector<OUT> collector;
@@ -92,7 +93,13 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	protected StreamRecord<IN> readNext() {
 		this.nextRecord = inSerializer.createInstance();
 		try {
-			return nextRecord = recordIterator.next(nextRecord);
+			nextRecord = recordIterator.next(nextRecord);
+			try {
+				nextObject = nextRecord.getObject();
+			} catch (NullPointerException e) {
+				// end of stream
+			}
+			return nextRecord;
 		} catch (IOException e) {
 			throw new RuntimeException("Could not read next record.");
 		}
@@ -135,10 +142,14 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	 * RichFunction class
 	 * 
 	 */
-	public void close() throws Exception {
+	public void close() {
 		isRunning = false;
 		collector.close();
-		FunctionUtils.closeFunction(userFunction);
+		try {
+			FunctionUtils.closeFunction(userFunction);
+		} catch (Exception e) {
+			throw new RuntimeException("Error when closing the function: " + e.getMessage());
+		}
 	}
 
 	public void setRuntimeContext(RuntimeContext t) {
@@ -147,5 +158,9 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	protected IN copy(IN record) {
 		return objectSerializer.copy(record);
+	}
+
+	public boolean isChainable() {
+		return this instanceof ChainableInvokable;
 	}
 }

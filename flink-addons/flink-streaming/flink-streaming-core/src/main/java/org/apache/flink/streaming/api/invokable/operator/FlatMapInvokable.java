@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 
-public class FlatMapInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
+public class FlatMapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private FlatMapFunction<IN, OUT> flatMapper;
@@ -39,7 +39,13 @@ public class FlatMapInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		flatMapper.flatMap(nextRecord.getObject(), collector);
+		flatMapper.flatMap(nextObject, collector);
+	}
+
+	@Override
+	public void collect(IN record) {
+		nextObject = copy(record);
+		callUserFunctionAndLogException();
 	}
 
 }
