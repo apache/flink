@@ -128,7 +128,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer,
 				this.getDataSet().getType());
-		return new GroupReduceOperator<T, R>(this, resultType, reducer, Utils.getCallLocationName() );
+		return new GroupReduceOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName() );
 	}
 
 	
