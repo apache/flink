@@ -20,13 +20,13 @@
 setlocal
 
 SET bin=%~dp0
-SET NEPHELE_ROOT_DIR=%bin%..
-SET NEPHELE_LIB_DIR=%NEPHELE_ROOT_DIR%\lib
+SET FLINK_ROOT_DIR=%bin%..
+SET FLINK_LIB_DIR=%FLINK_ROOT_DIR%\lib
 
 SET JVM_ARGS=-Xmx512m
 
-SET NEPHELE_JM_CLASSPATH=%NEPHELE_LIB_DIR%\*
+SET FLINK_JM_CLASSPATH=%FLINK_LIB_DIR%\*
 
-java %JVM_ARGS% -cp "%NEPHELE_JM_CLASSPATH%" org.apache.flink.client.CliFrontend %*
+java %JVM_ARGS% -cp "%FLINK_JM_CLASSPATH%"; org.apache.flink.client.CliFrontend %*
 
 endlocal

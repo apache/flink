@@ -33,11 +33,11 @@ SET logname=flink-%username%-jobmanager-%computername%.log
 SET log=%FLINK_LOG_DIR%\%logname%
 SET outname=flink-%username%-jobmanager-%computername%.out
 SET out=%FLINK_LOG_DIR%\%outname%
-SET log_setting=-Dlog.file=%log% -Dlogback.configurationFile=file:%FLINK_CONF_DIR%/logback.xml -Dlog4j.configuration=file:%FLINK_CONF_DIR%/log4j.properties
+SET log_setting=-Dlog.file="%log%" -Dlogback.configurationFile=file:"%FLINK_CONF_DIR%/logback.xml" -Dlog4j.configuration=file:"%FLINK_CONF_DIR%/log4j.properties"
 
 
 :: Log rotation (quick and dirty)
-CD %FLINK_LOG_DIR%
+CD "%FLINK_LOG_DIR%"
 for /l %%x in (5, -1, 1) do ( 
 SET /A y = %%x+1 
 RENAME "%logname%.%%x" "%logname%.!y!" 2> nul
@@ -57,6 +57,6 @@ if not defined FOUND (
 echo Starting Flink job manager. Webinterface by default on http://localhost:8081/.
 echo Don't close this batch window. Stop job manager by pressing Ctrl+C.
 
-java %JVM_ARGS% %log_setting% -cp %FLINK_JM_CLASSPATH% org.apache.flink.runtime.jobmanager.JobManager --executionMode local --configDir %FLINK_CONF_DIR%  > "%out%"  2>&1
+java %JVM_ARGS% %log_setting% -cp "%FLINK_JM_CLASSPATH%"; org.apache.flink.runtime.jobmanager.JobManager --executionMode local --configDir "%FLINK_CONF_DIR%" > "%out%" 2>&1
 
 endlocal
