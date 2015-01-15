@@ -1,77 +1,68 @@
-flink-graph
+Gelly
 ===========
 
 Graph API for Apache Flink
 
-##Implemented Operations
+##Implemented Methods
 
-###Graph Class
+###Graph Creation
 
-* readTuple2CsvFile
-* readEdgesCsvFile
-* readGraphFromCsvFile
+* create
+* fromCollection
 
-###Vertex Class
+###Graph Properties and Metrics
 
-###Edge Class
-* reverse()
+* getVertices
+* getEdges
+* getVertexIds
+* getEdgeIds
+* numberOfVertices
+* numberOfEdges
+* getDegrees
+* inDegrees
+* outDegrees
+* isWeaklyConnected
 
-##Tested Operations
-* mapVertices()
-* mapEdges()
-* subgraph()
-* filterOnVertices(vertexFilter)
-* filterOnEdges(edgeFilter)
-* outDegrees()
-* inDegrees()
-* getDegrees()
-* getUndirected()
-* reverse()
-* addVertex()
-* removeVertex()
-* addEdge()
-* removeEdge()
-* union()
-* isWeaklyConnected()
-* runVertexCentricIteration()
-* fromCollection(vertices, edges)
-* getVertices()
-* getEdges()
-* create(vertices, edges)
-* numberOfVertices()
-* numberOfEdges()
-* getVertexIds()
-* getEdgeIds()
+###Graph Mutations
 
-##Wishlist
+* addVertex
+* addEdge
+* removeVertex
+* removeEdge
 
-###Graph Class
-* fromCollection(edges)
-* getNeighborhoodGraph(Vertex src, int distance)
-* vertexCentricComputation()
-* edgeCentricComputation()
-* partitionCentricComputation()
+###Graph Transformations
 
-###Vertex Class
-* getDegree()
-* inDegree()
-* outDegree()
-* getInNeighbors()
-* getOutNeighbors()
-* getAllNeighbors()
+* mapVertices
+* mapEdges
+* union
+* filterOnVertices
+* filterOnEdges
+* subgraph
+* reverse
+* getUndirected
+* joinWithVertices
+* joinWithEdges
+* joinWithEdgesOnSource
+* joinWithEdgesOnTarget
 
 
-###Edge Class
+### Neighborhood Methods
 
-##Other (low priority)
-* partitionBy
-* sample
-* centrality
-* pagerank
-* distance
-* clusteringCoefficient
-* dfs
-* bfs
-* sssp
-* isIsomorphic
-* isSubgraphOf
+* reduceOnEdges
+* reduceOnNeighbors
+
+### Graph Validation
+
+* validate
+* InvalidVertexIdsValidator
+
+## Graph Algorithms
+
+* PageRank
+* SingleSourceShortestPaths
+
+## Examples
+
+* GraphMetrics
+* PageRank
+* SingleSourceShortestPaths
