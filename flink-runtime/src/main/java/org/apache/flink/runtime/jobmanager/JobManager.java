@@ -239,6 +239,11 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			throw new IllegalArgumentException("ExecutionMode");
 		}
 
+		String javaVersion = System.getProperty("java.version");
+		if (Double.valueOf(javaVersion.substring(0, 3)) < 1.7) {
+			LOG.warn("Warning: Flink is running with Java 6. Java 6 is not maintained any more by Oracle or the OpenJDK community. Flink currently supports Java 6, but may not in future releases, due to the unavailability of bug fixes security patched.");
+		}
+
 		// create the scheduler and make it listen at the availability of new instances
 		this.scheduler = new Scheduler(this.executorService);
 		this.instanceManager.addInstanceListener(this.scheduler);
