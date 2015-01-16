@@ -35,7 +35,7 @@ import scala.concurrent.ExecutionContext
 object TestingUtils {
   val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
 
-  val TESTING_DURATION = 1 minute
+  val TESTING_DURATION = 2 minute
 
   val DEFAULT_AKKA_ASK_TIMEOUT = 1000
 
