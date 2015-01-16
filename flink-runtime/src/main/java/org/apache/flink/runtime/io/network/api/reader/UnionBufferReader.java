@@ -38,11 +38,11 @@ import static com.google.common.base.Preconditions.checkState;
  * A buffer-oriented reader, which unions multiple {@link BufferReader}
  * instances.
  */
-public class UnionBufferReader implements BufferReaderBase, EventListener<BufferReader> {
+public class UnionBufferReader implements BufferReaderBase {
 
 	private final BufferReader[] readers;
 
-	private final BlockingQueue<BufferReader> readersWithData = new LinkedBlockingQueue<BufferReader>();
+	private final DataAvailabilityListener readerListener = new DataAvailabilityListener();
 
 	// Set of readers, which are not closed yet
 	private final Set<BufferReader> remainingReaders;
@@ -76,7 +76,7 @@ public class UnionBufferReader implements BufferReaderBase, EventListener<Buffer
 		for (int i = 0; i < readers.length; i++) {
 			BufferReader reader = readers[i];
 
-			reader.subscribeToReader(this);
+			reader.subscribeToReader(readerListener);
 
 			remainingReaders.add(reader);
 			readerToIndexOffsetMap.put(reader, currentChannelIndexOffset);
@@ -100,7 +100,7 @@ public class UnionBufferReader implements BufferReaderBase, EventListener<Buffer
 			if (currentReader == null) {
 				// Finished when all readers are finished
 				if (isFinished()) {
-					readersWithData.clear();
+					readerListener.clear();
 					return null;
 				}
 				// Finished with superstep when all readers finished superstep
@@ -110,7 +110,7 @@ public class UnionBufferReader implements BufferReaderBase, EventListener<Buffer
 				}
 				else {
 					while (true) {
-						currentReader = readersWithData.take();
+						currentReader = readerListener.getNextReaderBlocking();
 						currentReaderChannelIndexOffset = readerToIndexOffsetMap.get(currentReader);
 
 						if (isIterative && !remainingReaders.contains(currentReader)) {
@@ -118,7 +118,7 @@ public class UnionBufferReader implements BufferReaderBase, EventListener<Buffer
 							// of superstep event and notified the union reader
 							// about newer data *before* all other readers have
 							// done so, we delay this notifications.
-							readersWithData.add(currentReader);
+							readerListener.addReader(currentReader);
 						}
 						else {
 							break;
@@ -188,15 +188,6 @@ public class UnionBufferReader implements BufferReaderBase, EventListener<Buffer
 	}
 
 	// ------------------------------------------------------------------------
-	// Notifications about available data
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void onEvent(BufferReader readerWithData) {
-		readersWithData.add(readerWithData);
-	}
-
-	// ------------------------------------------------------------------------
 	// TaskEvents
 	// ------------------------------------------------------------------------
 
@@ -243,5 +234,31 @@ public class UnionBufferReader implements BufferReaderBase, EventListener<Buffer
 		}
 
 		return true;
+	}
+
+	// ------------------------------------------------------------------------
+	// Data availability notifications
+	// ------------------------------------------------------------------------
+
+	private static class DataAvailabilityListener implements EventListener<BufferReader> {
+
+		private final BlockingQueue<BufferReader> readersWithData = new LinkedBlockingQueue<BufferReader>();
+
+		@Override
+		public void onEvent(BufferReader reader) {
+			readersWithData.add(reader);
+		}
+
+		BufferReader getNextReaderBlocking() throws InterruptedException {
+			return readersWithData.take();
+		}
+
+		void addReader(BufferReader reader) {
+			readersWithData.add(reader);
+		}
+
+		void clear() {
+			readersWithData.clear();
+		}
 	}
 }
