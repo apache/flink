@@ -331,7 +331,7 @@ public class SemanticPropUtil {
 			if (!isValidField(inType, field)) {
 				throw new IndexOutOfBoundsException("Annotation: Field " + field + " not available in the input tuple.");
 			}
-
+			
 			fs = fs.addField(field);
 		}
 		return fs;
@@ -358,8 +358,8 @@ public class SemanticPropUtil {
 		return result;
 	}
 
-	public static void getSemanticPropsDualFromString(DualInputSemanticProperties target, String[] constantSetFirst, String[] constantSetSecond, String[] constantSetFirstExcept, 
-													String[] constantSetSecondExcept, String[] readFieldsFirst, String[] readFieldsSecond, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType)
+	public static void getSemanticPropsDualFromString(DualInputSemanticProperties target, String[] constantSetFirst, String[] constantSetSecond, String[] constantSetFirstExcept,
+							String[] constantSetSecondExcept, String[] readFieldsFirst, String[] readFieldsSecond, TypeInformation<?> inType1, TypeInformation<?> inType2, TypeInformation<?> outType)
 	{
 		parseConstantFieldsFirst(constantSetFirst, target, inType1, outType);
 		parseConstantFieldsSecond(constantSetSecond, target, inType2, outType);
