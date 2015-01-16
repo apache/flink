@@ -89,7 +89,7 @@ public final class BufferReader implements BufferReaderBase {
 
 	private final BlockingQueue<InputChannel> inputChannelsWithData = new LinkedBlockingQueue<InputChannel>();
 
-	private final AtomicReference<EventListener<BufferReader>> readerListener = new AtomicReference<EventListener<BufferReader>>(null);
+	private final AtomicReference<EventListener<BufferReaderBase>> readerListener = new AtomicReference<EventListener<BufferReaderBase>>(null);
 
 	// ------------------------------------------------------------------------
 
@@ -211,7 +211,8 @@ public final class BufferReader implements BufferReaderBase {
 	// Consume
 	// ------------------------------------------------------------------------
 
-	void requestPartitionsOnce() throws IOException {
+	@Override
+	public void requestPartitionsOnce() throws IOException {
 		if (!hasRequestedPartitions) {
 			// Sanity check
 			if (totalNumberOfInputChannels != inputChannels.size()) {
@@ -367,7 +368,8 @@ public final class BufferReader implements BufferReaderBase {
 		}
 	}
 
-	void subscribeToReader(EventListener<BufferReader> listener) {
+	@Override
+	public void subscribeToReader(EventListener<BufferReaderBase> listener) {
 		if (!this.readerListener.compareAndSet(null, listener)) {
 			throw new IllegalStateException(listener + " is already registered as a record availability listener");
 		}

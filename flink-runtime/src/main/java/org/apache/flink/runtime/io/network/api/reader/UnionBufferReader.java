@@ -40,19 +40,19 @@ import static com.google.common.base.Preconditions.checkState;
  */
 public class UnionBufferReader implements BufferReaderBase {
 
-	private final BufferReader[] readers;
+	private final BufferReaderBase[] readers;
 
-	private final DataAvailabilityListener readerListener = new DataAvailabilityListener();
+	private final DataAvailabilityListener dataAvailabilityListener;
 
 	// Set of readers, which are not closed yet
-	private final Set<BufferReader> remainingReaders;
+	private final Set<BufferReaderBase> remainingReaders;
 
 	// Logical channel index offset for each reader
-	private final Map<BufferReader, Integer> readerToIndexOffsetMap = new HashMap<BufferReader, Integer>();
+	private final Map<BufferReaderBase, Integer> readerToIndexOffsetMap = new HashMap<BufferReaderBase, Integer>();
 
 	private int totalNumInputChannels;
 
-	private BufferReader currentReader;
+	private BufferReaderBase currentReader;
 
 	private int currentReaderChannelIndexOffset;
 
@@ -64,19 +64,21 @@ public class UnionBufferReader implements BufferReaderBase {
 
 	private boolean isTaskEvent;
 
-	public UnionBufferReader(BufferReader... readers) {
+	public UnionBufferReader(BufferReaderBase... readers) {
 		checkNotNull(readers);
 		checkArgument(readers.length >= 2, "Union buffer reader must be initialized with at least two individual buffer readers");
 
 		this.readers = readers;
-		this.remainingReaders = new HashSet<BufferReader>(readers.length + 1, 1.0F);
+		this.remainingReaders = new HashSet<BufferReaderBase>(readers.length + 1, 1.0F);
+
+		this.dataAvailabilityListener = new DataAvailabilityListener(this);
 
 		int currentChannelIndexOffset = 0;
 
 		for (int i = 0; i < readers.length; i++) {
-			BufferReader reader = readers[i];
+			BufferReaderBase reader = readers[i];
 
-			reader.subscribeToReader(readerListener);
+			reader.subscribeToReader(dataAvailabilityListener);
 
 			remainingReaders.add(reader);
 			readerToIndexOffsetMap.put(reader, currentChannelIndexOffset);
@@ -87,20 +89,26 @@ public class UnionBufferReader implements BufferReaderBase {
 	}
 
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	public void requestPartitionsOnce() throws IOException {
 		if (!hasRequestedPartitions) {
-			for (BufferReader reader : readers) {
+			for (BufferReaderBase reader : readers) {
 				reader.requestPartitionsOnce();
 			}
 
 			hasRequestedPartitions = true;
 		}
+	}
+
+
+	@Override
+	public Buffer getNextBuffer() throws IOException, InterruptedException {
+		requestPartitionsOnce();
 
 		do {
 			if (currentReader == null) {
 				// Finished when all readers are finished
 				if (isFinished()) {
-					readerListener.clear();
+					dataAvailabilityListener.clear();
 					return null;
 				}
 				// Finished with superstep when all readers finished superstep
@@ -110,7 +118,7 @@ public class UnionBufferReader implements BufferReaderBase {
 				}
 				else {
 					while (true) {
-						currentReader = readerListener.getNextReaderBlocking();
+						currentReader = dataAvailabilityListener.getNextReaderBlocking();
 						currentReaderChannelIndexOffset = readerToIndexOffsetMap.get(currentReader);
 
 						if (isIterative && !remainingReaders.contains(currentReader)) {
@@ -118,7 +126,7 @@ public class UnionBufferReader implements BufferReaderBase {
 							// of superstep event and notified the union reader
 							// about newer data *before* all other readers have
 							// done so, we delay this notifications.
-							readerListener.addReader(currentReader);
+							dataAvailabilityListener.addReader(currentReader);
 						}
 						else {
 							break;
@@ -169,8 +177,13 @@ public class UnionBufferReader implements BufferReaderBase {
 	}
 
 	@Override
+	public void subscribeToReader(EventListener<BufferReaderBase> listener) {
+		dataAvailabilityListener.registerListener(listener);
+	}
+
+	@Override
 	public boolean isFinished() {
-		for (BufferReader reader : readers) {
+		for (BufferReaderBase reader : readers) {
 			if (!reader.isFinished()) {
 				return false;
 			}
@@ -182,7 +195,7 @@ public class UnionBufferReader implements BufferReaderBase {
 	private void resetRemainingReaders() {
 		checkState(isIterative, "Tried to reset remaining reader with non-iterative reader.");
 		checkState(remainingReaders.isEmpty(), "Tried to reset remaining readers, but there are some remaining readers.");
-		for (BufferReader reader : readers) {
+		for (BufferReaderBase reader : readers) {
 			remainingReaders.add(reader);
 		}
 	}
@@ -193,14 +206,14 @@ public class UnionBufferReader implements BufferReaderBase {
 
 	@Override
 	public void subscribeToTaskEvent(EventListener<TaskEvent> eventListener, Class<? extends TaskEvent> eventType) {
-		for (BufferReader reader : readers) {
+		for (BufferReaderBase reader : readers) {
 			reader.subscribeToTaskEvent(eventListener, eventType);
 		}
 	}
 
 	@Override
 	public void sendTaskEvent(TaskEvent event) throws IOException, InterruptedException {
-		for (BufferReader reader : readers) {
+		for (BufferReaderBase reader : readers) {
 			reader.sendTaskEvent(event);
 		}
 	}
@@ -213,21 +226,21 @@ public class UnionBufferReader implements BufferReaderBase {
 	public void setIterativeReader() {
 		isIterative = true;
 
-		for (BufferReader reader : readers) {
+		for (BufferReaderBase reader : readers) {
 			reader.setIterativeReader();
 		}
 	}
 
 	@Override
 	public void startNextSuperstep() {
-		for (BufferReader reader : readers) {
+		for (BufferReaderBase reader : readers) {
 			reader.startNextSuperstep();
 		}
 	}
 
 	@Override
 	public boolean hasReachedEndOfSuperstep() {
-		for (BufferReader reader : readers) {
+		for (BufferReaderBase reader : readers) {
 			if (!reader.hasReachedEndOfSuperstep()) {
 				return false;
 			}
@@ -240,25 +253,46 @@ public class UnionBufferReader implements BufferReaderBase {
 	// Data availability notifications
 	// ------------------------------------------------------------------------
 
-	private static class DataAvailabilityListener implements EventListener<BufferReader> {
+	private static class DataAvailabilityListener implements EventListener<BufferReaderBase> {
 
-		private final BlockingQueue<BufferReader> readersWithData = new LinkedBlockingQueue<BufferReader>();
+		private final UnionBufferReader unionReader;
 
-		@Override
-		public void onEvent(BufferReader reader) {
-			readersWithData.add(reader);
+		private final BlockingQueue<BufferReaderBase> readersWithData = new LinkedBlockingQueue<BufferReaderBase>();
+
+		private volatile EventListener<BufferReaderBase> registeredListener;
+
+		private DataAvailabilityListener(UnionBufferReader unionReader) {
+			this.unionReader = unionReader;
 		}
 
-		BufferReader getNextReaderBlocking() throws InterruptedException {
+		@Override
+		public void onEvent(BufferReaderBase reader) {
+			readersWithData.add(reader);
+
+			if (registeredListener != null) {
+				registeredListener.onEvent(unionReader);
+			}
+		}
+
+		BufferReaderBase getNextReaderBlocking() throws InterruptedException {
 			return readersWithData.take();
 		}
 
-		void addReader(BufferReader reader) {
+		void addReader(BufferReaderBase reader) {
 			readersWithData.add(reader);
 		}
 
 		void clear() {
 			readersWithData.clear();
+		}
+
+		void registerListener(EventListener<BufferReaderBase> listener) {
+			if (registeredListener == null) {
+				registeredListener = listener;
+			}
+			else {
+				throw new IllegalStateException("Already registered listener.");
+			}
 		}
 	}
 }

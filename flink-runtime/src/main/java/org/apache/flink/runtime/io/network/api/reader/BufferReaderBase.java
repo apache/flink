@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.api.reader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.util.event.EventListener;
 
 import java.io.IOException;
 
@@ -83,4 +84,9 @@ public interface BufferReaderBase extends ReaderBase {
 	int getNumberOfInputChannels();
 
 	boolean isTaskEvent();
+
+	void subscribeToReader(EventListener<BufferReaderBase> listener);
+
+	void requestPartitionsOnce() throws IOException;
+
 }

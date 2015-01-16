@@ -109,4 +109,31 @@ public class UnionBufferReaderTest {
 
 		verifyListenerCalled(listener, 8);
 	}
+
+	@Test
+	public void testGetNextBufferUnionOfUnionReader() throws Exception {
+		final MockBufferReader reader1 = new MockBufferReader();
+		final MockBufferReader reader2 = new MockBufferReader();
+
+		final UnionBufferReader unionReader = new UnionBufferReader(reader1.getMock(), reader2.getMock());
+
+		final MockBufferReader reader3 = new MockBufferReader();
+
+		final UnionBufferReader unionUnionReader = new UnionBufferReader(unionReader, reader3.getMock());
+
+		reader1.readBuffer().readBuffer().readBuffer().readEvent().readEvent().readBuffer().finish();
+
+		reader2.readEvent().readBuffer().readBuffer().readEvent().readBuffer().finish();
+
+		reader3.readBuffer().readBuffer().readEvent().readEvent().finish();
+
+		// Task event listener to be notified...
+		final EventListener<TaskEvent> listener = mock(EventListener.class);
+		unionUnionReader.subscribeToTaskEvent(listener, TestTaskEvent.class);
+
+		// Consume the reader
+		consumeAndVerify(unionUnionReader, 9);
+
+		verifyListenerCalled(listener, 6);
+	}
 }
