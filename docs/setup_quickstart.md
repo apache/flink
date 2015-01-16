@@ -26,7 +26,9 @@ under the License.
 Get Flink up and running in a few simple steps.
 
 ## Requirements
-Flink runs on all __UNIX-like__ environments: __Linux__, __Mac OS X__, __Cygwin__. The only requirement is to have a working __Java 6.x__ (or higher) installation.
+
+Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the
+only requirement is to have a working __Java 6.x__ (or higher) installation.
 
 ## Download
 Download the ready to run binary package. Choose the Flink distribution that __matches your Hadoop version__. If you are unsure which version to choose or you just want to run locally, pick the package for Hadoop 1.2.
