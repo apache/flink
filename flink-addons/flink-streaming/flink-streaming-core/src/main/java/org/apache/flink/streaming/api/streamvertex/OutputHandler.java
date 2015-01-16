@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
-import org.apache.flink.streaming.api.collector.CollectorWrapper;
 import org.apache.flink.streaming.api.collector.DirectedOutputWrapper;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.collector.StreamOutput;
@@ -44,11 +43,11 @@ import org.slf4j.LoggerFactory;
 public class OutputHandler<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(OutputHandler.class);
 
-	private StreamVertex<?, OUT> streamVertex;
+	private StreamVertex<?, OUT> vertex;
 	private StreamConfig configuration;
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
-	private Collector<OUT> endCollector;
+	private Collector<OUT> outerCollector;
 
 	TypeInformation<OUT> outTypeInfo = null;
 	StreamRecordSerializer<OUT> outSerializer = null;
@@ -58,18 +57,14 @@ public class OutputHandler<OUT> {
 
 	private int numberOfChainedTasks;
 
-	public OutputHandler(StreamVertex<?, OUT> streamComponent) {
-		this.streamVertex = streamComponent;
+	public OutputHandler(StreamVertex<?, OUT> vertex) {
+		this.vertex = vertex;
 		this.outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
-		this.configuration = new StreamConfig(streamComponent.getTaskConfiguration());
+		this.configuration = new StreamConfig(vertex.getTaskConfiguration());
 		this.chainedInvokables = new ArrayList<ChainableInvokable<?, ?>>();
+		this.numberOfChainedTasks = configuration.getNumberofChainedTasks();
 
-		try {
-			setConfigOutputs();
-		} catch (StreamVertexException e) {
-			throw new StreamVertexException("Cannot register outputs for "
-					+ streamComponent.getClass().getSimpleName(), e);
-		}
+		this.outerCollector = createChainedCollector(0);
 
 	}
 
@@ -77,84 +72,83 @@ public class OutputHandler<OUT> {
 		return outputs;
 	}
 
-	private void setConfigOutputs() {
-		numberOfChainedTasks = configuration.getNumberofChainedTasks();
-		endCollector = createChainedOutputs(0);
-	}
-
-	@SuppressWarnings("unchecked")
-	private Collector<OUT> createChainedOutputs(int chainedTaskIndex) {
+	// We create the outer collector by nesting the chainable invokables into
+	// each other
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private Collector<OUT> createChainedCollector(int chainedTaskIndex) {
 
 		if (numberOfChainedTasks == chainedTaskIndex) {
-			return createEndCollector();
+			// At the end of the chain we create the collector that sends data
+			// to the recordwriters
+			return createNetworkCollector();
 		} else {
-			CollectorWrapper<OUT> chainedCollector = new CollectorWrapper<OUT>();
 
-			@SuppressWarnings("rawtypes")
 			ChainableInvokable chainableInvokable = configuration.getChainedInvokable(
-					chainedTaskIndex, streamVertex.getUserCodeClassLoader());
+					chainedTaskIndex, vertex.getUserCodeClassLoader());
 
+			// The nesting is done by calling this method recursively when
+			// passing the collector to the invokable
 			chainableInvokable.setup(
-					createChainedOutputs(chainedTaskIndex + 1),
+					createChainedCollector(chainedTaskIndex + 1),
 					configuration.getChainedInSerializer(chainedTaskIndex,
-							streamVertex.getUserCodeClassLoader()));
+							vertex.getUserCodeClassLoader()));
 
+			// We hold a list of the chained invokables for initializaton
+			// afterwards
 			chainedInvokables.add(chainableInvokable);
 
-			chainedCollector.addChainedOutput((Collector<OUT>) chainableInvokable);
-
-			return chainedCollector;
+			return chainableInvokable;
 		}
 
 	}
 
-	private Collector<OUT> createEndCollector() {
+	private Collector<OUT> createNetworkCollector() {
 
-		setSerializers();
+		createOutSerializer();
 
 		StreamOutputWrapper<OUT> collector;
 
-		if (streamVertex.configuration.getDirectedEmit()) {
-			OutputSelector<OUT> outputSelector = streamVertex.configuration
-					.getOutputSelector(streamVertex.userClassLoader);
+		if (vertex.configuration.isDirectedEmit()) {
+			OutputSelector<OUT> outputSelector = vertex.configuration
+					.getOutputSelector(vertex.userClassLoader);
 
-			collector = new DirectedOutputWrapper<OUT>(streamVertex.getInstanceID(),
+			collector = new DirectedOutputWrapper<OUT>(vertex.getInstanceID(),
 					outSerializationDelegate, outputSelector);
 		} else {
-			collector = new StreamOutputWrapper<OUT>(streamVertex.getInstanceID(),
+			collector = new StreamOutputWrapper<OUT>(vertex.getInstanceID(),
 					outSerializationDelegate);
 		}
 
 		int numberOfOutputs = configuration.getNumberOfOutputs();
 		for (int i = 0; i < numberOfOutputs; i++) {
-			collector = (StreamOutputWrapper<OUT>) setPartitioner(i, collector);
+			collector = (StreamOutputWrapper<OUT>) addStreamOutput(i, collector);
 		}
 
 		return collector;
 	}
 
 	public Collector<OUT> getCollector() {
-		return endCollector;
+		return outerCollector;
 	}
 
-	void setSerializers() {
-		outSerializer = configuration.getTypeSerializerOut1(streamVertex.userClassLoader);
+	void createOutSerializer() {
+		outSerializer = configuration.getTypeSerializerOut1(vertex.userClassLoader);
 		if (outSerializer != null) {
 			outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outSerializer);
 			outSerializationDelegate.setInstance(outSerializer.createInstance());
 		}
 	}
 
-	Collector<OUT> setPartitioner(int outputNumber, StreamOutputWrapper<OUT> endCollector) {
-		StreamPartitioner<OUT> outputPartitioner = null;
+	Collector<OUT> addStreamOutput(int outputNumber, StreamOutputWrapper<OUT> networkCollector) {
+
+		StreamPartitioner<OUT> outputPartitioner;
 
 		try {
-			outputPartitioner = configuration.getPartitioner(streamVertex.userClassLoader,
+			outputPartitioner = configuration.getPartitioner(vertex.userClassLoader,
 					outputNumber);
-
 		} catch (Exception e) {
 			throw new StreamVertexException("Cannot deserialize partitioner for "
-					+ streamVertex.getName() + " with " + outputNumber + " outputs", e);
+					+ vertex.getName() + " with " + outputNumber + " outputs", e);
 		}
 
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
@@ -162,37 +156,33 @@ public class OutputHandler<OUT> {
 		long bufferTimeout = configuration.getBufferTimeout();
 
 		if (bufferTimeout >= 0) {
-			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex
+			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(vertex
 					.getEnvironment().getWriter(outputNumber), outputPartitioner, bufferTimeout);
 
 			if (LOG.isTraceEnabled()) {
 				LOG.trace("StreamRecordWriter initiated with {} bufferTimeout for {}",
-						bufferTimeout, streamVertex.getClass().getSimpleName());
+						bufferTimeout, vertex.getClass().getSimpleName());
 			}
 		} else {
-			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex
+			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(vertex
 					.getEnvironment().getWriter(outputNumber), outputPartitioner);
 
 			if (LOG.isTraceEnabled()) {
-				LOG.trace("RecordWriter initiated for {}", streamVertex.getClass().getSimpleName());
+				LOG.trace("RecordWriter initiated for {}", vertex.getClass().getSimpleName());
 			}
 		}
 
 		outputs.add(output);
-		List<String> outputNames = configuration.getOutputNames(outputNumber);
-		boolean isSelectAllOutput = configuration.getSelectAll(outputNumber);
 
-		if (endCollector != null) {
-			endCollector.addOutput(new StreamOutput<OUT>(output, isSelectAllOutput ? null
-					: outputNames));
-		}
+		networkCollector.addOutput(new StreamOutput<OUT>(output, configuration
+				.isSelectAll(outputNumber) ? null : configuration.getOutputNames(outputNumber)));
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()
-					.getSimpleName(), outputNumber, streamVertex.getClass().getSimpleName());
+					.getSimpleName(), outputNumber, vertex.getClass().getSimpleName());
 		}
 
-		return endCollector;
+		return networkCollector;
 	}
 
 	public void flushOutputs() throws IOException, InterruptedException {
@@ -205,17 +195,15 @@ public class OutputHandler<OUT> {
 		}
 	}
 
-	long startTime;
-
 	public void invokeUserFunction(String componentTypeName, StreamInvokable<?, OUT> userInvokable)
 			throws IOException, InterruptedException {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} {} invoked with instance id {}", componentTypeName,
-					streamVertex.getName(), streamVertex.getInstanceID());
+					vertex.getName(), vertex.getInstanceID());
 		}
 
 		try {
-			streamVertex.invokeUserFunction(userInvokable);
+			vertex.invokeUserFunction(userInvokable);
 		} catch (Exception e) {
 			flushOutputs();
 			throw new RuntimeException(e);
@@ -223,7 +211,7 @@ public class OutputHandler<OUT> {
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} {} invoke finished instance id {}", componentTypeName,
-					streamVertex.getName(), streamVertex.getInstanceID());
+					vertex.getName(), vertex.getInstanceID());
 		}
 
 		flushOutputs();

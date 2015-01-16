@@ -59,6 +59,8 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	protected Function userFunction;
 	protected volatile boolean isRunning;
 
+	private ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
+
 	public StreamInvokable(Function userFunction) {
 		this.userFunction = userFunction;
 	}
@@ -160,7 +162,21 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 		return objectSerializer.copy(record);
 	}
 
-	public boolean isChainable() {
-		return this instanceof ChainableInvokable;
+	public void setChainingStrategy(ChainingStrategy strategy) {
+		if (strategy == ChainingStrategy.ALWAYS) {
+			if (!(this instanceof ChainableInvokable)) {
+				throw new RuntimeException(
+						"Invokable needs to extend ChainableInvokable to be chained");
+			}
+		}
+		this.chainingStrategy = strategy;
+	}
+
+	public ChainingStrategy getChainingStrategy() {
+		return chainingStrategy;
+	}
+
+	public static enum ChainingStrategy {
+		ALWAYS, NEVER, HEAD;
 	}
 }

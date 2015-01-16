@@ -80,7 +80,7 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 		ArrayList<BufferReader> inputList2 = new ArrayList<BufferReader>();
 
 		for (int i = 0; i < numberOfInputs; i++) {
-			int inputType = configuration.getInputType(i);
+			int inputType = configuration.getInputIndex(i);
 			BufferReader reader = getEnvironment().getReader(i);
 			switch (inputType) {
 				case 1:

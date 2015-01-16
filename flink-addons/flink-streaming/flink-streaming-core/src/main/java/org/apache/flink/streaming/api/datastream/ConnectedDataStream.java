@@ -400,7 +400,7 @@ public class ConnectedDataStream<IN1, IN2> {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
-				environment, functionName, outTypeInfo);
+				environment, functionName, outTypeInfo, functionInvokable);
 
 		dataStream1.jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable,
 				getInputType1(), getInputType2(), outTypeInfo, functionName,

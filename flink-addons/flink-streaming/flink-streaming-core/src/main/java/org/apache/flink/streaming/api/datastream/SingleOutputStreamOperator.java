@@ -26,6 +26,8 @@ import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
 import org.apache.flink.streaming.state.OperatorState;
 
@@ -42,12 +44,14 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		DataStream<OUT> {
 
 	protected boolean isSplit;
+	protected StreamInvokable<?, ?> invokable;
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment,
-			String operatorType, TypeInformation<OUT> outTypeInfo) {
+			String operatorType, TypeInformation<OUT> outTypeInfo, StreamInvokable<?, ?> invokable) {
 		super(environment, operatorType, outTypeInfo);
 		setBufferTimeout(environment.getBufferTimeout());
 		this.isSplit = false;
+		this.invokable = invokable;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -55,6 +59,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		super(dataStream);
 		if (dataStream instanceof SingleOutputStreamOperator) {
 			this.isSplit = ((SingleOutputStreamOperator<OUT, ?>) dataStream).isSplit;
+			this.invokable = ((SingleOutputStreamOperator<OUT, ?>) dataStream).invokable;
 		}
 	}
 
@@ -190,6 +195,11 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	@Override
 	public SingleOutputStreamOperator<OUT, O> copy() {
 		return new SingleOutputStreamOperator<OUT, O>(this);
+	}
+
+	public SingleOutputStreamOperator<OUT, O> setChainingStrategy(ChainingStrategy strategy) {
+		this.invokable.setChainingStrategy(strategy);
+		return this;
 	}
 
 }

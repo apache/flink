@@ -154,6 +154,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 			LinkedList<EvictionPolicy<IN>> centralEvictionPolicies) {
 
 		super(userFunction);
+		setChainingStrategy(ChainingStrategy.NEVER);
 
 		this.keySelector = keySelector;
 

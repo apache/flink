@@ -1083,7 +1083,7 @@ public class DataStream<OUT> {
 	protected <R> DataStream<OUT> addIterationSource(Integer iterationID, long waitTime) {
 
 		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null,
-				true);
+				null, true);
 
 		jobGraphBuilder.addIterationHead(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism, waitTime);
@@ -1110,7 +1110,7 @@ public class DataStream<OUT> {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
-				operatorName, outTypeInfo);
+				operatorName, outTypeInfo, invokable);
 
 		jobGraphBuilder.addStreamVertex(returnStream.getId(), invokable, getType(), outTypeInfo,
 				operatorName, degreeOfParallelism);
@@ -1174,10 +1174,13 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> addSink(SinkFunction<OUT> sinkFunction) {
 
-		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType());
+		StreamInvokable<OUT, OUT> sinkInvokable = new SinkInvokable<OUT>(clean(sinkFunction));
 
-		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(
-				clean(sinkFunction)), getType(), null, "sink", degreeOfParallelism);
+		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
+				sinkInvokable);
+
+		jobGraphBuilder.addStreamVertex(returnStream.getId(), sinkInvokable, getType(), null,
+				"sink", degreeOfParallelism);
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);
 

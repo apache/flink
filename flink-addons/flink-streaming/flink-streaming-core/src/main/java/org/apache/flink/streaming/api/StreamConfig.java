@@ -24,7 +24,6 @@ import java.util.Map;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
@@ -170,7 +169,7 @@ public class StreamConfig {
 		config.setBoolean(DIRECTED_EMIT, directedEmit);
 	}
 
-	public boolean getDirectedEmit() {
+	public boolean isDirectedEmit() {
 		return config.getBoolean(DIRECTED_EMIT, false);
 	}
 
@@ -239,7 +238,7 @@ public class StreamConfig {
 		}
 	}
 
-	public boolean getSelectAll(int outputIndex) {
+	public boolean isSelectAll(int outputIndex) {
 		return config.getBoolean(OUTPUT_SELECT_ALL + outputIndex, false);
 	}
 
@@ -272,24 +271,12 @@ public class StreamConfig {
 		return config.getInteger(NUMBER_OF_OUTPUTS, 0);
 	}
 
-	public void setInputType(int inputNumber, Integer inputTypeNumber) {
+	public void setInputIndex(int inputNumber, Integer inputTypeNumber) {
 		config.setInteger(INPUT_TYPE + inputNumber++, inputTypeNumber);
 	}
 
-	public int getInputType(int inputNumber) {
+	public int getInputIndex(int inputNumber) {
 		return config.getInteger(INPUT_TYPE + inputNumber, 0);
-	}
-
-	public void setFunctionClass(Class<? extends AbstractRichFunction> functionClass) {
-		config.setClass("functionClass", functionClass);
-	}
-
-	public Class<? extends AbstractRichFunction> getFunctionClass(ClassLoader cl) {
-		try {
-			return config.getClass("functionClass", null, cl);
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("Could not load function class", e);
-		}
 	}
 
 	public void setOperatorStates(Map<String, OperatorState<?>> states) {

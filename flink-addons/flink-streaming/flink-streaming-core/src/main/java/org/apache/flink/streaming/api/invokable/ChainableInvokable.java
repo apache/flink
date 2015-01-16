@@ -28,6 +28,7 @@ public abstract class ChainableInvokable<IN, OUT> extends StreamInvokable<IN, OU
 
 	public ChainableInvokable(Function userFunction) {
 		super(userFunction);
+		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
 
 	public void setup(Collector<OUT> collector, StreamRecordSerializer<IN> inSerializer) {
