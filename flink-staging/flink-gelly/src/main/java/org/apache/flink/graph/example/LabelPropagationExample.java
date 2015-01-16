@@ -1,8 +1,5 @@
 package flink.graphs.example;
 
-
-import java.util.Random;
-
 import flink.graphs.*;
 import flink.graphs.library.LabelPropagation;
 
@@ -13,6 +10,13 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
+/**
+ * This example uses the label propagation algorithm to detect communities by propagating labels.
+ * Initially, each vertex is assigned its id as its label.
+ * The vertices iteratively propagate their labels to their neighbors and adopt the most frequent label
+ * among their neighbors.
+ * The algorithm converges when no vertex changes value or the maximum number of iterations have been reached.
+ */
 public class LabelPropagationExample implements ProgramDescription {
 
     public static void main (String [] args) throws Exception {
@@ -37,23 +41,21 @@ public class LabelPropagationExample implements ProgramDescription {
         return "Label Propagation Example";
     }
 
-    private static long numVertices = 20;
-    private static int maxIterations = 10;
-    private static int numberOfLabels = 3;
+    private static long numVertices = 100;
+    private static int maxIterations = 20;
 
-    @SuppressWarnings("serial")
+	@SuppressWarnings("serial")
 	private static DataSet<Vertex<Long, Long>> getVertexDataSet(ExecutionEnvironment env) {
             return env.generateSequence(1, numVertices)
                     .map(new MapFunction<Long, Vertex<Long, Long>>() {
                         public Vertex<Long, Long> map(Long l) throws Exception {
-                        	Random randomGenerator = new Random();
-                            return new Vertex<Long, Long>(l, (long) randomGenerator.nextInt((int) numberOfLabels));
+                            return new Vertex<Long, Long>(l, l);
                         }
                     });
     }
 
     @SuppressWarnings("serial")
-    private static DataSet<Edge<Long, NullValue>> getEdgeDataSet(ExecutionEnvironment env) {
+	private static DataSet<Edge<Long, NullValue>> getEdgeDataSet(ExecutionEnvironment env) {
             return env.generateSequence(1, numVertices)
                     .flatMap(new FlatMapFunction<Long, Edge<Long, NullValue>>() {
                         @Override

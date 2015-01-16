@@ -1,10 +1,10 @@
 package flink.graphs.library;
 
 import flink.graphs.*;
+import flink.graphs.spargel.MessageIterator;
+import flink.graphs.spargel.MessagingFunction;
+import flink.graphs.spargel.VertexUpdateFunction;
 
-import org.apache.flink.spargel.java.MessageIterator;
-import org.apache.flink.spargel.java.MessagingFunction;
-import org.apache.flink.spargel.java.VertexUpdateFunction;
 import org.apache.flink.types.NullValue;
 
 import java.io.Serializable;
@@ -16,6 +16,7 @@ import java.util.Map.Entry;
  * An implementation of the label propagation algorithm.
  * The iterative algorithm detects communities by propagating labels.
  * In each iteration, a vertex adopts the label that is most frequent among its neighbors' labels.
+ * Labels are represented by Longs and we assume a total ordering among them, in order to break ties.
  * The algorithm converges when no vertex changes its value or the maximum number of iterations have been reached.
  * Note that different initializations might lead to different results.
  *
@@ -64,9 +65,16 @@ public class LabelPropagation<K extends Comparable<K> & Serializable> implements
 					labelsWithFrequencies.put(msg, 1L);
 				}
 			}
-			// select the most frequent label
+			// select the most frequent label: if two or more labels have the same frequency,
+			// the node adopts the label with the highest value
 			for (Entry<Long, Long> entry : labelsWithFrequencies.entrySet()) {
-				if (entry.getValue() > maxFrequency) {
+				if (entry.getValue() == maxFrequency) {
+					// check the label value to break ties
+					if (entry.getKey() > mostFrequentLabel) {
+						mostFrequentLabel = entry.getKey();
+					}
+				}
+				else if (entry.getValue() > maxFrequency) {
 					maxFrequency = entry.getValue();
 					mostFrequentLabel = entry.getKey();
 				}
