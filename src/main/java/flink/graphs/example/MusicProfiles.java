@@ -2,7 +2,6 @@ package flink.graphs.example;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.CoGroupFunction;
@@ -26,6 +25,7 @@ import flink.graphs.example.utils.MusicProfilesData;
 import flink.graphs.library.LabelPropagation;
 import flink.graphs.utils.Tuple3ToEdgeMap;
 
+@SuppressWarnings("serial")
 public class MusicProfiles implements ProgramDescription {
 
 	/**
@@ -43,7 +43,6 @@ public class MusicProfiles implements ProgramDescription {
 	public static void main (String [] args) throws Exception {
     	
     	ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-    	final long numberOfLabels = 3;
     	final int numIterations = 10;
 
     	/** 
@@ -69,6 +68,7 @@ public class MusicProfiles implements ProgramDescription {
     	 *  where the edge weights correspond to play counts
     	 */
     	DataSet<Edge<String, Integer>> userSongEdges = validTriplets.map(new Tuple3ToEdgeMap<String, Integer>());
+
     	Graph<String, NullValue, Integer> userSongGraph = Graph.create(userSongEdges, env);
 
     	/**
@@ -76,6 +76,7 @@ public class MusicProfiles implements ProgramDescription {
     	 */
     	DataSet<Tuple2<String, String>> usersWithTopTrack = userSongGraph.reduceOnEdges(new GetTopSongPerUser(), 
     			EdgeDirection.OUT).filter(new FilterSongNodes());
+
     	usersWithTopTrack.print();
 
     	/**
@@ -85,20 +86,34 @@ public class MusicProfiles implements ProgramDescription {
     	 */
     	DataSet<Edge<String, NullValue>> similarUsers = userSongGraph.getEdges().groupBy(1)
     			.reduceGroup(new CreateSimilarUserEdges()).distinct();
-    	Graph<String, NullValue, NullValue> similarUsersGraph = Graph.create(similarUsers, env).getUndirected();
+
+    	Graph<String, Long, NullValue> similarUsersGraph = Graph.create(similarUsers,
+
+    			new MapFunction<String, Long>() {
+					public Long map(String value) { return 1l; }
+
+    	}, env).getUndirected();
 
     	/**
     	 * Detect user communities using the label propagation library method
     	 */
-    	DataSet<Vertex<String, Long>> verticesWithCommunity = similarUsersGraph.mapVertices(
-    			new InitVertexLabels(numberOfLabels))
+
+    	// Initialize each vertex with a unique numeric label
+    	DataSet<Tuple2<String, Long>> idsWithInitialLabels = similarUsersGraph.getVertices()
+    			.reduceGroup(new AssignInitialLabelReducer());
+
+    	// update the vertex values and run the label propagation algorithm
+    	DataSet<Vertex<String, Long>> verticesWithCommunity = similarUsersGraph.joinWithVertices(idsWithInitialLabels,
+    					new MapFunction<Tuple2<Long, Long>, Long>() {
+							public Long map(Tuple2<Long, Long> value) {	return value.f1; }
+						})
     			.run(new LabelPropagation<String>(numIterations)).getVertices();
+
     	verticesWithCommunity.print();
 
     	env.execute();
     }
 
-    @SuppressWarnings("serial")
 	public static final class ExtractMismatchSongIds implements MapFunction<String, Tuple1<String>> {
 		public Tuple1<String> map(String value) {
 			String[] tokens = value.split("\\s+"); 
@@ -107,7 +122,6 @@ public class MusicProfiles implements ProgramDescription {
 		}
     }
 
-    @SuppressWarnings("serial")
 	public static final class FilterOutMismatches implements CoGroupFunction<Tuple3<String, String, Integer>, 
     	Tuple1<String>, Tuple3<String, String, Integer>> {
 		public void coGroup(
@@ -123,14 +137,12 @@ public class MusicProfiles implements ProgramDescription {
 		}
     }
 
-    @SuppressWarnings("serial")
  	public static final class FilterSongNodes implements FilterFunction<Tuple2<String, String>> {
 		public boolean filter(Tuple2<String, String> value) throws Exception {
 			return !value.f1.equals("");
 		}
     }
 
-    @SuppressWarnings("serial")
 	public static final class GetTopSongPerUser implements EdgesFunctionWithVertexValue
 		<String, NullValue, Integer, Tuple2<String, String>> {
 		public Tuple2<String, String> iterateEdges(Vertex<String, NullValue> vertex,	
@@ -147,7 +159,6 @@ public class MusicProfiles implements ProgramDescription {
 		}
     }
 
-    @SuppressWarnings("serial")
  	public static final class CreateSimilarUserEdges implements GroupReduceFunction<Edge<String, Integer>,
  		Edge<String, NullValue>> {
 		public void reduce(Iterable<Edge<String, Integer>> edges, Collector<Edge<String, NullValue>> out) {
@@ -162,18 +173,17 @@ public class MusicProfiles implements ProgramDescription {
 		}
     }
 
-    @SuppressWarnings("serial")
- 	public static final class InitVertexLabels implements MapFunction<Vertex<String, NullValue>, Long> {
-    	private long numberOfLabels;
-    	public InitVertexLabels(long labels) {
-    		this.numberOfLabels = labels;
-    	}
-		public Long map(Vertex<String, NullValue> value) {
-			Random randomGenerator = new Random();
-			return (long) randomGenerator.nextInt((int) numberOfLabels);
+ 	public static final class AssignInitialLabelReducer implements GroupReduceFunction<Vertex<String, Long>,
+ 		Tuple2<String, Long>> {
+ 		public void reduce(Iterable<Vertex<String, Long>> vertices, Collector<Tuple2<String, Long>> out) {
+			long label = 0;
+			for (Vertex<String, Long> vertex : vertices) {
+				out.collect(new Tuple2<String, Long>(vertex.getId(), label));
+				label++;
+			}
 		}
-    }
-	
+ 	}
+
 	@Override
 	public String getDescription() {
 		return "Music Profiles Example";
