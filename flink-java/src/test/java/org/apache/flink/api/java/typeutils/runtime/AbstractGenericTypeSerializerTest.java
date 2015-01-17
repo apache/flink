@@ -21,10 +21,13 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.StringUtils;
+import org.joda.time.DateTime;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -35,7 +38,6 @@ import java.util.Random;
 abstract public class AbstractGenericTypeSerializerTest {
 
 	private final Random rnd = new Random(349712539451944123L);
-
 
 	@Test
 	public void testString() {

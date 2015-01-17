@@ -233,6 +233,8 @@ under the Apache License (v 2.0):
  - Netty (http://netty.io)
  - Powermock (http://www.powermock.org)
  - Javassist (http://www.javassist.org)
+ - Kryo-Serializers (https://github.com/magro/kryo-serializers/)
+ - Joda-Time (http://www.joda.org/joda-time/)
  - Jetty Web Container (http://www.eclipse.org/jetty/)
  - Amazon Web Services SDK for Java (http://aws.amazon.com/sdkforjava/)
  - ScalaTest (http://www.scalatest.org)
