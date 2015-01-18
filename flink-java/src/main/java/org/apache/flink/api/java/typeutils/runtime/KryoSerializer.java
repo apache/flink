@@ -33,11 +33,20 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class KryoSerializer<T> extends TypeSerializer<T> {
 	private static final long serialVersionUID = 2L;
 
+	// We store classes that the user registers here. When a KryoSerializer is created
+	// it will register those classes.
+	private static Set<Class<?>> staticRegisteredClasses = new HashSet<Class<?>>();
+
 	private final Class<T> type;
+	private final List<Class<?>> registeredClasses;
 
 	private transient Kryo kryo;
 	private transient T copyInstance;
@@ -53,6 +62,11 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			throw new NullPointerException("Type class cannot be null.");
 		}
 		this.type = type;
+		this.registeredClasses = new ArrayList<Class<?>>();
+		this.registeredClasses.addAll(staticRegisteredClasses);
+		for (Class<?> clazz: registeredClasses) {
+			kryo.register(clazz);
+		}
 	}
 
 
@@ -184,8 +198,15 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			this.kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
 			this.kryo.setRegistrationRequired(false);
 			this.kryo.register(type);
+			for (Class<?> clazz : registeredClasses) {
+				kryo.register(clazz);
+			}
 			this.kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
 		}
+	}
+
+	public static void registerType(Class<?> clazz) {
+		staticRegisteredClasses.add(clazz);
 	}
 	
 	// --------------------------------------------------------------------------------------------

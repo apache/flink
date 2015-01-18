@@ -24,6 +24,7 @@ import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.typeutils.runtime.PojoSerializer
 import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.core.fs.Path
@@ -119,6 +120,15 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def getIdString: String = {
     javaEnv.getIdString
+  }
+
+  /**
+   * Registers the given type. When using subclasses of POJOs inside user functions, the system
+   * can efficiently serialize these after registration. This must be called before creating
+   * operations that use subclasses of POJOs.
+   */
+  def registerType(clazz: Class[_]) {
+    javaEnv.registerType(clazz)
   }
 
   /**
