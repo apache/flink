@@ -104,18 +104,18 @@ public class ScheduleWithCoLocationHintTest {
 			assertNotNull(s12);
 			
 			// check that each slot got exactly two tasks
-			assertEquals(2, s1.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s2.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s3.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s4.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s5.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s6.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s7.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s8.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s9.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s10.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s11.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s12.getParent().getNumberOfAllocatedSubSlots());
+			assertEquals(2, s1.getRoot().getNumberLeaves());
+			assertEquals(2, s2.getRoot().getNumberLeaves());
+			assertEquals(2, s3.getRoot().getNumberLeaves());
+			assertEquals(2, s4.getRoot().getNumberLeaves());
+			assertEquals(2, s5.getRoot().getNumberLeaves());
+			assertEquals(2, s6.getRoot().getNumberLeaves());
+			assertEquals(2, s7.getRoot().getNumberLeaves());
+			assertEquals(2, s8.getRoot().getNumberLeaves());
+			assertEquals(2, s9.getRoot().getNumberLeaves());
+			assertEquals(2, s10.getRoot().getNumberLeaves());
+			assertEquals(2, s11.getRoot().getNumberLeaves());
+			assertEquals(2, s12.getRoot().getNumberLeaves());
 			
 			assertEquals(s1.getInstance(), s5.getInstance());
 			assertEquals(s2.getInstance(), s6.getInstance());
@@ -368,8 +368,8 @@ public class ScheduleWithCoLocationHintTest {
 			SimpleSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid3, 1, 2, i1), sharingGroup, cc2));
 			
 			// check that each slot got three
-			assertEquals(3, s1.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(3, s2.getParent().getNumberOfAllocatedSubSlots());
+			assertEquals(3, s1.getRoot().getNumberLeaves());
+			assertEquals(3, s2.getRoot().getNumberLeaves());
 			
 			assertEquals(s1.getInstance(), s3.getInstance());
 			assertEquals(s2.getInstance(), s4.getInstance());
@@ -542,8 +542,8 @@ public class ScheduleWithCoLocationHintTest {
 			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i1), sharingGroup, cc2));
 			
 			// check that each slot got three
-			assertEquals(2, s1.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s2.getParent().getNumberOfAllocatedSubSlots());
+			assertEquals(2, s1.getRoot().getNumberLeaves());
+			assertEquals(2, s2.getRoot().getNumberLeaves());
 			
 			assertEquals(s1.getInstance(), s3.getInstance());
 			assertEquals(s2.getInstance(), s4.getInstance());
@@ -600,9 +600,9 @@ public class ScheduleWithCoLocationHintTest {
 			SimpleSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, i1), sharingGroup));
 			SimpleSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, i1), sharingGroup));
 			
-			// check that each slot got three
-			assertEquals(2, s1.getParent().getNumberOfAllocatedSubSlots());
-			assertEquals(2, s2.getParent().getNumberOfAllocatedSubSlots());
+			// check that each slot got two
+			assertEquals(2, s1.getRoot().getNumberLeaves());
+			assertEquals(2, s2.getRoot().getNumberLeaves());
 			
 			s1.releaseSlot();
 			s2.releaseSlot();

@@ -211,7 +211,7 @@ public class Instance implements Serializable {
 		}
 	}
 
-	public SharedSlot allocateSharedSlot(JobID jobID, SlotSharingGroupAssignment sharingGroupAssignment) throws
+	public SharedSlot allocateSharedSlot(JobID jobID, SlotSharingGroupAssignment sharingGroupAssignment, AbstractID groupID) throws
 	InstanceDiedException {
 		// the slot needs to be in the returned to taskManager state
 		if (jobID == null) {
@@ -228,7 +228,7 @@ public class Instance implements Serializable {
 				return null;
 			} else {
 				SharedSlot slot = new SharedSlot(jobID, this, nextSlot,
-						sharingGroupAssignment);
+						sharingGroupAssignment, null, groupID);
 				allocatedSlots.add(slot);
 				return slot;
 			}

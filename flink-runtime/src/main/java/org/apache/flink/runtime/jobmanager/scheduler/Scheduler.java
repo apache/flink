@@ -163,8 +163,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			LOG.debug("Scheduling task " + task);
 		}
 
-		System.out.println("Scheduling task " + task);
-
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 	
 		synchronized (globalLock) {
@@ -190,8 +188,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					slotFromGroup = assignment.getSlotForTask(vertex, constraint);
 				}
 
-				System.out.println("Slot from group " + slotFromGroup);
-				
 				SimpleSlot newSlot = null;
 				
 				// the following needs to make sure any allocated slot is released in case of an error
@@ -202,11 +198,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 						// local (or unconstrained in the current group)
 						if (slotFromGroup.getLocality() != Locality.NON_LOCAL) {
 							updateLocalityCounters(slotFromGroup.getLocality());
-							System.out.println("Return slot from group " + slotFromGroup);
 							return slotFromGroup;
 						}
-
-						System.out.println("Slot from group " + slotFromGroup + " locality " + slotFromGroup.getLocality());
 					}
 					
 					final Iterable<Instance> locations = (constraint == null || constraint.isUnassigned()) ?
@@ -215,8 +208,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					// get a new slot, since we could not place it into the group, or we could not place it locally
 					newSlot = getFreeSubSlotForTask(vertex, locations, assignment, constraint);
 
-					System.out.println("New slot " + newSlot + " for task " + task);
-					
 					SimpleSlot toUse;
 					
 					if (newSlot == null) {
@@ -236,7 +227,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					else if (slotFromGroup == null || newSlot.getLocality() == Locality.LOCAL) {
 						// new slot is preferable
 						if (slotFromGroup != null) {
-							System.out.println("Release slot from group " + slotFromGroup);
 							slotFromGroup.releaseSlot();
 						}
 						
@@ -244,7 +234,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					}
 					else {
 						// both are available and usable. neither is local
-						System.out.println("Release new slot " + newSlot);
 						newSlot.releaseSlot();
 						toUse = slotFromGroup;
 					}
@@ -262,7 +251,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					}
 					
 					updateLocalityCounters(toUse.getLocality());
-					System.out.println("Return slot to use " + toUse);
 					return toUse;
 				}
 				catch (NoResourceAvailableException e) {
@@ -364,14 +352,9 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		// we need potentially to loop multiple times, because there may be false positives
 		// in the set-with-available-instances
 		while (true) {
-			System.out.println("Get free sub slot for " + vertex + " constraint " + constraint);
-			for(Instance instance: requestedLocations){
-				LOG.warn("Requested location: " + instance);
-			}
 			Pair<Instance, Locality> instanceLocalityPair = findInstance(requestedLocations);
 
 			if(instanceLocalityPair == null){
-				LOG.warn("No free sub slot available.");
 				return null;
 			}
 
@@ -391,8 +374,9 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			try {
 				AbstractID groupID = constraint == null ? vertex.getJobvertexId() : constraint.getGroupId();
 
-				SharedSlot sharedSlot = instanceToUse.allocateSharedSlot(vertex.getJobId(), groupAssignment);
-				SimpleSlot slot = groupAssignment.addSharedSlotAndAllocateSubSlot(sharedSlot, locality, groupID);
+				SharedSlot sharedSlot = instanceToUse.allocateSharedSlot(vertex.getJobId(), groupAssignment, groupID);
+
+				SimpleSlot slot = groupAssignment.addSharedSlotAndAllocateSubSlot(sharedSlot, locality, groupID, constraint);
 
 				// if the instance has further available slots, re-add it to the set of available resources.
 				if (instanceToUse.hasResourcesAvailable()) {
@@ -427,7 +411,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		if (this.instancesWithAvailableResources.isEmpty()) {
 			// check if the asynchronous calls did not yet return the queues
 			Instance queuedInstance = this.newlyAvailableInstances.poll();
-			System.out.println("findInstance empty instances with available resources. Newly available instance: " + queuedInstance + " left: " + newlyAvailableInstances.size());
 			if (queuedInstance == null) {
 				return null;
 			} else {
@@ -479,7 +462,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		// 
 		// that leads with a high probability to deadlocks, when scheduling fast
 
-		System.out.println("Add instance " + instance);
 		this.newlyAvailableInstances.add(instance);
 
 		Futures.future(new Callable<Object>() {
@@ -495,7 +477,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		
 		synchronized (globalLock) {
 			Instance instance = this.newlyAvailableInstances.poll();
-			System.out.println("HandleNewSlot " + instance + " has resources left " + instance.hasResourcesAvailable());
 			if (instance == null || !instance.hasResourcesAvailable()) {
 				// someone else took it
 				return;
@@ -534,7 +515,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				}
 			}
 			else {
-				System.out.println("Add instance to pool " + instance);
 				this.instancesWithAvailableResources.add(instance);
 			}
 		}

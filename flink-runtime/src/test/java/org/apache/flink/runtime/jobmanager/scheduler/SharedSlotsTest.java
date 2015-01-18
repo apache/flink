@@ -42,21 +42,23 @@ public class SharedSlotsTest {
 				@Override
 				public Void answer(InvocationOnMock invocation) throws Throwable {
 					final SimpleSlot simpleSlot = (SimpleSlot) invocation.getArguments()[0];
-					final SharedSlot sharedSlot = (SharedSlot) invocation.getArguments()[1];
+					final SharedSlot sharedSlot = simpleSlot.getParent();
 
 					sharedSlot.freeSubSlot(simpleSlot);
 
 					return null;
 				}
 				
-			}).when(assignment).releaseSubSlot(any(SimpleSlot.class), any(SharedSlot.class));
+			}).when(assignment).releaseSimpleSlot(any(SimpleSlot.class));
+
+			JobVertexID id1 = new JobVertexID();
 			
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 			
-			SharedSlot slot = instance.allocateSharedSlot(new JobID(), assignment);
+			SharedSlot slot = instance.allocateSharedSlot(new JobID(), assignment, id1);
 			assertFalse(slot.isDead());
 			
-			SimpleSlot ss1 = slot.allocateSubSlot(new JobVertexID());
+			SimpleSlot ss1 = slot.allocateSubSlot(id1);
 			assertNotNull(ss1);
 			
 			// verify resources
@@ -67,7 +69,7 @@ public class SharedSlotsTest {
 			SimpleSlot ss2 = slot.allocateSubSlot(new JobVertexID());
 			assertNotNull(ss2);
 			
-			assertEquals(2, slot.getNumberOfAllocatedSubSlots());
+			assertEquals(2, slot.getNumberLeaves());
 			
 			// release first slot, should not trigger release
 			ss1.releaseSlot();
@@ -77,7 +79,7 @@ public class SharedSlotsTest {
 			assertFalse(slot.isDead());
 			
 			// the shared slot should now dispose itself
-			assertEquals(0, slot.getNumberOfAllocatedSubSlots());
+			assertEquals(0, slot.getNumberLeaves());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -93,7 +95,7 @@ public class SharedSlotsTest {
 				@Override
 				public Boolean answer(InvocationOnMock invocation) throws Throwable {
 					final SimpleSlot slot = (SimpleSlot) invocation.getArguments()[0];
-					final SharedSlot shared = (SharedSlot) invocation.getArguments()[1];
+					final SharedSlot shared = slot.getParent();
 					if (shared.freeSubSlot(slot) == 0) {
 						shared.die();
 						return true;
@@ -101,14 +103,16 @@ public class SharedSlotsTest {
 					return false;
 				}
 
-			}).when(assignment).releaseSubSlot(any(SimpleSlot.class), any(SharedSlot.class));
+			}).when(assignment).releaseSimpleSlot(any(SimpleSlot.class));
+
+			JobVertexID id1 = new JobVertexID();
 
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 			
-			SharedSlot slot = instance.allocateSharedSlot(new JobID(), assignment);
+			SharedSlot slot = instance.allocateSharedSlot(new JobID(), assignment, id1);
 			assertFalse(slot.isDead());
 			
-			SimpleSlot ss1 = slot.allocateSubSlot(new JobVertexID());
+			SimpleSlot ss1 = slot.allocateSubSlot(id1);
 			assertNotNull(ss1);
 			
 			// verify resources
@@ -119,7 +123,7 @@ public class SharedSlotsTest {
 			SimpleSlot ss2 = slot.allocateSubSlot(new JobVertexID());
 			assertNotNull(ss2);
 			
-			assertEquals(2, slot.getNumberOfAllocatedSubSlots());
+			assertEquals(2, slot.getNumberLeaves());
 			
 			// release first slot, should not trigger release
 			ss1.releaseSlot();
@@ -129,7 +133,7 @@ public class SharedSlotsTest {
 			assertTrue(slot.isDead());
 			
 			// the shared slot should now dispose itself
-			assertEquals(0, slot.getNumberOfAllocatedSubSlots());
+			assertEquals(0, slot.getNumberLeaves());
 			
 			assertNull(slot.allocateSubSlot(new JobVertexID()));
 		}

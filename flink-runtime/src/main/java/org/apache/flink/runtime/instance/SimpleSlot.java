@@ -38,26 +38,20 @@ public class SimpleSlot extends Slot {
 	private static final AtomicReferenceFieldUpdater<SimpleSlot, Execution> VERTEX_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(SimpleSlot.class, Execution.class, "executedTask");
 
-	private final AbstractID groupID;
-
 	/** Task being executed in the slot. Volatile to force a memory barrier and allow for correct double-checking */
 	private volatile Execution executedTask;
 
 	private Locality locality = Locality.UNCONSTRAINED;
 
-	protected final SharedSlot parent;
-
 	public SimpleSlot(JobID jobID, Instance instance, int slotNumber, SharedSlot parent, AbstractID groupID){
-		super(jobID, instance, slotNumber);
-		this.groupID = groupID;
-
-		this.parent = parent;
-
+		super(jobID, instance, slotNumber, parent, groupID);
 	}
 
-	public AbstractID getGroupID() {
-		return groupID;
+	@Override
+	public int getNumberLeaves() {
+		return 1;
 	}
+
 
 	public Execution getExecution() {
 		return executedTask;
@@ -65,10 +59,6 @@ public class SimpleSlot extends Slot {
 
 	public Locality getLocality() {
 		return locality;
-	}
-
-	public SharedSlot getParent() {
-		return parent;
 	}
 
 	public void setLocality(Locality locality) {
@@ -117,9 +107,9 @@ public class SimpleSlot extends Slot {
 		try {
 			cancel();
 		} finally {
-			if (parent != null) {
+			if (getParent() != null) {
 				// we have to ask our parent to dispose us
-				parent.disposeChild(this);
+				getParent().disposeChild(this);
 			} else {
 				// we have to give back the slot to the owning instance
 				instance.returnAllocatedSlot(this);
@@ -129,10 +119,6 @@ public class SimpleSlot extends Slot {
 
 	@Override
 	public String toString() {
-		if(parent != null){
-			return parent.toString() + " - Subslot #" + slotNumber;
-		} else {
-			return super.toString();
-		}
+		return "SimpleSlot " + super.toString();
 	}
 }

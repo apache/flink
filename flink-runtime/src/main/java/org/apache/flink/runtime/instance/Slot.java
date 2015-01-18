@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -48,8 +49,12 @@ public abstract class Slot {
 	/** Indicates whether this slot was marked dead by the system */
 	private boolean dead = false;
 
+	private final AbstractID groupID;
 
-	public Slot(JobID jobID, Instance instance, int slotNumber) {
+	private final SharedSlot parent;
+
+
+	public Slot(JobID jobID, Instance instance, int slotNumber, SharedSlot parent, AbstractID groupID) {
 		if (jobID == null || instance == null || slotNumber < 0) {
 			throw new IllegalArgumentException();
 		}
@@ -57,6 +62,8 @@ public abstract class Slot {
 		this.jobID = jobID;
 		this.instance = instance;
 		this.slotNumber = slotNumber;
+		this.parent = parent;
+		this.groupID = groupID;
 
 	}
 	// --------------------------------------------------------------------------------------------
@@ -77,6 +84,24 @@ public abstract class Slot {
 	public int getSlotNumber() {
 		return slotNumber;
 	}
+
+	public AbstractID getGroupID() {
+		return groupID;
+	}
+
+	public SharedSlot getParent() {
+		return parent;
+	}
+
+	public Slot getRoot() {
+		if(parent == null){
+			return this;
+		} else {
+			return parent.getRoot();
+		}
+	}
+
+	public abstract int getNumberLeaves();
 
 	// --------------------------------------------------------------------------------------------
 	//  Status and life cycle
@@ -129,7 +154,11 @@ public abstract class Slot {
 
 	@Override
 	public String toString() {
-		return instance.getId() + " - " + instance.hashCode() + " (" + slotNumber + ") - " + getStateName(status);
+		return hierarchy() + " - " + instance.getId() + " - " + getStateName(status);
+	}
+
+	protected String hierarchy() {
+		return "(" + slotNumber + ")" + (getParent() != null ? getParent().hierarchy() : "");
 	}
 
 	private static final String getStateName(int state) {

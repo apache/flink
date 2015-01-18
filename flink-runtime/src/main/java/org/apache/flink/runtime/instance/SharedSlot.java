@@ -40,25 +40,18 @@ public class SharedSlot extends Slot {
 
 	private final SlotSharingGroupAssignment assignmentGroup;
 
-	private final Set<SimpleSlot> subSlots;
+	private final Set<Slot> subSlots;
 
-	// A shared slot is dead if it's about to be disposed --> It cannot provide new sub slots.
-	private boolean dead;
-
-	public SharedSlot(JobID jobID, Instance instance, int slotNumber, SlotSharingGroupAssignment assignmentGroup) {
-		super(jobID, instance, slotNumber);
+	public SharedSlot(JobID jobID, Instance instance, int slotNumber,
+					SlotSharingGroupAssignment assignmentGroup, SharedSlot parent,
+					AbstractID groupID) {
+		super(jobID, instance, slotNumber, parent, groupID);
 
 		this.assignmentGroup = assignmentGroup;
-		this.subSlots = new HashSet<SimpleSlot>();
-
-		dead = false;
+		this.subSlots = new HashSet<Slot>();
 	}
 
-	public int getNumberOfAllocatedSubSlots() {
-		return subSlots.size();
-	}
-
-	public Set<SimpleSlot> getSubSlots() {
+	public Set<Slot> getSubSlots() {
 		return subSlots;
 	}
 
@@ -71,7 +64,7 @@ public class SharedSlot extends Slot {
 	 * @param slot slot to be removed from the set of sub slots.
 	 * @return Number of remaining sub slots
 	 */
-	public int freeSubSlot(SimpleSlot slot){
+	public int freeSubSlot(Slot slot){
 		if(!subSlots.remove(slot)){
 			throw new IllegalArgumentException("Wrong shared slot for sub slot.");
 		}
@@ -80,10 +73,21 @@ public class SharedSlot extends Slot {
 	}
 
 	@Override
+	public int getNumberLeaves() {
+		int result = 0;
+
+		for(Slot slot: subSlots){
+			result += slot.getNumberLeaves();
+		}
+
+		return result;
+	}
+
+	@Override
 	public void cancel() {
 		// Guarantee that the operation is only executed once
 		if (markCancelled()) {
-			assignmentGroup.cancelAndReleaseSubSlots(this);
+			assignmentGroup.releaseSharedSlot(this);
 		}
 	}
 
@@ -99,7 +103,7 @@ public class SharedSlot extends Slot {
 	 */
 	@Override
 	public void releaseSlot() {
-		assignmentGroup.cancelAndReleaseSubSlots(this);
+		assignmentGroup.releaseSharedSlot(this);
 	}
 
 	/**
@@ -120,6 +124,17 @@ public class SharedSlot extends Slot {
 		}
 	}
 
+	public SharedSlot allocateSharedSlot(AbstractID jID){
+		if(isDead()){
+			return null;
+		} else {
+			SharedSlot slot = new SharedSlot(jobID, instance, subSlots.size(), assignmentGroup, this, jID);
+			subSlots.add(slot);
+
+			return slot;
+		}
+	}
+
 	/**
 	 * Disposes the given sub slot. This
 	 * is done by the means of the assignmentGroup in order to synchronize the method. If the
@@ -128,8 +143,8 @@ public class SharedSlot extends Slot {
 	 *
 	 * @param slot sub slot which shall be removed from the shared slot
 	 */
-	void disposeChild(SimpleSlot slot){
-		assignmentGroup.releaseSubSlot(slot, this);
+	public void disposeChild(SimpleSlot slot){
+		assignmentGroup.releaseSimpleSlot(slot);
 	}
 
 	@Override
