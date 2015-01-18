@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.utilities;
+package org.apache.flink.api.java.lib;
 
 
 import org.apache.flink.api.common.functions.MapFunction;
