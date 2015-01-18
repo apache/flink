@@ -30,7 +30,7 @@ public class CollectorWrapper<OUT> implements Collector<OUT> {
 		this.outputs = new LinkedList<Collector<OUT>>();
 	}
 
-	public void addChainedOutput(Collector<OUT> output) {
+	public void addCollector(Collector<OUT> output) {
 		outputs.add(output);
 	}
 

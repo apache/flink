@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.function.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
+import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -77,6 +78,15 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new UnsupportedOperationException("Operator " + javaStream.toString + " does not have" +
         " "  +
         "parallelism.")
+  }
+  
+  def setChainingStrategy(strategy: ChainingStrategy): DataStream[T] = {
+    javaStream match {
+      case ds: SingleOutputStreamOperator[_, _] => ds.setChainingStrategy(strategy)
+      case _ =>
+        throw new UnsupportedOperationException("Only supported for operators.")
+    }
+    this
   }
 
   /**

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.collector;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
@@ -78,11 +77,6 @@ public class StreamOutputWrapper<OUT> implements Collector<OUT> {
 	 */
 	public void addOutput(StreamOutput<OUT> output) {
 		outputs.add(output);
-	}
-
-	protected void addOneOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
-			List<String> outputNames, boolean isSelectAllOutput) {
-
 	}
 
 	/**

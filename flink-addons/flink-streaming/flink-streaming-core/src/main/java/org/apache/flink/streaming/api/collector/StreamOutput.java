@@ -17,11 +17,13 @@
 
 package org.apache.flink.streaming.api.collector;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.io.StreamRecordWriter;
 import org.apache.flink.util.Collector;
 
 public class StreamOutput<OUT> implements Collector<SerializationDelegate<StreamRecord<OUT>>> {
@@ -52,6 +54,15 @@ public class StreamOutput<OUT> implements Collector<SerializationDelegate<Stream
 
 	@Override
 	public void close() {
+		if (output instanceof StreamRecordWriter) {
+			((StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>) output).close();
+		} else {
+			try {
+				output.flush();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public boolean isSelectAll() {
@@ -60,6 +71,10 @@ public class StreamOutput<OUT> implements Collector<SerializationDelegate<Stream
 
 	public List<String> getSelectedNames() {
 		return selectedNames;
+	}
+
+	public RecordWriter<SerializationDelegate<StreamRecord<OUT>>> getRecordWriter() {
+		return output;
 	}
 
 }
