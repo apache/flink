@@ -32,10 +32,10 @@ under the License.
 	<artifactId>flink-parent</artifactId>
 	<version>0.9-SNAPSHOT</version>
 
-	<name>Apache Flink</name>
+	<name>flink</name>
 	<packaging>pom</packaging>
 	<url>http://flink.apache.org</url>
-	<inceptionYear>2015</inceptionYear>
+	<inceptionYear>2014</inceptionYear>
 
 	<licenses>
 		<license>
