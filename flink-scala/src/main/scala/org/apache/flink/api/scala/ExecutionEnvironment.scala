@@ -19,11 +19,13 @@ package org.apache.flink.api.scala
 
 import java.util.UUID
 
+import com.esotericsoftware.kryo.Serializer
 import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
 import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.core.fs.Path
@@ -119,6 +121,22 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def getIdString: String = {
     javaEnv.getIdString
+  }
+
+  /**
+   * Registers the given Serializer as a default serializer for the given class at the
+   * [[KryoSerializer]].
+   */
+  def addDefaultKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+    javaEnv.addDefaultKryoSerializer(clazz, serializer)
+  }
+
+  /**
+   * Registers the given Serializer as a default serializer for the given class at the
+   * [[KryoSerializer]]
+   */
+  def addDefaultKryoSerializer(clazz: Class[_], serializer: Class[_ <: Serializer[_]]) {
+    javaEnv.addDefaultKryoSerializer(clazz, serializer)
   }
 
   /**
