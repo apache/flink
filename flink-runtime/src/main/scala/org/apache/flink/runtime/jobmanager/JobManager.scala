@@ -423,6 +423,7 @@ Actor with ActorLogMessages with ActorLogging {
 
     case Terminated(taskManager) => {
       log.info(s"Task manager ${taskManager.path} terminated.")
+      JobManager.LOG.warn(s"Task manager ${taskManager.path} terminated.")
       instanceManager.unregisterTaskManager(taskManager)
       context.unwatch(taskManager)
     }

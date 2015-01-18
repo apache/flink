@@ -36,14 +36,19 @@ public class NoResourceAvailableException extends JobException {
 				+ ". You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.");
 	}
 	
-	public NoResourceAvailableException(int numInstances, int numSlotsTotal) {
-		super(String.format("%s Resources available to scheduler: Number of instances=%d, total number of slots=%d", 
-				BASE_MESSAGE, numInstances, numSlotsTotal));
+	public NoResourceAvailableException(int numInstances, int numSlotsTotal, int availableSlots) {
+		super(String.format("%s Resources available to scheduler: Number of instances=%d, total number of slots=%d, available slots=%d",
+				BASE_MESSAGE, numInstances, numSlotsTotal, availableSlots));
 	}
 	
-	NoResourceAvailableException(ScheduledUnit task, int numInstances, int numSlotsTotal) {
-		super(String.format("%s Task to schedule: < %s > in sharing group < %s >. Resources available to scheduler: Number of instances=%d, total number of slots=%d", 
-				BASE_MESSAGE, task.getTaskToExecute(), task.getSlotSharingGroup(), numInstances, numSlotsTotal));
+	NoResourceAvailableException(ScheduledUnit task, int numInstances, int numSlotsTotal, int availableSlots) {
+		super(String.format("%s Task to schedule: < %s > with groupID < %s > in sharing group < %s >. Resources available to scheduler: Number of instances=%d, total number of slots=%d, available slots=%d",
+				BASE_MESSAGE, task.getTaskToExecute(),
+				task.getLocationConstraint() == null ? task.getTaskToExecute().getVertex().getJobvertexId() : task.getLocationConstraint().getGroupId(),
+				task.getSlotSharingGroup(),
+				numInstances,
+				numSlotsTotal,
+				availableSlots));
 	}
 
 	public NoResourceAvailableException(String message) {
