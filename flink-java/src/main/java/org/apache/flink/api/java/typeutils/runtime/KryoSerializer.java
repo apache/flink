@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
@@ -34,19 +35,40 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
+/**
+ * A type serializer that serializes its type using the Kryo serialization
+ * framework (https://github.com/EsotericSoftware/kryo).
+ * 
+ * This serializer is intended as a fallback serializer for the cases that are
+ * not covered by the basic types, tuples, and POJOs.
+ *
+ * @param <T> The type to be serialized.
+ */
 public class KryoSerializer<T> extends TypeSerializer<T> {
+	
 	private static final long serialVersionUID = 3L;
 
 	private static Map<Class<?>, Serializer<?>> staticRegisteredSerializers = new HashMap<Class<?>, Serializer<?>>();
 	private static Map<Class<?>, Class<? extends Serializer<?>>> staticRegisteredSerializersClasses = new HashMap<Class<?>, Class<? extends Serializer<?>>>();
-
-	private static Map<Class<?>, Serializer<?>> registeredSerializers;
-	private static Map<Class<?>, Class<? extends Serializer<?>>> registeredSerializersClasses;
+	
+	private static Set<Class<?>> staticRegisteredTypes = new HashSet<Class<?>>();
+	
+	// ------------------------------------------------------------------------
+	
+	private final Map<Class<?>, Serializer<?>> registeredSerializers;
+	private final Map<Class<?>, Class<? extends Serializer<?>>> registeredSerializersClasses;
+	private final Set<Class<?>> registeredTypes;
 
 	private final Class<T> type;
+	
+	// ------------------------------------------------------------------------
+	// The fields below are lazily initialized after de-serialization
 
 	private transient Kryo kryo;
 	private transient T copyInstance;
@@ -56,6 +78,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	
 	private transient Input input;
 	private transient Output output;
+	
+	// ------------------------------------------------------------------------
 
 	public KryoSerializer(Class<T> type){
 		if(type == null){
@@ -63,10 +87,26 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		}
 		this.type = type;
 
-		this.registeredSerializers = staticRegisteredSerializers;
-		this.registeredSerializersClasses = staticRegisteredSerializersClasses;
+		// create copies of the statically registered serializers
+		// we use static synchronization to safeguard against concurrent use
+		// of the static collections.
+		synchronized (KryoSerializer.class) {
+			this.registeredSerializers = staticRegisteredSerializers.isEmpty() ?
+				Collections.<Class<?>, Serializer<?>>emptyMap() :
+				new HashMap<Class<?>, Serializer<?>>(staticRegisteredSerializers);
+		
+			this.registeredSerializersClasses = staticRegisteredSerializersClasses.isEmpty() ?
+				Collections.<Class<?>, Class<? extends Serializer<?>>>emptyMap() :
+				new HashMap<Class<?>, Class<? extends Serializer<?>>>(staticRegisteredSerializersClasses);
+				
+			this.registeredTypes = staticRegisteredTypes.isEmpty() ?
+				Collections.<Class<?>>emptySet() :
+				new HashSet<Class<?>>(staticRegisteredTypes);
+		}
+		
 	}
 
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean isImmutableType() {
@@ -193,41 +233,104 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new ScalaKryoInstantiator().newKryo();
-			this.kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
 
-			for (Map.Entry<Class<?>, Serializer<?>> e: registeredSerializers.entrySet()) {
-				this.kryo.addDefaultSerializer(e.getKey(), e.getValue());
+			// Throwable and all subclasses should be serialized via java serialization
+			kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
+
+			// register the type of our class
+			kryo.register(type);
+			
+			// register given types. we do this first so that any registration of a
+			// more specific serializer overrides this
+			for (Class<?> type : registeredTypes) {
+				kryo.register(type);
+			}
+			
+			// register given serializer classes
+			for (Map.Entry<Class<?>, Class<? extends Serializer<?>>> e : registeredSerializersClasses.entrySet()) {
+				Class<?> typeClass = e.getKey();
+				Class<? extends Serializer<?>> serializerClass = e.getValue();
+				
+				Serializer<?> serializer = 
+						ReflectionSerializerFactory.makeSerializer(kryo, serializerClass, typeClass);
+				kryo.register(typeClass, serializer);
 			}
 
-			for (Map.Entry<Class<?>, Class<? extends Serializer<?>>> e: registeredSerializersClasses.entrySet()) {
-				this.kryo.addDefaultSerializer(e.getKey(), e.getValue());
+			// register given serializers
+			for (Map.Entry<Class<?>, Serializer<?>> e : registeredSerializers.entrySet()) {
+				kryo.register(e.getKey(), e.getValue());
 			}
+			
+			kryo.setRegistrationRequired(false);
+			kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// For registering custom serializers and types
+	// --------------------------------------------------------------------------------------------
 
-			this.kryo.setRegistrationRequired(false);
-			this.kryo.register(type);
-
-			this.kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
+	/**
+	 * Registers the given Serializer as a default serializer for the given class at the Kryo
+	 * instance.
+	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
+	 * because it may be distributed to the worker nodes by java serialization.
+	 * 
+	 * @param clazz The class of the types serialized with the given serializer.
+	 * @param serializer The serializer to use.
+	 * @throws IllegalArgumentException Thrown, if the serializer is not serializable.
+	 */
+	public static void registerSerializer(Class<?> clazz, Serializer<?> serializer) {
+		if (clazz == null || serializer == null) {
+			throw new NullPointerException("Cannot register null class or serializer.");
+		}
+		if (!(serializer instanceof java.io.Serializable)) {
+			throw new IllegalArgumentException("The serializer instance must be serializable, (for distributing it in the cluster), "
+					+ "as defined by java.io.Serializable. For stateless serializers, you can use the "
+					+ "'registerSerializer(Class, Class)' method to register the serializer via its class.");
+		}
+		
+		synchronized (KryoSerializer.class) {
+			staticRegisteredSerializers.put(clazz, serializer);
 		}
 	}
 
 	/**
-	 * Registers the given Serializer as a default serializer for the given class at the Kryo
+	 * Registers a serializer via its class as a default serializer for the given class at the Kryo
 	 * instance.
+	 * 
+	 * @param clazz The class of the types serialized with the given serializer.
+	 * @param serializerClass The serializer to use.
 	 */
-	public static void addDefaultSerializer(Class<?> clazz, Serializer<?> serializer) {
-		staticRegisteredSerializers.put(clazz, serializer);
+	public static void registerSerializer(Class<?> clazz, Class<? extends Serializer<?>> serializerClass) {
+		if (clazz == null || serializerClass == null) {
+			throw new NullPointerException("Cannot register null class or serializer.");
+		}
+		
+		synchronized (KryoSerializer.class) {
+			staticRegisteredSerializersClasses.put(clazz, serializerClass);
+		}
 	}
-
+	
 	/**
-	 * Registers the given Serializer as a default serializer for the given class at the Kryo
-	 * instance.
+	 * Registers the given type with Kryo. Registering the type allows Kryo to write abbreviated
+	 * name tags, rather than full class names, thereby vastly increasing the serialization
+	 * performance in many cases.
+	 *  
+	 * @param type The class of the type to register.
 	 */
-	public static void addDefaultSerializer(Class<?> clazz, Class<? extends Serializer<?>> serializer) {
-		staticRegisteredSerializersClasses.put(clazz, serializer);
+	public static void registerType(Class<?> type) {
+		if (type == null) {
+			throw new NullPointerException("Cannot register null type class.");
+		}
+		
+		synchronized (KryoSerializer.class) {
+			staticRegisteredTypes.add(type);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
-	// for testing
+	// For testing
 	// --------------------------------------------------------------------------------------------
 	
 	Kryo getKryo() {

@@ -127,16 +127,27 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Registers the given Serializer as a default serializer for the given class at the
    * [[KryoSerializer]].
    */
-  def addDefaultKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
-    javaEnv.addDefaultKryoSerializer(clazz, serializer)
+  def registerKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+    javaEnv.registerKryoSerializer(clazz, serializer)
   }
 
   /**
    * Registers the given Serializer as a default serializer for the given class at the
    * [[KryoSerializer]]
    */
-  def addDefaultKryoSerializer(clazz: Class[_], serializer: Class[_ <: Serializer[_]]) {
-    javaEnv.addDefaultKryoSerializer(clazz, serializer)
+  def registerKryoSerializer(clazz: Class[_], serializer: Class[_ <: Serializer[_]]) {
+    javaEnv.registerKryoSerializer(clazz, serializer)
+  }
+  
+  /**
+   * Registers the given type with the serialization stack. If the type is eventually
+   * serialized as a POJO, then the type is registered with the POJO serializer. If the
+   * type ends up being serialized with Kryo, then it will be registered at Kryo to make
+   * sure that only tags are written.
+   * 
+   */
+  def registerType(typeClass: Class[_]) {
+    javaEnv.registerType(typeClass)
   }
 
   /**

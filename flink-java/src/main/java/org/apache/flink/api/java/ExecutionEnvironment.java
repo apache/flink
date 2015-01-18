@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.esotericsoftware.kryo.Serializer;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -201,20 +202,57 @@ public abstract class ExecutionEnvironment {
 		return this.executionId.toString();
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Registry for types and serializers
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Registers the given Serializer as a default serializer for the given class at the
+	 * Registers the given Serializer as a default serializer for the given type at the
 	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
+	 * 
+	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
+	 * because it may be distributed to the worker nodes by java serialization.
+	 * 
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializer The serializer to use.
 	 */
-	public void addDefaultKryoSerializer(Class<?> clazz, Serializer<?> serializer) {
-		KryoSerializer.addDefaultSerializer(clazz, serializer);
+	public void registerKryoSerializer(Class<?> type, Serializer<?> serializer) {
+		if (type == null || serializer == null) {
+			throw new NullPointerException("Cannot register null class or serializer.");
+		}
+		
+		KryoSerializer.registerSerializer(type, serializer);
 	}
 
 	/**
-	 * Registers the given Serializer as a default serializer for the given class at the
+	 * Registers the given Serializer via its class as a serializer for the given type at the
 	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
+	 * 
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializerClass The class of the serializer to use.
 	 */
-	public void addDefaultKryoSerializer(Class<?> clazz, Class<? extends Serializer<?>> serializer) {
-		KryoSerializer.addDefaultSerializer(clazz, serializer);
+	public void registerKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		if (type == null || serializerClass == null) {
+			throw new NullPointerException("Cannot register null class or serializer.");
+		}
+		
+		KryoSerializer.registerSerializer(type, serializerClass);
+	}
+	
+	/**
+	 * Registers the given type with the serialization stack. If the type is eventually
+	 * serialized as a POJO, then the type is registered with the POJO serializer. If the
+	 * type ends up being serialized with Kryo, then it will be registered at Kryo to make
+	 * sure that only tags are written.
+	 *  
+	 * @param type The class of the type to register.
+	 */
+	public void registerType(Class<?> type) {
+		if (type == null) {
+			throw new NullPointerException("Cannot register null type class.");
+		}
+		
+		KryoSerializer.registerType(type);
 	}
 	
 	// --------------------------------------------------------------------------------------------
