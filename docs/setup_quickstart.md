@@ -38,10 +38,10 @@ Download the ready to run binary package. Choose the Flink distribution that __m
 <p>
 <div class="tab-content text-center">
   <div class="tab-pane active" id="bin-hadoop1">
-    <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-1',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP_1_STABLE}}"><i class="icon-download"> </i> Download Flink for Hadoop 1.2</a>
+    <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-1',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP1_STABLE}}"><i class="icon-download"> </i> Download Flink for Hadoop 1.2</a>
   </div>
   <div class="tab-pane" id="bin-hadoop2">
-    <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-2',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP_2_STABLE}}"><i class="icon-download"> </i> Download Flink for Hadoop 2</a>
+    <a class="btn btn-info btn-lg" onclick="_gaq.push(['_trackEvent','Action','download-quickstart-setup-2',this.href]);" href="{{site.FLINK_DOWNLOAD_URL_HADOOP2_STABLE}}"><i class="icon-download"> </i> Download Flink for Hadoop 2</a>
   </div>
 </div>
 </p>
@@ -57,7 +57,7 @@ Download the ready to run binary package. Choose the Flink distribution that __m
 ~~~bash
 $ cd ~/Downloads        # Go to download directory
 $ tar xzf flink-*.tgz   # Unpack the downloaded archive
-$ cd flink-{{site.FLINK_VERSION_STABLE}}
+$ cd flink-{{site.FLINK_VERSION_SHORT}}
 $ bin/start-local.sh    # Start Flink
 ~~~
 
@@ -78,7 +78,7 @@ Run the __Word Count example__ to see Flink at work.
 * __Start the example program__:
   
   ~~~bash
-  $ bin/flink run ./examples/flink-java-examples-{{site.FLINK_VERSION_STABLE}}-WordCount.jar file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
+  $ bin/flink run ./examples/flink-java-examples-{{site.FLINK_VERSION_SHORT}}-WordCount.jar file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
   ~~~
 
 * You will find a file called __wordcount-result.txt__ in your current directory.

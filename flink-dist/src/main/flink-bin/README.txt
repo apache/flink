@@ -1,15 +1,15 @@
 For the latest information about Flink, please visit our website at:
 
-   http://flink.incubator.apache.org
+   http://flink.apache.org
 
 and our GitHub Account 
 
-   https://github.com/apache/incubator-flink
+   https://github.com/apache/flink
 
 If you have any questions, ask on our Mailing lists:
 
-   user@flink.incubator.apache.org
-   dev@flink.incubator.apache.org
+   user@flink.apache.org
+   dev@flink.apache.org
 
 This distribution includes cryptographic software.  The country in 
 which you currently reside may have restrictions on the import, 

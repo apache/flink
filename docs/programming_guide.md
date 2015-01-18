@@ -130,7 +130,7 @@ manually create the project, you can use the archetype and create a project by c
 mvn archetype:generate /
     -DarchetypeGroupId=org.apache.flink/
     -DarchetypeArtifactId=flink-quickstart-java /
-    -DarchetypeVersion={{site.FLINK_VERSION_STABLE }}
+    -DarchetypeVersion={{site.FLINK_VERSION_SHORT }}
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -138,7 +138,7 @@ mvn archetype:generate /
 mvn archetype:generate /
     -DarchetypeGroupId=org.apache.flink/
     -DarchetypeArtifactId=flink-quickstart-scala /
-    -DarchetypeVersion={{site.FLINK_VERSION_STABLE }}
+    -DarchetypeVersion={{site.FLINK_VERSION_SHORT }}
 {% endhighlight %}
 </div>
 </div>
@@ -152,12 +152,12 @@ If you want to add Flink to an existing Maven project, add the following entry t
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-java</artifactId>
-  <version>{{site.FLINK_VERSION_STABLE }}</version>
+  <version>{{site.FLINK_VERSION_SHORT }}</version>
 </dependency>
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-clients</artifactId>
-  <version>{{site.FLINK_VERSION_STABLE }}</version>
+  <version>{{site.FLINK_VERSION_SHORT }}</version>
 </dependency>
 {% endhighlight %}
 </div>
@@ -166,12 +166,12 @@ If you want to add Flink to an existing Maven project, add the following entry t
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-scala</artifactId>
-  <version>{{site.FLINK_VERSION_STABLE }}</version>
+  <version>{{site.FLINK_VERSION_SHORT }}</version>
 </dependency>
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-clients</artifactId>
-  <version>{{site.FLINK_VERSION_STABLE }}</version>
+  <version>{{site.FLINK_VERSION_SHORT }}</version>
 </dependency>
 {% endhighlight %}
 </div>

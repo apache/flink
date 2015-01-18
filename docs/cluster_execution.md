@@ -49,7 +49,7 @@ If you are developing your program as a Maven project, you have to add the
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-clients</artifactId>
-  <version>{{ site.FLINK_VERSION_STABLE }}</version>
+  <version>{{ site.FLINK_VERSION_SHORT }}</version>
 </dependency>
 ~~~
 
@@ -95,7 +95,7 @@ If you are developing your program in a Maven project, you have to add the
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-clients</artifactId>
-  <version>{{ site.FLINK_VERSION_STABLE }}</version>
+  <version>{{ site.FLINK_VERSION_SHORT }}</version>
 </dependency>
 ~~~
 
