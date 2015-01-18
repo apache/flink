@@ -25,6 +25,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.hadoop.io.IntWritable;
+
 import scala.math.BigInt;
 
 /**
@@ -614,7 +616,10 @@ public class CollectionDataSets {
 		pwc1.bigInt = BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TEN);
 		pwc1.scalaBigInt = BigInt.int2bigInt(10);
 		pwc1.bigDecimalKeepItNull = null;
-		pwc1.sqlDate = new java.sql.Date(2000000000000L); // 2033 ;)
+		
+		// use calendar to make it stable across time zones
+		GregorianCalendar gcl1 = new GregorianCalendar(2033, 04, 18);
+		pwc1.sqlDate = new java.sql.Date(gcl1.getTimeInMillis());
 		pwc1.mixed = new ArrayList<Object>();
 		Map<String, Integer> map = new HashMap<String, Integer>();
 		map.put("someKey", 1); // map.put("anotherKey", 2); map.put("third", 3);
@@ -628,7 +633,9 @@ public class CollectionDataSets {
 		pwc2.bigInt = BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TEN);
 		pwc2.scalaBigInt = BigInt.int2bigInt(31104000);
 		pwc2.bigDecimalKeepItNull = null;
-		pwc2.sqlDate = new java.sql.Date(200000000000L); // 1976
+		
+		GregorianCalendar gcl2 = new GregorianCalendar(1976, 4, 3);
+		pwc2.sqlDate = new java.sql.Date(gcl2.getTimeInMillis()); // 1976
 
 
 		data.add(pwc1);
