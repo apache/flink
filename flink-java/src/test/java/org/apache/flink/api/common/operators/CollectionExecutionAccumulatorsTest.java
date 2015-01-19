@@ -23,7 +23,6 @@ import static org.junit.Assert.*;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
@@ -38,7 +37,7 @@ public class CollectionExecutionAccumulatorsTest {
 		try {
 			final int NUM_ELEMENTS = 100;
 			
-			ExecutionEnvironment env = new CollectionEnvironment();
+			ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
 			
 			env.generateSequence(1, NUM_ELEMENTS)
 				.map(new CountingMapper())
