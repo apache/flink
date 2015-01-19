@@ -40,6 +40,7 @@ under the License.
 		<module>flink-hadoop-compatibility</module>
 		<module>flink-streaming</module>
 		<module>flink-hbase</module>
+		<module>flink-gelly</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->
