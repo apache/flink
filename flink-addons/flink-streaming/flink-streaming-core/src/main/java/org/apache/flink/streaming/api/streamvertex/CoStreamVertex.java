@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.streamvertex;
 
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
-import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.BufferReaderBase;
 import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
@@ -94,27 +94,13 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 			}
 		}
 
-		MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>> reader1;
-		if (inputList1.size() == 1) {
-			reader1 = new MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>(inputList1.get(0));
-		}
-		else if (inputList1.size() > 1) {
-			reader1 = new MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>(new UnionBufferReader(inputList1.toArray(new BufferReader[inputList1.size()])));
-		}
-		else {
-			throw new IllegalStateException("Illegal input size for first input.");
-		}
+		final BufferReaderBase reader1 = inputList1.size() == 1
+				? inputList1.get(0)
+				: new UnionBufferReader(inputList1.toArray(new BufferReader[inputList1.size()]));
 
-		MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>> reader2;
-		if (inputList2.size() == 1) {
-			reader2 = new MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>(inputList2.get(0));
-		}
-		else if (inputList2.size() > 1) {
-			reader2 = new MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>(new UnionBufferReader(inputList2.toArray(new BufferReader[inputList2.size()])));
-		}
-		else {
-			throw new IllegalStateException("Illegal input size for first input.");
-		}
+		final BufferReaderBase reader2 = inputList2.size() == 1
+				? inputList2.get(0)
+				: new UnionBufferReader(inputList2.toArray(new BufferReader[inputList2.size()]));
 
 		coReader = new CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(reader1, reader2);
 	}
