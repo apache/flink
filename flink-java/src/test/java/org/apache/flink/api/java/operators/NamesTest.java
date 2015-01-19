@@ -41,6 +41,7 @@ import org.junit.Test;
 /**
  * Test proper automated assignment of the transformation's name, if not set by the user.
  */
+@SuppressWarnings("serial")
 public class NamesTest implements Serializable {
 
 	@Test
@@ -60,7 +61,7 @@ public class NamesTest implements Serializable {
 			}
 		}).output(new DiscardingOuputFormat<String>());
 		JavaPlan plan = env.createProgramPlan();
-		testForName("Filter at testDefaultName(NamesTest.java:54)", plan);
+		testForName("Filter at testDefaultName(NamesTest.java:55)", plan);
 	}
 
 	@Test
@@ -102,7 +103,7 @@ public class NamesTest implements Serializable {
 			@Override
 			public boolean preVisit(Operator<?> visitable) {
 				if(visitable instanceof JoinOperatorBase) {
-					Assert.assertEquals("Join at testJoinWith(NamesTest.java:92)", visitable.getName());
+					Assert.assertEquals("Join at testJoinWith(NamesTest.java:93)", visitable.getName());
 				}
 				return true;
 			}

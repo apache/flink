@@ -91,6 +91,7 @@ interface MapCreator {
 	MapFunction<Integer, Integer> getMap();
 }
 
+@SuppressWarnings("serial")
 class NonSerializableMapCreator implements MapCreator {
 
 	@Override
@@ -105,7 +106,7 @@ class NonSerializableMapCreator implements MapCreator {
 
 }
 
-
+@SuppressWarnings("serial")
 class SerializableMapCreator implements MapCreator, Serializable {
 
 	private int add = 0;
@@ -126,6 +127,7 @@ class SerializableMapCreator implements MapCreator, Serializable {
 
 }
 
+@SuppressWarnings("serial")
 class NestedSerializableMapCreator implements MapCreator, Serializable {
 
 	private int add = 0;
@@ -172,6 +174,7 @@ class NestedNonSerializableMapCreator implements MapCreator {
 		return inner.getMap();
 	}
 
+	@SuppressWarnings("serial")
 	class InnerSerializableMapCreator implements MapCreator, Serializable {
 
 		@Override

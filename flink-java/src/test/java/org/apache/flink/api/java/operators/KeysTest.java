@@ -100,7 +100,6 @@ public class KeysTest {
 				BasicTypeInfo.STRING_TYPE_INFO,
 				new TupleTypeInfo<Tuple3<String, String, String>>(BasicTypeInfo.STRING_TYPE_INFO,BasicTypeInfo.STRING_TYPE_INFO,BasicTypeInfo.STRING_TYPE_INFO),
 				BasicTypeInfo.STRING_TYPE_INFO);
-		ExpressionKeys<Tuple3<String, Tuple3<String, String, String>, String>> fpk;
 		
 		String[][] tests = new String[][] {
 				new String[] {"f0.f1"}, // nesting into unnested
@@ -113,7 +112,7 @@ public class KeysTest {
 		for(int i = 0; i < tests.length; i++) {
 			Throwable e = null;
 			try {
-				fpk = new ExpressionKeys<Tuple3<String, Tuple3<String, String, String>, String>>(tests[i], typeInfo);
+				new ExpressionKeys<Tuple3<String, Tuple3<String, String, String>, String>>(tests[i], typeInfo);
 			} catch(Throwable t) {
 				// System.err.println("Message: "+t.getMessage()); t.printStackTrace();
 				e = t;	
@@ -125,7 +124,6 @@ public class KeysTest {
 	@Test 
 	public void testInvalidPojo() throws Throwable {
 		TypeInformation<ComplexNestedClass> ti = TypeExtractor.getForClass(ComplexNestedClass.class);
-		ExpressionKeys<ComplexNestedClass> ek;
 		
 		String[][] tests = new String[][] {
 				new String[] {"nonexistent"},
@@ -135,7 +133,7 @@ public class KeysTest {
 		for(int i = 0; i < tests.length; i++) {
 			Throwable e = null;
 			try {
-				ek = new ExpressionKeys<ComplexNestedClass>(tests[i], ti);
+				new ExpressionKeys<ComplexNestedClass>(tests[i], ti);
 			} catch(Throwable t) {
 				// System.err.println("Message: "+t.getMessage()); t.printStackTrace();
 				e = t;	

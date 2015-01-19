@@ -281,7 +281,7 @@ public class DistinctTranslationTest {
 
 		private static final long serialVersionUID = 1L;
 		public int myInt;
-		@SuppressWarnings("unused")
+
 		public CustomType() {};
 
 		public CustomType(int i) {
