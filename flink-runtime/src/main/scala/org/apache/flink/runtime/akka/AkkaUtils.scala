@@ -80,15 +80,9 @@ object AkkaUtils {
 
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
 
-    val logLevel = configuration.getString(ConfigConstants.AKKA_LOG_LEVEL,
-      ConfigConstants.DEFAULT_AKKA_LOG_LEVEL)
-
     val configString =
       s"""
          |akka {
-         |  loglevel = $logLevel
-         |  stdout-loglevel = $logLevel
-         |
          |  log-dead-letters = $logLifecycleEvents
          |  log-dead-letters-during-shutdown = $logLifecycleEvents
          |
@@ -144,15 +138,9 @@ object AkkaUtils {
 
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
 
-    val logLevel = configuration.getString(ConfigConstants.AKKA_LOG_LEVEL,
-      ConfigConstants.DEFAULT_AKKA_LOG_LEVEL)
-
     val configString =
       s"""
          |akka {
-         |  loglevel = $logLevel
-         |  stdout-loglevel = $logLevel
-         |
          |  log-dead-letters = $logLifecycleEvents
          |  log-dead-letters-during-shutdown = $logLifecycleEvents
          |
@@ -204,12 +192,16 @@ object AkkaUtils {
       |
       |  loggers = ["akka.event.slf4j.Slf4jLogger"]
       |  logger-startup-timeout = 30s
-      |  loglevel = "WARNING"
-      |  logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
+      |  loglevel = "DEBUG"
       |  stdout-loglevel = "WARNING"
       |  jvm-exit-on-fatal-error = off
       |  log-config-on-start = off
+      |
       |  serialize-messages = on
+      |
+      |  debug {
+      |   lifecycle = on
+      |  }
       |}
     """.stripMargin
   }
