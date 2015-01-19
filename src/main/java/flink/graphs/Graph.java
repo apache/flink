@@ -72,20 +72,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     private final ExecutionEnvironment context;
 	private final DataSet<Vertex<K, VV>> vertices;
 	private final DataSet<Edge<K, EV>> edges;
-	private boolean isUndirected;
-
-	/**
-	 * Creates a graph from two datasets: vertices and edges
-	 *
-	 * @param vertices a DataSet of vertices.
-	 * @param edges a DataSet of vertices.
-	 * @param context the flink execution environment.
-	 */
-	public Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges, ExecutionEnvironment context) {
-
-		/** a graph is directed by default */
-		this(vertices, edges, context, false);
-	}
 
 	/**
 	 * Creates a graph from two datasets: vertices and edges and allow setting the undirected property
@@ -93,14 +79,11 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param vertices a DataSet of vertices.
 	 * @param edges a DataSet of vertices.
 	 * @param context the flink execution environment.
-	 * @param undirected whether this is an undirected graph
 	 */
-	public Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges, ExecutionEnvironment context,
-			boolean undirected) {
+	public Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges, ExecutionEnvironment context) {
 		this.vertices = vertices;
 		this.edges = edges;
         this.context = context;
-		this.isUndirected = undirected;
 	}
 
 	/**
@@ -456,19 +439,14 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	/**
-	 * Convert the directed graph into an undirected graph
-	 * by adding all inverse-direction edges.
+	 * This operation adds all inverse-direction edges
+	 * to the graph.
 	 * @return the undirected graph.
 	 */
 	public Graph<K, VV, EV> getUndirected() throws UnsupportedOperationException {
-		if (this.isUndirected) {
-			throw new UnsupportedOperationException("The graph is already undirected.");
-		}
-		else {
 			DataSet<Edge<K, EV>> undirectedEdges =
 					edges.union(edges.map(new ReverseEdgesMap<K, EV>()));
-			return new Graph<K, VV, EV>(vertices, undirectedEdges, this.context, true);
-			}
+			return new Graph<K, VV, EV>(vertices, undirectedEdges, this.context);
 	}
 	
 	/**
@@ -667,13 +645,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @throws UnsupportedOperationException
 	 */
 	public Graph<K, VV, EV> reverse() throws UnsupportedOperationException {
-		if (this.isUndirected) {
-			throw new UnsupportedOperationException("The graph is already undirected.");
-		}
-		else {
-			DataSet<Edge<K, EV>> undirectedEdges = edges.map(new ReverseEdgesMap<K, EV>());
-			return new Graph<K, VV, EV>(vertices, (DataSet<Edge<K, EV>>) undirectedEdges, this.context, true);
-		}
+		DataSet<Edge<K, EV>> reversedEdges = edges.map(new ReverseEdgesMap<K, EV>());
+		return new Graph<K, VV, EV>(vertices, reversedEdges, this.context);
 	}
 
 	/**
@@ -840,17 +813,10 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @return true if the graph is weakly connected.
 	 */
 	public DataSet<Boolean> isWeaklyConnected (int maxIterations) {
-		Graph<K, VV, EV> graph;
-		
-		if (!(this.isUndirected)) {
-			// first, convert to an undirected graph
-			graph = this.getUndirected();
-		}
-		else {
-			graph = this;
-		}
+		// first, convert to an undirected graph
+		Graph<K, VV, EV> graph = this.getUndirected();
 
-        DataSet<K> vertexIds = graph.getVertexIds();
+		DataSet<K> vertexIds = graph.getVertexIds();
         DataSet<Tuple2<K,K>> verticesWithInitialIds = vertexIds
                 .map(new DuplicateVertexIDMapper<K>());
 
