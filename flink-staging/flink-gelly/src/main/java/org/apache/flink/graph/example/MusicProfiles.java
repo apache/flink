@@ -69,7 +69,7 @@ public class MusicProfiles implements ProgramDescription {
     	 */
     	DataSet<Edge<String, Integer>> userSongEdges = validTriplets.map(new Tuple3ToEdgeMap<String, Integer>());
 
-    	Graph<String, NullValue, Integer> userSongGraph = Graph.create(userSongEdges, env);
+    	Graph<String, NullValue, Integer> userSongGraph = Graph.fromDataSet(userSongEdges, env);
 
     	/**
     	 *  Get the top track (most listened) for each user
@@ -87,7 +87,7 @@ public class MusicProfiles implements ProgramDescription {
     	DataSet<Edge<String, NullValue>> similarUsers = userSongGraph.getEdges().groupBy(1)
     			.reduceGroup(new CreateSimilarUserEdges()).distinct();
 
-    	Graph<String, Long, NullValue> similarUsersGraph = Graph.create(similarUsers,
+    	Graph<String, Long, NullValue> similarUsersGraph = Graph.fromDataSet(similarUsers,
 
     			new MapFunction<String, Long>() {
 					public Long map(String value) { return 1l; }
