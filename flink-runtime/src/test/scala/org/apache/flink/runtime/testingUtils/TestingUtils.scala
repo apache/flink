@@ -46,8 +46,7 @@ object TestingUtils {
     s"""akka.daemonic = on
       |akka.test.timefactor = 10
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
-      |akka.loglevel = "OFF"
-      |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
+      |akka.loglevel = "DEBUG"
       |akka.stdout-loglevel = "OFF"
       |akka.jvm-exit-on-fata-error = off
       |akka.log-config-on-start = off

@@ -86,7 +86,9 @@ import scala.collection.JavaConverters._
 
   implicit val timeout = tmTimeout
 
-  log.info(s"Starting task manager at ${self.path}.")
+  log.info("Starting task manager at {}.", self.path)
+  log.info("Creating {} task slot(s).", numberOfSlots)
+  log.info("TaskManager connection information {}.", connectionInfo)
 
   val REGISTRATION_DELAY = 0 seconds
   val REGISTRATION_INTERVAL = 10 seconds
@@ -105,9 +107,12 @@ import scala.collection.JavaConverters._
   val waitForRegistration = scala.collection.mutable.Set[ActorRef]()
 
   val profiler = profilingInterval match {
-    case Some(interval) => Some(TaskManager.startProfiler(self.path.toSerializationFormat,
-      interval))
-    case None => None
+    case Some(interval) =>
+      log.info("Profiling of jobs is enabled.")
+      Some(TaskManager.startProfiler(self.path.toSerializationFormat, interval))
+    case None =>
+      log.info("Profiling of jobs is disabled.")
+      None
   }
 
   var libraryCacheManager: LibraryCacheManager = null
@@ -132,7 +137,7 @@ import scala.collection.JavaConverters._
   }
 
   override def postStop(): Unit = {
-    log.info(s"Stopping task manager ${self.path}.")
+    log.info("Stopping task manager {}.", self.path)
 
     cancelAndClearEverything(new Exception("Task Manager is shutting down."))
 
@@ -161,6 +166,10 @@ import scala.collection.JavaConverters._
         case t: Throwable => log.error(t, "LibraryCacheManager did not shutdown properly.")
       }
     }
+
+    if(log.isDebugEnabled){
+      log.debug("Task manager {} is completely stopped.", self.path)
+    }
   }
 
   private def tryJobManagerRegistration(): Unit = {
@@ -180,14 +189,14 @@ import scala.collection.JavaConverters._
       }
       else if (registrationAttempts <= TaskManager.MAX_REGISTRATION_ATTEMPTS) {
 
-        log.info(s"Try to register at master ${jobManagerAkkaURL}. ${registrationAttempts}. " +
-          s"Attempt")
+        log.info("Try to register at master {}. Attempt #{}", jobManagerAkkaURL,
+          registrationAttempts)
         val jobManager = context.actorSelection(jobManagerAkkaURL)
 
         jobManager ! RegisterTaskManager(connectionInfo, hardwareDescription, numberOfSlots)
       }
       else {
-        log.error("TaskManager could not register at JobManager.")
+        log.error("TaskManager could not register at JobManager.");
         self ! PoisonPill
       }
     }
@@ -200,9 +209,8 @@ import scala.collection.JavaConverters._
 
         context.watch(currentJobManager)
 
-        log.info(s"TaskManager successfully registered at JobManager ${
-          currentJobManager.path.toString
-        }.")
+        log.info("TaskManager successfully registered at JobManager {}.",
+          currentJobManager.path.toString)
 
         setupNetworkEnvironment()
         setupLibraryCacheManager(blobPort)
@@ -274,8 +282,8 @@ import scala.collection.JavaConverters._
     }
 
     case Terminated(jobManager) => {
-      log.info(s"Job manager ${jobManager.path} is no longer reachable. "
-        + "Cancelling all tasks and trying to reregister.")
+      log.info("Job manager {} is no longer reachable. Cancelling all tasks and trying to " +
+        "reregister.", jobManager.path)
 
       cancelAndClearEverything(new Throwable("Lost connection to JobManager"))
       tryJobManagerRegistration()
@@ -285,7 +293,7 @@ import scala.collection.JavaConverters._
   def notifyExecutionStateChange(jobID: JobID, executionID: ExecutionAttemptID,
                                  executionState: ExecutionState,
                                  optionalError: Throwable): Unit = {
-    log.info(s"Update execution state to ${executionState}.")
+    log.info("Update execution state to {}.", executionState)
     val futureResponse = (currentJobManager ? UpdateTaskExecutionState(new TaskExecutionState
     (jobID, executionID, executionState, optionalError)))(timeout)
 
@@ -301,8 +309,8 @@ import scala.collection.JavaConverters._
           self ! UnregisterTask(executionID)
         }
       case Failure(t) => {
-        log.warning(s"Execution state change notification failed for task ${executionID} " +
-          s"of job ${jobID}. Cause ${t.getMessage}.")
+        log.warning("Execution state change notification failed for task {} of job {}. Cause {}.",
+          executionID, jobID, t.getMessage)
         self ! UnregisterTask(executionID)
       }
     }
@@ -321,12 +329,11 @@ import scala.collection.JavaConverters._
       if (log.isDebugEnabled) {
         startRegisteringTask = System.currentTimeMillis()
       }
-      libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles())
+      libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles());
 
       if (log.isDebugEnabled) {
-        log.debug(s"Register task ${executionID} took ${
-          (System.currentTimeMillis() - startRegisteringTask) / 1000.0
-        }s")
+        log.debug("Register task {} took {}s", executionID,
+          (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
       }
 
       val userCodeClassLoader = libraryCacheManager.getClassLoader(jobID)
@@ -386,7 +393,7 @@ import scala.collection.JavaConverters._
         val message = if (t.isInstanceOf[CancelTaskException]) {
           "Task was canceled"
         } else {
-          log.error(t, s"Could not instantiate task with execution ID ${executionID}.")
+          log.error(t, "Could not instantiate task with execution ID {}.", executionID)
           ExceptionUtils.stringifyException(t)
         }
 
@@ -398,7 +405,7 @@ import scala.collection.JavaConverters._
 
           libraryCacheManager.unregisterTask(jobID, executionID)
         } catch {
-          case t: Throwable => log.error("Error during cleanup of task deployment.", t)
+          case t: Throwable => log.error(t, "Error during cleanup of task deployment.")
         }
 
         sender ! new TaskOperationResult(executionID, false, message)
@@ -480,6 +487,9 @@ import scala.collection.JavaConverters._
     if (blobPort > 0) {
       val address = new InetSocketAddress(currentJobManager.path.address.host.getOrElse
         ("localhost"), blobPort)
+
+      log.info("Determined BLOB server address to be {}.", address)
+
       libraryCacheManager = new BlobLibraryCacheManager(new BlobCache(address), cleanupInterval)
     } else {
       libraryCacheManager = new FallbackLibraryCacheManager
@@ -500,14 +510,14 @@ import scala.collection.JavaConverters._
   }
 
   private def unregisterTask(executionID: ExecutionAttemptID): Unit = {
-    log.info(s"Unregister task with execution ID ${executionID}.")
+    log.info("Unregister task with execution ID {}.", executionID)
     runningTasks.remove(executionID) match {
       case Some(task) =>
         removeAllTaskResources(task)
         libraryCacheManager.unregisterTask(task.getJobID, executionID)
       case None =>
         if (log.isDebugEnabled) {
-          log.debug(s"Cannot find task with ID ${executionID} to unregister.")
+          log.debug("Cannot find task with ID {} to unregister.", executionID)
         }
     }
   }
@@ -537,12 +547,12 @@ import scala.collection.JavaConverters._
   }
 
   private def logMemoryStats(): Unit = {
-    if (log.isDebugEnabled) {
+    if (log.isInfoEnabled) {
       val memoryMXBean = ManagementFactory.getMemoryMXBean()
       val gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans().asScala
 
-      log.debug(TaskManager.getMemoryUsageStatsAsString(memoryMXBean))
-      log.debug(TaskManager.getGarbageCollectorStatsAsString(gcMXBeans))
+      log.info(TaskManager.getMemoryUsageStatsAsString(memoryMXBean))
+      log.info(TaskManager.getGarbageCollectorStatsAsString(gcMXBeans))
     }
   }
 }
@@ -685,6 +695,9 @@ object TaskManager {
     } else {
       val fraction = configuration.getFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
         ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
+
+      LOG.info("Using {} of the free heap space for managed memory.", fraction)
+
       ((EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag - networkBufferMem) * fraction)
         .toLong
     }
