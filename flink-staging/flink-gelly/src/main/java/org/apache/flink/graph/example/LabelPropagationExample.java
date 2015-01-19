@@ -26,7 +26,7 @@ public class LabelPropagationExample implements ProgramDescription {
         DataSet<Vertex<Long, Long>> vertices = getVertexDataSet(env);
         DataSet<Edge<Long, NullValue>> edges = getEdgeDataSet(env);
 
-        Graph<Long, Long, NullValue> graph = new Graph<Long, Long, NullValue>(vertices, edges, env);
+        Graph<Long, Long, NullValue> graph = Graph.fromDataSet(vertices, edges, env);
 
         DataSet<Vertex<Long, Long>> verticesWithCommunity =
                 graph.run(new LabelPropagation<Long>(maxIterations)).getVertices();
