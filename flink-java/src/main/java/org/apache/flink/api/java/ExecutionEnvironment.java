@@ -858,12 +858,12 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
-	 * Createa a {@link CollectionEnvironment} that uses Java Collections underneath. This will execute in a
+	 * Creates a {@link CollectionEnvironment} that uses Java Collections underneath. This will execute in a
 	 * single thread in the current JVM. It is very fast but will fail if the data does not fit into
 	 * memory. Degree of parallelism will always be 1. This is useful during implementation and for debugging.
 	 * @return A Collection Environment
 	 */
-	public static CollectionEnvironment createCollectionsEnvironment(){
+	public static CollectionEnvironment createCollectionEnvironment(){
 		CollectionEnvironment ce = new CollectionEnvironment();
 		ce.setDegreeOfParallelism(1);
 		return ce;

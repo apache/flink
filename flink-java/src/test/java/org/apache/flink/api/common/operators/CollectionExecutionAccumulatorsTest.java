@@ -37,7 +37,7 @@ public class CollectionExecutionAccumulatorsTest {
 		try {
 			final int NUM_ELEMENTS = 100;
 			
-			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
+			ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
 			
 			env.generateSequence(1, NUM_ELEMENTS)
 				.map(new CountingMapper())
