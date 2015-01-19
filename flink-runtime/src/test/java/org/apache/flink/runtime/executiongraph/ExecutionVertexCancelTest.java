@@ -36,7 +36,7 @@ import akka.testkit.JavaTestKit;
 
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -144,7 +144,7 @@ public class ExecutionVertexCancelTest {
 						new TaskOperationResult(execId, false))));
 
 				Instance instance = getInstance(taskManager);
-				AllocatedSlot slot = instance.allocateSlot(new JobID());
+			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 				vertex.deployToSlot(slot);
 
@@ -218,7 +218,7 @@ public class ExecutionVertexCancelTest {
 							TaskOperationResult(execId, false), new TaskOperationResult(execId, true))));
 
 					Instance instance = getInstance(taskManager);
-					AllocatedSlot slot = instance.allocateSlot(new JobID());
+			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 					vertex.deployToSlot(slot);
 
@@ -290,7 +290,7 @@ public class ExecutionVertexCancelTest {
 									TaskOperationResult(execId, true))));
 
 					Instance instance = getInstance(taskManager);
-					AllocatedSlot slot = instance.allocateSlot(new JobID());
+			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 					setVertexState(vertex, ExecutionState.RUNNING);
 					setVertexResource(vertex, slot);
@@ -337,7 +337,7 @@ public class ExecutionVertexCancelTest {
 							TaskOperationResult(execId, true))));
 
 					Instance instance = getInstance(taskManager);
-					AllocatedSlot slot = instance.allocateSlot(new JobID());
+			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 					setVertexState(vertex, ExecutionState.RUNNING);
 					setVertexResource(vertex, slot);
@@ -392,7 +392,7 @@ public class ExecutionVertexCancelTest {
 							TaskOperationResult(execId, false))));
 
 					Instance instance = getInstance(taskManager);
-					AllocatedSlot slot = instance.allocateSlot(new JobID());
+			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 					setVertexState(vertex, ExecutionState.RUNNING);
 					setVertexResource(vertex, slot);
@@ -432,7 +432,7 @@ public class ExecutionVertexCancelTest {
 							CancelSequenceTaskManagerCreator()));
 
 					Instance instance = getInstance(taskManager);
-					AllocatedSlot slot = instance.allocateSlot(new JobID());
+			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 					setVertexState(vertex, ExecutionState.RUNNING);
 					setVertexResource(vertex, slot);
@@ -477,7 +477,7 @@ public class ExecutionVertexCancelTest {
 							)));
 
 					Instance instance = getInstance(taskManager);
-					AllocatedSlot slot = instance.allocateSlot(new JobID());
+			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 					setVertexState(vertex, ExecutionState.RUNNING);
 					setVertexResource(vertex, slot);
@@ -533,7 +533,7 @@ public class ExecutionVertexCancelTest {
 			// the scheduler (or any caller) needs to know that the slot should be released
 			try {
 				Instance instance = getInstance(ActorRef.noSender());
-				AllocatedSlot slot = instance.allocateSlot(new JobID());
+				SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 				
 				vertex.deployToSlot(slot);
 				fail("Method should throw an exception");
@@ -574,7 +574,7 @@ public class ExecutionVertexCancelTest {
 				setVertexState(vertex, ExecutionState.CANCELING);
 				
 				Instance instance = getInstance(ActorRef.noSender());
-				AllocatedSlot slot = instance.allocateSlot(new JobID());
+				SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 				
 				vertex.deployToSlot(slot);
 				fail("Method should throw an exception");
@@ -587,7 +587,7 @@ public class ExecutionVertexCancelTest {
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 				
 				Instance instance = getInstance(ActorRef.noSender());
-				AllocatedSlot slot = instance.allocateSlot(new JobID());
+				SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 				
 				setVertexResource(vertex, slot);
 				setVertexState(vertex, ExecutionState.CANCELING);

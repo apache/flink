@@ -36,7 +36,7 @@ public class AllocatedSlotTest {
 		try {
 			// cancel, then release
 			{
-				AllocatedSlot slot = getSlot();
+				SimpleSlot slot = getSlot();
 				assertTrue(slot.isAlive());
 				
 				slot.cancel();
@@ -52,7 +52,7 @@ public class AllocatedSlotTest {
 			
 			// release immediately
 			{
-				AllocatedSlot slot = getSlot();
+				SimpleSlot slot = getSlot();
 				assertTrue(slot.isAlive());
 				
 				slot.releaseSlot();
@@ -75,32 +75,32 @@ public class AllocatedSlotTest {
 			
 			// assign to alive slot
 			{
-				AllocatedSlot slot = getSlot();
+				SimpleSlot slot = getSlot();
 				
 				assertTrue(slot.setExecutedVertex(ev));
-				assertEquals(ev, slot.getExecutedVertex());
+				assertEquals(ev, slot.getExecution());
 				
 				// try to add another one
 				assertFalse(slot.setExecutedVertex(ev_2));
-				assertEquals(ev, slot.getExecutedVertex());
+				assertEquals(ev, slot.getExecution());
 			}
 			
 			// assign to canceled slot
 			{
-				AllocatedSlot slot = getSlot();
+				SimpleSlot slot = getSlot();
 				slot.cancel();
 				
 				assertFalse(slot.setExecutedVertex(ev));
-				assertNull(slot.getExecutedVertex());
+				assertNull(slot.getExecution());
 			}
 			
 			// assign to released
 			{
-				AllocatedSlot slot = getSlot();
+				SimpleSlot slot = getSlot();
 				slot.releaseSlot();
 				
 				assertFalse(slot.setExecutedVertex(ev));
-				assertNull(slot.getExecutedVertex());
+				assertNull(slot.getExecution());
 			}
 		}
 		catch (Exception e) {
@@ -114,9 +114,9 @@ public class AllocatedSlotTest {
 		try {
 			Execution ev = mock(Execution.class);
 			
-			AllocatedSlot slot = getSlot();
+			SimpleSlot slot = getSlot();
 			assertTrue(slot.setExecutedVertex(ev));
-			assertEquals(ev, slot.getExecutedVertex());
+			assertEquals(ev, slot.getExecution());
 			
 			slot.cancel();
 			slot.releaseSlot();
@@ -130,12 +130,12 @@ public class AllocatedSlotTest {
 		}
 	}
 	
-	public static AllocatedSlot getSlot() throws Exception {
+	public static SimpleSlot getSlot() throws Exception {
 		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 		InetAddress address = InetAddress.getByName("127.0.0.1");
 		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 		
 		Instance instance = new Instance(ActorRef.noSender(), connection, new InstanceID(), hardwareDescription, 1);
-		return instance.allocateSlot(new JobID());
+		return instance.allocateSimpleSlot(new JobID());
 	}
 }

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.RemoteAddress;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
@@ -114,7 +114,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 
 	// ------------------------------------------------------------------------
 
-	public static PartitionInfo fromEdge(ExecutionEdge edge, AllocatedSlot consumerSlot) {
+	public static PartitionInfo fromEdge(ExecutionEdge edge, SimpleSlot consumerSlot) {
 		IntermediateResultPartition partition = edge.getSource();
 		IntermediateResultPartitionID partitionId = partition.getPartitionId();
 
@@ -125,7 +125,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 		RemoteAddress producerAddress = null;
 		PartitionLocation producerLocation = PartitionLocation.UNKNOWN;
 
-		AllocatedSlot producerSlot = producer.getAssignedResource();
+		SimpleSlot producerSlot = producer.getAssignedResource();
 		ExecutionState producerState = producer.getState();
 
 		// The producer needs to be running, otherwise the consumer might request a partition,
@@ -145,7 +145,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 		return new PartitionInfo(partitionId, producerExecutionId, producerLocation, producerAddress);
 	}
 
-	public static PartitionInfo[] fromEdges(ExecutionEdge[] edges, AllocatedSlot consumerSlot) {
+	public static PartitionInfo[] fromEdges(ExecutionEdge[] edges, SimpleSlot consumerSlot) {
 		// Every edge consumes a different result partition, which might be of
 		// local, remote, or unknown location.
 		PartitionInfo[] partitions = new PartitionInfo[edges.length];
