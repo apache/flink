@@ -18,7 +18,7 @@
 #
 
 # the directory where you have your flink code
-export FLINK_HOME="/home/robert/projects/flink/incubator-flink"
+export FLINK_HOME="/home/robert/projects/flink"
 # Remote name which points to the Gihub site
 export PR_REMOTE_NAME="github_flink"
 # Remote name which points to Apache git

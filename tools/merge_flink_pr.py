@@ -55,8 +55,8 @@ JIRA_USERNAME = os.environ.get("JIRA_USERNAME", "pwendell")
 # ASF JIRA password
 JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", "1234")
 
-GITHUB_BASE = "https://github.com/apache/incubator-flink/pull"
-GITHUB_API_BASE = "https://api.github.com/repos/apache/incubator-flink"
+GITHUB_BASE = "https://github.com/apache/flink/pull"
+GITHUB_API_BASE = "https://api.github.com/repos/apache/flink"
 JIRA_BASE = "https://issues.apache.org/jira/browse"
 JIRA_API_BASE = "https://issues.apache.org/jira"
 # Prefix added to temporary branches
