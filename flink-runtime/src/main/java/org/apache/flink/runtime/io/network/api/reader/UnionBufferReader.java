@@ -101,7 +101,7 @@ public class UnionBufferReader implements BufferReaderBase {
 
 
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	public Buffer getNextBufferBlocking() throws IOException, InterruptedException {
 		requestPartitionsOnce();
 
 		do {
@@ -135,7 +135,7 @@ public class UnionBufferReader implements BufferReaderBase {
 				}
 			}
 
-			Buffer buffer = currentReader.getNextBuffer();
+			Buffer buffer = currentReader.getNextBufferBlocking();
 			channelIndexOfLastReadBuffer = currentReaderChannelIndexOffset + currentReader.getChannelIndexOfLastBuffer();
 
 			isTaskEvent = false;

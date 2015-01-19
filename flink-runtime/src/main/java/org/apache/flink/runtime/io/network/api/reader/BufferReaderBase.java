@@ -30,9 +30,9 @@ import java.io.IOException;
  * <p>
  * {@link BufferReaderBase} is the runtime API for consuming results. Events
  * are handled by the reader and users can query for buffers with
- * {@link #getNextBuffer()} or {@link #getNextBuffer(Buffer)}.
+ * {@link #getNextBufferBlocking()} or {@link #getNextBuffer(Buffer)}.
  * <p>
- * <strong>Important</strong>: If {@link #getNextBuffer()} is used, it is
+ * <strong>Important</strong>: If {@link #getNextBufferBlocking()} is used, it is
  * necessary to release the returned buffers with {@link Buffer#recycle()}
  * after they are consumed.
  */
@@ -50,10 +50,10 @@ public interface BufferReaderBase extends ReaderBase {
 	 *
 	 * @see #getChannelIndexOfLastBuffer()
 	 */
-	Buffer getNextBuffer() throws IOException, InterruptedException;
+	Buffer getNextBufferBlocking() throws IOException, InterruptedException;
 
 	/**
-	 * {@link #getNextBuffer()} requires the user to quickly recycle the
+	 * {@link #getNextBufferBlocking()} requires the user to quickly recycle the
 	 * returned buffer. For a fully buffer-oriented runtime, we need to
 	 * support a variant of this method, which allows buffers to be exchanged
 	 * in order to save unnecessary memory copies between buffer pools.
@@ -66,7 +66,7 @@ public interface BufferReaderBase extends ReaderBase {
 
 	/**
 	 * Returns a channel index for the last {@link Buffer} instance returned by
-	 * {@link #getNextBuffer()} or {@link #getNextBuffer(Buffer)}.
+	 * {@link #getNextBufferBlocking()} or {@link #getNextBuffer(Buffer)}.
 	 * <p>
 	 * The returned index is guaranteed to be the same for all buffers read by
 	 * the same {@link RemoteInputChannel} instance. This is useful when data spans

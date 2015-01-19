@@ -75,7 +75,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> implements Rea
 				}
 			}
 
-			final Buffer nextBuffer = reader.getNextBuffer();
+			final Buffer nextBuffer = reader.getNextBufferBlocking();
 			final int channelIndex = reader.getChannelIndexOfLastBuffer();
 
 			if (nextBuffer == null) {

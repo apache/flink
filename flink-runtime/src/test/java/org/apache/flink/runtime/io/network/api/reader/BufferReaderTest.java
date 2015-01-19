@@ -109,7 +109,7 @@ public class BufferReaderTest {
 		final BufferReader reader = mockReader.getMock();
 
 		// Should throw Exception, because it's a non-iterative reader
-		reader.getNextBuffer();
+		reader.getNextBufferBlocking();
 	}
 
 	// ------------------------------------------------------------------------
@@ -128,7 +128,7 @@ public class BufferReaderTest {
 
 		while (true) {
 			Buffer buffer;
-			while ((buffer = reader.getNextBuffer()) != null) {
+			while ((buffer = reader.getNextBufferBlocking()) != null) {
 				buffer.recycle();
 
 				numReadBuffers++;

@@ -230,7 +230,7 @@ public final class BufferReader implements BufferReaderBase {
 	}
 
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	public Buffer getNextBufferBlocking() throws IOException, InterruptedException {
 		requestPartitionsOnce();
 
 		while (true) {
