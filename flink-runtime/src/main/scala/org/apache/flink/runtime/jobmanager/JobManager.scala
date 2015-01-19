@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import java.io.File
+import java.io.{IOException, File}
 import java.net.{InetSocketAddress}
 import java.util.concurrent.TimeUnit
 
@@ -105,7 +105,16 @@ Actor with ActorLogMessages with ActorLogging {
 
     instanceManager.shutdown()
     scheduler.shutdown()
-    libraryCacheManager.shutdown()
+
+    try {
+      libraryCacheManager.shutdown()
+    } catch {
+      case e: IOException => log.error(e, "Could not properly shutdown the library cache manager.")
+    }
+
+    if(log.isDebugEnabled) {
+      log.debug("Job manager {} is completely stopped.", self.path)
+    }
   }
 
   override def receiveWithLogMessages: Receive = {
@@ -134,7 +143,7 @@ Actor with ActorLogMessages with ActorLogging {
           sender ! akka.actor.Status.Failure(new IllegalArgumentException("JobGraph must not be" +
             " null."))
         } else {
-          log.info(s"Received job ${jobGraph.getJobID} (${jobGraph.getName}).")
+          log.info("Received job {} ({}).", jobGraph.getJobID, jobGraph.getName)
 
           if (jobGraph.getNumberOfVertices == 0) {
             sender ! SubmissionFailure(jobGraph.getJobID, new IllegalArgumentException("Job is " +
@@ -164,10 +173,8 @@ Actor with ActorLogMessages with ActorLogging {
             }
 
             if (log.isDebugEnabled) {
-              log.debug(s"Running master initialization of job ${jobGraph.getJobID} (${
-                jobGraph
-                  .getName
-              }}).")
+              log.debug("Running master initialization of job {} ({}).",
+                jobGraph.getJobID, jobGraph.getName)
             }
 
             for (vertex <- jobGraph.getVertices.asScala) {
@@ -184,17 +191,15 @@ Actor with ActorLogMessages with ActorLogging {
             val sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources
 
             if (log.isDebugEnabled) {
-              log.debug(s"Adding ${sortedTopology.size()} vertices from job graph ${
-                jobGraph
-                  .getJobID
-              } (${jobGraph.getName}).")
+              log.debug("Adding {} vertices from job graph {} ({}).",
+                sortedTopology.size(), jobGraph.getJobID, jobGraph.getName)
             }
 
             executionGraph.attachJobGraph(sortedTopology)
 
             if (log.isDebugEnabled) {
-              log.debug(s"Successfully created execution graph from job graph " +
-                s"${jobGraph.getJobID} (${jobGraph.getName}).")
+              log.debug("Successfully created execution graph from job graph {} ({}).",
+                jobGraph.getJobID, jobGraph.getName)
             }
 
             executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
@@ -210,7 +215,7 @@ Actor with ActorLogMessages with ActorLogging {
 
             jobInfo.detach = detach
 
-            log.info(s"Scheduling job ${jobGraph.getName}.")
+            log.info("Scheduling job {}.", jobGraph.getName)
 
             executionGraph.scheduleForExecution(scheduler)
 
@@ -245,7 +250,7 @@ Actor with ActorLogMessages with ActorLogging {
     }
 
     case CancelJob(jobID) => {
-      log.info(s"Trying to cancel job with ID ${jobID}.")
+      log.info("Trying to cancel job with ID {}.", jobID)
 
       currentJobs.get(jobID) match {
         case Some((executionGraph, _)) =>
@@ -254,8 +259,8 @@ Actor with ActorLogMessages with ActorLogging {
           }
           sender ! CancellationSuccess(jobID)
         case None =>
-          log.info(s"No job found with ID ${jobID}.")
-          sender ! CancellationFailure(jobID, new IllegalArgumentException(s"No job found with " +
+          log.info("No job found with ID {}.", jobID)
+          sender ! CancellationFailure(jobID, new IllegalArgumentException("No job found with " +
             s"ID ${jobID}."))
       }
     }
@@ -270,8 +275,8 @@ Actor with ActorLogMessages with ActorLogging {
             Future {
               originalSender ! executionGraph.updateState(taskExecutionState)
             }
-          case None => log.error(s"Cannot find execution graph for ID ${taskExecutionState
-            .getJobID} to change state to ${taskExecutionState.getExecutionState}.")
+          case None => log.error("Cannot find execution graph for ID {} to change state to {}.",
+            taskExecutionState.getJobID, taskExecutionState.getExecutionState)
             sender ! false
         }
       }
@@ -283,7 +288,7 @@ Actor with ActorLogMessages with ActorLogging {
           val execution = executionGraph.getRegisteredExecutions().get(executionAttempt)
 
           if(execution == null){
-            log.error(s"Can not find Execution for attempt ${executionAttempt}.")
+            log.error("Can not find Execution for attempt {}.", executionAttempt)
             null
           }else{
             val slot = execution.getAssignedResource
@@ -298,21 +303,21 @@ Actor with ActorLogMessages with ActorLogging {
               case vertex: ExecutionJobVertex => vertex.getSplitAssigner match {
                 case splitAssigner: InputSplitAssigner => splitAssigner.getNextInputSplit(host)
                 case _ =>
-                  log.error(s"No InputSplitAssigner for vertex ID ${vertexID}.")
+                  log.error("No InputSplitAssigner for vertex ID {}.", vertexID)
                   null
               }
               case _ =>
-                log.error(s"Cannot find execution vertex for vertex ID ${vertexID}.")
+                log.error("Cannot find execution vertex for vertex ID {}.", vertexID)
                 null
           }
         }
         case None =>
-          log.error(s"Cannot find execution graph for job ID ${jobID}.")
+          log.error("Cannot find execution graph for job ID {}.", jobID)
           null
       }
 
       if(log.isDebugEnabled) {
-        log.debug(s"Send next input split ${nextInputSplit}.")
+        log.debug("Send next input split {}.", nextInputSplit)
       }
       sender ! NextInputSplit(nextInputSplit)
     }
@@ -320,8 +325,9 @@ Actor with ActorLogMessages with ActorLogging {
     case JobStatusChanged(jobID, newJobStatus, timeStamp, optionalMessage) => {
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
-          log.info(s"Status of job ${jobID} (${executionGraph.getJobName}) changed to " +
-            s"${newJobStatus}${if(optionalMessage == null) "" else optionalMessage}.")
+          log.info("Status of job {} ({}) changed to {}{}.",
+            jobID, executionGraph.getJobName, newJobStatus,
+            if(optionalMessage == null) "" else optionalMessage)
 
           if(newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
@@ -368,7 +374,7 @@ Actor with ActorLogMessages with ActorLogging {
           sender ! ConsumerNotificationResult(executionGraph
             .scheduleOrUpdateConsumers(executionId, partitionIndex))
         case None =>
-          log.error(s"Cannot find execution graph for job ID ${jobId}.")
+          log.error("Cannot find execution graph for job ID {}.", jobId)
           sender ! ConsumerNotificationResult(false, Some(
             new IllegalStateException("Cannot find execution graph for job ID " + jobId)))
       }
@@ -422,7 +428,7 @@ Actor with ActorLogMessages with ActorLogging {
     }
 
     case Terminated(taskManager) => {
-      log.info(s"Task manager ${taskManager.path} terminated.")
+      log.info("Task manager {} terminated.", taskManager.path)
       instanceManager.unregisterTaskManager(taskManager)
       context.unwatch(taskManager)
     }
@@ -442,14 +448,13 @@ Actor with ActorLogMessages with ActorLogging {
       libraryCacheManager.unregisterJob(jobID)
     } catch {
       case t: Throwable =>
-        log.error(t, s"Could not properly unregister job ${jobID} form the library cache.")
+        log.error(t, "Could not properly unregister job {} form the library cache.", jobID)
     }
   }
 
   private def checkJavaVersion {
-    var javaVersion = System.getProperty("java.version")
-    if (javaVersion.substring(0, 3).toDouble < 1.7) {
-      JobManager.LOG.warn("Warning: Flink is running with Java 6. " +
+    if (System.getProperty("java.version").substring(0, 3).toDouble < 1.7) {
+      log.warning("Warning: Flink is running with Java 6. " +
         "Java 6 is not maintained any more by Oracle or the OpenJDK community. " +
         "Flink currently supports Java 6, but may not in future releases," +
         " due to the unavailability of bug fixes security patched.")
