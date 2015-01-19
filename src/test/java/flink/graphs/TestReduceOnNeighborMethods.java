@@ -70,7 +70,7 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 				 * for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
@@ -100,7 +100,7 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 				 * times the edge weights for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithSum = 
@@ -131,7 +131,7 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 				 * for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
@@ -161,7 +161,7 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 				 * for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
@@ -195,7 +195,7 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 				 * times the edge weights for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithSum = 
@@ -230,7 +230,7 @@ public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
 				 * for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 

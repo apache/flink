@@ -68,7 +68,7 @@ public class TestReduceOnEdgesMethods extends JavaProgramTestBase {
 				 * for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
@@ -104,7 +104,7 @@ public class TestReduceOnEdgesMethods extends JavaProgramTestBase {
 				 * for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
@@ -140,7 +140,7 @@ public class TestReduceOnEdgesMethods extends JavaProgramTestBase {
 				 * of a vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight = 
@@ -173,7 +173,7 @@ public class TestReduceOnEdgesMethods extends JavaProgramTestBase {
 				 * for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
@@ -212,7 +212,7 @@ public class TestReduceOnEdgesMethods extends JavaProgramTestBase {
 				 * for each vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
@@ -251,7 +251,7 @@ public class TestReduceOnEdgesMethods extends JavaProgramTestBase {
 				 * of a vertex
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight = 

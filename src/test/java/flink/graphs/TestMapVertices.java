@@ -72,7 +72,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Vertex<Long, Long>> mappedVertices = graph.mapVertices(new MapFunction<Vertex<Long, Long>, Long>() {
@@ -95,7 +95,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Vertex<Long, String>> mappedVertices = graph.mapVertices(new MapFunction<Vertex<Long, Long>, String>() {
@@ -137,7 +137,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Vertex<Long, Tuple1<Long>>> mappedVertices = graph.mapVertices(new MapFunction<Vertex<Long, Long>, Tuple1<Long>>() {
@@ -162,7 +162,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Vertex<Long, DummyCustomType>> mappedVertices = graph.mapVertices(new MapFunction<Vertex<Long, Long>, DummyCustomType>() {
@@ -187,7 +187,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Vertex<Long, DummyCustomParameterizedType<Double>>> mappedVertices = graph.mapVertices(
@@ -213,5 +213,4 @@ public class TestMapVertices extends JavaProgramTestBase {
 			}
 		}
 	}
-
 }

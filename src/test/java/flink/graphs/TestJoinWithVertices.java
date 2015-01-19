@@ -69,7 +69,7 @@ public class TestJoinWithVertices extends JavaProgramTestBase {
 				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeData(env), env);
 
                     Graph<Long, Long, Long> result = graph.joinWithVertices(graph.getVertices()
@@ -103,7 +103,7 @@ public class TestJoinWithVertices extends JavaProgramTestBase {
 				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeData(env), env);
 
                     Graph<Long, Long, Long> result = graph.joinWithVertices(graph.getVertices().first(3)
@@ -137,7 +137,7 @@ public class TestJoinWithVertices extends JavaProgramTestBase {
 				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeData(env), env);
 
                     Graph<Long, Long, Long> result = graph.joinWithVertices(graph.getVertices().first(3)
@@ -176,7 +176,7 @@ public class TestJoinWithVertices extends JavaProgramTestBase {
     				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeData(env), env);
 
                     Graph<Long, Long, Long> result = graph.joinWithVertices(TestGraphUtils.getLongLongTuple2Data(env),
@@ -201,7 +201,7 @@ public class TestJoinWithVertices extends JavaProgramTestBase {
     				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeData(env), env);
 
                     Graph<Long, Long, Long> result = graph.joinWithVertices(TestGraphUtils.getLongCustomTuple2Data(env),

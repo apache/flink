@@ -65,7 +65,7 @@ public class TestDegrees extends JavaProgramTestBase {
 				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeData(env), env);
 
                     graph.outDegrees().writeAsCsv(resultPath);
@@ -82,7 +82,7 @@ public class TestDegrees extends JavaProgramTestBase {
 				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env), env);
 
                     graph.outDegrees().writeAsCsv(resultPath);
@@ -99,7 +99,7 @@ public class TestDegrees extends JavaProgramTestBase {
 				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeData(env), env);
 
                     graph.inDegrees().writeAsCsv(resultPath);
@@ -116,7 +116,7 @@ public class TestDegrees extends JavaProgramTestBase {
 				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeDataWithZeroDegree(env), env);
 
                     graph.inDegrees().writeAsCsv(resultPath);
@@ -133,7 +133,7 @@ public class TestDegrees extends JavaProgramTestBase {
 				 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-                    Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+                    Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
                             TestGraphUtils.getLongLongEdgeData(env), env);
 
                     graph.getDegrees().writeAsCsv(resultPath);
@@ -151,7 +151,7 @@ public class TestDegrees extends JavaProgramTestBase {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
                     Graph<Long, NullValue, Long> graph =
-                            Graph.create(TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
+                            Graph.fromDataSet(TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
 
                     graph.outDegrees().writeAsCsv(resultPath);
                     env.execute();
@@ -163,7 +163,6 @@ public class TestDegrees extends JavaProgramTestBase {
                 }
                 default:
                     throw new IllegalArgumentException("Invalid program id");
-
             }
         }
     }

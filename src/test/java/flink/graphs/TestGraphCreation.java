@@ -71,7 +71,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 				 * Test create() with edge dataset and no vertex values
 		         */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, NullValue, Long> graph = Graph.create(TestGraphUtils.getLongLongEdgeData(env), env);
+					Graph<Long, NullValue, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env), env);
 
 					graph.getVertices().writeAsCsv(resultPath);
 					env.execute();
@@ -86,7 +86,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 				 * Test create() with edge dataset and a mapper that assigns the id as value
 		         */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongEdgeData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env),
 							new MapFunction<Long, Long>() {
 								public Long map(Long vertexId) {
 									return vertexId;
@@ -106,7 +106,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 				 * Test create() with edge dataset and a mapper that assigns a parametrized custom vertex value
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, DummyCustomParameterizedType<Double>, Long> graph = Graph.create(
+					Graph<Long, DummyCustomParameterizedType<Double>, Long> graph = Graph.fromDataSet(
 							TestGraphUtils.getLongLongEdgeData(env),
 							new MapFunction<Long, DummyCustomParameterizedType<Double>>() {
 
@@ -135,7 +135,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 					DataSet<Vertex<Long, Long>> vertices = TestGraphUtils.getLongLongVertexData(env);
 					DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
-					Graph<Long, Long, Long> graph = new Graph<Long, Long, Long>(vertices, edges, env);
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
 					DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 					result.writeAsText(resultPath);
 					env.execute();
@@ -150,7 +150,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 					DataSet<Vertex<Long, Long>> vertices = TestGraphUtils.getLongLongInvalidVertexData(env);
 					DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
-					Graph<Long, Long, Long> graph = new Graph<Long, Long, Long>(vertices, edges, env);
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
 					DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 					result.writeAsText(resultPath);
 					env.execute();
@@ -162,5 +162,4 @@ public class TestGraphCreation extends JavaProgramTestBase {
 				}
 			}
 		}
-
 	}

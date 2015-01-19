@@ -65,7 +65,7 @@ public class TestWeaklyConnected extends JavaProgramTestBase {
 				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				graph.isWeaklyConnected(10).writeAsText(resultPath);
@@ -79,7 +79,7 @@ public class TestWeaklyConnected extends JavaProgramTestBase {
 				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
 				
 				graph.isWeaklyConnected(10).writeAsText(resultPath);
@@ -93,7 +93,7 @@ public class TestWeaklyConnected extends JavaProgramTestBase {
 				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env).getUndirected();
 				
 				graph.isWeaklyConnected(10).writeAsText(resultPath);
@@ -107,7 +107,7 @@ public class TestWeaklyConnected extends JavaProgramTestBase {
 				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getDisconnectedLongLongEdgeData(env), env).getUndirected();
 				
 				graph.isWeaklyConnected(10).writeAsText(resultPath);

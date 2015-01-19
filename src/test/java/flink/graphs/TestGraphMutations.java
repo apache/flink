@@ -68,7 +68,7 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
@@ -94,7 +94,7 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
@@ -120,7 +120,7 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
 				graph = graph.addVertex(new Vertex<Long, Long>(6L, 6L), edges);
@@ -142,7 +142,7 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				graph = graph.removeVertex(new Vertex<Long, Long>(5L, 5L));
 				graph.getEdges().writeAsCsv(resultPath);
@@ -161,7 +161,7 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				graph = graph.removeVertex(new Vertex<Long, Long>(6L, 6L));
 				graph.getEdges().writeAsCsv(resultPath);
@@ -182,7 +182,7 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				graph = graph.addEdge(new Vertex<Long, Long>(6L, 6L), new Vertex<Long, Long>(1L, 1L),
 						61L);
@@ -205,7 +205,7 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				graph = graph.addEdge(new Vertex<Long, Long>(1L, 1L), new Vertex<Long, Long>(2L, 2L),
 						12L);
@@ -228,7 +228,7 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				graph = graph.removeEdge(new Edge<Long, Long>(5L, 1L, 51L));
 				graph.getEdges().writeAsCsv(resultPath);
@@ -249,7 +249,7 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				graph = graph.removeEdge(new Edge<Long, Long>(6L, 1L, 61L));
 				graph.getEdges().writeAsCsv(resultPath);
@@ -269,5 +269,4 @@ public class TestGraphMutations extends JavaProgramTestBase {
 			}
 		}
 	}
-	
 }

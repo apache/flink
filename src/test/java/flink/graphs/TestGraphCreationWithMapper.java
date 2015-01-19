@@ -69,7 +69,7 @@ public class TestGraphCreationWithMapper extends JavaProgramTestBase {
 				 * Test create() with edge dataset and a mapper that assigns a double constant as value
 		         */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, Double, Long> graph = Graph.create(TestGraphUtils.getLongLongEdgeData(env),
+					Graph<Long, Double, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env),
 							new MapFunction<Long, Double>() {
 								public Double map(Long value) {
 									return 0.1d;
@@ -89,7 +89,7 @@ public class TestGraphCreationWithMapper extends JavaProgramTestBase {
 				 * Test create() with edge dataset and a mapper that assigns a Tuple2 as value
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, Tuple2<Long, Long>, Long> graph = Graph.create(
+					Graph<Long, Tuple2<Long, Long>, Long> graph = Graph.fromDataSet(
 							TestGraphUtils.getLongLongEdgeData(env), new MapFunction<Long, Tuple2<Long, Long>>() {
 								public Tuple2<Long, Long> map(Long vertexId) {
 									return new Tuple2<Long, Long>(vertexId*2, 42l);
@@ -110,7 +110,7 @@ public class TestGraphCreationWithMapper extends JavaProgramTestBase {
 				 * and a mapper that assigns a double constant as value
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<String, Double, Long> graph = Graph.create(TestGraphUtils.getStringLongEdgeData(env),
+					Graph<String, Double, Long> graph = Graph.fromDataSet(TestGraphUtils.getStringLongEdgeData(env),
 							new MapFunction<String, Double>() {
 								public Double map(String value) {
 									return 0.1d;
@@ -130,7 +130,7 @@ public class TestGraphCreationWithMapper extends JavaProgramTestBase {
 					 * Test create() with edge dataset and a mapper that assigns a custom vertex value
 					 */
 						final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-						Graph<Long, DummyCustomType, Long> graph = Graph.create(
+						Graph<Long, DummyCustomType, Long> graph = Graph.fromDataSet(
 								TestGraphUtils.getLongLongEdgeData(env), new MapFunction<Long, DummyCustomType>() {
 									public DummyCustomType map(Long vertexId) {
 										return new DummyCustomType(vertexId.intValue()-1, false);
@@ -150,5 +150,4 @@ public class TestGraphCreationWithMapper extends JavaProgramTestBase {
 				}
 			}
 		}
-
 	}

@@ -24,7 +24,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 
         Long srcVertexId = 1L;
 
-        Graph<Long, Double, Double> graph = Graph.create(vertices, edges, env);
+        Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
 
         DataSet<Vertex<Long,Double>> singleSourceShortestPaths =
                 graph.run(new SingleSourceShortestPaths<Long>(srcVertexId, maxIterations)).getVertices();

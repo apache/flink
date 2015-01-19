@@ -1,6 +1,5 @@
 package flink.graphs.example;
 
-
 import flink.graphs.*;
 import flink.graphs.library.PageRank;
 
@@ -22,7 +21,7 @@ public class PageRankExample implements ProgramDescription {
 
         DataSet<Edge<Long,Double>> links = getLinksDataSet(env);
 
-        Graph<Long, Double, Double> network = new Graph<Long, Double, Double>(pages, links, env);
+        Graph<Long, Double, Double> network = Graph.fromDataSet(pages, links, env);
         
         DataSet<Tuple2<Long, Long>> vertexOutDegrees = network.outDegrees();
         

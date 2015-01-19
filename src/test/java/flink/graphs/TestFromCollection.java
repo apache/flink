@@ -65,8 +65,8 @@ public class TestFromCollection extends JavaProgramTestBase {
 					 * Test fromCollection(vertices, edges):
 					 */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-                    Graph<Long, Long, Long> graph = Graph.fromCollection(env, TestGraphUtils.getLongLongVertices(env),
-                            TestGraphUtils.getLongLongEdges(env));
+                    Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(env),
+                            TestGraphUtils.getLongLongEdges(env), env);
 
                     graph.getEdges().writeAsCsv(resultPath);
                     env.execute();
@@ -83,8 +83,8 @@ public class TestFromCollection extends JavaProgramTestBase {
                      * Test fromCollection(edges) with no initial value for the vertices
                      */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-                    Graph<Long, NullValue, Long> graph = Graph.fromCollection(env,
-                            TestGraphUtils.getLongLongEdges(env));
+                    Graph<Long, NullValue, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongEdges(env),
+                    		env);
 
                     graph.getVertices().writeAsCsv(resultPath);
                     env.execute();
@@ -100,12 +100,12 @@ public class TestFromCollection extends JavaProgramTestBase {
                      * function that takes the id and doubles it
                      */
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-                    Graph<Long, Long, Long> graph = Graph.fromCollection(env, TestGraphUtils.getLongLongEdges(env),
+                    Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongEdges(env),
                             new MapFunction<Long, Long>() {
                                 public Long map(Long vertexId) {
                                     return vertexId * 2;
                                 }
-                            });
+                            }, env);
 
                     graph.getVertices().writeAsCsv(resultPath);
                     env.execute();

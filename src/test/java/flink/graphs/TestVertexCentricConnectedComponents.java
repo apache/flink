@@ -60,7 +60,7 @@ public class TestVertexCentricConnectedComponents extends JavaProgramTestBase {
 		DataSet<Edge<Long, NullValue>> edges = edgeString.map(new EdgeParser());
 		
 		DataSet<Vertex<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
-		Graph<Long, Long, NullValue> graph = Graph.create(initialVertices, edges, env); 
+		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env); 
 		
 		Graph<Long, Long, NullValue> result = graph.runVertexCentricIteration(new CCUpdater(), new CCMessager(), 100);
 		

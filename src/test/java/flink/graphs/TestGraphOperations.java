@@ -69,7 +69,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 
 					graph.getUndirected().getEdges().writeAsCsv(resultPath);
@@ -88,7 +88,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 
 					graph.reverse().getEdges().writeAsCsv(resultPath);
@@ -107,7 +107,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 					graph.subgraph(new FilterFunction<Vertex<Long, Long>>() {
 									   public boolean filter(Vertex<Long, Long> vertex) throws Exception {
@@ -130,7 +130,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 					graph.filterOnVertices(new FilterFunction<Vertex<Long, Long>>() {
 						public boolean filter(Vertex<Long, Long> vertex) throws Exception {
@@ -149,7 +149,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 					graph.filterOnEdges(new FilterFunction<Edge<Long, Long>>() {
 						public boolean filter(Edge<Long, Long> edge) throws Exception {
@@ -168,7 +168,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 					graph.numberOfVertices().writeAsText(resultPath);
 
@@ -181,7 +181,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 					graph.numberOfEdges().writeAsText(resultPath);
 
@@ -194,7 +194,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 					graph.getVertexIds().writeAsText(resultPath);
 
@@ -207,7 +207,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 					graph.getEdgeIds().writeAsCsv(resultPath);
 
@@ -224,7 +224,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 
 					List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
@@ -233,7 +233,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					vertices.add(new Vertex<Long, Long>(6L, 6L));
 					edges.add(new Edge<Long, Long>(6L, 1L, 61L));
 
-					graph = graph.union(graph.fromCollection(vertices, edges));
+					graph = graph.union(Graph.fromCollection(vertices, edges, env));
 
 					graph.getEdges().writeAsCsv(resultPath);
 
@@ -253,5 +253,4 @@ public class TestGraphOperations extends JavaProgramTestBase {
 			}
 		}
 	}
-
 }

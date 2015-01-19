@@ -42,7 +42,7 @@ public class GraphMetrics implements ProgramDescription {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		/** create a random graph **/
-		Graph<Long, NullValue, NullValue> graph = Graph.create(ExampleUtils
+		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(ExampleUtils
 				.getRandomEdges(env, NUM_VERTICES), env);
 		
 		/** get the number of vertices **/
