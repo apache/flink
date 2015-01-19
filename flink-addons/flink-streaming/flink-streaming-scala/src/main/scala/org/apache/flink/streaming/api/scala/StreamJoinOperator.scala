@@ -49,7 +49,7 @@ object StreamJoinOperator {
   class JoinWindow[I1, I2](private[flink]op: StreamJoinOperator[I1, I2]) extends 
   TemporalWindow[JoinWindow[I1, I2]] {
 
-    private[flink] val type1 = op.input1.getType();
+    private[flink] val type1 = op.input1.getType()
 
     /**
      * Continues a temporal Join transformation by defining
@@ -102,7 +102,7 @@ object StreamJoinOperator {
   class JoinPredicate[I1, I2](private[flink] val op: StreamJoinOperator[I1, I2],
     private[flink] val keys1: KeySelector[I1, _]) {
     private[flink] var keys2: KeySelector[I2, _] = null
-    private[flink] val type2 = op.input2.getType();
+    private[flink] val type2 = op.input2.getType()
 
     /**
      * Creates a temporal join transformation by defining the second join key.

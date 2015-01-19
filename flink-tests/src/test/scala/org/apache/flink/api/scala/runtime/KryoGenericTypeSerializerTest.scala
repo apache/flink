@@ -152,12 +152,12 @@ class KryoGenericTypeSerializerTest {
 class LocalDateSerializer extends Serializer[LocalDate] with java.io.Serializable {
 
   override def write(kryo: Kryo, output: Output, obj: LocalDate) {
-    output.writeInt(obj.getYear());
-    output.writeInt(obj.getMonthOfYear());
-    output.writeInt(obj.getDayOfMonth());
+    output.writeInt(obj.getYear())
+    output.writeInt(obj.getMonthOfYear())
+    output.writeInt(obj.getDayOfMonth())
   }
 
   override def read(kryo: Kryo, input: Input, typeClass: Class[LocalDate]) : LocalDate = {
-    new LocalDate(input.readInt(), input.readInt(), input.readInt());
+    new LocalDate(input.readInt(), input.readInt(), input.readInt())
   }
 }

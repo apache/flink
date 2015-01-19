@@ -17,12 +17,10 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.api.common.typeutils.{CompositeTypeComparator, TypeComparator,
-TypeSerializer}
+import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 import org.apache.flink.api.java.typeutils.runtime.TupleComparatorBase
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.types.{KeyFieldOutOfBoundsException, NullKeyFieldException}
-;
 
 /**
  * Comparator for Case Classes. Access is different from

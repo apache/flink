@@ -491,7 +491,6 @@ public class PactCompiler {
 			throw new NullPointerException();
 		}
 		
-		
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Beginning compilation of program '" + program.getJobName() + '\'');
 		}

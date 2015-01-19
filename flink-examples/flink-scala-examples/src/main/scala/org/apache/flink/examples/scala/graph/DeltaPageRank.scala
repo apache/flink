@@ -34,7 +34,7 @@ object DeltaPageRank {
 
   def main(args: Array[String]) {
 
-    val maxIterations = 100;
+    val maxIterations = 100
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -64,10 +64,10 @@ object DeltaPageRank {
           }
 
           // random jump to self
-          out.collect((adj._1, RANDOM_JUMP));
+          out.collect((adj._1, RANDOM_JUMP))
         }
     }
-      .groupBy(0).sum(1);
+      .groupBy(0).sum(1)
 
     val initialDeltas = initialRanks.map { (page) => (page._1, page._2 - INITIAL_RANK) }
 
@@ -78,16 +78,16 @@ object DeltaPageRank {
           val deltas = workset.join(adjacency).where(0).equalTo(0) {
             (lastDeltas, adj, out: Collector[Page]) =>
               {
-                val targets = adj._2;
-                val deltaPerTarget = DAMPENING_FACTOR * lastDeltas._2 / targets.length;
+                val targets = adj._2
+                val deltaPerTarget = DAMPENING_FACTOR * lastDeltas._2 / targets.length
 
                 for (target <- targets) {
-                  out.collect((target, deltaPerTarget));
+                  out.collect((target, deltaPerTarget))
                 }
               }
           }
             .groupBy(0).sum(1)
-            .filter(x => Math.abs(x._2) > THRESHOLD);
+            .filter(x => Math.abs(x._2) > THRESHOLD)
 
           val rankUpdates = solutionSet.join(deltas).where(0).equalTo(0) {
             (current, delta) => (current._1, current._2 + delta._2)
@@ -99,6 +99,6 @@ object DeltaPageRank {
 
     iteration.print()
 
-    env.execute("Page Rank");
+    env.execute("Page Rank")
   }
 }

@@ -93,7 +93,7 @@ object TestingUtils {
   def startTestingTaskManagerWithConfiguration(hostname: String, config: Configuration)
                                               (implicit system: ActorSystem) = {
     val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration(hostname, config);
+      TaskManager.parseConfiguration(hostname, config)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager))
@@ -118,7 +118,7 @@ object TestingUtils {
   }
 
   def setExecutionContext(context: ExecutionContext): Unit = {
-    AkkaUtils.globalExecutionContext = context;
+    AkkaUtils.globalExecutionContext = context
   }
 
   class QueuedActionExecutionContext(queue: ActionQueue) extends ExecutionContext {

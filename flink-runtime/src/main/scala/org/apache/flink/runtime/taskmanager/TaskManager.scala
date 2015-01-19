@@ -96,13 +96,13 @@ import scala.collection.JavaConverters._
   TaskManager.checkTempDirs(tmpDirPaths)
   val ioManager = new IOManagerAsync(tmpDirPaths)
   val memoryManager = new DefaultMemoryManager(memorySize, numberOfSlots, pageSize)
-  val bcVarManager = new BroadcastVariableManager();
+  val bcVarManager = new BroadcastVariableManager()
   val hardwareDescription = HardwareDescription.extractFromSystem(memoryManager.getMemorySize)
   val fileCache = new FileCache()
   val runningTasks = scala.collection.mutable.HashMap[ExecutionAttemptID, Task]()
 
   // Actors which want to be notified once this task manager has been registered at the job manager
-  val waitForRegistration = scala.collection.mutable.Set[ActorRef]();
+  val waitForRegistration = scala.collection.mutable.Set[ActorRef]()
 
   val profiler = profilingInterval match {
     case Some(interval) => Some(TaskManager.startProfiler(self.path.toSerializationFormat,
@@ -116,7 +116,7 @@ import scala.collection.JavaConverters._
   var registrationAttempts: Int = 0
   var registered: Boolean = false
   var currentJobManager = ActorRef.noSender
-  var instanceID: InstanceID = null;
+  var instanceID: InstanceID = null
   var heartbeatScheduler: Option[Cancellable] = None
 
   if (log.isDebugEnabled) {
@@ -187,7 +187,7 @@ import scala.collection.JavaConverters._
         jobManager ! RegisterTaskManager(connectionInfo, hardwareDescription, numberOfSlots)
       }
       else {
-        log.error("TaskManager could not register at JobManager.");
+        log.error("TaskManager could not register at JobManager.")
         self ! PoisonPill
       }
     }
@@ -321,7 +321,7 @@ import scala.collection.JavaConverters._
       if (log.isDebugEnabled) {
         startRegisteringTask = System.currentTimeMillis()
       }
-      libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles());
+      libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles())
 
       if (log.isDebugEnabled) {
         log.debug(s"Register task ${executionID} took ${
@@ -436,11 +436,11 @@ import scala.collection.JavaConverters._
                 }
                 sender ! TaskOperationResult(executionId, true)
               case None => sender ! TaskOperationResult(executionId, false, "No reader with ID " +
-                resultId + " was found.");
+                resultId + " was found.")
             }
 
           case None => sender ! TaskOperationResult(executionId, false, "No task with execution" +
-            "ID " + executionId + " was found.");
+            "ID " + executionId + " was found.")
         }
     }
   }
@@ -598,14 +598,14 @@ object TaskManager {
         }
 
         val jobManagerHostname = configuration.getString(ConfigConstants
-          .JOB_MANAGER_IPC_ADDRESS_KEY, null);
+          .JOB_MANAGER_IPC_ADDRESS_KEY, null)
         val jobManagerPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
           ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-        val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort);
+        val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort)
 
         val port = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0)
-        val hostname = NetUtils.resolveAddress(jobManagerAddress).getHostName;
+        val hostname = NetUtils.resolveAddress(jobManagerAddress).getHostName
 
         (hostname, port, configuration)
     } getOrElse {
@@ -641,9 +641,9 @@ object TaskManager {
       case url: String => url
       case _ =>
         val jobManagerAddress = configuration.getString(ConfigConstants
-          .JOB_MANAGER_IPC_ADDRESS_KEY, null);
+          .JOB_MANAGER_IPC_ADDRESS_KEY, null)
         val jobManagerRPCPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
         if (jobManagerAddress == null) {
           throw new RuntimeException("JobManager address has not been specified in the " +
@@ -675,7 +675,7 @@ object TaskManager {
 
     val networkConfig = NetworkEnvironmentConfiguration(numNetworkBuffers, pageSize, nettyConfig)
 
-    val networkBufferMem = if (localExecution) 0 else numNetworkBuffers * pageSize;
+    val networkBufferMem = if (localExecution) 0 else numNetworkBuffers * pageSize
 
     val configuredMemory: Long = configuration.getInteger(ConfigConstants
       .TASK_MANAGER_MEMORY_SIZE_KEY, -1)

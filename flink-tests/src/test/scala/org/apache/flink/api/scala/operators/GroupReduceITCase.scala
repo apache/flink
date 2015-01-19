@@ -712,7 +712,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
       "2,5,0,Hallo Welt-Hallo Welt wie,1\n" +
       "3,15,0,BCD-ABC-Hallo Welt wie gehts?,2\n" +
       "4,34,0,FGH-CDE-EFG-DEF,1\n" +
-      "5,65,0,IJK-HIJ-KLM-JKL-GHI,1\n";
+      "5,65,0,IJK-HIJ-KLM-JKL-GHI,1\n"
   }
 
 

@@ -123,7 +123,7 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
   def stop(): Unit = {
     LOG.info("Stopping FlinkMiniCluster.")
     shutdown()
-    awaitTermination();
+    awaitTermination()
   }
 
   def shutdown(): Unit = {

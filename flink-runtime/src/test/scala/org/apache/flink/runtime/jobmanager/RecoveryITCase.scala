@@ -45,8 +45,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
     "recover once failing forward job" in {
       FailingOnceReceiver.failed = false
 
-      val sender = new AbstractJobVertex("Sender");
-      val receiver = new AbstractJobVertex("Receiver");
+      val sender = new AbstractJobVertex("Sender")
+      val receiver = new AbstractJobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Tasks.Sender])
       receiver.setInvokableClass(classOf[Tasks.FailingOnceReceiver])
@@ -84,8 +84,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
     "recover once failing forward job with slot sharing" in {
       FailingOnceReceiver.failed = false
 
-      val sender = new AbstractJobVertex("Sender");
-      val receiver = new AbstractJobVertex("Receiver");
+      val sender = new AbstractJobVertex("Sender")
+      val receiver = new AbstractJobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Tasks.Sender])
       receiver.setInvokableClass(classOf[Tasks.FailingOnceReceiver])
@@ -127,8 +127,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
     "recover a task manager failure" in {
       BlockingOnceReceiver.blocking = true
 
-      val sender = new AbstractJobVertex("Sender");
-      val receiver = new AbstractJobVertex("Receiver");
+      val sender = new AbstractJobVertex("Sender")
+      val receiver = new AbstractJobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Tasks.Sender])
       receiver.setInvokableClass(classOf[Tasks.BlockingOnceReceiver])

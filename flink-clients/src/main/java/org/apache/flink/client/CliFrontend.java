@@ -104,7 +104,7 @@ public class CliFrontend {
 	}
 	
 	// general options
-	private static final Options GENRAL_OPTIONS = createGeneralOptions();
+	private static final Options GENERAL_OPTIONS = createGeneralOptions();
 	
 	// action options all include the general options
 	private static final Options RUN_OPTIONS = getRunOptions(createGeneralOptions());
@@ -874,7 +874,7 @@ public class CliFrontend {
 		formatter.setWidth(80);
 		formatter.setLeftPadding(5);
 		formatter.setSyntaxPrefix("  general options:");
-		formatter.printHelp(" ", GENRAL_OPTIONS);
+		formatter.printHelp(" ", GENERAL_OPTIONS);
 		
 		printHelpForRun();
 		printHelpForInfo();

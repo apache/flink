@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmanager
 
 import java.io.File
-import java.net.{InetSocketAddress}
+import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit
 
 import akka.actor._
@@ -35,7 +35,7 @@ import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.{JobException, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
-import org.apache.flink.runtime.instance.{InstanceManager}
+import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
@@ -45,18 +45,18 @@ import org.apache.flink.runtime.messages.TaskManagerMessages.{NextInputSplit, He
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.{Future}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class JobManager(val configuration: Configuration) extends
-Actor with ActorLogMessages with ActorLogging {
+class JobManager(val configuration: Configuration)
+  extends Actor with ActorLogMessages with ActorLogging {
   import context._
   import scala.collection.JavaConverters._
 
   implicit val timeout = FiniteDuration(configuration.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
     ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
 
-  Execution.timeout = timeout;
+  Execution.timeout = timeout
 
   log.info(s"Starting job manager at ${self.path}.")
 
@@ -115,7 +115,7 @@ Actor with ActorLogMessages with ActorLogging {
         hardwareInformation, numberOfSlots)
 
       // to be notified when the taskManager is no longer reachable
-      context.watch(taskManager);
+      context.watch(taskManager)
 
       taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
     }
@@ -532,7 +532,7 @@ object JobManager {
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
     val executionRetries = configuration.getInteger(ConfigConstants
-      .DEFAULT_EXECUTION_RETRIES_KEY, ConfigConstants.DEFAULT_EXECUTION_RETRIES);
+      .DEFAULT_EXECUTION_RETRIES_KEY, ConfigConstants.DEFAULT_EXECUTION_RETRIES)
 
     val delayBetweenRetries = 2 * configuration.getLong(
       ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY,

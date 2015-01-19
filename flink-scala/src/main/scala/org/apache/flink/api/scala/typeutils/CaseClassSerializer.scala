@@ -20,7 +20,6 @@ package org.apache.flink.api.scala.typeutils
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.core.memory.{DataOutputView, DataInputView}
-;
 
 /**
  * Serializer for Case Classes. Creation and access is different from
@@ -84,7 +83,7 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   def deserialize(reuse: T, source: DataInputView): T = {
-    deserialize(source);
+    deserialize(source)
   }
 
   def deserialize(source: DataInputView): T = {

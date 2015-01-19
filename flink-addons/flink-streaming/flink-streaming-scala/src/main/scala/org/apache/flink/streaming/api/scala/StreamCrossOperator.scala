@@ -61,7 +61,7 @@ class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extend
     val javaStream = input1.connect(input2).addGeneralWindowCombine(
       crossWindowFunction,
       returnType, windowSize,
-      slideInterval, timeStamp1, timeStamp2);
+      slideInterval, timeStamp1, timeStamp2)
 
     new StreamCrossOperator.CrossWindow[I1, I2](this, javaStream)
   }

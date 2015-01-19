@@ -48,7 +48,7 @@ class CaseClassComparatorTest {
       val typeInfo = implicitly[TypeInformation[CaseTestClass]]
                                      .asInstanceOf[CompositeType[CaseTestClass]]
       
-      val serializer = typeInfo.createSerializer();
+      val serializer = typeInfo.createSerializer()
       val comparator = new FailingCompareDeserializedWrapper(
           typeInfo.createComparator(Array[Int](0, 2), Array[Boolean](true, true), 0))
       
@@ -98,7 +98,7 @@ class CaseClassComparatorTest {
     catch {
       case e: Exception => {
         e.printStackTrace()
-        fail(e.getMessage());
+        fail(e.getMessage())
       }
     }
   }
@@ -120,7 +120,7 @@ class CaseClassComparatorTest {
     def compare(first: T, second: T): Int = wrapped.compare(first, second)
     
     def compareSerialized(firstSource: DataInputView, secondSource: DataInputView): Int = {
-      throw new UnsupportedOperationException("Not Supported");
+      throw new UnsupportedOperationException("Not Supported")
     }
     
     def supportsNormalizedKey(): Boolean = wrapped.supportsNormalizedKey()
