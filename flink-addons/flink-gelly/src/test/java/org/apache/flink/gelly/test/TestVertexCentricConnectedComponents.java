@@ -17,7 +17,7 @@
  */
 
 
-package flink.graphs;
+package org.apache.flink.gelly.test;
 
 import java.io.BufferedReader;
 

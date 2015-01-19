@@ -105,7 +105,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 	private VertexCentricIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
 			MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
 			DataSet<Edge<VertexKey, EdgeValue>> edgesWithValue, 
-			int maximumNumberOfIterations, boolean edgeHasValueMarker)
+			int maximumNumberOfIterations)
 	{
 		Validate.notNull(uf);
 		Validate.notNull(mf);
@@ -318,7 +318,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 					MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
 					int maximumNumberOfIterations)
 	{
-		return new VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue>(uf, mf, edgesWithValue, maximumNumberOfIterations, true);
+		return new VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue>(uf, mf, edgesWithValue, maximumNumberOfIterations);
 	}
 	
 	// --------------------------------------------------------------------------------------------
