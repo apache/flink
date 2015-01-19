@@ -52,6 +52,8 @@ import flink.graphs.spargel.MessagingFunction;
 import flink.graphs.spargel.VertexCentricIteration;
 import flink.graphs.spargel.VertexUpdateFunction;
 import flink.graphs.utils.GraphUtils;
+import flink.graphs.utils.Tuple2ToVertexMap;
+import flink.graphs.utils.Tuple3ToEdgeMap;
 import flink.graphs.validation.GraphValidator;
 
 /**
@@ -229,14 +231,13 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	@SuppressWarnings({ "unchecked" })
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
 		Graph<K, VV, EV> fromTupleDataSet (DataSet<Tuple2<K, VV>> vertices,
 										   DataSet<Tuple3<K, K, EV>> edges,
 										   ExecutionEnvironment context) {
 
-		DataSet<Vertex<K, VV>> vertexDataSet = (DataSet<Vertex<K, VV>>) (DataSet<?>) vertices;
-		DataSet<Edge<K, EV>> edgeDataSet = (DataSet<Edge<K, EV>>) (DataSet<?>) edges;
+		DataSet<Vertex<K, VV>> vertexDataSet = vertices.map(new Tuple2ToVertexMap<K, VV>());
+		DataSet<Edge<K, EV>> edgeDataSet = edges.map(new Tuple3ToEdgeMap<K, EV>());
 		return fromDataSet(vertexDataSet, edgeDataSet, context);
 	}
 
@@ -250,12 +251,11 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	@SuppressWarnings({ "unchecked" })
 	public static <K extends Comparable<K> & Serializable, EV extends Serializable>
 		Graph<K, NullValue, EV> fromTupleDataSet (DataSet<Tuple3<K, K, EV>> edges,
 												  ExecutionEnvironment context) {
 
-		DataSet<Edge<K, EV>> edgeDataSet = (DataSet<Edge<K, EV>>) (DataSet<?>) edges;
+		DataSet<Edge<K, EV>> edgeDataSet = edges.map(new Tuple3ToEdgeMap<K, EV>());
 		return fromDataSet(edgeDataSet, context);
 	}
 
@@ -270,13 +270,12 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	@SuppressWarnings({ "unchecked" })
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
 	Graph<K, VV, EV> fromTupleDataSet (DataSet<Tuple3<K, K, EV>> edges,
 									   final MapFunction<K, VV> mapper,
 									   ExecutionEnvironment context) {
 
-		DataSet<Edge<K, EV>> edgeDataSet = (DataSet<Edge<K, EV>>) (DataSet<?>) edges;
+		DataSet<Edge<K, EV>> edgeDataSet = edges.map(new Tuple3ToEdgeMap<K, EV>());
 		return fromDataSet(edgeDataSet, mapper, context);
 	}
 

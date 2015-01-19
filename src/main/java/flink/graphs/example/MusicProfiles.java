@@ -23,7 +23,6 @@ import flink.graphs.Graph;
 import flink.graphs.Vertex;
 import flink.graphs.example.utils.MusicProfilesData;
 import flink.graphs.library.LabelPropagation;
-import flink.graphs.utils.Tuple3ToEdgeMap;
 
 @SuppressWarnings("serial")
 public class MusicProfiles implements ProgramDescription {
@@ -67,9 +66,7 @@ public class MusicProfiles implements ProgramDescription {
     	 *  Create a user -> song weighted bipartite graph
     	 *  where the edge weights correspond to play counts
     	 */
-    	DataSet<Edge<String, Integer>> userSongEdges = validTriplets.map(new Tuple3ToEdgeMap<String, Integer>());
-
-    	Graph<String, NullValue, Integer> userSongGraph = Graph.fromDataSet(userSongEdges, env);
+    	Graph<String, NullValue, Integer> userSongGraph = Graph.fromTupleDataSet(validTriplets, env);
 
     	/**
     	 *  Get the top track (most listened) for each user
