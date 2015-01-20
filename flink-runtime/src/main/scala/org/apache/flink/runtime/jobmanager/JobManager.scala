@@ -57,8 +57,6 @@ class JobManager(val configuration: Configuration)
   implicit val timeout = FiniteDuration(configuration.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
     ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
 
-  Execution.timeout = timeout
-
   log.info(s"Starting job manager at ${self.path}.")
 
   checkJavaVersion
@@ -157,7 +155,7 @@ class JobManager(val configuration: Configuration)
 
             val (executionGraph, jobInfo) = currentJobs.getOrElseUpdate(jobGraph.getJobID(),
               (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
-                jobGraph.getJobConfiguration, jobGraph.getUserJarBlobKeys, userCodeLoader),
+                jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader),
                 JobInfo(sender, System.currentTimeMillis())))
 
             val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {

@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.slf4j.Logger;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -73,6 +74,8 @@ public class ExecutionVertex implements Serializable {
 	private final int subTaskIndex;
 	
 	private final List<Execution> priorExecutions;
+
+	private final FiniteDuration timeout;
 	
 	private volatile CoLocationConstraint locationConstraint;
 	
@@ -80,11 +83,14 @@ public class ExecutionVertex implements Serializable {
 	
 	// --------------------------------------------------------------------------------------------
 
-	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex, IntermediateResult[] producedDataSets) {
-		this(jobVertex, subTaskIndex, producedDataSets, System.currentTimeMillis());
+	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex,
+						IntermediateResult[] producedDataSets, FiniteDuration timeout) {
+		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis());
 	}
 
-	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex, IntermediateResult[] producedDataSets, long createTimestamp) {
+	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex,
+						IntermediateResult[] producedDataSets, FiniteDuration timeout,
+						long createTimestamp) {
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
 
@@ -98,7 +104,7 @@ public class ExecutionVertex implements Serializable {
 		this.inputEdges = new ExecutionEdge[jobVertex.getJobVertex().getInputs().size()][];
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 
-		this.currentExecution = new Execution(this, 0, createTimestamp);
+		this.currentExecution = new Execution(this, 0, createTimestamp, timeout);
 
 		// create a co-location scheduling hint, if necessary
 		CoLocationGroup clg = jobVertex.getCoLocationGroup();
@@ -108,6 +114,8 @@ public class ExecutionVertex implements Serializable {
 		else {
 			this.locationConstraint = null;
 		}
+
+		this.timeout = timeout;
 	}
 	
 	
@@ -320,7 +328,8 @@ public class ExecutionVertex implements Serializable {
 
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
-				currentExecution = new Execution(this, execution.getAttemptNumber()+1, System.currentTimeMillis());
+				currentExecution = new Execution(this, execution.getAttemptNumber()+1,
+						System.currentTimeMillis(), timeout);
 				
 				CoLocationGroup grp = jobVertex.getCoLocationGroup();
 				if (grp != null) {

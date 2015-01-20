@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.akka
 
 import java.io.IOException
-import java.util.concurrent.Callable
+import java.util.concurrent.{TimeUnit, Callable}
 
 import akka.actor.{ActorSelection, ActorRef, ActorSystem}
 import akka.pattern.{Patterns, ask => akkaAsk}
@@ -32,7 +32,8 @@ import scala.concurrent.duration._
 object AkkaUtils {
   val LOG = LoggerFactory.getLogger(AkkaUtils.getClass)
 
-  val DEFAULT_TIMEOUT: FiniteDuration = 1 minute
+  val DEFAULT_TIMEOUT: FiniteDuration =
+    FiniteDuration(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
   val INF_TIMEOUT = 21474835 seconds
 

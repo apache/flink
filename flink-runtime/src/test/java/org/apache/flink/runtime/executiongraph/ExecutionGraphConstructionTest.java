@@ -26,6 +26,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.junit.Test;
 import org.mockito.Matchers;
 
@@ -97,7 +98,7 @@ public class ExecutionGraphConstructionTest {
 		
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -135,7 +136,7 @@ public class ExecutionGraphConstructionTest {
 		
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -196,7 +197,7 @@ public class ExecutionGraphConstructionTest {
 		
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -444,7 +445,7 @@ public class ExecutionGraphConstructionTest {
 		
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -494,7 +495,7 @@ public class ExecutionGraphConstructionTest {
 		
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 			fail("Attached wrong jobgraph");
@@ -549,7 +550,7 @@ public class ExecutionGraphConstructionTest {
 			
 			List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 			try {
 				eg.attachJobGraph(ordered);
 			}
@@ -588,7 +589,8 @@ public class ExecutionGraphConstructionTest {
 			
 			List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
 
-			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg,
+					AkkaUtils.DEFAULT_TIMEOUT());
 
 			try {
 				eg.attachJobGraph(ordered);
@@ -653,7 +655,8 @@ public class ExecutionGraphConstructionTest {
 			
 			JobGraph jg = new JobGraph(jobId, jobName, v1, v2, v3, v4, v5, v6, v7, v8);
 			
-			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg,
+					AkkaUtils.DEFAULT_TIMEOUT());
 			eg.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
 			
 			// check the v1 / v2 co location hints ( assumes parallelism(v1) >= parallelism(v2) )

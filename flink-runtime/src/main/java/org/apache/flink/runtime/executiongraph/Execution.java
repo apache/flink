@@ -22,7 +22,6 @@ import akka.actor.ActorRef;
 import akka.dispatch.OnComplete;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.PartitionInfo;
@@ -46,7 +45,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -89,29 +87,29 @@ public class Execution implements Serializable {
 	
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
 
-	public static FiniteDuration timeout = new FiniteDuration(ConfigConstants
-			.DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
-	
 	// --------------------------------------------------------------------------------------------
-	
+
 	private final ExecutionVertex vertex;
-	
+
 	private final ExecutionAttemptID attemptId;
-	
+
 	private final long[] stateTimestamps;
-	
+
 	private final int attemptNumber;
-	
-	
+
+	public FiniteDuration timeout;
+
+
 	private volatile ExecutionState state = CREATED;
-	
+
 	private volatile AllocatedSlot assignedResource;  // once assigned, never changes
 	
 	private volatile Throwable failureCause;          // once assigned, never changes
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public Execution(ExecutionVertex vertex, int attemptNumber, long startTimestamp) {
+	public Execution(ExecutionVertex vertex, int attemptNumber, long startTimestamp,
+					FiniteDuration timeout) {
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
 		checkArgument(attemptNumber >= 0);
@@ -119,6 +117,8 @@ public class Execution implements Serializable {
 
 		this.stateTimestamps = new long[ExecutionState.values().length];
 		markTimestamp(ExecutionState.CREATED, startTimestamp);
+
+		this.timeout = timeout;
 	}
 	
 	// --------------------------------------------------------------------------------------------

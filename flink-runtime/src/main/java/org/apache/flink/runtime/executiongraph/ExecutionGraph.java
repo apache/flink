@@ -35,6 +35,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -102,6 +103,8 @@ public class ExecutionGraph implements Serializable {
 
 	private long delayBeforeRetrying;
 
+	private final FiniteDuration timeout;
+
 	private volatile JobStatus state = JobStatus.CREATED;
 
 	private volatile Throwable failureCause;
@@ -110,15 +113,16 @@ public class ExecutionGraph implements Serializable {
 
 	private boolean allowQueuedScheduling = true;
 
-	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig) {
-		this(jobId, jobName, jobConfig, new ArrayList<BlobKey>());
+	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
+		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>());
 	}
 
-	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, List<BlobKey> requiredJarFiles) {
-		this(jobId, jobName, jobConfig, requiredJarFiles, Thread.currentThread().getContextClassLoader());
+	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig,
+						FiniteDuration timeout, List<BlobKey> requiredJarFiles) {
+		this(jobId, jobName, jobConfig, timeout, requiredJarFiles, Thread.currentThread().getContextClassLoader());
 	}
 
-	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, 
+	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout,
 			List<BlobKey> requiredJarFiles, ClassLoader userClassLoader) {
 
 		if (jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
@@ -142,6 +146,8 @@ public class ExecutionGraph implements Serializable {
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 
 		this.requiredJarFiles = requiredJarFiles;
+
+		this.timeout = timeout;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -179,7 +185,7 @@ public class ExecutionGraph implements Serializable {
 		for (AbstractJobVertex jobVertex : topologiallySorted) {
 			
 			// create the execution job vertex and attach it to the graph
-			ExecutionJobVertex ejv = new ExecutionJobVertex(this, jobVertex, 1, createTimestamp);
+			ExecutionJobVertex ejv = new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
 			ejv.connectToPredecessors(this.intermediateResults);
 			
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);

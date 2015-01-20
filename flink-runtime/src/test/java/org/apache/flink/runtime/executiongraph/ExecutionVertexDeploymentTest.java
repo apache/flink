@@ -27,6 +27,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import akka.testkit.TestActorRef;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
@@ -67,7 +68,8 @@ public class ExecutionVertexDeploymentTest {
 			
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
+					AkkaUtils.DEFAULT_TIMEOUT());
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
@@ -109,7 +111,8 @@ public class ExecutionVertexDeploymentTest {
 			
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
+					AkkaUtils.DEFAULT_TIMEOUT());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -152,7 +155,8 @@ public class ExecutionVertexDeploymentTest {
 			
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
+					AkkaUtils.DEFAULT_TIMEOUT());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -206,7 +210,8 @@ public class ExecutionVertexDeploymentTest {
 			
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
+					AkkaUtils.DEFAULT_TIMEOUT());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -241,7 +246,8 @@ public class ExecutionVertexDeploymentTest {
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
+					AkkaUtils.DEFAULT_TIMEOUT());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -289,7 +295,8 @@ public class ExecutionVertexDeploymentTest {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
+					AkkaUtils.DEFAULT_TIMEOUT());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
@@ -327,7 +334,8 @@ public class ExecutionVertexDeploymentTest {
 			final JobVertexID jid = new JobVertexID();
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
+					AkkaUtils.DEFAULT_TIMEOUT());
 			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			final TestActorRef simpleTaskManager = TestActorRef.create(system, Props.create(new
