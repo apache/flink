@@ -115,6 +115,10 @@ import scala.collection.JavaConverters._
       None
   }
 
+  if (log.isInfoEnabled) {
+    log.info(TaskManager.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean()));
+  }
+
   var libraryCacheManager: LibraryCacheManager = null
   var networkEnvironment: Option[NetworkEnvironment] = None
   var registrationScheduler: Option[Cancellable] = None
@@ -124,12 +128,10 @@ import scala.collection.JavaConverters._
   var instanceID: InstanceID = null
   var heartbeatScheduler: Option[Cancellable] = None
 
-  if (log.isDebugEnabled) {
-    memoryLogggingIntervalMs.foreach {
-      interval =>
-        val d = FiniteDuration(interval, TimeUnit.MILLISECONDS)
-        context.system.scheduler.schedule(d, d, self, LogMemoryUsage)
-    }
+  memoryLogggingIntervalMs.foreach {
+    interval =>
+      val d = FiniteDuration(interval, TimeUnit.MILLISECONDS)
+      context.system.scheduler.schedule(d, d, self, LogMemoryUsage)
   }
 
   override def preStart(): Unit = {
