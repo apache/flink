@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import java.util.Arrays;
 
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.junit.Assert;
 import org.junit.Test;
@@ -43,10 +44,14 @@ public class AllVerticesIteratorTest {
 			
 			ExecutionGraph eg = Mockito.mock(ExecutionGraph.class);
 					
-			ExecutionJobVertex ejv1 = new ExecutionJobVertex(eg, v1, 1);
-			ExecutionJobVertex ejv2 = new ExecutionJobVertex(eg, v2, 1);
-			ExecutionJobVertex ejv3 = new ExecutionJobVertex(eg, v3, 1);
-			ExecutionJobVertex ejv4 = new ExecutionJobVertex(eg, v4, 1);
+			ExecutionJobVertex ejv1 = new ExecutionJobVertex(eg, v1, 1,
+					AkkaUtils.DEFAULT_TIMEOUT());
+			ExecutionJobVertex ejv2 = new ExecutionJobVertex(eg, v2, 1,
+					AkkaUtils.DEFAULT_TIMEOUT());
+			ExecutionJobVertex ejv3 = new ExecutionJobVertex(eg, v3, 1,
+					AkkaUtils.DEFAULT_TIMEOUT());
+			ExecutionJobVertex ejv4 = new ExecutionJobVertex(eg, v4, 1,
+					AkkaUtils.DEFAULT_TIMEOUT());
 			
 			AllVerticesIterator iter = new AllVerticesIterator(Arrays.asList(ejv1, ejv2, ejv3, ejv4).iterator());
 			

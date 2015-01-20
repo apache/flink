@@ -30,12 +30,14 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import akka.testkit.TestActorRef;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -98,7 +100,8 @@ public class ExecutionGraphDeploymentTest {
 			v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 
-			ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration());
+			ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration(),
+					AkkaUtils.DEFAULT_TIMEOUT());
 
 			List<AbstractJobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
@@ -108,7 +111,7 @@ public class ExecutionGraphDeploymentTest {
 			ExecutionVertex vertex = ejv.getTaskVertices()[3];
 
 			// create synchronous task manager
-			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
 					Props.create(ExecutionGraphTestUtils
 							.SimpleAcknowledgingTaskManager.class));
 
@@ -304,7 +307,8 @@ public class ExecutionGraphDeploymentTest {
 		v2.setInvokableClass(RegularPactTask.class);
 
 		// execution graph that executes actions synchronously
-		ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration());
+		ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration(),
+				AkkaUtils.DEFAULT_TIMEOUT());
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<AbstractJobVertex> ordered = Arrays.asList(v1, v2);
