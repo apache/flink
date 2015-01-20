@@ -25,10 +25,13 @@ import akka.actor.{ActorSelection, ActorRef, ActorSystem}
 import akka.pattern.{Patterns, ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.slf4j.LoggerFactory
 import scala.concurrent.{ExecutionContext, Future, Await}
 import scala.concurrent.duration._
 
 object AkkaUtils {
+  val LOG = LoggerFactory.getLogger(AkkaUtils.getClass)
+
   val DEFAULT_TIMEOUT: FiniteDuration = 1 minute
 
   val INF_TIMEOUT = 21474835 seconds
@@ -186,13 +189,14 @@ object AkkaUtils {
   }
 
   def getDefaultLocalActorSystemConfigString: String = {
-    """
+    val logLevel = getLogLevel
+    s"""
       |akka {
       |  daemonic = on
       |
       |  loggers = ["akka.event.slf4j.Slf4jLogger"]
       |  logger-startup-timeout = 30s
-      |  loglevel = "DEBUG"
+      |  loglevel = ${logLevel}
       |  stdout-loglevel = "WARNING"
       |  jvm-exit-on-fatal-error = off
       |  log-config-on-start = off
@@ -204,6 +208,26 @@ object AkkaUtils {
       |  }
       |}
     """.stripMargin
+  }
+
+  def getLogLevel: String = {
+    if(LOG.isDebugEnabled) {
+      "DEBUG"
+    } else {
+      if (LOG.isInfoEnabled) {
+        "INFO"
+      } else {
+        if(LOG.isWarnEnabled){
+          "WARNING"
+        } else {
+          if (LOG.isErrorEnabled) {
+            "ERROR"
+          } else {
+            "OFF"
+          }
+        }
+      }
+    }
   }
 
   def getDefaultActorSystemConfig = {
