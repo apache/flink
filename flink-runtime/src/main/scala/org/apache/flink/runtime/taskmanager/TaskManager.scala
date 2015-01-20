@@ -773,6 +773,17 @@ object TaskManager {
         if (!file.canWrite) {
           throw new Exception(s"Temporary file directory ${file.getAbsolutePath} is not writable.")
         }
+
+        if (LOG.isInfoEnabled()) {
+          val totalSpaceGb = file.getTotalSpace() >>  30;
+          val usableSpaceGb = file.getUsableSpace() >> 30;
+          val usablePercentage = usableSpaceGb.asInstanceOf[Double] / totalSpaceGb * 100;
+
+          val path = file.getAbsolutePath()
+
+          LOG.info(f"Temporary file directory '$path': total $totalSpaceGb GB," +
+            f"usable $usableSpaceGb GB [$usablePercentage%.2f%% usable])")
+        }
       case (_, id) => throw new Exception(s"Temporary file directory #${id} is null.")
 
     }
