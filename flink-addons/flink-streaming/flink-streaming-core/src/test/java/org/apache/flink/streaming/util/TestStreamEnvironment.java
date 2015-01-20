@@ -46,7 +46,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public void execute(String jobName) throws Exception {
-		JobGraph jobGraph = jobGraphBuilder.getJobGraph(jobName);
+		JobGraph jobGraph = streamGraph.getJobGraph(jobName);
 
 		Configuration configuration = jobGraph.getJobConfiguration();
 

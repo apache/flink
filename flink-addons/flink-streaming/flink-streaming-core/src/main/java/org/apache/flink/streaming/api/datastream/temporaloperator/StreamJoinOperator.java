@@ -245,7 +245,7 @@ public class StreamJoinOperator<I1, I2> extends
 					getJoinWindowFunction(joinFunction, predicate), predicate.op.windowSize,
 					predicate.op.slideInterval, predicate.op.timeStamp1, predicate.op.timeStamp2);
 
-			jobGraphBuilder.setInvokable(id, invokable);
+			streamGraph.setInvokable(id, invokable);
 
 			return setType(outType);
 		}

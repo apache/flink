@@ -43,7 +43,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.JobGraphBuilder;
+import org.apache.flink.streaming.api.StreamGraph;
 import org.apache.flink.streaming.api.datastream.temporaloperator.StreamCrossOperator;
 import org.apache.flink.streaming.api.datastream.temporaloperator.StreamJoinOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -102,7 +102,7 @@ public class DataStream<OUT> {
 	protected TypeInformation typeInfo;
 	protected List<DataStream<OUT>> mergedStreams;
 
-	protected final JobGraphBuilder jobGraphBuilder;
+	protected final StreamGraph streamGraph;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment with
@@ -125,7 +125,7 @@ public class DataStream<OUT> {
 		this.id = operatorType + "-" + counter.toString();
 		this.environment = environment;
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
-		this.jobGraphBuilder = environment.getJobGraphBuilder();
+		this.streamGraph = environment.getStreamGraph();
 		this.userDefinedNames = new ArrayList<String>();
 		this.selectAll = true;
 		this.partitioner = new DistributePartitioner<OUT>(true);
@@ -147,7 +147,7 @@ public class DataStream<OUT> {
 		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
 		this.selectAll = dataStream.selectAll;
 		this.partitioner = dataStream.partitioner;
-		this.jobGraphBuilder = dataStream.jobGraphBuilder;
+		this.streamGraph = dataStream.streamGraph;
 		this.typeInfo = dataStream.typeInfo;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
 		this.mergedStreams.add(this);
@@ -189,7 +189,7 @@ public class DataStream<OUT> {
 
 	@SuppressWarnings("unchecked")
 	public <R> DataStream<R> setType(TypeInformation<R> outType) {
-		jobGraphBuilder.setOutType(id, outType);
+		streamGraph.setOutType(id, outType);
 		typeInfo = outType;
 		return (DataStream<R>) this;
 	}
@@ -1085,7 +1085,7 @@ public class DataStream<OUT> {
 		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null,
 				null, true);
 
-		jobGraphBuilder.addIterationHead(returnStream.getId(), this.getId(), iterationID,
+		streamGraph.addIterationHead(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism, waitTime);
 
 		return this.copy();
@@ -1112,7 +1112,7 @@ public class DataStream<OUT> {
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
 				operatorName, outTypeInfo, invokable);
 
-		jobGraphBuilder.addStreamVertex(returnStream.getId(), invokable, getType(), outTypeInfo,
+		streamGraph.addStreamVertex(returnStream.getId(), invokable, getType(), outTypeInfo,
 				operatorName, degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId(), 0);
@@ -1157,7 +1157,7 @@ public class DataStream<OUT> {
 	 */
 	protected <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
 		for (DataStream<X> stream : inputStream.mergedStreams) {
-			jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
+			streamGraph.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
 					inputStream.userDefinedNames, inputStream.selectAll);
 		}
 
@@ -1179,7 +1179,7 @@ public class DataStream<OUT> {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
 				sinkInvokable);
 
-		jobGraphBuilder.addStreamVertex(returnStream.getId(), sinkInvokable, getType(), null,
+		streamGraph.addStreamVertex(returnStream.getId(), sinkInvokable, getType(), null,
 				"sink", degreeOfParallelism);
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);

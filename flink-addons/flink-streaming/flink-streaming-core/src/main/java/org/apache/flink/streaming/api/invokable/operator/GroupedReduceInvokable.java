@@ -34,7 +34,6 @@ public class GroupedReduceInvokable<IN> extends StreamReduceInvokable<IN> {
 		super(reducer);
 		this.keySelector = keySelector;
 		values = new HashMap<Object, IN>();
-		setChainingStrategy(ChainingStrategy.NEVER);
 	}
 
 	@Override

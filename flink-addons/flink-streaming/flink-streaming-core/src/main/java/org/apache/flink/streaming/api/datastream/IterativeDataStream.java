@@ -64,10 +64,10 @@ public class IterativeDataStream<IN> extends
 		DataStream<IN> iterationSink = new DataStreamSink<IN>(environment, "iterationSink", null,
 				null);
 
-		jobGraphBuilder.addIterationTail(iterationSink.getId(), iterationTail.getId(), iterationID,
+		streamGraph.addIterationTail(iterationSink.getId(), iterationTail.getId(), iterationID,
 				iterationTail.getParallelism(), waitTime);
 
-		jobGraphBuilder.setIterationSourceSettings(iterationID.toString(), iterationTail.getId());
+		streamGraph.setIterationSourceSettings(iterationID.toString(), iterationTail.getId());
 		connectGraph(iterationTail.forward(), iterationSink.getId(), 0);
 		return iterationTail;
 	}

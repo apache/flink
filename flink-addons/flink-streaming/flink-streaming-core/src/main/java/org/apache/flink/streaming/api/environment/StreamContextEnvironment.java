@@ -54,9 +54,9 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 		JobGraph jobGraph;
 		if (jobName == null) {
-			jobGraph = this.jobGraphBuilder.getJobGraph();
+			jobGraph = this.streamGraph.getJobGraph();
 		} else {
-			jobGraph = this.jobGraphBuilder.getJobGraph(jobName);
+			jobGraph = this.streamGraph.getJobGraph(jobName);
 		}
 
 		for (File file : jars) {

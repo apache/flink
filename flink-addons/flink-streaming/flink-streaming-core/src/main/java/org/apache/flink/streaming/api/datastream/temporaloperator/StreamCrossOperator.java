@@ -67,7 +67,7 @@ public class StreamCrossOperator<I1, I2> extends
 
 		@SuppressWarnings("unchecked")
 		public CrossWindow<I1, I2> every(long length) {
-			((CoWindowInvokable<I1, I2, ?>) jobGraphBuilder.getInvokable(id)).setSlideSize(length);
+			((CoWindowInvokable<I1, I2, ?>) streamGraph.getInvokable(id)).setSlideSize(length);
 			return this;
 		}
 
@@ -90,7 +90,7 @@ public class StreamCrossOperator<I1, I2> extends
 					new CrossWindowFunction<I1, I2, R>(clean(function)), op.windowSize,
 					op.slideInterval, op.timeStamp1, op.timeStamp2);
 
-			jobGraphBuilder.setInvokable(id, invokable);
+			streamGraph.setInvokable(id, invokable);
 
 			return setType(outTypeInfo);
 

@@ -61,8 +61,7 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 	public WindowInvokable(Function userFunction, LinkedList<TriggerPolicy<IN>> triggerPolicies,
 			LinkedList<EvictionPolicy<IN>> evictionPolicies) {
 		super(userFunction);
-		setChainingStrategy(ChainingStrategy.NEVER);
-		
+
 		this.triggerPolicies = triggerPolicies;
 		this.evictionPolicies = evictionPolicies;
 

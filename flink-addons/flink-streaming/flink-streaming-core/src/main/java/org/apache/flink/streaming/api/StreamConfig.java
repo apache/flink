@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api;
 
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -62,7 +62,7 @@ public class StreamConfig implements Serializable {
 	private static final String TYPE_SERIALIZER_OUT_2 = "typeSerializer_out_2";
 	private static final String ITERATON_WAIT = "iterationWait";
 	private static final String OUTPUTS = "outVertexNames";
-	private static final String RW_ORDER = "rwOrder";
+	private static final String EDGES_IN_ORDER = "rwOrder";
 
 	// DEFAULT VALUES
 
@@ -186,10 +186,10 @@ public class StreamConfig implements Serializable {
 		return config.getBoolean(DIRECTED_EMIT, false);
 	}
 
-	public void setOutputSelector(byte[] outputSelector) {
+	public void setOutputSelector(OutputSelector<?> outputSelector) {
 		if (outputSelector != null) {
 			setDirectedEmit(true);
-			config.setBytes(OUTPUT_SELECTOR, outputSelector);
+			config.setBytes(OUTPUT_SELECTOR, SerializationUtils.serialize(outputSelector));
 		}
 	}
 
@@ -293,20 +293,16 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setRecordWriterOrder(List<Tuple2<String, String>> outEdgeList) {
+	public void setOutEdgesInOrder(List<Tuple2<String, String>> outEdgeList) {
 
-		List<String> outVertices = new ArrayList<String>();
-		for (Tuple2<String, String> edge : outEdgeList) {
-			outVertices.add(edge.f1);
-		}
-
-		config.setBytes(RW_ORDER, SerializationUtils.serialize((Serializable) outVertices));
+		config.setBytes(EDGES_IN_ORDER, SerializationUtils.serialize((Serializable) outEdgeList));
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<String> getRecordWriterOrder(ClassLoader cl) {
+	public List<Tuple2<String, String>> getOutEdgesInOrder(ClassLoader cl) {
 		try {
-			return (List<String>) InstantiationUtil.readObjectFromConfig(this.config, RW_ORDER, cl);
+			return (List<Tuple2<String, String>>) InstantiationUtil.readObjectFromConfig(
+					this.config, EDGES_IN_ORDER, cl);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate outputs.");
 		}
@@ -358,8 +354,10 @@ public class StreamConfig implements Serializable {
 	public Map<String, StreamConfig> getTransitiveChainedTaskConfigs(ClassLoader cl) {
 		try {
 
-			return (Map<String, StreamConfig>) InstantiationUtil.readObjectFromConfig(this.config,
-					CHAINED_TASK_CONFIG, cl);
+			Map<String, StreamConfig> confs = (Map<String, StreamConfig>) InstantiationUtil
+					.readObjectFromConfig(this.config, CHAINED_TASK_CONFIG, cl);
+
+			return confs == null ? new HashMap<String, StreamConfig>() : confs;
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate configuration.");
 		}

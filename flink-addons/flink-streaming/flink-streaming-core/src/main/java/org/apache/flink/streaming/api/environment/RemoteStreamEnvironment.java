@@ -81,14 +81,14 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	@Override
 	public void execute() {
 
-		JobGraph jobGraph = jobGraphBuilder.getJobGraph();
+		JobGraph jobGraph = streamGraph.getJobGraph();
 		executeRemotely(jobGraph);
 	}
 
 	@Override
 	public void execute(String jobName) {
 
-		JobGraph jobGraph = jobGraphBuilder.getJobGraph(jobName);
+		JobGraph jobGraph = streamGraph.getJobGraph(jobName);
 		executeRemotely(jobGraph);
 	}
 

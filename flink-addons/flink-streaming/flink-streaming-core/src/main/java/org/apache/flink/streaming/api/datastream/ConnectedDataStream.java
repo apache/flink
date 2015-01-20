@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.JobGraphBuilder;
+import org.apache.flink.streaming.api.StreamGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
@@ -52,7 +52,7 @@ import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 public class ConnectedDataStream<IN1, IN2> {
 
 	protected StreamExecutionEnvironment environment;
-	protected JobGraphBuilder jobGraphBuilder;
+	protected StreamGraph jobGraphBuilder;
 	protected DataStream<IN1> dataStream1;
 	protected DataStream<IN2> dataStream2;
 
@@ -61,7 +61,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	protected KeySelector<IN2, ?> keySelector2;
 
 	protected ConnectedDataStream(DataStream<IN1> input1, DataStream<IN2> input2) {
-		this.jobGraphBuilder = input1.jobGraphBuilder;
+		this.jobGraphBuilder = input1.streamGraph;
 		this.environment = input1.environment;
 		this.dataStream1 = input1.copy();
 		this.dataStream2 = input2.copy();
@@ -402,7 +402,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
 				environment, functionName, outTypeInfo, functionInvokable);
 
-		dataStream1.jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable,
+		dataStream1.streamGraph.addCoTask(returnStream.getId(), functionInvokable,
 				getInputType1(), getInputType2(), outTypeInfo, functionName,
 				environment.getDegreeOfParallelism());
 

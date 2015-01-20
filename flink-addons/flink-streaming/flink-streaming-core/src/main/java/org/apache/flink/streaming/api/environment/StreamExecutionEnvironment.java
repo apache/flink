@@ -33,7 +33,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.JobGraphBuilder;
+import org.apache.flink.streaming.api.StreamGraph;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.function.source.FileSourceFunction;
@@ -61,7 +61,7 @@ public abstract class StreamExecutionEnvironment {
 
 	private ExecutionConfig config = new ExecutionConfig();
 
-	protected JobGraphBuilder jobGraphBuilder;
+	protected StreamGraph streamGraph;
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
@@ -71,7 +71,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Constructor for creating StreamExecutionEnvironment
 	 */
 	protected StreamExecutionEnvironment() {
-		jobGraphBuilder = new JobGraphBuilder();
+		streamGraph = new StreamGraph();
 	}
 
 	/**
@@ -352,7 +352,7 @@ public abstract class StreamExecutionEnvironment {
 			TypeInformation<String> typeInfo) {
 		FileSourceFunction function = new FileSourceFunction(inputFormat, typeInfo);
 		DataStreamSource<String> returnStream = addSource(function, null, "fileSource");
-		jobGraphBuilder.setInputFormat(returnStream.getId(), inputFormat);
+		streamGraph.setInputFormat(returnStream.getId(), inputFormat);
 		return returnStream;
 	}
 
@@ -437,7 +437,7 @@ public abstract class StreamExecutionEnvironment {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, sourceName,
 				outTypeInfo, sourceInvokable, isParallel);
 
-		jobGraphBuilder.addSourceVertex(returnStream.getId(), sourceInvokable, null, outTypeInfo,
+		streamGraph.addSourceVertex(returnStream.getId(), sourceInvokable, null, outTypeInfo,
 				sourceName, dop);
 
 		return returnStream;
@@ -584,12 +584,12 @@ public abstract class StreamExecutionEnvironment {
 	public abstract void execute(String jobName) throws Exception;
 
 	/**
-	 * Getter of the {@link JobGraphBuilder} of the streaming job.
+	 * Getter of the {@link StreamGraph} of the streaming job.
 	 * 
-	 * @return jobGraphBuilder
+	 * @return The streamgraph representing the transformations
 	 */
-	public JobGraphBuilder getJobGraphBuilder() {
-		return jobGraphBuilder;
+	public StreamGraph getStreamGraph() {
+		return streamGraph;
 	}
 
 }

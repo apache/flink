@@ -20,8 +20,6 @@ package org.apache.flink.streaming.api.datastream;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.lang3.SerializationException;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.collector.OutputSelector;
@@ -65,7 +63,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 
 	@SuppressWarnings("unchecked")
 	public <R> SingleOutputStreamOperator<R, ?> setType(TypeInformation<R> outType) {
-		jobGraphBuilder.setOutType(id, outType);
+		streamGraph.setOutType(id, outType);
 		typeInfo = outType;
 		return (SingleOutputStreamOperator<R, ?>) this;
 	}
@@ -84,7 +82,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		}
 		this.degreeOfParallelism = dop;
 
-		jobGraphBuilder.setParallelism(id, degreeOfParallelism);
+		streamGraph.setParallelism(id, degreeOfParallelism);
 
 		return this;
 	}
@@ -98,7 +96,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * @return The operator with buffer timeout set.
 	 */
 	public SingleOutputStreamOperator<OUT, O> setBufferTimeout(long timeoutMillis) {
-		jobGraphBuilder.setBufferTimeout(id, timeoutMillis);
+		streamGraph.setBufferTimeout(id, timeoutMillis);
 		return this;
 	}
 
@@ -115,13 +113,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
 		if (!isSplit) {
 			this.isSplit = true;
-			try {
-				jobGraphBuilder.setOutputSelector(id,
-						SerializationUtils.serialize(clean(outputSelector)));
-
-			} catch (SerializationException e) {
-				throw new RuntimeException("Cannot serialize OutputSelector");
-			}
+			streamGraph.setOutputSelector(id, clean(outputSelector));
 
 			return new SplitDataStream<OUT>(this);
 		} else {
@@ -144,7 +136,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 * @return The data stream with state registered.
 	 */
 	protected SingleOutputStreamOperator<OUT, O> registerState(String name, OperatorState<?> state) {
-		jobGraphBuilder.addOperatorState(getId(), name, state);
+		streamGraph.addOperatorState(getId(), name, state);
 		return this;
 	}
 
@@ -161,7 +153,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 */
 	protected SingleOutputStreamOperator<OUT, O> registerState(Map<String, OperatorState<?>> states) {
 		for (Entry<String, OperatorState<?>> entry : states.entrySet()) {
-			jobGraphBuilder.addOperatorState(getId(), entry.getKey(), entry.getValue());
+			streamGraph.addOperatorState(getId(), entry.getKey(), entry.getValue());
 		}
 
 		return this;

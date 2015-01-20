@@ -67,7 +67,7 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
  * method. Fake elements created on prenotification will be forwarded to all
  * groups. The {@link ActiveTriggerCallback} is also implemented in a way, that
  * it forwards/distributed calls all groups.
- *
+ * 
  * @param <IN>
  *            The type of input elements handled by this operator invokable.
  */
@@ -154,7 +154,6 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 			LinkedList<EvictionPolicy<IN>> centralEvictionPolicies) {
 
 		super(userFunction);
-		setChainingStrategy(ChainingStrategy.NEVER);
 
 		this.keySelector = keySelector;
 

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
@@ -54,7 +55,7 @@ public class OutputHandler<OUT> {
 
 	private Map<String, StreamOutput<?>> outputMap;
 	private Map<String, StreamConfig> chainedConfigs;
-	private List<String> recordWriterOrder;
+	private List<Tuple2<String, String>> outEdgesInOrder;
 
 	public OutputHandler(StreamVertex<?, OUT> vertex) {
 
@@ -68,24 +69,16 @@ public class OutputHandler<OUT> {
 		// We read the chained configs, and the order of record writer
 		// registrations by outputname
 		this.chainedConfigs = configuration.getTransitiveChainedTaskConfigs(cl);
-		this.recordWriterOrder = configuration.getRecordWriterOrder(cl);
+		this.chainedConfigs.put(configuration.getTaskName(), configuration);
+				
+		this.outEdgesInOrder = configuration.getOutEdgesInOrder(cl);
 
-		// For the network outputs of the chain head we create the stream
-		// outputs
-		for (String outName : configuration.getOutputs(cl)) {
-			StreamOutput<?> streamOutput = createStreamOutput(outName, configuration);
-			outputMap.put(outName, streamOutput);
-		}
-
-		// If we have chained tasks we iterate through them and create the
-		// stream outputs for the network outputs
-		if (chainedConfigs != null) {
-			for (StreamConfig config : chainedConfigs.values()) {
-				for (String outName : config.getOutputs(cl)) {
-					StreamOutput<?> streamOutput = createStreamOutput(outName, config);
-					outputMap.put(outName, streamOutput);
-				}
-			}
+		// We iterate through all the out edges from this job vertex and create
+		// a stream output
+		for (Tuple2<String, String> outEdge : outEdgesInOrder) {
+			StreamOutput<?> streamOutput = createStreamOutput(outEdge.f1,
+					chainedConfigs.get(outEdge.f0), outEdgesInOrder.indexOf(outEdge));
+			outputMap.put(outEdge.f1, streamOutput);
 		}
 
 		// We create the outer collector that will be passed to the first task
@@ -196,40 +189,32 @@ public class OutputHandler<OUT> {
 	 * We create the StreamOutput for the specific output given by the name, and
 	 * the configuration of its source task
 	 * 
-	 * @param name
+	 * @param outputVertex
 	 *            Name of the output to which the streamoutput will be set up
 	 * @param configuration
 	 *            The config of upStream task
 	 * @return
 	 */
-	private <T> StreamOutput<T> createStreamOutput(String name, StreamConfig configuration) {
-
-		int outputNumber = recordWriterOrder.indexOf(name);
-
-		StreamPartitioner<T> outputPartitioner;
-
-		try {
-			outputPartitioner = configuration.getPartitioner(vertex.userClassLoader, name);
-		} catch (Exception e) {
-			throw new StreamVertexException("Cannot deserialize partitioner for "
-					+ vertex.getName() + " with " + name + " outputs", e);
-		}
+	private <T> StreamOutput<T> createStreamOutput(String outputVertex, StreamConfig configuration,
+			int outputIndex) {
+		
+		StreamPartitioner<T> outputPartitioner = configuration.getPartitioner(cl, outputVertex);
 
 		RecordWriter<SerializationDelegate<StreamRecord<T>>> output;
 
-		long bufferTimeout = configuration.getBufferTimeout();
+		if (configuration.getBufferTimeout() >= 0) {
 
-		if (bufferTimeout >= 0) {
 			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<T>>>(vertex
-					.getEnvironment().getWriter(outputNumber), outputPartitioner, bufferTimeout);
+					.getEnvironment().getWriter(outputIndex), outputPartitioner,
+					configuration.getBufferTimeout());
 
 			if (LOG.isTraceEnabled()) {
 				LOG.trace("StreamRecordWriter initiated with {} bufferTimeout for {}",
-						bufferTimeout, vertex.getClass().getSimpleName());
+						configuration.getBufferTimeout(), vertex.getClass().getSimpleName());
 			}
 		} else {
 			output = new RecordWriter<SerializationDelegate<StreamRecord<T>>>(vertex
-					.getEnvironment().getWriter(outputNumber), outputPartitioner);
+					.getEnvironment().getWriter(outputIndex), outputPartitioner);
 
 			if (LOG.isTraceEnabled()) {
 				LOG.trace("RecordWriter initiated for {}", vertex.getClass().getSimpleName());
@@ -237,11 +222,12 @@ public class OutputHandler<OUT> {
 		}
 
 		StreamOutput<T> streamOutput = new StreamOutput<T>(output,
-				configuration.isSelectAll(name) ? null : configuration.getOutputNames(name));
+				configuration.isSelectAll(outputVertex) ? null
+						: configuration.getOutputNames(outputVertex));
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()
-					.getSimpleName(), outputNumber, vertex.getClass().getSimpleName());
+					.getSimpleName(), outputIndex, vertex.getClass().getSimpleName());
 		}
 
 		return streamOutput;
