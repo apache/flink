@@ -18,6 +18,17 @@
 
 package org.apache.flink.runtime.io.network.serialization;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.util.DataInputDeserializer;
+import org.apache.flink.util.StringUtils;
+
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -31,14 +42,6 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Random;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.util.StringUtils;
-
 /**
  * @param <T> The type of the record to be deserialized.
  */
@@ -50,6 +53,8 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 	
 	private final SpanningWrapper spanningWrapper;
 
+	private Buffer currentBuffer;
+
 	public SpillingAdaptiveSpanningRecordDeserializer() {
 		
 		String tempDirString = GlobalConfiguration.getString(
@@ -59,6 +64,23 @@ public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWrit
 		
 		this.nonSpanningWrapper = new NonSpanningWrapper();
 		this.spanningWrapper = new SpanningWrapper(directories);
+	}
+
+	@Override
+	public void setNextBuffer(Buffer buffer) throws IOException {
+		currentBuffer = buffer;
+
+		MemorySegment segment = buffer.getMemorySegment();
+		int numBytes = buffer.getSize();
+
+		setNextMemorySegment(segment, numBytes);
+	}
+
+	@Override
+	public Buffer getCurrentBuffer () {
+		Buffer tmp = currentBuffer;
+		currentBuffer = null;
+		return tmp;
 	}
 	
 	@Override

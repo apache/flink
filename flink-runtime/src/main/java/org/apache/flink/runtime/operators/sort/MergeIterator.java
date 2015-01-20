@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import java.io.IOException;
-import java.util.Comparator;
-import java.util.List;
-
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+
+import java.io.IOException;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * An iterator that returns a sorted merge of the sequences of elements from a

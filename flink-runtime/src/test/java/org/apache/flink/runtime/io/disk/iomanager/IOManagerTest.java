@@ -18,17 +18,17 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
+import org.junit.Test;
 
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class IOManagerTest {
 
@@ -94,7 +94,7 @@ public class IOManagerTest {
 		}
 
 		@Override
-		public BlockChannelWriterWithCallback createBlockChannelWriter(ID channelID, RequestDoneCallback callback) {
+		public BlockChannelWriterWithCallback createBlockChannelWriter(ID channelID, RequestDoneCallback<MemorySegment> callback) {
 			throw new UnsupportedOperationException();
 		}
 

@@ -18,18 +18,27 @@
 
 package org.apache.flink.runtime.io.network.serialization;
 
-import static org.junit.Assert.*;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
+import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.api.serialization.types.IntType;
+import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestType;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.serialization.types.LargeObjectType;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.Buffer;
-import org.apache.flink.runtime.io.network.serialization.types.IntType;
-import org.apache.flink.runtime.io.network.serialization.types.LargeObjectType;
-import org.apache.flink.runtime.io.network.serialization.types.SerializationTestType;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 public class LargeRecordsTest {
 
@@ -42,7 +51,7 @@ public class LargeRecordsTest {
 			final RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
 			final RecordDeserializer<SerializationTestType> deserializer = new AdaptiveSpanningRecordDeserializer<SerializationTestType>();
 
-			final Buffer buffer = new Buffer(new MemorySegment(new byte[SEGMENT_SIZE]), SEGMENT_SIZE, null);
+			final Buffer buffer = new Buffer(new MemorySegment(new byte[SEGMENT_SIZE]), mock(BufferRecycler.class));
 
 			List<SerializationTestType> originalRecords = new ArrayList<SerializationTestType>();
 			List<SerializationTestType> deserializedRecords = new ArrayList<SerializationTestType>();
@@ -108,7 +117,7 @@ public class LargeRecordsTest {
 			
 			// move the last (incomplete buffer)
 			Buffer last = serializer.getCurrentBuffer();
-			deserializer.setNextMemorySegment(last.getMemorySegment(), last.size());
+			deserializer.setNextMemorySegment(last.getMemorySegment(), last.getSize());
 			serializer.clear();
 			
 			// deserialize records, as many as there are in the last buffer
@@ -139,7 +148,7 @@ public class LargeRecordsTest {
 			final RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
 			final RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<SerializationTestType>();
 
-			final Buffer buffer = new Buffer(new MemorySegment(new byte[SEGMENT_SIZE]), SEGMENT_SIZE, null);
+			final Buffer buffer = new Buffer(new MemorySegment(new byte[SEGMENT_SIZE]), mock(BufferRecycler.class));
 
 			List<SerializationTestType> originalRecords = new ArrayList<SerializationTestType>();
 			List<SerializationTestType> deserializedRecords = new ArrayList<SerializationTestType>();
@@ -205,7 +214,7 @@ public class LargeRecordsTest {
 			
 			// move the last (incomplete buffer)
 			Buffer last = serializer.getCurrentBuffer();
-			deserializer.setNextMemorySegment(last.getMemorySegment(), last.size());
+			deserializer.setNextMemorySegment(last.getMemorySegment(), last.getSize());
 			serializer.clear();
 			
 			// deserialize records, as many as there are in the last buffer

@@ -18,14 +18,6 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.IOException;
-import java.util.Random;
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -47,6 +39,14 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.Random;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 
 public class ExternalSortLargeRecordsITCase {
@@ -116,7 +116,12 @@ public class ExternalSortLargeRecordsITCase {
 					}
 					
 				}
-			};
+
+						@Override
+						public Tuple2<Long, SomeMaybeLongValue> next() throws IOException {
+							return next(new Tuple2<Long, SomeMaybeLongValue>());
+						}
+					};
 			
 			@SuppressWarnings("unchecked")
 			Sorter<Tuple2<Long, SomeMaybeLongValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SomeMaybeLongValue>>(
@@ -182,7 +187,12 @@ public class ExternalSortLargeRecordsITCase {
 					}
 					
 				}
-			};
+
+						@Override
+						public Tuple2<Long, SomeMaybeLongValue> next() throws IOException {
+							return new Tuple2<Long, SomeMaybeLongValue>();
+						}
+					};
 			
 			@SuppressWarnings("unchecked")
 			Sorter<Tuple2<Long, SomeMaybeLongValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SomeMaybeLongValue>>(
@@ -260,7 +270,12 @@ public class ExternalSortLargeRecordsITCase {
 					}
 					
 				}
-			};
+
+						@Override
+						public Tuple2<Long, SmallOrMediumOrLargeValue> next() throws IOException {
+							return new Tuple2<Long, SmallOrMediumOrLargeValue>();
+						}
+					};
 			
 			@SuppressWarnings("unchecked")
 			Sorter<Tuple2<Long, SmallOrMediumOrLargeValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SmallOrMediumOrLargeValue>>(
@@ -326,7 +341,12 @@ public class ExternalSortLargeRecordsITCase {
 					}
 					
 				}
-			};
+
+						@Override
+						public Tuple2<Long, SmallOrMediumOrLargeValue> next() throws IOException {
+							return new Tuple2<Long, SmallOrMediumOrLargeValue>();
+						}
+					};
 			
 			@SuppressWarnings("unchecked")
 			Sorter<Tuple2<Long, SmallOrMediumOrLargeValue>> sorter = new UnilateralSortMerger<Tuple2<Long, SmallOrMediumOrLargeValue>>(

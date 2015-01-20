@@ -447,5 +447,10 @@ public class LargeRecordHandler<T> {
 				return null;
 			}
 		}
+
+		@Override
+		public T next() throws IOException {
+			return next(serializer.createInstance());
+		}
 	}
 }

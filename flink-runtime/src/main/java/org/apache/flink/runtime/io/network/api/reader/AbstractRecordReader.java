@@ -18,15 +18,15 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
-import java.io.IOException;
-
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.task.TaskEvent;
-import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.util.event.EventListener;
+
+import java.io.IOException;
 
 /**
  * A record-oriented runtime result reader, which wraps a {@link BufferReaderBase}.
@@ -50,9 +50,9 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> implements Rea
 		this.reader = reader;
 
 		// Initialize one deserializer per input channel
-		this.recordDeserializers = new AdaptiveSpanningRecordDeserializer[reader.getNumberOfInputChannels()];
+		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[reader.getNumberOfInputChannels()];
 		for (int i = 0; i < recordDeserializers.length; i++) {
-			recordDeserializers[i] = new AdaptiveSpanningRecordDeserializer<T>();
+			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<T>();
 		}
 	}
 

@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
+import org.apache.flink.core.memory.MemorySegment;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.flink.core.memory.MemorySegment;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -72,7 +72,7 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends 
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
 	protected AsynchronousFileIOChannel(FileIOChannel.ID channelID, RequestQueue<R> requestQueue, 
-			RequestDoneCallback callback, boolean writeEnabled) throws IOException
+			RequestDoneCallback<T> callback, boolean writeEnabled) throws IOException
 	{
 		super(channelID, writeEnabled);
 
@@ -190,9 +190,6 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends 
 					this.closeLock.notifyAll();
 				}
 			}
-			else {
-				this.requestsNotReturned.decrementAndGet();
-			}
 		}
 	}
 
@@ -277,5 +274,33 @@ final class SegmentWriteRequest implements WriteRequest {
 	@Override
 	public void requestDone(IOException ioex) {
 		this.channel.handleProcessedBuffer(this.segment, ioex);
+	}
+}
+
+/**
+ * Request that seeks the underlying file channel to the given position.
+ */
+final class SeekRequest implements ReadRequest, WriteRequest {
+
+	private final AsynchronousFileIOChannel<?, ?> channel;
+	private final long position;
+
+	protected SeekRequest(AsynchronousFileIOChannel<?, ?> channel, long position) {
+		this.channel = channel;
+		this.position = position;
+	}
+
+	@Override
+	public void requestDone(IOException ioex) {
+	}
+
+	@Override
+	public void read() throws IOException {
+		this.channel.fileChannel.position(position);
+	}
+
+	@Override
+	public void write() throws IOException {
+		this.channel.fileChannel.position(position);
 	}
 }

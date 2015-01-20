@@ -18,14 +18,16 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import static org.junit.Assert.*;
+import org.apache.flink.core.memory.MemorySegment;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
 public class AsynchronousFileIOChannelsTest {
 
@@ -40,7 +42,7 @@ public class AsynchronousFileIOChannelsTest {
 			final AtomicInteger callbackCounter = new AtomicInteger();
 			final AtomicBoolean exceptionOccurred = new AtomicBoolean();
 			
-			final RequestDoneCallback callback = new RequestDoneCallback() {
+			final RequestDoneCallback<MemorySegment> callback = new RequestDoneCallback<MemorySegment>() {
 				
 				@Override
 				public void requestSuccessful(MemorySegment buffer) {
@@ -142,7 +144,7 @@ public class AsynchronousFileIOChannelsTest {
 		}
 	}
 	
-	private static class NoOpCallback implements RequestDoneCallback {
+	private static class NoOpCallback implements RequestDoneCallback<MemorySegment> {
 
 		@Override
 		public void requestSuccessful(MemorySegment buffer) {}
@@ -153,11 +155,11 @@ public class AsynchronousFileIOChannelsTest {
 	
 	private static class FailingWriteRequest implements WriteRequest {
 		
-		private final AsynchronousFileIOChannel<WriteRequest> channel;
+		private final AsynchronousFileIOChannel<MemorySegment, WriteRequest> channel;
 		
 		private final MemorySegment segment;
 		
-		protected FailingWriteRequest(AsynchronousFileIOChannel<WriteRequest> targetChannel, MemorySegment segment) {
+		protected FailingWriteRequest(AsynchronousFileIOChannel<MemorySegment, WriteRequest> targetChannel, MemorySegment segment) {
 			this.channel = targetChannel;
 			this.segment = segment;
 		}

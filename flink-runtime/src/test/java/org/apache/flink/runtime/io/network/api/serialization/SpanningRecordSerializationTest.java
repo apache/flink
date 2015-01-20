@@ -16,23 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.serialization;
-
-import org.junit.Assert;
+package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.Buffer;
-import org.apache.flink.runtime.io.network.serialization.AdaptiveSpanningRecordDeserializer;
-import org.apache.flink.runtime.io.network.serialization.RecordDeserializer;
-import org.apache.flink.runtime.io.network.serialization.RecordSerializer;
-import org.apache.flink.runtime.io.network.serialization.SpanningRecordSerializer;
-import org.apache.flink.runtime.io.network.serialization.RecordDeserializer.DeserializationResult;
-import org.apache.flink.runtime.io.network.serialization.types.SerializationTestType;
-import org.apache.flink.runtime.io.network.serialization.types.SerializationTestTypeFactory;
-import org.apache.flink.runtime.io.network.serialization.types.Util;
+import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestType;
+import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestTypeFactory;
+import org.apache.flink.runtime.io.network.api.serialization.types.Util;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.serialization.SpillingAdaptiveSpanningRecordDeserializer;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayDeque;
+
+import static org.mockito.Mockito.mock;
 
 public class SpanningRecordSerializationTest {
 
@@ -128,7 +126,7 @@ public class SpanningRecordSerializationTest {
 	{
 		final int SERIALIZATION_OVERHEAD = 4; // length encoding
 
-		final Buffer buffer = new Buffer(new MemorySegment(new byte[segmentSize]), segmentSize, null);
+		final Buffer buffer = new Buffer(new MemorySegment(new byte[segmentSize]), mock(BufferRecycler.class));
 
 		final ArrayDeque<SerializationTestType> serializedRecords = new ArrayDeque<SerializationTestType>();
 
@@ -181,7 +179,7 @@ public class SpanningRecordSerializationTest {
 			SerializationTestType expected = serializedRecords.poll();
 
 			SerializationTestType actual = expected.getClass().newInstance();
-			DeserializationResult result = deserializer.getNextRecord(actual);
+			RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(actual);
 
 			Assert.assertTrue(result.isFullRecord());
 			Assert.assertEquals(expected, actual);
