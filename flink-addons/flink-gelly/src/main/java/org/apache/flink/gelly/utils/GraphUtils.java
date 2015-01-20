@@ -35,24 +35,23 @@ public class GraphUtils {
 		List<Integer> list = new ArrayList<Integer>();
 		list.add(0);
 		DataSet<Integer> initialCount = env.fromCollection(list);
-        return set
-                .map(new OneMapper())
-                .union(initialCount)
-                .reduce(new AddOnesReducer())
-                .first(1);
-    }
+		return set.map(new OneMapper()).union(initialCount)
+				.reduce(new AddOnesReducer()).first(1);
+	}
 
-	private static final class OneMapper<T extends Tuple> implements MapFunction<T, Integer> {
-            @Override
-            public Integer map(T o) throws Exception {
-                return 1;
-            }
-    }
-    
-    private static final class AddOnesReducer implements ReduceFunction<Integer> {
-            @Override
-            public Integer reduce(Integer one, Integer two) throws Exception {
-                return one + two;
-            }
-    } 
+	private static final class OneMapper<T extends Tuple> implements
+			MapFunction<T, Integer> {
+		@Override
+		public Integer map(T o) throws Exception {
+			return 1;
+		}
+	}
+
+	private static final class AddOnesReducer implements
+			ReduceFunction<Integer> {
+		@Override
+		public Integer reduce(Integer one, Integer two) throws Exception {
+			return one + two;
+		}
+	}
 }

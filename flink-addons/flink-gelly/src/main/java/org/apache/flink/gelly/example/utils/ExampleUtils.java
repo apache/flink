@@ -40,33 +40,35 @@ public class ExampleUtils {
 		set.output(new PrintingOutputFormatWithMessage(msg) {
 		});
 	}
-	
-	public static class PrintingOutputFormatWithMessage<T> implements OutputFormat<T> {
+
+	public static class PrintingOutputFormatWithMessage<T> implements
+			OutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
-		
+
 		private transient PrintStream stream;
-		
+
 		private transient String prefix;
-		
+
 		private String message;
-		
+
 		// --------------------------------------------------------------------------------------------
-		
+
 		/**
 		 * Instantiates a printing output format that prints to standard out.
 		 */
-		public PrintingOutputFormatWithMessage() {}
-		
+		public PrintingOutputFormatWithMessage() {
+		}
+
 		public PrintingOutputFormatWithMessage(String msg) {
-			this.message = msg;	
+			this.message = msg;
 		}
 
 		@Override
 		public void open(int taskNumber, int numTasks) {
 			// get the target stream
 			this.stream = System.out;
-			
+
 			// set the prefix to message
 			this.prefix = message + ": ";
 		}
@@ -75,8 +77,7 @@ public class ExampleUtils {
 		public void writeRecord(T record) {
 			if (this.prefix != null) {
 				this.stream.println(this.prefix + record.toString());
-			}
-			else {
+			} else {
 				this.stream.println(record.toString());
 			}
 		}
@@ -86,41 +87,46 @@ public class ExampleUtils {
 			this.stream = null;
 			this.prefix = null;
 		}
-		
+
 		@Override
 		public String toString() {
 			return "Print to System.out";
 		}
 
 		@Override
-		public void configure(Configuration parameters) {}
+		public void configure(Configuration parameters) {
+		}
 	}
 
 	@SuppressWarnings("serial")
-	public static DataSet<Vertex<Long, NullValue>> getVertexIds(ExecutionEnvironment env,
-			final long numVertices) {
-        return env.generateSequence(1, numVertices)
-                .map(new MapFunction<Long, Vertex<Long, NullValue>>() {
-                    public Vertex<Long, NullValue> map(Long l) {
-                        return new Vertex<Long, NullValue>(l, NullValue.getInstance());
-                    }
-                });
+	public static DataSet<Vertex<Long, NullValue>> getVertexIds(
+			ExecutionEnvironment env, final long numVertices) {
+		return env.generateSequence(1, numVertices).map(
+				new MapFunction<Long, Vertex<Long, NullValue>>() {
+					public Vertex<Long, NullValue> map(Long l) {
+						return new Vertex<Long, NullValue>(l, NullValue
+								.getInstance());
+					}
+				});
 	}
 
 	@SuppressWarnings("serial")
-	public static DataSet<Edge<Long, NullValue>> getRandomEdges(ExecutionEnvironment env,
-			final long numVertices) {
-	        return env.generateSequence(1, numVertices)
-	                .flatMap(new FlatMapFunction<Long, Edge<Long, NullValue>>() {
-	                    @Override
-	                    public void flatMap(Long key, Collector<Edge<Long, NullValue>> out) throws Exception {
-	                        int numOutEdges = (int) (Math.random() * (numVertices / 2));
-	                        for (int i = 0; i < numOutEdges; i++) {
-	                            long target = (long) (Math.random() * numVertices) + 1;
-	                            out.collect(new Edge<Long, NullValue>(key, target, NullValue.getInstance()));
-	                        }
-	                    }
-	                });
+	public static DataSet<Edge<Long, NullValue>> getRandomEdges(
+			ExecutionEnvironment env, final long numVertices) {
+		return env.generateSequence(1, numVertices).flatMap(
+				new FlatMapFunction<Long, Edge<Long, NullValue>>() {
+					@Override
+					public void flatMap(Long key,
+							Collector<Edge<Long, NullValue>> out)
+							throws Exception {
+						int numOutEdges = (int) (Math.random() * (numVertices / 2));
+						for (int i = 0; i < numOutEdges; i++) {
+							long target = (long) (Math.random() * numVertices) + 1;
+							out.collect(new Edge<Long, NullValue>(key, target,
+									NullValue.getInstance()));
+						}
+					}
+				});
 	}
 
 	public static final DataSet<Vertex<Long, Double>> getLongDoubleVertexData(
@@ -134,7 +140,7 @@ public class ExampleUtils {
 
 		return env.fromCollection(vertices);
 	}
-	
+
 	public static final DataSet<Edge<Long, Double>> getLongDoubleEdgeData(
 			ExecutionEnvironment env) {
 		List<Edge<Long, Double>> edges = new ArrayList<Edge<Long, Double>>();
@@ -145,8 +151,7 @@ public class ExampleUtils {
 		edges.add(new Edge<Long, Double>(3L, 5L, 35.0));
 		edges.add(new Edge<Long, Double>(4L, 5L, 45.0));
 		edges.add(new Edge<Long, Double>(5L, 1L, 51.0));
-		
+
 		return env.fromCollection(edges);
 	}
 }
-
