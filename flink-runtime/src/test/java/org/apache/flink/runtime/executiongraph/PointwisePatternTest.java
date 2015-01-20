@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -55,7 +56,7 @@ public class PointwisePatternTest {
 	
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -90,7 +91,7 @@ public class PointwisePatternTest {
 	
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -126,7 +127,7 @@ public class PointwisePatternTest {
 	
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -163,7 +164,7 @@ public class PointwisePatternTest {
 	
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -198,7 +199,7 @@ public class PointwisePatternTest {
 	
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -253,7 +254,7 @@ public class PointwisePatternTest {
 	
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -299,7 +300,7 @@ public class PointwisePatternTest {
 	
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2));
 
-		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+		ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg, AkkaUtils.DEFAULT_TIMEOUT());
 		try {
 			eg.attachJobGraph(ordered);
 		}

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.slf4j.Logger;
+import scala.concurrent.duration.FiniteDuration;
 
 
 public class ExecutionJobVertex implements Serializable {
@@ -73,11 +74,13 @@ public class ExecutionJobVertex implements Serializable {
 	private transient InputSplitAssigner splitAssigner;
 	
 	
-	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex, int defaultParallelism) throws JobException {
-		this(graph, jobVertex, defaultParallelism, System.currentTimeMillis());
+	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex,
+							int defaultParallelism, FiniteDuration timeout) throws JobException {
+		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
 	
-	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex, int defaultParallelism, long createTimestamp)
+	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex,
+							int defaultParallelism, FiniteDuration timeout, long createTimestamp)
 			throws JobException
 	{
 		if (graph == null || jobVertex == null) {
@@ -113,7 +116,7 @@ public class ExecutionJobVertex implements Serializable {
 		
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {
-			ExecutionVertex vertex = new ExecutionVertex(this, i, this.producedDataSets, createTimestamp);
+			ExecutionVertex vertex = new ExecutionVertex(this, i, this.producedDataSets, timeout, createTimestamp);
 			this.taskVertices[i] = vertex;
 		}
 		

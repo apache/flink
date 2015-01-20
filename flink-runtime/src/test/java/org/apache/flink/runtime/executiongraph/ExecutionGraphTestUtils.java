@@ -30,6 +30,7 @@ import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
@@ -149,9 +150,11 @@ public class ExecutionGraphTestUtils {
 		AbstractJobVertex ajv = new AbstractJobVertex("TestVertex", id);
 		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 		
-		ExecutionGraph graph = new ExecutionGraph(new JobID(), "test job", new Configuration());
+		ExecutionGraph graph = new ExecutionGraph(new JobID(), "test job", new Configuration(),
+				AkkaUtils.DEFAULT_TIMEOUT());
 		
-		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1));
+		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1,
+				AkkaUtils.DEFAULT_TIMEOUT()));
 		
 		Answer<Void> noop = new Answer<Void>() {
 			@Override
