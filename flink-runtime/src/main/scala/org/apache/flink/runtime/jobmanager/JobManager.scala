@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import java.io.File
+import java.io.{IOException, File}
 import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit
 
