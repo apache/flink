@@ -59,7 +59,7 @@ import java.util.Map;
  * we can use the YARN uberjar of flink to start a Flink YARN session.
  */
 public abstract class YarnTestBase {
-	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionFIFOIT.class);
+	private static final Logger LOG = LoggerFactory.getLogger(YarnTestBase.class);
 
 	private final static PrintStream originalStdout = System.out;
 	private final static PrintStream originalStderr = System.err;
@@ -227,7 +227,7 @@ public abstract class YarnTestBase {
 		try {
 			LOG.info("Starting up MiniYARN cluster");
 			if (yarnCluster == null) {
-				yarnCluster = new MiniYARNCluster(YARNSessionFIFOIT.class.getName(), 2, 1, 1);
+				yarnCluster = new MiniYARNCluster(YarnTestBase.class.getName(), 2, 1, 1);
 
 				yarnCluster.init(conf);
 				yarnCluster.start();
@@ -266,7 +266,7 @@ public abstract class YarnTestBase {
 	}
 
 	protected void runWithArgs(String[] args, String expect, RunTypes type) {
-		LOG.info("Running with args "+ Arrays.toString(args));
+		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
 		errContent = new ByteArrayOutputStream();
@@ -319,8 +319,8 @@ public abstract class YarnTestBase {
 		System.setOut(originalStdout);
 		System.setErr(originalStderr);
 
-		LOG.info("Sending stdout content through logger: \n\n"+outContent.toString()+"\n\n");
-		LOG.info("Sending stderr content through logger: \n\n"+errContent.toString()+"\n\n");
+		LOG.info("Sending stdout content through logger: \n\n{}\n\n", outContent.toString());
+		LOG.info("Sending stderr content through logger: \n\n{}\n\n", errContent.toString());
 	}
 
 	public static class Runner extends Thread {

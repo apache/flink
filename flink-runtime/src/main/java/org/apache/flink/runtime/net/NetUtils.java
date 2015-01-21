@@ -76,7 +76,7 @@ public class NetUtils {
 						case ADDRESS:
 							if (hasCommonPrefix(jobManagerAddress.getAddress().getAddress(), i.getAddress())) {
 								if (tryToConnect(i, jobManagerAddress, strategy.getTimeout())) {
-									LOG.info("Determined " + i + " as the machine's own IP address");
+									LOG.info("Determined {} as the machine's own IP address", i);
 									return i;
 								}
 							}
@@ -86,7 +86,7 @@ public class NetUtils {
 						case SLOW_CONNECT:
 							boolean correct = tryToConnect(i, jobManagerAddress, strategy.getTimeout());
 							if (correct) {
-								LOG.info("Determined " + i + " as the machine's own IP address");
+								LOG.info("Determined {} as the machine's own IP address", i);
 								return i;
 							}
 							break;

@@ -20,8 +20,6 @@ package org.apache.flink.yarn;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacitySchedulerConfiguration;
-import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -32,8 +30,8 @@ import org.slf4j.LoggerFactory;
  * This test starts a MiniYARNCluster with a CapacityScheduler.
  * Is has, by default a queue called "default". The configuration here adds another queue: "qa-team".
  */
-public class YARNSessionCapacitySchedulerIT extends YarnTestBase {
-	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionCapacitySchedulerIT.class);
+public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
+	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionCapacitySchedulerITCase.class);
 
 	@BeforeClass
 	public static void setup() {

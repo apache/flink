@@ -36,7 +36,6 @@ import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -134,6 +133,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	private String dynamicPropertiesEncoded;
 
 	private List<File> shipFiles = new ArrayList<File>();
+	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
 
 	public FlinkYarnClient() {
@@ -167,6 +167,11 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 					+ "of "+MIN_TM_MEMORY+" MB");
 		}
 		this.taskManagerMemoryMb = memoryMb;
+	}
+
+	@Override
+	public void setFlinkConfigurationObject(org.apache.flink.configuration.Configuration conf) {
+		this.flinkConfiguration = conf;
 	}
 
 	@Override
@@ -255,6 +260,9 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		if(this.flinkConfigurationPath == null) {
 			throw new YarnDeploymentException("Configuration path not set");
 		}
+		if(this.flinkConfiguration == null) {
+			throw new YarnDeploymentException("Flink configuration object has not been set");
+		}
 
 	}
 
@@ -277,9 +285,9 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		isReadyForDepoyment();
 
 		LOG.info("Using values:");
-		LOG.info("\tTaskManager count = " + taskManagerCount);
-		LOG.info("\tJobManager memory = " + jobManagerMemoryMb);
-		LOG.info("\tTaskManager memory = " + taskManagerMemoryMb);
+		LOG.info("\tTaskManager count = {}", taskManagerCount);
+		LOG.info("\tJobManager memory = {}", jobManagerMemoryMb);
+		LOG.info("\tTaskManager memory = {}", taskManagerMemoryMb);
 
 		// Create application via yarnClient
 		yarnApplication = yarnClient.createApplication();
@@ -386,7 +394,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		// ------------------ Prepare Application Master Container  ------------------------------
 
 		// respect custom JVM options in the YAML file
-		final String javaOpts = GlobalConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+		final String javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
 
 		String logbackFile = configurationDirectory + File.separator + FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
 		boolean hasLogback = new File(logbackFile).exists();

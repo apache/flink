@@ -24,6 +24,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
@@ -131,6 +132,8 @@ public class FlinkYarnSessionCli {
 		// Conf Path
 		String confDirPath = CliFrontend.getConfigurationDirectoryFromEnv();
 		GlobalConfiguration.loadConfiguration(confDirPath);
+		Configuration flinkConfiguration = GlobalConfiguration.getConfiguration();
+		flinkYarnClient.setFlinkConfigurationObject(flinkConfiguration);
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
 		File confFile = new File(confDirPath + File.separator + CONFIG_FILE_NAME);
 		if(!confFile.exists()) {
@@ -163,18 +166,17 @@ public class FlinkYarnSessionCli {
 			File logback = new File(confDirPath + File.pathSeparator + CONFIG_FILE_LOGBACK_NAME);
 			if(logback.exists()) {
 				shipFiles.add(logback);
-				flinkYarnClient.setConfigurationFilePath(new Path(logback.toURI()));
+				flinkYarnClient.setFlinkLoggingConfigurationPath(new Path(logback.toURI()));
 			}
 			File log4j = new File(confDirPath + File.pathSeparator + CONFIG_FILE_LOG4J_NAME);
 			if(log4j.exists()) {
 				shipFiles.add(log4j);
 				if(flinkYarnClient.getFlinkLoggingConfigurationPath() != null) {
 					// this means there is already a logback configuration file --> fail
-					LOG.error("The configuration directory ('"+confDirPath+"') contains both LOG4J and Logback configuration files." +
+					LOG.warn("The configuration directory ('" + confDirPath + "') contains both LOG4J and Logback configuration files." +
 							"Please delete or rename one of them.");
-					return null;
 				} // else
-				flinkYarnClient.setConfigurationFilePath(new Path(log4j.toURI()));
+				flinkYarnClient.setFlinkLoggingConfigurationPath(new Path(log4j.toURI()));
 			}
 		}
 

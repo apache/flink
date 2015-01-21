@@ -63,13 +63,13 @@ The command line can be used to
 
         ./bin/flink run -m myJMHost:6123 \
                                ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
-                               -file:///home/user/hamlet.txt file:///home/user/wordcount_out
+                               file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Run example program using a [per-job YARN cluster](yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster -yn 2 \
                                ./examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
-                               -file:///home/user/hamlet.txt file:///home/user/wordcount_out
+                               hdfs:///user/hamlet.txt hdfs:///user/wordcount_out
 
 -   Display the expected arguments for the WordCount example program:
 
