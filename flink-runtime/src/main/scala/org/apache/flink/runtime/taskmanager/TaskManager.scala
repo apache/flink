@@ -577,6 +577,8 @@ object TaskManager {
   val HEARTBEAT_INTERVAL = 5000 millisecond
 
   def main(args: Array[String]): Unit = {
+    EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager")
+
     val (hostname, port, configuration) = parseArgs(args)
 
     val (taskManagerSystem, _) = startActorSystemAndActor(hostname, port, configuration)

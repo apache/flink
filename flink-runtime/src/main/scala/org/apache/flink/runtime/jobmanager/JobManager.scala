@@ -32,6 +32,7 @@ import org.apache.flink.runtime.executiongraph.{Execution, ExecutionJobVertex, E
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.runtime.{JobException, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -472,6 +473,8 @@ object JobManager {
   val PROFILER_NAME = "profiler"
 
   def main(args: Array[String]): Unit = {
+    EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager")
+
     val (hostname, port, configuration, executionMode) = parseArgs(args)
 
     val jobManagerSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
