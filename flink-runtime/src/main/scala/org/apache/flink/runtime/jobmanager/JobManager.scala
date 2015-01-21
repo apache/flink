@@ -122,10 +122,16 @@ class JobManager(val configuration: Configuration)
       val instanceID = instanceManager.registerTaskManager(taskManager, connectionInfo,
         hardwareInformation, numberOfSlots)
 
-      // to be notified when the taskManager is no longer reachable
-      context.watch(taskManager)
+      // TaskManager is already registered
+      if(instanceID == null){
+        val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
+        taskManager ! AlreadyRegistered(instanceID, libraryCacheManager.getBlobServerPort)
+      } else {
+        // to be notified when the taskManager is no longer reachable
+        context.watch(taskManager)
 
-      taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
+        taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
+      }
     }
 
     case RequestNumberRegisteredTaskManager => {

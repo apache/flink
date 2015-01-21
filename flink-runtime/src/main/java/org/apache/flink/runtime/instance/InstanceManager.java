@@ -226,6 +226,10 @@ public class InstanceManager {
 			return new HashSet<Instance>(registeredHostsById.values());
 		}
 	}
+
+	public Instance getRegisteredInstance(ActorRef ref) {
+		return registeredHostsByConnection.get(ref);
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	

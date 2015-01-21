@@ -43,4 +43,20 @@ object RegistrationMessages {
    */
   case class AcknowledgeRegistration(instanceID: InstanceID, blobPort: Int)
 
+  /**
+   * Denotes that the TaskManager has already been registered at the JobManager.
+   *
+   * @param instanceID
+   * @param blobPort
+   */
+  case class AlreadyRegistered(instanceID: InstanceID, blobPort: Int)
+
+  /**
+   * Denotes the unsuccessful registration of a task manager at the job manager. This is the
+   * response triggered by the [[RegisterTaskManager]] message.
+   *
+   * @param reason Reason why the task manager registration was refused
+   */
+  case class RefuseRegistration(reason: String)
+
 }

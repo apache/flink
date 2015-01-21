@@ -46,7 +46,8 @@ import org.apache.flink.runtime.jobgraph.{IntermediateDataSetID, JobID}
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
-import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, RegisterTaskManager}
+import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
+RefuseRegistration, AcknowledgeRegistration, RegisterTaskManager}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskManagerProfilerMessages.{MonitorTask, RegisterProfilingListener, UnmonitorTask}
 import org.apache.flink.runtime.net.NetUtils
@@ -90,10 +91,10 @@ import scala.collection.JavaConverters._
   log.info("Creating {} task slot(s).", numberOfSlots)
   log.info("TaskManager connection information {}.", connectionInfo)
 
-  val REGISTRATION_DELAY = 0 seconds
-  val REGISTRATION_INTERVAL = 10 seconds
-  val MAX_REGISTRATION_ATTEMPTS = 10
   val HEARTBEAT_INTERVAL = 5000 millisecond
+
+  var registrationDelay = 50 milliseconds
+  var registrationDuration = 0 seconds
 
   TaskManager.checkTempDirs(tmpDirPaths)
   val ioManager = new IOManagerAsync(tmpDirPaths)
@@ -121,7 +122,6 @@ import scala.collection.JavaConverters._
 
   var libraryCacheManager: LibraryCacheManager = null
   var networkEnvironment: Option[NetworkEnvironment] = None
-  var registrationScheduler: Option[Cancellable] = None
   var registrationAttempts: Int = 0
   var registered: Boolean = false
   var currentJobManager = ActorRef.noSender
@@ -175,62 +175,79 @@ import scala.collection.JavaConverters._
   }
 
   private def tryJobManagerRegistration(): Unit = {
-    registrationAttempts = 0
-    import context.dispatcher
-    registrationScheduler = Some(context.system.scheduler.schedule(
-      TaskManager.REGISTRATION_DELAY, TaskManager.REGISTRATION_INTERVAL,
-      self, RegisterAtJobManager))
+    registrationDuration = 0 seconds
+
+    registered = false
+
+    context.system.scheduler.scheduleOnce(registrationDelay, self, RegisterAtJobManager)
   }
 
   override def receiveWithLogMessages: Receive = {
     case RegisterAtJobManager => {
-      registrationAttempts += 1
+      if(!registered) {
+        registrationDuration += registrationDelay
+        // double delay for exponential backoff
+        registrationDelay *= 2
 
-      if (registered) {
-        registrationScheduler.foreach(_.cancel())
-      }
-      else if (registrationAttempts <= TaskManager.MAX_REGISTRATION_ATTEMPTS) {
+        if (registrationDuration > maxRegistrationDuration) {
+          log.warning("TaskManager could not register at JobManager {} after {}.", jobManagerAkkaURL,
 
-        log.info("Try to register at master {}. Attempt #{}", jobManagerAkkaURL,
-          registrationAttempts)
-        val jobManager = context.actorSelection(jobManagerAkkaURL)
+            maxRegistrationDuration)
 
-        jobManager ! RegisterTaskManager(connectionInfo, hardwareDescription, numberOfSlots)
-      }
-      else {
-        log.error("TaskManager could not register at JobManager.");
-        self ! PoisonPill
+          self ! PoisonPill
+        } else if (!registered) {
+          log.info(s"Try to register at master ${jobManagerAkkaURL}. ${registrationAttempts}. " +
+            s"Attempt")
+          val jobManager = context.actorSelection(jobManagerAkkaURL)
+
+          jobManager ! RegisterTaskManager(connectionInfo, hardwareDescription, numberOfSlots)
+
+          context.system.scheduler.scheduleOnce(registrationDelay, self, RegisterAtJobManager)
+        }
       }
     }
 
     case AcknowledgeRegistration(id, blobPort) => {
-      if (!registered) {
+      if(!registered) {
+        finishRegistration(id, blobPort)
         registered = true
-        currentJobManager = sender
-        instanceID = id
-
-        context.watch(currentJobManager)
-
-        log.info("TaskManager successfully registered at JobManager {}.",
-          currentJobManager.path.toString)
-
-        setupNetworkEnvironment()
-        setupLibraryCacheManager(blobPort)
-
-        heartbeatScheduler = Some(context.system.scheduler.schedule(
-          TaskManager.HEARTBEAT_INTERVAL, TaskManager.HEARTBEAT_INTERVAL, self, SendHeartbeat))
-
-        profiler foreach {
-          _.tell(RegisterProfilingListener, JobManager.getProfiler(currentJobManager))
+      } else {
+        if (log.isDebugEnabled) {
+          log.debug("The TaskManager {} is already registered at the JobManager {}, but received " +
+            "another AcknowledgeRegistration message.", self.path, currentJobManager.path)
         }
-
-        for (listener <- waitForRegistration) {
-          listener ! RegisteredAtJobManager
-        }
-
-        waitForRegistration.clear()
       }
     }
+
+    case AlreadyRegistered(id, blobPort) =>
+      if(!registered) {
+        log.warning("The TaskManager {} seems to be already registered at the JobManager {} even" +
+          "though it has not yet finished the registration process.", self.path, sender.path)
+
+        finishRegistration(id, blobPort)
+        registered = true
+      } else {
+        // ignore AlreadyRegistered messages which arrived after AcknowledgeRegistration
+        if(log.isDebugEnabled){
+          log.debug("The TaskManager {} has already been registered at the JobManager {}.",
+            self.path, sender.path)
+        }
+      }
+
+    case RefuseRegistration(reason) =>
+      if(!registered) {
+        log.error("The registration of task manager {} was refused by the job manager {} " +
+          "because {}.", self.path, jobManagerAkkaURL, reason)
+
+        // Shut task manager down
+        self ! PoisonPill
+      } else {
+        // ignore RefuseRegistration messages which arrived after AcknowledgeRegistration
+        if(log.isDebugEnabled) {
+          log.debug("Received RefuseRegistration from the JobManager even though being already " +
+            "registered")
+        }
+      }
 
     case SubmitTask(tdd) => {
       submitTask(tdd)
@@ -454,7 +471,34 @@ import scala.collection.JavaConverters._
     }
   }
 
-  def setupNetworkEnvironment(): Unit = {
+  private def finishRegistration(id: InstanceID, blobPort: Int): Unit = {
+    currentJobManager = sender
+    instanceID = id
+
+    context.watch(currentJobManager)
+
+    log.info(s"TaskManager successfully registered at JobManager ${
+      currentJobManager.path.toString
+    }.")
+
+    setupNetworkEnvironment()
+    setupLibraryCacheManager(blobPort)
+
+    heartbeatScheduler = Some(context.system.scheduler.schedule(
+      TaskManager.HEARTBEAT_INTERVAL, TaskManager.HEARTBEAT_INTERVAL, self, SendHeartbeat))
+
+    profiler foreach {
+      _.tell(RegisterProfilingListener, JobManager.getProfiler(currentJobManager))
+    }
+
+    for (listener <- waitForRegistration) {
+      listener ! RegisteredAtJobManager
+    }
+
+    waitForRegistration.clear()
+  }
+
+  private def setupNetworkEnvironment(): Unit = {
     //shutdown existing network environment
     networkEnvironment foreach {
       ne =>
@@ -730,8 +774,13 @@ object TaskManager {
     val timeout = FiniteDuration(configuration.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
       ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
 
+    val maxRegistrationDuration = Duration(configuration.getString(
+      ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION,
+      ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION))
+
     val taskManagerConfig = TaskManagerConfiguration(numberOfSlots, memorySize, pageSize,
-      tmpDirs, cleanupInterval, memoryLoggingIntervalMs, profilingInterval, timeout)
+      tmpDirs, cleanupInterval, memoryLoggingIntervalMs, profilingInterval, timeout,
+      maxRegistrationDuration)
 
     (connectionInfo, jobManagerURL, taskManagerConfig, networkConfig)
   }
