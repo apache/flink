@@ -2126,7 +2126,7 @@ To create a DeltaIteration call the `iterateDelta(DataSet, int, int)` (or `itera
 int, int[])` respectively). This method is called on the initial solution set. The arguments are the
 initial delta set, the maximum number of iterations and the key positions. The returned
 `DeltaIteration` object gives you access to the DataSets representing the workset and solution set
-via the methods `iteration.getWorket()` and `iteration.getSolutionSet()`.
+via the methods `iteration.getWorkset()` and `iteration.getSolutionSet()`.
 
 Below is an example for the syntax of a delta iteration
 
