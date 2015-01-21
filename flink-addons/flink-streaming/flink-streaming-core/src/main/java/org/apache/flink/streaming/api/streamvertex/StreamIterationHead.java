@@ -23,16 +23,13 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.collector.StreamOutput;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.BlockingQueueBroker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamIterationHead<OUT extends Tuple> extends StreamVertex<OUT, OUT> {
+public class StreamIterationHead<OUT> extends StreamVertex<OUT, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationHead.class);
 
@@ -75,10 +72,6 @@ public class StreamIterationHead<OUT extends Tuple> extends StreamVertex<OUT, OU
 		}
 
 		StreamRecord<OUT> nextRecord;
-		StreamRecordSerializer<OUT> serializer = configuration
-				.getTypeSerializerOut1(userClassLoader);
-		SerializationDelegate<StreamRecord<OUT>> serializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(
-				serializer);
 
 		List<StreamOutput<OUT>> outputs = new LinkedList<StreamOutput<OUT>>();
 		for (StreamOutput<?> output : outputHandler.getOutputs()) {
@@ -95,8 +88,7 @@ public class StreamIterationHead<OUT extends Tuple> extends StreamVertex<OUT, OU
 				break;
 			}
 			for (StreamOutput<OUT> output : outputs) {
-				serializationDelegate.setInstance(nextRecord);
-				output.collect(serializationDelegate);
+				output.collect(nextRecord.getObject());
 			}
 		}
 

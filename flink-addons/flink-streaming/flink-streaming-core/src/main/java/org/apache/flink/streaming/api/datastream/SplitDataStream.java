@@ -49,8 +49,13 @@ public class SplitDataStream<OUT> extends DataStream<OUT> {
 	}
 
 	private DataStream<OUT> selectOutput(String[] outputNames) {
+		for (String outName : outputNames) {
+			if (outName == null) {
+				throw new RuntimeException("Selected names must not be null");
+			}
+		}
+
 		DataStream<OUT> returnStream = copy();
-		returnStream.selectAll = false;
 		returnStream.userDefinedNames = Arrays.asList(outputNames);
 		return returnStream;
 	}

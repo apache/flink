@@ -206,6 +206,13 @@ public class StreamingJobGraphGenerator {
 			config.setIterationWaitTime(streamGraph.getIterationTimeout(vertexName));
 		}
 
+		List<String> allOutputs = new ArrayList<String>(chainableOutputs);
+		allOutputs.addAll(nonChainableOutputs);
+
+		for (String output : allOutputs) {
+			config.setSelectedNames(output, streamGraph.getSelectedNames(vertexName, output));
+		}
+
 		vertexConfigs.put(vertexName, config);
 	}
 
@@ -229,7 +236,7 @@ public class StreamingJobGraphGenerator {
 		downStreamConfig.setNumberOfInputs(numOfInputs);
 
 		StreamPartitioner<?> partitioner = streamGraph.getOutPartitioner(upStreamVertexName,
-				outputIndex);
+				downStreamVertexName);
 
 		upStreamConfig.setPartitioner(downStreamVertexName, partitioner);
 
@@ -243,11 +250,6 @@ public class StreamingJobGraphGenerator {
 			LOG.debug("CONNECTED: {} - {} -> {}", partitioner.getClass().getSimpleName(),
 					headOfChain, downStreamVertexName);
 		}
-
-		upStreamConfig.setOutputNames(downStreamVertexName,
-				streamGraph.getSelectedNames(upStreamVertexName, outputIndex));
-		upStreamConfig.setSelectAll(downStreamVertexName,
-				streamGraph.isSelectAll(upStreamVertexName, outputIndex));
 	}
 
 	private boolean isChainable(String vertexName, String outName) {
@@ -257,12 +259,10 @@ public class StreamingJobGraphGenerator {
 
 		return streamGraph.getInEdges(outName).size() == 1
 				&& outInvokable != null
-				&& streamGraph.getOutputSelector(vertexName) == null
 				&& outInvokable.getChainingStrategy() == ChainingStrategy.ALWAYS
 				&& (headInvokable.getChainingStrategy() == ChainingStrategy.HEAD || headInvokable
 						.getChainingStrategy() == ChainingStrategy.ALWAYS)
-				&& streamGraph.getOutPartitioner(vertexName,
-						streamGraph.getOutEdges(vertexName).indexOf(outName)).getStrategy() == PartitioningStrategy.FORWARD
+				&& streamGraph.getOutPartitioner(vertexName, outName).getStrategy() == PartitioningStrategy.FORWARD
 				&& streamGraph.getParallelism(vertexName) == streamGraph.getParallelism(outName)
 				&& streamGraph.chaining;
 	}

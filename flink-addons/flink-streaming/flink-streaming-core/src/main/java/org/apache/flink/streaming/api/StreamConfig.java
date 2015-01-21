@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +47,6 @@ public class StreamConfig implements Serializable {
 	private static final String CHAINED_TASK_CONFIG = "chainedTaskConfig_";
 	private static final String IS_CHAINED_VERTEX = "isChainedSubtask";
 	private static final String OUTPUT_NAME = "outputName_";
-	private static final String OUTPUT_SELECT_ALL = "outputSelectAll_";
 	private static final String PARTITIONER_OBJECT = "partitionerObject_";
 	private static final String VERTEX_NAME = "vertexName";
 	private static final String ITERATION_ID = "iteration-id";
@@ -241,25 +241,18 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setSelectAll(String output, Boolean selectAll) {
-		if (selectAll != null) {
-			config.setBoolean(OUTPUT_SELECT_ALL + output, selectAll);
-		}
-	}
-
-	public boolean isSelectAll(String output) {
-		return config.getBoolean(OUTPUT_SELECT_ALL + output, true);
-	}
-
-	public void setOutputNames(String output, List<String> outputName) {
-		if (outputName != null) {
+	public void setSelectedNames(String output, List<String> selected) {
+		if (selected != null) {
 			config.setBytes(OUTPUT_NAME + output,
-					SerializationUtils.serialize((Serializable) outputName));
+					SerializationUtils.serialize((Serializable) selected));
+		} else {
+			config.setBytes(OUTPUT_NAME + output,
+					SerializationUtils.serialize((Serializable) new ArrayList<String>()));
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<String> getOutputNames(String output) {
+	public List<String> getSelectedNames(String output) {
 		return (List<String>) SerializationUtils.deserialize(config.getBytes(OUTPUT_NAME + output,
 				null));
 	}

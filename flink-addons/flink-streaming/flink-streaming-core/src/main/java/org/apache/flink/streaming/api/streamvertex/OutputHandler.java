@@ -29,10 +29,8 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.collector.CollectorWrapper;
-import org.apache.flink.streaming.api.collector.DirectedOutputWrapper;
-import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.collector.DirectedCollectorWrapper;
 import org.apache.flink.streaming.api.collector.StreamOutput;
-import org.apache.flink.streaming.api.collector.StreamOutputWrapper;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -70,7 +68,7 @@ public class OutputHandler<OUT> {
 		// registrations by outputname
 		this.chainedConfigs = configuration.getTransitiveChainedTaskConfigs(cl);
 		this.chainedConfigs.put(configuration.getTaskName(), configuration);
-				
+
 		this.outEdgesInOrder = configuration.getOutEdgesInOrder(cl);
 
 		// We iterate through all the out edges from this job vertex and create
@@ -105,21 +103,35 @@ public class OutputHandler<OUT> {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private Collector<OUT> createChainedCollector(StreamConfig chainedTaskConfig) {
 
+		boolean isDirectEmit = chainedTaskConfig.isDirectedEmit();
+
 		// We create a wrapper that will encapsulate the chained operators and
 		// network outputs
-		CollectorWrapper<OUT> wrapper = new CollectorWrapper<OUT>();
+		CollectorWrapper<OUT> wrapper = isDirectEmit ? new DirectedCollectorWrapper(
+				chainedTaskConfig.getOutputSelector(cl)) : new CollectorWrapper<OUT>();
 
-		// If the task has network outputs we create a collector for those and
-		// pass
-		// it to the wrapper
-		if (chainedTaskConfig.getNumberOfOutputs() > 0) {
-			wrapper.addCollector((Collector<OUT>) createNetworkCollector(chainedTaskConfig));
+		// Create collectors for the network outputs
+		for (String output : chainedTaskConfig.getOutputs(cl)) {
+
+			Collector<?> outCollector = outputMap.get(output);
+
+			if (isDirectEmit) {
+				((DirectedCollectorWrapper<OUT>) wrapper).addCollector(outCollector,
+						chainedTaskConfig.getSelectedNames(output));
+			} else {
+				wrapper.addCollector(outCollector);
+			}
 		}
 
-		// If the task has chained outputs we create a chained collector for
-		// each of them and pass it to the wrapper
+		// Create collectors for the chained outputs
 		for (String output : chainedTaskConfig.getChainedOutputs(cl)) {
-			wrapper.addCollector(createChainedCollector(chainedConfigs.get(output)));
+			Collector<?> outCollector = createChainedCollector(chainedConfigs.get(output));
+			if (isDirectEmit) {
+				((DirectedCollectorWrapper<OUT>) wrapper).addCollector(outCollector,
+						chainedTaskConfig.getSelectedNames(output));
+			} else {
+				wrapper.addCollector(outCollector);
+			}
 		}
 
 		if (chainedTaskConfig.isChainStart()) {
@@ -140,47 +152,6 @@ public class OutputHandler<OUT> {
 
 	}
 
-	/**
-	 * We create the collector for the network outputs of the task represented
-	 * by the config using the StreamOutputs that we have set up in the
-	 * constructor.
-	 * 
-	 * @param config
-	 *            The config of the task
-	 * @return We return a collector that represents all the network outputs of
-	 *         this task
-	 */
-	@SuppressWarnings("unchecked")
-	private <T> Collector<T> createNetworkCollector(StreamConfig config) {
-
-		StreamRecordSerializer<T> outSerializer = config
-				.getTypeSerializerOut1(vertex.userClassLoader);
-		SerializationDelegate<StreamRecord<T>> outSerializationDelegate = null;
-
-		if (outSerializer != null) {
-			outSerializationDelegate = new SerializationDelegate<StreamRecord<T>>(outSerializer);
-			outSerializationDelegate.setInstance(outSerializer.createInstance());
-		}
-
-		StreamOutputWrapper<T> collector;
-
-		if (vertex.configuration.isDirectedEmit()) {
-			OutputSelector<T> outputSelector = vertex.configuration
-					.getOutputSelector(vertex.userClassLoader);
-
-			collector = new DirectedOutputWrapper<T>(vertex.getInstanceID(),
-					outSerializationDelegate, outputSelector);
-		} else {
-			collector = new StreamOutputWrapper<T>(vertex.getInstanceID(), outSerializationDelegate);
-		}
-
-		for (String output : config.getOutputs(cl)) {
-			collector.addOutput((StreamOutput<T>) outputMap.get(output));
-		}
-
-		return collector;
-	}
-
 	public Collector<OUT> getCollector() {
 		return outerCollector;
 	}
@@ -197,7 +168,16 @@ public class OutputHandler<OUT> {
 	 */
 	private <T> StreamOutput<T> createStreamOutput(String outputVertex, StreamConfig configuration,
 			int outputIndex) {
-		
+
+		StreamRecordSerializer<T> outSerializer = configuration
+				.getTypeSerializerOut1(vertex.userClassLoader);
+		SerializationDelegate<StreamRecord<T>> outSerializationDelegate = null;
+
+		if (outSerializer != null) {
+			outSerializationDelegate = new SerializationDelegate<StreamRecord<T>>(outSerializer);
+			outSerializationDelegate.setInstance(outSerializer.createInstance());
+		}
+
 		StreamPartitioner<T> outputPartitioner = configuration.getPartitioner(cl, outputVertex);
 
 		RecordWriter<SerializationDelegate<StreamRecord<T>>> output;
@@ -221,9 +201,8 @@ public class OutputHandler<OUT> {
 			}
 		}
 
-		StreamOutput<T> streamOutput = new StreamOutput<T>(output,
-				configuration.isSelectAll(outputVertex) ? null
-						: configuration.getOutputNames(outputVertex));
+		StreamOutput<T> streamOutput = new StreamOutput<T>(output, vertex.instanceID,
+				outSerializationDelegate);
 
 		if (LOG.isTraceEnabled()) {
 			LOG.trace("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()

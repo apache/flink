@@ -18,37 +18,55 @@
 package org.apache.flink.streaming.api.collector;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.io.StreamRecordWriter;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class StreamOutput<OUT> implements Collector<SerializationDelegate<StreamRecord<OUT>>> {
+public class StreamOutput<OUT> implements Collector<OUT> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(StreamOutput.class);
 
 	private RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
-
-	private List<String> selectedNames;
-	private boolean selectAll = true;
+	private SerializationDelegate<StreamRecord<OUT>> serializationDelegate;
+	private StreamRecord<OUT> streamRecord;
+	private int channelID;
 
 	public StreamOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
-			List<String> selectedNames) {
+			int channelID, SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
 
-		this.output = output;
+		this.serializationDelegate = serializationDelegate;
 
-		if (selectedNames != null) {
-			this.selectedNames = selectedNames;
-			selectAll = false;
+		if (serializationDelegate != null) {
+			this.streamRecord = serializationDelegate.getInstance();
+		} else {
+			throw new RuntimeException("Serializer cannot be null");
 		}
+		this.channelID = channelID;
+		this.output = output;
 	}
 
-	public void collect(SerializationDelegate<StreamRecord<OUT>> record) {
+	public RecordWriter<SerializationDelegate<StreamRecord<OUT>>> getRecordWriter() {
+		return output;
+	}
+
+	@Override
+	public void collect(OUT record) {
+		streamRecord.setObject(record);
+		streamRecord.newId(channelID);
+		serializationDelegate.setInstance(streamRecord);
+
 		try {
-			output.emit(record);
+			output.emit(serializationDelegate);
 		} catch (Exception e) {
-			throw new RuntimeException("Could not emit record: " + record.getInstance());
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Emit failed due to: {}", StringUtils.stringifyException(e));
+			}
 		}
 	}
 
@@ -63,18 +81,6 @@ public class StreamOutput<OUT> implements Collector<SerializationDelegate<Stream
 				e.printStackTrace();
 			}
 		}
-	}
-
-	public boolean isSelectAll() {
-		return selectAll;
-	}
-
-	public List<String> getSelectedNames() {
-		return selectedNames;
-	}
-
-	public RecordWriter<SerializationDelegate<StreamRecord<OUT>>> getRecordWriter() {
-		return output;
 	}
 
 }

@@ -58,7 +58,6 @@ public class StreamGraph {
 	private Map<String, List<String>> outEdgeLists;
 	private Map<String, List<Integer>> outEdgeTypes;
 	private Map<String, List<List<String>>> selectedNames;
-	private Map<String, List<Boolean>> outEdgeSelectAlls;
 	private Map<String, List<String>> inEdgeLists;
 	private Map<String, List<StreamPartitioner<?>>> outputPartitioners;
 	private Map<String, String> operatorNames;
@@ -94,7 +93,6 @@ public class StreamGraph {
 		outEdgeLists = new HashMap<String, List<String>>();
 		outEdgeTypes = new HashMap<String, List<Integer>>();
 		selectedNames = new HashMap<String, List<List<String>>>();
-		outEdgeSelectAlls = new HashMap<String, List<Boolean>>();
 		inEdgeLists = new HashMap<String, List<String>>();
 		outputPartitioners = new HashMap<String, List<StreamPartitioner<?>>>();
 		operatorNames = new HashMap<String, String>();
@@ -186,7 +184,7 @@ public class StreamGraph {
 
 		setEdge(vertexName, iterationHead,
 				outputPartitioners.get(inEdgeLists.get(iterationHead).get(0)).get(0), 0,
-				new ArrayList<String>(), false);
+				new ArrayList<String>());
 
 		iterationTimeouts.put(iterationIDtoHeadName.get(iterationID), waitTime);
 
@@ -274,7 +272,6 @@ public class StreamGraph {
 		outEdgeLists.put(vertexName, new ArrayList<String>());
 		outEdgeTypes.put(vertexName, new ArrayList<Integer>());
 		selectedNames.put(vertexName, new ArrayList<List<String>>());
-		outEdgeSelectAlls.put(vertexName, new ArrayList<Boolean>());
 		inEdgeLists.put(vertexName, new ArrayList<String>());
 		outputPartitioners.put(vertexName, new ArrayList<StreamPartitioner<?>>());
 		iterationTailCount.put(vertexName, 0);
@@ -296,14 +293,12 @@ public class StreamGraph {
 	 *            User defined names of the out edge
 	 */
 	public void setEdge(String upStreamVertexName, String downStreamVertexName,
-			StreamPartitioner<?> partitionerObject, int typeNumber, List<String> outputNames,
-			boolean selectAll) {
+			StreamPartitioner<?> partitionerObject, int typeNumber, List<String> outputNames) {
 		outEdgeLists.get(upStreamVertexName).add(downStreamVertexName);
 		outEdgeTypes.get(upStreamVertexName).add(typeNumber);
 		inEdgeLists.get(downStreamVertexName).add(upStreamVertexName);
 		outputPartitioners.get(upStreamVertexName).add(partitionerObject);
 		selectedNames.get(upStreamVertexName).add(outputNames);
-		outEdgeSelectAlls.get(upStreamVertexName).add(selectAll);
 	}
 
 	private void addTypeSerializers(String vertexName, StreamRecordSerializer<?> in1,
@@ -494,16 +489,15 @@ public class StreamGraph {
 		return outEdgeTypes.get(vertexName);
 	}
 
-	public StreamPartitioner<?> getOutPartitioner(String vertexName, int outputIndex) {
-		return outputPartitioners.get(vertexName).get(outputIndex);
+	public StreamPartitioner<?> getOutPartitioner(String upStreamVertex, String downStreamVertex) {
+		return outputPartitioners.get(upStreamVertex).get(
+				outEdgeLists.get(upStreamVertex).indexOf(downStreamVertex));
 	}
 
-	public List<String> getSelectedNames(String vertexName, int outputIndex) {
-		return selectedNames.get(vertexName).get(outputIndex);
-	}
+	public List<String> getSelectedNames(String upStreamVertex, String downStreamVertex) {
 
-	public Boolean isSelectAll(String vertexName, int outputIndex) {
-		return outEdgeSelectAlls.get(vertexName).get(outputIndex);
+		return selectedNames.get(upStreamVertex).get(
+				outEdgeLists.get(upStreamVertex).indexOf(downStreamVertex));
 	}
 
 	public Collection<Integer> getIterationIDs() {

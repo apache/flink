@@ -96,7 +96,6 @@ public class DataStream<OUT> {
 	protected final String id;
 	protected int degreeOfParallelism;
 	protected List<String> userDefinedNames;
-	protected boolean selectAll;
 	protected StreamPartitioner<OUT> partitioner;
 	@SuppressWarnings("rawtypes")
 	protected TypeInformation typeInfo;
@@ -127,7 +126,6 @@ public class DataStream<OUT> {
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
 		this.streamGraph = environment.getStreamGraph();
 		this.userDefinedNames = new ArrayList<String>();
-		this.selectAll = true;
 		this.partitioner = new DistributePartitioner<OUT>(true);
 		this.typeInfo = typeInfo;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
@@ -145,7 +143,6 @@ public class DataStream<OUT> {
 		this.id = dataStream.id;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
 		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
-		this.selectAll = dataStream.selectAll;
 		this.partitioner = dataStream.partitioner;
 		this.streamGraph = dataStream.streamGraph;
 		this.typeInfo = dataStream.typeInfo;
@@ -1158,7 +1155,7 @@ public class DataStream<OUT> {
 	protected <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
 		for (DataStream<X> stream : inputStream.mergedStreams) {
 			streamGraph.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
-					inputStream.userDefinedNames, inputStream.selectAll);
+					inputStream.userDefinedNames);
 		}
 
 	}

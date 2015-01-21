@@ -313,7 +313,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
 		return addSource(new SocketTextStreamFunction(hostname, port, delimiter), null,
-				"socketStrean");
+				"socketStream");
 	}
 
 	/**

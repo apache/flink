@@ -24,14 +24,15 @@ import org.apache.flink.util.Collector;
 
 public class CollectorWrapper<OUT> implements Collector<OUT> {
 
-	List<Collector<OUT>> outputs;
+	private List<Collector<OUT>> outputs;
 
 	public CollectorWrapper() {
 		this.outputs = new LinkedList<Collector<OUT>>();
 	}
 
-	public void addCollector(Collector<OUT> output) {
-		outputs.add(output);
+	@SuppressWarnings("unchecked")
+	public void addCollector(Collector<?> output) {
+		outputs.add((Collector<OUT>) output);
 	}
 
 	@Override
