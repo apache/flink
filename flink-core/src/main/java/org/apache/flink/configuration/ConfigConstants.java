@@ -170,6 +170,11 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = "taskmanager.debug.memory.logIntervalMs";
 
 	/**
+	 *
+	 */
+	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
+
+	/**
 	 * Parameter for the maximum fan for out-of-core algorithms.
 	 * Corresponds to the maximum fan-in for merge-sorts and the maximum fan-out
 	 * for hybrid hash joins. 
@@ -488,6 +493,11 @@ public final class ConfigConstants {
 	 * The default number of task slots per task manager
 	 */
 	public static final int DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS = -1;
+
+	/**
+	 * The default task manager's maximum registration duration
+	 */
+	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
 	
 	/**
 	 * The default value for the JobClient's polling interval. 2 Seconds.

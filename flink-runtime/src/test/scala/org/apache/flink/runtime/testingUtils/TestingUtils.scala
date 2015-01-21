@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
@@ -26,6 +26,7 @@ import org.apache.flink.core.io.IOReadableWritable
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.akka.serialization.IOReadableWritableSerializer
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ActionQueue
+import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
 import scala.concurrent.duration._
@@ -93,6 +94,23 @@ object TestingUtils {
                                               (implicit system: ActorSystem) = {
     val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =
       TaskManager.parseConfiguration(hostname, config)
+
+    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
+      networkConnectionConfig) with TestingTaskManager))
+  }
+
+  def startTestingJobManager(implicit system: ActorSystem): ActorRef = {
+    val config = new Configuration()
+
+    system.actorOf(Props(new JobManager(config) with TestingJobManager))
+  }
+
+  def startTestingTaskManager(jobManager: ActorRef)(implicit system: ActorSystem): ActorRef = {
+    val jmURL = jobManager.path.toString
+    val config = new Configuration()
+    config.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, jmURL)
+    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =
+      TaskManager.parseConfiguration("LOCALHOST", config)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager))

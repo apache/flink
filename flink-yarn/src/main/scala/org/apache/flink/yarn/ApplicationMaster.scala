@@ -39,6 +39,7 @@ object ApplicationMaster {
 
   val CONF_FILE = "flink-conf.yaml"
   val MODIFIED_CONF_FILE = "flink-conf-modified.yaml"
+  val MAX_REGISTRATION_DURATION = "5 minutes"
 
   def main(args: Array[String]): Unit ={
     val yarnClientUsername = System.getenv(FlinkYarnClient.ENV_CLIENT_USERNAME)
@@ -147,6 +148,9 @@ object ApplicationMaster {
       output.println(
         s"${ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY}: ${slots*taskManagerCount}")
     }
+
+    output.println(s"${ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION}: " +
+      s"$MAX_REGISTRATION_DURATION")
 
     // add dynamic properties
     val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)
