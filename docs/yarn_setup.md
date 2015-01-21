@@ -154,9 +154,9 @@ Use the *run* action to submit a job to YARN. The client is able to determine th
 
 ~~~bash
 wget -O apache-license-v2.txt http://www.apache.org/licenses/LICENSE-2.0.txt
-
+hadoop fs -copyFromLocal LICENSE-2.0.txt hdfs:/// ...
 ./bin/flink run -j ./examples/flink-java-examples-{{site.FLINK_VERSION_SHORT }}-WordCount.jar \
-                       -a 1 file://`pwd`/apache-license-v2.txt file://`pwd`/wordcount-result.txt 
+                       -a 1 hdfs:///..../apache-license-v2.txt hdfs:///.../wordcount-result.txt 
 ~~~
 
 If there is the following error, make sure that all TaskManagers started:
@@ -177,7 +177,7 @@ The documentation above describes how to start a Flink cluster within a Hadoop Y
 It is also possible to launch Flink within YARN only for executing a single job.
 
 To deploy a job to a per-job YARN cluster, set the master name to `yarn-cluster`.
-Please note that the client then expects the `-n` value to be set (number of TaskManagers).
+Please note that the client then expects the `-yn` value to be set (number of TaskManagers).
 
 ***Example:***
 

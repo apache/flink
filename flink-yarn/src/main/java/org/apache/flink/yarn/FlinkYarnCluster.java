@@ -25,6 +25,7 @@ import static akka.pattern.Patterns.ask;
 import akka.actor.Props;
 import akka.util.Timeout;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.akka.AkkaUtils$;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
@@ -210,9 +211,14 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		}
 		List<String> ret = new ArrayList<String>();
 		// get messages from ApplicationClient (locally)
+
 		while(true) {
-			Future<Object> messageOptionFuture = ask(applicationClient, Messages.LocalGetYarnMessage$.MODULE$, akkaTimeout);
-			Object messageOption = awaitUtil(messageOptionFuture, "Error getting new messages from Appliation Client");
+			Object messageOption = null;
+			try {
+				messageOption = AkkaUtils$.MODULE$.ask(applicationClient, Messages.LocalGetYarnMessage$.MODULE$, akkaDuration);
+			} catch(IOException ioe) {
+				LOG.warn("Error getting the yarn messages locally", ioe);
+			}
 			if(messageOption instanceof None$) {
 				break;
 			} else if(messageOption instanceof org.apache.flink.yarn.Messages.YarnMessage) {
@@ -252,8 +258,11 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		if(actorSystem != null){
 			LOG.info("Sending shutdown request to the Application Master");
 			if(applicationClient != ActorRef.noSender()) {
-				Future<Object> future = ask(applicationClient, new Messages.StopYarnSession(FinalApplicationStatus.SUCCEEDED), akkaTimeout);
-				awaitUtil(future, "Error while stopping YARN Application Client");
+				try {
+					AkkaUtils$.MODULE$.ask(applicationClient, new Messages.StopYarnSession(FinalApplicationStatus.SUCCEEDED), akkaDuration);
+				} catch(IOException e) {
+					throw new RuntimeException("Error while stopping YARN Application Client", e);
+				}
 			}
 
 			actorSystem.shutdown();

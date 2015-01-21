@@ -38,8 +38,8 @@ import java.io.File;
  * This test starts a MiniYARNCluster with a FIFO scheudler.
  * There are no queues for that scheduler.
  */
-public class YARNSessionFIFOIT extends YarnTestBase {
-	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionFIFOIT.class);
+public class YARNSessionFIFOITCase extends YarnTestBase {
+	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionFIFOITCase.class);
 
 	/*
 	Override init with FIFO scheduler.

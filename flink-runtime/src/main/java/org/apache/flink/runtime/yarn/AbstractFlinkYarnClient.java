@@ -26,6 +26,9 @@ public abstract class AbstractFlinkYarnClient {
 	// ---- Setter for YARN Cluster properties ----- //
 	public abstract void setJobManagerMemory(int memoryMB);
 	public abstract void setTaskManagerMemory(int memoryMB);
+
+	public abstract void setFlinkConfigurationObject(org.apache.flink.configuration.Configuration conf);
+
 	public abstract void setTaskManagerSlots(int slots);
 	public abstract int getTaskManagerSlots();
 	public abstract void setQueue(String queue);

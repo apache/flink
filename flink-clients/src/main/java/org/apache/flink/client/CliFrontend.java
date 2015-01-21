@@ -67,9 +67,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.util.StringUtils;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.PatternLayout;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -915,7 +912,6 @@ public class CliFrontend {
 		InetSocketAddress jobManagerAddress = null;
 		if(jmAddrString.equals(YARN_DEPLOY_JOBMANAGER)) {
 			System.out.println("YARN cluster mode detected. Switching Log4j output to console");
-			LogManager.getRootLogger().addAppender(new ConsoleAppender(new PatternLayout(DEFAULT_LOG4J_PATTERN_LAYOUT)));
 
 			this.runInYarnCluster = true;
 			// user wants to run Flink in YARN cluster.
