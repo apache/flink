@@ -710,11 +710,11 @@ public class CliFrontend {
 		
 		// Check if JAR file exists
 		if (!jarFile.exists()) {
-			System.out.println("Error: Jar file does not exist.");
+			System.out.println("Error: Jar file: '"+jarFile+"' does not exist.");
 			return null;
 		}
 		else if (!jarFile.isFile()) {
-			System.out.println("Error: Jar file is not a file.");
+			System.out.println("Error: Jar file '"+jarFile+"' is not a file.");
 			return null;
 		}
 		

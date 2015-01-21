@@ -18,6 +18,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.client.FlinkYarnSessionCli;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
@@ -25,6 +26,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
+import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.spi.LoggingEvent;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -32,6 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -47,6 +52,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@BeforeClass
 	public static void setup() {
 		yarnConfiguration.setClass(YarnConfiguration.RM_SCHEDULER, FifoScheduler.class, ResourceScheduler.class);
+		yarnConfiguration.setInt(YarnConfiguration.NM_PMEM_MB, 768);
 		startYARNWithConfig(yarnConfiguration);
 	}
 	/**
@@ -95,12 +101,17 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testMoreNodesThanAvailable() {
+		if(ignoreOnTravis()) {
+			return;
+		}
+		addTestAppender();
 		LOG.info("Starting testMoreNodesThanAvailable()");
 		runWithArgs(new String[] {"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "10",
 				"-jm", "512",
-				"-tm", "1024"}, "Error while deploying YARN cluster: This YARN session requires 10752MB of memory in the cluster. There are currently only 8192MB available.", RunTypes.YARN_SESSION);
+				"-tm", "1024"}, "Number of connected TaskManagers changed to", RunTypes.YARN_SESSION); // the number of TMs depends on the speed of the test hardware
 		LOG.info("Finished testMoreNodesThanAvailable()");
+		checkForLogString("This YARN session requires 10752MB of memory in the cluster. There are currently only 8192MB available.");
 	}
 
 	/**
@@ -117,12 +128,17 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testResourceComputation() {
+		if(ignoreOnTravis()) {
+			return;
+		}
+		addTestAppender();
 		LOG.info("Starting testResourceComputation()");
 		runWithArgs(new String[] {"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "5",
 				"-jm", "256",
-				"-tm", "1585"}, "Error while deploying YARN cluster: This YARN session requires 8437MB of memory in the cluster. There are currently only 8192MB available.", RunTypes.YARN_SESSION);
+				"-tm", "1585"}, "Number of connected TaskManagers changed to", RunTypes.YARN_SESSION);
 		LOG.info("Finished testResourceComputation()");
+		checkForLogString("This YARN session requires 8437MB of memory in the cluster. There are currently only 8192MB available.");
 	}
 
 	/**
@@ -142,13 +158,18 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testfullAlloc() {
+		if(ignoreOnTravis()) {
+			return;
+		}
+		addTestAppender();
 		LOG.info("Starting testfullAlloc()");
 		runWithArgs(new String[] {"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "2",
 				"-jm", "256",
-				"-tm", "3840"}, "Error while deploying YARN cluster: There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
-				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]", RunTypes.YARN_SESSION);
+				"-tm", "3840"}, "Number of connected TaskManagers changed to", RunTypes.YARN_SESSION);
 		LOG.info("Finished testfullAlloc()");
+		checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
+				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]");
 	}
 
 	/**
@@ -183,6 +204,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		String confDirPath = System.getenv("FLINK_CONF_DIR");
 		flinkYarnClient.setConfigurationDirectory(confDirPath);
+		flinkYarnClient.setFlinkConfigurationObject(GlobalConfiguration.getConfiguration());
 		flinkYarnClient.setConfigurationFilePath(new Path(confDirPath + File.separator + "flink-conf.yaml"));
 
 		// deploy
@@ -222,4 +244,48 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		yarnCluster.shutdown();
 		LOG.info("Finished testJavaAPI()");
 	}
+
+	public boolean ignoreOnTravis() {
+		if(System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true")) {
+			// we skip the test until we are able to start a smaller yarn clsuter
+			// right now, the miniyarncluster has the size of the nodemanagers fixed on 4 GBs.
+			LOG.warn("Skipping test on travis for now");
+			return true;
+		}
+		return false;
+	}
+
+	//
+	// --------------- Tools to test if a certain string has been logged with Log4j. -------------
+	// See :  http://stackoverflow.com/questions/3717402/how-to-test-w-junit-that-warning-was-logged-w-log4j
+	//
+	private static TestAppender testAppender;
+	public static void addTestAppender() {
+		testAppender = new TestAppender();
+		org.apache.log4j.Logger.getRootLogger().addAppender(testAppender);
+	}
+
+	public static void checkForLogString(String expected) {
+		if(testAppender == null) {
+			throw new NullPointerException("Initialize it first");
+		}
+		for(LoggingEvent event: testAppender.events) {
+			if(event.getMessage().toString().contains(expected)) {
+				LOG.info("Found expected string '"+expected+"' in log message "+event);
+				return;
+			}
+		}
+		Assert.fail("Unable to find expected string '"+expected+"' in log messages");
+	}
+
+	public static class TestAppender extends AppenderSkeleton {
+		public List<LoggingEvent> events = new ArrayList<LoggingEvent>();
+		public void close() {}
+		public boolean requiresLayout() {return false;}
+		@Override
+		protected void append(LoggingEvent event) {
+			events.add(event);
+		}
+	}
+	
 }

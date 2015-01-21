@@ -350,24 +350,24 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 					+ "Maximum Memory: " + maxRes.getMemory() + " Requested: "+taskManagerMemoryMb + "MB. " + NOTE);
 		}
 
-
+		final String NOTE_RSC = "\nThe Flink YARN client will try to allocate the YARN session, but maybe not all TaskManagers are " +
+				"connecting from the beginning because the resources are currently not available in the cluster. " +
+				"The allocation might take more time than usual because the Flink YARN client needs to wait until " +
+				"the resources become available.";
 		int totalMemoryRequired = jobManagerMemoryMb + taskManagerMemoryMb * taskManagerCount;
 		ClusterResourceDescription freeClusterMem = getCurrentFreeClusterResources(yarnClient);
 		if(freeClusterMem.totalFreeMemory < totalMemoryRequired) {
-			failSessionDuringDeployment();
-			throw new YarnDeploymentException("This YARN session requires " + totalMemoryRequired + "MB of memory in the cluster. "
-					+ "There are currently only " + freeClusterMem.totalFreeMemory+"MB available.");
+			LOG.warn("This YARN session requires " + totalMemoryRequired + "MB of memory in the cluster. "
+					+ "There are currently only " + freeClusterMem.totalFreeMemory + "MB available." + NOTE_RSC);
 
 		}
 		if( taskManagerMemoryMb > freeClusterMem.containerLimit) {
-			failSessionDuringDeployment();
-			throw new YarnDeploymentException("The requested amount of memory for the TaskManagers ("+taskManagerMemoryMb+"MB) is more than "
-					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
+			LOG.warn("The requested amount of memory for the TaskManagers ("+taskManagerMemoryMb+"MB) is more than "
+					+ "the largest possible YARN container: "+freeClusterMem.containerLimit + NOTE_RSC);
 		}
 		if( jobManagerMemoryMb > freeClusterMem.containerLimit) {
-			failSessionDuringDeployment();
-			throw new YarnDeploymentException("The requested amount of memory for the JobManager ("+jobManagerMemoryMb+"MB) is more than "
-					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
+			LOG.warn("The requested amount of memory for the JobManager (" + jobManagerMemoryMb + "MB) is more than "
+					+ "the largest possible YARN container: " + freeClusterMem.containerLimit + NOTE_RSC);
 		}
 
 		// ----------------- check if the requested containers fit into the cluster.
@@ -375,19 +375,17 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		int[] nmFree = Arrays.copyOf(freeClusterMem.nodeManagersFree, freeClusterMem.nodeManagersFree.length);
 		// first, allocate the jobManager somewhere.
 		if(!allocateResource(nmFree, jobManagerMemoryMb)) {
-			failSessionDuringDeployment();
-			throw new YarnDeploymentException("Unable to find a NodeManager that can fit the JobManager/Application master. " +
-					"The JobManager requires " + jobManagerMemoryMb + "MB. NodeManagers available: "+Arrays.toString(freeClusterMem.nodeManagersFree));
+			LOG.warn("Unable to find a NodeManager that can fit the JobManager/Application master. " +
+					"The JobManager requires " + jobManagerMemoryMb + "MB. NodeManagers available: "+Arrays.toString(freeClusterMem.nodeManagersFree) + NOTE_RSC);
 		}
 		// allocate TaskManagers
 		for(int i = 0; i < taskManagerCount; i++) {
 			if(!allocateResource(nmFree, taskManagerMemoryMb)) {
-				failSessionDuringDeployment();
-				throw new YarnDeploymentException("There is not enough memory available in the YARN cluster. " +
+				LOG.warn("There is not enough memory available in the YARN cluster. " +
 						"The TaskManager(s) require " + taskManagerMemoryMb + "MB each. " +
 						"NodeManagers available: "+Arrays.toString(freeClusterMem.nodeManagersFree) + "\n" +
 						"After allocating the JobManager (" + jobManagerMemoryMb + "MB) and (" + i + "/" + taskManagerCount + ") TaskManagers, " +
-						"the following NodeManagers are available: " + Arrays.toString(nmFree) );
+						"the following NodeManagers are available: " + Arrays.toString(nmFree)  + NOTE_RSC );
 			}
 		}
 
