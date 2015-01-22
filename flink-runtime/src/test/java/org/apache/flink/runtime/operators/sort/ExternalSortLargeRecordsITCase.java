@@ -98,28 +98,26 @@ public class ExternalSortLargeRecordsITCase {
 								new TupleTypeInfo<Tuple2<Long,SomeMaybeLongValue>>(types);
 			final TypeSerializer<Tuple2<Long, SomeMaybeLongValue>> serializer = typeInfo.createSerializer();
 			final TypeComparator<Tuple2<Long, SomeMaybeLongValue>> comparator = typeInfo.createComparator(new int[] {0}, new boolean[]{false}, 0);
-			
-			MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>> source = 
-					new MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>>()
-			{
-				private final Random rnd = new Random();
-				private int num = 0;
-				
-				@Override
-				public Tuple2<Long, SomeMaybeLongValue> next(Tuple2<Long, SomeMaybeLongValue> reuse) {
-					if (num++ < NUM_RECORDS) {
-						long val = rnd.nextLong();
-						return new Tuple2<Long, SomeMaybeLongValue>(val, new SomeMaybeLongValue((int) val));
-					}
-					else {
-						return null;
-					}
-					
-				}
+
+			MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>> source =
+					new MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>>() {
+						private final Random rnd = new Random();
+						private int num = 0;
 
 						@Override
-						public Tuple2<Long, SomeMaybeLongValue> next() throws IOException {
-							return next(new Tuple2<Long, SomeMaybeLongValue>());
+						public Tuple2<Long, SomeMaybeLongValue> next(Tuple2<Long, SomeMaybeLongValue> reuse) {
+							return next();
+						}
+
+						@Override
+						public Tuple2<Long, SomeMaybeLongValue> next() {
+							if (num++ < NUM_RECORDS) {
+								long val = rnd.nextLong();
+								return new Tuple2<Long, SomeMaybeLongValue>(val, new SomeMaybeLongValue((int) val));
+							}
+							else {
+								return null;
+							}
 						}
 					};
 			
@@ -169,28 +167,26 @@ public class ExternalSortLargeRecordsITCase {
 								new TupleTypeInfo<Tuple2<Long,SomeMaybeLongValue>>(types);
 			final TypeSerializer<Tuple2<Long, SomeMaybeLongValue>> serializer = typeInfo.createSerializer();
 			final TypeComparator<Tuple2<Long, SomeMaybeLongValue>> comparator = typeInfo.createComparator(new int[] {0}, new boolean[]{false}, 0);
-			
-			MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>> source = 
-					new MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>>()
-			{
-				private final Random rnd = new Random();
-				private int num = -1;
-				
-				@Override
-				public Tuple2<Long, SomeMaybeLongValue> next(Tuple2<Long, SomeMaybeLongValue> reuse) {
-					if (++num < NUM_RECORDS) {
-						long val = rnd.nextLong();
-						return new Tuple2<Long, SomeMaybeLongValue>(val, new SomeMaybeLongValue((int) val, num % LARGE_REC_INTERVAL == 0));
-					}
-					else {
-						return null;
-					}
-					
-				}
+
+			MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>> source =
+					new MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>>() {
+						private final Random rnd = new Random();
+						private int num = -1;
 
 						@Override
-						public Tuple2<Long, SomeMaybeLongValue> next() throws IOException {
-							return new Tuple2<Long, SomeMaybeLongValue>();
+						public Tuple2<Long, SomeMaybeLongValue> next(Tuple2<Long, SomeMaybeLongValue> reuse) {
+							return next();
+						}
+
+						@Override
+						public Tuple2<Long, SomeMaybeLongValue> next() {
+							if (++num < NUM_RECORDS) {
+								long val = rnd.nextLong();
+								return new Tuple2<Long, SomeMaybeLongValue>(val, new SomeMaybeLongValue((int) val, num % LARGE_REC_INTERVAL == 0));
+							}
+							else {
+								return null;
+							}
 						}
 					};
 			
@@ -242,38 +238,39 @@ public class ExternalSortLargeRecordsITCase {
 			
 			final TypeSerializer<Tuple2<Long, SmallOrMediumOrLargeValue>> serializer = typeInfo.createSerializer();
 			final TypeComparator<Tuple2<Long, SmallOrMediumOrLargeValue>> comparator = typeInfo.createComparator(new int[] {0}, new boolean[]{false}, 0);
-			
-			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> source = 
-					new MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>>()
-			{
-				private final Random rnd = new Random();
-				private int num = -1;
-				
-				@Override
-				public Tuple2<Long, SmallOrMediumOrLargeValue> next(Tuple2<Long, SmallOrMediumOrLargeValue> reuse) {
-					if (++num < NUM_RECORDS) {
-						
-						int size;
-						if (num % LARGE_REC_INTERVAL == 0) {
-							size = SmallOrMediumOrLargeValue.LARGE_SIZE;
-						} else if (num % MEDIUM_REC_INTERVAL == 0) {
-							size = SmallOrMediumOrLargeValue.MEDIUM_SIZE;
-						} else {
-							size = SmallOrMediumOrLargeValue.SMALL_SIZE;
-						}
-						
-						long val = rnd.nextLong();
-						return new Tuple2<Long, SmallOrMediumOrLargeValue>(val, new SmallOrMediumOrLargeValue((int) val, size));
-					}
-					else {
-						return null;
-					}
-					
-				}
+
+			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> source =
+					new MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>>() {
+						private final Random rnd = new Random();
+						private int num = -1;
 
 						@Override
-						public Tuple2<Long, SmallOrMediumOrLargeValue> next() throws IOException {
-							return new Tuple2<Long, SmallOrMediumOrLargeValue>();
+						public Tuple2<Long, SmallOrMediumOrLargeValue> next(Tuple2<Long, SmallOrMediumOrLargeValue> reuse) {
+							return next();
+
+						}
+
+						@Override
+						public Tuple2<Long, SmallOrMediumOrLargeValue> next() {
+							if (++num < NUM_RECORDS) {
+
+								int size;
+								if (num % LARGE_REC_INTERVAL == 0) {
+									size = SmallOrMediumOrLargeValue.LARGE_SIZE;
+								}
+								else if (num % MEDIUM_REC_INTERVAL == 0) {
+									size = SmallOrMediumOrLargeValue.MEDIUM_SIZE;
+								}
+								else {
+									size = SmallOrMediumOrLargeValue.SMALL_SIZE;
+								}
+
+								long val = rnd.nextLong();
+								return new Tuple2<Long, SmallOrMediumOrLargeValue>(val, new SmallOrMediumOrLargeValue((int) val, size));
+							}
+							else {
+								return null;
+							}
 						}
 					};
 			
@@ -323,28 +320,27 @@ public class ExternalSortLargeRecordsITCase {
 			
 			final TypeSerializer<Tuple2<Long, SmallOrMediumOrLargeValue>> serializer = typeInfo.createSerializer();
 			final TypeComparator<Tuple2<Long, SmallOrMediumOrLargeValue>> comparator = typeInfo.createComparator(new int[] {0}, new boolean[]{false}, 0);
-			
-			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> source = 
-					new MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>>()
-			{
-				private final Random rnd = new Random();
-				private int num = -1;
-				
-				@Override
-				public Tuple2<Long, SmallOrMediumOrLargeValue> next(Tuple2<Long, SmallOrMediumOrLargeValue> reuse) {
-					if (++num < NUM_RECORDS) {
-						long val = rnd.nextLong();
-						return new Tuple2<Long, SmallOrMediumOrLargeValue>(val, new SmallOrMediumOrLargeValue((int) val, SmallOrMediumOrLargeValue.MEDIUM_SIZE));
-					}
-					else {
-						return null;
-					}
-					
-				}
+
+			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> source =
+					new MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>>() {
+						private final Random rnd = new Random();
+						private int num = -1;
 
 						@Override
-						public Tuple2<Long, SmallOrMediumOrLargeValue> next() throws IOException {
-							return new Tuple2<Long, SmallOrMediumOrLargeValue>();
+						public Tuple2<Long, SmallOrMediumOrLargeValue> next(Tuple2<Long, SmallOrMediumOrLargeValue> reuse) {
+							return next();
+
+						}
+
+						@Override
+						public Tuple2<Long, SmallOrMediumOrLargeValue> next() {
+							if (++num < NUM_RECORDS) {
+								long val = rnd.nextLong();
+								return new Tuple2<Long, SmallOrMediumOrLargeValue>(val, new SmallOrMediumOrLargeValue((int) val, SmallOrMediumOrLargeValue.MEDIUM_SIZE));
+							}
+							else {
+								return null;
+							}
 						}
 					};
 			
