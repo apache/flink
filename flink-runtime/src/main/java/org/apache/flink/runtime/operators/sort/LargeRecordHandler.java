@@ -436,21 +436,21 @@ public class LargeRecordHandler<T> {
 
 		@Override
 		public T next(T reuse) throws IOException {
+			return next();
+		}
+
+		@Override
+		public T next() throws IOException {
 			Tuple value = tupleInput.next(this.value);
 			if (value != null) {
 				this.value = value;
 				long pointer = value.<Long>getField(pointerPos);
-				
+
 				recordsInputs.seek(pointer);
 				return serializer.deserialize(recordsInputs);
 			} else {
 				return null;
 			}
-		}
-
-		@Override
-		public T next() throws IOException {
-			return next(serializer.createInstance());
 		}
 	}
 }
