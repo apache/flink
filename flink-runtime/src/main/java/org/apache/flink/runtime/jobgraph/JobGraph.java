@@ -72,6 +72,8 @@ public class JobGraph implements Serializable {
 	
 	/** flag to enable queued scheduling */
 	private boolean allowQueuedScheduling;
+
+	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -196,6 +198,14 @@ public class JobGraph implements Serializable {
 	
 	public boolean getAllowQueuedScheduling() {
 		return allowQueuedScheduling;
+	}
+
+	public void setScheduleMode(ScheduleMode scheduleMode) {
+		this.scheduleMode = scheduleMode;
+	}
+
+	public ScheduleMode getScheduleMode() {
+		return scheduleMode;
 	}
 
 	/**

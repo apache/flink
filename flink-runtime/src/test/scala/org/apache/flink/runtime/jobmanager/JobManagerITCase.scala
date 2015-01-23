@@ -18,19 +18,19 @@
 
 package org.apache.flink.runtime.jobmanager
 
+import Tasks._
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph,
-AbstractJobVertex}
-import Tasks._
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.testingUtils.{TestingUtils}
+import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph, ScheduleMode}
 import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning, NotifyWhenJobRemoved, WaitForAllVerticesToBeRunningOrFinished}
+import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{Matchers, WordSpecLike, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import scheduler.{NoResourceAvailableException, SlotSharingGroup}
+
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
@@ -268,6 +268,51 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
         expectMsg(true)
+      } finally {
+        cluster.stop()
+      }
+    }
+
+    "support scheduling all at once" in {
+      val num_tasks = 16
+      val sender = new AbstractJobVertex("Sender")
+      val forwarder = new AbstractJobVertex("Forwarder")
+      val receiver = new AbstractJobVertex("Receiver")
+
+      sender.setInvokableClass(classOf[Sender])
+      forwarder.setInvokableClass(classOf[Forwarder])
+      receiver.setInvokableClass(classOf[AgnosticReceiver])
+
+      sender.setParallelism(num_tasks)
+      forwarder.setParallelism(num_tasks)
+      receiver.setParallelism(num_tasks)
+
+      val sharingGroup = new SlotSharingGroup(sender.getID, receiver.getID)
+      sender.setSlotSharingGroup(sharingGroup)
+      forwarder.setSlotSharingGroup(sharingGroup)
+      receiver.setSlotSharingGroup(sharingGroup)
+
+      forwarder.connectNewDataSetAsInput(sender, DistributionPattern.ALL_TO_ALL)
+      receiver.connectNewDataSetAsInput(forwarder, DistributionPattern.ALL_TO_ALL)
+
+      val jobGraph = new JobGraph("Forwarding Job", sender, forwarder, receiver)
+
+      jobGraph.setScheduleMode(ScheduleMode.ALL);
+
+      val cluster = TestingUtils.startTestingCluster(num_tasks, 1)
+      val jm = cluster.getJobManager
+
+      try {
+        within(TestingUtils.TESTING_DURATION) {
+          jm ! SubmitJob(jobGraph)
+
+          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+
+          expectMsgType[JobResultSuccess]
+
+          jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
+          expectMsg(true)
+        }
       } finally {
         cluster.stop()
       }

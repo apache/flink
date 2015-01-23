@@ -68,6 +68,33 @@ object Tasks {
     }
   }
 
+  class Forwarder extends AbstractInvokable {
+    var reader: RecordReader[IntegerRecord] = _
+    var writer: RecordWriter[IntegerRecord] = _
+    override def registerInputOutput(): Unit = {
+      reader = new RecordReader[IntegerRecord](getEnvironment.getReader(0), classOf[IntegerRecord])
+      writer = new RecordWriter[IntegerRecord](getEnvironment.getWriter(0))
+    }
+
+    override def invoke(): Unit = {
+      try {
+        while (true) {
+          val record = reader.next();
+
+          if (record == null) {
+            return;
+          }
+
+          writer.emit(record);
+        }
+
+        writer.flush()
+      } finally {
+        writer.clearBuffers()
+      }
+    }
+  }
+
   class Receiver extends AbstractInvokable {
     var reader: RecordReader[IntegerRecord] = _
 
