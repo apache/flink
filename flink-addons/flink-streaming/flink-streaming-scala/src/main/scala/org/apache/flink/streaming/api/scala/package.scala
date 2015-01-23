@@ -31,7 +31,7 @@ package object scala {
   // We have this here so that we always have generated TypeInformationS when
   // using the Scala API
   implicit def createTypeInformation[T]: TypeInformation[T] = macro TypeUtils.createTypeInfo[T]
-  
+
   implicit def javaToScalaStream[R](javaStream: JavaStream[R]): DataStream[R] =
     new DataStream[R](javaStream)
 
@@ -41,10 +41,14 @@ package object scala {
   implicit def javaToScalaSplitStream[R](javaStream: SplitJavaStream[R]): SplitDataStream[R] =
     new SplitDataStream[R](javaStream)
 
-  implicit def javaToScalaConnectedStream[IN1, IN2](javaStream: JavaConStream[IN1, IN2]): 
+  implicit def javaToScalaConnectedStream[IN1, IN2](javaStream: JavaConStream[IN1, IN2]):
   ConnectedDataStream[IN1, IN2] = new ConnectedDataStream[IN1, IN2](javaStream)
 
-   private[flink] def fieldNames2Indices(
+  implicit def seqToFlinkSource[T: ClassTag: TypeInformation](scalaSeq: Seq[T]) : DataStream[T] =
+    StreamExecutionEnvironment.getExecutionEnvironment.fromCollection(scalaSeq)
+
+
+  private[flink] def fieldNames2Indices(
       typeInfo: TypeInformation[_],
       fields: Array[String]): Array[Int] = {
     typeInfo match {

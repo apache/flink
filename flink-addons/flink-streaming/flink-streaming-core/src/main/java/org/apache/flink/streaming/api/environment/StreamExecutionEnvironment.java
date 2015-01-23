@@ -66,6 +66,8 @@ public abstract class StreamExecutionEnvironment {
 
 	private ExecutionConfig config = new ExecutionConfig();
 
+	private static StreamExecutionEnvironment currentEnvironment;
+
 	protected StreamGraph streamGraph;
 
 	// --------------------------------------------------------------------------------------------
@@ -459,16 +461,20 @@ public abstract class StreamExecutionEnvironment {
 	 *         executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
+		if (currentEnvironment != null) {
+			return currentEnvironment;
+		}
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		if (env instanceof ContextEnvironment) {
 			ContextEnvironment ctx = (ContextEnvironment) env;
-			return createContextEnvironment(ctx.getClient(), ctx.getJars(),
+			currentEnvironment = createContextEnvironment(ctx.getClient(), ctx.getJars(),
 					ctx.getDegreeOfParallelism());
 		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
-			return new StreamPlanEnvironment(env);
+			currentEnvironment = new StreamPlanEnvironment(env);
 		} else {
 			return createLocalEnvironment();
 		}
+		return currentEnvironment;
 	}
 
 	private static StreamExecutionEnvironment createContextEnvironment(Client client,
@@ -502,9 +508,9 @@ public abstract class StreamExecutionEnvironment {
 	 *         parallelism.
 	 */
 	public static LocalStreamEnvironment createLocalEnvironment(int degreeOfParallelism) {
-		LocalStreamEnvironment lee = new LocalStreamEnvironment();
-		lee.setDegreeOfParallelism(degreeOfParallelism);
-		return lee;
+		currentEnvironment = new LocalStreamEnvironment();
+		currentEnvironment.setDegreeOfParallelism(degreeOfParallelism);
+		return (LocalStreamEnvironment) currentEnvironment;
 	}
 
 	// TODO:fix cluster default parallelism
@@ -530,7 +536,8 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
 			String... jarFiles) {
-		return new RemoteStreamEnvironment(host, port, jarFiles);
+		currentEnvironment = new RemoteStreamEnvironment(host, port, jarFiles);
+		return currentEnvironment;
 	}
 
 	/**
@@ -556,9 +563,9 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
 			int degreeOfParallelism, String... jarFiles) {
-		RemoteStreamEnvironment rec = new RemoteStreamEnvironment(host, port, jarFiles);
-		rec.setDegreeOfParallelism(degreeOfParallelism);
-		return rec;
+		currentEnvironment = new RemoteStreamEnvironment(host, port, jarFiles);
+		currentEnvironment.setDegreeOfParallelism(degreeOfParallelism);
+		return currentEnvironment;
 	}
 
 	/**

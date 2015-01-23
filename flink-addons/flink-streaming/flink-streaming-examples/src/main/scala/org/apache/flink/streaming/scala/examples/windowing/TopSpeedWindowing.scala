@@ -44,9 +44,7 @@ object TopSpeedWindowing {
       return
     }
 
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val cars = env.fromCollection(genCarStream())
-      .groupBy("carId")
+    val cars = genCarStream().groupBy("carId")
       .window(Time.of(evictionSec, SECONDS))
       .every(Delta.of[CarEvent](triggerMeters,
           (oldSp,newSp) => newSp.distance-oldSp.distance, CarEvent(0,0,0,0)))
@@ -54,15 +52,15 @@ object TopSpeedWindowing {
 
     cars print
 
-    env.execute("TopSpeedWindowing")
+    StreamExecutionEnvironment.getExecutionEnvironment.execute("TopSpeedWindowing")
 
   }
 
-  def genCarStream(): Stream[CarEvent] = {
+  def genCarStream(): DataStream[CarEvent] = {
 
     def nextSpeed(carEvent : CarEvent) : CarEvent =
     {
-      val next = 
+      val next =
         if (Random.nextBoolean) min(100, carEvent.speed + 5) else max(0, carEvent.speed - 5)
       CarEvent(carEvent.carId, next, carEvent.distance + next/3.6d,System.currentTimeMillis)
     }
