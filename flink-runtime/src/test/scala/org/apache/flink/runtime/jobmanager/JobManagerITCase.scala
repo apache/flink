@@ -18,19 +18,19 @@
 
 package org.apache.flink.runtime.jobmanager
 
+import Tasks._
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph,
-AbstractJobVertex}
-import Tasks._
+import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.testingUtils.{TestingUtils}
 import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
+import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{Matchers, WordSpecLike, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
@@ -178,6 +178,9 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       sender.setInvokableClass(classOf[Sender])
       receiver.setInvokableClass(classOf[AgnosticReceiver])
 
+      sender.setParallelism(num_tasks)
+      receiver.setParallelism(num_tasks)
+
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
       val jobGraph = new JobGraph("Bipartite Job", sender, receiver)
@@ -190,6 +193,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           jm ! SubmitJob(jobGraph)
 
           expectMsg(SubmissionSuccess(jobGraph.getJobID))
+
           expectMsgType[JobResultSuccess]
         }
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
