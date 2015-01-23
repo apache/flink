@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -112,6 +113,8 @@ public class ExecutionGraph implements Serializable {
 	private transient Scheduler scheduler;
 
 	private boolean allowQueuedScheduling = true;
+
+	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
 		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>());
@@ -311,6 +314,14 @@ public class ExecutionGraph implements Serializable {
 		this.allowQueuedScheduling = allowed;
 	}
 
+	public void setScheduleMode(ScheduleMode scheduleMode) {
+		this.scheduleMode = scheduleMode;
+	}
+
+	public ScheduleMode getScheduleMode() {
+		return scheduleMode;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Actions
 	// --------------------------------------------------------------------------------------------
@@ -326,14 +337,30 @@ public class ExecutionGraph implements Serializable {
 		
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
 			this.scheduler = scheduler;
-			
-			// initially, we simply take the ones without inputs.
-			// next, we implement the logic to go back from vertices that need computation
-			// to the ones we need to start running
-			for (ExecutionJobVertex ejv : this.tasks.values()) {
-				if (ejv.getJobVertex().isInputVertex()) {
-					ejv.scheduleAll(scheduler, allowQueuedScheduling);
-				}
+
+			switch (scheduleMode) {
+
+				case FROM_SOURCES:
+					// initially, we simply take the ones without inputs.
+					// next, we implement the logic to go back from vertices that need computation
+					// to the ones we need to start running
+					for (ExecutionJobVertex ejv : this.tasks.values()) {
+						if (ejv.getJobVertex().isInputVertex()) {
+							ejv.scheduleAll(scheduler, allowQueuedScheduling);
+						}
+					}
+
+					break;
+
+				case ALL:
+					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
+						ejv.scheduleAll(scheduler, allowQueuedScheduling);
+					}
+
+					break;
+
+				case BACKTRACKING:
+					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
 			}
 		}
 		else {

@@ -201,6 +201,7 @@ class JobManager(val configuration: Configuration)
                 jobGraph.getJobID, jobGraph.getName)
             }
 
+            executionGraph.setScheduleMode(jobGraph.getScheduleMode)
             executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
 
             // get notified about job status changes

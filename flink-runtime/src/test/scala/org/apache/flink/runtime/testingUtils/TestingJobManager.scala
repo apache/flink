@@ -24,13 +24,11 @@ import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobStatusChanged,
-ExecutionStateChanged}
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.ExecutionStateChanged
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenTaskRemoved
 
 import scala.collection.convert.WrapAsScala
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
 
 trait TestingJobManager extends ActorLogMessages with WrapAsScala {
