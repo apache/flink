@@ -66,8 +66,8 @@ public class StreamGraph {
 	private Map<String, StreamRecordSerializer<?>> typeSerializersIn2;
 	private Map<String, StreamRecordSerializer<?>> typeSerializersOut1;
 	private Map<String, StreamRecordSerializer<?>> typeSerializersOut2;
-	private Map<String, OutputSelector<?>> outputSelectors;
 	private Map<String, Class<? extends AbstractInvokable>> jobVertexClasses;
+	private Map<String, List<OutputSelector<?>>> outputSelectors;
 	private Map<String, Integer> iterationIds;
 	private Map<Integer, String> iterationIDtoHeadName;
 	private Map<Integer, String> iterationIDtoTailName;
@@ -101,7 +101,7 @@ public class StreamGraph {
 		typeSerializersIn2 = new HashMap<String, StreamRecordSerializer<?>>();
 		typeSerializersOut1 = new HashMap<String, StreamRecordSerializer<?>>();
 		typeSerializersOut2 = new HashMap<String, StreamRecordSerializer<?>>();
-		outputSelectors = new HashMap<String, OutputSelector<?>>();
+		outputSelectors = new HashMap<String, List<OutputSelector<?>>>();
 		jobVertexClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
 		iterationIds = new HashMap<String, Integer>();
 		iterationIDtoHeadName = new HashMap<Integer, String>();
@@ -272,6 +272,7 @@ public class StreamGraph {
 		outEdgeLists.put(vertexName, new ArrayList<String>());
 		outEdgeTypes.put(vertexName, new ArrayList<Integer>());
 		selectedNames.put(vertexName, new ArrayList<List<String>>());
+		outputSelectors.put(vertexName, new ArrayList<OutputSelector<?>>());
 		inEdgeLists.put(vertexName, new ArrayList<String>());
 		outputPartitioners.put(vertexName, new ArrayList<StreamPartitioner<?>>());
 		iterationTailCount.put(vertexName, 0);
@@ -385,10 +386,10 @@ public class StreamGraph {
 	 * @param vertexName
 	 *            Name of the vertex for which the output selector will be set
 	 * @param outputSelector
-	 *            The outputselector object
+	 *            The user defined output selector.
 	 */
-	public void setOutputSelector(String vertexName, OutputSelector<?> outputSelector) {
-		outputSelectors.put(vertexName, outputSelector);
+	public <T> void setOutputSelector(String vertexName, OutputSelector<T> outputSelector) {
+		outputSelectors.get(vertexName).add(outputSelector);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Outputselector set for {}", vertexName);
@@ -520,7 +521,7 @@ public class StreamGraph {
 		return inputFormatLists.get(vertexName);
 	}
 
-	public OutputSelector<?> getOutputSelector(String vertexName) {
+	public List<OutputSelector<?>> getOutputSelector(String vertexName) {
 		return outputSelectors.get(vertexName);
 	}
 

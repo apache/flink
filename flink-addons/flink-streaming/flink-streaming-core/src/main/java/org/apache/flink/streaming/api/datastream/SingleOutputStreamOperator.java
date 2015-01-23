@@ -22,7 +22,6 @@ import java.util.Map.Entry;
 
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy;
@@ -98,28 +97,6 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	public SingleOutputStreamOperator<OUT, O> setBufferTimeout(long timeoutMillis) {
 		streamGraph.setBufferTimeout(id, timeoutMillis);
 		return this;
-	}
-
-	/**
-	 * Operator used for directing tuples to specific named outputs using an
-	 * {@link OutputSelector}. Calling this method on an operator creates a new
-	 * {@link SplitDataStream}.
-	 * 
-	 * @param outputSelector
-	 *            The user defined {@link OutputSelector} for directing the
-	 *            tuples.
-	 * @return The {@link SplitDataStream}
-	 */
-	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
-		if (!isSplit) {
-			this.isSplit = true;
-			streamGraph.setOutputSelector(id, clean(outputSelector));
-
-			return new SplitDataStream<OUT>(this);
-		} else {
-			throw new RuntimeException("Currently operators can only be split once");
-		}
-
 	}
 
 	/**

@@ -108,7 +108,7 @@ public class OutputHandler<OUT> {
 		// We create a wrapper that will encapsulate the chained operators and
 		// network outputs
 		CollectorWrapper<OUT> wrapper = isDirectEmit ? new DirectedCollectorWrapper(
-				chainedTaskConfig.getOutputSelector(cl)) : new CollectorWrapper<OUT>();
+				chainedTaskConfig.getOutputSelectors(cl)) : new CollectorWrapper<OUT>();
 
 		// Create collectors for the network outputs
 		for (String output : chainedTaskConfig.getOutputs(cl)) {

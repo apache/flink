@@ -40,7 +40,7 @@ public class DirectedCollectorWrapper<OUT> extends CollectorWrapper<OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DirectedCollectorWrapper.class);
 
-	OutputSelector<OUT> outputSelector;
+	List<OutputSelector<OUT>> outputSelectors;
 
 	protected Map<String, List<Collector<OUT>>> outputMap;
 
@@ -53,8 +53,8 @@ public class DirectedCollectorWrapper<OUT> extends CollectorWrapper<OUT> {
 	 * @param outputSelector
 	 *            User defined {@link OutputSelector}
 	 */
-	public DirectedCollectorWrapper(OutputSelector<OUT> outputSelector) {
-		this.outputSelector = outputSelector;
+	public DirectedCollectorWrapper(List<OutputSelector<OUT>> outputSelectors) {
+		this.outputSelectors = outputSelectors;
 		this.emitted = new HashSet<Collector<OUT>>();
 		this.selectAllOutputs = new LinkedList<Collector<OUT>>();
 		this.outputMap = new HashMap<String, List<Collector<OUT>>>();
@@ -91,34 +91,37 @@ public class DirectedCollectorWrapper<OUT> extends CollectorWrapper<OUT> {
 	public void collect(OUT record) {
 		emitted.clear();
 
-		Iterable<String> outputNames = outputSelector.select(record);
-
 		for (Collector<OUT> output : selectAllOutputs) {
 			output.collect(record);
 			emitted.add(output);
 		}
 
-		for (String outputName : outputNames) {
-			List<Collector<OUT>> outputList = outputMap.get(outputName);
-			if (outputList == null) {
-				if (LOG.isErrorEnabled()) {
-					String format = String.format(
-							"Cannot emit because no output is selected with the name: %s",
-							outputName);
-					LOG.error(format);
+		for (OutputSelector<OUT> outputSelector : outputSelectors) {
+			Iterable<String> outputNames = outputSelector.select(record);
 
-				}
-			} else {
-				for (Collector<OUT> output : outputList) {
-					if (!emitted.contains(output)) {
-						output.collect(record);
-						emitted.add(output);
+			for (String outputName : outputNames) {
+				List<Collector<OUT>> outputList = outputMap.get(outputName);
+				if (outputList == null) {
+					if (LOG.isErrorEnabled()) {
+						String format = String.format(
+								"Cannot emit because no output is selected with the name: %s",
+								outputName);
+						LOG.error(format);
+
 					}
+				} else {
+					for (Collector<OUT> output : outputList) {
+						if (!emitted.contains(output)) {
+							output.collect(record);
+							emitted.add(output);
+						}
+					}
+
 				}
 
 			}
-
 		}
+
 	}
 
 	@Override

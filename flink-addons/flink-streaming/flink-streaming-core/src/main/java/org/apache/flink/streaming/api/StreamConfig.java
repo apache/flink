@@ -186,17 +186,22 @@ public class StreamConfig implements Serializable {
 		return config.getBoolean(DIRECTED_EMIT, false);
 	}
 
-	public void setOutputSelector(OutputSelector<?> outputSelector) {
-		if (outputSelector != null) {
-			setDirectedEmit(true);
-			config.setBytes(OUTPUT_SELECTOR, SerializationUtils.serialize(outputSelector));
+
+	public void setOutputSelectors(List<OutputSelector<?>> outputSelector) {
+		try {
+			if (outputSelector != null) {
+				setDirectedEmit(true);
+				config.setBytes(OUTPUT_SELECTOR, SerializationUtils.serialize((Serializable) outputSelector));
+			}
+		} catch (SerializationException e) {
+			throw new RuntimeException("Cannot serialize OutputSelector");
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> OutputSelector<T> getOutputSelector(ClassLoader cl) {
+	public <T> List<OutputSelector<T>> getOutputSelectors(ClassLoader cl) {
 		try {
-			return (OutputSelector<T>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (List<OutputSelector<T>>) InstantiationUtil.readObjectFromConfig(this.config,
 					OUTPUT_SELECTOR, cl);
 		} catch (Exception e) {
 			throw new StreamVertexException("Cannot deserialize and instantiate OutputSelector", e);

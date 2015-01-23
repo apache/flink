@@ -191,7 +191,7 @@ public class StreamingJobGraphGenerator {
 		config.setTypeSerializerOut2(streamGraph.getOutSerializer2(vertexName));
 
 		config.setUserInvokable(streamGraph.getInvokable(vertexName));
-		config.setOutputSelector(streamGraph.getOutputSelector(vertexName));
+		config.setOutputSelectors(streamGraph.getOutputSelector(vertexName));
 		config.setOperatorStates(streamGraph.getState(vertexName));
 
 		config.setNumberOfOutputs(nonChainableOutputs.size());

@@ -468,12 +468,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * OutputSelector. Calling this method on an operator creates a new
    * SplitDataStream.
    */
-  def split(selector: OutputSelector[T]): SplitDataStream[T] = javaStream match {
-    case op: SingleOutputStreamOperator[_, _] => op.split(selector)
-    case _ =>
-      throw new UnsupportedOperationException("Operator " + javaStream.toString + " can not be " +
-        "split.")
-  }
+  def split(selector: OutputSelector[T]): SplitDataStream[T] = javaStream.split(selector)
 
   /**
    * Creates a new SplitDataStream that contains only the elements satisfying the
