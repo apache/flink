@@ -101,6 +101,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testMoreNodesThanAvailable() {
+		if(ignoreOnTravis()) {
+			return;
+		}
 		addTestAppender();
 		LOG.info("Starting testMoreNodesThanAvailable()");
 		runWithArgs(new String[] {"-j", flinkUberjar.getAbsolutePath(),
@@ -125,6 +128,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testResourceComputation() {
+		if(ignoreOnTravis()) {
+			return;
+		}
 		addTestAppender();
 		LOG.info("Starting testResourceComputation()");
 		runWithArgs(new String[] {"-j", flinkUberjar.getAbsolutePath(),
@@ -152,10 +158,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testfullAlloc() {
-		if(System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true")) {
-			// we skip the test until we are able to start a smaller yarn clsuter
-			// right now, the miniyarncluster has the size of the nodemanagers fixed on 4 GBs.
-			LOG.warn("Skipping test on travis for now");
+		if(ignoreOnTravis()) {
 			return;
 		}
 		addTestAppender();
@@ -242,6 +245,15 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Finished testJavaAPI()");
 	}
 
+	public boolean ignoreOnTravis() {
+		if(System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true")) {
+			// we skip the test until we are able to start a smaller yarn clsuter
+			// right now, the miniyarncluster has the size of the nodemanagers fixed on 4 GBs.
+			LOG.warn("Skipping test on travis for now");
+			return true;
+		}
+		return false;
+	}
 
 	//
 	// --------------- Tools to test if a certain string has been logged with Log4j. -------------
