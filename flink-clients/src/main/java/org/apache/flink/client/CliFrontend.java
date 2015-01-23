@@ -20,8 +20,9 @@
 package org.apache.flink.client;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.text.SimpleDateFormat;
@@ -40,6 +41,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.MissingOptionException;
+import org.apache.commons.cli.MissingArgumentException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
@@ -87,8 +89,7 @@ public class CliFrontend {
 	private static final String ACTION_CANCEL = "cancel";
 
 	// general options
-	private static final Option HELP_OPTION = new Option("h", "help", false, "Show the help for the CLI Frontend.");
-	private static final Option VERBOSE_OPTION = new Option("v", "verbose", false, "Print more detailed error messages.");
+	private static final Option HELP_OPTION = new Option("h", "help", false, "Show the help message for the CLI Frontend or the action.");
 
 	// program (jar file) specific options
 	private static final Option JAR_OPTION = new Option("j", "jarfile", true, "Flink program JAR file.");
@@ -99,14 +100,12 @@ public class CliFrontend {
 	private static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true, "Address of the JobManager (master) to which to connect. Specify '"+YARN_DEPLOY_JOBMANAGER+"' as the JobManager to deploy a YARN cluster for the job. Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
 	// info specific options
-	private static final Option PLAN_OPTION = new Option("e", "executionplan", false, "Show optimized execution plan of the program (JSON)");
 
 	// list specific options
-	private static final Option RUNNING_OPTION = new Option("r", "running", false, "Show running programs and their JobIDs");
-	private static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false, "Show scheduled prorgrams and their JobIDs");
+	private static final Option RUNNING_OPTION = new Option("r", "running", false, "Show only running programs and their JobIDs");
+	private static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false, "Show only scheduled prorgrams and their JobIDs");
 
-	// canceling
-	private static final Option ID_OPTION = new Option("i", "jobid", true, "JobID of program to cancel");
+	// canceling options
 
 	static {
 		initOptions();
@@ -139,7 +138,6 @@ public class CliFrontend {
 
 	private CommandLineParser parser;
 	
-	private boolean verbose;
 	private boolean printHelp;
 	
 	private boolean globalConfigurationLoaded;
@@ -170,8 +168,7 @@ public class CliFrontend {
 
 	private static void initOptions() {
 		HELP_OPTION.setRequired(false);
-		VERBOSE_OPTION.setRequired(false);
-		
+
 		JAR_OPTION.setRequired(false);
 		JAR_OPTION.setArgName("jarfile");
 		
@@ -187,21 +184,16 @@ public class CliFrontend {
 		ARGS_OPTION.setRequired(false);
 		ARGS_OPTION.setArgName("programArgs");
 		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
-		
-		PLAN_OPTION.setRequired(false);
 
 		RUNNING_OPTION.setRequired(false);
 		SCHEDULED_OPTION.setRequired(false);
-		
-		ID_OPTION.setRequired(false);
-		ID_OPTION.setArgName("jobID");
 	}
 	
 	static Options createGeneralOptions() {
 		Options options = new Options();
 		options.addOption(HELP_OPTION);
-		options.addOption(VERBOSE_OPTION);
-
+		// backwards compatibility: ignore verbose flag (-v)
+		options.addOption(new Option("v", "verbose", false, "This option is deprecated."));
 		return options;
 	}
 	
@@ -252,14 +244,12 @@ public class CliFrontend {
 	static Options getInfoOptions(Options options) {
 		options = getProgramSpecificOptions(options);
 		options = getJobManagerAddressOption(options);
-		options.addOption(PLAN_OPTION);
 		return options;
 	}
 	
 	static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
 		options = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
 		options = getJobManagerAddressOption(options);
-		options.addOption(PLAN_OPTION);
 		return options;
 	}
 	
@@ -281,7 +271,6 @@ public class CliFrontend {
 	 * @return Command line options for the cancel action.
 	 */
 	static Options getCancelOptions(Options options) {
-		options.addOption(ID_OPTION);
 		options = getJobManagerAddressOption(options);
 		return options;
 	}
@@ -303,14 +292,13 @@ public class CliFrontend {
 			evaluateGeneralOptions(line);
 		}
 		catch (MissingOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForRun();
-			return 1;
+			return handleArgException(e);
+		}
+		catch (MissingArgumentException e) {
+			return handleArgException(e);
 		}
 		catch (UnrecognizedOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForRun();
-			return 2;
+			return handleArgException(e);
 		}
 		catch (Exception e) {
 			return handleError(e);
@@ -322,64 +310,59 @@ public class CliFrontend {
 			printHelpForRun();
 			return 0;
 		}
-		
-		try {
-			PackagedProgram program = buildProgram(line);
-			if (program == null) {
-				printHelpForRun();
-				return 1;
-			}
-			
-			Client client = getClient(line, program.getUserCodeClassLoader(), program.getMainClassName());
-			if (client == null) {
-				printHelpForRun();
-				return 1;
-			}
-		
-			int parallelism = -1;
-			if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
-				String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
-				try {
-					parallelism = Integer.parseInt(parString);
-				} catch (NumberFormatException e) {
-					System.out.println("The value " + parString + " is invalid for the degree of parallelism.");
-					printHelpForRun();
-					return 1;
-				}
-				
-				if (parallelism <= 0) {
-					System.out.println("Invalid value for the degree-of-parallelism. Parallelism must be greater than zero.");
-					printHelpForRun();
-					return 1;
-				}
-			}
-			int programResult = executeProgram(program, client, parallelism);
-			// check if the program has been executed in a "job only" YARN cluster.
-			if(runInYarnCluster) {
-				List<String> msgs = yarnCluster.getNewMessages();
-				if(msgs != null && msgs.size() > 1) {
-					System.out.println("The following messages were created by the YARN cluster while running the Job:");
-					for(String msg : msgs) {
-						System.out.println(msg);
-					}
-				}
-				if(yarnCluster.hasFailed()) {
-					System.out.println("YARN cluster is in failed state!");
-					System.out.println("YARN Diagnostics: " + yarnCluster.getDiagnostics());
-				}
-				System.out.println("Shutting down YARN cluster");
-				yarnCluster.shutdown();
-			}
 
-			return programResult;
-		}
-		catch (Throwable t) {
+		PackagedProgram program;
+		Client client;
+		try {
+			program = buildProgram(line);
+			client = getClient(line, program.getUserCodeClassLoader(), program.getMainClassName());
+		} catch (FileNotFoundException e) {
+			return handleArgException(e);
+		} catch (ProgramInvocationException e) {
+			return handleError(e);
+		} catch (Throwable t) {
 			return handleError(t);
 		}
+
+		int parallelism = -1;
+		if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
+			String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
+			try {
+				parallelism = Integer.parseInt(parString);
+			} catch (NumberFormatException e) {
+				System.out.println("The value " + parString + " is invalid for the degree of parallelism.");
+				return 1;
+			}
+
+			if (parallelism <= 0) {
+				System.out.println("Invalid value for the degree-of-parallelism. Parallelism must be greater than zero.");
+				return 1;
+			}
+		}
+
+		int exitCode = executeProgram(program, client, parallelism);
+
+		if(runInYarnCluster) {
+			List<String> msgs = yarnCluster.getNewMessages();
+			if(msgs != null && msgs.size() > 1) {
+				System.out.println("The following messages were created by the YARN cluster while running the Job:");
+				for(String msg : msgs) {
+					System.out.println(msg);
+				}
+			}
+			if(yarnCluster.hasFailed()) {
+				System.out.println("YARN cluster is in failed state!");
+				System.out.println("YARN Diagnostics: " + yarnCluster.getDiagnostics());
+			}
+			System.out.println("Shutting down YARN cluster");
+			yarnCluster.shutdown();
+		}
+
+		return exitCode;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected int executeProgram(PackagedProgram program, Client client, int parallelism) {
 		JobExecutionResult execResult;
 		try {
@@ -420,14 +403,13 @@ public class CliFrontend {
 			evaluateGeneralOptions(line);
 		}
 		catch (MissingOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForInfo();
-			return 1;
+			return handleArgException(e);
+		}
+		catch (MissingArgumentException e) {
+			return handleArgException(e);
 		}
 		catch (UnrecognizedOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForInfo();
-			return 2;
+			return handleArgException(e);
 		}
 		catch (Exception e) {
 			return handleError(e);
@@ -437,27 +419,18 @@ public class CliFrontend {
 			printHelpForInfo();
 			return 0;
 		}
-		
-		boolean plan = line.hasOption(PLAN_OPTION.getOpt());
-		
-		if (!plan) {
-			System.out.println("ERROR: Specify the information to display.");
-			printHelpForInfo();
-			return 1;
-		}
 
 		// -------- build the packaged program -------------
 		
 		PackagedProgram program;
 		try {
 			program = buildProgram(line);
+		} catch (FileNotFoundException e) {
+			return handleError(e);
+		} catch (ProgramInvocationException e) {
+			return handleError(e);
 		} catch (Throwable t) {
 			return handleError(t);
-		}
-		
-		if (program == null) {
-			printHelpForInfo();
-			return 1;
 		}
 		
 		int parallelism = -1;
@@ -467,30 +440,25 @@ public class CliFrontend {
 				parallelism = Integer.parseInt(parString);
 			} catch (NumberFormatException e) {
 				System.out.println("The value " + parString + " is invalid for the degree of parallelism.");
-				printHelpForRun();
 				return 1;
 			}
 			
 			if (parallelism <= 0) {
 				System.out.println("Invalid value for the degree-of-parallelism. Parallelism must be greater than zero.");
-				printHelpForRun();
 				return 1;
 			}
 		}
 		
 		try {
-			// check for json plan request
-			if (plan) {
-				Client client = getClient(line, program.getUserCodeClassLoader(), program.getMainClassName());
-				String jsonPlan = client.getOptimizedPlanAsJson(program, parallelism);
-				
-				if (jsonPlan != null) {
-					System.out.println("----------------------- Execution Plan -----------------------");
-					System.out.println(jsonPlan);
-					System.out.println("--------------------------------------------------------------");
-				} else {
-					System.out.println("JSON plan could not be compiled.");
-				}
+			Client client = getClient(line, program.getUserCodeClassLoader(), program.getMainClassName());
+			String jsonPlan = client.getOptimizedPlanAsJson(program, parallelism);
+
+			if (jsonPlan != null) {
+				System.out.println("----------------------- Execution Plan -----------------------");
+				System.out.println(jsonPlan);
+				System.out.println("--------------------------------------------------------------");
+			} else {
+				System.out.println("JSON plan could not be compiled.");
 			}
 			
 			return 0;
@@ -513,16 +481,16 @@ public class CliFrontend {
 		CommandLine line;
 		try {
 			line = parser.parse(LIST_OPTIONS, args, false);
+			evaluateGeneralOptions(line);
 		}
 		catch (MissingOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForList();
-			return 1;
+			return handleArgException(e);
+		}
+		catch (MissingArgumentException e) {
+			return handleArgException(e);
 		}
 		catch (UnrecognizedOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForList();
-			return 2;
+			return handleArgException(e);
 		}
 		catch (Exception e) {
 			return handleError(e);
@@ -537,16 +505,15 @@ public class CliFrontend {
 		boolean running = line.hasOption(RUNNING_OPTION.getOpt());
 		boolean scheduled = line.hasOption(SCHEDULED_OPTION.getOpt());
 		
+		// print running and scheduled jobs if not option supplied
 		if (!running && !scheduled) {
-			System.out.println("Error: Specify the status of the jobs to list.");
-			printHelpForList();
-			return 1;
+			running = true;
+			scheduled = true;
 		}
 		
 		try {
 			ActorRef jobManager = getJobManager(line);
 			if (jobManager == null) {
-				printHelpForList();
 				return 1;
 			}
 
@@ -627,16 +594,16 @@ public class CliFrontend {
 		CommandLine line;
 		try {
 			line = parser.parse(CANCEL_OPTIONS, args, false);
+			evaluateGeneralOptions(line);
 		}
 		catch (MissingOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForCancel();
-			return 1;
+			return handleArgException(e);
+		}
+		catch (MissingArgumentException e) {
+			return handleArgException(e);
 		}
 		catch (UnrecognizedOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForCancel();
-			return 2;
+			return handleArgException(e);
 		}
 		catch (Exception e) {
 			return handleError(e);
@@ -647,20 +614,19 @@ public class CliFrontend {
 			return 0;
 		}
 		
+		String[] cleanedArgs = line.getArgs();
 		JobID jobId;
-		
-		if (line.hasOption(ID_OPTION.getOpt())) {
-			String jobIdString = line.getOptionValue(ID_OPTION.getOpt());
+
+		if (cleanedArgs.length > 0) {
+			String jobIdString = cleanedArgs[0];
 			try {
 				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
 			} catch (Exception e) {
 				System.out.println("Error: The value for the Job ID is not a valid ID.");
-				printHelpForCancel();
 				return 1;
 			}
 		} else {
 			System.out.println("Error: Specify a Job ID to cancel a job.");
-			printHelpForCancel();
 			return 1;
 		}
 		
@@ -668,7 +634,6 @@ public class CliFrontend {
 			ActorRef jobManager = getJobManager(line);
 
 			if (jobManager == null) {
-				printHelpForCancel();
 				return 1;
 			}
 
@@ -683,9 +648,10 @@ public class CliFrontend {
 	/**
 	 * @param line
 	 * 
-	 * @return Either a PackagedProgram (upon success), or null;
+	 * @return A PackagedProgram (upon success)
+	 * @throws java.io.FileNotFoundException, org.apache.flink.client.program.ProgramInvocationException, java.lang.Throwable
 	 */
-	protected PackagedProgram buildProgram(CommandLine line) {
+	protected PackagedProgram buildProgram(CommandLine line) throws FileNotFoundException, ProgramInvocationException {
 		String[] programArgs = line.hasOption(ARGS_OPTION.getOpt()) ?
 				line.getOptionValues(ARGS_OPTION.getOpt()) :
 				line.getArgs();
@@ -700,35 +666,27 @@ public class CliFrontend {
 			programArgs = Arrays.copyOfRange(programArgs, 1, programArgs.length);
 		}
 		else {
-			System.out.println("Error: Jar file is not set.");
-			return null;
+			throw new FileNotFoundException("Error: Jar file was not specified.");
 		}
 		
 		File jarFile = new File(jarFilePath);
 		
 		// Check if JAR file exists
 		if (!jarFile.exists()) {
-			System.out.println("Error: Jar file: '"+jarFile+"' does not exist.");
-			return null;
+			throw new FileNotFoundException("Error: Jar file does not exist: " + jarFile);
 		}
 		else if (!jarFile.isFile()) {
-			System.out.println("Error: Jar file '"+jarFile+"' is not a file.");
-			return null;
+			throw new FileNotFoundException("Error: Jar file is not a file: " + jarFile);
 		}
 		
 		// Get assembler class
 		String entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
 				line.getOptionValue(CLASS_OPTION.getOpt()) :
 				null;
-				
-		try {
-			return entryPointClass == null ? 
-					new PackagedProgram(jarFile, programArgs) :
-					new PackagedProgram(jarFile, entryPointClass, programArgs);
-		} catch (ProgramInvocationException e) {
-			handleError(e);
-			return null;
-		}
+
+		return entryPointClass == null ?
+				new PackagedProgram(jarFile, programArgs) :
+				new PackagedProgram(jarFile, entryPointClass, programArgs);
 	}
 	
 	protected String getJobManagerAddressString(CommandLine line) throws IOException {
@@ -841,8 +799,8 @@ public class CliFrontend {
 					GlobalConfiguration.includeConfiguration(c); // update config
 				}
 			} catch (IOException e) {
-				System.err.println("Error while loading YARN properties: "+e.getMessage());
 				e.printStackTrace();
+				System.err.println("Error while loading YARN properties: " + e.getMessage());
 			}
 
 			globalConfigurationLoaded = true;
@@ -953,33 +911,40 @@ public class CliFrontend {
 	 * Prints the help for the client.
 	 */
 	private void printHelp() {
-		System.out.println("./flink <ACTION> [GENERAL_OPTIONS] [ARGUMENTS]");
-		
+		System.out.println("./flink <ACTION> [OPTIONS] [ARGUMENTS]");
+		System.out.println();
+		System.out.println("The following actions are available:");
+
+		/* The only general option is -h and the help messages are always printed on errors.
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setWidth(80);
 		formatter.setLeftPadding(5);
 		formatter.setSyntaxPrefix("  general options:");
 		formatter.printHelp(" ", GENERAL_OPTIONS);
+		*/
 		
 		printHelpForRun();
 		printHelpForInfo();
 		printHelpForList();
 		printHelpForCancel();
+
+		System.out.println();
 	}
 	
 	private void printHelpForRun() {
 		HelpFormatter formatter = new HelpFormatter();
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
-		
+
 		System.out.println("\nAction \"run\" compiles and runs a program.");
 		System.out.println("\n  Syntax: run [OPTIONS] <jar-file> <arguments>");
-		formatter.setSyntaxPrefix("  \"run\" action arguments:");
+		formatter.setSyntaxPrefix("  \"run\" action options:");
 		formatter.printHelp(" ", getRunOptionsWithoutDeprecatedOptions(new Options()));
-		formatter.setSyntaxPrefix("  additional arguments if -m "+YARN_DEPLOY_JOBMANAGER+" is set:");
+		formatter.setSyntaxPrefix("  Additional arguments if -m "+YARN_DEPLOY_JOBMANAGER+" is set:");
 		Options yarnOpts = new Options();
 		yarnSessionCLi.getYARNSessionCLIOptions(yarnOpts);
 		formatter.printHelp(" ", yarnOpts);
+		System.out.println();
 	}
 	
 	private void printHelpForInfo() {
@@ -987,9 +952,11 @@ public class CliFrontend {
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
 		
-		System.out.println("\nAction \"info\" displays information about a program.");
-		formatter.setSyntaxPrefix("  \"info\" action arguments:");
+		System.out.println("\nAction \"info\" shows the optimized execution plan of the program (JSON).");
+		System.out.println("\n  Syntax: info [OPTIONS] <jar-file> <arguments>");
+		formatter.setSyntaxPrefix("  \"info\" action options:");
 		formatter.printHelp(" ", getInfoOptionsWithoutDeprecatedOptions(new Options()));
+		System.out.println();
 	}
 	
 	private void printHelpForList() {
@@ -997,9 +964,11 @@ public class CliFrontend {
 		formatter.setLeftPadding(5);
 		formatter.setWidth(80);
 		
-		System.out.println("\nAction \"list\" lists running and finished programs.");
-		formatter.setSyntaxPrefix("  \"list\" action arguments:");
+		System.out.println("\nAction \"list\" lists running and scheduled programs.");
+		System.out.println("\n  Syntax: list [OPTIONS]");
+		formatter.setSyntaxPrefix("  \"list\" action options:");
 		formatter.printHelp(" ", getListOptions(new Options()));
+		System.out.println();
 	}
 	
 	private void printHelpForCancel() {
@@ -1008,23 +977,27 @@ public class CliFrontend {
 		formatter.setWidth(80);
 		
 		System.out.println("\nAction \"cancel\" cancels a running program.");
-		formatter.setSyntaxPrefix("  \"cancel\" action arguments:");
+		System.out.println("\n  Syntax: cancel [OPTIONS] <Job ID>");
+		formatter.setSyntaxPrefix("  \"cancel\" action options:");
 		formatter.printHelp(" ", getCancelOptions(new Options()));
+		System.out.println();
 	}
 	
-	
+	private int handleArgException(Exception e) {
+		System.out.println(e.getMessage());
+		System.out.println();
+		System.out.println("Specify the help option (-h or --help) to get help on the command.");
+		return 1;
+	}
 	/**
 	 * Displays exceptions.
 	 * 
 	 * @param t The exception to display.
 	 */
 	private int handleError(Throwable t) {
-		System.out.println("Error: " + t.getMessage());
-		if (this.verbose) {
-			t.printStackTrace();
-		} else {
-			System.out.println("For a more detailed error message use the vebose output option '-v'.");
-		}
+		t.printStackTrace();
+		System.err.println();
+		System.err.println("The exception above occurred while trying to run your command.");
 		return 1;
 	}
 
@@ -1034,9 +1007,6 @@ public class CliFrontend {
 	private void evaluateGeneralOptions(CommandLine line) {
 		// check help flag
 		this.printHelp = line.hasOption(HELP_OPTION.getOpt());
-		
-		// check verbosity flag
-		this.verbose = line.hasOption(VERBOSE_OPTION.getOpt());
 	}
 	
 	/**
@@ -1049,14 +1019,14 @@ public class CliFrontend {
 		
 		// check for action
 		if (args.length < 1) {
-			System.out.println("Please specify an action.");
 			printHelp();
+			System.out.println("Please specify an action.");
 			return 1;
 		}
 		
 		// get action
 		String action = args[0];
-		
+
 		// remove action from parameters
 		final String[] params = Arrays.copyOfRange(args, 1, args.length);
 		
@@ -1087,8 +1057,11 @@ public class CliFrontend {
 			printHelp();
 			return 0;
 		} else {
-			System.out.println("Invalid action!");
-			printHelp();
+			System.out.printf("\"%s\" is not a valid action.\n", action);
+			System.out.println();
+			System.out.println("Valid actions are \"run\", \"list\", \"info\", or \"cancel\".");
+			System.out.println();
+			System.out.println("Specify the help option (-h or --help) to get help on the command.");
 			return 1;
 		}
 	}

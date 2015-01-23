@@ -42,6 +42,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.FileNotFoundException;
+
 
 public class CliFrontendPackageProgramTest {
 	
@@ -58,7 +60,9 @@ public class CliFrontendPackageProgramTest {
 				
 			CliFrontend frontend = new CliFrontend();
 			Object result = frontend.buildProgram(line);
-			assertTrue(result == null);
+		}
+		catch (FileNotFoundException e) {
+			// that's what we want
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -75,7 +79,9 @@ public class CliFrontendPackageProgramTest {
 			
 			CliFrontend frontend = new CliFrontend();
 			Object result = frontend.buildProgram(line);
-			assertTrue(result == null);
+		}
+		catch (ProgramInvocationException e) {
+			// that's what we want
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -158,7 +164,9 @@ public class CliFrontendPackageProgramTest {
 				
 			CliFrontend frontend = new CliFrontend();
 			Object result = frontend.buildProgram(line);
-			assertTrue(result == null);
+		}
+		catch (FileNotFoundException e) {
+			// that's what we want
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -175,7 +183,9 @@ public class CliFrontendPackageProgramTest {
 				
 			CliFrontend frontend = new CliFrontend();
 			Object result = frontend.buildProgram(line);
-			assertTrue(result == null);
+		}
+		catch (FileNotFoundException e) {
+			// that's what we want
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -192,7 +202,9 @@ public class CliFrontendPackageProgramTest {
 				
 			CliFrontend frontend = new CliFrontend();
 			Object result = frontend.buildProgram(line);
-			assertTrue(result == null);
+		}
+		catch (FileNotFoundException e) {
+			// that's what we want
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
