@@ -72,7 +72,7 @@ public class JobGraphBuilder {
 	private Map<String, StreamRecordSerializer<?>> typeSerializersIn2;
 	private Map<String, StreamRecordSerializer<?>> typeSerializersOut1;
 	private Map<String, StreamRecordSerializer<?>> typeSerializersOut2;
-	private Map<String, byte[]> outputSelectors;
+	private Map<String, List<OutputSelector<?>>> outputSelectors;
 	private Map<String, Class<? extends AbstractInvokable>> vertexClasses;
 	private Map<String, Integer> iterationIds;
 	private Map<Integer, String> iterationIDtoHeadName;
@@ -103,7 +103,7 @@ public class JobGraphBuilder {
 		typeSerializersIn2 = new HashMap<String, StreamRecordSerializer<?>>();
 		typeSerializersOut1 = new HashMap<String, StreamRecordSerializer<?>>();
 		typeSerializersOut2 = new HashMap<String, StreamRecordSerializer<?>>();
-		outputSelectors = new HashMap<String, byte[]>();
+		outputSelectors = new HashMap<String, List<OutputSelector<?>>>();
 		vertexClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
 		iterationIds = new HashMap<String, Integer>();
 		iterationIDtoHeadName = new HashMap<Integer, String>();
@@ -294,6 +294,7 @@ public class JobGraphBuilder {
 		outEdgeType.put(vertexName, new ArrayList<Integer>());
 		outEdgeNames.put(vertexName, new ArrayList<List<String>>());
 		outEdgeSelectAll.put(vertexName, new ArrayList<Boolean>());
+		outputSelectors.put(vertexName, new ArrayList<OutputSelector<?>>());
 		inEdgeList.put(vertexName, new ArrayList<String>());
 		connectionTypes.put(vertexName, new ArrayList<StreamPartitioner<?>>());
 		iterationTailCount.put(vertexName, 0);
@@ -321,7 +322,7 @@ public class JobGraphBuilder {
 		Class<? extends AbstractInvokable> vertexClass = vertexClasses.get(vertexName);
 		StreamInvokable<?, ?> invokableObject = invokableObjects.get(vertexName);
 		int parallelism = vertexParallelism.get(vertexName);
-		byte[] outputSelector = outputSelectors.get(vertexName);
+		List<OutputSelector<?>> outputSelector = outputSelectors.get(vertexName);
 		Map<String, OperatorState<?>> state = operatorStates.get(vertexName);
 
 		// Create vertex object
@@ -493,11 +494,11 @@ public class JobGraphBuilder {
 	 * 
 	 * @param vertexName
 	 *            Name of the vertex for which the output selector will be set
-	 * @param serializedOutputSelector
-	 *            Byte array representing the serialized output selector.
+	 * @param outputSelector
+	 *            The user defined output selector.
 	 */
-	public <T> void setOutputSelector(String vertexName, byte[] serializedOutputSelector) {
-		outputSelectors.put(vertexName, serializedOutputSelector);
+	public <T> void setOutputSelector(String vertexName, OutputSelector<T> outputSelector) {
+		outputSelectors.get(vertexName).add(outputSelector);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Outputselector set for {}", vertexName);

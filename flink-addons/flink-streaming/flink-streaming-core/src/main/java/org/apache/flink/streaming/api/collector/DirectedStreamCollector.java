@@ -40,7 +40,7 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DirectedStreamCollector.class);
 
-	OutputSelector<OUT> outputSelector;
+	List<OutputSelector<OUT>> outputSelector;
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> selectAllOutputs;
 	private Set<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
 
@@ -56,7 +56,7 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 	 */
 	public DirectedStreamCollector(int channelID,
 			SerializationDelegate<StreamRecord<OUT>> serializationDelegate,
-			OutputSelector<OUT> outputSelector) {
+			List<OutputSelector<OUT>> outputSelector) {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
 		this.emitted = new HashSet<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
@@ -80,7 +80,6 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 	 *
 	 */
 	protected void emitToOutputs() {
-		Iterable<String> outputNames = outputSelector.select(streamRecord.getObject());
 		emitted.clear();
 
 		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : selectAllOutputs) {
@@ -95,36 +94,40 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 		}
 		emitted.addAll(selectAllOutputs);
 
-		for (String outputName : outputNames) {
-			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputList = outputMap
+		for (OutputSelector<OUT> selector: outputSelector) {
+			Iterable<String> outputNames = selector.select(streamRecord.getObject());
+
+			for (String outputName : outputNames) {
+				List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputList = outputMap
 					.get(outputName);
-			try {
-				if (outputList == null) {
-					if (LOG.isErrorEnabled()) {
-						String format = String.format(
+				try {
+					if (outputList == null) {
+						if (LOG.isErrorEnabled()) {
+							String format = String.format(
 								"Cannot emit because no output is selected with the name: %s",
 								outputName);
-						LOG.error(format);
+							LOG.error(format);
 
-					}
-				} else {
-
-					for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputList) {
-						if (!emitted.contains(output)) {
-							output.emit(serializationDelegate);
-							emitted.add(output);
 						}
+					} else {
+
+						for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputList) {
+							if (!emitted.contains(output)) {
+								output.emit(serializationDelegate);
+								emitted.add(output);
+							}
+						}
+
 					}
 
-				}
-
-			} catch (Exception e) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Emit to {} failed due to: {}", outputName,
+				} catch (Exception e) {
+					if (LOG.isErrorEnabled()) {
+						LOG.error("Emit to {} failed due to: {}", outputName,
 							StringUtils.stringifyException(e));
+					}
 				}
-			}
 
+			}
 		}
 	}
 }

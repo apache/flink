@@ -20,11 +20,8 @@ package org.apache.flink.streaming.api.datastream;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.lang3.SerializationException;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
 import org.apache.flink.streaming.state.OperatorState;
@@ -97,33 +94,6 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		return this;
 	}
 
-	/**
-	 * Operator used for directing tuples to specific named outputs using an
-	 * {@link OutputSelector}. Calling this method on an operator creates a new
-	 * {@link SplitDataStream}.
-	 * 
-	 * @param outputSelector
-	 *            The user defined {@link OutputSelector} for directing the
-	 *            tuples.
-	 * @return The {@link SplitDataStream}
-	 */
-	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
-		if (!isSplit) {
-			this.isSplit = true;
-			try {
-				jobGraphBuilder.setOutputSelector(id,
-						SerializationUtils.serialize(clean(outputSelector)));
-
-			} catch (SerializationException e) {
-				throw new RuntimeException("Cannot serialize OutputSelector");
-			}
-
-			return new SplitDataStream<OUT>(this);
-		} else {
-			throw new RuntimeException("Currently operators can only be split once");
-		}
-
-	}
 
 	/**
 	 * This is a beta feature </br></br> Register an operator state for this

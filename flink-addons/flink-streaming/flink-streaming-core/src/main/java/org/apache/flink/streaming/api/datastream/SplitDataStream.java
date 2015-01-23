@@ -50,8 +50,10 @@ public class SplitDataStream<OUT> extends DataStream<OUT> {
 
 	private DataStream<OUT> selectOutput(String[] outputNames) {
 		DataStream<OUT> returnStream = copy();
-		returnStream.selectAll = false;
-		returnStream.userDefinedNames = Arrays.asList(outputNames);
+		for (DataStream<OUT> ds : returnStream.mergedStreams) {
+			ds.selectAll = false;
+			ds.userDefinedNames = Arrays.asList(outputNames);
+		}
 		return returnStream;
 	}
 

@@ -81,7 +81,7 @@ public class OutputHandler<OUT> {
 
 	private StreamCollector<OUT> setCollector() {
 		if (streamVertex.configuration.getDirectedEmit()) {
-			OutputSelector<OUT> outputSelector = streamVertex.configuration
+			List<OutputSelector<OUT>> outputSelector = streamVertex.configuration
 					.getOutputSelector(streamVertex.userClassLoader);
 
 			collector = new DirectedStreamCollector<OUT>(streamVertex.getInstanceID(),

@@ -38,6 +38,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.JobGraphBuilder;
+import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.temporaloperator.StreamCrossOperator;
 import org.apache.flink.streaming.api.datastream.temporaloperator.StreamJoinOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -225,6 +226,24 @@ public class DataStream<OUT> {
 	}
 
 	/**
+	 * Operator used for directing tuples to specific named outputs using an
+	 * {@link org.apache.flink.streaming.api.collector.OutputSelector}. Calling this method on an operator creates a new
+	 * {@link SplitDataStream}.
+	 *
+	 * @param outputSelector
+	 *            The user defined {@link org.apache.flink.streaming.api.collector.OutputSelector} for directing the
+	 *            tuples.
+	 * @return The {@link SplitDataStream}
+	 */
+	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
+		for (DataStream<OUT> ds : this.mergedStreams) {
+			jobGraphBuilder.setOutputSelector(ds.getId(), clean(outputSelector));
+		}
+
+		return new SplitDataStream<OUT>(this);
+	}
+
+	/**
 	 * Creates a new {@link ConnectedDataStream} by connecting
 	 * {@link DataStream} outputs of different type with each other. The
 	 * DataStreams connected using this operators can be used with CoFunctions.
@@ -382,7 +401,7 @@ public class DataStream<OUT> {
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. A common usage pattern for streaming iterations is to use
 	 * output splitting to send a part of the closing data stream to the head.
-	 * Refer to {@link SingleOutputStreamOperator#split(outputSelector)} for
+	 * Refer to {@link #split(OutputSelector)} for
 	 * more information.
 	 * <p>
 	 * The iteration edge will be partitioned the same way as the first input of
@@ -408,7 +427,7 @@ public class DataStream<OUT> {
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. A common usage pattern for streaming iterations is to use
 	 * output splitting to send a part of the closing data stream to the head.
-	 * Refer to {@link SingleOutputStreamOperator#split(outputSelector)} for
+	 * Refer to {@link #split(OutputSelector)} for
 	 * more information.
 	 * <p>
 	 * The iteration edge will be partitioned the same way as the first input of
