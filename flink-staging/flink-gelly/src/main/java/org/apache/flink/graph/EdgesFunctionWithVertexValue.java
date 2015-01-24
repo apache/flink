@@ -22,6 +22,16 @@ import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
 
+/**
+ * Interface to be implemented by the function applied to a vertex neighborhood
+ * in the {@link Graph#reduceOnEdges(EdgesFunctionWithVertexValue, EdgeDirection)}
+ * method.
+ *
+ * @param <K> the vertex key type
+ * @param <VV> the vertex value type
+ * @param <EV> the edge value type
+ * @param <O> the type of the return value
+ */
 public interface EdgesFunctionWithVertexValue<K extends Comparable<K> & Serializable, 
 	VV extends Serializable, EV extends Serializable, O> extends Function, Serializable {
 

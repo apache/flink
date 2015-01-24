@@ -287,9 +287,10 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	/**
-	 * Function that checks whether a graph's ids are valid
+	 * Function that checks whether a Graph is a valid Graph,
+	 * as defined by the given {@link GraphValidator}.
 	 * 
-	 * @return true if the graph's ids are valid, false if not.
+	 * @return true if the Graph is valid.
 	 */
 	public DataSet<Boolean> validate(GraphValidator<K, VV, EV> validator) {
 		return validator.validate(this);

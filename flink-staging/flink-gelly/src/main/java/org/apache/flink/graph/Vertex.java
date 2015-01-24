@@ -22,6 +22,13 @@ import java.io.Serializable;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
+/**
+ * Represents the graph's nodes. It carries an ID and a value.
+ * For vertices with no value, use {@link org.apache.flink.types.NullValue} as the value type.
+ *
+ * @param <K>
+ * @param <V>
+ */
 public class Vertex<K extends Comparable<K> & Serializable, V extends Serializable> 
 	extends Tuple2<K, V> {
 
