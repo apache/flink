@@ -1043,6 +1043,7 @@ under the License.
 						<exclude>**/target/**</exclude>
 						<exclude>docs/_site/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
+                        <exclude>build-target/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

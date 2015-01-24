@@ -436,6 +436,37 @@ under the License.
 					</gitDescribe>
 				</configuration>
 			</plugin>
+
+			<!-- create a symbolic link to the build target in the root directory -->
+			<plugin>
+				<groupId>com.pyx4j</groupId>
+				<artifactId>maven-junction-plugin</artifactId>
+				<version>1.0.3</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>link</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>unlink</id>
+						<phase>pre-clean</phase>
+						<goals>
+							<goal>unlink</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<links>
+						<link>
+							<dst>${project.basedir}/../build-target</dst>
+							<src>${project.basedir}/target/flink-${project.version}-bin/flink-${project.version}</src>
+						</link>
+					</links>
+				</configuration>
+			</plugin>
+
 		</plugins>
 	</build>
 </project>
