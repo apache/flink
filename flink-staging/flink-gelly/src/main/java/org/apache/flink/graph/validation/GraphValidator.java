@@ -24,11 +24,11 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 
 /**
- * A validation method for different types of Graphs
+ * A utility for defining validation criteria for different types of Graphs.
  * 
- * @param <K>
- * @param <VV>
- * @param <EV>
+ * @param <K> the vertex key type
+ * @param <VV> the vertex value type
+ * @param <EV> the edge value type
  */
 @SuppressWarnings("serial")
 public abstract class GraphValidator<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>

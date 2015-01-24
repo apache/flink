@@ -18,6 +18,14 @@
 
 package org.apache.flink.graph;
 
+/**
+ * The EdgeDirection is used to select a node's neighborhood
+ * by the {@link Graph#reduceOnEdges(EdgesFunction, EdgeDirection)},
+ * {@link Graph#reduceOnEdges(EdgesFunctionWithVertexValue, EdgeDirection)},
+ * {@link Graph#reduceOnNeighbors(NeighborsFunction, EdgeDirection)} and
+ * {@link Graph#reduceOnNeighbors(NeighborsFunctionWithVertexValue, EdgeDirection)}
+ * methods.
+ */
 public enum EdgeDirection {
 	IN,
 	OUT,

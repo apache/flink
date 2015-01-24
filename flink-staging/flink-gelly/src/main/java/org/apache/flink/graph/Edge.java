@@ -43,6 +43,11 @@ public class Edge<K extends Comparable<K> & Serializable, V extends Serializable
 		this.f2 = val;
 	}
 
+	/**
+	 * Reverses the direction of this Edge.
+	 * @return a new Edge, where the source is the original Edge's target
+	 * and the target is the original Edge's source.
+	 */
 	public Edge<K, V> reverse() {
 			return new Edge<K, V>(this.f1, this.f0, this.f2);
 	}
