@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package flink.graphs.spargel;
+package org.apache.flink.graph.spargel;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -26,10 +26,9 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.Edge;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-
-import flink.graphs.Edge;
 
 /**
  * The base class for functions that produce messages between vertices as a part of a {@link VertexCentricIteration}.

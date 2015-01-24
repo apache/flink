@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package flink.graphs.spargel;
+package org.apache.flink.graph.spargel;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -38,10 +38,9 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
-
-import flink.graphs.Edge;
-import flink.graphs.Vertex;
 
 /**
  * This class represents iterative graph computations, programmed in a vertex-centric perspective.
@@ -106,7 +105,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 	private VertexCentricIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
 			MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
 			DataSet<Edge<VertexKey, EdgeValue>> edgesWithValue, 
-			int maximumNumberOfIterations, boolean edgeHasValueMarker)
+			int maximumNumberOfIterations)
 	{
 		Validate.notNull(uf);
 		Validate.notNull(mf);
@@ -319,7 +318,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 					MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> mf,
 					int maximumNumberOfIterations)
 	{
-		return new VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue>(uf, mf, edgesWithValue, maximumNumberOfIterations, true);
+		return new VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue>(uf, mf, edgesWithValue, maximumNumberOfIterations);
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -17,7 +17,7 @@
  */
 
 
-package flink.graphs;
+package org.apache.flink.graph.test;
 
 import java.io.BufferedReader;
 
@@ -25,13 +25,15 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.spargel.MessageIterator;
+import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.NullValue;
-
-import flink.graphs.spargel.MessageIterator;
-import flink.graphs.spargel.MessagingFunction;
-import flink.graphs.spargel.VertexUpdateFunction;
 
 @SuppressWarnings("serial")
 public class TestVertexCentricConnectedComponents extends JavaProgramTestBase {
@@ -60,7 +62,7 @@ public class TestVertexCentricConnectedComponents extends JavaProgramTestBase {
 		DataSet<Edge<Long, NullValue>> edges = edgeString.map(new EdgeParser());
 		
 		DataSet<Vertex<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
-		Graph<Long, Long, NullValue> graph = Graph.create(initialVertices, edges, env); 
+		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env); 
 		
 		Graph<Long, Long, NullValue> result = graph.runVertexCentricIteration(new CCUpdater(), new CCMessager(), 100);
 		

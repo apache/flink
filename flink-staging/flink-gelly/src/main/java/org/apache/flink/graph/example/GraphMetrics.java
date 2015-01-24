@@ -1,4 +1,22 @@
-package flink.graphs.example;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.graph.example;
 
 import java.util.Collection;
 
@@ -10,10 +28,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.example.utils.ExampleUtils;
 import org.apache.flink.types.NullValue;
-
-import flink.graphs.Graph;
-import flink.graphs.example.utils.ExampleUtils;
 
 /**
  * 
@@ -42,7 +59,7 @@ public class GraphMetrics implements ProgramDescription {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		/** create a random graph **/
-		Graph<Long, NullValue, NullValue> graph = Graph.create(ExampleUtils
+		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(ExampleUtils
 				.getRandomEdges(env, NUM_VERTICES), env);
 		
 		/** get the number of vertices **/
@@ -71,13 +88,13 @@ public class GraphMetrics implements ProgramDescription {
 		DataSet<Long> minOutDegreeVertex = graph.outDegrees().minBy(1).map(new ProjectVertexId());
 		
 		/** print the results **/
-		ExampleUtils.printResult(numVertices, "Total number of vertices", env);
-		ExampleUtils.printResult(numEdges, "Total number of edges", env);
-		ExampleUtils.printResult(avgNodeDegree, "Average node degree", env);
-		ExampleUtils.printResult(maxInDegreeVertex, "Vertex with Max in-degree", env);
-		ExampleUtils.printResult(minInDegreeVertex, "Vertex with Min in-degree", env);
-		ExampleUtils.printResult(maxOutDegreeVertex, "Vertex with Max out-degree", env);
-		ExampleUtils.printResult(minOutDegreeVertex, "Vertex with Min out-degree", env);
+		ExampleUtils.printResult(numVertices, "Total number of vertices");
+		ExampleUtils.printResult(numEdges, "Total number of edges");
+		ExampleUtils.printResult(avgNodeDegree, "Average node degree");
+		ExampleUtils.printResult(maxInDegreeVertex, "Vertex with Max in-degree");
+		ExampleUtils.printResult(minInDegreeVertex, "Vertex with Min in-degree");
+		ExampleUtils.printResult(maxOutDegreeVertex, "Vertex with Max out-degree");
+		ExampleUtils.printResult(minOutDegreeVertex, "Vertex with Min out-degree");
 
 		env.execute();
 	}

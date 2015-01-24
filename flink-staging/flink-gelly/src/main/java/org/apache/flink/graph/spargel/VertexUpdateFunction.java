@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-package flink.graphs.spargel;
+package org.apache.flink.graph.spargel;
 
 import java.io.Serializable;
 import java.util.Collection;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-
-import flink.graphs.Vertex;
 
 /**
  * This class must be extended by functions that compute the state of the vertex depending on the old state and the

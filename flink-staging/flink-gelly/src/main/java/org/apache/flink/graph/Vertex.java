@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package flink.graphs;
+package org.apache.flink.graph;
 
 import java.io.Serializable;
 
