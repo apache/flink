@@ -2682,7 +2682,7 @@ To visualize the execution plan, do the following:
 
 After these steps, a detailed execution plan will be visualized.
 
-<img alt="A flink job execution graph." src="img/plan_visualizer2.png" width="80%">
+<img alt="A flink job execution graph." src="img/plan_visualizer.png" width="80%">
 
 
 __Web Interface__
