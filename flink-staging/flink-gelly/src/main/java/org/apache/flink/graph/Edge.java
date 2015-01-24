@@ -16,12 +16,20 @@
  * limitations under the License.
  */
 
-package flink.graphs;
+package org.apache.flink.graph;
 
 import java.io.Serializable;
 
 import org.apache.flink.api.java.tuple.Tuple3;
 
+/**
+ * An Edge represents a link between two {@link Vertex vertices},
+ * the source and the target and can carry an attached value.
+ * For edges with no value, use {@link org.apache.flink.types.NullValue} as the value type.
+ *
+ * @param <K> the key type for the sources and target vertices
+ * @param <V> the edge value type
+ */
 public class Edge<K extends Comparable<K> & Serializable, V extends Serializable> 
 	extends Tuple3<K, K, V>{
 

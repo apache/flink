@@ -1,4 +1,22 @@
-package flink.graphs;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.graph.test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -8,6 +26,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.Vertex;
 
 public class TestGraphUtils {
 
@@ -93,7 +113,7 @@ public class TestGraphUtils {
 
 	public static final DataSet<Tuple3<Long, Long, Long>> getLongLongLongTuple3Data(
 			ExecutionEnvironment env) {
-		List<Tuple3<Long, Long, Long>> tuples = new ArrayList<>();
+		List<Tuple3<Long, Long, Long>> tuples = new ArrayList<Tuple3<Long, Long, Long>>();
 		tuples.add(new Tuple3<Long, Long, Long>(1L, 2L, 12L));
 		tuples.add(new Tuple3<Long, Long, Long>(1L, 3L, 13L));
 		tuples.add(new Tuple3<Long, Long, Long>(2L, 3L, 23L));
@@ -154,7 +174,8 @@ public class TestGraphUtils {
 
 	public static final DataSet<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>> getLongLongCustomTuple3Data(
 			ExecutionEnvironment env) {
-		List<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>> tuples = new ArrayList<>();
+		List<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>> tuples = 
+				new ArrayList<Tuple3<Long, Long, DummyCustomParameterizedType<Float>>>();
 		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(1L, 2L,
 				new DummyCustomParameterizedType<Float>(10, 10f)));
 		tuples.add(new Tuple3<Long, Long, DummyCustomParameterizedType<Float>>(1L, 3L,
@@ -201,9 +222,8 @@ public class TestGraphUtils {
 	/**
 	 * Function that produces an ArrayList of vertices
 	 */
-	public static final List<Vertex<Long, Long>> getLongLongVertices(
-			ExecutionEnvironment env) {
-		List<Vertex<Long, Long>> vertices = new ArrayList<>();
+	public static final List<Vertex<Long, Long>> getLongLongVertices() {
+		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
 		vertices.add(new Vertex<Long, Long>(1L, 1L));
 		vertices.add(new Vertex<Long, Long>(2L, 2L));
 		vertices.add(new Vertex<Long, Long>(3L, 3L));
@@ -227,8 +247,7 @@ public class TestGraphUtils {
 	/**
 	 * Function that produces an ArrayList of edges
 	 */
-	public static final List<Edge<Long, Long>> getLongLongEdges(
-			ExecutionEnvironment env) {
+	public static final List<Edge<Long, Long>> getLongLongEdges() {
 		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
 		edges.add(new Edge<Long, Long>(1L, 2L, 12L));
 		edges.add(new Edge<Long, Long>(1L, 3L, 13L));

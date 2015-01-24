@@ -1,4 +1,22 @@
-package flink.graphs;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.graph.test;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -9,14 +27,16 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
+import org.apache.flink.graph.validation.InvalidVertexIdsValidator;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.NullValue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-
-import flink.graphs.TestGraphUtils.DummyCustomParameterizedType;
-import flink.graphs.validation.InvalidVertexIdsValidator;
 
 @RunWith(Parameterized.class)
 public class TestGraphCreation extends JavaProgramTestBase {
@@ -71,7 +91,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 				 * Test create() with edge dataset and no vertex values
 		         */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, NullValue, Long> graph = Graph.create(TestGraphUtils.getLongLongEdgeData(env), env);
+					Graph<Long, NullValue, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env), env);
 
 					graph.getVertices().writeAsCsv(resultPath);
 					env.execute();
@@ -86,7 +106,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 				 * Test create() with edge dataset and a mapper that assigns the id as value
 		         */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongEdgeData(env),
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env),
 							new MapFunction<Long, Long>() {
 								public Long map(Long vertexId) {
 									return vertexId;
@@ -106,7 +126,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 				 * Test create() with edge dataset and a mapper that assigns a parametrized custom vertex value
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-					Graph<Long, DummyCustomParameterizedType<Double>, Long> graph = Graph.create(
+					Graph<Long, DummyCustomParameterizedType<Double>, Long> graph = Graph.fromDataSet(
 							TestGraphUtils.getLongLongEdgeData(env),
 							new MapFunction<Long, DummyCustomParameterizedType<Double>>() {
 
@@ -135,7 +155,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 					DataSet<Vertex<Long, Long>> vertices = TestGraphUtils.getLongLongVertexData(env);
 					DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
-					Graph<Long, Long, Long> graph = new Graph<Long, Long, Long>(vertices, edges, env);
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
 					DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 					result.writeAsText(resultPath);
 					env.execute();
@@ -150,7 +170,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 					DataSet<Vertex<Long, Long>> vertices = TestGraphUtils.getLongLongInvalidVertexData(env);
 					DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
-					Graph<Long, Long, Long> graph = new Graph<Long, Long, Long>(vertices, edges, env);
+					Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
 					DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 					result.writeAsText(resultPath);
 					env.execute();
