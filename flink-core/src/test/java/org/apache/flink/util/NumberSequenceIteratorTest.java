@@ -21,7 +21,6 @@ package org.apache.flink.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.flink.util.NumberSequenceIterator;
 import org.junit.Test;
 
 
