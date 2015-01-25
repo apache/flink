@@ -35,6 +35,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -120,7 +121,16 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T createInstance() {
-		return null;
+		if(Modifier.isAbstract(type.getModifiers()) || Modifier.isInterface(type.getModifiers()) ) {
+			return null;
+		} else {
+			checkKryoInitialized();
+			try {
+				return kryo.newInstance(type);
+			} catch(Throwable e) {
+				return null;
+			}
+		}
 	}
 
 	@SuppressWarnings("unchecked")
