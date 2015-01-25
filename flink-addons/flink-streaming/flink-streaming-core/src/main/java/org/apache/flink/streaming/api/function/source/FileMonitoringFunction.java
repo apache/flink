@@ -48,15 +48,14 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 	private WatchType watchType;
 
 	private FileSystem fileSystem;
-	private long lastModificationTime;
 	private Map<String, Long> offsetOfFiles;
+	private Map<String, Long> modificationTimes;
 
 	public FileMonitoringFunction(String path, long interval, WatchType watchType) {
 		this.path = path;
 		this.interval = interval;
 		this.watchType = watchType;
-
-		this.lastModificationTime = System.currentTimeMillis();
+		this.modificationTimes = new HashMap<String, Long>();
 		this.offsetOfFiles = new HashMap<String, Long>();
 	}
 
@@ -67,7 +66,8 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 		while (true) {
 			List<String> files = listNewFiles();
 			for (String filePath : files) {
-				if (watchType == WatchType.ONLY_NEW_FILES || watchType == WatchType.REPROCESS_WITH_APPENDED) {
+				if (watchType == WatchType.ONLY_NEW_FILES
+						|| watchType == WatchType.REPROCESS_WITH_APPENDED) {
 					collector.collect(new Tuple3<String, Long, Long>(filePath, 0L, -1L));
 					offsetOfFiles.put(filePath, -1L);
 				} else if (watchType == WatchType.PROCESS_ONLY_APPENDED) {
@@ -90,28 +90,34 @@ public class FileMonitoringFunction implements SourceFunction<Tuple3<String, Lon
 
 	private List<String> listNewFiles() throws IOException {
 		List<String> files = new ArrayList<String>();
+
 		FileStatus[] statuses = fileSystem.listStatus(new Path(path));
 
 		for (FileStatus status : statuses) {
 			Path filePath = status.getPath();
+			String fileName = filePath.getName();
 			long modificationTime = status.getModificationTime();
 
-			if (!isFiltered(filePath, modificationTime)) {
+			if (!isFiltered(fileName, modificationTime)) {
 				files.add(filePath.toString());
+				modificationTimes.put(fileName, modificationTime);
 			}
 		}
-
-		lastModificationTime = System.currentTimeMillis();
-
 		return files;
 	}
 
-	private boolean isFiltered(Path path, long modificationTime) {
-		String filename = path.getName();
+	private boolean isFiltered(String fileName, long modificationTime) {
 
-		return lastModificationTime > modificationTime // not modified file
-				|| (watchType == WatchType.ONLY_NEW_FILES && offsetOfFiles.containsKey(path.toString())) // modified file but already processed
-				|| filename.startsWith(".") // hidden file
-				|| filename.contains("_COPYING_"); // currently copying file
+		if ((watchType == WatchType.ONLY_NEW_FILES && modificationTimes.containsKey(fileName))
+				|| fileName.startsWith(".") || fileName.contains("_COPYING_")) {
+			return true;
+		} else {
+			Long lastModification = modificationTimes.get(fileName);
+			if (lastModification == null) {
+				return false;
+			} else {
+				return lastModification >= modificationTime;
+			}
+		}
 	}
 }

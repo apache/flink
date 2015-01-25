@@ -224,8 +224,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @param filePath
 	 *            The path of the file, as a URI (e.g.,
 	 *            "file:///some/local/file" or "hdfs://host:port/file/path/").
-	 * @param interval
-	 *            The interval of file watching.
+	 * @param intervalMillis
+	 *            The interval of file watching in milliseconds.
 	 * @param watchType
 	 *            The watch type of file stream. When watchType is
 	 *            {@link WatchType.ONLY_NEW_FILES}, the system processes only
@@ -236,9 +236,10 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @return The DataStream containing the given directory.
 	 */
-	public DataStream<String> readFileStream(String filePath, long interval, WatchType watchType) {
+	public DataStream<String> readFileStream(String filePath, long intervalMillis,
+			WatchType watchType) {
 		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
-				filePath, interval, watchType));
+				filePath, intervalMillis, watchType), null, "File Stream");
 
 		return source.flatMap(new FileReadFunction());
 	}

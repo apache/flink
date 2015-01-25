@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.function.source.{ FromElementsFunction, SourceFunction }
 import org.apache.flink.util.Collector
 import org.apache.flink.api.scala.ClosureCleaner
+import org.apache.flink.streaming.api.function.source.FileMonitoringFunction.WatchType
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -81,14 +82,16 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.readTextFile(filePath)
 
   /**
-   * Creates a DataStream that represents the Strings produced by reading the
-   * given file line wise multiple times(infinite). The file will be read with
-   * the system's default character set. This functionality can be used for
-   * testing a topology.
+   * Creates a DataStream that contains the contents of file created while
+   * system watches the given path. The file will be read with the system's
+   * default character set. The user can check the monitoring interval in milliseconds,
+   * and the the way file modifications are handled. By default it checks for only new files
+   * every 100 milliseconds.
    *
    */
-  def readTextStream(StreamPath: String): DataStream[String] = 
-    javaEnv.readTextStream(StreamPath)
+  def readFileStream(StreamPath: String, intervalMillis: Long = 100, watchType: WatchType = 
+    WatchType.ONLY_NEW_FILES): DataStream[String] =
+    javaEnv.readFileStream(StreamPath, intervalMillis, watchType)
 
   /**
    * Creates a new DataStream that contains the strings received infinitely
