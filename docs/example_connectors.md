@@ -54,6 +54,7 @@ For example for tachyon support, there must be the following entry in the `core-
 </property>
 ~~~
 
+Also, the required classes for using the file system need to be placed in the `lib/` folder of the Flink installation (on all machines running Flink). If putting the files into the directory is not possible, Flink is also respecting the `HADOOP_CLASSPATH` environment variable to add Hadoop jar files to the classpath.
 
 
 ## Connecting to other systems using Input / Output Format wrappers for Hadoop
