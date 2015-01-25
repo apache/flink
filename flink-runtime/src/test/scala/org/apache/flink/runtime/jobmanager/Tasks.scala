@@ -133,6 +133,18 @@ object Tasks {
   }
 
   class BlockingOnceReceiver extends Receiver {
+    import BlockingOnceReceiver.blocking
+
+    override def invoke(): Unit = {
+      if(blocking) {
+        val o = new Object
+        o.synchronized{
+          o.wait()
+        }
+      } else {
+        super.invoke()
+      }
+    }
 
   }
 

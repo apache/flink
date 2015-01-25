@@ -22,12 +22,14 @@ import java.net.InetAddress
 
 import akka.actor._
 import akka.testkit.{TestKit, ImplicitSender}
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.instance.{InstanceID, HardwareDescription, InstanceConnectionInfo}
 import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
 RefuseRegistration, AcknowledgeRegistration, RegisterTaskManager}
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import scala.concurrent.duration._
 
 class TaskManagerRegistrationITCase(_system: ActorSystem) extends TestKit(_system) with
 ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
@@ -82,6 +84,9 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val tm = TestingUtils.startTestingTaskManager(self)
 
       try {
+        ignoreMsg{
+          case _: Heartbeat => true
+        }
         within(TestingUtils.TESTING_DURATION) {
           expectMsgType[RegisterTaskManager]
 
@@ -90,14 +95,32 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
           tm ! RefuseRegistration("Should be ignored")
 
           // Check if the TaskManager is still alive
-          tm ! Identify
+          tm ! Identify(1)
 
-          expectMsgPF() {
-            // wait for actor identity
-            case x: ActorIdentity => true
-            // ignore heartbeats
-            case h: Heartbeat => false
-          }
+          expectMsgType[ActorIdentity]
+
+        }
+      } finally {
+        tm ! Kill
+      }
+    }
+
+    "shutdown after the maximum registration duration has been exceeded" in {
+
+      val config = new Configuration()
+      config.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, self.path.toString)
+      config.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, "1 second")
+
+      val tm = TestingUtils.startTestingTaskManagerWithConfiguration("LOCALHOST", config)
+
+      watch(tm)
+
+      try {
+        ignoreMsg{
+          case _: RegisterTaskManager => true
+        }
+        within(2 seconds) {
+          expectTerminated(tm)
         }
       } finally {
         tm ! Kill

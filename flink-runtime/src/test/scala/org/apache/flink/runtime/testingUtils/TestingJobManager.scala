@@ -18,26 +18,34 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{Cancellable, ActorRef, Props}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.execution.ExecutionState
-import org.apache.flink.runtime.jobgraph.JobID
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.ExecutionStateChanged
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 
 import scala.collection.convert.WrapAsScala
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 
 trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   that: JobManager =>
 
+  import context._
+
   val waitForAllVerticesToBeRunning = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
 
   val waitForAllVerticesToBeRunningOrFinished =
     scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
+
+  var periodicCheck: Option[Cancellable] = None
+
+  val waitForJobStatus = scala.collection.mutable.HashMap[JobID,
+    collection.mutable.HashMap[JobStatus, Set[ActorRef]]]()
 
   override def archiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
 
@@ -52,54 +60,42 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
           executionGraph)
         case None => archive.tell(RequestExecutionGraph(jobID), sender)
       }
+
     case WaitForAllVerticesToBeRunning(jobID) =>
       if(checkIfAllVerticesRunning(jobID)){
         sender ! AllVerticesRunning(jobID)
       }else{
-        currentJobs.get(jobID) match {
-          case Some((eg, _)) => eg.registerExecutionListener(self)
-          case None =>
-        }
         val waiting = waitForAllVerticesToBeRunning.getOrElse(jobID, Set[ActorRef]())
         waitForAllVerticesToBeRunning += jobID -> (waiting + sender)
+
+        if(periodicCheck.isEmpty){
+          periodicCheck =
+            Some(context.system.scheduler.schedule(0 seconds, 200 millis, self, NotifyListeners))
+        }
       }
     case WaitForAllVerticesToBeRunningOrFinished(jobID) =>
       if(checkIfAllVerticesRunningOrFinished(jobID)){
         sender ! AllVerticesRunning(jobID)
       }else{
-        currentJobs.get(jobID) match {
-          case Some((eg, _)) => eg.registerExecutionListener(self)
-          case None =>
-        }
         val waiting = waitForAllVerticesToBeRunningOrFinished.getOrElse(jobID, Set[ActorRef]())
         waitForAllVerticesToBeRunningOrFinished += jobID -> (waiting + sender)
-      }
-    case ExecutionStateChanged(jobID, _, _, _, _, _, _, _, _) =>
-      val cleanupRunning = waitForAllVerticesToBeRunning.get(jobID) match {
-        case Some(listeners) if checkIfAllVerticesRunning(jobID) =>
-          for(listener <- listeners){
-            listener ! AllVerticesRunning(jobID)
-          }
-          true
-        case _ => false
+
+        if(periodicCheck.isEmpty){
+          periodicCheck =
+            Some(context.system.scheduler.schedule(0 seconds, 200 millis, self, NotifyListeners))
+        }
       }
 
-      if(cleanupRunning){
-        waitForAllVerticesToBeRunning.remove(jobID)
+    case NotifyListeners =>
+      for(jobID <- currentJobs.keySet){
+        notifyListeners(jobID)
       }
 
-      val cleanupRunningOrFinished = waitForAllVerticesToBeRunningOrFinished.get(jobID) match {
-        case Some(listeners) if checkIfAllVerticesRunningOrFinished(jobID) =>
-          for(listener <- listeners){
-            listener ! AllVerticesRunning(jobID)
-          }
-          true
-        case _ => false
+      if(waitForAllVerticesToBeRunning.isEmpty && waitForAllVerticesToBeRunningOrFinished.isEmpty) {
+        periodicCheck foreach { _.cancel() }
+        periodicCheck = None
       }
 
-      if (cleanupRunningOrFinished) {
-        waitForAllVerticesToBeRunningOrFinished.remove(jobID)
-      }
     case NotifyWhenJobRemoved(jobID) => {
       val tms = instanceManager.getAllRegisteredInstances.map(_.getTaskManager)
 
@@ -113,6 +109,44 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       Future.fold(responses)(true)(_ & _) pipeTo sender
     }
 
+    case RequestWorkingTaskManager(jobID) =>
+      currentJobs.get(jobID) match {
+        case Some((eg, _)) =>
+          if(eg.getAllExecutionVertices.isEmpty){
+            sender ! WorkingTaskManager(ActorRef.noSender)
+          } else {
+            val resource = eg.getAllExecutionVertices.head.getCurrentAssignedResource
+
+            if(resource == null){
+              sender ! WorkingTaskManager(ActorRef.noSender)
+            } else {
+              sender ! WorkingTaskManager(resource.getInstance().getTaskManager)
+            }
+          }
+        case None => sender ! WorkingTaskManager(ActorRef.noSender)
+      }
+
+    case NotifyWhenJobStatus(jobID, state) =>
+      val jobStatusListener = waitForJobStatus.getOrElseUpdate(jobID,
+        scala.collection.mutable.HashMap[JobStatus, Set[ActorRef]]())
+
+      val listener = jobStatusListener.getOrElse(state, Set[ActorRef]())
+
+      jobStatusListener += state -> (listener + sender)
+
+    case msg@JobStatusChanged(jobID, newJobStatus, _, _) =>
+      super.receiveWithLogMessages(msg)
+      waitForJobStatus.get(jobID) match {
+        case Some(stateListener) =>
+          stateListener.get(newJobStatus) match {
+            case Some(listeners) =>
+              listeners foreach {
+                _ ! JobStatusIs(jobID, newJobStatus)
+              }
+            case _ =>
+          }
+        case _ =>
+      }
   }
 
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {
@@ -132,6 +166,34 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
               || vertex.getExecutionState == ExecutionState.FINISHED)
         }
       case None => false
+    }
+  }
+
+  def notifyListeners(jobID: JobID): Unit = {
+    val cleanupRunning = waitForAllVerticesToBeRunning.get(jobID) match {
+      case Some(listeners) if checkIfAllVerticesRunning(jobID) =>
+        for(listener <- listeners){
+          listener ! AllVerticesRunning(jobID)
+        }
+        true
+      case _ => false
+    }
+
+    if(cleanupRunning){
+      waitForAllVerticesToBeRunning.remove(jobID)
+    }
+
+    val cleanupRunningOrFinished = waitForAllVerticesToBeRunningOrFinished.get(jobID) match {
+      case Some(listeners) if checkIfAllVerticesRunningOrFinished(jobID) =>
+        for(listener <- listeners){
+          listener ! AllVerticesRunning(jobID)
+        }
+        true
+      case _ => false
+    }
+
+    if (cleanupRunningOrFinished) {
+      waitForAllVerticesToBeRunningOrFinished.remove(jobID)
     }
   }
 }

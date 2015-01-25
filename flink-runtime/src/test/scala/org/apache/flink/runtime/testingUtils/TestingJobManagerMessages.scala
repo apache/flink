@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import akka.actor.ActorRef
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
-import org.apache.flink.runtime.jobgraph.JobID
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 
 object TestingJobManagerMessages {
 
@@ -39,4 +40,12 @@ object TestingJobManagerMessages {
   case class AllVerticesRunning(jobID: JobID)
 
   case class NotifyWhenJobRemoved(jobID: JobID)
+
+  case class RequestWorkingTaskManager(jobID: JobID)
+  case class WorkingTaskManager(taskManager: ActorRef)
+
+  case class NotifyWhenJobStatus(jobID: JobID, state: JobStatus)
+  case class JobStatusIs(jobID: JobID, state: JobStatus)
+
+  case object NotifyListeners
 }

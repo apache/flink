@@ -24,7 +24,7 @@ import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
 import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultFailed, SubmissionSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning, WaitForAllVerticesToBeRunningOrFinished}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -71,6 +71,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(SubmissionSuccess(jobGraph.getJobID))
 
           jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
+
           expectMsg(AllVerticesRunning(jobID))
 
           //kill task manager
