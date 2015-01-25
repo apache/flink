@@ -18,261 +18,250 @@
 
 package org.apache.flink.graph.test;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class TestGraphOperations extends JavaProgramTestBase {
+public class TestGraphOperations extends MultipleProgramsTestBase {
 
-	private static int NUM_PROGRAMS = 10;
-
-	private int curProgId = config.getInteger("ProgramId", -1);
-	private String resultPath;
-	private String expectedResult;
-
-	public TestGraphOperations(Configuration config) {
-		super(config);
+	public TestGraphOperations(MultipleProgramsTestBase.ExecutionMode mode){
+		super(mode);
 	}
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+    private String resultPath;
+    private String expectedResult;
+
+    @Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = GraphProgs.runProgram(curProgId, resultPath);
-	}
-
-	@Override
-	protected void postSubmit() throws Exception {
+	@After
+	public void after() throws Exception{
 		compareResultsByLinesInMemory(expectedResult, resultPath);
 	}
 
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+	@Test
+	public void testUndirected() throws Exception {
+		/*
+		 * Test getUndirected()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-
-		return toParameterList(tConfigs);
+		graph.getUndirected().getEdges().writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "1,2,12\n" + "2,1,12\n" +
+					"1,3,13\n" + "3,1,13\n" +
+					"2,3,23\n" + "3,2,23\n" +
+					"3,4,34\n" + "4,3,34\n" +
+					"3,5,35\n" + "5,3,35\n" +
+					"4,5,45\n" + "5,4,45\n" +
+					"5,1,51\n" + "1,5,51\n";
 	}
 
-	private static class GraphProgs {
+	@Test
+	public void testReverse() throws Exception {
+		/*
+		 * Test reverse()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		@SuppressWarnings("serial")
-		public static String runProgram(int progId, String resultPath) throws Exception {
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
 
-			switch(progId) {
-				case 1: {
-				/*
-				 * Test getUndirected()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		graph.reverse().getEdges().writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "2,1,12\n" +
+					"3,1,13\n" +
+					"3,2,23\n" +
+					"4,3,34\n" +
+					"5,3,35\n" +
+					"5,4,45\n" +
+					"1,5,51\n";
+	}
 
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
+	@SuppressWarnings("serial")
+	@Test
+	public void testSubGraph() throws Exception {
+		/*
+		 * Test subgraph:
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					graph.getUndirected().getEdges().writeAsCsv(resultPath);
-					env.execute();
-					return "1,2,12\n" + "2,1,12\n" +
-							"1,3,13\n" + "3,1,13\n" +
-							"2,3,23\n" + "3,2,23\n" +
-							"3,4,34\n" + "4,3,34\n" +
-							"3,5,35\n" + "5,3,35\n" +
-							"4,5,45\n" + "5,4,45\n" +
-							"5,1,51\n" + "1,5,51\n";
-				}
-				case 2: {
-				/*
-				 * Test reverse()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+		graph.subgraph(new FilterFunction<Vertex<Long, Long>>() {
+						   public boolean filter(Vertex<Long, Long> vertex) throws Exception {
+							   return (vertex.getValue() > 2);
+						   }
+					   },
+				new FilterFunction<Edge<Long, Long>>() {
+					public boolean filter(Edge<Long, Long> edge) throws Exception {
+						return (edge.getValue() > 34);
+					}
+				}).getEdges().writeAsCsv(resultPath);
 
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
+		env.execute();
+		expectedResult = "3,5,35\n" +
+					"4,5,45\n";
+	}
 
-					graph.reverse().getEdges().writeAsCsv(resultPath);
-					env.execute();
-					return "2,1,12\n" +
-							"3,1,13\n" +
-							"3,2,23\n" +
-							"4,3,34\n" +
-							"5,3,35\n" +
-							"5,4,45\n" +
-							"1,5,51\n";
-				}
-				case 3: {
-				/*
-				 * Test subgraph:
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	@SuppressWarnings("serial")
+	@Test
+	public void testFilterVertices() throws Exception {
+		/*
+		 * Test filterOnVertices:
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.subgraph(new FilterFunction<Vertex<Long, Long>>() {
-									   public boolean filter(Vertex<Long, Long> vertex) throws Exception {
-										   return (vertex.getValue() > 2);
-									   }
-								   },
-							new FilterFunction<Edge<Long, Long>>() {
-								public boolean filter(Edge<Long, Long> edge) throws Exception {
-									return (edge.getValue() > 34);
-								}
-							}).getEdges().writeAsCsv(resultPath);
-
-					env.execute();
-					return "3,5,35\n" +
-							"4,5,45\n";
-				}
-				case 4: {
-				/*
-				 * Test filterOnVertices:
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.filterOnVertices(new FilterFunction<Vertex<Long, Long>>() {
-						public boolean filter(Vertex<Long, Long> vertex) throws Exception {
-							return (vertex.getValue() > 2);
-						}
-					}).getEdges().writeAsCsv(resultPath);
-
-					env.execute();
-					return  "3,4,34\n" +
-							"3,5,35\n" +
-							"4,5,45\n";
-				}
-				case 5: {
-				/*
-				 * Test filterOnEdges:
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.filterOnEdges(new FilterFunction<Edge<Long, Long>>() {
-						public boolean filter(Edge<Long, Long> edge) throws Exception {
-							return (edge.getValue() > 34);
-						}
-					}).getEdges().writeAsCsv(resultPath);
-
-					env.execute();
-					return "3,5,35\n" +
-							"4,5,45\n" +
-							"5,1,51\n";
-				}
-				case 6: {
-				/*
-				 * Test numberOfVertices()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.numberOfVertices().writeAsText(resultPath);
-
-					env.execute();
-					return "5";
-				}
-				case 7: {
-				/*
-				 * Test numberOfEdges()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.numberOfEdges().writeAsText(resultPath);
-
-					env.execute();
-					return "7";
-				}
-				case 8: {
-				/*
-				 * Test getVertexIds()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.getVertexIds().writeAsText(resultPath);
-
-					env.execute();
-					return "1\n2\n3\n4\n5\n";
-				}
-				case 9: {
-				/*
-				 * Test getEdgeIds()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.getEdgeIds().writeAsCsv(resultPath);
-
-					env.execute();
-					return "1,2\n" + "1,3\n" +
-							"2,3\n" + "3,4\n" +
-							"3,5\n" + "4,5\n" +
-							"5,1\n";
-				}
-				case 10: {
-				/*
-				 * Test union()
-				 */
-
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-
-					List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
-					List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
-
-					vertices.add(new Vertex<Long, Long>(6L, 6L));
-					edges.add(new Edge<Long, Long>(6L, 1L, 61L));
-
-					graph = graph.union(Graph.fromCollection(vertices, edges, env));
-
-					graph.getEdges().writeAsCsv(resultPath);
-
-					env.execute();
-
-					return "1,2,12\n" +
-							"1,3,13\n" +
-							"2,3,23\n" +
-							"3,4,34\n" +
-							"3,5,35\n" +
-							"4,5,45\n" +
-							"5,1,51\n" +
-							"6,1,61\n";
-				}
-				default:
-					throw new IllegalArgumentException("Invalid program id");
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+		graph.filterOnVertices(new FilterFunction<Vertex<Long, Long>>() {
+			public boolean filter(Vertex<Long, Long> vertex) throws Exception {
+				return (vertex.getValue() > 2);
 			}
-		}
+		}).getEdges().writeAsCsv(resultPath);
+
+		env.execute();
+		expectedResult =  "3,4,34\n" +
+				"3,5,35\n" +
+				"4,5,45\n";
 	}
 
+	@SuppressWarnings("serial")
+	@Test
+	public void testFilterEdges() throws Exception {
+		/*
+		 * Test filterOnEdges:
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+		graph.filterOnEdges(new FilterFunction<Edge<Long, Long>>() {
+			public boolean filter(Edge<Long, Long> edge) throws Exception {
+				return (edge.getValue() > 34);
+			}
+		}).getEdges().writeAsCsv(resultPath);
+
+		env.execute();
+		expectedResult = "3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n";
+	}
+
+	@Test
+	public void testNumberOfVertices() throws Exception {
+		/*
+		 * Test numberOfVertices()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+		graph.numberOfVertices().writeAsText(resultPath);
+
+		env.execute();
+		expectedResult = "5";
+	}
+
+	@Test
+	public void testNumberOfEdges() throws Exception {
+		/*
+		 * Test numberOfEdges()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+		graph.numberOfEdges().writeAsText(resultPath);
+
+		env.execute();
+		expectedResult = "7";
+	}
+
+	@Test
+	public void testVertexIds() throws Exception {
+		/*
+		 * Test getVertexIds()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+		graph.getVertexIds().writeAsText(resultPath);
+
+		env.execute();
+		expectedResult = "1\n2\n3\n4\n5\n";
+	}
+
+	@Test
+	public void testEdgesIds() throws Exception {
+		/*
+		 * Test getEdgeIds()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+		graph.getEdgeIds().writeAsCsv(resultPath);
+
+		env.execute();
+		expectedResult = "1,2\n" + "1,3\n" +
+				"2,3\n" + "3,4\n" +
+				"3,5\n" + "4,5\n" +
+				"5,1\n";
+	}
+
+	@Test
+	public void testUnion() throws Exception {
+		/*
+		 * Test union()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
+		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
+
+		vertices.add(new Vertex<Long, Long>(6L, 6L));
+		edges.add(new Edge<Long, Long>(6L, 1L, 61L));
+
+		graph = graph.union(Graph.fromCollection(vertices, edges, env));
+
+		graph.getEdges().writeAsCsv(resultPath);
+
+		env.execute();
+
+		expectedResult = "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n" +
+					"6,1,61\n";
+	}
 }

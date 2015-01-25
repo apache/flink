@@ -18,126 +18,101 @@
 
 package org.apache.flink.graph.test;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedList;
-
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class TestWeaklyConnected extends JavaProgramTestBase {
+public class TestWeaklyConnected extends MultipleProgramsTestBase {
 
-	private static int NUM_PROGRAMS = 4;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
-	private String resultPath;
-	private String expectedResult;
-	
-	public TestWeaklyConnected(Configuration config) {
-		super(config);
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	public TestWeaklyConnected(MultipleProgramsTestBase.ExecutionMode mode){
+		super(mode);
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = GraphProgs.runProgram(curProgId, resultPath);
+    private String resultPath;
+    private String expectedResult;
+
+    @Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
+
+	@After
+	public void after() throws Exception{
 		compareResultsByLinesInMemory(expectedResult, resultPath);
 	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+	@Test
+	public void testWithConnectedDirected() throws Exception {
+		/*
+		 * Test isWeaklyConnected() with a connected, directed graph
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+		
+		graph.isWeaklyConnected(10).writeAsText(resultPath);
+		
+		env.execute();
+		expectedResult = "true\n";
+	}
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
+	@Test
+	public void testWithDisconnectedDirected() throws Exception {
+		/*
+		 * Test isWeaklyConnected() with a disconnected, directed graph
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
-		return toParameterList(tConfigs);
-	}
-	
-	private static class GraphProgs {
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
 		
-		public static String runProgram(int progId, String resultPath) throws Exception {
-			
-			switch(progId) {
-			case 1: {
-				/*
-				 * Test isWeaklyConnected() with a connected, directed graph
-				 */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env), env);
-				
-				graph.isWeaklyConnected(10).writeAsText(resultPath);
-				
-				env.execute();
-				return "true\n";
-			}
-			case 2: {
-				/*
-				 * Test isWeaklyConnected() with a disconnected, directed graph
-				 */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
-				
-				graph.isWeaklyConnected(10).writeAsText(resultPath);
-				
-				env.execute();
-				return "false\n";
-			}
-			case 3: {
-				/*
-				 * Test isWeaklyConnected() with a connected, undirected graph
-				 */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env), env).getUndirected();
-				
-				graph.isWeaklyConnected(10).writeAsText(resultPath);
-				
-				env.execute();
-				return "true\n";
-			}
-			case 4: {
-				/*
-				 * Test isWeaklyConnected() with a disconnected, undirected graph
-				 */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getDisconnectedLongLongEdgeData(env), env).getUndirected();
-				
-				graph.isWeaklyConnected(10).writeAsText(resultPath);
-				
-				env.execute();
-				return "false\n";
-			}
-			default: 
-				throw new IllegalArgumentException("Invalid program id");
-			}
-		}
+		graph.isWeaklyConnected(10).writeAsText(resultPath);
+		
+		env.execute();
+		expectedResult = "false\n";
 	}
-	
+
+	@Test
+	public void testWithConnectedUndirected() throws Exception {
+		/*
+		 * Test isWeaklyConnected() with a connected, undirected graph
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env).getUndirected();
+		
+		graph.isWeaklyConnected(10).writeAsText(resultPath);
+		
+		env.execute();
+		expectedResult = "true\n";
+	}
+
+	@Test
+	public void testWithDisconnectedUndirected() throws Exception {
+		/*
+		 * Test isWeaklyConnected() with a disconnected, undirected graph
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getDisconnectedLongLongEdgeData(env), env).getUndirected();
+		
+		graph.isWeaklyConnected(10).writeAsText(resultPath);
+		
+		env.execute();
+		expectedResult = "false\n";
+	}
 }
