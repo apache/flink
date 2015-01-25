@@ -22,11 +22,17 @@ import java.io.Serializable;
 import java.util.Iterator;
 
 
-public interface SplittableIterator<T> extends Iterator<T>, Serializable {
+public abstract class SplittableIterator<T> implements Iterator<T>, Serializable {
 
-	Iterator<T>[] split(int numPartitions);
-	
-	Iterator<T> getSplit(int num, int numPartitions);
-	
-	int getMaximumNumberOfSplits();
+	abstract Iterator<T>[] split(int numPartitions);
+
+	public Iterator<T> getSplit(int num, int numPartitions) {
+		if (numPartitions < 1 || num < 0 || num >= numPartitions) {
+			throw new IllegalArgumentException();
+		}
+
+		return split(numPartitions)[num];
+	}
+
+	abstract int getMaximumNumberOfSplits();
 }
