@@ -18,7 +18,6 @@
 
 package org.apache.flink.util;
 
-import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
@@ -26,7 +25,7 @@ import java.util.NoSuchElementException;
  * The iterator is splittable (as defined by {@link SplittableIterator}, i.e., it can be divided into multiple
  * iterators that each return a subsequence of the number sequence.
  */
-public class NumberSequenceIterator implements SplittableIterator<Long> {
+public class NumberSequenceIterator extends SplittableIterator<Long> {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -171,14 +170,6 @@ public class NumberSequenceIterator implements SplittableIterator<Long> {
 		}
 	}
 	
-	@Override
-	public Iterator<Long> getSplit(int num, int numPartitions) {
-		if (numPartitions < 1 || num < 0 || num >= numPartitions) {
-			throw new IllegalArgumentException();
-		}
-		
-		return split(numPartitions)[num];
-	}
 
 	@Override
 	public int getMaximumNumberOfSplits() {
