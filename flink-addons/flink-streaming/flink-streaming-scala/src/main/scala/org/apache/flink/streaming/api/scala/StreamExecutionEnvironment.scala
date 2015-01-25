@@ -203,6 +203,15 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def execute(jobName: String) = javaEnv.execute(jobName)
 
+  /**
+   * Creates the plan with which the system will execute the program, and
+   * returns it as a String using a JSON representation of the execution data
+   * flow graph. Note that this needs to be called, before the plan is
+   * executed.
+   *
+   */
+  def getExecutionPlan() = javaEnv.getStreamGraph().getStreamingPlanAsJSON();
+
 }
 
 object StreamExecutionEnvironment {

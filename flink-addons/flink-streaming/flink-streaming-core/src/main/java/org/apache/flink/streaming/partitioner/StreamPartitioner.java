@@ -27,7 +27,7 @@ public abstract class StreamPartitioner<T> implements
 
 	public enum PartitioningStrategy {
 
-		FORWARD, DISTRIBUTE, SHUFFLE, BROADCAST, GLOBAL, FIELDS;
+		FORWARD, DISTRIBUTE, SHUFFLE, BROADCAST, GLOBAL, GROUPBY;
 
 	}
 

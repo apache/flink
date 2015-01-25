@@ -44,12 +44,12 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.dag.DataSinkNode;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.util.InstantiationUtil;
 
 /**
  * This class encapsulates represents a program, packaged in a jar file. It supplies
@@ -271,7 +271,9 @@ public class PackagedProgram {
 			catch (Throwable t) {
 				// the invocation gets aborted with the preview plan
 				if (env.previewPlan != null) {
-					previewPlan =  env.previewPlan;
+					previewPlan = env.previewPlan;
+				} else if (env.preview != null) {
+					return env.preview;
 				} else {
 					throw new ProgramInvocationException("The program caused an error: ", t);
 				}
@@ -290,7 +292,7 @@ public class PackagedProgram {
 		else {
 			throw new RuntimeException();
 		}
-		
+
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		StringWriter string = new StringWriter(1024);
 		PrintWriter pw = null;
@@ -301,6 +303,7 @@ public class PackagedProgram {
 			pw.close();
 		}
 		return string.toString();
+
 	}
 
 	/**
@@ -690,10 +693,12 @@ public class PackagedProgram {
 		private List<DataSinkNode> previewPlan;
 		private Plan plan;
 		
+		private String preview = null;
+		
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
 			this.plan = createProgramPlan(jobName);
-			this.previewPlan = PactCompiler.createPreOptimizedPlan(plan);
+			this.previewPlan = PactCompiler.createPreOptimizedPlan((Plan) plan);
 			
 			// do not go on with anything now!
 			throw new Client.ProgramAbortException();
@@ -721,5 +726,10 @@ public class PackagedProgram {
 		public Plan getPlan() {
 			return this.plan;
 		}
+		
+		public void setPreview(String preview) {
+			this.preview = preview;
+		}
+
 	}
 }

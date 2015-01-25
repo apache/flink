@@ -32,7 +32,9 @@ import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.ContextEnvironment;
+import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.StreamGraph;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -267,7 +269,7 @@ public abstract class StreamExecutionEnvironment {
 
 		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
-		return addSource(function, outTypeInfo, "elements");
+		return addSource(function, outTypeInfo, "Elements source");
 	}
 
 	/**
@@ -294,7 +296,7 @@ public abstract class StreamExecutionEnvironment {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getForObject(data.iterator().next());
 		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
-		return addSource(function, outTypeInfo, "collection");
+		return addSource(function, outTypeInfo, "Collection Source");
 	}
 
 	/**
@@ -313,7 +315,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
 		return addSource(new SocketTextStreamFunction(hostname, port, delimiter), null,
-				"socketStream");
+				"Socket Stream");
 	}
 
 	/**
@@ -345,13 +347,13 @@ public abstract class StreamExecutionEnvironment {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return addSource(new GenSequenceFunction(from, to), null, "sequence");
+		return addSource(new GenSequenceFunction(from, to), null, "Sequence Source");
 	}
 
 	private DataStreamSource<String> addFileSource(InputFormat<String, ?> inputFormat,
 			TypeInformation<String> typeInfo) {
 		FileSourceFunction function = new FileSourceFunction(inputFormat, typeInfo);
-		DataStreamSource<String> returnStream = addSource(function, null, "fileSource");
+		DataStreamSource<String> returnStream = addSource(function, null, "File Source");
 		streamGraph.setInputFormat(returnStream.getId(), inputFormat);
 		return returnStream;
 	}
@@ -397,7 +399,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
 			TypeInformation<OUT> outTypeInfo) {
-		return addSource(function, outTypeInfo, function.getClass().getName());
+		return addSource(function, outTypeInfo, "Custom Source");
 	}
 
 	/**
@@ -462,6 +464,8 @@ public abstract class StreamExecutionEnvironment {
 			ContextEnvironment ctx = (ContextEnvironment) env;
 			return createContextEnvironment(ctx.getClient(), ctx.getJars(),
 					ctx.getDegreeOfParallelism());
+		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
+			return new StreamPlanEnvironment(env);
 		} else {
 			return createLocalEnvironment();
 		}
@@ -590,6 +594,18 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public StreamGraph getStreamGraph() {
 		return streamGraph;
+	}
+
+	/**
+	 * Creates the plan with which the system will execute the program, and
+	 * returns it as a String using a JSON representation of the execution data
+	 * flow graph. Note that this needs to be called, before the plan is
+	 * executed.
+	 * 
+	 * @return The execution plan of the program, as a JSON String.
+	 */
+	public String getExecutionPlan() {
+		return getStreamGraph().getStreamingPlanAsJSON();
 	}
 
 }

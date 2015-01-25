@@ -141,13 +141,13 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
-	private String createChainedName(String vertexName, List<String> chainedOutputs) {
+	private String createChainedName(String vertexID, List<String> chainedOutputs) {
+		String vertexName = streamGraph.getOperatorName(vertexID);
 		if (chainedOutputs.size() > 1) {
 			List<String> outputChainedNames = new ArrayList<String>();
 			for (String chainable : chainedOutputs) {
 				outputChainedNames.add(chainedNames.get(chainable));
 			}
-
 			return vertexName + " -> (" + StringUtils.join(outputChainedNames, ", ") + ")";
 		} else if (chainedOutputs.size() == 1) {
 			return vertexName + " -> " + chainedNames.get(chainedOutputs.get(0));
@@ -162,7 +162,10 @@ public class StreamingJobGraphGenerator {
 		AbstractJobVertex vertex = new AbstractJobVertex(chainedNames.get(vertexName));
 
 		vertex.setInvokableClass(streamGraph.getJobVertexClass(vertexName));
-		vertex.setParallelism(streamGraph.getParallelism(vertexName));
+		if (streamGraph.getParallelism(vertexName) > 0) {
+			vertex.setParallelism(streamGraph.getParallelism(vertexName));
+		}
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Parallelism set: {} for {}", streamGraph.getParallelism(vertexName),
 					vertexName);

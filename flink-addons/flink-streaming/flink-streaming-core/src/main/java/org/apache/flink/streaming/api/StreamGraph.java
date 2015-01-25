@@ -17,6 +17,10 @@
 
 package org.apache.flink.streaming.api;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -27,6 +31,7 @@ import java.util.Set;
 
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.compiler.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.OutputSelector;
@@ -39,18 +44,22 @@ import org.apache.flink.streaming.api.streamvertex.StreamIterationTail;
 import org.apache.flink.streaming.api.streamvertex.StreamVertex;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.state.OperatorState;
+import org.apache.sling.commons.json.JSONArray;
+import org.apache.sling.commons.json.JSONException;
+import org.apache.sling.commons.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Object for building Apache Flink stream processing graphs
  */
-public class StreamGraph {
+public class StreamGraph extends StreamingPlan {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 	private final static String DEAFULT_JOB_NAME = "Flink Streaming Job";
 
 	protected boolean chaining = true;
+	private String jobName = DEAFULT_JOB_NAME;
 
 	// Graph attributes
 	private Map<String, Integer> operatorParallelisms;
@@ -440,7 +449,7 @@ public class StreamGraph {
 	 * Gets the assembled {@link JobGraph} and adds a default name for it.
 	 */
 	public JobGraph getJobGraph() {
-		return getJobGraph(DEAFULT_JOB_NAME);
+		return getJobGraph(jobName);
 	}
 
 	/**
@@ -452,9 +461,14 @@ public class StreamGraph {
 	 */
 	public JobGraph getJobGraph(String jobGraphName) {
 
+		this.jobName = jobGraphName;
 		StreamingJobGraphGenerator optimizer = new StreamingJobGraphGenerator(this);
 
 		return optimizer.createJobGraph(jobGraphName);
+	}
+
+	public void setJobName(String jobName) {
+		this.jobName = jobName;
 	}
 
 	public void setChaining(boolean chaining) {
@@ -525,4 +539,82 @@ public class StreamGraph {
 		return iterationTimeouts.get(vertexName);
 	}
 
+	public String getOperatorName(String vertexName) {
+		return operatorNames.get(vertexName);
+	}
+
+	@Override
+	public String getStreamingPlanAsJSON() {
+
+		try {
+			JSONObject json = new JSONObject();
+			JSONArray nodes = new JSONArray();
+
+			json.put("nodes", nodes);
+
+			for (String id : operatorNames.keySet()) {
+				JSONObject node = new JSONObject();
+				nodes.put(node);
+
+				node.put("id", Integer.valueOf(id));
+				node.put("type", getOperatorName(id));
+
+				if (sources.contains(id)) {
+					node.put("pact", "Data Source");
+				} else {
+					node.put("pact", "Data Stream");
+				}
+
+				node.put("contents", getOperatorName(id) + " at "
+						+ getInvokable(id).getUserFunction().getClass().getSimpleName());
+				node.put("parallelism", getParallelism(id));
+
+				int numIn = getInEdges(id).size();
+				if (numIn > 0) {
+
+					JSONArray inputs = new JSONArray();
+					node.put("predecessors", inputs);
+
+					for (int i = 0; i < numIn; i++) {
+
+						String inID = getInEdges(id).get(i);
+
+						JSONObject input = new JSONObject();
+						inputs.put(input);
+
+						input.put("id", Integer.valueOf(inID));
+						input.put("ship_strategy", getOutPartitioner(inID, id).getStrategy());
+						if (i == 0) {
+							input.put("side", "first");
+						} else if (i == 1) {
+							input.put("side", "second");
+						}
+					}
+				}
+
+			}
+			return json.toString();
+		} catch (JSONException e) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("JSON plan creation failed: {}", e);
+			}
+			return "";
+		}
+
+	}
+
+	@Override
+	public void dumpStreamingPlanAsJSON(File file) throws IOException {
+		PrintWriter pw = null;
+		try {
+			pw = new PrintWriter(new FileOutputStream(file), false);
+			pw.write(getStreamingPlanAsJSON());
+			pw.flush();
+
+		} finally {
+			if (pw != null) {
+				pw.close();
+			}
+		}
+	}
 }

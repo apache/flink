@@ -179,4 +179,8 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	public static enum ChainingStrategy {
 		ALWAYS, NEVER, HEAD;
 	}
+
+	public Function getUserFunction() {
+		return userFunction;
+	}
 }

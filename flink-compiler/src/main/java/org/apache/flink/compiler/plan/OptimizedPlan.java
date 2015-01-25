@@ -30,7 +30,7 @@ import org.apache.flink.util.Visitor;
  * It works on this representation during its optimization. Finally, this plan is translated to a schedule
  * for the nephele runtime system.
  */
-public class OptimizedPlan implements Visitable<PlanNode> {
+public class OptimizedPlan implements FlinkPlan, Visitable<PlanNode>  {
 	
 	/**
 	 * The data sources in the plan.

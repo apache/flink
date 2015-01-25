@@ -40,7 +40,9 @@ import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.compiler.CompilerException;
+import org.apache.flink.compiler.plan.FlinkPlan;
 import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plan.StreamingPlan;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -166,7 +168,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			// create the plan
 			String[] options = params.isEmpty() ? new String[0] : (String[]) params.toArray(new String[params.size()]);
 			PackagedProgram program;
-			OptimizedPlan optPlan;
+			FlinkPlan optPlan;
 			Client client;
 			
 			try {
@@ -246,14 +248,18 @@ public class JobSubmissionServlet extends HttpServlet {
 				String planName = uid + ".json";
 				File jsonFile = new File(this.planDumpDirectory, planName);
 				
-				PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-				jsonGen.setEncodeForHTML(true);
-				jsonGen.dumpOptimizerPlanAsJSON(optPlan, jsonFile);
-
+				if (optPlan instanceof StreamingPlan) {
+					((StreamingPlan) optPlan).dumpStreamingPlanAsJSON(jsonFile);
+				} else {
+					PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
+					jsonGen.setEncodeForHTML(true);
+					jsonGen.dumpOptimizerPlanAsJSON((OptimizedPlan) optPlan, jsonFile);
+				}
+				
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
 					try {
-						client.run(program, optPlan, false);
+						client.run(program,(OptimizedPlan) optPlan, false);
 					} catch (Throwable t) {
 						LOG.error("Error submitting job to the job-manager.", t);
 						showErrorPage(resp, t.getMessage());

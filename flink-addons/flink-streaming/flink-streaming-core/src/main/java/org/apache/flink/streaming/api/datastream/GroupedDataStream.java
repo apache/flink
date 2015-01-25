@@ -66,7 +66,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 */
 	@Override
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return transform("groupReduce", getType(), new GroupedReduceInvokable<OUT>(clean(reducer),
+		return transform("Grouped Reduce", getType(), new GroupedReduceInvokable<OUT>(clean(reducer),
 				keySelector));
 	}
 
@@ -186,7 +186,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(clean(aggregate),
 				keySelector);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = transform("groupReduce", getType(),
+		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Grouped Aggregation", getType(),
 				invokable);
 
 		return returnStream;
