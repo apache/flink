@@ -18,13 +18,15 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{PoisonPill, ActorSystem}
+import akka.actor.{ActorRef, PoisonPill, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.jobgraph.{JobGraph, DistributionPattern, AbstractJobVertex}
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern,
+AbstractJobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingOnceReceiver, FailingOnceReceiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
 import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, SubmissionSuccess,
 SubmitJob}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -148,7 +150,6 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val cluster = TestingUtils.startTestingCluster(NUM_TASKS, 2)
 
       val jm = cluster.getJobManager
-      val taskManagers = cluster.getTaskManagers
 
       try {
         within(TestingUtils.TESTING_DURATION){
@@ -156,9 +157,23 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           expectMsg(SubmissionSuccess(jobGraph.getJobID))
 
-          Thread.sleep(500)
+          jm ! WaitForAllVerticesToBeRunningOrFinished(jobGraph.getJobID)
+
+          expectMsg(AllVerticesRunning(jobGraph.getJobID))
+
           BlockingOnceReceiver.blocking = false
-          taskManagers(0) ! PoisonPill
+          jm ! NotifyWhenJobStatus(jobGraph.getJobID, JobStatus.RESTARTING)
+          jm ! RequestWorkingTaskManager(jobGraph.getJobID)
+
+          val WorkingTaskManager(tm) = expectMsgType[WorkingTaskManager]
+
+          tm match {
+            case ActorRef.noSender => fail("There has to be at least one task manager on which" +
+              "the tasks are running.")
+            case t => t ! PoisonPill
+          }
+
+          expectMsg(JobStatusIs(jobGraph.getJobID, JobStatus.RESTARTING))
 
           val result = expectMsgType[JobResultSuccess]
 

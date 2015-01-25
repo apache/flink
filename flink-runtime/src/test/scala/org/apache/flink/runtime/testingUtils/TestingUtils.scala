@@ -44,10 +44,12 @@ object TestingUtils {
     val ioRWSerializerClass = classOf[IOReadableWritableSerializer].getCanonicalName
     val ioRWClass = classOf[IOReadableWritable].getCanonicalName
 
+    val logLevel = AkkaUtils.getLogLevel
+
     s"""akka.daemonic = on
       |akka.test.timefactor = 10
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
-      |akka.loglevel = "DEBUG"
+      |akka.loglevel = $logLevel
       |akka.stdout-loglevel = "OFF"
       |akka.jvm-exit-on-fata-error = off
       |akka.log-config-on-start = off

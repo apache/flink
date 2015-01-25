@@ -178,6 +178,7 @@ import scala.collection.JavaConverters._
     registrationDuration = 0 seconds
 
     registered = false
+    currentJobManager = ActorRef.noSender
 
     context.system.scheduler.scheduleOnce(registrationDelay, self, RegisterAtJobManager)
   }
@@ -190,8 +191,8 @@ import scala.collection.JavaConverters._
         registrationDelay *= 2
 
         if (registrationDuration > maxRegistrationDuration) {
-          log.warning("TaskManager could not register at JobManager {} after {}.", jobManagerAkkaURL,
-
+          log.warning("TaskManager could not register at JobManager {} after {}.",
+            jobManagerAkkaURL,
             maxRegistrationDuration)
 
           self ! PoisonPill
@@ -212,10 +213,8 @@ import scala.collection.JavaConverters._
         finishRegistration(id, blobPort)
         registered = true
       } else {
-        if (log.isDebugEnabled) {
-          log.debug("The TaskManager {} is already registered at the JobManager {}, but received " +
-            "another AcknowledgeRegistration message.", self.path, currentJobManager.path)
-        }
+        log.info("The TaskManager {} is already registered at the JobManager {}, but received " +
+          "another AcknowledgeRegistration message.", self.path, currentJobManager.path)
       }
     }
 
@@ -228,10 +227,8 @@ import scala.collection.JavaConverters._
         registered = true
       } else {
         // ignore AlreadyRegistered messages which arrived after AcknowledgeRegistration
-        if(log.isDebugEnabled){
-          log.debug("The TaskManager {} has already been registered at the JobManager {}.",
-            self.path, sender.path)
-        }
+        log.info("The TaskManager {} has already been registered at the JobManager {}.",
+          self.path, sender.path)
       }
 
     case RefuseRegistration(reason) =>
@@ -243,10 +240,8 @@ import scala.collection.JavaConverters._
         self ! PoisonPill
       } else {
         // ignore RefuseRegistration messages which arrived after AcknowledgeRegistration
-        if(log.isDebugEnabled) {
-          log.debug("Received RefuseRegistration from the JobManager even though being already " +
-            "registered")
-        }
+        log.info("Received RefuseRegistration from the JobManager even though being already " +
+          "registered")
       }
 
     case SubmitTask(tdd) => {

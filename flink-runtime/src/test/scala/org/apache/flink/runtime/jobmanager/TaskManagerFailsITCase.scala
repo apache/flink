@@ -23,7 +23,8 @@ import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
 import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultFailed, SubmissionSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning, WaitForAllVerticesToBeRunningOrFinished}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{WorkingTaskManager,
+RequestWorkingTaskManager, AllVerticesRunning, WaitForAllVerticesToBeRunningOrFinished}
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -55,7 +56,6 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       val cluster = TestingUtils.startTestingCluster(num_tasks, 2)
 
-      val taskManagers = cluster.getTaskManagers
       val jm = cluster.getJobManager
 
       try {
@@ -64,10 +64,14 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(SubmissionSuccess(jobGraph.getJobID))
 
           jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
+
           expectMsg(AllVerticesRunning(jobID))
 
+          jm ! RequestWorkingTaskManager(jobID)
+
+          val tm = expectMsgType[WorkingTaskManager].taskManager
           // kill one task manager
-          taskManagers(0) ! PoisonPill
+          tm ! PoisonPill
           expectMsgType[JobResultFailed]
         }
       }finally{
