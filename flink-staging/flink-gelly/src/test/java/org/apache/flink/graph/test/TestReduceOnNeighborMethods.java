@@ -18,273 +18,286 @@
 
 package org.apache.flink.graph.test;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedList;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.NeighborsFunction;
 import org.apache.flink.graph.NeighborsFunctionWithVertexValue;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class TestReduceOnNeighborMethods extends JavaProgramTestBase {
+public class TestReduceOnNeighborMethods extends MultipleProgramsTestBase {
 
-	private static int NUM_PROGRAMS = 6;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
-	private String resultPath;
-	private String expectedResult;
-	
-	public TestReduceOnNeighborMethods(Configuration config) {
-		super(config);
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	public TestReduceOnNeighborMethods(MultipleProgramsTestBase.ExecutionMode mode){
+		super(mode);
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = GraphProgs.runProgram(curProgId, resultPath);
+    private String resultPath;
+    private String expectedResult;
+
+    @Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
+
+	@After
+	public void after() throws Exception{
 		compareResultsByLinesInMemory(expectedResult, resultPath);
 	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+	@Test
+	public void testSumOfOutNeighbors() throws Exception {
+		/*
+		 * Get the sum of out-neighbor values
+		 * for each vertex
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
+				TestGraphUtils.getLongLongEdgeData(env), env);
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-		
-		return toParameterList(tConfigs);
+		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
+				graph.reduceOnNeighbors(new SumOutNeighbors(), EdgeDirection.OUT);
+
+		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "1,5\n" +
+				"2,3\n" + 
+				"3,9\n" +
+				"4,5\n" + 
+				"5,1\n";
 	}
+
+	@Test
+	public void testSumOfInNeighbors() throws Exception {
+		/*
+		 * Get the sum of in-neighbor values
+		 * times the edge weights for each vertex
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithSum = 
+				graph.reduceOnNeighbors(new SumInNeighbors(), EdgeDirection.IN);		
+
+		verticesWithSum.writeAsCsv(resultPath);
+		env.execute();
+		expectedResult = "1,255\n" +
+				"2,12\n" + 
+				"3,59\n" +
+				"4,102\n" + 
+				"5,285\n";
+	}
+
+	@Test
+	public void testSumOfOAllNeighbors() throws Exception {
+		/*
+		 * Get the sum of all neighbor values
+		 * including own vertex value
+		 * for each vertex
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
+				graph.reduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
+
+		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "1,11\n" +
+				"2,6\n" + 
+				"3,15\n" +
+				"4,12\n" + 
+				"5,13\n";
+	}
+
+	@Test
+	public void testSumOfOutNeighborsNoValue() throws Exception {
+		/*
+		 * Get the sum of out-neighbor values
+		 * for each vertex
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
+				graph.reduceOnNeighbors(new SumOutNeighborsNoValue(), EdgeDirection.OUT);
+
+		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "1,5\n" +
+				"2,3\n" + 
+				"3,9\n" +
+				"4,5\n" + 
+				"5,1\n";
+	}
+
+	@Test
+	public void testSumOfInNeighborsNoValue() throws Exception {
+		/*
+		 * Get the sum of in-neighbor values
+		 * times the edge weights for each vertex
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithSum = 
+				graph.reduceOnNeighbors(new SumInNeighborsNoValue(), EdgeDirection.IN);
+
+		verticesWithSum.writeAsCsv(resultPath);
+		env.execute();
 	
-	private static class GraphProgs {
+		expectedResult = "1,255\n" +
+				"2,12\n" + 
+				"3,59\n" +
+				"4,102\n" + 
+				"5,285\n";
+	}
+
+	@Test
+	public void testSumOfAllNeighborsNoValue() throws Exception {
+		/*
+		 * Get the sum of all neighbor values
+		 * for each vertex
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
+				graph.reduceOnNeighbors(new SumAllNeighborsNoValue(), EdgeDirection.ALL);
+
+		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
+		env.execute();
 	
-		@SuppressWarnings("serial")
-		public static String runProgram(int progId, String resultPath) throws Exception {
+		expectedResult = "1,10\n" +
+				"2,4\n" + 
+				"3,12\n" +
+				"4,8\n" + 
+				"5,8\n";
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SumOutNeighbors implements NeighborsFunctionWithVertexValue<Long, Long, Long, 
+	Tuple2<Long, Long>> {
+
+		public Tuple2<Long, Long> iterateNeighbors(Vertex<Long, Long> vertex,
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
 			
-			switch(progId) {
-			case 1: {
-				/*
-				 * Get the sum of out-neighbor values
-				 * for each vertex
-		         */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-						TestGraphUtils.getLongLongEdgeData(env), env);
-
-				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
-						graph.reduceOnNeighbors(new NeighborsFunctionWithVertexValue<Long, Long, Long, 
-								Tuple2<Long, Long>>() {
-							public Tuple2<Long, Long> iterateNeighbors(Vertex<Long, Long> vertex,
-									Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
-								long sum = 0;
-								for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
-									sum += neighbor.f1.getValue();
-								}
-								return new Tuple2<Long, Long>(vertex.getId(), sum);
-							}
-						}, EdgeDirection.OUT);
-
-				verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-				env.execute();
-				return "1,5\n" +
-						"2,3\n" + 
-						"3,9\n" +
-						"4,5\n" + 
-						"5,1\n";
+			long sum = 0;
+			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
+				sum += neighbor.f1.getValue();
 			}
-			case 2: {
-				/*
-				 * Get the sum of in-neighbor values
-				 * times the edge weights for each vertex
-		         */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-						TestGraphUtils.getLongLongEdgeData(env), env);
+			return new Tuple2<Long, Long>(vertex.getId(), sum);
+		}
+	}
 
-				DataSet<Tuple2<Long, Long>> verticesWithSum = 
-						graph.reduceOnNeighbors(new NeighborsFunctionWithVertexValue<Long, Long, Long, 
-								Tuple2<Long, Long>>() {
-							public Tuple2<Long, Long> iterateNeighbors(Vertex<Long, Long> vertex,
-									Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
-								long sum = 0;
-								for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
-									sum += neighbor.f0.getValue() * neighbor.f1.getValue();
-								}
-								return new Tuple2<Long, Long>(vertex.getId(), sum);
-							}
-						}, EdgeDirection.IN);		
-
-				verticesWithSum.writeAsCsv(resultPath);
-				env.execute();
-				return "1,255\n" +
-						"2,12\n" + 
-						"3,59\n" +
-						"4,102\n" + 
-						"5,285\n";
+	@SuppressWarnings("serial")
+	private static final class SumInNeighbors implements NeighborsFunctionWithVertexValue<Long, Long, Long, 
+		Tuple2<Long, Long>> {
+		
+		public Tuple2<Long, Long> iterateNeighbors(Vertex<Long, Long> vertex,
+				Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
+		
+			long sum = 0;
+			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
+				sum += neighbor.f0.getValue() * neighbor.f1.getValue();
 			}
-			case 3: {
-				/*
-				 * Get the sum of all neighbor values
-				 * including own vertex value
-				 * for each vertex
-		         */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-						TestGraphUtils.getLongLongEdgeData(env), env);
+			return new Tuple2<Long, Long>(vertex.getId(), sum);
+		}
+	}
 
-				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
-						graph.reduceOnNeighbors(new NeighborsFunctionWithVertexValue<Long, Long, Long, 
-								Tuple2<Long, Long>>() {
-							public Tuple2<Long, Long> iterateNeighbors(Vertex<Long, Long> vertex,
-									Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
-								long sum = 0;
-								for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
-									sum += neighbor.f1.getValue();
-								}
-								return new Tuple2<Long, Long>(vertex.getId(), sum + vertex.getValue());
-							}
-						}, EdgeDirection.ALL);
+	@SuppressWarnings("serial")
+	private static final class SumAllNeighbors implements NeighborsFunctionWithVertexValue<Long, Long, Long, 
+		Tuple2<Long, Long>> {
 
-				verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-				env.execute();
-				return "1,11\n" +
-						"2,6\n" + 
-						"3,15\n" +
-						"4,12\n" + 
-						"5,13\n";
+		public Tuple2<Long, Long> iterateNeighbors(Vertex<Long, Long> vertex,
+		Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
+	
+			long sum = 0;
+			for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
+				sum += neighbor.f1.getValue();
 			}
-			case 4: {
-				/*
-				 * Get the sum of out-neighbor values
-				 * for each vertex
-		         */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-						TestGraphUtils.getLongLongEdgeData(env), env);
+			return new Tuple2<Long, Long>(vertex.getId(), sum + vertex.getValue());
+		}
+	}
 
-				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
-						graph.reduceOnNeighbors(new NeighborsFunction<Long, Long, Long, 
-								Tuple2<Long, Long>>() {
-							public Tuple2<Long, Long> iterateNeighbors(
-									Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
-								long sum = 0;
-								Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-								Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-										neighbors.iterator();
-								while(neighborsIterator.hasNext()) {
-									next = neighborsIterator.next();
-									sum += next.f2.getValue();
-								}
-								return new Tuple2<Long, Long>(next.f0, sum);
-							}
-						}, EdgeDirection.OUT);
+	@SuppressWarnings("serial")
+	private static final class SumOutNeighborsNoValue implements NeighborsFunction<Long, Long, Long, 
+		Tuple2<Long, Long>> {
 
-				verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-				env.execute();
-				return "1,5\n" +
-						"2,3\n" + 
-						"3,9\n" +
-						"4,5\n" + 
-						"5,1\n";
+		public Tuple2<Long, Long> iterateNeighbors(
+				Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
+
+			long sum = 0;
+			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
+			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
+					neighbors.iterator();
+			while(neighborsIterator.hasNext()) {
+				next = neighborsIterator.next();
+				sum += next.f2.getValue();
 			}
-			case 5: {
-				/*
-				 * Get the sum of in-neighbor values
-				 * times the edge weights for each vertex
-		         */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-						TestGraphUtils.getLongLongEdgeData(env), env);
+			return new Tuple2<Long, Long>(next.f0, sum);
+		}
+	}
 
-				DataSet<Tuple2<Long, Long>> verticesWithSum = 
-						graph.reduceOnNeighbors(new NeighborsFunction<Long, Long, Long, 
-								Tuple2<Long, Long>>() {
-							public Tuple2<Long, Long> iterateNeighbors(
-									Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
-								long sum = 0;
-								Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-								Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-										neighbors.iterator();
-								while(neighborsIterator.hasNext()) {
-									next = neighborsIterator.next();
-									sum += next.f2.getValue() * next.f1.getValue();
-								}
-								return new Tuple2<Long, Long>(next.f0, sum);
-							}
-						}, EdgeDirection.IN);
-
-
-				verticesWithSum.writeAsCsv(resultPath);
-				env.execute();
-				return "1,255\n" +
-						"2,12\n" + 
-						"3,59\n" +
-						"4,102\n" + 
-						"5,285\n";
+	@SuppressWarnings("serial")
+	private static final class SumInNeighborsNoValue implements NeighborsFunction<Long, Long, Long, 
+		Tuple2<Long, Long>> {
+		
+		public Tuple2<Long, Long> iterateNeighbors(
+				Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
+		
+			long sum = 0;
+			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
+			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
+					neighbors.iterator();
+			while(neighborsIterator.hasNext()) {
+				next = neighborsIterator.next();
+				sum += next.f2.getValue() * next.f1.getValue();
 			}
-			case 6: {
-				/*
-				 * Get the sum of all neighbor values
-				 * for each vertex
-		         */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-						TestGraphUtils.getLongLongEdgeData(env), env);
+			return new Tuple2<Long, Long>(next.f0, sum);
+		}
+	}
 
-				DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
-						graph.reduceOnNeighbors(new NeighborsFunction<Long, Long, Long, 
-								Tuple2<Long, Long>>() {
-							public Tuple2<Long, Long> iterateNeighbors(
-									Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
-								long sum = 0;
-								Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-								Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-										neighbors.iterator();
-								while(neighborsIterator.hasNext()) {
-									next = neighborsIterator.next();
-									sum += next.f2.getValue();
-								}
-								return new Tuple2<Long, Long>(next.f0, sum);
-							}
-						}, EdgeDirection.ALL);
+	@SuppressWarnings("serial")
+	private static final class SumAllNeighborsNoValue implements NeighborsFunction<Long, Long, Long, 
+		Tuple2<Long, Long>> {
 
-				verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
-				env.execute();
-				return "1,10\n" +
-						"2,4\n" + 
-						"3,12\n" +
-						"4,8\n" + 
-						"5,8\n";
+		public Tuple2<Long, Long> iterateNeighbors(
+				Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors) {
+	
+			long sum = 0;
+			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
+			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
+					neighbors.iterator();
+			while(neighborsIterator.hasNext()) {
+				next = neighborsIterator.next();
+				sum += next.f2.getValue();
 			}
-			default: 
-				throw new IllegalArgumentException("Invalid program id");
-			}
+			return new Tuple2<Long, Long>(next.f0, sum);
 		}
 	}
 }
