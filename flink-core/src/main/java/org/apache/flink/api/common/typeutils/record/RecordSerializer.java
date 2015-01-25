@@ -82,6 +82,11 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 		return -1;
 	}
 
+	@Override
+	public int getMinimumLength() {
+		return 1;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	@Override

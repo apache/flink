@@ -62,6 +62,11 @@ public final class IntValueSerializer extends TypeSerializerSingleton<IntValue> 
 	public int getLength() {
 		return 4;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(IntValue record, DataOutputView target) throws IOException {

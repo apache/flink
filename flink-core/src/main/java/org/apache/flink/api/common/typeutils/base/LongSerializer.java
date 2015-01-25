@@ -62,6 +62,11 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	public int getLength() {
 		return 8;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(Long record, DataOutputView target) throws IOException {

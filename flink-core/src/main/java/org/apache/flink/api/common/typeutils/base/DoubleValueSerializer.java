@@ -64,6 +64,11 @@ public final class DoubleValueSerializer extends TypeSerializerSingleton<DoubleV
 	}
 
 	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
+
+	@Override
 	public void serialize(DoubleValue record, DataOutputView target) throws IOException {
 		record.write(target);
 	}

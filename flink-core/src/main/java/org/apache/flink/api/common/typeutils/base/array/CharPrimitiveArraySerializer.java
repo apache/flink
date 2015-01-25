@@ -68,6 +68,10 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 		return -1;
 	}
 
+	@Override
+	public int getMinimumLength() {
+		return 4;
+	}
 
 	@Override
 	public void serialize(char[] record, DataOutputView target) throws IOException {

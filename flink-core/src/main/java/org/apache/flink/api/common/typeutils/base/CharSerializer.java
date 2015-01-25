@@ -62,6 +62,11 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 	public int getLength() {
 		return 2;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(Character record, DataOutputView target) throws IOException {

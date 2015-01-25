@@ -61,6 +61,11 @@ public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 	public int getLength() {
 		return 8;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(Double record, DataOutputView target) throws IOException {

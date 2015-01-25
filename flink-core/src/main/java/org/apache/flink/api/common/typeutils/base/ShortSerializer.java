@@ -62,6 +62,11 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	public int getLength() {
 		return 2;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(Short record, DataOutputView target) throws IOException {

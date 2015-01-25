@@ -84,6 +84,11 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	public int getLength() {
 		return -1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return 20 + typeSerializer.getMinimumLength();
+	}
 
 	@Override
 	public void serialize(StreamRecord<T> value, DataOutputView target) throws IOException {

@@ -72,6 +72,11 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 		ensureInstanceInstantiated();
 		return instance.getBinaryLength();
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {

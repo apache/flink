@@ -70,6 +70,11 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	}
 	
 	@Override
+	public int getMinimumLength() {
+		return 1;
+	}
+	
+	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
 		record.write(target);
 	}

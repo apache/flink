@@ -61,6 +61,11 @@ public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 	public int getLength() {
 		return 2;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(CharValue record, DataOutputView target) throws IOException {

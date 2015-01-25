@@ -71,6 +71,11 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	}
 
 	@Override
+	public int getMinimumLength() {
+		return 8;
+	}
+	
+	@Override
 	public void serialize(IntList record, DataOutputView target) throws IOException {
 		target.writeInt(record.getKey());
 		target.writeInt(record.getValue().length);

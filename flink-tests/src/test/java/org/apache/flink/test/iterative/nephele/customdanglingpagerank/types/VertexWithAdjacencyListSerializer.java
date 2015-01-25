@@ -68,6 +68,11 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializerSingl
 	public int getLength() {
 		return -1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return 12;
+	}
 
 	@Override
 	public void serialize(VertexWithAdjacencyList record, DataOutputView target) throws IOException {
