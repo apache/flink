@@ -244,7 +244,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoMapFunction.class,
 				coMapper.getClass(), 2, null, null);
 
-		return addCoFunction("coMap", outTypeInfo, new CoMapInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Map", outTypeInfo, new CoMapInvokable<IN1, IN2, OUT>(
 				clean(coMapper)));
 
 	}
@@ -269,7 +269,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoFlatMapFunction.class,
 				coFlatMapper.getClass(), 2, null, null);
 
-		return addCoFunction("coFlatMap", outTypeInfo, new CoFlatMapInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Flat Map", outTypeInfo, new CoFlatMapInvokable<IN1, IN2, OUT>(
 				clean(coFlatMapper)));
 	}
 
@@ -294,7 +294,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoReduceFunction.class,
 				coReducer.getClass(), 2, null, null);
 
-		return addCoFunction("coReduce", outTypeInfo, getReduceInvokable(clean(coReducer)));
+		return addCoFunction("Co-Reduce", outTypeInfo, getReduceInvokable(clean(coReducer)));
 
 	}
 
@@ -361,7 +361,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoWindowFunction.class,
 				coWindowFunction.getClass(), 2, null, null);
 
-		return addCoFunction("coWindowReduce", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Window", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 
 	}
@@ -390,7 +390,7 @@ public class ConnectedDataStream<IN1, IN2> {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
 
-		return addCoFunction("coWindowReduce", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Window", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 
 	}

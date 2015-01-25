@@ -103,7 +103,7 @@ public class RemoteExecutor extends PlanExecutor {
 		JobWithJars p = new JobWithJars(plan, this.jarFiles);
 		Client c = new Client(this.address, new Configuration(), p.getUserCodeClassLoader());
 		
-		OptimizedPlan op = c.getOptimizedPlan(p, -1);
+		OptimizedPlan op = (OptimizedPlan) c.getOptimizedPlan(p, -1);
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		return jsonGen.getOptimizerPlanAsJSON(op);
 	}

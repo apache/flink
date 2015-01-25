@@ -45,7 +45,7 @@ public class ExecutionPlanCreationTest {
 			InetSocketAddress mockJmAddress = new InetSocketAddress(mockAddress, 12345);
 			
 			Client client = new Client(mockJmAddress, new Configuration(), getClass().getClassLoader());
-			OptimizedPlan op = client.getOptimizedPlan(prg, -1);
+			OptimizedPlan op = (OptimizedPlan) client.getOptimizedPlan(prg, -1);
 			assertNotNull(op);
 			
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();

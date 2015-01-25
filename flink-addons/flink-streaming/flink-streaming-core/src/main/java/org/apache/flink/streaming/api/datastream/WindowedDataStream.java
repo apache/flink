@@ -231,7 +231,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reduceFunction) {
-		return dataStream.transform("WindowReduce", getType(),
+		return dataStream.transform("Window-Reduce", getType(),
 				getReduceInvokable(reduceFunction));
 	}
 
@@ -279,7 +279,7 @@ public class WindowedDataStream<OUT> {
 	public <R> SingleOutputStreamOperator<R, ?> reduceGroup(
 			GroupReduceFunction<OUT, R> reduceFunction, TypeInformation<R> outType) {
 
-		return dataStream.transform("WindowReduce", outType,
+		return dataStream.transform("Window-Reduce", outType,
 				getReduceGroupInvokable(reduceFunction));
 	}
 
@@ -507,7 +507,7 @@ public class WindowedDataStream<OUT> {
 	private SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregator) {
 		StreamInvokable<OUT, OUT> invokable = getReduceInvokable(aggregator);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = dataStream.transform("windowReduce",
+		SingleOutputStreamOperator<OUT, ?> returnStream = dataStream.transform("Window-Aggregation",
 				getType(), invokable);
 
 		return returnStream;

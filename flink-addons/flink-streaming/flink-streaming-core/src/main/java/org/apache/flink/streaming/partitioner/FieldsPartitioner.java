@@ -35,7 +35,7 @@ public class FieldsPartitioner<T> extends StreamPartitioner<T> {
 	KeySelector<T, ?> keySelector;
 
 	public FieldsPartitioner(KeySelector<T, ?> keySelector) {
-		super(PartitioningStrategy.FIELDS);
+		super(PartitioningStrategy.GROUPBY);
 		this.keySelector = keySelector;
 	}
 

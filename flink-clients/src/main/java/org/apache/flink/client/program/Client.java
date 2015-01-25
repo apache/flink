@@ -26,20 +26,18 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.contextcheck.ContextChecker;
 import org.apache.flink.compiler.costs.DefaultCostEstimator;
+import org.apache.flink.compiler.plan.FlinkPlan;
 import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plan.StreamingPlan;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
@@ -49,13 +47,17 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionFailure;
+import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
@@ -133,10 +135,10 @@ public class Client {
 	
 	public String getOptimizedPlanAsJson(PackagedProgram prog, int parallelism) throws CompilerException, ProgramInvocationException {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		return jsonGen.getOptimizerPlanAsJSON(getOptimizedPlan(prog, parallelism));
+		return jsonGen.getOptimizerPlanAsJSON((OptimizedPlan) getOptimizedPlan(prog, parallelism));
 	}
 	
-	public OptimizedPlan getOptimizedPlan(PackagedProgram prog, int parallelism) throws CompilerException, ProgramInvocationException {
+	public FlinkPlan getOptimizedPlan(PackagedProgram prog, int parallelism) throws CompilerException, ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
 			return getOptimizedPlan(prog.getPlanWithJars(), parallelism);
@@ -189,7 +191,7 @@ public class Client {
 		}
 	}
 	
-	public OptimizedPlan getOptimizedPlan(Plan p, int parallelism) throws CompilerException {
+	public FlinkPlan getOptimizedPlan(Plan p, int parallelism) throws CompilerException {
 		if (parallelism > 0 && p.getDefaultParallelism() <= 0) {
 			p.setDefaultParallelism(parallelism);
 		}
@@ -208,25 +210,31 @@ public class Client {
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file.
 	 */
-	public OptimizedPlan getOptimizedPlan(JobWithJars prog, int parallelism) throws CompilerException, ProgramInvocationException {
+	public FlinkPlan getOptimizedPlan(JobWithJars prog, int parallelism) throws CompilerException, ProgramInvocationException {
 		return getOptimizedPlan(prog.getPlan(), parallelism);
 	}
 	
-	public JobGraph getJobGraph(PackagedProgram prog, OptimizedPlan optPlan) throws ProgramInvocationException {
+	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan) throws ProgramInvocationException {
 		return getJobGraph(optPlan, prog.getAllLibraries());
 	}
 	
-	private JobGraph getJobGraph(OptimizedPlan optPlan, List<File> jarFiles) {
-		NepheleJobGraphGenerator gen = new NepheleJobGraphGenerator();
-		JobGraph job = gen.compileJobGraph(optPlan);
-		
+	private JobGraph getJobGraph(FlinkPlan optPlan, List<File> jarFiles) {
+		JobGraph job = null;
+
+		if (optPlan instanceof StreamingPlan) {
+			job = ((StreamingPlan) optPlan).getJobGraph();
+		} else {
+			NepheleJobGraphGenerator gen = new NepheleJobGraphGenerator();
+			job = gen.compileJobGraph((OptimizedPlan) optPlan);
+		}
+
 		for (File jar : jarFiles) {
 			job.addJar(new Path(jar.getAbsolutePath()));
 		}
-		
+
 		return job;
 	}
-	
+
 	public JobExecutionResult run(final PackagedProgram prog, int parallelism, boolean wait) throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
@@ -287,7 +295,7 @@ public class Client {
 	 *                                    on the nephele system failed.
 	 */
 	public JobExecutionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
-		return run(getOptimizedPlan(prog, parallelism), prog.getJarFiles(), wait);
+		return run((OptimizedPlan) getOptimizedPlan(prog, parallelism), prog.getJarFiles(), wait);
 	}
 	
 
@@ -346,11 +354,11 @@ public class Client {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class OptimizerPlanEnvironment extends ExecutionEnvironment {
+	public static final class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		
 		private final PactCompiler compiler;
 		
-		private OptimizedPlan optimizerPlan;
+		private FlinkPlan optimizerPlan;
 		
 		
 		private OptimizerPlanEnvironment(PactCompiler compiler) {
@@ -384,6 +392,10 @@ public class Client {
 				}
 			};
 			initializeContextEnvironment(factory);
+		}
+		
+		public void setPlan(FlinkPlan plan){
+			this.optimizerPlan = plan;
 		}
 	}
 	

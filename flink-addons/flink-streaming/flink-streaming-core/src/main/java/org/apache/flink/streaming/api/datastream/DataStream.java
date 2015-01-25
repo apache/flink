@@ -95,6 +95,7 @@ public class DataStream<OUT> {
 	protected static Integer counter = 0;
 	protected final StreamExecutionEnvironment environment;
 	protected final String id;
+	protected final String type;
 	protected int degreeOfParallelism;
 	protected List<String> userDefinedNames;
 	protected StreamPartitioner<OUT> partitioner;
@@ -122,7 +123,8 @@ public class DataStream<OUT> {
 		}
 
 		counter++;
-		this.id = operatorType + "-" + counter.toString();
+		this.id = counter.toString();
+		this.type = operatorType;
 		this.environment = environment;
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
 		this.streamGraph = environment.getStreamGraph();
@@ -142,6 +144,7 @@ public class DataStream<OUT> {
 	public DataStream(DataStream<OUT> dataStream) {
 		this.environment = dataStream.environment;
 		this.id = dataStream.id;
+		this.type = dataStream.type;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
 		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
 		this.partitioner = dataStream.partitioner;
@@ -465,7 +468,7 @@ public class DataStream<OUT> {
 
 		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType());
 
-		return transform("map", outType, new MapInvokable<OUT, R>(clean(mapper)));
+		return transform("Map", outType, new MapInvokable<OUT, R>(clean(mapper)));
 	}
 
 	/**
@@ -489,7 +492,7 @@ public class DataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
 				getType());
 
-		return transform("flatMap", outType, new FlatMapInvokable<OUT, R>(clean(flatMapper)));
+		return transform("Flat Map", outType, new FlatMapInvokable<OUT, R>(clean(flatMapper)));
 
 	}
 
@@ -506,7 +509,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 
-		return transform("reduce", getType(), new StreamReduceInvokable<OUT>(clean(reducer)));
+		return transform("Reduce", getType(), new StreamReduceInvokable<OUT>(clean(reducer)));
 
 	}
 
@@ -525,7 +528,7 @@ public class DataStream<OUT> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		return transform("filter", getType(), new FilterInvokable<OUT>(clean(filter)));
+		return transform("Filter", getType(), new FilterInvokable<OUT>(clean(filter)));
 
 	}
 
@@ -834,7 +837,7 @@ public class DataStream<OUT> {
 	public SingleOutputStreamOperator<Long, ?> count() {
 		TypeInformation<Long> outTypeInfo = TypeExtractor.getForObject(Long.valueOf(0));
 
-		return transform("counter", outTypeInfo, new CounterInvokable<OUT>());
+		return transform("Count", outTypeInfo, new CounterInvokable<OUT>());
 	}
 
 	/**
@@ -1090,11 +1093,11 @@ public class DataStream<OUT> {
 
 		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = transform("reduce", getType(), invokable);
+		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Aggregation", getType(),
+				invokable);
 
 		return returnStream;
 	}
-
 
 	/**
 	 * Method for passing user defined invokables along with the type
@@ -1179,8 +1182,8 @@ public class DataStream<OUT> {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
 				sinkInvokable);
 
-		streamGraph.addStreamVertex(returnStream.getId(), sinkInvokable, getType(), null, "sink",
-				returnStream.getParallelism());
+		streamGraph.addStreamVertex(returnStream.getId(), sinkInvokable, getType(), null,
+				"Stream Sink", returnStream.getParallelism());
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);
 

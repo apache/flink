@@ -83,7 +83,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple1<T0>> outType = (TypeInformation<Tuple1<T0>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType, new ProjectInvokable<IN, Tuple1<T0>>(
+		return dataStream.transform("Projection", outType, new ProjectInvokable<IN, Tuple1<T0>>(
 				fieldIndexes, outType));
 	}
 
@@ -111,7 +111,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple2<T0, T1>> outType = (TypeInformation<Tuple2<T0, T1>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType,
+		return dataStream.transform("Projection", outType,
 				new ProjectInvokable<IN, Tuple2<T0, T1>>(fieldIndexes, outType));
 	}
 
@@ -141,7 +141,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple3<T0, T1, T2>> outType = (TypeInformation<Tuple3<T0, T1, T2>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType,
+		return dataStream.transform("Projection", outType,
 				new ProjectInvokable<IN, Tuple3<T0, T1, T2>>(fieldIndexes, outType));
 	}
 
@@ -173,7 +173,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple4<T0, T1, T2, T3>> outType = (TypeInformation<Tuple4<T0, T1, T2, T3>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType,
+		return dataStream.transform("Projection", outType,
 				new ProjectInvokable<IN, Tuple4<T0, T1, T2, T3>>(fieldIndexes, outType));
 	}
 
@@ -206,7 +206,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple5<T0, T1, T2, T3, T4>> outType = (TypeInformation<Tuple5<T0, T1, T2, T3, T4>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType,
+		return dataStream.transform("Projection", outType,
 				new ProjectInvokable<IN, Tuple5<T0, T1, T2, T3, T4>>(fieldIndexes, outType));
 	}
 
@@ -243,7 +243,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple6<T0, T1, T2, T3, T4, T5>> outType = (TypeInformation<Tuple6<T0, T1, T2, T3, T4, T5>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType,
+		return dataStream.transform("Projection", outType,
 				new ProjectInvokable<IN, Tuple6<T0, T1, T2, T3, T4, T5>>(fieldIndexes, outType));
 	}
 
@@ -283,7 +283,7 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple7<T0, T1, T2, T3, T4, T5, T6>> outType = (TypeInformation<Tuple7<T0, T1, T2, T3, T4, T5, T6>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.transform("projection", outType,
+				.transform("Projection", outType,
 						new ProjectInvokable<IN, Tuple7<T0, T1, T2, T3, T4, T5, T6>>(fieldIndexes,
 								outType));
 	}
@@ -325,7 +325,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> outType = (TypeInformation<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType,
+		return dataStream.transform("Projection", outType,
 				new ProjectInvokable<IN, Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(fieldIndexes,
 						outType));
 	}
@@ -369,7 +369,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> outType = (TypeInformation<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType,
+		return dataStream.transform("Projection", outType,
 				new ProjectInvokable<IN, Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(fieldIndexes,
 						outType));
 	}
@@ -415,7 +415,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> outType = (TypeInformation<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType,
+		return dataStream.transform("Projection", outType,
 				new ProjectInvokable<IN, Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(
 						fieldIndexes, outType));
 	}
@@ -465,7 +465,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> outType = (TypeInformation<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.transform("projection", outType,
+		return dataStream.transform("Projection", outType,
 				new ProjectInvokable<IN, Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(
 						fieldIndexes, outType));
 	}
@@ -519,7 +519,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(
 								fieldIndexes, outType));
@@ -576,7 +576,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(
 								fieldIndexes, outType));
@@ -635,7 +635,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(
 								fieldIndexes, outType));
@@ -697,7 +697,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(
 								fieldIndexes, outType));
@@ -761,7 +761,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(
 								fieldIndexes, outType));
@@ -827,7 +827,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(
 								fieldIndexes, outType));
@@ -895,7 +895,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(
 								fieldIndexes, outType));
@@ -966,7 +966,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(
 								fieldIndexes, outType));
@@ -1039,7 +1039,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(
 								fieldIndexes, outType));
@@ -1115,7 +1115,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(
 								fieldIndexes, outType));
@@ -1193,7 +1193,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(
 								fieldIndexes, outType));
@@ -1274,7 +1274,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(
 								fieldIndexes, outType));
@@ -1357,7 +1357,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 						outType,
 						new ProjectInvokable<IN, Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(
 								fieldIndexes, outType));
@@ -1442,7 +1442,7 @@ public class StreamProjection<IN> {
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
 				.transform(
-						"projection",
+						"Projection",
 
 						outType,
 						new ProjectInvokable<IN, Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(
