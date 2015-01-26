@@ -19,6 +19,8 @@
 
 package org.apache.flink.api.common.operators;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
@@ -27,6 +29,10 @@ import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.AtomicType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.types.Nothing;
 import org.apache.flink.util.Visitor;
 
@@ -294,7 +300,29 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	
 	protected void executeOnCollections(List<IN> inputData) throws Exception {
 		OutputFormat<IN> format = this.formatWrapper.getUserCodeObject();
-		
+		TypeInformation<IN> inputType = getInput().getOperatorInfo().getOutputType();
+
+		if (this.localOrdering != null) {
+			int[] sortColumns = this.localOrdering.getFieldPositions();
+			boolean[] sortOrderings = this.localOrdering.getFieldSortDirections();
+
+			final TypeComparator<IN> sortComparator;
+			if (inputType instanceof CompositeType) {
+				sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0);
+			} else if (inputType instanceof AtomicType) {
+				sortComparator = ((AtomicType) inputType).createComparator(sortOrderings[0]);
+			} else {
+				throw new UnsupportedOperationException("Local output sorting does not support type "+inputType+" yet.");
+			}
+
+			Collections.sort(inputData, new Comparator<IN>() {
+				@Override
+				public int compare(IN o1, IN o2) {
+					return sortComparator.compare(o1, o2);
+				}
+			});
+		}
+
 		if(format instanceof InitializeOnMaster) {
 			((InitializeOnMaster)format).initializeGlobal(1);
 		}

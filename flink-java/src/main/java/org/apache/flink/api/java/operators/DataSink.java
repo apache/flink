@@ -18,15 +18,21 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Nothing;
 import org.apache.flink.api.java.DataSet;
+
+import java.util.Arrays;
 
 
 public class DataSink<T> {
@@ -42,6 +48,10 @@ public class DataSink<T> {
 	private int dop = -1;
 
 	private Configuration parameters;
+
+	private int[] sortKeyPositions;
+
+	private Order[] sortOrders;
 
 	public DataSink(DataSet<T> data, OutputFormat<T> format, TypeInformation<T> type) {
 		if (format == null) {
@@ -83,6 +93,107 @@ public class DataSink<T> {
 	}
 
 	/**
+	 * Sorts each local partition of a {@link org.apache.flink.api.java.tuple.Tuple} data set
+	 * on the specified field in the specified {@link Order} before it is emitted by the output format.</br>
+	 * <b>Note: Only tuple data sets can be sorted using integer field indices.</b><br/>
+	 * The tuple data set can be sorted on multiple fields in different orders
+	 * by chaining {@link #sortLocalOutput(int, Order)} calls.
+	 *
+	 * @param field The Tuple field on which the data set is locally sorted.
+	 * @param order The Order in which the specified Tuple field is locally sorted.
+	 * @return This data sink operator with specified output order.
+	 *
+	 * @see org.apache.flink.api.java.tuple.Tuple
+	 * @see Order
+	 */
+	public DataSink<T> sortLocalOutput(int field, Order order) {
+
+		if (!this.type.isTupleType()) {
+			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
+		}
+		if (field >= this.type.getArity()) {
+			throw new InvalidProgramException("Order key out of tuple bounds.");
+		}
+
+		if(this.sortKeyPositions == null) {
+			// set sorting info
+			this.sortKeyPositions = new int[] {field};
+			this.sortOrders = new Order[] {order};
+		} else {
+			// append sorting info to exising info
+			int newLength = this.sortKeyPositions.length + 1;
+			this.sortKeyPositions = Arrays.copyOf(this.sortKeyPositions, newLength);
+			this.sortOrders = Arrays.copyOf(this.sortOrders, newLength);
+			this.sortKeyPositions[newLength-1] = field;
+			this.sortOrders[newLength-1] = order;
+		}
+		return this;
+	}
+
+	/**
+	 * Sorts each local partition of a data set on the field(s) specified by the field expression
+	 * in the specified {@link Order} before it is emitted by the output format.</br>
+	 * <b>Note: Non-composite types can only be sorted on the full element which is specified by
+	 * a wildcard expression ("*" or "_").</b><br/>
+	 * Data sets of composite types (Tuple or Pojo) can be sorted on multiple fields in different orders
+	 * by chaining {@link #sortLocalOutput(String, Order)} calls.
+	 *
+	 * @param fieldExpression The field expression for the field(s) on which the data set is locally sorted.
+	 * @param order The Order in which the specified field(s) are locally sorted.
+	 * @return This data sink operator with specified output order.
+	 *
+	 * @see Order
+	 */
+	public DataSink<T> sortLocalOutput(String fieldExpression, Order order) {
+
+		int numFields;
+		int[] fields;
+		Order[] orders;
+
+		if(this.type instanceof CompositeType) {
+			// compute flat field positions for (nested) sorting fields
+			Keys.ExpressionKeys<T> ek;
+			try {
+				ek = new Keys.ExpressionKeys<T>(new String[]{fieldExpression}, this.type);
+			} catch(IllegalArgumentException iae) {
+				throw new InvalidProgramException("Invalid specification of field expression.", iae);
+			}
+			fields = ek.computeLogicalKeyPositions();
+			numFields = fields.length;
+			orders = new Order[numFields];
+			Arrays.fill(orders, order);
+		} else {
+			fieldExpression = fieldExpression.trim();
+			if (!(fieldExpression.equals("*") || fieldExpression.equals("_"))) {
+				throw new InvalidProgramException("Output sorting of non-composite types can only be defined on the full type. " +
+						"Use a field wildcard for that (\"*\" or \"_\")");
+			} else {
+				numFields = 1;
+				fields = new int[]{0};
+				orders = new Order[]{order};
+			}
+		}
+
+		if(this.sortKeyPositions == null) {
+			// set sorting info
+			this.sortKeyPositions = fields;
+			this.sortOrders = orders;
+		} else {
+			// append sorting info to existing info
+			int oldLength = this.sortKeyPositions.length;
+			int newLength = oldLength + numFields;
+			this.sortKeyPositions = Arrays.copyOf(this.sortKeyPositions, newLength);
+			this.sortOrders = Arrays.copyOf(this.sortOrders, newLength);
+			for(int i=0; i<numFields; i++) {
+				this.sortKeyPositions[oldLength+i] = fields[i];
+				this.sortOrders[oldLength+i] = orders[i];
+			}
+		}
+
+		return this;
+	}
+
+	/**
 	 * @return Configuration for the OutputFormat.
 	 */
 	public Configuration getParameters() {
@@ -115,6 +226,15 @@ public class DataSink<T> {
 		} else {
 			// if no dop has been specified, use dop of input operator to enable chaining
 			sink.setDegreeOfParallelism(input.getDegreeOfParallelism());
+		}
+
+		if(this.sortKeyPositions != null) {
+			// configure output sorting
+			Ordering ordering = new Ordering();
+			for(int i=0; i<this.sortKeyPositions.length; i++) {
+				ordering.appendOrdering(this.sortKeyPositions[i], null, this.sortOrders[i]);
+			}
+			sink.setLocalOrder(ordering);
 		}
 		
 		return sink;
