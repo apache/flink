@@ -1128,7 +1128,7 @@ public class DataStream<OUT> {
 				operatorName, outTypeInfo, invokable);
 
 		streamGraph.addStreamVertex(returnStream.getId(), invokable, getType(), outTypeInfo,
-				operatorName, degreeOfParallelism);
+				operatorName, returnStream.getParallelism());
 
 		connectGraph(inputStream, returnStream.getId(), 0);
 
@@ -1195,7 +1195,7 @@ public class DataStream<OUT> {
 				sinkInvokable);
 
 		streamGraph.addStreamVertex(returnStream.getId(), sinkInvokable, getType(), null, "sink",
-				degreeOfParallelism);
+				returnStream.getParallelism());
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);
 
