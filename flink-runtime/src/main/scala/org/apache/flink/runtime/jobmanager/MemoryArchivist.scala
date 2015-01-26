@@ -25,48 +25,82 @@ import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
 
+import scala.collection.mutable.LinkedHashMap
+import scala.ref.SoftReference
+
 class MemoryArchivist(private val max_entries: Int) extends Actor with ActorLogMessages with
 ActorLogging {
   /**
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last
-   * received job event.
+   * received job event. The insert order is preserved through a LinkedHashMap.
    */
-  val graphs = collection.mutable.HashMap[JobID, ExecutionGraph]()
-  val lru = collection.mutable.Queue[JobID]()
+  val graphs = LinkedHashMap[JobID, SoftReference[ExecutionGraph]]()
 
   override def receiveWithLogMessages: Receive = {
+    /* Receive Execution Graph to archive */
     case ArchiveExecutionGraph(jobID, graph) => {
-      graphs.update(jobID, graph)
+      // wrap graph inside a soft reference
+      graphs.update(jobID, new SoftReference(graph))
+
+      // clear all execution edges of the graph
+      val iter = graph.getAllExecutionVertices().iterator()
+      while (iter.hasNext) {
+        iter.next().clearExecutionEdges()
+      }
+
       cleanup(jobID)
     }
 
     case RequestArchivedJobs => {
-      sender ! ArchivedJobs(graphs.values)
+      sender ! ArchivedJobs(getAllGraphs())
     }
 
     case RequestJob(jobID) => {
-      graphs.get(jobID) match {
-        case Some(graph) => sender ! JobFound(jobID, graph)
-        case None => sender ! JobNotFound(jobID)
+      getGraph(jobID) match {
+        case graph: ExecutionGraph => sender ! JobFound(jobID, graph)
+        case _ => sender ! JobNotFound(jobID)
       }
     }
 
     case RequestJobStatus(jobID) => {
-      graphs.get(jobID) match {
-        case Some(eg) => sender ! CurrentJobStatus(jobID, eg.getState)
-        case None => sender ! JobNotFound(jobID)
+      getGraph(jobID) match {
+        case graph: ExecutionGraph => sender ! CurrentJobStatus(jobID, graph.getState)
+        case _ => sender ! JobNotFound(jobID)
       }
     }
   }
 
-  def cleanup(jobID: JobID): Unit = {
-    if (!lru.contains(jobID)) {
-      lru.enqueue(jobID)
-    }
+  /**
+   * Gets all graphs that have not been garbage collected.
+   * @return An iterable with all valid ExecutionGraphs
+   */
+  def getAllGraphs() = graphs.values.flatMap(ref => ref.get match {
+    case Some(graph) => Seq(graph)
+    case _ => Seq()
+  })
 
-    while (lru.size > max_entries) {
-      val removedJobID = lru.dequeue()
-      graphs.remove(removedJobID)
+  /**
+   * Gets a graph with a jobID if it has not been garbage collected.
+   * @param jobID
+   * @return ExecutionGraph or null
+   */
+  def getGraph(jobID: JobID) = graphs.get(jobID) match {
+    case Some(softRef) => softRef.get match {
+      case Some(graph) => graph
+      case None => null
+    }
+  }
+
+  /**
+   * Remove old ExecutionGraphs belonging to a jobID
+   * * if more than max_entries are in the queue.
+   * @param jobID
+   */
+  private def cleanup(jobID: JobID): Unit = {
+    while (graphs.size > max_entries) {
+      // get first graph inserted
+      val (jobID, value) = graphs.iterator.next()
+      graphs.remove(jobID)
     }
   }
 }

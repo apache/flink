@@ -453,6 +453,10 @@ class JobManager(val configuration: Configuration)
     throw new RuntimeException("Received unknown message " + message)
   }
 
+  /**
+   * Removes the job and sends it to the MemoryArchivist
+   * @param jobID ID of the job to remove and archive
+   */
   private def removeJob(jobID: JobID): Unit = {
     currentJobs.remove(jobID) match {
       case Some((eg, _)) => archive ! ArchiveExecutionGraph(jobID, eg)
