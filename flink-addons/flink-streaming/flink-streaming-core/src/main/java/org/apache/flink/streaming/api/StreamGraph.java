@@ -212,19 +212,22 @@ public class StreamGraph {
 	 *            Max waiting time for next record
 	 */
 	public void addIterationTail(String vertexName, String iterationTail, Integer iterationID,
-			int parallelism, long waitTime) {
+			long waitTime) {
 
 		if (bufferTimeouts.get(iterationTail) == 0) {
 			throw new RuntimeException("Buffer timeout 0 at iteration tail is not supported.");
 		}
 
-		addVertex(vertexName, StreamIterationTail.class, null, null, parallelism);
+		addVertex(vertexName, StreamIterationTail.class, null, null, getParallelism(iterationTail));
 
 		iterationIds.put(vertexName, iterationID);
 		iterationIDtoTailName.put(iterationID, vertexName);
 
 		setSerializersFrom(iterationTail, vertexName);
 		iterationTimeouts.put(iterationIDtoTailName.get(iterationID), waitTime);
+
+		setParallelism(iterationIDtoHeadName.get(iterationID), getParallelism(iterationTail));
+		setBufferTimeout(iterationIDtoHeadName.get(iterationID), bufferTimeouts.get(iterationTail));
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("ITERATION SINK: {}", vertexName);
@@ -362,21 +365,6 @@ public class StreamGraph {
 			}
 		}
 		operatorStates.put(veretxName, states);
-	}
-
-	/**
-	 * Sets the parallelism and buffertimeout of the iteration head of the given
-	 * iteration id to the parallelism given.
-	 * 
-	 * @param iterationID
-	 *            ID of the iteration
-	 * @param iterationTail
-	 *            ID of the iteration tail
-	 */
-	public void setIterationSourceSettings(String iterationID, String iterationTail) {
-		setParallelism(iterationIDtoHeadName.get(iterationID),
-				operatorParallelisms.get(iterationTail));
-		setBufferTimeout(iterationIDtoHeadName.get(iterationID), bufferTimeouts.get(iterationTail));
 	}
 
 	/**

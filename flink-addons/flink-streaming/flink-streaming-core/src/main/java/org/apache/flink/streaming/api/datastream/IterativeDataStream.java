@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.invokable.StreamInvokable;
+
 /**
  * The iterative data stream represents the start of an iteration in a
  * {@link DataStream}.
@@ -61,15 +64,40 @@ public class IterativeDataStream<IN> extends
 	 * 
 	 */
 	public DataStream<IN> closeWith(DataStream<IN> iterationTail) {
-		DataStream<IN> iterationSink = new DataStreamSink<IN>(environment, "iterationSink", null,
+		DataStream<IN> iterationSink = new DataStreamSink<IN>(environment, "Iteration Sink", null,
 				null);
 
+		// We add an iteration sink to the tail which will send tuples to the
+		// iteration head
 		streamGraph.addIterationTail(iterationSink.getId(), iterationTail.getId(), iterationID,
-				iterationTail.getParallelism(), waitTime);
+				waitTime);
 
-		streamGraph.setIterationSourceSettings(iterationID.toString(), iterationTail.getId());
 		connectGraph(iterationTail.forward(), iterationSink.getId(), 0);
 		return iterationTail;
+	}
+
+	@Override
+	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
+			TypeInformation<R> outTypeInfo, StreamInvokable<IN, R> invokable) {
+
+		// We call the superclass tranform method
+		SingleOutputStreamOperator<R, ?> returnStream = super.transform(operatorName, outTypeInfo,
+				invokable);
+
+		// Then we add a source that will take care of receiving feedback tuples
+		// from the tail
+		addIterationSource(returnStream);
+
+		return returnStream;
+	}
+
+	private <X> void addIterationSource(DataStream<X> dataStream) {
+
+		DataStream<X> iterationSource = new DataStreamSource<X>(environment, "Iteration Source",
+				null, null, true);
+
+		streamGraph.addIterationHead(iterationSource.getId(), dataStream.getId(), iterationID,
+				dataStream.getParallelism(), waitTime);
 	}
 
 	@Override

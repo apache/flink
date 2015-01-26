@@ -1095,16 +1095,6 @@ public class DataStream<OUT> {
 		return returnStream;
 	}
 
-	protected <R> DataStream<OUT> addIterationSource(Integer iterationID, long waitTime) {
-
-		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null,
-				null, true);
-
-		streamGraph.addIterationHead(returnStream.getId(), this.getId(), iterationID,
-				degreeOfParallelism, waitTime);
-
-		return this.copy();
-	}
 
 	/**
 	 * Method for passing user defined invokables along with the type
@@ -1131,11 +1121,6 @@ public class DataStream<OUT> {
 				operatorName, returnStream.getParallelism());
 
 		connectGraph(inputStream, returnStream.getId(), 0);
-
-		if (inputStream instanceof IterativeDataStream) {
-			IterativeDataStream<OUT> iterativeStream = (IterativeDataStream<OUT>) inputStream;
-			returnStream.addIterationSource(iterativeStream.iterationID, iterativeStream.waitTime);
-		}
 
 		return returnStream;
 	}
