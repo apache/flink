@@ -69,7 +69,7 @@ public class ExecutionVertex implements Serializable {
 	
 	private transient final IntermediateResultPartition[] resultPartitions;
 	
-	private transient final ExecutionEdge[][] inputEdges;
+	private transient ExecutionEdge[][] inputEdges;
 	
 	private final int subTaskIndex;
 	
@@ -445,6 +445,13 @@ public class ExecutionVertex implements Serializable {
 	 */
 	public String getSimpleName() {
 		return getTaskName() + " (" + (getParallelSubtaskIndex()+1) + '/' + getTotalNumberOfParallelSubtasks() + ')';
+	}
+
+	/*
+	 * Clears all Edges of this ExecutionVertex
+	 */
+	public void clearExecutionEdges() {
+		inputEdges = null;
 	}
 
 	@Override
