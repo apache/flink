@@ -70,7 +70,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 				new TestUserClass(rnd.nextInt(), "foo", rnd.nextDouble(), new int[]{1, 2, 3},
 						new NestedTestUserClass(rnd.nextInt(), "foo@boo", rnd.nextDouble(), new int[]{10, 11, 12})),
 				new TestUserClass(rnd.nextInt(), "bar", rnd.nextDouble(), new int[]{4, 5, 6},
-						new NestedTestUserClass(rnd.nextInt(), "bar@bas", rnd.nextDouble(), new int[]{20, 21, 22}))
+						new NestedTestUserClass(rnd.nextInt(), "bar@bas", rnd.nextDouble(), new int[]{20, 21, 22})),
+				new TestUserClass(rnd.nextInt(), null, rnd.nextDouble(), null, null)
 		};
 
 	}
@@ -109,21 +110,28 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			if (dumm1 != otherTUC.dumm1) {
 				return false;
 			}
-			if (!dumm2.equals(otherTUC.dumm2)) {
+			if ((dumm2 == null && otherTUC.dumm2 != null)
+					|| (dumm2 != null && !dumm2.equals(otherTUC.dumm2))) {
 				return false;
 			}
 			if (dumm3 != otherTUC.dumm3) {
 				return false;
 			}
-			if (dumm4.length != otherTUC.dumm4.length) {
+			if ((dumm4 != null && otherTUC.dumm4 == null)
+					|| (dumm4 == null && otherTUC.dumm4 != null)
+					|| (dumm4 != null && otherTUC.dumm4 != null && dumm4.length != otherTUC.dumm4.length)) {
 				return false;
 			}
-			for (int i = 0; i < dumm4.length; i++) {
-				if (dumm4[i] != otherTUC.dumm4[i]) {
-					return false;
+			if (dumm4 != null && otherTUC.dumm4 != null) {
+				for (int i = 0; i < dumm4.length; i++) {
+					if (dumm4[i] != otherTUC.dumm4[i]) {
+						return false;
+					}
 				}
 			}
-			if (!nestedClass.equals(otherTUC.nestedClass)) {
+			
+			if ((nestedClass == null && otherTUC.nestedClass != null)
+					|| (nestedClass != null && !nestedClass.equals(otherTUC.nestedClass))) {
 				return false;
 			}
 			return true;
@@ -181,6 +189,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 	/**
 	 * This tests if the hashes returned by the pojo and tuple comparators are the same
 	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testTuplePojoTestEquality() {
 		
