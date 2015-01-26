@@ -23,8 +23,8 @@ import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.junit.Test;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
 
 public class MultipleInvokationsTest {
 
@@ -37,7 +37,7 @@ public class MultipleInvokationsTest {
 			
 			DataSet<String> data = env.fromElements("Some", "test", "data").name("source1");
 			data.print().name("print1");
-			data.output(new DiscardingOuputFormat<String>()).name("output1");
+			data.output(new DiscardingOutputFormat<String>()).name("output1");
 			
 			{
 				Plan p = env.createProgramPlan();

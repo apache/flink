@@ -41,11 +41,11 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.AvroInputFormat;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
 import org.apache.flink.core.fs.Path;
 
 public class AvroExternalJarProgram  {
@@ -213,7 +213,7 @@ public class AvroExternalJarProgram  {
 	
 		DataSet<Tuple2<String, MyUser>> result = input.map(new NameExtractor()).groupBy(0).reduce(new NameGrouper());
 		
-		result.output(new DiscardingOuputFormat<Tuple2<String,MyUser>>());
+		result.output(new DiscardingOutputFormat<Tuple2<String,MyUser>>());
 		env.execute();
 	}
 }

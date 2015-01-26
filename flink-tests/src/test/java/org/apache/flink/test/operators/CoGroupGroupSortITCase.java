@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.NullValue;
@@ -68,7 +68,7 @@ public class CoGroupGroupSortITCase extends JavaProgramTestBase {
 		.sortSecondGroup("c", Order.ASCENDING).sortSecondGroup("a", Order.DESCENDING)
 		
 		.with(new ValidatingCoGroup())
-		.output(new DiscardingOuputFormat<NullValue>());
+		.output(new DiscardingOutputFormat<NullValue>());
 		
 		env.execute();
 	}
