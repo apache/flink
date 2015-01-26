@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
@@ -57,7 +57,7 @@ public class IterationIncompleteStaticPathConsumptionITCase extends JavaProgramT
 		
 		DataSet<Path> result = currentPaths.closeWith(newPaths);
 		
-		result.output(new DiscardingOuputFormat<Path>());
+		result.output(new DiscardingOutputFormat<Path>());
 		
 		env.execute();
 	}

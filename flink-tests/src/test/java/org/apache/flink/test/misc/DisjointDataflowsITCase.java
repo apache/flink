@@ -19,7 +19,7 @@
 package org.apache.flink.test.misc;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 public class DisjointDataflowsITCase extends JavaProgramTestBase {
@@ -29,8 +29,8 @@ public class DisjointDataflowsITCase extends JavaProgramTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		// generate two different flows
-		env.generateSequence(1, 10).output(new DiscardingOuputFormat<Long>());
-		env.generateSequence(1, 10).output(new DiscardingOuputFormat<Long>());
+		env.generateSequence(1, 10).output(new DiscardingOutputFormat<Long>());
+		env.generateSequence(1, 10).output(new DiscardingOutputFormat<Long>());
 		
 		env.execute();
 	}

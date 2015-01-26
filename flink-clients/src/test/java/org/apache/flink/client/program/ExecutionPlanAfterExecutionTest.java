@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -39,7 +39,7 @@ public class ExecutionPlanAfterExecutionTest implements java.io.Serializable {
 		DataSet<Integer> result = baseSet.map(new MapFunction<Integer, Integer>() {
 			@Override public Integer map(Integer value) throws Exception { return value * 2; }
 		});
-		result.output(new DiscardingOuputFormat<Integer>());
+		result.output(new DiscardingOutputFormat<Integer>());
 
 		try {
 			env.getExecutionPlan();
@@ -58,7 +58,7 @@ public class ExecutionPlanAfterExecutionTest implements java.io.Serializable {
 		DataSet<Integer> result = baseSet.map(new MapFunction<Integer, Integer>() {
 			@Override public Integer map(Integer value) throws Exception { return value * 2; }
 		});
-		result.output(new DiscardingOuputFormat<Integer>());
+		result.output(new DiscardingOutputFormat<Integer>());
 
 		try {
 			env.getExecutionPlan();

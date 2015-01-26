@@ -29,7 +29,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.operators.translation.PlanFilterOperator;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -59,7 +59,7 @@ public class NamesTest implements Serializable {
 			public boolean filter(String value) throws Exception {
 				return value.equals("a");
 			}
-		}).output(new DiscardingOuputFormat<String>());
+		}).output(new DiscardingOutputFormat<String>());
 		JavaPlan plan = env.createProgramPlan();
 		testForName("Filter at testDefaultName(NamesTest.java:55)", plan);
 	}
@@ -75,7 +75,7 @@ public class NamesTest implements Serializable {
 			public boolean filter(String value) throws Exception {
 				return value.equals("a");
 			}
-		}).name("GivenName").output(new DiscardingOuputFormat<String>());
+		}).name("GivenName").output(new DiscardingOutputFormat<String>());
 		JavaPlan plan = env.createProgramPlan();
 		testForName("GivenName", plan);
 	}
@@ -97,7 +97,7 @@ public class NamesTest implements Serializable {
 				//
 			}
 		})
-				.output(new DiscardingOuputFormat<String>());
+				.output(new DiscardingOutputFormat<String>());
 		JavaPlan plan = env.createProgramPlan();
 		plan.accept(new Visitor<Operator<?>>() {
 			@Override

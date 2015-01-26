@@ -26,7 +26,7 @@ import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -133,7 +133,7 @@ public class JobTaskVertexTest {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class TestingOutputFormat extends DiscardingOuputFormat<Object> implements InitializeOnMaster {
+	private static final class TestingOutputFormat extends DiscardingOutputFormat<Object> implements InitializeOnMaster {
 		@Override
 		public void initializeGlobal(int parallelism) throws IOException {
 			throw new TestException();

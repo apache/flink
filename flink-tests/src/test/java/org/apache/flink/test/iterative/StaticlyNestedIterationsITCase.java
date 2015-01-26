@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.io.DiscardingOuputFormat;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
@@ -50,7 +50,7 @@ public class StaticlyNestedIterationsITCase extends JavaProgramTestBase {
 		
 		DataSet<Long> mainResult = mainIteration.closeWith(joined);
 		
-		mainResult.output(new DiscardingOuputFormat<Long>());
+		mainResult.output(new DiscardingOutputFormat<Long>());
 		
 		env.execute();
 	}
