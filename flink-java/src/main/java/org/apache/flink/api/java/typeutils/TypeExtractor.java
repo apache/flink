@@ -1259,7 +1259,7 @@ public class TypeExtractor {
 	}
 
 	@SuppressWarnings("unchecked")
-	private <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
+	protected <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
 			ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 
 		// add the hierarchy of the POJO itself if it is generic
@@ -1385,8 +1385,9 @@ public class TypeExtractor {
 		}
 		return result;
 	}
-	
-	private static Class<?> typeToClass(Type t) {
+
+	// not public to users
+	public static Class<?> typeToClass(Type t) {
 		if (t instanceof Class) {
 			return (Class<?>)t;
 		}
@@ -1395,8 +1396,9 @@ public class TypeExtractor {
 		}
 		throw new IllegalArgumentException("Cannot convert type to class");
 	}
-	
-	private static boolean isClassType(Type t) {
+
+	// not public to users
+	public static boolean isClassType(Type t) {
 		return t instanceof Class<?> || t instanceof ParameterizedType;
 	}
 

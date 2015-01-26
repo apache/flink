@@ -19,13 +19,10 @@ package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.SerializerTestInstance
-import org.apache.flink.api.java.ExecutionEnvironment
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
-import org.joda.time.DateTime
 import org.junit.Test
 import scala.reflect._
-import org.joda.time.LocalDate
+import org.joda.time.{DateTime, LocalDate}
 import com.esotericsoftware.kryo.Serializer
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Output
@@ -100,7 +97,7 @@ class KryoGenericTypeSerializerTest {
   }
 
   @Test
-  def jodaSerialization: Unit = {
+  def jodaSerialization1: Unit = {
     val a = List(new LocalDate(1), new LocalDate(2))
     
     runTests(a)
@@ -202,7 +199,7 @@ class KryoGenericTypeSerializerTest {
 
     // Register the custom Kryo Serializer
     val conf = new ExecutionConfig
-    conf.registerKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
+    conf.registerTypeWithKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
     val typeInfo = new GenericTypeInfo[T](clsTag.runtimeClass.asInstanceOf[Class[T]])
     val serializer = typeInfo.createSerializer(conf)
     val typeClass = typeInfo.getTypeClass

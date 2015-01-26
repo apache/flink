@@ -16,11 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils.runtime;
+package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.ComparatorTestBase;
+import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest;
+import org.apache.flink.api.java.typeutils.runtime.TestDataOutputSerializer;
+import org.joda.time.DateTime;
 import org.junit.Test;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -139,7 +143,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 				serializer.serialize(i, target);
 			}
 
-			TestInputView source = new TestInputView(target.copyByteBuffer());
+			ComparatorTestBase.TestInputView source = new ComparatorTestBase.TestInputView(target.copyByteBuffer());
 
 			for(int i = 0; i < numElements; i++){
 				int value = serializer.deserialize(source);

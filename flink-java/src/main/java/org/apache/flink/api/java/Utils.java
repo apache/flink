@@ -18,6 +18,12 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+
+import java.util.List;
+
 public class Utils {
 
 	public static String getCallLocationName() {
@@ -34,5 +40,24 @@ public class Utils {
 		StackTraceElement elem = stackTrace[depth];
 
 		return String.format("%s(%s:%d)", elem.getMethodName(), elem.getFileName(), elem.getLineNumber());
+	}
+
+	/**
+	 * Returns all GenericTypeInfos contained in a composite type.
+	 *
+	 * @param typeInfo
+	 * @return
+	 */
+	public static void getContainedGenericTypes(CompositeType typeInfo, List<GenericTypeInfo<?>> target) {
+		for(int i = 0; i < typeInfo.getArity(); i++) {
+			TypeInformation<?> type = typeInfo.getTypeAt(i);
+			if(type instanceof CompositeType) {
+				getContainedGenericTypes((CompositeType) type, target);
+			} else if(type instanceof GenericTypeInfo) {
+				if(!target.contains(type)) {
+					target.add((GenericTypeInfo<?>) type);
+				}
+			}
+		}
 	}
 }

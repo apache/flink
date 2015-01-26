@@ -23,6 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.util.StringUtils
 import org.joda.time.DateTime
 import org.joda.time.LocalDate
@@ -208,7 +209,7 @@ class TupleSerializerTest {
     try {
       // Register the custom Kryo Serializer
       val conf = new ExecutionConfig
-      conf.registerKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
+      conf.registerTypeWithKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
       val tupleTypeInfo = implicitly[TypeInformation[T]].asInstanceOf[TupleTypeInfoBase[T]]
       val serializer = tupleTypeInfo.createSerializer(conf)
       val tupleClass = tupleTypeInfo.getTypeClass

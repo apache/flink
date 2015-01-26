@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
-import org.apache.flink.api.java.typeutils.runtime.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 

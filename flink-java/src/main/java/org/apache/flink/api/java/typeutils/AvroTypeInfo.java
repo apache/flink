@@ -27,10 +27,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Special type information to generate a POJO type info from an avro schema.
+ * Special type information to generate a special AvroTypeInfo for Avro POJOs (implementing SpecificRecordBase, the typed Avro POJOs)
  *
  * Proceeding: It uses a regular pojo type analysis and replaces all GenericType<CharSequence>
- *     with a GenericType<avro.Utf8>
+ *     with a GenericType<avro.Utf8>.
+ * All other types used by Avro are standard Java types.
+ * Only strings are represented as CharSequence fields and represented as Utf8 classes at runtime.
+ * CharSequence is not comparable. To make them nicely usable with field expressions, we replace them here
+ * by generic type infos containing Utf8 classes (which are comparable),
+ *
+ * This class is checked by the AvroPojoTest.
  * @param <T>
  */
 public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> {
@@ -40,7 +46,7 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 
 	private static <T extends SpecificRecordBase> List<PojoField> generateFieldsFromAvroSchema(Class<T> typeClass) {
 		PojoTypeExtractor pte = new PojoTypeExtractor();
-		TypeInformation ti = pte.analyzePojo(typeClass, new ArrayList<Type>(), null);
+		TypeInformation ti = pte.analyzePojo(typeClass, new ArrayList<Type>(), null, null, null);
 
 		if(!(ti instanceof PojoTypeInfo)) {
 			throw new IllegalStateException("Expecting type to be a PojoTypeInfo");

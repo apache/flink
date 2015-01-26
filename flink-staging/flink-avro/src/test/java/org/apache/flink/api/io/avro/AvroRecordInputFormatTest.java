@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.esotericsoftware.kryo.Serializer;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
@@ -38,17 +39,22 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.util.Utf8;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.io.avro.generated.Colors;
 import org.apache.flink.api.io.avro.generated.User;
 import org.apache.flink.api.java.io.AvroInputFormat;
+import org.apache.flink.api.java.typeutils.AvroTypeInfo;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -207,8 +213,15 @@ public class AvroRecordInputFormatTest {
 		assertEquals(null, rec.get("type_long_test")); // it is null for the first record.
 
 		// now serialize it with our framework:
+
 		TypeInformation<GenericData.Record> te = (TypeInformation<GenericData.Record>) TypeExtractor.createTypeInfo(GenericData.Record.class);
-		TypeSerializer<GenericData.Record> tser = te.createSerializer();
+		ExecutionConfig ec = new ExecutionConfig();
+		Assert.assertEquals(GenericTypeInfo.class, te.getClass());
+		Serializers.recursivelyRegisterType(( (GenericTypeInfo) te).getTypeClass(), ec);
+
+		TypeSerializer<GenericData.Record> tser = te.createSerializer(ec);
+		Assert.assertEquals(1, ec.getDefaultKryoSerializerClasses().size());
+		Assert.assertEquals(new ExecutionConfig.Entry<Class<?>, Class<? extends Serializer<?>>>(Schema.class, Serializers.AvroSchemaSerializer.class), ec.getDefaultKryoSerializerClasses().get(0));
 		ComparatorTestBase.TestOutputView target = new ComparatorTestBase.TestOutputView();
 		tser.serialize(rec, target);
 
@@ -239,8 +252,10 @@ public class AvroRecordInputFormatTest {
 		assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), rec.get("type_enum").toString());
 
 		// now serialize it with our framework:
+		ExecutionConfig ec = new ExecutionConfig();
 		TypeInformation<User> te = (TypeInformation<User>) TypeExtractor.createTypeInfo(User.class);
-		TypeSerializer<User> tser = te.createSerializer();
+		Assert.assertEquals(AvroTypeInfo.class, te.getClass());
+		TypeSerializer<User> tser = te.createSerializer(ec);
 		ComparatorTestBase.TestOutputView target = new ComparatorTestBase.TestOutputView();
 		tser.serialize(rec, target);
 

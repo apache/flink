@@ -22,6 +22,7 @@ import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.flink.api.io.avro.generated.Colors;
+import org.apache.flink.api.io.avro.generated.Fixed16;
 import org.apache.flink.api.io.avro.generated.User;
 import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.configuration.Configuration;
@@ -107,6 +108,8 @@ public class AvroSplittableInputFormatTest {
 		             .setTypeNullableArray(null)
 		             .setTypeEnum(Colors.RED)
 		             .setTypeMap(new HashMap<CharSequence, Long>())
+					 .setTypeFixed(new Fixed16())
+					 .setTypeUnion(123L)
 		             .build();
 		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<User>(User.class);
 		DataFileWriter<User> dataFileWriter = new DataFileWriter<User>(userDatumWriter);
@@ -152,10 +155,10 @@ public class AvroSplittableInputFormatTest {
 			}
 			format.close();
 		}
-		Assert.assertEquals(1491, elementsPerSplit[0]);
-		Assert.assertEquals(1491, elementsPerSplit[1]);
-		Assert.assertEquals(1490, elementsPerSplit[2]);
-		Assert.assertEquals(528, elementsPerSplit[3]);
+		Assert.assertEquals(1474, elementsPerSplit[0]);
+		Assert.assertEquals(1474, elementsPerSplit[1]);
+		Assert.assertEquals(1474, elementsPerSplit[2]);
+		Assert.assertEquals(578, elementsPerSplit[3]);
 		Assert.assertEquals(NUM_RECORDS, elements);
 		format.close();
 	}

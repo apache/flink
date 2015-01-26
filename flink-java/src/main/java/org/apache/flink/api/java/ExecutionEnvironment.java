@@ -30,6 +30,7 @@ import java.util.UUID;
 
 import com.esotericsoftware.kryo.Serializer;
 
+import com.google.common.base.Joiner;
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -38,8 +39,10 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.io.CsvReader;
@@ -54,16 +57,21 @@ import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.operators.OperatorTranslation;
 import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
+import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.SplittableIterator;
+import org.apache.flink.util.Visitor;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The ExecutionEnviroment is the context in which a program is executed. A
@@ -84,6 +92,8 @@ import org.apache.hadoop.mapreduce.Job;
  * @see RemoteEnvironment
  */
 public abstract class ExecutionEnvironment {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 	
 	/** The environment of the context (local by default, cluster if invoked through command line) */
 	private static ExecutionEnvironmentFactory contextEnvironmentFactory;
@@ -200,29 +210,51 @@ public abstract class ExecutionEnvironment {
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
 
+
 	/**
-	 * Registers the given Serializer as a default serializer for the given type at the
-	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
-	 * 
+	 * Adds a new Kryo default serializer to the Runtime.
+	 *
 	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
 	 * because it may be distributed to the worker nodes by java serialization.
-	 * 
+	 *
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
 	 */
-	public void registerKryoSerializer(Class<?> type, Serializer<?> serializer) {
-		config.registerKryoSerializer(type, serializer);
+	public void addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer) {
+		config.addDefaultKryoSerializer(type, serializer);
 	}
 
 	/**
-	 * Registers the given Serializer via its class as a serializer for the given type at the
-	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
-	 * 
+	 * Adds a new Kryo default serializer to the Runtime.
+	 *
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializerClass The class of the serializer to use.
 	 */
-	public void registerKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-		config.registerKryoSerializer(type, serializerClass);
+	public void addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		config.addDefaultKryoSerializer(type, serializerClass);
+	}
+
+	/**
+	 * Registers the given type with a Kryo Serializer.
+	 *
+	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
+	 * because it may be distributed to the worker nodes by java serialization.
+	 *
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializer The serializer to use.
+	 */
+	public void registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer) {
+		config.registerTypeWithKryoSerializer(type, serializer);
+	}
+
+	/**
+	 * Registers the given Serializer via its class as a serializer for the given type at the KryoSerializer
+	 *
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializerClass The class of the serializer to use.
+	 */
+	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		config.registerTypeWithKryoSerializer(type, serializerClass);
 	}
 	
 	/**
@@ -743,7 +775,7 @@ public abstract class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
 	public abstract JobExecutionResult execute(String jobName) throws Exception;
-	
+
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as 
 	 * a String using a JSON representation of the execution data flow graph.
@@ -856,11 +888,35 @@ public abstract class ExecutionEnvironment {
 		
 		OperatorTranslation translator = new OperatorTranslation();
 		JavaPlan plan = translator.translateToPlan(this.sinks, jobName);
-		
+
 		if (getDegreeOfParallelism() > 0) {
 			plan.setDefaultParallelism(getDegreeOfParallelism());
 		}
 		plan.setExecutionConfig(getConfig());
+		// Check plan for GenericTypeInfo's and register the types at the serializers.
+		plan.accept(new Visitor<org.apache.flink.api.common.operators.Operator<?>>() {
+			@Override
+			public boolean preVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {
+				OperatorInformation<?> opInfo = visitable.getOperatorInfo();
+				TypeInformation<?> typeInfo = opInfo.getOutputType();
+				if(typeInfo instanceof GenericTypeInfo) {
+					GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) typeInfo;
+					if(!config.isDisableAutoTypeRegistration()) {
+						Serializers.recursivelyRegisterType(genericTypeInfo.getTypeClass(), config);
+					}
+				}
+				if(typeInfo instanceof CompositeType) {
+					List<GenericTypeInfo<?>> genericTypesInComposite = new ArrayList<GenericTypeInfo<?>>();
+					Utils.getContainedGenericTypes((CompositeType)typeInfo, genericTypesInComposite);
+					for(GenericTypeInfo<?> gt : genericTypesInComposite) {
+						Serializers.recursivelyRegisterType(gt.getTypeClass(), config);
+					}
+				}
+				return true;
+			}
+			@Override
+			public void postVisit(org.apache.flink.api.common.operators.Operator<?> visitable) {}
+		});
 
 		try {
 			registerCachedFilesWithPlan(plan);
@@ -872,7 +928,25 @@ public abstract class ExecutionEnvironment {
 		if (clearSinks) {
 			this.sinks.clear();
 		}
-		
+
+		// All types are registered now. Print information.
+		int registeredTypes = config.getRegisteredKryoTypes().size() +
+				config.getRegisteredPojoTypes().size() +
+				config.getRegisteredTypesWithKryoSerializerClasses().size() +
+				config.getRegisteredTypesWithKryoSerializers().size();
+		int defaultKryoSerializers = config.getDefaultKryoSerializers().size() +
+				config.getDefaultKryoSerializerClasses().size();
+		LOG.info("The job has {} registered types and {} default Kryo serializers", registeredTypes, defaultKryoSerializers);
+
+		if(LOG.isDebugEnabled()) {
+			LOG.debug("Registered Kryo types: {}", Joiner.on(',').join(config.getRegisteredKryoTypes()));
+			LOG.debug("Registered Kryo with Serializers types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializers()));
+			LOG.debug("Registered Kryo with Serializer Classes types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializerClasses()));
+			LOG.debug("Registered Kryo default Serializers: {}", Joiner.on(',').join(config.getDefaultKryoSerializers()));
+			LOG.debug("Registered Kryo default Serializers Classes {}", Joiner.on(',').join(config.getDefaultKryoSerializerClasses()));
+			LOG.debug("Registered POJO types: {}", Joiner.on(',').join(config.getRegisteredPojoTypes()));
+		}
+
 		return plan;
 	}
 	
