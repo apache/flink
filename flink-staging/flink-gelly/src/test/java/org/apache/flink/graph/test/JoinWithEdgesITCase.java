@@ -36,9 +36,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class TestJoinWithEdges extends MultipleProgramsTestBase {
+public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
 
-	public TestJoinWithEdges(MultipleProgramsTestBase.ExecutionMode mode){
+	public JoinWithEdgesITCase(MultipleProgramsTestBase.ExecutionMode mode){
 		super(mode);
 	}
 

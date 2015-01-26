@@ -22,8 +22,8 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -36,9 +36,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class TestMapEdges extends MultipleProgramsTestBase {
+public class MapVerticesITCase extends MultipleProgramsTestBase {
 
-	public TestMapEdges(MultipleProgramsTestBase.ExecutionMode mode){
+	public MapVerticesITCase(MultipleProgramsTestBase.ExecutionMode mode){
 		super(mode);
 	}
 
@@ -61,162 +61,172 @@ public class TestMapEdges extends MultipleProgramsTestBase {
 	@Test
 	public void testWithSameValue() throws Exception {
 		/*
-		 * Test mapEdges() keeping the same value type
+		 * Test mapVertices() keeping the same value type
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Edge<Long, Long>> mappedEdges = graph.mapEdges(new AddOneMapper()).getEdges();
+		DataSet<Vertex<Long, Long>> mappedVertices = graph.mapVertices(new AddOneMapper()).getVertices();
 		
-		mappedEdges.writeAsCsv(resultPath);
+		mappedVertices.writeAsCsv(resultPath);
 		env.execute();
-		expectedResult = "1,2,13\n" +
-				"1,3,14\n" +
-				"2,3,24\n" +
-				"3,4,35\n" +
-				"3,5,36\n" + 
-				"4,5,46\n" + 
-				"5,1,52\n";
+		expectedResult = "1,2\n" +
+			"2,3\n" +
+			"3,4\n" +
+			"4,5\n" +
+			"5,6\n";
 	}
 
 	@Test
 	public void testWithStringValue() throws Exception {
 		/*
-		 * Test mapEdges() and change the value type to String
+		 * Test mapVertices() and change the value type to String
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Edge<Long, String>> mappedEdges = graph.mapEdges(new ToStringMapper()).getEdges();
+		DataSet<Vertex<Long, String>> mappedVertices = graph.mapVertices(new ToStringMapper()).getVertices();
 		
-		mappedEdges.writeAsCsv(resultPath);
+		mappedVertices.writeAsCsv(resultPath);
 		env.execute();
-		expectedResult = "1,2,string(12)\n" +
-				"1,3,string(13)\n" +
-				"2,3,string(23)\n" +
-				"3,4,string(34)\n" +
-				"3,5,string(35)\n" + 
-				"4,5,string(45)\n" + 
-				"5,1,string(51)\n";
+
+		expectedResult = "1,one\n" +
+			"2,two\n" +
+			"3,three\n" +
+			"4,four\n" +
+			"5,five\n";
 	}
 
 	@Test
-	public void testWithTuple1Type() throws Exception {
+	public void testWithtuple1Value() throws Exception {
 		/*
-		 * Test mapEdges() and change the value type to a Tuple1
+		 * Test mapVertices() and change the value type to a Tuple1
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Edge<Long, Tuple1<Long>>> mappedEdges = graph.mapEdges(new ToTuple1Mapper()).getEdges();
+		DataSet<Vertex<Long, Tuple1<Long>>> mappedVertices = graph.mapVertices(new ToTuple1Mapper()).getVertices();
 		
-		mappedEdges.writeAsCsv(resultPath);
+		mappedVertices.writeAsCsv(resultPath);
 		env.execute();
 
-		expectedResult = "1,2,(12)\n" +
-				"1,3,(13)\n" +
-				"2,3,(23)\n" +
-				"3,4,(34)\n" +
-				"3,5,(35)\n" + 
-				"4,5,(45)\n" + 
-				"5,1,(51)\n";
+		expectedResult = "1,(1)\n" +
+			"2,(2)\n" +
+			"3,(3)\n" +
+			"4,(4)\n" +
+			"5,(5)\n";
 	}
 
 	@Test
 	public void testWithCustomType() throws Exception {
 		/*
-		 * Test mapEdges() and change the value type to a custom type
+		 * Test mapVertices() and change the value type to a custom type
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Edge<Long, DummyCustomType>> mappedEdges = graph.mapEdges(new ToCustomTypeMapper()).getEdges();
+		DataSet<Vertex<Long, DummyCustomType>> mappedVertices = graph.mapVertices(new ToCustomTypeMapper()).getVertices();
 		
-		mappedEdges.writeAsCsv(resultPath);
+		mappedVertices.writeAsCsv(resultPath);
 		env.execute();
 
-		expectedResult = "1,2,(T,12)\n" +
-			"1,3,(T,13)\n" +
-			"2,3,(T,23)\n" +
-			"3,4,(T,34)\n" +
-			"3,5,(T,35)\n" + 
-			"4,5,(T,45)\n" + 
-			"5,1,(T,51)\n";
+		expectedResult = "1,(T,1)\n" +
+			"2,(T,2)\n" +
+			"3,(T,3)\n" +
+			"4,(T,4)\n" +
+			"5,(T,5)\n";
 	}
 
 	@Test
-	public void testWithParametrizedCustomType() throws Exception {
+	public void testWithCustomParametrizedType() throws Exception {
 		/*
-		 * Test mapEdges() and change the value type to a parameterized custom type
+		 * Test mapVertices() and change the value type to a parameterized custom type
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Edge<Long, DummyCustomParameterizedType<Double>>> mappedEdges = graph.mapEdges(
-				new ToCustomParametrizedTypeMapper()).getEdges();
+		DataSet<Vertex<Long, DummyCustomParameterizedType<Double>>> mappedVertices = graph.mapVertices(
+				new ToCustomParametrizedTypeMapper()).getVertices();
 		
-		mappedEdges.writeAsCsv(resultPath);
+		mappedVertices.writeAsCsv(resultPath);
 		env.execute();
 	
-		expectedResult = "1,2,(12.0,12)\n" +
-			"1,3,(13.0,13)\n" +
-			"2,3,(23.0,23)\n" +
-			"3,4,(34.0,34)\n" +
-			"3,5,(35.0,35)\n" + 
-			"4,5,(45.0,45)\n" + 
-			"5,1,(51.0,51)\n";
+		expectedResult = "1,(1.0,1)\n" +
+			"2,(2.0,2)\n" +
+			"3,(3.0,3)\n" +
+			"4,(4.0,4)\n" +
+			"5,(5.0,5)\n";
 	}
 
 	@SuppressWarnings("serial")
-	private static final class AddOneMapper implements MapFunction<Edge<Long, Long>, Long> {
-		public Long map(Edge<Long, Long> edge) throws Exception {
-			return edge.getValue()+1;
+	private static final class AddOneMapper implements MapFunction<Vertex<Long, Long>, Long> {
+		public Long map(Vertex<Long, Long> value) throws Exception {
+			return value.getValue()+1;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class ToStringMapper implements MapFunction<Edge<Long, Long>, String> {
-		public String map(Edge<Long, Long> edge) throws Exception {
-			return String.format("string(%d)", edge.getValue());
+	private static final class ToStringMapper implements MapFunction<Vertex<Long, Long>, String> {
+		public String map(Vertex<Long, Long> vertex) throws Exception {
+			String stringValue;
+			if (vertex.getValue() == 1) {
+				stringValue = "one";
+			}
+			else if (vertex.getValue() == 2) {
+				stringValue = "two";
+			}
+			else if (vertex.getValue() == 3) {
+				stringValue = "three";
+			}
+			else if (vertex.getValue() == 4) {
+				stringValue = "four";
+			}
+			else if (vertex.getValue() == 5) {
+				stringValue = "five";
+			}
+			else {
+				stringValue = "";
+			}
+			return stringValue;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class ToTuple1Mapper implements MapFunction<Edge<Long, Long>, Tuple1<Long>> {
-		public Tuple1<Long> map(Edge<Long, Long> edge) throws Exception {
+	private static final class ToTuple1Mapper implements MapFunction<Vertex<Long, Long>, Tuple1<Long>> {
+		public Tuple1<Long> map(Vertex<Long, Long> vertex) throws Exception {
 			Tuple1<Long> tupleValue = new Tuple1<Long>();
-			tupleValue.setFields(edge.getValue());
+			tupleValue.setFields(vertex.getValue());
 			return tupleValue;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class ToCustomTypeMapper implements MapFunction<Edge<Long, Long>, DummyCustomType> {
-		public DummyCustomType map(Edge<Long, Long> edge) throws Exception {
+	private static final class ToCustomTypeMapper implements MapFunction<Vertex<Long, Long>, DummyCustomType> {
+		public DummyCustomType map(Vertex<Long, Long> vertex) throws Exception {
 			DummyCustomType dummyValue = new DummyCustomType();
-			dummyValue.setIntField(edge.getValue().intValue());						
+			dummyValue.setIntField(vertex.getValue().intValue());						
 			return dummyValue;
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class ToCustomParametrizedTypeMapper implements MapFunction<Edge<Long, Long>, 
+	private static final class ToCustomParametrizedTypeMapper implements MapFunction<Vertex<Long, Long>, 
 		DummyCustomParameterizedType<Double>> {
-
-		public DummyCustomParameterizedType<Double> map(Edge<Long, Long> edge) throws Exception {
+		
+		public DummyCustomParameterizedType<Double> map(Vertex<Long, Long> vertex) throws Exception {
 			DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<Double>();
-			dummyValue.setIntField(edge.getValue().intValue());
-			dummyValue.setTField(new Double(edge.getValue()));						
+			dummyValue.setIntField(vertex.getValue().intValue());
+			dummyValue.setTField(new Double(vertex.getValue()));						
 			return dummyValue;
 		}
 	}
