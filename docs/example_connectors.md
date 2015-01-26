@@ -90,10 +90,7 @@ Execute the following commands:
    curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-quickstart/quickstart.sh | bash
    ~~~
 
-3. Set the the version of Flink to `{{site.FLINK_VERSION_HADOOP2_STABLE}}` in the `pom.xml` file. The quickstart.sh script sets the version to the `hadoop1` version of Flink. Since the `microsoft-hadoop-azure` has been written for Hadoop 2.2 (mapreduce-API) version, we need to use the appropriate Flink version. 
-
-    Replace all occurences of `<version>{{site.FLINK_VERSION_SHORT}}</version>` with `<version>{{site.FLINK_VERSION_HADOOP2_STABLE}}</version>`.
-4. Add the following dependencies (in the `<dependencies>` section) to your `pom.xml` file:
+3. Add the following dependencies (in the `<dependencies>` section) to your `pom.xml` file:
 
    ~~~xml
    <dependency>
