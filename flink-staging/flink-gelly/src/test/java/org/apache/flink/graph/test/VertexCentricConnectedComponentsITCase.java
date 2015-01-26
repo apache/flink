@@ -36,7 +36,7 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.NullValue;
 
 @SuppressWarnings("serial")
-public class TestVertexCentricConnectedComponents extends JavaProgramTestBase {
+public class VertexCentricConnectedComponentsITCase extends JavaProgramTestBase {
 
 	private static final long SEED = 9487520347802987L;
 	

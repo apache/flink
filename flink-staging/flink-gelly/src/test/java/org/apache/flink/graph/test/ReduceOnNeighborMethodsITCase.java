@@ -40,9 +40,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class TestReduceOnNeighborMethods extends MultipleProgramsTestBase {
+public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
-	public TestReduceOnNeighborMethods(MultipleProgramsTestBase.ExecutionMode mode){
+	public ReduceOnNeighborMethodsITCase(MultipleProgramsTestBase.ExecutionMode mode){
 		super(mode);
 	}
 
