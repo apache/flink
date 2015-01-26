@@ -82,7 +82,8 @@ object ApplicationMaster {
 
           val jobManagerWebPort = 0 // automatic assignment.
 
-          val (system, actor) = startJobManager(currDir, ownHostname,dynamicPropertiesEncodedString)
+          val (system, actor) = startJobManager(currDir, ownHostname,dynamicPropertiesEncodedString,
+            jobManagerWebPort)
 
           actorSystem = system
           jobManager = actor
@@ -159,7 +160,8 @@ object ApplicationMaster {
     output.close()
   }
 
-  def startJobManager(currDir: String, hostname: String, dynamicPropertiesEncodedString: String):
+  def startJobManager(currDir: String, hostname: String, dynamicPropertiesEncodedString: String,
+                       jobManagerWebPort: Int):
     (ActorSystem, ActorRef) = {
     LOG.info("Start job manager for yarn")
     val args = Array[String]("--configDir", currDir)
@@ -173,6 +175,7 @@ object ApplicationMaster {
     for(property <- dynamicProperties.asScala){
       configuration.setString(property.f0, property.f1)
     }
+    configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, jobManagerWebPort);
 
     // set port to 0 to let Akka automatically determine the port.
     implicit val jobManagerSystem = YarnUtils.createActorSystem(hostname, port = 0, configuration)

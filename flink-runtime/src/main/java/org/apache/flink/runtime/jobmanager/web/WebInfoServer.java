@@ -92,7 +92,6 @@ public class WebInfoServer {
 		
 		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
-		
 		this.timeout = timeout;
 
 		// get base path of Flink installation
