@@ -462,7 +462,7 @@ public class MyCombinableGroupReducer
   public void reduce(Iterable<Tuple3<String, Integer, Double>> in,
                      Collector<Tuple3<String, Integer, Double>> out) {
 
-    String key = null
+    String key = null;
     int intSum = 0;
     double doubleSum = 0.0;
 
@@ -477,7 +477,7 @@ public class MyCombinableGroupReducer
 
   @Override
   public void combine(Iterable<Tuple3<String, Integer, Double>> in,
-                      Collector<Tuple3<String, Integer, Double>> out)) {
+                      Collector<Tuple3<String, Integer, Double>> out) {
     // in some cases combine() calls can simply be forwarded to reduce().
     this.reduce(in, out);
   }
