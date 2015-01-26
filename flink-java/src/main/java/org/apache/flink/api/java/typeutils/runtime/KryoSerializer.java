@@ -25,11 +25,15 @@ import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
+import com.google.protobuf.Message;
 import com.twitter.chill.ScalaKryoInstantiator;
 
+import com.twitter.chill.protobuf.ProtobufSerializer;
+import com.twitter.chill.thrift.TBaseSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.thrift.TBase;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -246,6 +250,12 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 			// Throwable and all subclasses should be serialized via java serialization
 			kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
+
+			// add serializers for popular other serialization frameworks
+			// Google Protobuf (FLINK-1392)
+			this.kryo.addDefaultSerializer(Message.class, ProtobufSerializer.class);
+			// thrift
+			this.kryo.addDefaultSerializer(TBase.class, TBaseSerializer.class);
 
 			// register the type of our class
 			kryo.register(type);
