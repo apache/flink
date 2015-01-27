@@ -1027,6 +1027,7 @@ under the License.
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
 						<exclude>flink-addons/flink-avro/src/test/resources/avro/user.avsc</exclude>
+						<exclude>flink-addons/flink-avro/src/test/resources/testdata.avro</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
