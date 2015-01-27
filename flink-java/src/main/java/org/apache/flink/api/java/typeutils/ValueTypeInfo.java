@@ -126,7 +126,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	
 	@Override
 	public String toString() {
-		return "ValueType<" + type.getName() + ">";
+		return "ValueType<" + type.getSimpleName() + ">";
 	}
 	
 	// --------------------------------------------------------------------------------------------
