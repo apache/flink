@@ -766,6 +766,24 @@ public class TypeExtractor {
 							+ clazz.getCanonicalName() + "'.");
 				}
 			}
+			// check for primitive array
+			else if (typeInfo instanceof PrimitiveArrayTypeInfo) {
+				Type component = null;
+				// check if array at all
+				if (!(type instanceof Class<?> && ((Class<?>) type).isArray() && (component = ((Class<?>) type).getComponentType()) != null)
+						&& !(type instanceof GenericArrayType && (component = ((GenericArrayType) type).getGenericComponentType()) != null)) {
+					throw new InvalidTypesException("Array type expected.");
+				}
+				if (component instanceof TypeVariable<?>) {
+					component = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) component);
+					if (component instanceof TypeVariable) {
+						return;
+					}
+				}
+				if (!(component instanceof Class<?> && ((Class<?>)component).isPrimitive())) {
+					throw new InvalidTypesException("Primitive component expected.");
+				}
+			}
 			// check for basic array
 			else if (typeInfo instanceof BasicArrayTypeInfo<?, ?>) {
 				Type component = null;

@@ -244,7 +244,7 @@ public class TypeInfoParserTest {
 	@Test
 	public void testLargeMixedTuple() {
 		TypeInformation<?> ti = TypeInfoParser.parse("org.apache.flink.api.java.tuple.Tuple4<Double,java.lang.Class[],StringValue,Tuple1<int>>[]");
-		Assert.assertEquals("ObjectArrayTypeInfo<Java Tuple4<Double, ObjectArrayTypeInfo<GenericType<java.lang.Class>>, ValueType<org.apache.flink.types.StringValue>, Java Tuple1<Integer>>>", ti.toString());
+		Assert.assertEquals("ObjectArrayTypeInfo<Java Tuple4<Double, ObjectArrayTypeInfo<GenericType<java.lang.Class>>, ValueType<StringValue>, Java Tuple1<Integer>>>", ti.toString());
 	}
 	
 	public static enum MyEnum {
@@ -289,5 +289,48 @@ public class TypeInfoParserTest {
 		} catch (IllegalArgumentException e) {
 			// right
 		}
+	}
+
+	@Test
+	public void testMultiDimensionalArray() {
+		// tuple
+		TypeInformation<?> ti = TypeInfoParser.parse("Tuple2<Integer, Double>[][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple2<Integer, Double>>>", ti.toString());
+		
+		// pojos
+		ti = TypeInfoParser.parse("org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyPojo<basic=String>[][][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<"
+				+ "PojoType<org.apache.flink.api.java.typeutils.TypeInfoParserTest.MyPojo, fields = [basic: String]>"
+				+ ">>>", ti.toString());
+		
+		// basic types
+		ti = TypeInfoParser.parse("Float[][][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<BasicArrayTypeInfo<Float>>>", ti.toString());
+		ti = TypeInfoParser.parse("String[][][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<BasicArrayTypeInfo<String>>>", ti.toString());
+		ti = TypeInfoParser.parse("Date[][][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<Date>>>", ti.toString());
+		
+		// primitive types
+		ti = TypeInfoParser.parse("int[][][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<int[]>>", ti.toString());
+		ti = TypeInfoParser.parse("boolean[][][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<boolean[]>>", ti.toString());
+		
+		// value types
+		ti = TypeInfoParser.parse("IntValue[][][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<ValueType<IntValue>>>>", ti.toString());
+		
+		// writable types
+		ti = TypeInfoParser.parse("Writable<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyWritable>[][][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<"
+				+ "WritableType<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyWritable>"
+				+ ">>>", ti.toString());
+		
+		// enum types
+		ti = TypeInfoParser.parse("Enum<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyEnum>[][][]");
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<"
+				+ "EnumTypeInfo<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyEnum>"
+				+ ">>>", ti.toString());
 	}
 }

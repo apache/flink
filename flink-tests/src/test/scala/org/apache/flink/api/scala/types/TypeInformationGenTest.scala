@@ -255,6 +255,54 @@ class TypeInformationGenTest {
     Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0))
     Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1))
   }
+  
+  @Test
+  def testMultidimensionalArrays(): Unit = {
+    // Tuple
+    {
+      val ti = createTypeInformation[Array[Array[(String, String)]]]
+    
+      Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
+      Assert.assertTrue(oati.getComponentInfo.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      val oati2 = oati.getComponentInfo.asInstanceOf[ObjectArrayTypeInfo[_, _]]
+      Assert.assertTrue(oati2.getComponentInfo.isTupleType)
+      val tti = oati2.getComponentInfo.asInstanceOf[TupleTypeInfoBase[_]]
+      Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0))
+      Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1))
+    }
+    
+    // primitives
+    {
+      val ti = createTypeInformation[Array[Array[Int]]]
+    
+      Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
+      Assert.assertEquals(oati.getComponentInfo,
+        PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO)
+    }
+    
+    // basic types
+    {
+      val ti = createTypeInformation[Array[Array[Integer]]]
+    
+      Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
+      Assert.assertEquals(oati.getComponentInfo, BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO)
+    }
+    
+    // pojo
+    {
+      val ti = createTypeInformation[Array[Array[CustomType]]]
+    
+      Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
+      Assert.assertTrue(oati.getComponentInfo.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      val oati2 = oati.getComponentInfo.asInstanceOf[ObjectArrayTypeInfo[_, _]]
+      val tti = oati2.getComponentInfo.asInstanceOf[PojoTypeInfo[_]]
+      Assert.assertEquals(classOf[CustomType], tti.getTypeClass())
+    }
+  }
 
   @Test
   def testParamertizedCustomObject(): Unit = {
