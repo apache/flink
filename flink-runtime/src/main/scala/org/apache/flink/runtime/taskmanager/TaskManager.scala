@@ -596,6 +596,10 @@ object TaskManager {
       opt[String]("tempDir") optional() action { (x, c) =>
         c.copy(tmpDir = x)
       } text ("Specify temporary directory.")
+
+      opt[String]("defaultJobManagerAdd") optional() action { (x, c) =>
+        c.copy(defaultJobManagerAdd = x)
+      } text ("Specify default jobmanager address.")
     }
 
 
@@ -609,6 +613,13 @@ object TaskManager {
           .TASK_MANAGER_TMP_DIR_KEY,
           null) == null) {
           configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, config.tmpDir)
+        }
+
+        if (config.defaultJobManagerAdd != null && GlobalConfiguration.getString(ConfigConstants
+          .JOB_MANAGER_IPC_ADDRESS_KEY,
+          null) == null) {
+          configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
+            config.defaultJobManagerAdd)
         }
 
         val jobManagerHostname = configuration.getString(ConfigConstants

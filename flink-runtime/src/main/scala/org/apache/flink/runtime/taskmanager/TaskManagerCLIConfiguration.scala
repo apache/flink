@@ -18,4 +18,5 @@
 
 package org.apache.flink.runtime.taskmanager
 
-case class TaskManagerCLIConfiguration(configDir: String = null, tmpDir: String = null)
+case class TaskManagerCLIConfiguration(configDir: String = null, tmpDir: String = null,
+                                       defaultJobManagerAdd: String = null)

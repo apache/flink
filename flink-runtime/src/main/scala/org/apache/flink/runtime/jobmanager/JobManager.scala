@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmanager
 
 import java.io.{IOException, File}
-import java.net.InetSocketAddress
+import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.TimeUnit
 
 import akka.actor._
@@ -517,6 +517,12 @@ object JobManager {
         val configuration = GlobalConfiguration.getConfiguration()
         if (config.configDir != null && new File(config.configDir).isDirectory) {
           configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, config.configDir + "/..")
+        }
+
+        if (GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
+          null) == null) {
+          configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
+            InetAddress.getLocalHost.getHostName)
         }
 
         val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
