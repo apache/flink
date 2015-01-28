@@ -29,7 +29,7 @@ import org.apache.flink.api.common.functions.Partitioner
 class PartitionOperatorTranslationTest extends CompilerTestBase {
 
   @Test
-  def testPartitiongOperatorPreservesFields() {
+  def testPartitionOperatorPreservesFields() {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
       

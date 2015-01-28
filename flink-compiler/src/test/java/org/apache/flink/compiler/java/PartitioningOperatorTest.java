@@ -39,7 +39,7 @@ import org.junit.Test;
 public class PartitioningOperatorTest extends CompilerTestBase {
 
 	@Test
-	public void testPartitiongOperatorPreservesFields() {
+	public void testPartitionOperatorPreservesFields() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
