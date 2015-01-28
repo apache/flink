@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.test.hadoopcompatibility.mapreduce;
+package org.apache.flink.api.java.hadoop.mapred;
 
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -25,18 +25,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.hadoopcompatibility.mapreduce.HadoopInputFormat;
-import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapred.FileInputFormat;
 import org.junit.Test;
 
 import java.io.IOException;
 
 import static org.junit.Assert.fail;
-
 
 
 public class HadoopInputFormatTest {
@@ -48,7 +46,7 @@ public class HadoopInputFormatTest {
 		}
 
 		@Override
-		public RecordReader<Void, T> createRecordReader(InputSplit inputSplit, TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
+		public org.apache.hadoop.mapred.RecordReader<Void, T> getRecordReader(org.apache.hadoop.mapred.InputSplit inputSplit, JobConf jobConf, Reporter reporter) throws IOException {
 			return null;
 		}
 	}
@@ -61,7 +59,7 @@ public class HadoopInputFormatTest {
 
 			// Set up the Hadoop Input Format
 			Job job = Job.getInstance();
-			HadoopInputFormat<Void, Long> hadoopInputFormat = new HadoopInputFormat<Void, Long>( new DummyVoidKeyInputFormat(), Void.class, Long.class, job);
+			HadoopInputFormat<Void, Long> hadoopInputFormat = new HadoopInputFormat<Void, Long>( new DummyVoidKeyInputFormat(), Void.class, Long.class, new JobConf());
 
 			TypeInformation<Tuple2<Void,Long>> tupleType = hadoopInputFormat.getProducedType();
 			TypeInformation<Tuple2<Void,Long>> testTupleType = new TupleTypeInfo<Tuple2<Void,Long>>(BasicTypeInfo.VOID_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);

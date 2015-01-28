@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.hadoopcompatibility.mapreduce.wrapper;
+package org.apache.flink.api.java.hadoop.mapreduce.wrapper;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;

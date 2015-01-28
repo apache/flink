@@ -17,31 +17,19 @@
  */
 
 
-package org.apache.flink.hadoopcompatibility.mapreduce;
+package org.apache.flink.api.java.hadoop.mapreduce;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
+import org.apache.flink.api.java.hadoop.mapreduce.wrapper.HadoopInputSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.hadoopcompatibility.mapreduce.utils.HadoopUtils;
-import org.apache.flink.hadoopcompatibility.mapreduce.wrapper.HadoopInputSplit;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
@@ -49,46 +37,37 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopInputSplit>, ResultTypeQueryable<Tuple2<K,V>> {
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.List;
+
+public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, HadoopInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatBase.class);
 
 	private org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat;
-	private Class<K> keyClass;
-	private Class<V> valueClass;
+	protected Class<K> keyClass;
+	protected Class<V> valueClass;
 	private org.apache.hadoop.conf.Configuration configuration;
 
-	private transient RecordReader<K, V> recordReader;
-	private boolean fetched = false;
-	private boolean hasNext;
+	protected transient RecordReader<K, V> recordReader;
+	protected boolean fetched = false;
+	protected boolean hasNext;
 
-	public HadoopInputFormat() {
-		super();
-	}
-
-	public HadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
+	public HadoopInputFormatBase(org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
 		super();
 		this.mapreduceInputFormat = mapreduceInputFormat;
 		this.keyClass = key;
 		this.valueClass = value;
 		this.configuration = job.getConfiguration();
 		HadoopUtils.mergeHadoopConf(configuration);
-	}
-
-	public void setConfiguration(org.apache.hadoop.conf.Configuration configuration) {
-		this.configuration = configuration;
-	}
-
-	public org.apache.hadoop.mapreduce.InputFormat<K,V> getHadoopInputFormat() {
-		return this.mapreduceInputFormat;
-	}
-
-	public void setHadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat) {
-		this.mapreduceInputFormat = mapreduceInputFormat;
 	}
 
 	public org.apache.hadoop.conf.Configuration getConfiguration() {
@@ -199,7 +178,7 @@ public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopI
 		return !this.hasNext;
 	}
 
-	private void fetchNext() throws IOException {
+	protected void fetchNext() throws IOException {
 		try {
 			this.hasNext = this.recordReader.nextKeyValue();
 		} catch (InterruptedException e) {
@@ -207,25 +186,6 @@ public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopI
 		} finally {
 			this.fetched = true;
 		}
-	}
-
-	@Override
-	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
-		if(!this.fetched) {
-			fetchNext();
-		}
-		if(!this.hasNext) {
-			return null;
-		}
-		try {
-			record.f0 = this.recordReader.getCurrentKey();
-			record.f1 = this.recordReader.getCurrentValue();
-		} catch (InterruptedException e) {
-			throw new IOException("Could not get KeyValue pair.", e);
-		}
-		this.fetched = false;
-
-		return record;
 	}
 
 	@Override
@@ -325,14 +285,5 @@ public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopI
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to find value class.", e);
 		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  ResultTypeQueryable
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public TypeInformation<Tuple2<K,V>> getProducedType() {
-		return new TupleTypeInfo<Tuple2<K,V>>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
 	}
 }

@@ -17,26 +17,33 @@
  */
 
 
-package org.apache.flink.hadoopcompatibility.mapred.utils;
+package org.apache.flink.api.java.hadoop.mapred.utils;
 
+import java.io.File;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.JobID;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.mapred.TaskAttemptID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class HadoopUtils {
-	
+
+	private static final Logger LOG = LoggerFactory.getLogger(HadoopUtils.class);
+
 	/**
 	 * Merge HadoopConfiguration into JobConf. This is necessary for the HDFS configuration.
 	 */
 	public static void mergeHadoopConf(JobConf jobConf) {
-		org.apache.hadoop.conf.Configuration hadoopConf = HadoopFileSystem.getHadoopConfiguration();
+		org.apache.hadoop.conf.Configuration hadoopConf = getHadoopConfiguration();
 		for (Map.Entry<String, String> e : hadoopConf) {
 			jobConf.set(e.getKey(), e.getValue());
 		}
@@ -83,5 +90,65 @@ public class HadoopUtils {
 		} catch(Exception e) {
 			throw new Exception("Could not create instance of TaskAttemptContext.", e);
 		}
+	}
+
+	/**
+	 * Returns a new Hadoop Configuration object using the path to the hadoop conf configured
+	 * in the main configuration (flink-conf.yaml).
+	 * This method is public because its being used in the HadoopDataSource.
+	 */
+	public static org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+		Configuration retConf = new org.apache.hadoop.conf.Configuration();
+
+		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
+		// the hdfs configuration
+		// Try to load HDFS configuration from Hadoop's own configuration files
+		// 1. approach: Flink configuration
+		final String hdfsDefaultPath = GlobalConfiguration.getString(ConfigConstants
+				.HDFS_DEFAULT_CONFIG, null);
+		if (hdfsDefaultPath != null) {
+			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
+		} else {
+			LOG.debug("Cannot find hdfs-default configuration file");
+		}
+
+		final String hdfsSitePath = GlobalConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
+		if (hdfsSitePath != null) {
+			retConf.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
+		} else {
+			LOG.debug("Cannot find hdfs-site configuration file");
+		}
+
+		// 2. Approach environment variables
+		String[] possibleHadoopConfPaths = new String[4];
+		possibleHadoopConfPaths[0] = GlobalConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
+		possibleHadoopConfPaths[1] = System.getenv("HADOOP_CONF_DIR");
+
+		if (System.getenv("HADOOP_HOME") != null) {
+			possibleHadoopConfPaths[2] = System.getenv("HADOOP_HOME")+"/conf";
+			possibleHadoopConfPaths[3] = System.getenv("HADOOP_HOME")+"/etc/hadoop"; // hadoop 2.2
+		}
+
+		for (String possibleHadoopConfPath : possibleHadoopConfPaths) {
+			if (possibleHadoopConfPath != null) {
+				if (new File(possibleHadoopConfPath).exists()) {
+					if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
+						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/core-site.xml"));
+
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Adding " + possibleHadoopConfPath + "/core-site.xml to hadoop configuration");
+						}
+					}
+					if (new File(possibleHadoopConfPath + "/hdfs-site.xml").exists()) {
+						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/hdfs-site.xml"));
+
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Adding " + possibleHadoopConfPath + "/hdfs-site.xml to hadoop configuration");
+						}
+					}
+				}
+			}
+		}
+		return retConf;
 	}
 }

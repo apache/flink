@@ -34,7 +34,11 @@ body {
 	font-size: 100%;
 }
 
-ul {
+#markdown-toc li {
+	list-style-type: none;
+}
+
+#flink-doc-sidenav li {
 	list-style-type: none;
 }
 
@@ -281,15 +285,15 @@ ul {
 .sidenav-category {
     font-weight: bold;
     font-size: larger;
-    margin-top: 10px;
+    padding-top: 10px;
 }
 
 .sidenav-item {
-    border-top: thin solid #AAAAAA;
+    padding-top: 5px;
 }
 
 .sidenav-item-bottom {
-    border-bottom: thin solid #AAAAAA; border-top: thin solid #AAAAAA;
+    padding-top: 5px;
 }
 
 /*----------------------------------------------------------------------

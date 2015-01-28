@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.hadoopcompatibility.mapred.wrapper;
+package org.apache.flink.api.java.hadoop.mapred.wrapper;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;

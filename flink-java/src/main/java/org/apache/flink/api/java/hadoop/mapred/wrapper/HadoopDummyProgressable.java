@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.hadoopcompatibility.mapred.wrapper;
+package org.apache.flink.api.java.hadoop.mapred.wrapper;
 
 import org.apache.hadoop.util.Progressable;
 

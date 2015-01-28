@@ -17,61 +17,52 @@
  */
 
 
-package org.apache.flink.hadoopcompatibility.mapred;
+package org.apache.flink.api.java.hadoop.mapred;
+
+import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
+import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
+import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopInputSplit;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.hadoop.conf.Configurable;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.RecordReader;
+import org.apache.hadoop.util.ReflectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
-import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.hadoopcompatibility.mapred.utils.HadoopUtils;
-import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
-import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopInputSplit;
-import org.apache.hadoop.conf.Configurable;
-import org.apache.hadoop.mapred.FileInputFormat;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.RecordReader;
-import org.apache.hadoop.util.ReflectionUtils;
+public abstract class HadoopInputFormatBase<K, V, T> implements InputFormat<T, HadoopInputSplit> {
 
-public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopInputSplit>, ResultTypeQueryable<Tuple2<K,V>> {
-	
 	private static final long serialVersionUID = 1L;
-	
-	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormat.class);
-	
-	private org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat;
-	private Class<K> keyClass;
-	private Class<V> valueClass;
-	private JobConf jobConf;
-	
-	private transient K key;
-	private transient V value;
-	
-	private transient RecordReader<K, V> recordReader;
-	private transient boolean fetched = false;
-	private transient boolean hasNext;
 
-	public HadoopInputFormat() {
-		super();
-	}
-	
-	public HadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
+	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatBase.class);
+
+	private org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat;
+	protected Class<K> keyClass;
+	protected Class<V> valueClass;
+	private JobConf jobConf;
+
+	protected transient K key;
+	protected transient V value;
+
+	private transient RecordReader<K, V> recordReader;
+	protected transient boolean fetched = false;
+	protected transient boolean hasNext;
+
+	public HadoopInputFormatBase(org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
 		super();
 		this.mapredInputFormat = mapredInputFormat;
 		this.keyClass = key;
@@ -79,18 +70,6 @@ public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopI
 		HadoopUtils.mergeHadoopConf(job);
 		this.jobConf = job;
 		ReflectionUtils.setConf(mapredInputFormat, jobConf);
-	}
-	
-	public void setJobConf(JobConf job) {
-		this.jobConf = job;
-	}
-	
-	public org.apache.hadoop.mapred.InputFormat<K,V> getHadoopInputFormat() {
-		return mapredInputFormat;
-	}
-	
-	public void setHadoopInputFormat(org.apache.hadoop.mapred.InputFormat<K,V> mapredInputFormat) {
-		this.mapredInputFormat = mapredInputFormat;
 	}
 	
 	public JobConf getJobConf() {
@@ -171,25 +150,11 @@ public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopI
 		return !hasNext;
 	}
 	
-	private void fetchNext() throws IOException {
+	protected void fetchNext() throws IOException {
 		hasNext = this.recordReader.next(key, value);
 		fetched = true;
 	}
-	
-	@Override
-	public Tuple2<K, V> nextRecord(Tuple2<K, V> record) throws IOException {
-		if(!fetched) {
-			fetchNext();
-		}
-		if(!hasNext) {
-			return null;
-		}
-		record.f0 = key;
-		record.f1 = value;
-		fetched = false;
-		return record;
-	}
-	
+
 	@Override
 	public void close() throws IOException {
 		this.recordReader.close();
@@ -284,14 +249,5 @@ public class HadoopInputFormat<K, V> implements InputFormat<Tuple2<K,V>, HadoopI
 			throw new RuntimeException("Unable to find value class.", e);
 		}
 		ReflectionUtils.setConf(mapredInputFormat, jobConf);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  ResultTypeQueryable
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public TypeInformation<Tuple2<K,V>> getProducedType() {
-		return new TupleTypeInfo<Tuple2<K,V>>(TypeExtractor.createTypeInfo(keyClass), TypeExtractor.createTypeInfo(valueClass));
 	}
 }
