@@ -51,6 +51,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public void execute(String jobName) throws Exception {
+		currentEnvironment = null;
 
 		JobGraph jobGraph;
 		if (jobName == null) {

@@ -66,7 +66,7 @@ public abstract class StreamExecutionEnvironment {
 
 	private ExecutionConfig config = new ExecutionConfig();
 
-	private static StreamExecutionEnvironment currentEnvironment;
+	protected static StreamExecutionEnvironment currentEnvironment;
 
 	protected StreamGraph streamGraph;
 

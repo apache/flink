@@ -49,6 +49,7 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public void execute(String jobName) throws Exception {
+		currentEnvironment = null;
 
 		streamGraph.setJobName(jobName);
 
@@ -57,6 +58,7 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 		} else if (env instanceof PreviewPlanEnvironment) {
 			((PreviewPlanEnvironment) env).setPreview(streamGraph.getStreamingPlanAsJSON());
 		}
+
 		throw new Client.ProgramAbortException();
 	}
 }
