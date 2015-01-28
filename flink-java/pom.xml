@@ -152,6 +152,12 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-core</artifactId>
+					<!--<exclusions>-->
+						<!--<exclusion>-->
+							<!--<groupId>*</groupId>-->
+							<!--<artifactId>*</artifactId>-->
+						<!--</exclusion>-->
+					<!--</exclusions>-->
 				</dependency>
 			</dependencies>
 		</profile>
@@ -167,6 +173,22 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-common</artifactId>
+					<!--<exclusions>-->
+						<!--<exclusion>-->
+							<!--<groupId>*</groupId>-->
+							<!--<artifactId>*</artifactId>-->
+						<!--</exclusion>-->
+					<!--</exclusions>-->
+				</dependency>
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-mapreduce-client-core</artifactId>
+					<!--<exclusions>-->
+						<!--<exclusion>-->
+							<!--<groupId>*</groupId>-->
+							<!--<artifactId>*</artifactId>-->
+						<!--</exclusion>-->
+					<!--</exclusions>-->
 				</dependency>
 			</dependencies>
 		</profile>

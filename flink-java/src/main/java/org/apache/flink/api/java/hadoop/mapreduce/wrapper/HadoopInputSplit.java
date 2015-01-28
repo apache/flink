@@ -17,11 +17,13 @@
  */
 
 
-package org.apache.flink.hadoopcompatibility.mapreduce.wrapper;
+package org.apache.flink.api.java.hadoop.mapreduce.wrapper;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
-import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.hadoop.io.Writable;
@@ -29,12 +31,12 @@ import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapreduce.JobContext;
 
 
-public class HadoopInputSplit implements InputSplit {
+public class HadoopInputSplit extends LocatableInputSplit {
 	
 	public transient org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit;
 	public transient JobContext jobContext;
 	
-	private int splitNumber;	
+	private int splitNumber;
 	
 	public org.apache.hadoop.mapreduce.InputSplit getHadoopInputSplit() {
 		return mapreduceInputSplit;
@@ -46,7 +48,8 @@ public class HadoopInputSplit implements InputSplit {
 	}
 	
 	
-	public HadoopInputSplit(org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit, JobContext jobContext) {
+	public HadoopInputSplit(int splitNumber, org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit, JobContext jobContext) {
+		this.splitNumber = splitNumber;
 		if(!(mapreduceInputSplit instanceof Writable)) {
 			throw new IllegalArgumentException("InputSplit must implement Writable interface.");
 		}
@@ -64,12 +67,37 @@ public class HadoopInputSplit implements InputSplit {
 	
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.splitNumber=in.readInt();
+		this.splitNumber = in.readInt();
 		String className = in.readUTF();
 		
 		if(this.mapreduceInputSplit == null) {
 			try {
 				Class<? extends org.apache.hadoop.io.Writable> inputSplit = 
+						Class.forName(className).asSubclass(org.apache.hadoop.io.Writable.class);
+				this.mapreduceInputSplit = (org.apache.hadoop.mapreduce.InputSplit) WritableFactories.newInstance(inputSplit);
+			} catch (Exception e) {
+				throw new RuntimeException("Unable to create InputSplit", e);
+			}
+		}
+		((Writable)this.mapreduceInputSplit).readFields(in);
+	}
+
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		out.writeInt(this.splitNumber);
+		out.writeUTF(this.mapreduceInputSplit.getClass().getName());
+		Writable w = (Writable) this.mapreduceInputSplit;
+		w.write(out);
+
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		this.splitNumber=in.readInt();
+		String className = in.readUTF();
+
+		if(this.mapreduceInputSplit == null) {
+			try {
+				Class<? extends org.apache.hadoop.io.Writable> inputSplit =
 						Class.forName(className).asSubclass(org.apache.hadoop.io.Writable.class);
 				this.mapreduceInputSplit = (org.apache.hadoop.mapreduce.InputSplit) WritableFactories.newInstance(inputSplit);
 			} catch (Exception e) {
@@ -84,7 +112,14 @@ public class HadoopInputSplit implements InputSplit {
 		return this.splitNumber;
 	}
 	
-	public void setSplitNumber(int splitNumber) {
-		this.splitNumber = splitNumber;
+	@Override
+	public String[] getHostnames() {
+		try {
+			return this.mapreduceInputSplit.getLocations();
+		} catch (IOException e) {
+			return new String[0];
+		} catch (InterruptedException e) {
+			return new String[0];
+		}
 	}
 }

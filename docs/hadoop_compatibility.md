@@ -23,7 +23,8 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-Flink is compatible with many Apache Hadoop's MapReduce interfaces and allows to reuse a lot of code that was implemented for Hadoop MapReduce.
+Flink is compatible with Apache Hadoop MapReduce interfaces and therefore allows
+reusing code that was implemented for Hadoop MapReduce.
 
 You can:
 
@@ -38,9 +39,19 @@ This document shows how to use existing Hadoop MapReduce code with Flink. Please
 
 ### Project Configuration
 
-The Hadoop Compatibility Layer is part of the `flink-addons` Maven module. All relevant classes are located in the `org.apache.flink.hadoopcompatibility` package. It includes separate packages and classes for the Hadoop `mapred` and `mapreduce` APIs.
+Support for Haddop input/output formats is part of the `flink-java` and
+`flink-scala` Maven modules that are always required when writing Flink jobs.
+The code is located in `org.apache.flink.api.java.hadoop` and
+`org.apache.flink.api.scala.hadoop` in an additional sub-package for the
+`mapred` and `mapreduce` API.
 
-Add the following dependency to your `pom.xml` to use the Hadoop Compatibility Layer.
+Support for Hadoop Mappers and Reducers is contained in the `flink-staging`
+Maven module.
+This code resides in the `org.apache.flink.hadoopcompatibility`
+package.
+
+Add the following dependency to your `pom.xml` if you want to reuse Mappers
+and Reducers.
 
 ~~~xml
 <dependency>
@@ -52,56 +63,70 @@ Add the following dependency to your `pom.xml` to use the Hadoop Compatibility L
 
 ### Using Hadoop Data Types
 
-Flink supports all Hadoop `Writable` and `WritableComparable` data types out-of-the-box. You do not need to include the Hadoop Compatibility dependency, if you only want to use your Hadoop data types. See the [Programming Guide](programming_guide.html#data-types) for more details.
+Flink supports all Hadoop `Writable` and `WritableComparable` data types
+out-of-the-box. You do not need to include the Hadoop Compatibility dependency,
+if you only want to use your Hadoop data types. See the
+[Programming Guide](programming_guide.html#data-types) for more details.
 
 ### Using Hadoop InputFormats
 
-Flink provides a compatibility wrapper for Hadoop `InputFormats`. Any class that implements `org.apache.hadoop.mapred.InputFormat` or extends `org.apache.hadoop.mapreduce.InputFormat` is supported. Thus, Flink can handle Hadoop built-in formats such as `TextInputFormat` as well as external formats such as Hive's `HCatInputFormat`. Data read from Hadoop InputFormats is converted into a `DataSet<Tuple2<KEY,VALUE>>` where `KEY` is the key and `VALUE` is the value of the original Hadoop key-value pair.
+Hadoop input formats can be used to create a data source by using
+one of the methods `readHadoopFile` or `createHadoopInput` of the
+`ExecutionEnvironment`. The former is used for input formats derived
+from `FileInputFormat` while the latter has to be used for general purpose
+input formats.
 
-Flink's InputFormat wrappers are 
-
-- `org.apache.flink.hadoopcompatibility.mapred.HadoopInputFormat` and 
-- `org.apache.flink.hadoopcompatibility.mapreduce.HadoopInputFormat`
-
-and can be used as regular Flink [InputFormats](programming_guide.html#data-sources).
+The resulting `DataSet` contains 2-tuples where the first field
+is the key and the second field is the value retrieved from the Hadoop
+InputFormat.
 
 The following example shows how to use Hadoop's `TextInputFormat`.
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
 ~~~java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
-// Set up the Hadoop TextInputFormat.
-Job job = Job.getInstance();
-HadoopInputFormat<LongWritable, Text> hadoopIF = 
-  // create the Flink wrapper.
-  new HadoopInputFormat<LongWritable, Text>(
-    // create the Hadoop InputFormat, specify key and value type, and job.
-    new TextInputFormat(), LongWritable.class, Text.class, job
-  );
-TextInputFormat.addInputPath(job, new Path(inputPath));
-		
-// Read data using the Hadoop TextInputFormat.
-DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopIF);
+
+DataSet<Tuple2<LongWritable, Text>> input =
+    env.readHadoopFile(new TextInputFormat(), LongWritable.class, Text.class, textPath);
 
 // Do something with the data.
 [...]
 ~~~
 
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val env = ExecutionEnvironment.getExecutionEnvironment
+		
+val input: DataSet[(LongWritable, Text)] =
+  env.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath)
+
+// Do something with the data.
+[...]
+~~~
+
+</div>
+
+</div>
+
 ### Using Hadoop OutputFormats
 
-Flink provides a compatibility wrapper for Hadoop `OutputFormats`. Any class that implements `org.apache.hadoop.mapred.OutputFormat` or extends `org.apache.hadoop.mapreduce.OutputFormat` is supported. The OutputFormat wrapper expects its input data to be a `DataSet<Tuple2<KEY,VALUE>>` where `KEY` is the key and `VALUE` is the value of the Hadoop key-value pair that is processed by the Hadoop OutputFormat.
-
-Flink's OUtputFormat wrappers are
-
-- `org.apache.flink.hadoopcompatibility.mapred.HadoopOutputFormat` and 
-- `org.apache.flink.hadoopcompatibility.mapreduce.HadoopOutputFormat`
-
-and can be used as regular Flink [OutputFormats](programming_guide.html#data-sinks).
+Flink provides a compatibility wrapper for Hadoop `OutputFormats`. Any class
+that implements `org.apache.hadoop.mapred.OutputFormat` or extends
+`org.apache.hadoop.mapreduce.OutputFormat` is supported.
+The OutputFormat wrapper expects its input data to be a DataSet containing
+2-tuples of key and value. These are to be processed by the Hadoop OutputFormat.
 
 The following example shows how to use Hadoop's `TextOutputFormat`.
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
 ~~~java
-// Obtain your result to emit.
+// Obtain the result we want to emit
 DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...]
 		
 // Set up the Hadoop TextOutputFormat.
@@ -115,8 +140,31 @@ hadoopOF.getConfiguration().set("mapreduce.output.textoutputformat.separator", "
 TextOutputFormat.setOutputPath(job, new Path(outputPath));
 		
 // Emit data using the Hadoop TextOutputFormat.
-result.output(hadoopOF);
+hadoopResult.output(hadoopOF);
 ~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+// Obtain your result to emit.
+val hadoopResult: DataSet[(Text, IntWritable)] = [...]
+
+val hadoopOF = new HadoopOutputFormat[Text,IntWritable](
+  new TextOutputFormat[Text, IntWritable],
+  new JobConf)
+
+hadoopOF.getJobConf.set("mapred.textoutputformat.separator", " ")
+FileOutputFormat.setOutputPath(hadoopOF.getJobConf, new Path(resultPath))
+
+hadoopResult.output(hadoopOF)
+
+		
+~~~
+
+</div>
+
+</div>
 
 ### Using Hadoop Mappers and Reducers
 

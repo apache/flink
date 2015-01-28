@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.hadoopcompatibility.mapreduce.utils;
+package org.apache.flink.api.java.hadoop.mapreduce.utils;
 
 import java.lang.reflect.Constructor;
 import java.util.Map;
 
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
@@ -34,7 +33,7 @@ public class HadoopUtils {
 	 * Merge HadoopConfiguration into Configuration. This is necessary for the HDFS configuration.
 	 */
 	public static void mergeHadoopConf(Configuration configuration) {
-		Configuration hadoopConf = HadoopFileSystem.getHadoopConfiguration();
+		Configuration hadoopConf = org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils.getHadoopConfiguration();
 		
 		for (Map.Entry<String, String> e : hadoopConf) {
 			configuration.set(e.getKey(), e.getValue());
