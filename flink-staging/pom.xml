@@ -41,6 +41,7 @@ under the License.
 		<module>flink-streaming</module>
 		<module>flink-hbase</module>
 		<module>flink-gelly</module>
+		<module>flink-hcatalog</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->
