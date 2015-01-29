@@ -1773,6 +1773,37 @@ myResult.output(
     );
 {% endhighlight %}
 
+#### Locally Sorted Output
+
+The output of a data sink can be locally sorted on specified fields in specified orders using [tuple field positions](#define-keys-for-tuples) or [field expressions](#define-keys-using-field-expressions). This works for every output format.
+
+The following examples show how to use this feature:
+
+{% highlight java %}
+
+DataSet<Tuple3<Integer, String, Double>> tData = // [...]
+DataSet<Tuple2<BookPojo, Double>> pData = // [...]
+DataSet<String> sData = // [...]
+
+// sort output on String field in ascending order
+tData.print().sortLocalOutput(1, Order.ASCENDING);
+
+// sort output on Double field in descending and Integer field in ascending order
+tData.print().sortLocalOutput(2, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING);
+
+// sort output on the "author" field of nested BookPojo in descending order
+pData.writeAsText(...).sortLocalOutput("f0.author", Order.DESCENDING);
+
+// sort output on the full tuple in ascending order
+tData.writeAsCsv(...).sortLocalOutput("*", Order.ASCENDING);
+
+// sort atomic type (String) output in descending order
+sData.writeAsText(...).sortLocalOutput("*", Order.DESCENDING);
+
+{% endhighlight %}
+
+Globally sorted output is not supported yet.
+
 </div>
 <div data-lang="scala" markdown="1">
 Data sinks consume DataSets and are used to store or return them. Data sink operations are described
@@ -1823,6 +1854,38 @@ values.writeAsText("file:///path/to/the/result/file");
 values map { tuple => tuple._1 + " - " + tuple._2 }
   .writeAsText("file:///path/to/the/result/file")
 {% endhighlight %}
+
+
+#### Locally Sorted Output
+
+The output of a data sink can be locally sorted on specified fields in specified orders using [tuple field positions](#define-keys-for-tuples) or [field expressions](#define-keys-using-field-expressions). This works for every output format.
+
+The following examples show how to use this feature:
+
+{% highlight scala %}
+
+val tData: DataSet[(Int, String, Double)] = // [...]
+val pData: DataSet[(BookPojo, Double)] = // [...]
+val sData: DataSet[String] = // [...]
+
+// sort output on String field in ascending order
+tData.print.sortLocalOutput(1, Order.ASCENDING);
+
+// sort output on Double field in descending and Int field in ascending order
+tData.print.sortLocalOutput(2, Order.DESCENDING).sortLocalOutput(0, Order.ASCENDING);
+
+// sort output on the "author" field of nested BookPojo in descending order
+pData.writeAsText(...).sortLocalOutput("_1.author", Order.DESCENDING);
+
+// sort output on the full tuple in ascending order
+tData.writeAsCsv(...).sortLocalOutput("_", Order.ASCENDING);
+
+// sort atomic type (String) output in descending order
+sData.writeAsText(...).sortLocalOutput("_", Order.DESCENDING);
+
+{% endhighlight %}
+
+Globally sorted output is not supported yet.
 
 </div>
 </div>
