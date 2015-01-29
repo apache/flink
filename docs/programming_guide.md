@@ -2398,6 +2398,60 @@ of a function, or use the `withParameters(...)` method to pass in a configuratio
 [Back to top](#top)
 
 
+Passing parameters to functions
+-------------------
+
+Parameters can be passed to rich functions using the `withParameters( ... )` method. This method takes a Configuration
+object as an argument, which will be passed into the rich functions `open()` method. The passed object is basically 
+a Map, using String keys and variable value types.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataSet<Integer> toFilter = env.fromElements(1, 2, 3);
+
+Configuration filterConfig = new Configuration();
+filterConfig.setInteger("limit", 2);
+
+toFilter.filter(new RichFilterFunction<Integer>() {
+    private int limit;
+    @Override
+    public void open(Configuration parameters) throws Exception {
+      limit = parameters.getInteger("limit", 0);
+    }
+    @Override
+    public boolean filter(Integer value) throws Exception {
+      return value > limit;
+    }
+}).withParameters(c)
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+
+{% highlight scala %}
+val toFilter = env.fromElements(1, 2, 3)
+
+val c = new Configuration()
+c.setInteger("limit", 2)
+
+toFilter.filter(new RichFilterFunction[Int]() {
+    var limit = 0
+
+    override def open(config: Configuration): Unit = {
+      limit = config.getInteger("limit", 0)
+    }
+
+    def filter(in: Integer): Bool = {
+        in > limit
+    }
+}).withParameters(c)
+{% endhighlight %}
+</div>
+</div>
+
+
+[Back to top](#top)
+
 Program Packaging & Distributed Execution
 -----------------------------------------
 
