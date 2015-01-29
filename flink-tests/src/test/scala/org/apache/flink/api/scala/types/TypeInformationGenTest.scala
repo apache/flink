@@ -278,7 +278,8 @@ class TypeInformationGenTest {
     
       Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
       val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
-      Assert.assertEquals(oati.getComponentInfo, PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO)
+      Assert.assertEquals(oati.getComponentInfo,
+        PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO)
     }
     
     // basic types
