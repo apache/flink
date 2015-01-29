@@ -301,7 +301,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       val jobGraph = new JobGraph("Forwarding Job", sender, forwarder, receiver)
 
-      jobGraph.setScheduleMode(ScheduleMode.ALL);
+      jobGraph.setScheduleMode(ScheduleMode.ALL)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks, 1)
       val jm = cluster.getJobManager

@@ -33,7 +33,7 @@ object AkkaUtils {
   val LOG = LoggerFactory.getLogger(AkkaUtils.getClass)
 
   val DEFAULT_TIMEOUT: FiniteDuration =
-    FiniteDuration(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+    FiniteDuration(ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS)
 
   val INF_TIMEOUT = 21474835 seconds
 

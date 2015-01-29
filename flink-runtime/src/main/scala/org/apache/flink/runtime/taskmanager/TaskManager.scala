@@ -117,7 +117,7 @@ import scala.collection.JavaConverters._
   }
 
   if (log.isInfoEnabled) {
-    log.info(TaskManager.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean()));
+    log.info(TaskManager.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean()))
   }
 
   var libraryCacheManager: LibraryCacheManager = null
@@ -343,7 +343,7 @@ import scala.collection.JavaConverters._
       if (log.isDebugEnabled) {
         startRegisteringTask = System.currentTimeMillis()
       }
-      libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles());
+      libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles())
 
       if (log.isDebugEnabled) {
         log.debug("Register task {} took {}s", executionID,
@@ -822,12 +822,12 @@ object TaskManager {
           throw new Exception(s"Temporary file directory ${file.getAbsolutePath} is not writable.")
         }
 
-        if (LOG.isInfoEnabled()) {
-          val totalSpaceGb = file.getTotalSpace() >>  30;
-          val usableSpaceGb = file.getUsableSpace() >> 30;
-          val usablePercentage = usableSpaceGb.asInstanceOf[Double] / totalSpaceGb * 100;
+        if (LOG.isInfoEnabled) {
+          val totalSpaceGb = file.getTotalSpace >>  30
+          val usableSpaceGb = file.getUsableSpace >> 30
+          val usablePercentage = usableSpaceGb.asInstanceOf[Double] / totalSpaceGb * 100
 
-          val path = file.getAbsolutePath()
+          val path = file.getAbsolutePath
 
           LOG.info(f"Temporary file directory '$path': total $totalSpaceGb GB," +
             f"usable $usableSpaceGb GB [$usablePercentage%.2f%% usable])")
@@ -838,7 +838,7 @@ object TaskManager {
   }
 
   private def getMemoryUsageStatsAsString(memoryMXBean: MemoryMXBean): String = {
-    val heap = memoryMXBean.getHeapMemoryUsage()
+    val heap = memoryMXBean.getHeapMemoryUsage
     val nonHeap = memoryMXBean.getNonHeapMemoryUsage
 
     val heapUsed = heap.getUsed >> 20

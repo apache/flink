@@ -210,7 +210,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * executed.
    *
    */
-  def getExecutionPlan() = javaEnv.getStreamGraph().getStreamingPlanAsJSON();
+  def getExecutionPlan() = javaEnv.getStreamGraph.getStreamingPlanAsJSON
 
 }
 

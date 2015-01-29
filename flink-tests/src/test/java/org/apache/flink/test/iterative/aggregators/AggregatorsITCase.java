@@ -136,8 +136,8 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testConvergenceCriterionWithParameterForIterate() throws Exception {
 		/*
-				 * Test convergence criterion with parameter for iterate
-				 */
+		 * Test convergence criterion with parameter for iterate
+		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setDegreeOfParallelism(DOP);

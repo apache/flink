@@ -119,7 +119,7 @@ trait YarnJobManager extends ActorLogMessages {
       val shipListString = env.get(FlinkYarnClient.ENV_CLIENT_SHIP_FILES)
       val yarnClientUsername = env.get(FlinkYarnClient.ENV_CLIENT_USERNAME)
 
-      val jobManagerWebPort = that.webServer.getServer.getConnectors()(0).getLocalPort;
+      val jobManagerWebPort = that.webServer.getServer.getConnectors()(0).getLocalPort
 
       val rm = AMRMClient.createAMRMClient[ContainerRequest]()
       rm.init(conf)

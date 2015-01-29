@@ -113,7 +113,7 @@ abstract class CaseClassTypeInfo[T <: Product](
       field = matcher.group(1)
     }
 
-    val intFieldMatcher = PATTERN_INT_FIELD.matcher(field);
+    val intFieldMatcher = PATTERN_INT_FIELD.matcher(field)
     if(intFieldMatcher.matches()) {
       // convert 0-indexed integer field into 1-indexed name field
       field = "_" + (Integer.valueOf(field) + 1)
@@ -181,7 +181,7 @@ abstract class CaseClassTypeInfo[T <: Product](
     var field = matcher.group(1)
     val tail = matcher.group(3)
 
-    val intFieldMatcher = PATTERN_INT_FIELD.matcher(field);
+    val intFieldMatcher = PATTERN_INT_FIELD.matcher(field)
     if(intFieldMatcher.matches()) {
       // convert 0-indexed integer field into 1-indexed name field
       field = "_" + (Integer.valueOf(field) + 1)

@@ -82,7 +82,7 @@ class ApplicationClient
             WAIT_FOR_YARN_INTERVAL, yarnJobManager.get, PollYarnClusterStatus))
         }
         case None => throw new RuntimeException("Registration at JobManager/ApplicationMaster " +
-          "failed. Job Manager RPC connection has not properly been initialized");
+          "failed. Job Manager RPC connection has not properly been initialized")
       }
     }
     case msg: StopYarnSession => {
