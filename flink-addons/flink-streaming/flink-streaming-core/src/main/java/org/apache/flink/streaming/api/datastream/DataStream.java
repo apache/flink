@@ -411,7 +411,7 @@ public class DataStream<OUT> {
 	 * the iteration head.
 	 * <p>
 	 * By default a DataStream with iteration will never terminate, but the user
-	 * can use the the maxWaitTime parameter to set a max waiting time for the
+	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
 	 * 
@@ -436,7 +436,7 @@ public class DataStream<OUT> {
 	 * the iteration head.
 	 * <p>
 	 * By default a DataStream with iteration will never terminate, but the user
-	 * can use the the maxWaitTime parameter to set a max waiting time for the
+	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
 	 * 

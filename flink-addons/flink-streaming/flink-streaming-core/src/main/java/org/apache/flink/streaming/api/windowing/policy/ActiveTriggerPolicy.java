@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.windowing.helper.Timestamp;
  * 1) Whenever an element arrives at the invokable, the
  * {@link ActiveTriggerPolicy#preNotifyTrigger(Object)} method gets called
  * first. It can return zero ore more fake data points which will be added
- * before the the currently arrived real element gets processed. This allows to
+ * before the currently arrived real element gets processed. This allows to
  * handle empty windows in time based windowing with an user defined
  * {@link Timestamp}. Triggers are not called on fake datapoint. A fake
  * datapoint is always considered as triggered.

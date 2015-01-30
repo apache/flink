@@ -227,7 +227,7 @@ public class PactCompiler {
 	
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>sort merge based</b> local strategy.
-	 * The the first input is sorted, the second input is assumed to be sorted. After sorting both inputs are merged. 
+	 * The first input is sorted, the second input is assumed to be sorted. After sorting both inputs are merged.
 	 * For example, a <i>Match</i> or <i>CoGroup</i> operator will use a sort-merge strategy to find pairs 
 	 * of matching keys.
 	 * 
@@ -237,7 +237,7 @@ public class PactCompiler {
 	
 	/**
 	 * Value for the local strategy compiler hint that enforces a <b>sort merge based</b> local strategy.
-	 * The the second input is sorted, the first input is assumed to be sorted. After sorting both inputs are merged. 
+	 * The second input is sorted, the first input is assumed to be sorted. After sorting both inputs are merged.
 	 * For example, a <i>Match</i> or <i>CoGroup</i> operator will use a sort-merge strategy to find pairs 
 	 * of matching keys.
 	 * 

@@ -29,7 +29,7 @@ import org.apache.flink.types.Record;
  * Generates records with an id and a and CoordVector.
  * The input format is line-based, i.e. one record is read from one line
  * which is terminated by '\n'. Within a line the first '|' character separates
- * the id from the the CoordVector. The vector consists of a vector of decimals. 
+ * the id from the CoordVector. The vector consists of a vector of decimals.
  * The decimals are separated by '|' as well. The id is the id of a data point or
  * cluster center and the CoordVector the corresponding position (coordinate
  * vector) of the data point or cluster center. Example line:

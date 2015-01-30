@@ -314,7 +314,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 		/**
 		 * Creates a new builder for the given configuration.
 		 *
-		 * @param contract The contract from which the the compiler hints are used. 
+		 * @param contract The contract from which the compiler hints are used.
 		 *                 If contract is null, new compiler hints are generated.  
 		 * @param config The configuration into which the parameters will be written.
 		 */

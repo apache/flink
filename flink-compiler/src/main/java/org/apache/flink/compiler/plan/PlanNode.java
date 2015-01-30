@@ -101,7 +101,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	}
 	
 	protected void mergeBranchPlanMaps(Map<OptimizerNode, PlanNode> branchPlan1, Map<OptimizerNode, PlanNode> branchPlan2) {
-		// merge the branchPlan maps according the the template's uncloseBranchesStack
+		// merge the branchPlan maps according the template's uncloseBranchesStack
 		if (this.template.hasUnclosedBranches()) {
 			if (this.branchPlan == null) {
 				this.branchPlan = new HashMap<OptimizerNode, PlanNode>(8);
@@ -238,7 +238,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	}
 
 	/**
-	 * Gets the cumulative costs of this nose. The cumulative costs are the the sum of the costs
+	 * Gets the cumulative costs of this nose. The cumulative costs are the sum of the costs
 	 * of this node and of all nodes in the subtree below this node.
 	 * 
 	 * @return The cumulative costs, or null, if not yet set.

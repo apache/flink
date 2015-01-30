@@ -33,7 +33,7 @@ import org.apache.flink.streaming.state.checkpoint.StateCheckpoint;
  * </br> The MapState also allows for incremental (data efficient) checkpointing
  * of the state. The entries in the map should only be modified by using the
  * dedicated methods: {@link #put(Object, Object)},{@link #remove(Object)},
- * {@link #putAll(Map)} and {@link #clear}. Directly modifying the the entryset
+ * {@link #putAll(Map)} and {@link #clear}. Directly modifying the entryset
  * will cause errors when checkpointing.
  *
  * @param <K>
