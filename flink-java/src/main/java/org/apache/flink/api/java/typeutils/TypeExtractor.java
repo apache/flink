@@ -186,6 +186,9 @@ public class TypeExtractor {
 	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selectorInterface,
 			TypeInformation<IN> inType, String functionName, boolean allowMissing)
 	{
+		if(selectorInterface instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) selectorInterface).getProducedType();
+		}
 		return getUnaryOperatorReturnType((Function) selectorInterface, KeySelector.class, false, false, inType, functionName, allowMissing);
 	}
 	
