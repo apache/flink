@@ -36,6 +36,26 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 	}
 
 	@Override
+	public TupleSerializer<T> duplicate() {
+		boolean stateful = false;
+		TypeSerializer[] duplicateFieldSerializers = new TypeSerializer[fieldSerializers.length];
+
+		for (int i = 0; i < fieldSerializers.length; i++) {
+			duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
+			if (duplicateFieldSerializers[i] != fieldSerializers[i]) {
+				// at least one of them is stateful
+				stateful = true;
+			}
+		}
+
+		if (stateful) {
+			return new TupleSerializer<T>(tupleClass, duplicateFieldSerializers);
+		} else {
+			return this;
+		}
+	}
+
+	@Override
 	public T createInstance() {
 		try {
 			T t = tupleClass.newInstance();

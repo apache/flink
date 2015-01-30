@@ -38,11 +38,6 @@ public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-
-	@Override
 	public Double createInstance() {
 		return ZERO;
 	}

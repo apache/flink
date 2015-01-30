@@ -31,7 +31,7 @@ import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger
-import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory
+import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory
 import org.junit.Assert._
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 
@@ -89,7 +89,7 @@ class MassiveCaseClassSortingITCase {
         
         sorter = new UnilateralSortMerger[StringTuple](mm, ioMan, inputIterator,
               new DummyInvokable(), 
-              new RuntimeStatelessSerializerFactory[StringTuple](serializer, classOf[StringTuple]),
+              new RuntimeSerializerFactory[StringTuple](serializer, classOf[StringTuple]),
               comparator, 1.0, 4, 0.8f)
             
         val sortedData = sorter.getIterator

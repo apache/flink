@@ -39,11 +39,6 @@ public final class ShortSerializer extends TypeSerializerSingleton<Short> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-
-	@Override
 	public Short createInstance() {
 		return ZERO;
 	}

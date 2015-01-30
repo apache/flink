@@ -39,11 +39,6 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-
-	@Override
 	public String createInstance() {
 		return EMPTY;
 	}

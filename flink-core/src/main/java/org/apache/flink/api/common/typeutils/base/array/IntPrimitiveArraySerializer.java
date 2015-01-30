@@ -42,11 +42,6 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public int[] createInstance() {
 		return EMPTY;
 	}

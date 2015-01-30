@@ -47,8 +47,8 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
+	public StreamRecordSerializer<T> duplicate() {
+		return this;
 	}
 
 	@Override

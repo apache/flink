@@ -42,9 +42,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	private final int numFields;
 
-	private final boolean stateful;
-
-
 	@SuppressWarnings("unchecked")
 	public PojoSerializer(Class<T> clazz, TypeSerializer<?>[] fieldSerializers, Field[] fields) {
 		this.clazz = clazz;
@@ -55,15 +52,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		for (int i = 0; i < numFields; i++) {
 			this.fields[i].setAccessible(true);
 		}
-
-		boolean stateful = false;
-		for (TypeSerializer<?> ser : fieldSerializers) {
-			if (ser.isStateful()) {
-				stateful = true;
-				break;
-			}
-		}
-		this.stateful = stateful;
 	}
 
 	private void writeObject(ObjectOutputStream out)
@@ -109,10 +97,25 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return this.stateful;
+	public PojoSerializer<T> duplicate() {
+		boolean stateful = false;
+		TypeSerializer[] duplicateFieldSerializers = new TypeSerializer[fieldSerializers.length];
+
+		for (int i = 0; i < fieldSerializers.length; i++) {
+			duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
+			if (duplicateFieldSerializers[i] != fieldSerializers[i]) {
+				// at least one of them is stateful
+				stateful = true;
+			}
+		}
+
+		if (stateful) {
+			return new PojoSerializer<T>(clazz, duplicateFieldSerializers, fields);
+		} else {
+			return this;
+		}
 	}
-	
+
 	
 	@Override
 	public T createInstance() {
