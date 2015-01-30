@@ -857,7 +857,7 @@ After installing Docker an image can be pulled for each connector. Containers ca
 For the easiest set up create a jar with all the dependencies of the *flink-streaming-connectors* project.
 
 ~~~batch
-cd /PATH/TO/GIT/incubator-flink/flink-addons/flink-streaming-connectors
+cd /PATH/TO/GIT/flink/flink-staging/flink-streaming-connectors
 mvn assembly:assembly
 ~~~batch
 
@@ -974,14 +974,14 @@ Now a terminal started running from the image with all the necessary configurati
 
 To have the latest version of Flink type:
 ~~~batch
-cd /git/incubator-flink/
+cd /git/flink/
 git pull
 ~~~
 
 Then build the code with:
 
 ~~~batch
-cd /git/incubator-flink/flink-addons/flink-streaming/flink-streaming-connectors/
+cd /git/flink/flink-staging/flink-streaming/flink-streaming-connectors/
 mvn install -DskipTests
 ~~~
 
