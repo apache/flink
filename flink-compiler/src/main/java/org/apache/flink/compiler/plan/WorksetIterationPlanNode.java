@@ -207,7 +207,7 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 		Map<OptimizerNode, PlanNode> branchPlan1 = input1.getSource().branchPlan;
 		Map<OptimizerNode, PlanNode> branchPlan2 = input2.getSource().branchPlan;
 
-		// merge the branchPlan maps according the the template's uncloseBranchesStack
+		// merge the branchPlan maps according the template's uncloseBranchesStack
 		if (this.template.hasUnclosedBranches()) {
 			if (this.branchPlan == null) {
 				this.branchPlan = new HashMap<OptimizerNode, PlanNode>(8);

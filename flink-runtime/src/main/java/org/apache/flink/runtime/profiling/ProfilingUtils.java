@@ -46,7 +46,7 @@ public class ProfilingUtils {
 	public static final String ENABLE_PROFILING_KEY = "jobmanager.profiling.enable";
 
 	/**
-	 * The class name of the the job manager's profiling component to load if progiling is enabled.
+	 * The class name of the job manager's profiling component to load if progiling is enabled.
 	 */
 	public static final String JOBMANAGER_CLASSNAME_KEY = "jobmanager.profiling.classname";
 

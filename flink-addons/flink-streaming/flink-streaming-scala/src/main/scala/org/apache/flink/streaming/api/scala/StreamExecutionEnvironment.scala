@@ -85,7 +85,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a DataStream that contains the contents of file created while
    * system watches the given path. The file will be read with the system's
    * default character set. The user can check the monitoring interval in milliseconds,
-   * and the the way file modifications are handled. By default it checks for only new files
+   * and the way file modifications are handled. By default it checks for only new files
    * every 100 milliseconds.
    *
    */

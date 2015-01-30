@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.windowing.extractor;
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
- * Extracts one or more fields of the the type Double from a tuple and puts them
+ * Extracts one or more fields of the type Double from a tuple and puts them
  * into a new double[]
  */
 public class FieldsFromTuple implements Extractor<Tuple, double[]> {

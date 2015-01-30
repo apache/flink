@@ -88,7 +88,7 @@ public abstract class FieldParser<T> {
 	/**
 	 * Gets the parsed field. This method returns the value parsed by the last successful invocation of
 	 * {@link #parseField(byte[], int, int, byte[], Object)}. It objects are mutable and reused, it will return
-	 * the object instance that was passed the the parse function.
+	 * the object instance that was passed the parse function.
 	 * 
 	 * @return The latest parsed field.
 	 */

@@ -475,7 +475,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	}
 
 	/**
-	 * This callback class allows to handle the the callbacks done by threads
+	 * This callback class allows to handle the callbacks done by threads
 	 * defined in active trigger policies
 	 * 
 	 * @see ActiveTriggerPolicy#createActiveTriggerRunnable(ActiveTriggerCallback)

@@ -132,7 +132,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	protected Path filePath;
 	
 	/**
-	 * The the minimal split size, set by the configure() method.
+	 * The minimal split size, set by the configure() method.
 	 */
 	protected long minSplitSize = 0; 
 	

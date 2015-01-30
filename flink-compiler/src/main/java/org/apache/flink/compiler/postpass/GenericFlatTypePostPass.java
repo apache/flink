@@ -501,7 +501,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			}
 		}
 		
-		// propagate the the channel's source model
+		// propagate the channel's source model
 		traverse(channel.getSource(), schema, createUtilities);
 	}
 	
