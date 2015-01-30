@@ -62,7 +62,7 @@ under the License.
 		<module>flink-clients</module>
 		<module>flink-tests</module>
 		<module>flink-test-utils</module>
-		<module>flink-addons</module>
+		<module>flink-staging</module>
 		<module>flink-quickstart</module>
 		<module>flink-dist</module>
 	</modules>
@@ -1026,8 +1026,8 @@ under the License.
 						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/timeline.js</exclude>
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
-						<exclude>flink-addons/flink-avro/src/test/resources/avro/user.avsc</exclude>
-						<exclude>flink-addons/flink-avro/src/test/resources/testdata.avro</exclude>
+						<exclude>flink-staging/flink-avro/src/test/resources/avro/user.avsc</exclude>
+						<exclude>flink-staging/flink-avro/src/test/resources/testdata.avro</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
