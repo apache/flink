@@ -62,8 +62,8 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return true;
+	public ValueSerializer<T> duplicate() {
+		return new ValueSerializer<T>(type);
 	}
 	
 	@Override

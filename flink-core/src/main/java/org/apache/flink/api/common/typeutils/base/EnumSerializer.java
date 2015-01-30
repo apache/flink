@@ -46,8 +46,8 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
+	public EnumSerializer<T> duplicate() {
+		return this;
 	}
 
 	@Override

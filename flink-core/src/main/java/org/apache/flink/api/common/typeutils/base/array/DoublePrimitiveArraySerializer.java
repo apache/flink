@@ -42,11 +42,6 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public double[] createInstance() {
 		return EMPTY;
 	}

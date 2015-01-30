@@ -50,15 +50,21 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		this.componentSerializer = componentSerializer;
 		this.EMPTY = create(0);
 	}
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
 	}
 
 	@Override
-	public boolean isStateful() {
-		return this.componentSerializer.isStateful();
+	public GenericArraySerializer<C> duplicate() {
+		TypeSerializer<C> duplicateComponentSerializer = this.componentSerializer.duplicate();
+		if (duplicateComponentSerializer == this.componentSerializer) {
+			// is not stateful, return ourselves
+			return this;
+		} else {
+			return new GenericArraySerializer<C>(componentClass, duplicateComponentSerializer);
+		}
 	}
 
 	

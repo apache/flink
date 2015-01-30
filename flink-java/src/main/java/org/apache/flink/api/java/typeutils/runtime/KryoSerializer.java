@@ -63,8 +63,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return true;
+	public KryoSerializer<T> duplicate() {
+		return new KryoSerializer<T>(this.type);
 	}
 
 	@Override

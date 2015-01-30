@@ -57,8 +57,9 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
+	public RecordSerializer duplicate() {
+		// does not hold state, so just return ourselves
+		return this;
 	}
 	
 	@Override

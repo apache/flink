@@ -38,11 +38,6 @@ public final class ShortValueSerializer extends TypeSerializerSingleton<ShortVal
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public ShortValue createInstance() {
 		return new ShortValue();
 	}

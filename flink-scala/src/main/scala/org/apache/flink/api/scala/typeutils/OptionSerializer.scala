@@ -26,7 +26,7 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   extends TypeSerializer[Option[A]] {
 
-  override def isStateful: Boolean = false
+  override def duplicate: OptionSerializer[A] = this
 
   override def createInstance: Option[A] = {
     None

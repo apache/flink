@@ -79,8 +79,8 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return true;
+	public AvroSerializer duplicate() {
+		return new AvroSerializer(type, typeToInstantiate);
 	}
 	
 	@Override

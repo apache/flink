@@ -28,7 +28,7 @@ class EitherSerializer[A, B, T <: Either[A, B]](
     val rightSerializer: TypeSerializer[B])
   extends TypeSerializer[T] {
 
-  override def isStateful: Boolean = false
+  override def duplicate: EitherSerializer[A,B,T] = this
 
   override def createInstance: T = {
     Left(null).asInstanceOf[T]

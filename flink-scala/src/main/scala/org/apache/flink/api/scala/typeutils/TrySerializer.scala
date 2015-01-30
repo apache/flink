@@ -29,7 +29,7 @@ import scala.util.{Success, Try, Failure}
 class TrySerializer[A](val elemSerializer: TypeSerializer[A])
   extends TypeSerializer[Try[A]] {
 
-  override def isStateful: Boolean = false
+  override def duplicate: TrySerializer[A] = this
 
   val throwableSerializer = new KryoSerializer[Throwable](classOf[Throwable])
 

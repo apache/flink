@@ -98,8 +98,8 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	}
 	
 	@Override
-	public boolean isStateful() {
-		return true;
+	public WritableSerializer duplicate() {
+		return new WritableSerializer(typeClass);
 	}
 	
 	// --------------------------------------------------------------------------------------------

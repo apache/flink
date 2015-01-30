@@ -24,8 +24,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
+import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -49,12 +48,7 @@ public class FileSourceFunction extends RichSourceFunction<String> {
 	private static TypeSerializerFactory<String> createSerializer(TypeInformation<String> typeInfo) {
 		TypeSerializer<String> serializer = typeInfo.createSerializer();
 
-		if (serializer.isStateful()) {
-			return new RuntimeStatefulSerializerFactory<String>(serializer, typeInfo.getTypeClass());
-		} else {
-			return new RuntimeStatelessSerializerFactory<String>(serializer,
-					typeInfo.getTypeClass());
-		}
+		return new RuntimeSerializerFactory<String>(serializer, typeInfo.getTypeClass());
 	}
 
 	@Override

@@ -50,17 +50,15 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 */
 	public abstract boolean isImmutableType();
 	
-	
 	/**
-	 * Gets whether the serializer is stateful. Statefulness means in this context that some of the serializer's
-	 * methods have objects with state and are thus not inherently thread-safe. A stateful serializer might be used by
-	 * multiple threads concurrently. For a stateful one, different instances will be used by different threads.
-	 * 
-	 * @return True, if the serializer is stateful, false if it is stateless;
+	 * Creates a deep copy of this serializer if it is necessary, i.e. if it is stateful. This
+	 * can return itself if the serializer is not stateful.
+	 *
+	 * We need this because Serializers might be used in several threads. Stateless serializers
+	 * are inherently thread-safe while stateful serializers might not be thread-safe.
 	 */
-	public abstract boolean isStateful();
-	
-	
+	public abstract TypeSerializer<T> duplicate();
+
 	// --------------------------------------------------------------------------------------------
 	// Instantiation & Cloning
 	// --------------------------------------------------------------------------------------------

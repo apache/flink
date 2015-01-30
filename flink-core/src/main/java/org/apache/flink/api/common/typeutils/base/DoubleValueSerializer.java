@@ -38,11 +38,6 @@ public final class DoubleValueSerializer extends TypeSerializerSingleton<DoubleV
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public DoubleValue createInstance() {
 		return new DoubleValue();
 	}

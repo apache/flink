@@ -278,8 +278,8 @@ public class CollectionInputFormatTest {
 		}
 
 		@Override
-		public boolean isStateful() {
-			return false;
+		public TestSerializer duplicate() {
+			return this;
 		}
 
 		@Override

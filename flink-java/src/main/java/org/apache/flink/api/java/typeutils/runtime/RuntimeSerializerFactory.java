@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.InstantiationUtil;
 
-public final class RuntimeStatelessSerializerFactory<T> implements TypeSerializerFactory<T>, java.io.Serializable {
+public final class RuntimeSerializerFactory<T> implements TypeSerializerFactory<T>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -36,20 +36,18 @@ public final class RuntimeStatelessSerializerFactory<T> implements TypeSerialize
 	
 	private TypeSerializer<T> serializer;
 
+	private boolean firstSerializer = true;
+
 	private Class<T> clazz;
 
+	// Because we read the class from the TaskConfig and instantiate ourselves
+	public RuntimeSerializerFactory() {}
 
-	public RuntimeStatelessSerializerFactory() {}
-
-	public RuntimeStatelessSerializerFactory(TypeSerializer<T> serializer, Class<T> clazz) {
+	public RuntimeSerializerFactory(TypeSerializer<T> serializer, Class<T> clazz) {
 		if (serializer == null || clazz == null) {
 			throw new NullPointerException();
 		}
-		
-		if (serializer.isStateful()) {
-			throw new IllegalArgumentException("Cannot use the stateless serializer factory with a stateful serializer.");
-		}
-		
+
 		this.clazz = clazz;
 		this.serializer = serializer;
 	}
@@ -76,6 +74,7 @@ public final class RuntimeStatelessSerializerFactory<T> implements TypeSerialize
 		try {
 			this.clazz = (Class<T>) InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_CLASS, cl);
 			this.serializer = (TypeSerializer<T>)  InstantiationUtil.readObjectFromConfig(config, CONFIG_KEY_SER, cl);
+			firstSerializer = true;
 		}
 		catch (ClassNotFoundException e) {
 			throw e;
@@ -88,7 +87,12 @@ public final class RuntimeStatelessSerializerFactory<T> implements TypeSerialize
 	@Override
 	public TypeSerializer<T> getSerializer() {
 		if (this.serializer != null) {
-			return this.serializer;
+			if (firstSerializer) {
+				firstSerializer = false;
+				return this.serializer;
+			} else {
+				return this.serializer.duplicate();
+			}
 		} else {
 			throw new RuntimeException("SerializerFactory has not been initialized from configuration.");
 		}
@@ -108,8 +112,8 @@ public final class RuntimeStatelessSerializerFactory<T> implements TypeSerialize
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof RuntimeStatelessSerializerFactory) {
-			RuntimeStatelessSerializerFactory<?> other = (RuntimeStatelessSerializerFactory<?>) obj;
+		if (obj != null && obj instanceof RuntimeSerializerFactory) {
+			RuntimeSerializerFactory<?> other = (RuntimeSerializerFactory<?>) obj;
 			
 			return this.clazz == other.clazz &&
 					this.serializer.equals(other.serializer);
