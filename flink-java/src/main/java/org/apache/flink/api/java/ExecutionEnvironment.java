@@ -408,7 +408,7 @@ public abstract class ExecutionEnvironment {
 	 * <p>
 	 * Since all data sets need specific information about their types, this method needs to determine
 	 * the type of the data produced by the input format. It will attempt to determine the data type
-	 * by reflection, unless the the input format implements the {@link ResultTypeQueryable} interface.
+	 * by reflection, unless the input format implements the {@link ResultTypeQueryable} interface.
 	 * In the latter case, this method will invoke the {@link ResultTypeQueryable#getProducedType()}
 	 * method to determine data type produced by the input format.
 	 * 
