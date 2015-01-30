@@ -42,11 +42,6 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public char[] createInstance() {
 		return EMPTY;
 	}

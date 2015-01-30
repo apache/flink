@@ -32,27 +32,15 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	protected final Class<T> tupleClass;
 
-	protected final TypeSerializer<Object>[] fieldSerializers;
+	protected TypeSerializer<Object>[] fieldSerializers;
 
 	protected final int arity;
-
-	protected final boolean stateful;
-
 
 	@SuppressWarnings("unchecked")
 	public TupleSerializerBase(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
 		this.tupleClass = tupleClass;
 		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
 		this.arity = fieldSerializers.length;
-		
-		boolean stateful = false;
-		for (TypeSerializer<?> ser : fieldSerializers) {
-			if (ser.isStateful()) {
-				stateful = true;
-				break;
-			}
-		}
-		this.stateful = stateful;
 	}
 	
 	public Class<T> getTupleClass() {
@@ -62,11 +50,6 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	@Override
 	public boolean isImmutableType() {
 		return false;
-	}
-
-	@Override
-	public boolean isStateful() {
-		return this.stateful;
 	}
 
 	@Override

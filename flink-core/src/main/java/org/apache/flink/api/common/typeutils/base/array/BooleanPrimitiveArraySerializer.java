@@ -40,11 +40,6 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 	public boolean isImmutableType() {
 		return false;
 	}
-
-	@Override
-	public boolean isStateful() {
-		return false;
-	}
 	
 	@Override
 	public boolean[] createInstance() {

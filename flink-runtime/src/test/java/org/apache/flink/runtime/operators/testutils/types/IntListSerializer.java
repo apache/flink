@@ -35,8 +35,8 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
+	public IntListSerializer duplicate() {
+		return this;
 	}
 	
 	@Override

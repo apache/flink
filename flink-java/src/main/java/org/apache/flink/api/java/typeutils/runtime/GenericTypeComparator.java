@@ -24,7 +24,6 @@ import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -42,9 +41,7 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 
 	private final Class<T> type;
 
-	private final TypeSerializerFactory<T> serializerFactory;
-
-	private transient TypeSerializer<T> serializer;
+	private TypeSerializer<T> serializer;
 
 	private transient T reference;
 
@@ -61,15 +58,11 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 		this.ascending = ascending;
 		this.serializer = serializer;
 		this.type = type;
-
-		this.serializerFactory = this.serializer.isStateful()
-				? new RuntimeStatefulSerializerFactory<T>(this.serializer, this.type)
-				: new RuntimeStatelessSerializerFactory<T>(this.serializer, this.type);
 	}
 
 	private GenericTypeComparator(GenericTypeComparator<T> toClone) {
 		this.ascending = toClone.ascending;
-		this.serializerFactory = toClone.serializerFactory;
+		this.serializer = toClone.serializer.duplicate();
 		this.type = toClone.type;
 	}
 
@@ -104,9 +97,6 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 
 	@Override
 	public int compareSerialized(final DataInputView firstSource, final DataInputView secondSource) throws IOException {
-		if (this.serializer == null) {
-			this.serializer = this.serializerFactory.getSerializer();
-		}
 
 		if (this.reference == null) {
 			this.reference = this.serializer.createInstance();

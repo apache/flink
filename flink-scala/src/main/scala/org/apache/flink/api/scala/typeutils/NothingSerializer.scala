@@ -27,7 +27,7 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
  */
 class NothingSerializer extends TypeSerializer[Any] {
 
-  override def isStateful: Boolean = false
+  override def duplicate: NothingSerializer = this
 
   override def createInstance: Any = {
     Integer.valueOf(-1)

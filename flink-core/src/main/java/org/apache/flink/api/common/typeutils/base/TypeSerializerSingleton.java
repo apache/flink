@@ -25,7 +25,12 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 	private static final long serialVersionUID = 8766687317209282373L;
 
 	// --------------------------------------------------------------------------------------------
-	
+
+	@Override
+	public TypeSerializerSingleton<T> duplicate() {
+		return this;
+	}
+
 	@Override
 	public int hashCode() {
 		return super.hashCode();

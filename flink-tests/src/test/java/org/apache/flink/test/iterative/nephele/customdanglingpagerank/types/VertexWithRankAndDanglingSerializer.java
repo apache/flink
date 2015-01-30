@@ -35,11 +35,6 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializerSin
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public VertexWithRankAndDangling createInstance() {
 		return new VertexWithRankAndDangling();
 	}

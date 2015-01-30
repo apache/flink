@@ -32,8 +32,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
+import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.MemorySegment;
@@ -161,19 +160,8 @@ public class LargeRecordHandler<T> {
 				keySerializer = new TupleSerializer<Tuple>((Class<Tuple>) Tuple.getTupleClass(numKeyFields+1), tupleSers);
 				keyComparator = new TupleComparator<Tuple>(keyPos, keyComps, keySers);
 				
-				// create the serializer factory for the tuple serializer
-				if (keySerializer.isStateful()) {
-					ClassLoader cl = getClassLoader(tupleSers);
-					
-					RuntimeStatefulSerializerFactory<Tuple> factory = 
-							new RuntimeStatefulSerializerFactory<Tuple>(keySerializer, keySerializer.getTupleClass());
-					factory.setClassLoader(cl);
-					keySerializerFactory = factory;
-				}
-				else {
-					keySerializerFactory = new RuntimeStatelessSerializerFactory<Tuple>(keySerializer, keySerializer.getTupleClass());
-				}
-				
+				keySerializerFactory = new RuntimeSerializerFactory<Tuple>(keySerializer, keySerializer.getTupleClass());
+
 				keyTuple = keySerializer.createInstance();
 			}
 			
@@ -397,18 +385,6 @@ public class LargeRecordHandler<T> {
 		catch (Throwable t) {
 			throw new RuntimeException("Could not create key serializer for type " + key);
 		}
-	}
-	
-	private static ClassLoader getClassLoader(Object[] objects) {
-		final ClassLoader appCl = LargeRecordHandler.class.getClassLoader();
-		
-		for (Object o : objects) {
-			if (o != null && o.getClass().getClassLoader() != appCl) {
-				return o.getClass().getClassLoader();
-			}
-		}
-		
-		return appCl;
 	}
 	
 	private static final class FetchingIterator<T> implements MutableObjectIterator<T> {

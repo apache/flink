@@ -40,11 +40,6 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 	public boolean isImmutableType() {
 		return false;
 	}
-
-	@Override
-	public boolean isStateful() {
-		return false;
-	}
 	
 	@Override
 	public short[] createInstance() {

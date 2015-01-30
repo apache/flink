@@ -40,11 +40,6 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public StringValue createInstance() {
 		return new StringValue();
 	}

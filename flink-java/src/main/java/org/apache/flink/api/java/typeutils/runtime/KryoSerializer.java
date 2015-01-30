@@ -69,7 +69,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private final Class<T> type;
 	
 	// ------------------------------------------------------------------------
-	// The fields below are lazily initialized after de-serialization
+	// The fields below are lazily initialized after duplication or deserialization.
 
 	private transient Kryo kryo;
 	private transient T copyInstance;
@@ -107,6 +107,20 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		
 	}
 
+	/**
+	 * Copy-constructor that does not copy transient fields. They will be initialized once required.
+	 */
+	protected KryoSerializer(KryoSerializer<T> toCopy) {
+		registeredSerializers = toCopy.registeredSerializers;
+		registeredSerializersClasses = toCopy.registeredSerializersClasses;
+		registeredTypes = toCopy.registeredTypes;
+
+		type = toCopy.type;
+		if(type == null){
+			throw new NullPointerException("Type class cannot be null.");
+		}
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -115,8 +129,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return true;
+	public KryoSerializer<T> duplicate() {
+		return new KryoSerializer<T>(this);
 	}
 
 	@Override

@@ -47,8 +47,8 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
+	public CopyableValueSerializer<T> duplicate() {
+		return this;
 	}
 
 	@Override

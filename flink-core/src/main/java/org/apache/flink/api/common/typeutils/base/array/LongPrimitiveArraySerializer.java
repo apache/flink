@@ -42,11 +42,6 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public long[] createInstance() {
 		return EMPTY;
 	}

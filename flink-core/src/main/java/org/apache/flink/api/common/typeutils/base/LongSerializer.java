@@ -39,11 +39,6 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public Long createInstance() {
 		return ZERO;
 	}

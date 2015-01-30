@@ -38,8 +38,8 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
+	public IntPairSerializer duplicate() {
+		return this;
 	}
 
 	@Override
@@ -105,12 +105,12 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 		public Class<IntPair> getDataType() {
 			return IntPair.class;
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return 42;
 		}
-		
+
 		public boolean equals(Object obj) {
 			return obj.getClass() == IntPairSerializerFactory.class;
 		};

@@ -35,8 +35,8 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
+	public StringPairSerializer duplicate() {
+		return this;
 	}
 	
 	@Override

@@ -39,11 +39,6 @@ public final class IntSerializer extends TypeSerializerSingleton<Integer> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public Integer createInstance() {
 		return ZERO;
 	}

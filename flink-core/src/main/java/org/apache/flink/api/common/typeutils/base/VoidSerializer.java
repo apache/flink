@@ -35,11 +35,6 @@ public final class VoidSerializer extends TypeSerializerSingleton<Void> {
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public Void createInstance() {
 		return null;
 	}

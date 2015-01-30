@@ -23,7 +23,6 @@ import java.util.List;
 import org.apache.flink.api.common.typeutils.CompositeTypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.KeyFieldOutOfBoundsException;
@@ -41,10 +40,6 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 	@SuppressWarnings("rawtypes")
 	protected TypeComparator[] comparators;
 
-	/** serializer factories to duplicate non thread-safe serializers */
-	protected TypeSerializerFactory<Object>[] serializerFactories;
-
-
 	protected int[] normalizedKeyLengths;
 
 	protected int numLeadingNormalizableKeys;
@@ -56,7 +51,7 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 
 	/** serializers to deserialize the first n fields for comparison */
 	@SuppressWarnings("rawtypes")
-	protected transient TypeSerializer[] serializers;
+	protected TypeSerializer[] serializers;
 
 	// cache for the deserialized field objects
 	protected transient Object[] deserializedFields1;
@@ -69,14 +64,6 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 		this.keyPositions = keyPositions;
 		this.comparators = (TypeComparator<Object>[]) comparators;
 		this.serializers = (TypeSerializer<Object>[]) serializers;
-
-		// set the serializer factories.
-		this.serializerFactories = new TypeSerializerFactory[this.serializers.length];
-		for (int i = 0; i < serializers.length; i++) {
-			this.serializerFactories[i] = this.serializers[i].isStateful() ?
-					new RuntimeStatefulSerializerFactory<Object>(this.serializers[i], Object.class) :
-					new RuntimeStatelessSerializerFactory<Object>(this.serializers[i], Object.class);
-		}
 
 		// set up auxiliary fields for normalized key support
 		this.normalizedKeyLengths = new int[keyPositions.length];
@@ -129,7 +116,11 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 	protected void privateDuplicate(TupleComparatorBase<T> toClone) {
 		// copy fields and serializer factories
 		this.keyPositions = toClone.keyPositions;
-		this.serializerFactories = toClone.serializerFactories;
+
+		this.serializers = new TypeSerializer[toClone.serializers.length];
+		for (int i = 0; i < toClone.serializers.length; i++) {
+			this.serializers[i] = toClone.serializers[i].duplicate();
+		}
 
 		this.comparators = new TypeComparator[toClone.comparators.length];
 		for (int i = 0; i < toClone.comparators.length; i++) {
@@ -261,13 +252,6 @@ public abstract class TupleComparatorBase<T> extends CompositeTypeComparator<T> 
 	// --------------------------------------------------------------------------------------------
 	
 	protected final void instantiateDeserializationUtils() {
-		if (this.serializers == null) {
-			this.serializers = new TypeSerializer[this.serializerFactories.length];
-			for (int i = 0; i < this.serializers.length; i++) {
-				this.serializers[i] = this.serializerFactories[i].getSerializer();
-			}
-		}
-		
 		this.deserializedFields1 = new Object[this.serializers.length];
 		this.deserializedFields2 = new Object[this.serializers.length];
 		

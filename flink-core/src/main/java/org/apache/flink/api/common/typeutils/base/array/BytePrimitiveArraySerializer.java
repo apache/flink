@@ -41,11 +41,6 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public byte[] createInstance() {
 		return EMPTY;
 	}

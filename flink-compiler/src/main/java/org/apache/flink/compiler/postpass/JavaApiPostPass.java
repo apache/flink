@@ -43,8 +43,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
+import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.CompilerPostPassException;
 import org.apache.flink.compiler.plan.BulkIterationPlanNode;
@@ -278,12 +277,8 @@ public class JavaApiPostPass implements OptimizerPostPass {
 	
 	private static <T> TypeSerializerFactory<?> createSerializer(TypeInformation<T> typeInfo) {
 		TypeSerializer<T> serializer = typeInfo.createSerializer();
-		
-		if (serializer.isStateful()) {
-			return new RuntimeStatefulSerializerFactory<T>(serializer, typeInfo.getTypeClass());
-		} else {
-			return new RuntimeStatelessSerializerFactory<T>(serializer, typeInfo.getTypeClass());
-		}
+
+		return new RuntimeSerializerFactory<T>(serializer, typeInfo.getTypeClass());
 	}
 	
 	@SuppressWarnings("unchecked")

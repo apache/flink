@@ -42,11 +42,6 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-	
-	@Override
 	public float[] createInstance() {
 		return EMPTY;
 	}

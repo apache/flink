@@ -28,12 +28,24 @@ import scala.collection.generic.CanBuildFrom
  * Serializer for Scala Collections.
  */
 abstract class TraversableSerializer[T <: TraversableOnce[E], E](
-    val elementSerializer: TypeSerializer[E])
-  extends TypeSerializer[T] {
+    var elementSerializer: TypeSerializer[E])
+  extends TypeSerializer[T] with Cloneable {
 
   def getCbf: CanBuildFrom[T, E, T]
 
   @transient var cbf: CanBuildFrom[T, E, T] = getCbf
+
+  override def duplicate = {
+    val duplicateElementSerializer = elementSerializer.duplicate()
+    if (duplicateElementSerializer == elementSerializer) {
+      // is not stateful, so return ourselves
+      this
+    } else {
+      val result = this.clone().asInstanceOf[TraversableSerializer[T, E]]
+      result.elementSerializer = elementSerializer.duplicate()
+      result
+    }
+  }
 
   private def readObject(in: ObjectInputStream): Unit = {
     in.defaultReadObject()
@@ -84,8 +96,6 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
       }
     }
   }
-
-  override def isStateful: Boolean = false
 
   override def deserialize(source: DataInputView): T = {
     val len = source.readInt()
