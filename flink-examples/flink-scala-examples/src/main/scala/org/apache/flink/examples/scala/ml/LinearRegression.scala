@@ -31,8 +31,8 @@ import scala.collection.JavaConverters._
  * This example implements a basic Linear Regression  to solve the y = theta0 + theta1*x problem
  * using batch gradient descent algorithm.
  *
- * Linear Regression with BGD(batch gradient descent) algorithm is an iterative clustering
- * algorithm and works as follows:
+ * Linear Regression with BGD(batch gradient descent) algorithm is an iterative algorithm and
+ * works as follows:
  *
  * Giving a data set and target set, the BGD try to find out the best parameters for the data set
  * to fit the target set.

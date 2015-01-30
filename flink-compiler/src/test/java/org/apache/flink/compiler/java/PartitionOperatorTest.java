@@ -36,10 +36,10 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
-public class PartitioningOperatorTest extends CompilerTestBase {
+public class PartitionOperatorTest extends CompilerTestBase {
 
 	@Test
-	public void testPartitiongOperatorPreservesFields() {
+	public void testPartitionOperatorPreservesFields() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
