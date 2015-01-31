@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -70,6 +71,9 @@ public class StreamingJobGraphGenerator {
 
 	public JobGraph createJobGraph(String jobName) {
 		jobGraph = new JobGraph(jobName);
+		// Turn lazy scheduling off
+		jobGraph.setScheduleMode(ScheduleMode.ALL);
+
 		init();
 
 		for (String sourceName : streamGraph.getSources()) {
