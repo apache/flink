@@ -106,7 +106,6 @@ public class WebInfoServer {
 			logDirFiles[i++] = new File(path);
 		}
 
-
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Setting up web info server, using web-root directory" +
 					webRootDir.toExternalForm()	+ ".");

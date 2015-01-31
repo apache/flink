@@ -75,12 +75,22 @@ public class LogfileInfoServlet extends HttpServlet {
 
 	private void sendFile(String fileNamePattern, HttpServletResponse resp) throws IOException {
 		for(File logDir: logDirs) {
-			for(File f : logDir.listFiles()) {
-				// contains "jobmanager" ".log" and no number in the end ->needs improvement
-				if( f.getName().matches(fileNamePattern)) {
-					resp.setStatus(HttpServletResponse.SC_OK);
-					resp.setContentType("text/plain");
-					writeFile(resp.getOutputStream(), f);
+			if(logDir == null) {
+				continue;
+			}
+			File[] files = logDir.listFiles();
+			if(files == null) {
+				resp.setStatus(HttpServletResponse.SC_OK);
+				resp.setContentType("text/plain");
+				resp.getOutputStream().write(("The specified log directory '"+logDir+"' is empty").getBytes());
+			} else {
+				for (File f : files) {
+					// contains "jobmanager" ".log" and no number in the end ->needs improvement
+					if (f.getName().matches(fileNamePattern)) {
+						resp.setStatus(HttpServletResponse.SC_OK);
+						resp.setContentType("text/plain");
+						writeFile(resp.getOutputStream(), f);
+					}
 				}
 			}
 		}

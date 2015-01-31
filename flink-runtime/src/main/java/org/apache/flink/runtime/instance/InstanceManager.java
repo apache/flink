@@ -153,7 +153,7 @@ public class InstanceManager {
 			
 			Instance prior = registeredHostsByConnection.get(taskManager);
 			if (prior != null) {
-				LOG.error("Registration attempt from TaskManager at " + taskManager.path() +
+				LOG.info("Registration attempt from TaskManager at " + taskManager.path() +
 						". This connection is already registered under ID " + prior.getId());
 				return null;
 			}
