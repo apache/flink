@@ -42,16 +42,20 @@ fi
 flink_home="`dirname \"$here\"`"
 
 echo "flink_home=$flink_home here=$here"
+cd $here
 
-if [ -f  "_qa_workdir"] ; then
+if [ ! -d  "_qa_workdir" ] ; then
 	echo "_qa_workdir doesnt exist. Creating it"
 	mkdir _qa_workdir
 fi
+# attention, it overwrites
+echo "_qa_workdir" > .gitignore
 
 cd _qa_workdir
-if [ -f  "flink"] ; then
+
+if [ ! -d  "flink" ] ; then
 	echo "There is no flink copy in the workdir. Cloning flink"
-	git clone https://github.com/apache/flink.git flink
+	git clone git@github.com:rmetzger/flink.git flink
 	cd flink
 	git checkout $BRANCH
 fi
@@ -70,25 +74,6 @@ goToTestDirectory() {
 	cd $flink_home
 }
 
-################################### QA checks ###################################
-
-##### Methods to be executed on the current 'master'
-referenceJavadocsErrors()
-
-
-goToTestDirectory()
-##### Methods to be executed on the changes (in home dir)
-checkJavadocsErrors()
-
-
-MESSAGES+="Test finished."
-if ["$TESTS_PASSED" -eq "true"]; then
-	MESSAGES+="Overall result: :+1:. All tests passed"
-else 
-	MESSAGES+="Overall result: :-1:. Some tests failed. Please check messages above"
-fi
-
-
 ############################ Methods ############################
 
 referenceJavadocsErrors() {
@@ -106,5 +91,26 @@ checkJavadocsErrors() {
 		MESSAGES+=":+1: The number of javadoc errors was $OLD_JAVADOC_ERR_CNT and is now $NEW_JAVADOC_ERR_CNT"
 	fi
 }
+
+
+################################### QA checks ###################################
+
+##### Methods to be executed on the current 'master'
+referenceJavadocsErrors
+
+
+goToTestDirectory
+##### Methods to be executed on the changes (in home dir)
+checkJavadocsErrors
+
+
+MESSAGES+="Test finished."
+if ["$TESTS_PASSED" -eq "true"]; then
+	MESSAGES+="Overall result: :+1:. All tests passed"
+else 
+	MESSAGES+="Overall result: :-1:. Some tests failed. Please check messages above"
+fi
+
+echo "$MESSAGES"
 
 
