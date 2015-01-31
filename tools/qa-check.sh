@@ -84,7 +84,7 @@ referenceJavadocsErrors() {
 checkJavadocsErrors() {
 	OLD_JAVADOC_ERR_CNT=`cat $VAR_DIR/_JAVADOCS_NUM_WARNINGS` 
 	NEW_JAVADOC_ERR_CNT=`mvn javadoc:aggregate -Pdocs-and-source -Dmaven.javadoc.failOnError=false -Dquiet=false  | grep "WARNING" | wc -l`
-	if ["$NEW_JAVADOC_ERR_CNT" -gt "$OLD_JAVADOC_ERR_CNT"]; then
+	if [ "$NEW_JAVADOC_ERR_CNT" -gt "$OLD_JAVADOC_ERR_CNT" ]; then
 		MESSAGES+=":-1: The change increases the number of javadoc errors from $OLD_JAVADOC_ERR_CNT to $NEW_JAVADOC_ERR_CNT"
 		TESTS_PASSED=false
 	else
@@ -105,7 +105,7 @@ checkJavadocsErrors
 
 
 MESSAGES+="Test finished."
-if ["$TESTS_PASSED" -eq "true"]; then
+if [ "$TESTS_PASSED" -eq "true" ]; then
 	MESSAGES+="Overall result: :+1:. All tests passed"
 else 
 	MESSAGES+="Overall result: :-1:. Some tests failed. Please check messages above"
