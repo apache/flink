@@ -57,10 +57,14 @@ if [ -f  "flink"] ; then
 fi
 cd $here
 # go to refrence flink directory
-cd _qa_workdir/flink
 
-TESTS_PASSED=true
-MESSAGES="Flink QA-Check results:"
+cd _qa_workdir
+VAR_DIR=`pwd`
+cd flink
+
+# Initialize variables
+export TESTS_PASSED=true
+export MESSAGES="Flink QA-Check results:"
 
 goToTestDirectory() {
 	cd $flink_home
@@ -71,14 +75,36 @@ goToTestDirectory() {
 ##### Methods to be executed on the current 'master'
 referenceJavadocsErrors()
 
-##### Methods to be executed on the changes
+
+goToTestDirectory()
+##### Methods to be executed on the changes (in home dir)
 checkJavadocsErrors()
 
+
+MESSAGES+="Test finished."
+if ["$TESTS_PASSED" -eq "true"]; then
+	MESSAGES+="Overall result: :+1:. All tests passed"
+else 
+	MESSAGES+="Overall result: :-1:. Some tests failed. Please check messages above"
+fi
 
 
 ############################ Methods ############################
 
 referenceJavadocsErrors() {
-	 mvn javadoc:aggregate -Pdocs-and-source -Dmaven.javadoc.failOnError=false -Dquiet=false  | grep "WARNING" | wc -l >> _JAVADOCS_NUM_WARNINGS
+	mvn javadoc:aggregate -Pdocs-and-source -Dmaven.javadoc.failOnError=false -Dquiet=false  | grep "WARNING" | wc -l >> "$VAR_DIR/_JAVADOCS_NUM_WARNINGS"
 }
+
+
+checkJavadocsErrors() {
+	OLD_JAVADOC_ERR_CNT=`cat $VAR_DIR/_JAVADOCS_NUM_WARNINGS` 
+	NEW_JAVADOC_ERR_CNT=`mvn javadoc:aggregate -Pdocs-and-source -Dmaven.javadoc.failOnError=false -Dquiet=false  | grep "WARNING" | wc -l`
+	if ["$NEW_JAVADOC_ERR_CNT" -gt "$OLD_JAVADOC_ERR_CNT"]; then
+		MESSAGES+=":-1: The change increases the number of javadoc errors from $OLD_JAVADOC_ERR_CNT to $NEW_JAVADOC_ERR_CNT"
+		TESTS_PASSED=false
+	else
+		MESSAGES+=":+1: The number of javadoc errors was $OLD_JAVADOC_ERR_CNT and is now $NEW_JAVADOC_ERR_CNT"
+	fi
+}
+
 
