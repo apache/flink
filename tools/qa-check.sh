@@ -75,6 +75,8 @@ goToTestDirectory() {
 }
 
 ############################ Methods ############################
+
+############ Javadocs ############
 JAVADOC_MVN_COMMAND="mvn javadoc:aggregate -Pdocs-and-source -Dmaven.javadoc.failOnError=false -Dquiet=false | grep  \"WARNING\|warning\|error\" | wc -l"
 echo $JAVADOC_MVN_COMMAND
 referenceJavadocsErrors() {
@@ -85,8 +87,6 @@ referenceJavadocsErrors() {
 checkJavadocsErrors() {
 	OLD_JAVADOC_ERR_CNT=`cat $VAR_DIR/_JAVADOCS_NUM_WARNINGS` 
 	NEW_JAVADOC_ERR_CNT=`eval $JAVADOC_MVN_COMMAND`
-	#OLD_JAVADOC_ERR_CNT="15"
-	#NEW_JAVADOC_ERR_CNT="3"
 	if [ "$NEW_JAVADOC_ERR_CNT" -gt "$OLD_JAVADOC_ERR_CNT" ]; then
 		MESSAGES+=":-1: The change increases the number of javadoc errors from $OLD_JAVADOC_ERR_CNT to $NEW_JAVADOC_ERR_CNT"
 		TESTS_PASSED=false
@@ -96,15 +96,57 @@ checkJavadocsErrors() {
 }
 
 
+############ Compiler warnings ############
+COMPILER_WARN_MVN_COMMAND="mvn clean compile -Dmaven.compiler.showWarning=true -Dmaven.compiler.showDeprecation=true | grep \"WARNING\" | wc -l"
+referenceCompilerWarnings() {
+	eval $COMPILER_WARN_MVN_COMMAND > "$VAR_DIR/_COMPILER_NUM_WARNINGS"
+}
+
+checkCompilerWarnings() {
+	OLD_COMPILER_ERR_CNT=`cat $VAR_DIR/_COMPILER_NUM_WARNINGS` 
+	NEW_COMPILER_ERR_CNT=`eval $COMPILER_WARN_MVN_COMMAND`
+	if [ "$NEW_COMPILER_ERR_CNT" -gt "$OLD_COMPILER_ERR_CNT" ]; then
+		MESSAGES+=":-1: The change increases the number of compiler warnings from $OLD_COMPILER_ERR_CNT to $NEW_COMPILER_ERR_CNT"
+		TESTS_PASSED=false
+	else
+		MESSAGES+=":+1: The number of compiler warnings was $OLD_COMPILER_ERR_CNT and is now $NEW_COMPILER_ERR_CNT"
+	fi
+}
+
+############ Files in lib ############
+BUILD_MVN_COMMAND="mvn clean package -DskipTests"
+COUNT_LIB_FILES="find . | grep \"\/lib\/\" | wc -l"
+referenceLibFiles() {
+	eval $BUILD_MVN_COMMAND
+	eval $COUNT_LIB_FILES > "$VAR_DIR/_NUM_LIB_FILES"
+}
+
+checkLibFiles() {
+	OLD_LIB_FILES_CNT=`cat $VAR_DIR/_NUM_LIB_FILES` 
+	eval $BUILD_MVN_COMMAND
+	NEW_LIB_FILES_CNT=`eval $COUNT_LIB_FILES`
+	if [ "$NEW_LIB_FILES_CNT" -gt "$OLD_LIB_FILES_CNT" ]; then
+		MESSAGES+=":-1: The change increases the number of dependencies in the lib/ folder from $OLD_LIB_FILES_CNT to $NEW_LIB_FILES_CNT"
+		TESTS_PASSED=false
+	else
+		MESSAGES+=":+1: The number of files in the lib/ folder was $OLD_LIB_FILES_CNT before the change and is now $NEW_LIB_FILES_CNT"
+	fi
+}
+
+
 ################################### QA checks ###################################
 
 ##### Methods to be executed on the current 'master'
 referenceJavadocsErrors
+referenceCompilerWarnings
+referenceLibFiles
 
 
 goToTestDirectory
 ##### Methods to be executed on the changes (in home dir)
 checkJavadocsErrors
+checkCompilerWarnings
+checkLibFiles
 
 
 MESSAGES+=$'\n'"Test finished."$'\n'
