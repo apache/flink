@@ -68,22 +68,25 @@ cd flink
 
 # Initialize variables
 export TESTS_PASSED=true
-export MESSAGES="Flink QA-Check results:"
+export MESSAGES="Flink QA-Check results:"$'\n'
 
 goToTestDirectory() {
 	cd $flink_home
 }
 
 ############################ Methods ############################
-
+JAVADOC_MVN_COMMAND="mvn javadoc:aggregate -Pdocs-and-source -Dmaven.javadoc.failOnError=false -Dquiet=false | grep  \"WARNING\|warning\|error\" | wc -l"
+echo $JAVADOC_MVN_COMMAND
 referenceJavadocsErrors() {
-	mvn javadoc:aggregate -Pdocs-and-source -Dmaven.javadoc.failOnError=false -Dquiet=false  | grep "WARNING" | wc -l >> "$VAR_DIR/_JAVADOCS_NUM_WARNINGS"
+	eval $JAVADOC_MVN_COMMAND > "$VAR_DIR/_JAVADOCS_NUM_WARNINGS"
 }
 
 
 checkJavadocsErrors() {
 	OLD_JAVADOC_ERR_CNT=`cat $VAR_DIR/_JAVADOCS_NUM_WARNINGS` 
-	NEW_JAVADOC_ERR_CNT=`mvn javadoc:aggregate -Pdocs-and-source -Dmaven.javadoc.failOnError=false -Dquiet=false  | grep "WARNING" | wc -l`
+	NEW_JAVADOC_ERR_CNT=`eval $JAVADOC_MVN_COMMAND`
+	#OLD_JAVADOC_ERR_CNT="15"
+	#NEW_JAVADOC_ERR_CNT="3"
 	if [ "$NEW_JAVADOC_ERR_CNT" -gt "$OLD_JAVADOC_ERR_CNT" ]; then
 		MESSAGES+=":-1: The change increases the number of javadoc errors from $OLD_JAVADOC_ERR_CNT to $NEW_JAVADOC_ERR_CNT"
 		TESTS_PASSED=false
@@ -104,8 +107,8 @@ goToTestDirectory
 checkJavadocsErrors
 
 
-MESSAGES+="Test finished."
-if [ "$TESTS_PASSED" -eq "true" ]; then
+MESSAGES+=$'\n'"Test finished."$'\n'
+if [ "$TESTS_PASSED" == "true" ]; then
 	MESSAGES+="Overall result: :+1:. All tests passed"
 else 
 	MESSAGES+="Overall result: :-1:. Some tests failed. Please check messages above"
