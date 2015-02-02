@@ -1517,29 +1517,37 @@ shortcut methods on the *ExecutionEnvironment*.
 File-based:
 
 - `readTextFile(path)` / `TextInputFormat` - Reads files line wise and returns them as Strings.
+
 - `readTextFileWithValue(path)` / `TextValueInputFormat` - Reads files line wise and returns them as
   StringValues. StringValues are mutable strings.
+
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
   Returns a DataSet of tuples. Supports the basic java types and their Value counterparts as field
   types.
+
 - `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence) delimited primitive data types such as `String` or `Integer`. 
 
 Collection-based:
 
 - `fromCollection(Collection)` - Creates a data set from the Java Java.util.Collection. All elements
   in the collection must be of the same type.
+
 - `fromCollection(Iterator, Class)` - Creates a data set from an iterator. The class specifies the
   data type of the elements returned by the iterator.
+
 - `fromElements(T ...)` - Creates a data set from the given sequence of objects. All objects must be
   of the same type.
+
 - `fromParallelCollection(SplittableIterator, Class)` - Creates a data set from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
+
 - `generateSequence(from, to)` - Generates the squence of numbers in the given interval, in
   parallel.
 
 Generic:
 
 - `readFile(inputFormat, path)` / `FileInputFormat` - Accepts a file input format.
+
 - `createInput(inputFormat)` / `InputFormat` - Accepts a generic input format.
 
 **Examples**
@@ -1586,6 +1594,27 @@ DataSet<Tuple2<String, Integer> dbData =
 // manually provide the type information as shown in the examples above.
 {% endhighlight %}
 
+#### Configuring CSV Parsing
+
+Flink offers a number of configuration options for CSV parsing:
+
+- `types(Class ... types)` specifies the types of the fields to parse. **It is mandatory to configure the types of the parsed fields.**
+
+- `lineDelimiter(String del)` specifies the delimiter of individual records. The default line delimiter is the new-line character `'\n'`.
+
+- `fieldDelimiter(String del)` specifies the delimiter that separates fields of a record. The default field delimiter is the comma character `','`.
+
+- `includeFields(boolean ... flag)`, `includeFields(String mask)`, or `includeFields(long bitMask)` defines which fields to read from the input file (and which to ignore). By default the first *n* fields (as defined by the number of types in the `types()` call) are parsed.
+
+- `parseQuotedStrings(char quoteChar)` enables quoted string parsing. Strings are parsed as quoted strings if the first character of the string field is the quote character (leading or tailing whitespaces are *not* trimmed). Field delimiters within quoted strings are ignored. Quoted string parsing fails if the last character of a quoted string field is not the quote character. If quoted string parsing is enabled and the first character of the field is *not* the quoting string, the string is parsed as unquoted string. By default, quoted string parsing is disabled.
+
+- `ignoreComments(String commentPrefix)` specifies a comment prefix. All lines that start with the specified comment prefix are not parsed and ignored. By default, no lines are ignored.
+
+- `ignoreInvalidLines()` enables lenient parsing, i.e., lines that cannot be correctly parsed are ignored. By default, lenient parsing is disabled and invalid lines raise an exception.
+
+- `ignoreFirstLine()` configures the InputFormat to ignore the first line of the input file. By default no line is ignored.
+
+
 #### Recursive Traversal of the Input Path Directory
 
 For file-based inputs, when the input path is a directory, nested files are not enumerated by default. Instead, only the files inside the base directory are read, while nested files are ignored. Recursive enumeration of nested files can be enabled through the `recursive.file.enumeration` configuration parameter, like in the following example.
@@ -1618,8 +1647,10 @@ shortcut methods on the *ExecutionEnvironment*.
 File-based:
 
 - `readTextFile(path)` / `TextInputFormat` - Reads files line wise and returns them as Strings.
+
 - `readTextFileWithValue(path)` / `TextValueInputFormat` - Reads files line wise and returns them as
   StringValues. StringValues are mutable strings.
+
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
   Returns a DataSet of tuples. Supports the basic java types and their Value counterparts as field
   types.
@@ -1628,18 +1659,23 @@ Collection-based:
 
 - `fromCollection(Seq)` - Creates a data set from a Seq. All elements
   in the collection must be of the same type.
+
 - `fromCollection(Iterator)` - Creates a data set from an Iterator. The class specifies the
   data type of the elements returned by the iterator.
+
 - `fromElements(elements: _*)` - Creates a data set from the given sequence of objects. All objects
   must be of the same type.
+
 - `fromParallelCollection(SplittableIterator)` - Creates a data set from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
+
 - `generateSequence(from, to)` - Generates the squence of numbers in the given interval, in
   parallel.
 
 Generic:
 
 - `readFile(inputFormat, path)` / `FileInputFormat` - Accepts a file input format.
+
 - `createInput(inputFormat)` / `InputFormat` - Accepts a generic input format.
 
 **Examples**
@@ -1673,6 +1709,26 @@ val values = env.fromElements("Foo", "bar", "foobar", "fubar")
 // generate a number sequence
 val numbers = env.generateSequence(1, 10000000);
 {% endhighlight %}
+
+
+#### Configuring CSV Parsing
+
+Flink offers a number of configuration options for CSV parsing:
+
+- `lineDelimiter: String` specifies the delimiter of individual records. The default line delimiter is the new-line character `'\n'`.
+
+- `fieldDelimiter: String` specifies the delimiter that separates fields of a record. The default field delimiter is the comma character `','`.
+
+- `includeFields: Array[Int]` defines which fields to read from the input file (and which to ignore). By default the first *n* fields (as defined by the number of types in the `types()` call) are parsed.
+
+- `parseQuotedStrings: Character` enables quoted string parsing. Strings are parsed as quoted strings if the first character of the string field is the quote character (leading or tailing whitespaces are *not* trimmed). Field delimiters within quoted strings are ignored. Quoted string parsing fails if the last character of a quoted string field is not the quote character. If quoted string parsing is enabled and the first character of the field is *not* the quoting string, the string is parsed as unquoted string. By default, quoted string parsing is disabled.
+
+- `ignoreComments: String` specifies a comment prefix. All lines that start with the specified comment prefix are not parsed and ignored. By default, no lines are ignored.
+
+- `lenient: Boolean` enables lenient parsing, i.e., lines that cannot be correctly parsed are ignored. By default, lenient parsing is disabled and invalid lines raise an exception.
+
+- `ignoreFirstLine: Boolean` configures the InputFormat to ignore the first line of the input file. By default no line is ignored.
+  
 
 #### Recursive Traversal of the Input Path Directory
 
