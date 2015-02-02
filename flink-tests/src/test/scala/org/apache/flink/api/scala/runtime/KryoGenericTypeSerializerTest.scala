@@ -32,6 +32,58 @@ import com.esotericsoftware.kryo.io.Input
 class KryoGenericTypeSerializerTest {
 
   @Test
+  def testTraitSerialization(): Unit = {
+    trait SimpleTrait {
+      def contains(x: String): Boolean
+    }
+    class SimpleClass1 extends SimpleTrait {
+      def contains(x: String) = true
+
+      override def equals(other: Any): Boolean = other match {
+        case other: SimpleClass1 => true
+        case _ => false
+      }
+    }
+    class SimpleClass2 extends SimpleTrait {
+      def contains(x: String) = true
+
+      override def equals(other: Any): Boolean = other match {
+        case other: SimpleClass2 => true
+        case _ => false
+      }
+    }
+
+    val testData = Array(new SimpleClass1, new SimpleClass1, new SimpleClass2)
+    runTests(testData)
+  }
+
+  @Test
+  def testAbstractSerialization(): Unit = {
+    abstract class SimpleAbstractBase {
+      def contains(x: String): Boolean
+    }
+    class SimpleClass1 extends SimpleAbstractBase {
+      def contains(x: String) = true
+
+      override def equals(other: Any): Boolean = other match {
+        case other: SimpleClass1 => true
+        case _ => false
+      }
+    }
+    class SimpleClass2 extends SimpleAbstractBase {
+      def contains(x: String) = true
+
+      override def equals(other: Any): Boolean = other match {
+        case other: SimpleClass2 => true
+        case _ => false
+      }
+    }
+
+    val testData = Array(new SimpleClass1, new SimpleClass1, new SimpleClass2)
+    runTests(testData)
+  }
+
+  @Test
   def testThrowableSerialization: Unit = {
     val a = List(new RuntimeException("Hello"), new RuntimeException("there"))
 

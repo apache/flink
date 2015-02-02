@@ -45,6 +45,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
 import org.apache.flink.api.java.typeutils.EnumTypeInfo;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
@@ -1090,7 +1091,7 @@ public class TypeExtractorTest {
 		};
 		
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.STRING_TYPE_INFO, null, true);
-		Assert.assertTrue(ti instanceof MissingTypeInfo);
+		Assert.assertTrue(ti instanceof GenericTypeInfo);
 
 		RichMapFunction<String, ?> function2 = new RichMapFunction<String, AbstractClass>() {
 			private static final long serialVersionUID = 1L;
@@ -1102,7 +1103,7 @@ public class TypeExtractorTest {
 		};
 
 		TypeInformation<?> ti2 = TypeExtractor.getMapReturnTypes(function2, BasicTypeInfo.STRING_TYPE_INFO, null, true);
-		Assert.assertTrue(ti2 instanceof MissingTypeInfo);
+		Assert.assertTrue(ti2 instanceof GenericTypeInfo);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
