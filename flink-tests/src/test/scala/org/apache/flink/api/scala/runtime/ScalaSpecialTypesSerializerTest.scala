@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.runtime
 
+import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
 import org.junit.Assert._
 
 import org.apache.flink.api.common.typeutils.{TypeSerializer, SerializerTestInstance}
@@ -116,7 +117,9 @@ class ScalaSpecialTypesSerializerTestInstance[T](
     try {
       val serializer: TypeSerializer[T] = getSerializer
       val instance: T = serializer.createInstance
-      assertNotNull("The created instance must not be null.", instance)
+      if (!serializer.isInstanceOf[KryoSerializer[_]]) {
+        assertNotNull("The created instance must not be null.", instance)
+      }
       val tpe: Class[T] = getTypeClass
       assertNotNull("The test is corrupt: type class is null.", tpe)
       // We cannot check this because Collection Instances are not always of the type

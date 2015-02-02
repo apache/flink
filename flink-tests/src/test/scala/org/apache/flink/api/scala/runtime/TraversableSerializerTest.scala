@@ -55,7 +55,7 @@ class TraversableSerializerTest {
     runTests(testData)
   }
 
-  @Test(expected = classOf[InvalidTypesException])
+  @Test
   def testSortedMap(): Unit = {
     // SortedSet is not supported right now.
     val testData = Array(SortedMap("Hello" -> 1, "World" -> 2), SortedMap("Foo" -> 42))
@@ -68,7 +68,7 @@ class TraversableSerializerTest {
     runTests(testData)
   }
 
-  @Test(expected = classOf[InvalidTypesException])
+  @Test
   def testSortedSet(): Unit = {
     // SortedSet is not supported right now.
     val testData = Array(SortedSet(1,2,3), SortedSet(2,3))
@@ -118,10 +118,9 @@ class TraversableSerializerTest {
   }
 
   @Test
-  @Ignore
   def testWithMixedPrimitives(): Unit = {
     // Does not work yet because the GenericTypeInfo used for the elements will
-    // have a typeClass of Object, and therefore not deserializer the elements correctly.
+    // have a typeClass of Object, and therefore not deserialize the elements correctly.
     // It does work when used in a Job, though. Because the Objects get cast to
     // the correct type in the user function.
     val testData = Array(Seq(1,1L,1d,true,"Hello"), Seq(2,2L,2d,false,"Ciao"))

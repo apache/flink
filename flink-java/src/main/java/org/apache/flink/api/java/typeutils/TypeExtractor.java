@@ -893,6 +893,10 @@ public class TypeExtractor {
 		while (!(isClassType(curT) && typeToClass(curT).equals(stopAtClass))) {
 			typeHierarchy.add(curT);
 			curT = typeToClass(curT).getGenericSuperclass();
+
+			if (curT == null) {
+				break;
+			}
 		}
 		return curT;
 	}
@@ -1090,11 +1094,6 @@ public class TypeExtractor {
 			ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		Validate.notNull(clazz);
 		
-		// check for abstract classes or interfaces
-		if (!clazz.isPrimitive() && (Modifier.isInterface(clazz.getModifiers()) || (Modifier.isAbstract(clazz.getModifiers()) && !clazz.isArray()))) {
-			throw new InvalidTypesException("Interfaces and abstract classes are not valid types: " + clazz);
-		}
-
 		if (clazz.equals(Object.class)) {
 			return new GenericTypeInfo<OUT>(clazz);
 		}
@@ -1152,6 +1151,11 @@ public class TypeExtractor {
 		}
 
 		alreadySeen.add(clazz);
+
+		if (Modifier.isInterface(clazz.getModifiers())) {
+			// Interface has no members and is therefore not handled as POJO
+			return new GenericTypeInfo<OUT>(clazz);
+		}
 
 		if (clazz.equals(Class.class)) {
 			// special case handling for Class, this should not be handled by the POJO logic
@@ -1228,10 +1232,10 @@ public class TypeExtractor {
 				return true;
 			} else {
 				if(!hasGetter) {
-					LOG.warn("Class "+clazz+" does not contain a getter for field "+f.getName() );
+					LOG.debug("Class "+clazz+" does not contain a getter for field "+f.getName() );
 				}
 				if(!hasSetter) {
-					LOG.warn("Class "+clazz+" does not contain a setter for field "+f.getName() );
+					LOG.debug("Class "+clazz+" does not contain a setter for field "+f.getName() );
 				}
 				return false;
 			}
@@ -1251,11 +1255,16 @@ public class TypeExtractor {
 		}
 		
 		List<Field> fields = getAllDeclaredFields(clazz);
+		if(fields.size() == 0) {
+			LOG.info("No fields detected for class " + clazz + ". Cannot be used as a PojoType. Will be handled as GenericType");
+			return new GenericTypeInfo<OUT>(clazz);
+		}
+
 		List<PojoField> pojoFields = new ArrayList<PojoField>();
 		for (Field field : fields) {
 			Type fieldType = field.getGenericType();
 			if(!isValidPojoField(field, clazz, typeHierarchy)) {
-				LOG.warn("Class "+clazz+" is not a valid POJO type");
+				LOG.info("Class " + clazz + " is not a valid POJO type");
 				return null;
 			}
 			try {
@@ -1281,7 +1290,7 @@ public class TypeExtractor {
 		List<Method> methods = getAllDeclaredMethods(clazz);
 		for (Method method : methods) {
 			if (method.getName().equals("readObject") || method.getName().equals("writeObject")) {
-				LOG.warn("Class "+clazz+" contains custom serialization methods we do not call.");
+				LOG.info("Class "+clazz+" contains custom serialization methods we do not call.");
 				return null;
 			}
 		}
@@ -1291,8 +1300,13 @@ public class TypeExtractor {
 		try {
 			clazz.getDeclaredConstructor();
 		} catch (NoSuchMethodException e) {
-			LOG.warn("Class " + clazz + " must have a default constructor to be used as a POJO.");
-			return null;
+			if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
+				LOG.info("Class " + clazz + " is abstract or an interface, having a concrete " +
+						"type can increase performance.");
+			} else {
+				LOG.info("Class " + clazz + " must have a default constructor to be used as a POJO.");
+				return null;
+			}
 		}
 		
 		// everything is checked, we return the pojo
