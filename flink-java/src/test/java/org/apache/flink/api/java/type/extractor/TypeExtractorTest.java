@@ -314,7 +314,7 @@ public class TypeExtractorTest {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
-	public void testCustomType() {
+	public void testPojo() {
 		// use getCrossReturnTypes()
 		RichCrossFunction<?, ?, ?> function = new RichCrossFunction<CustomType, Integer, CustomType>() {
 			private static final long serialVersionUID = 1L;
@@ -363,7 +363,7 @@ public class TypeExtractorTest {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
-	public void testTupleWithCustomType() {
+	public void testTupleWithPojo() {
 		// use getMapReturnTypes()
 		RichMapFunction<?, ?> function = new RichMapFunction<Tuple2<Long, CustomType>, Tuple2<Long, CustomType>>() {
 			private static final long serialVersionUID = 1L;
@@ -1659,5 +1659,79 @@ public class TypeExtractorTest {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) mf, new EnumTypeInfo(MyEnum.class));
 		Assert.assertTrue(ti instanceof EnumTypeInfo);
 		Assert.assertEquals(ti.getTypeClass(), MyEnum.class);
+	}
+	
+	public static class MapperWithMultiDimGenericArray<T> implements MapFunction<T[][][], Tuple1<T>[][][]> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple1<T>[][][] map(T[][][] value) throws Exception {
+			return null;
+		}
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testMultiDimensionalArray() {
+		// tuple array
+		MapFunction<?,?> function = new MapFunction<Tuple2<Integer, Double>[][], Tuple2<Integer, Double>[][]>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Tuple2<Integer, Double>[][] map(
+					Tuple2<Integer, Double>[][] value) throws Exception {
+				return null;
+			}
+		};
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInfoParser.parse("Tuple2<Integer, Double>[][]"));
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple2<Integer, Double>>>", ti.toString());
+
+		// primitive array
+		function = new MapFunction<int[][][], int[][][]>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public int[][][] map(
+					int[][][] value) throws Exception {
+				return null;
+			}
+		};
+		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInfoParser.parse("int[][][]"));
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<int[]>>", ti.toString());
+
+		// basic array
+		function = new MapFunction<Integer[][][], Integer[][][]>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Integer[][][] map(
+					Integer[][][] value) throws Exception {
+				return null;
+			}
+		};
+		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInfoParser.parse("Integer[][][]"));
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<BasicArrayTypeInfo<Integer>>>", ti.toString());
+
+		// pojo array
+		function = new MapFunction<CustomType[][][], CustomType[][][]>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public CustomType[][][] map(
+					CustomType[][][] value) throws Exception {
+				return null;
+			}
+		};
+		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomType<"
+				+ "myField1=String,myField2=int"
+				+ ">[][][]"));
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<"
+				+ "PojoType<org.apache.flink.api.java.type.extractor.TypeExtractorTest.CustomType, fields = [myField1: String, myField2: Integer]>"
+				+ ">>>", ti.toString());
+		
+		// generic array
+		// TODO depends on #315
+		//ti = TypeExtractor.getMapReturnTypes((MapFunction) new MapperWithMultiDimGenericArray<String>(), TypeInfoParser.parse("String[][][]"));
+		//Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple1<String>>>>",);
 	}
 }
