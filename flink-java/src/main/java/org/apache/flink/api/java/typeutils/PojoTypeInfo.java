@@ -161,7 +161,7 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 					offset += this.getTypeAt(i).getTotalFields();
 				}
 				// add all fields of composite type
-				((CompositeType) fieldType).getFlatFields("*", offset, result);
+				((CompositeType<?>) fieldType).getFlatFields("*", offset, result);
 				return;
 			} else {
 				// we found the field to add
@@ -180,7 +180,7 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 				for(int i=0; i<fieldPos; i++) {
 					offset += this.getTypeAt(i).getTotalFields();
 				}
-				((CompositeType) fieldType).getFlatFields(tail, offset, result);
+				((CompositeType<?>) fieldType).getFlatFields(tail, offset, result);
 				// nothing left to do
 				return;
 			} else {
@@ -189,7 +189,9 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 		}
 	}
 
-	public TypeInformation<?> getTypeAt(String fieldExpression) {
+	@SuppressWarnings("unchecked")
+	@Override
+	public <X> TypeInformation<X> getTypeAt(String fieldExpression) {
 
 		Matcher matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression);
 		if(!matcher.matches()) {
@@ -218,10 +220,10 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 		String tail = matcher.group(3);
 		if(tail == null) {
 			// we found the type
-			return fieldType;
+			return (TypeInformation<X>) fieldType;
 		} else {
 			if(fieldType instanceof CompositeType<?>) {
-				return ((CompositeType) fieldType).getTypeAt(tail);
+				return ((CompositeType<?>) fieldType).getTypeAt(tail);
 			} else {
 				throw new InvalidFieldReferenceException("Nested field expression \""+tail+"\" not possible on atomic type "+fieldType+".");
 			}

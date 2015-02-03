@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.junit.Test;
 
-@SuppressWarnings("unused")
 public class PojoTypeInformationTest {
 
 	public static class SimplePojo {

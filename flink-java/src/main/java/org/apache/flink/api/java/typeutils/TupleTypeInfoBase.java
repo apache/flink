@@ -145,7 +145,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 					offset += this.getTypeAt(i).getTotalFields();
 				}
 				// add all fields of composite type
-				((CompositeType) fieldType).getFlatFields("*", offset, result);
+				((CompositeType<?>) fieldType).getFlatFields("*", offset, result);
 				return;
 			} else {
 				// we found the field to add
@@ -164,7 +164,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 				for(int i=0; i<fieldPos; i++) {
 					offset += this.getTypeAt(i).getTotalFields();
 				}
-				((CompositeType) fieldType).getFlatFields(tail, offset, result);
+				((CompositeType<?>) fieldType).getFlatFields(tail, offset, result);
 				// nothing left to do
 				return;
 			} else {
@@ -202,7 +202,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 			return fieldType;
 		} else {
 			if(fieldType instanceof CompositeType<?>) {
-				return ((CompositeType) fieldType).getTypeAt(tail);
+				return ((CompositeType<?>) fieldType).getTypeAt(tail);
 			} else {
 				throw new InvalidFieldReferenceException("Nested field expression \""+tail+"\" not possible on atomic type "+fieldType+".");
 			}

@@ -554,7 +554,7 @@ public class SemanticPropUtil {
 				throw new InvalidFieldReferenceException("Invalid field expression \""+fieldStr+"\".");
 			}
 			if(typeInfo instanceof CompositeType<?>) {
-				return ((CompositeType) typeInfo).getTypeAt(expMatcher.group(1));
+				return ((CompositeType<?>) typeInfo).getTypeAt(expMatcher.group(1));
 			} else {
 				throw new InvalidFieldReferenceException("Nested field expression \""+fieldStr+"\" not possible on atomic type ("+typeInfo+").");
 			}
@@ -563,7 +563,7 @@ public class SemanticPropUtil {
 
 	private static List<FlatFieldDescriptor> getFlatFields(String fieldStr, TypeInformation<?> typeInfo) {
 		if(typeInfo instanceof CompositeType<?>) {
-			return ((CompositeType) typeInfo).getFlatFields(fieldStr);
+			return ((CompositeType<?>) typeInfo).getFlatFields(fieldStr);
 		} else {
 			Matcher wildcardMatcher = PATTERN_WILDCARD.matcher(fieldStr);
 			if(wildcardMatcher.matches()) {
