@@ -42,7 +42,7 @@ public class CollectionExecutionWithBroadcastVariableTest {
 	@Test
 	public void testUnaryOp() {
 		try {
-			ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
+			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 			
 			DataSet<String> bcData = env.fromElements(SUFFIX);
 			
@@ -68,7 +68,7 @@ public class CollectionExecutionWithBroadcastVariableTest {
 	@Test
 	public void testBinaryOp() {
 		try {
-			ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
+			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 			
 			DataSet<String> bcData = env.fromElements(SUFFIX);
 			DataSet<String> inData = env.fromElements(TEST_DATA);

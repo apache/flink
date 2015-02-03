@@ -865,7 +865,7 @@ public abstract class ExecutionEnvironment {
 	 * memory. Degree of parallelism will always be 1. This is useful during implementation and for debugging.
 	 * @return A Collection Environment
 	 */
-	public static CollectionEnvironment createCollectionEnvironment(){
+	public static CollectionEnvironment createCollectionsEnvironment(){
 		CollectionEnvironment ce = new CollectionEnvironment();
 		ce.setDegreeOfParallelism(1);
 		return ce;

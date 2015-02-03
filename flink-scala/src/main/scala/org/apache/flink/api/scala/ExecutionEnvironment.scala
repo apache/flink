@@ -493,7 +493,7 @@ object ExecutionEnvironment {
    * memory. This is useful during implementation and for debugging.
    * @return
    */
-  def createCollectionEnvironment: ExecutionEnvironment = {
+  def createCollectionsEnvironment: ExecutionEnvironment = {
     new ExecutionEnvironment(new CollectionEnvironment)
   }
 

@@ -72,7 +72,7 @@ public class CollectionExecutionExample {
 	}
 	public static void main(String[] args) throws Exception {
 		// initialize a new Collection-based execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 		
 		// create objects for users and emails
 		User[] usersArray = { new User(1, "Peter"), new User(2, "John"), new User(3, "Bill") };

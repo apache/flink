@@ -44,7 +44,7 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 	@Test
 	public void testBulkIteration() {
 		try {
-			ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
+			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 			
 			IterativeDataSet<Integer> iteration = env.fromElements(1).iterate(10);
 			
@@ -67,7 +67,7 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 	@Test
 	public void testBulkIterationWithTerminationCriterion() {
 		try {
-			ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
+			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 			
 			IterativeDataSet<Integer> iteration = env.fromElements(1).iterate(100);
 			
@@ -98,7 +98,7 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 	@Test
 	public void testDeltaIteration() {
 		try {
-			ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
+			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple2<Integer, Integer>> solInput = env.fromElements(
