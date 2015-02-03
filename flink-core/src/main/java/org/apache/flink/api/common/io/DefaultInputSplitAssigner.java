@@ -51,7 +51,7 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 	
 	
 	@Override
-	public InputSplit getNextInputSplit(String host) {
+	public InputSplit getNextInputSplit(String host, int taskId) {
 		InputSplit next = null;
 		
 		// keep the synchronized part short

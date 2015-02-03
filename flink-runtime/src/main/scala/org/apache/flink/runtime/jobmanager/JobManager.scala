@@ -298,6 +298,7 @@ class JobManager(val configuration: Configuration)
             null
           }else{
             val slot = execution.getAssignedResource
+            val taskId = execution.getVertex.getParallelSubtaskIndex
 
             val host = if(slot != null){
               slot.getInstance().getInstanceConnectionInfo.getHostname
@@ -307,7 +308,8 @@ class JobManager(val configuration: Configuration)
 
             executionGraph.getJobVertex(vertexID) match {
               case vertex: ExecutionJobVertex => vertex.getSplitAssigner match {
-                case splitAssigner: InputSplitAssigner => splitAssigner.getNextInputSplit(host)
+                case splitAssigner: InputSplitAssigner =>
+                  splitAssigner.getNextInputSplit(host, taskId)
                 case _ =>
                   log.error("No InputSplitAssigner for vertex ID {}.", vertexID)
                   null
