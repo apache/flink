@@ -38,7 +38,7 @@ public abstract class OperatorDescriptorSingle implements AbstractOperatorDescri
 	
 	protected final FieldSet keys;			// the set of key fields
 	protected final FieldList keyList;		// the key fields with ordered field positions
-	
+
 	private List<RequestedGlobalProperties> globalProps;
 	private List<RequestedLocalProperties> localProps;
 	
@@ -51,8 +51,8 @@ public abstract class OperatorDescriptorSingle implements AbstractOperatorDescri
 		this.keys = keys;
 		this.keyList = keys == null ? null : keys.toFieldList();
 	}
-	
-	
+
+
 	public List<RequestedGlobalProperties> getPossibleGlobalProperties() {
 		if (this.globalProps == null) {
 			this.globalProps = createPossibleGlobalProperties();
@@ -66,7 +66,7 @@ public abstract class OperatorDescriptorSingle implements AbstractOperatorDescri
 		}
 		return this.localProps;
 	}
-	
+
 	/**
 	 * Returns a list of global properties that are required by this operator descriptor.
 	 * 

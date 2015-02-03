@@ -59,7 +59,7 @@ public class GlobalPropertiesFilteringTest {
 
 		GlobalProperties result = gprops.filterBySemanticProperties(semProps, 0);
 
-		assertEquals(PartitioningProperty.RANDOM, result.getPartitioning());
+		assertEquals(PartitioningProperty.RANDOM_PARTITIONED, result.getPartitioning());
 		assertNull(result.getPartitioningFields());
 		assertNull(result.getPartitioningOrdering());
 		assertNull(result.getUniqueFieldCombination());
@@ -78,7 +78,7 @@ public class GlobalPropertiesFilteringTest {
 
 		GlobalProperties result = gprops.filterBySemanticProperties(semProps, 0);
 
-		assertEquals(PartitioningProperty.RANDOM, result.getPartitioning());
+		assertEquals(PartitioningProperty.RANDOM_PARTITIONED, result.getPartitioning());
 		assertNull(result.getPartitioningFields());
 		assertNull(result.getPartitioningOrdering());
 		assertNull(result.getUniqueFieldCombination());
@@ -133,7 +133,7 @@ public class GlobalPropertiesFilteringTest {
 
 		GlobalProperties result = gprops.filterBySemanticProperties(sprops, 0);
 
-		assertEquals(PartitioningProperty.RANDOM, result.getPartitioning());
+		assertEquals(PartitioningProperty.RANDOM_PARTITIONED, result.getPartitioning());
 		assertNull(result.getPartitioningFields());
 	}
 
@@ -186,7 +186,7 @@ public class GlobalPropertiesFilteringTest {
 
 		GlobalProperties result = gprops.filterBySemanticProperties(sprops, 0);
 
-		assertEquals(PartitioningProperty.RANDOM, result.getPartitioning());
+		assertEquals(PartitioningProperty.RANDOM_PARTITIONED, result.getPartitioning());
 		assertNull(result.getPartitioningFields());
 	}
 
@@ -242,7 +242,7 @@ public class GlobalPropertiesFilteringTest {
 
 		GlobalProperties result = gprops.filterBySemanticProperties(sprops, 0);
 
-		assertEquals(PartitioningProperty.RANDOM, result.getPartitioning());
+		assertEquals(PartitioningProperty.RANDOM_PARTITIONED, result.getPartitioning());
 		assertNull(result.getPartitioningFields());
 		assertNull(result.getCustomPartitioner());
 	}
@@ -330,7 +330,7 @@ public class GlobalPropertiesFilteringTest {
 
 		GlobalProperties result = gprops.filterBySemanticProperties(sprops, 0);
 
-		assertEquals(PartitioningProperty.RANDOM, result.getPartitioning());
+		assertEquals(PartitioningProperty.RANDOM_PARTITIONED, result.getPartitioning());
 		assertNull(result.getPartitioningOrdering());
 		assertNull(result.getPartitioningFields());
 	}

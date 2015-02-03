@@ -47,7 +47,9 @@ public class CollectorMapDescriptor extends OperatorDescriptorSingle {
 
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
-		return Collections.singletonList(new RequestedGlobalProperties());
+		RequestedGlobalProperties rgp = new RequestedGlobalProperties();
+		rgp.setAnyDistribution();
+		return Collections.singletonList(rgp);
 	}
 
 	@Override
@@ -58,7 +60,7 @@ public class CollectorMapDescriptor extends OperatorDescriptorSingle {
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
-				gProps.getPartitioning() == PartitioningProperty.RANDOM)
+				gProps.getPartitioning() == PartitioningProperty.RANDOM_PARTITIONED)
 		{
 			gProps.setAnyPartitioning(gProps.getUniqueFieldCombination().iterator().next().toFieldList());
 		}

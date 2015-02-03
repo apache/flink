@@ -22,11 +22,16 @@ package org.apache.flink.compiler.dataproperties;
  * An enumeration tracking the different types of sharding strategies.
  */
 public enum PartitioningProperty {
-	
+
+	/**
+	 * Any data distribution, i.e., random partitioning or full replication.
+	 */
+	ANY_DISTRIBUTION,
+
 	/**
 	 * Constant indicating no particular partitioning (i.e. random) data distribution.
 	 */
-	RANDOM,
+	RANDOM_PARTITIONED,
 
 	/**
 	 * Constant indicating a hash partitioning.
@@ -85,7 +90,7 @@ public enum PartitioningProperty {
 	 * @return True, if the data is partitioned on a key.
 	 */
 	public boolean isPartitionedOnKey() {
-		return isPartitioned() && this != RANDOM;
+		return isPartitioned() && this != RANDOM_PARTITIONED;
 	}
 
 	/**

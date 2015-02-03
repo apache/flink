@@ -17,6 +17,7 @@
  */
 package org.apache.flink.compiler;
 
+import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.junit.Assert;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.operators.FileDataSink;
@@ -257,8 +258,15 @@ public class DOPChangeTest extends CompilerTestBase {
 		// mapper respectively reducer
 		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
 		SingleInputPlanNode red2Node = (SingleInputPlanNode) sinkNode.getPredecessor();
+		SingleInputPlanNode map2Node = (SingleInputPlanNode) red2Node.getPredecessor();
 
-		Assert.assertEquals("The Reduce 2 Node has an invalid local strategy.", LocalStrategy.SORT, red2Node.getInput().getLocalStrategy());
+		Assert.assertTrue("The no sorting local strategy.",
+				LocalStrategy.SORT == red2Node.getInput().getLocalStrategy() ||
+						LocalStrategy.SORT == map2Node.getInput().getLocalStrategy());
+
+		Assert.assertTrue("The no partitioning ship strategy.",
+				ShipStrategyType.PARTITION_HASH == red2Node.getInput().getShipStrategy() ||
+						ShipStrategyType.PARTITION_HASH == map2Node.getInput().getShipStrategy());
 	}
 
 	/**

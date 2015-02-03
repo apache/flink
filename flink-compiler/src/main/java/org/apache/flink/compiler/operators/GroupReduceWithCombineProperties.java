@@ -146,7 +146,7 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
-				gProps.getPartitioning() == PartitioningProperty.RANDOM)
+				gProps.getPartitioning() == PartitioningProperty.RANDOM_PARTITIONED)
 		{
 			gProps.setAnyPartitioning(gProps.getUniqueFieldCombination().iterator().next().toFieldList());
 		}

@@ -300,6 +300,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 			return this.cachedPlans;
 		}
 
+		boolean childrenSkippedDueToReplicatedInput = false;
+
 		// step down to all producer nodes and calculate alternative plans
 		final List<? extends PlanNode> subPlans1 = getFirstPredecessorNode().getAlternativePlans(estimator);
 		final List<? extends PlanNode> subPlans2 = getSecondPredecessorNode().getAlternativePlans(estimator);
@@ -353,7 +355,30 @@ public abstract class TwoInputNode extends OptimizerNode {
 		
 		// create all candidates
 		for (PlanNode child1 : subPlans1) {
+
+			if(child1.getGlobalProperties().isFullyReplicated()) {
+				// fully replicated input is always locally forwarded if DOP is not changed
+				if(dopChange1) {
+					// can not continue with this child
+					childrenSkippedDueToReplicatedInput = true;
+					continue;
+				} else {
+					this.input1.setShipStrategy(ShipStrategyType.FORWARD);
+				}
+			}
+
 			for (PlanNode child2 : subPlans2) {
+
+				if(child2.getGlobalProperties().isFullyReplicated()) {
+					// fully replicated input is always locally forwarded if DOP is not changed
+					if(dopChange2) {
+						// can not continue with this child
+						childrenSkippedDueToReplicatedInput = true;
+						continue;
+					} else {
+						this.input2.setShipStrategy(ShipStrategyType.FORWARD);
+					}
+				}
 				
 				// check that the children go together. that is the case if they build upon the same
 				// candidate at the joined branch plan. 
@@ -454,6 +479,14 @@ public abstract class TwoInputNode extends OptimizerNode {
 						break;
 					}
 				}
+			}
+		}
+
+		if(outputPlans.isEmpty()) {
+			if(childrenSkippedDueToReplicatedInput) {
+				throw new CompilerException("No plan meeting the requirements could be created @ " + this + ". Most likely reason: Invalid use of replicated input.");
+			} else {
+				throw new CompilerException("No plan meeting the requirements could be created @ " + this + ". Most likely reason: Too restrictive plan hints.");
 			}
 		}
 

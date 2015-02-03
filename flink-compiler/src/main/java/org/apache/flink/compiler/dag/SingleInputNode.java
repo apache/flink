@@ -240,6 +240,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 			return this.cachedPlans;
 		}
 
+		boolean childrenSkippedDueToReplicatedInput = false;
+
 		// calculate alternative sub-plans for predecessor
 		final List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
 		final Set<RequestedGlobalProperties> intGlobal = this.inConn.getInterestingProperties().getGlobalProperties();
@@ -279,6 +281,18 @@ public abstract class SingleInputNode extends OptimizerNode {
 
 		// create all candidates
 		for (PlanNode child : subPlans) {
+
+			if(child.getGlobalProperties().isFullyReplicated()) {
+				// fully replicated input is always locally forwarded if DOP is not changed
+				if(dopChange) {
+					// can not continue with this child
+					childrenSkippedDueToReplicatedInput = true;
+					continue;
+				} else {
+					this.inConn.setShipStrategy(ShipStrategyType.FORWARD);
+				}
+			}
+
 			if (this.inConn.getShipStrategy() == null) {
 				// pick the strategy ourselves
 				for (RequestedGlobalProperties igps: intGlobal) {
@@ -325,7 +339,15 @@ public abstract class SingleInputNode extends OptimizerNode {
 				}
 			}
 		}
-		
+
+		if(outputPlans.isEmpty()) {
+			if(childrenSkippedDueToReplicatedInput) {
+				throw new CompilerException("No plan meeting the requirements could be created @ " + this + ". Most likely reason: Invalid use of replicated input.");
+			} else {
+				throw new CompilerException("No plan meeting the requirements could be created @ " + this + ". Most likely reason: Too restrictive plan hints.");
+			}
+		}
+
 		// cost and prune the plans
 		for (PlanNode node : outputPlans) {
 			estimator.costOperator(node);
