@@ -240,9 +240,10 @@ public class FlinkYarnSessionCli {
 	public static AbstractFlinkYarnClient getFlinkYarnClient() {
 		AbstractFlinkYarnClient yarnClient = null;
 		try {
-			Class<AbstractFlinkYarnClient> yarnClientClass = (Class<AbstractFlinkYarnClient>) Class.forName("org.apache.flink.yarn.FlinkYarnClient");
+			Class<? extends AbstractFlinkYarnClient> yarnClientClass = Class.forName("org.apache.flink.yarn.FlinkYarnClient").asSubclass(AbstractFlinkYarnClient.class);
 			yarnClient = InstantiationUtil.instantiate(yarnClientClass, AbstractFlinkYarnClient.class);
-		} catch (ClassNotFoundException e) {
+		}
+		catch (ClassNotFoundException e) {
 			System.err.println("Unable to locate the Flink YARN Client. Please ensure that you are using a Flink build with Hadoop2/YARN support. Message: "+e.getMessage());
 			e.printStackTrace(System.err);
 			return null; // make it obvious

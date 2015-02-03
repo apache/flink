@@ -37,8 +37,6 @@ import java.util.Map;
 import org.apache.flink.util.ClassUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An abstract base class for a fairly generic file system. It
@@ -46,7 +44,6 @@ import org.slf4j.LoggerFactory;
  * one that reflects the locally-connected disk.
  */
 public abstract class FileSystem {
-	private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
 
 	private static final String LOCAL_FILESYSTEM_CLASS = "org.apache.flink.core.fs.local.LocalFileSystem";
 	

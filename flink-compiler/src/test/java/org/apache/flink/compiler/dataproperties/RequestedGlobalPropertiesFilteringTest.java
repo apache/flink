@@ -34,10 +34,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
-import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
 
 public class RequestedGlobalPropertiesFilteringTest {
 
@@ -53,7 +51,7 @@ public class RequestedGlobalPropertiesFilteringTest {
 		RequestedGlobalProperties rgProps = new RequestedGlobalProperties();
 		rgProps.setAnyPartitioning(new FieldSet(0,1,2));
 
-		RequestedGlobalProperties filtered = rgProps.filterBySemanticProperties(null, 0);
+		rgProps.filterBySemanticProperties(null, 0);
 	}
 
 	@Test

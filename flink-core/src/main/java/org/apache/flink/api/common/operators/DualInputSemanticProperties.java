@@ -160,8 +160,6 @@ public class DualInputSemanticProperties implements SemanticProperties {
 	 */
 	public void addReadFields(int input, FieldSet readFields) {
 
-		FieldSet curReadFields;
-
 		if (input != 0 && input != 1) {
 			throw new IndexOutOfBoundsException();
 		} else if (input == 0) {
@@ -175,5 +173,4 @@ public class DualInputSemanticProperties implements SemanticProperties {
 	public String toString() {
 		return "DISP(" + this.fieldMapping1 + "; " + this.fieldMapping2 + ")";
 	}
-
 }

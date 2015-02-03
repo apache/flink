@@ -21,8 +21,9 @@ public interface HadoopFileSystemWrapper {
 
 	/**
 	 * Test whether the HadoopWrapper can wrap the given file system scheme.
-	 * @param scheme
-	 * @return
+	 * 
+	 * @param scheme The scheme of the file system.
+	 * @return The class implementing the file system.
 	 */
 	public Class<?> getHadoopWrapperClassNameForFileSystem(String scheme);
 }

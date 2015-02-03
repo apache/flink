@@ -24,7 +24,6 @@ import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
-import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
@@ -33,7 +32,6 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
-import org.junit.Assert;
 import org.junit.Test;
 
 public class RequestedLocalPropertiesFilteringTest {
@@ -50,7 +48,7 @@ public class RequestedLocalPropertiesFilteringTest {
 		RequestedLocalProperties rlProp = new RequestedLocalProperties();
 		rlProp.setGroupedFields(new FieldSet(0, 2, 3));
 
-		RequestedLocalProperties filtered = rlProp.filterBySemanticProperties(null, 0);
+		rlProp.filterBySemanticProperties(null, 0);
 	}
 
 	@Test

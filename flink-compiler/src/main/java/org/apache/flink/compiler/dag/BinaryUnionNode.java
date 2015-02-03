@@ -271,6 +271,8 @@ public class BinaryUnionNode extends TwoInputNode {
 
 	public static class UnionSemanticProperties implements SemanticProperties {
 
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public FieldSet getForwardingTargetFields(int input, int sourceField) {
 			if (input != 0 && input != 1) {

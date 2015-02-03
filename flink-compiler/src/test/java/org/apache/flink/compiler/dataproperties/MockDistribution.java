@@ -25,6 +25,7 @@ import org.apache.flink.types.Key;
 
 import java.io.IOException;
 
+@SuppressWarnings("serial")
 public class MockDistribution implements DataDistribution {
 
 	@Override

@@ -19,7 +19,6 @@
 package org.apache.flink.compiler.dataproperties;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
 
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;

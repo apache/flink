@@ -135,8 +135,6 @@ public class CliFrontend {
 	public static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
 	// this has to be a regex for String.split()
 	public static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@";
-	private static final String DEFAULT_LOG4J_PATTERN_LAYOUT = "%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n";
-
 	
 
 	private CommandLineParser parser;

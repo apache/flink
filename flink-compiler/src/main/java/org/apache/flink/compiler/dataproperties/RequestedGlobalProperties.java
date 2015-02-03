@@ -197,8 +197,6 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * @return The filtered RequestedGlobalProperties
 	 */
 	public RequestedGlobalProperties filterBySemanticProperties(SemanticProperties props, int input) {
-		RequestedGlobalProperties returnProps = new RequestedGlobalProperties();
-
 		// no semantic properties available. All global properties are filtered.
 		if (props == null) {
 			throw new NullPointerException("SemanticProperties may not be null.");

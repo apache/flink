@@ -32,10 +32,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
-import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Set;
 
 public class LocalPropertiesFilteringTest {
 

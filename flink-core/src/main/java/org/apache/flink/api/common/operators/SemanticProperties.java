@@ -63,6 +63,8 @@ public interface SemanticProperties extends Serializable {
 
 	public static class InvalidSemanticAnnotationException extends InvalidProgramException {
 
+		private static final long serialVersionUID = 1L;
+
 		public InvalidSemanticAnnotationException(String s) {
 			super(s);
 		}
@@ -73,6 +75,8 @@ public interface SemanticProperties extends Serializable {
 	}
 
 	public static class EmptySemanticProperties implements SemanticProperties {
+
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public FieldSet getForwardingTargetFields(int input, int sourceField) {

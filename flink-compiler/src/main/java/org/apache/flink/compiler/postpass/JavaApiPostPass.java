@@ -286,6 +286,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	private static <T> TypeComparatorFactory<?> createComparator(TypeInformation<T> typeInfo, FieldList keys, boolean[] sortOrder) {
 		
 		TypeComparator<T> comparator;
@@ -294,7 +295,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		}
 		else if (typeInfo instanceof AtomicType) {
 			// handle grouping of atomic types
-			comparator = ((AtomicType) typeInfo).createComparator(sortOrder[0]);
+			comparator = ((AtomicType<T>) typeInfo).createComparator(sortOrder[0]);
 		}
 		else {
 			throw new RuntimeException("Unrecognized type: " + typeInfo);
