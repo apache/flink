@@ -25,7 +25,6 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.RichCrossFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
@@ -43,7 +42,7 @@ public class CollectionExecutionWithBroadcastVariableTest {
 	@Test
 	public void testUnaryOp() {
 		try {
-			ExecutionEnvironment env = new CollectionEnvironment();
+			ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
 			
 			DataSet<String> bcData = env.fromElements(SUFFIX);
 			
@@ -69,7 +68,7 @@ public class CollectionExecutionWithBroadcastVariableTest {
 	@Test
 	public void testBinaryOp() {
 		try {
-			ExecutionEnvironment env = new CollectionEnvironment();
+			ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
 			
 			DataSet<String> bcData = env.fromElements(SUFFIX);
 			DataSet<String> inData = env.fromElements(TEST_DATA);

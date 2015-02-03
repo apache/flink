@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
@@ -73,7 +72,7 @@ public class CollectionExecutionExample {
 	}
 	public static void main(String[] args) throws Exception {
 		// initialize a new Collection-based execution environment
-		final ExecutionEnvironment env = new CollectionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.createCollectionEnvironment();
 		
 		// create objects for users and emails
 		User[] usersArray = { new User(1, "Peter"), new User(2, "John"), new User(3, "Bill") };
