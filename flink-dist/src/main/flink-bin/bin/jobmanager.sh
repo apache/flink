@@ -26,19 +26,13 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-if [ "$EXECUTIONMODE" = "local" ]; then
-    FLINK_JM_HEAP=`expr $FLINK_JM_HEAP + $FLINK_TM_HEAP`
-fi
-
 JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/java version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
 
 if [ "$JAVA_VERSION" -lt 18 ]; then
     JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
 fi
 
-if [ "$FLINK_JM_HEAP" -gt 0 ]; then
-    JVM_ARGS="$JVM_ARGS -Xms"$FLINK_JM_HEAP"m -Xmx"$FLINK_JM_HEAP"m"
-fi
+
 
 if [ "$FLINK_IDENT_STRING" = "" ]; then
     FLINK_IDENT_STRING="$USER"
@@ -67,6 +61,27 @@ log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4
 case $STARTSTOP in
 
     (start)
+
+        if [[ ! ${FLINK_JM_HEAP} =~ $IS_NUMBER ]]; then
+            echo "WARNING: Configured job manager heap size is not a number. Falling back to default."
+
+            FLINK_JM_HEAP=0
+        fi
+
+        if [[ ! ${FLINK_TM_HEAP} =~ $IS_NUMBER ]]; then
+            echo "WARNING: Configured task manager heap size is not a number. Falling back to default."
+
+            FLINK_TM_HEAP=0
+        fi
+
+        if [ "$EXECUTIONMODE" = "local" ]; then
+            FLINK_JM_HEAP=`expr $FLINK_JM_HEAP + $FLINK_TM_HEAP`
+        fi
+
+        if [ "$FLINK_JM_HEAP" -gt 0 ]; then
+            JVM_ARGS="$JVM_ARGS -Xms"$FLINK_JM_HEAP"m -Xmx"$FLINK_JM_HEAP"m"
+        fi
+
         mkdir -p "$FLINK_PID_DIR"
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then

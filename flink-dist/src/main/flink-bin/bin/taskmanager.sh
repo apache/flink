@@ -57,13 +57,20 @@ if [ "$JAVA_VERSION" -lt 18 ]; then
     JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
 fi
 
-if [ "$FLINK_TM_HEAP" -gt 0 ]; then
-    JVM_ARGS="$JVM_ARGS -Xms"$FLINK_TM_HEAP"m -Xmx"$FLINK_TM_HEAP"m"
-fi
-
 case $STARTSTOP in
 
     (start)
+
+        if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]]; then
+            echo "WARNING: Configured task manager heap size is not a number. Falling back to default."
+
+            FLINK_TM_HEAP=0
+        fi
+
+        if [ "$FLINK_TM_HEAP" -gt 0 ]; then
+            JVM_ARGS="$JVM_ARGS -Xms"$FLINK_TM_HEAP"m -Xmx"$FLINK_TM_HEAP"m"
+        fi
+
         mkdir -p "$FLINK_PID_DIR"
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then

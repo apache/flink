@@ -153,6 +153,8 @@ if [ -z "${HOSTNAME}" ]; then
     HOSTNAME=`hostname`
 fi
 
+IS_NUMBER="^[0-9]+$"
+
 # Define FLINK_JM_HEAP if it is not already set
 if [ -z "${FLINK_JM_HEAP}" ]; then
     FLINK_JM_HEAP=$(readFromConfig ${KEY_JOBM_HEAP_MB} 0 "${YAML_CONF}")
