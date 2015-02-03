@@ -61,7 +61,7 @@ public class GlobalProperties implements Cloneable {
 	 * Initializes the global properties with no partitioning.
 	 */
 	public GlobalProperties() {
-		this.partitioning = PartitioningProperty.RANDOM;
+		this.partitioning = PartitioningProperty.RANDOM_PARTITIONED;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -102,8 +102,8 @@ public class GlobalProperties implements Cloneable {
 		this.ordering = null;
 	}
 	
-	public void setRandomDistribution() {
-		this.partitioning = PartitioningProperty.RANDOM;
+	public void setRandomPartitioned() {
+		this.partitioning = PartitioningProperty.RANDOM_PARTITIONED;
 		this.partitioningFields = null;
 		this.ordering = null;
 	}
@@ -224,14 +224,14 @@ public class GlobalProperties implements Cloneable {
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
 	 */
 	public boolean isTrivial() {
-		return partitioning == PartitioningProperty.RANDOM;
+		return partitioning == PartitioningProperty.RANDOM_PARTITIONED;
 	}
 
 	/**
 	 * This method resets the properties to a state where no properties are given.
 	 */
 	public void reset() {
-		this.partitioning = PartitioningProperty.RANDOM;
+		this.partitioning = PartitioningProperty.RANDOM_PARTITIONED;
 		this.ordering = null;
 		this.partitioningFields = null;
 	}
@@ -254,8 +254,6 @@ public class GlobalProperties implements Cloneable {
 
 		// filter partitioning
 		switch(this.partitioning) {
-			case FULL_REPLICATION:
-				return gp;
 			case RANGE_PARTITIONED:
 				// check if ordering is preserved
 				Ordering newOrdering = new Ordering();
@@ -308,7 +306,8 @@ public class GlobalProperties implements Cloneable {
 				}
 				break;
 			case FORCED_REBALANCED:
-			case RANDOM:
+			case FULL_REPLICATION:
+			case RANDOM_PARTITIONED:
 				gp.partitioning = this.partitioning;
 				break;
 			default:
@@ -350,7 +349,7 @@ public class GlobalProperties implements Cloneable {
 
 	public void parameterizeChannel(Channel channel, boolean globalDopChange) {
 		switch (this.partitioning) {
-			case RANDOM:
+			case RANDOM_PARTITIONED:
 				channel.setShipStrategy(globalDopChange ? ShipStrategyType.PARTITION_RANDOM : ShipStrategyType.FORWARD);
 				break;
 			case FULL_REPLICATION:

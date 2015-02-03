@@ -27,6 +27,7 @@ import java.util.Map;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
+import org.apache.flink.api.common.io.ReplicatingInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
@@ -48,6 +49,8 @@ public class DataSourceNode extends OptimizerNode {
 	
 	private final boolean sequentialInput;
 
+	private final boolean replicatedInput;
+
 	/**
 	 * Creates a new DataSourceNode for the given contract.
 	 * 
@@ -66,6 +69,12 @@ public class DataSourceNode extends OptimizerNode {
 			this.sequentialInput = true;
 		} else {
 			this.sequentialInput = false;
+		}
+
+		if (pactContract.getUserCodeWrapper().getUserCodeObject() instanceof ReplicatingInputFormat) {
+			this.replicatedInput = true;
+		} else {
+			this.replicatedInput = false;
 		}
 	}
 
@@ -174,17 +183,31 @@ public class DataSourceNode extends OptimizerNode {
 		if (this.cachedPlans != null) {
 			return this.cachedPlans;
 		}
-		
+
 		SourcePlanNode candidate = new SourcePlanNode(this, "DataSource ("+this.getPactContract().getName()+")");
-		candidate.updatePropertiesWithUniqueSets(getUniqueFields());
-		
-		final Costs costs = new Costs();
-		if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatWrapper().getUserCodeClass()) &&
-				this.estimatedOutputSize >= 0)
-		{
-			estimator.addFileInputCost(this.estimatedOutputSize, costs);
+
+		if(!replicatedInput) {
+			candidate.updatePropertiesWithUniqueSets(getUniqueFields());
+
+			final Costs costs = new Costs();
+			if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatWrapper().getUserCodeClass()) &&
+					this.estimatedOutputSize >= 0) {
+				estimator.addFileInputCost(this.estimatedOutputSize, costs);
+			}
+			candidate.setCosts(costs);
+		} else {
+			// replicated input
+			final Costs costs = new Costs();
+			InputFormat<?,?> inputFormat =
+					((ReplicatingInputFormat<?,?>)getPactContract().getFormatWrapper().getUserCodeObject()).getReplicatedInputFormat();
+			if (FileInputFormat.class.isAssignableFrom(inputFormat.getClass()) &&
+					this.estimatedOutputSize >= 0) {
+				estimator.addFileInputCost(this.estimatedOutputSize * this.getDegreeOfParallelism(), costs);
+			}
+			candidate.setCosts(costs);
+
+			candidate.getGlobalProperties().setFullyReplicated();
 		}
-		candidate.setCosts(costs);
 
 		// since there is only a single plan for the data-source, return a list with that element only
 		List<PlanNode> plans = new ArrayList<PlanNode>(1);

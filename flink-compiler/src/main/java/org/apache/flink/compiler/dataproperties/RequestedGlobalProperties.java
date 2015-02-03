@@ -53,7 +53,7 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * Initializes the global properties with no partitioning.
 	 */
 	public RequestedGlobalProperties() {
-		this.partitioning = PartitioningProperty.RANDOM;
+		this.partitioning = PartitioningProperty.RANDOM_PARTITIONED;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -96,8 +96,14 @@ public final class RequestedGlobalProperties implements Cloneable {
 		this.ordering = null;
 	}
 	
-	public void setRandomDistribution() {
-		this.partitioning = PartitioningProperty.RANDOM;
+	public void setRandomPartitioning() {
+		this.partitioning = PartitioningProperty.RANDOM_PARTITIONED;
+		this.partitioningFields = null;
+		this.ordering = null;
+	}
+
+	public void setAnyDistribution() {
+		this.partitioning = PartitioningProperty.ANY_DISTRIBUTION;
 		this.partitioningFields = null;
 		this.ordering = null;
 	}
@@ -174,14 +180,14 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
 	 */
 	public boolean isTrivial() {
-		return this.partitioning == null || this.partitioning == PartitioningProperty.RANDOM;
+		return this.partitioning == null || this.partitioning == PartitioningProperty.RANDOM_PARTITIONED;
 	}
 
 	/**
 	 * This method resets the properties to a state where no properties are given.
 	 */
 	public void reset() {
-		this.partitioning = PartitioningProperty.RANDOM;
+		this.partitioning = PartitioningProperty.RANDOM_PARTITIONED;
 		this.ordering = null;
 		this.partitioningFields = null;
 		this.dataDistribution = null;
@@ -208,7 +214,8 @@ public final class RequestedGlobalProperties implements Cloneable {
 			case FULL_REPLICATION:
 			case FORCED_REBALANCED:
 			case CUSTOM_PARTITIONING:
-			case RANDOM:
+			case RANDOM_PARTITIONED:
+			case ANY_DISTRIBUTION:
 				// make sure that certain properties are not pushed down
 				return null;
 			case HASH_PARTITIONED:
@@ -255,13 +262,15 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * @return True, if the properties are met, false otherwise.
 	 */
 	public boolean isMetBy(GlobalProperties props) {
-		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
+		if (this.partitioning == PartitioningProperty.ANY_DISTRIBUTION) {
+			return true;
+		} else if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
 			return props.isFullyReplicated();
 		}
 		else if (props.isFullyReplicated()) {
 			return false;
 		}
-		else if (this.partitioning == PartitioningProperty.RANDOM) {
+		else if (this.partitioning == PartitioningProperty.RANDOM_PARTITIONED) {
 			return true;
 		}
 		else if (this.partitioning == PartitioningProperty.ANY_PARTITIONING) {
@@ -295,9 +304,17 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * @param globalDopChange
 	 */
 	public void parameterizeChannel(Channel channel, boolean globalDopChange) {
+
+		// safety check. Fully replicated input must be preserved.
+		if(channel.getSource().getGlobalProperties().isFullyReplicated() &&
+				(	this.partitioning != PartitioningProperty.FULL_REPLICATION ||
+					this.partitioning != PartitioningProperty.ANY_DISTRIBUTION)) {
+			throw new CompilerException("Fully replicated input must be preserved and may not be converted into another global property.");
+		}
+
 		// if we request nothing, then we need no special strategy. forward, if the number of instances remains
 		// the same, randomly repartition otherwise
-		if (isTrivial()) {
+		if (isTrivial() || this.partitioning == PartitioningProperty.ANY_DISTRIBUTION) {
 			channel.setShipStrategy(globalDopChange ? ShipStrategyType.PARTITION_RANDOM : ShipStrategyType.FORWARD);
 			return;
 		}

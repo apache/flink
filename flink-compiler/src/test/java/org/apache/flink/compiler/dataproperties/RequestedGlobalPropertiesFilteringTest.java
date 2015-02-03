@@ -345,7 +345,7 @@ public class RequestedGlobalPropertiesFilteringTest {
 		SemanticPropUtil.getSemanticPropsSingleFromString(sProp, new String[]{"0;1;2"}, null, null, tupleInfo, tupleInfo);
 
 		RequestedGlobalProperties rgProps = new RequestedGlobalProperties();
-		rgProps.setRandomDistribution();
+		rgProps.setRandomPartitioning();
 
 		RequestedGlobalProperties filtered = rgProps.filterBySemanticProperties(sProp, 0);
 

@@ -46,7 +46,9 @@ public class FilterDescriptor extends OperatorDescriptorSingle {
 
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
-		return Collections.singletonList(new RequestedGlobalProperties());
+		RequestedGlobalProperties rgp = new RequestedGlobalProperties();
+		rgp.setAnyDistribution();
+		return Collections.singletonList(rgp);
 	}
 
 	@Override
