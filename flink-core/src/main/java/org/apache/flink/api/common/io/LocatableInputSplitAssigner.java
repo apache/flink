@@ -71,7 +71,7 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public LocatableInputSplit getNextInputSplit(String host) {
+	public LocatableInputSplit getNextInputSplit(String host, int taskId) {
 
 		// for a null host, we return a remote split
 		if (host == null) {
