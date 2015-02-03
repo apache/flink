@@ -1731,8 +1731,31 @@ public class TypeExtractorTest {
 				+ ">>>", ti.toString());
 		
 		// generic array
-		// TODO depends on #315
-		//ti = TypeExtractor.getMapReturnTypes((MapFunction) new MapperWithMultiDimGenericArray<String>(), TypeInfoParser.parse("String[][][]"));
-		//Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple1<String>>>>",);
+		ti = TypeExtractor.getMapReturnTypes((MapFunction) new MapperWithMultiDimGenericArray<String>(), TypeInfoParser.parse("String[][][]"));
+		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple1<String>>>>", ti.toString());
+	}
+
+	@SuppressWarnings("rawtypes")
+	public static class MapWithResultTypeQueryable implements MapFunction, ResultTypeQueryable {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public TypeInformation getProducedType() {
+			return BasicTypeInfo.STRING_TYPE_INFO;
+		}
+
+		@Override
+		public Object map(Object value) throws Exception {
+			return null;
+		}
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testInputMismatchWithRawFuntion() {
+		MapFunction<?, ?> function = new MapWithResultTypeQueryable();
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction)function, BasicTypeInfo.INT_TYPE_INFO);
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
 	}
 }
