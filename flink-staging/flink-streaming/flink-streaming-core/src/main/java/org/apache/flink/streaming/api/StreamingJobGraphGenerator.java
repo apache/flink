@@ -234,7 +234,9 @@ public class StreamingJobGraphGenerator {
 		AbstractJobVertex downStreamVertex = streamVertices.get(downStreamVertexName);
 
 		StreamConfig downStreamConfig = new StreamConfig(downStreamVertex.getConfiguration());
-		StreamConfig upStreamConfig = new StreamConfig(headVertex.getConfiguration());
+		StreamConfig upStreamConfig = headOfChain == upStreamVertexName ? new StreamConfig(
+				headVertex.getConfiguration()) : chainedConfigs.get(headOfChain).get(
+				upStreamVertexName);
 
 		List<Integer> outEdgeIndexList = streamGraph.getOutEdgeTypes(upStreamVertexName);
 		int numOfInputs = downStreamConfig.getNumberOfInputs();

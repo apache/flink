@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
-import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.util.InstantiationUtil;
@@ -186,12 +185,12 @@ public class StreamConfig implements Serializable {
 		return config.getBoolean(DIRECTED_EMIT, false);
 	}
 
-
 	public void setOutputSelectors(List<OutputSelector<?>> outputSelector) {
 		try {
 			if (outputSelector != null) {
 				setDirectedEmit(true);
-				config.setBytes(OUTPUT_SELECTOR, SerializationUtils.serialize((Serializable) outputSelector));
+				config.setBytes(OUTPUT_SELECTOR,
+						SerializationUtils.serialize((Serializable) outputSelector));
 			}
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize OutputSelector");
@@ -239,11 +238,7 @@ public class StreamConfig implements Serializable {
 		} catch (Exception e) {
 			throw new RuntimeException("Partitioner could not be instantiated.");
 		}
-		if (partitioner != null) {
-			return partitioner;
-		} else {
-			return new ShufflePartitioner<T>();
-		}
+		return partitioner;
 	}
 
 	public void setSelectedNames(String output, List<String> selected) {
@@ -384,8 +379,7 @@ public class StreamConfig implements Serializable {
 		builder.append("\nOutput names: " + getOutputs(cl));
 		builder.append("\nPartitioning:");
 		for (String outputname : getOutputs(cl)) {
-			builder.append("\n\t" + outputname + ": "
-					+ getPartitioner(cl, outputname).getClass().getSimpleName());
+			builder.append("\n\t" + outputname + ": " + getPartitioner(cl, outputname));
 		}
 
 		builder.append("\nChained subtasks: " + getChainedOutputs(cl));
