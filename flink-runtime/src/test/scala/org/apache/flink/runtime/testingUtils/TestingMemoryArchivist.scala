@@ -32,10 +32,10 @@ trait TestingMemoryArchivist extends ActorLogMessages {
   def receiveTestingMessages: Receive = {
     case RequestExecutionGraph(jobID) =>
       val executionGraph = getGraph(jobID)
-      if (executionGraph != null) {
-        sender ! ExecutionGraphFound(jobID, executionGraph)
-      } else {
-        sender ! ExecutionGraphNotFound(jobID)
+      
+      executionGraph match {
+        case Some(graph) => sender ! ExecutionGraphFound(jobID, graph)
+        case None => sender ! ExecutionGraphNotFound(jobID)
       }
   }
 }
