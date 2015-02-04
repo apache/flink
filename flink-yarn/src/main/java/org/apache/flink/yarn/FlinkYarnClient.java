@@ -91,8 +91,6 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	public static final String ENV_SLOTS = "_SLOTS";
 	public static final String ENV_DYNAMIC_PROPERTIES = "_DYNAMIC_PROPERTIES";
 
-	private static final String DEFAULT_QUEUE_NAME = "default";
-
 
 	/**
 	 * Minimum memory requirements, checked by the Client.
@@ -122,7 +120,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 	private int taskManagerCount = 1;
 
-	private String yarnQueue = DEFAULT_QUEUE_NAME;
+	private String yarnQueue = null;
 
 	private String configurationDirectory;
 
@@ -145,6 +143,15 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 			yarnClient = YarnClient.createYarnClient();
 			yarnClient.init(conf);
 			yarnClient.start();
+		}
+
+		// for unit tests only
+		if(System.getenv("IN_TESTS") != null) {
+			try {
+				conf.addResource(new File(System.getenv("YARN_CONF_DIR") + "/yarn-site.xml").toURI().toURL());
+			} catch (Throwable t) {
+				throw new RuntimeException("Error",t);
+			}
 		}
 	}
 
@@ -261,6 +268,13 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 			throw new YarnDeploymentException("Flink configuration object has not been set");
 		}
 
+		// check if required Hadoop environment variables are set. If not, warn user
+		if(System.getenv("HADOOP_CONF_DIR") == null ||
+				System.getenv("YARN_CONF_DIR") == null) {
+			LOG.warn("Neither the HADOOP_CONF_DIR nor the YARN_CONF_DIR environment variable is set." +
+					"The Flink YARN Client needs one of these to be set to properly load the Hadoop " +
+					"configuration for accessing YARN.");
+		}
 	}
 
 	public static boolean allocateResource(int[] nodeManagers, int toAllocate) {
@@ -274,10 +288,15 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	}
 
 	public AbstractFlinkYarnCluster deploy(final String clusterName) throws Exception {
+
 		UserGroupInformation.setConfiguration(conf);
 		UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
 
 		if (UserGroupInformation.isSecurityEnabled()) {
+			if (!ugi.hasKerberosCredentials()) {
+				throw new YarnDeploymentException("In secure mode. Please provide Kerberos credentials in order to authenticate. " +
+						"You may use kinit to authenticate and request a TGT from the Kerberos server.");
+			}
 			return ugi.doAs(new PrivilegedExceptionAction<AbstractFlinkYarnCluster>() {
 				@Override
 				public AbstractFlinkYarnCluster run() throws Exception {
@@ -292,7 +311,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	 * This method will block until the ApplicationMaster/JobManager have been
 	 * deployed on YARN.
 	 */
-	public AbstractFlinkYarnCluster deployInternal(String clusterName) throws Exception {
+	protected AbstractFlinkYarnCluster deployInternal(String clusterName) throws Exception {
 		isReadyForDepoyment();
 
 		LOG.info("Using values:");
@@ -307,7 +326,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		// ------------------ Check if the specified queue exists --------------
 
 		List<QueueInfo> queues = yarnClient.getAllQueues();
-		if(queues.size() > 0) { // check only if there are queues configured.
+		if(queues.size() > 0 && this.yarnQueue != null) { // check only if there are queues configured in yarn and for this session.
 			boolean queueFound = false;
 			for (QueueInfo queue : queues) {
 				if (queue.getQueueName().equals(this.yarnQueue)) {
@@ -531,7 +550,9 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		appContext.setApplicationType("Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
-		appContext.setQueue(yarnQueue);
+		if(yarnQueue != null) {
+			appContext.setQueue(yarnQueue);
+		}
 
 		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);

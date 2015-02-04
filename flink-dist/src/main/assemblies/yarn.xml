@@ -110,6 +110,11 @@ under the License.
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>
+        <file>
+            <source>src/main/flink-bin/conf/log4j-cli.properties</source>
+            <outputDirectory>conf</outputDirectory>
+            <fileMode>0644</fileMode>
+        </file>
 		<file>
 			<source>src/main/flink-bin/conf/log4j-yarn-session.properties</source>
 			<outputDirectory>conf</outputDirectory>

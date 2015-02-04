@@ -53,6 +53,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	public static void setup() {
 		yarnConfiguration.setClass(YarnConfiguration.RM_SCHEDULER, FifoScheduler.class, ResourceScheduler.class);
 		yarnConfiguration.setInt(YarnConfiguration.NM_PMEM_MB, 768);
+		yarnConfiguration.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);
 		startYARNWithConfig(yarnConfiguration);
 	}
 	/**
@@ -269,11 +270,16 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		if(testAppender == null) {
 			throw new NullPointerException("Initialize it first");
 		}
+		LoggingEvent found = null;
 		for(LoggingEvent event: testAppender.events) {
 			if(event.getMessage().toString().contains(expected)) {
-				LOG.info("Found expected string '"+expected+"' in log message "+event);
-				return;
+				found = event;
+				break;
 			}
+		}
+		if(found != null) {
+			LOG.info("Found expected string '"+expected+"' in log message "+found);
+			return;
 		}
 		Assert.fail("Unable to find expected string '"+expected+"' in log messages");
 	}
