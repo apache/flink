@@ -62,9 +62,8 @@ case $STARTSTOP in
     (start)
 
         if [[ ! ${FLINK_TM_HEAP} =~ ${IS_NUMBER} ]]; then
-            echo "WARNING: Configured task manager heap size is not a number. Falling back to default."
-
-            FLINK_TM_HEAP=0
+            echo "ERROR: Configured task manager heap size is not a number. Cancelling task manager startup."
+            exit 1
         fi
 
         if [ "$FLINK_TM_HEAP" -gt 0 ]; then

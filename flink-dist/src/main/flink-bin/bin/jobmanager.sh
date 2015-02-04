@@ -63,18 +63,18 @@ case $STARTSTOP in
     (start)
 
         if [[ ! ${FLINK_JM_HEAP} =~ $IS_NUMBER ]]; then
-            echo "WARNING: Configured job manager heap size is not a number. Falling back to default."
+            echo "ERROR: Configured job manager heap size is not a number. Cancelling job manager startup."
 
-            FLINK_JM_HEAP=0
-        fi
-
-        if [[ ! ${FLINK_TM_HEAP} =~ $IS_NUMBER ]]; then
-            echo "WARNING: Configured task manager heap size is not a number. Falling back to default."
-
-            FLINK_TM_HEAP=0
+            exit 1
         fi
 
         if [ "$EXECUTIONMODE" = "local" ]; then
+            if [[ ! ${FLINK_TM_HEAP} =~ $IS_NUMBER ]]; then
+                echo "ERROR: Configured task manager heap size is not a number. Cancelling (local) job manager startup."
+
+                exit 1
+            fi
+
             FLINK_JM_HEAP=`expr $FLINK_JM_HEAP + $FLINK_TM_HEAP`
         fi
 
