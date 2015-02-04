@@ -64,11 +64,6 @@ public class WebInfoServer {
 	private final Server server;
 
 	/**
-	 * Timeout for akka requests
-	 */
-	private final FiniteDuration timeout;
-
-	/**
 	 * Port for info server
 	 */
 	private int port;
@@ -92,7 +87,6 @@ public class WebInfoServer {
 		
 		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
-		this.timeout = timeout;
 
 		// get base path of Flink installation
 		final String basePath = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");

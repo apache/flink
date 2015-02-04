@@ -22,12 +22,14 @@ import akka.actor.ActorRef;
 import akka.dispatch.OnComplete;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.PartitionInfo;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -40,6 +42,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
+
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -78,7 +81,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
  */
 public class Execution implements Serializable {
 
-	static final long serialVersionUID = 42L;
+	private static final long serialVersionUID = 42L;
 
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
@@ -97,22 +100,25 @@ public class Execution implements Serializable {
 
 	private final int attemptNumber;
 
-	public FiniteDuration timeout;
+	private final FiniteDuration timeout;
 
 
 	private volatile ExecutionState state = CREATED;
 	
-	private volatile SimpleSlot assignedResource;  // once assigned, never changes
+	private volatile SimpleSlot assignedResource;     // once assigned, never changes until the execution is archived
 	
 	private volatile Throwable failureCause;          // once assigned, never changes
 	
+	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
+	
 	// --------------------------------------------------------------------------------------------
 	
-	public Execution(ExecutionVertex vertex, int attemptNumber, long startTimestamp,
-					FiniteDuration timeout) {
+	public Execution(ExecutionVertex vertex, int attemptNumber, long startTimestamp, FiniteDuration timeout) {
+		checkArgument(attemptNumber >= 0);
+		
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
-		checkArgument(attemptNumber >= 0);
+		
 		this.attemptNumber = attemptNumber;
 
 		this.stateTimestamps = new long[ExecutionState.values().length];
@@ -145,6 +151,10 @@ public class Execution implements Serializable {
 		return assignedResource;
 	}
 	
+	public InstanceConnectionInfo getAssignedResourceLocation() {
+		return assignedResourceLocation;
+	}
+	
 	public Throwable getFailureCause() {
 		return failureCause;
 	}
@@ -159,6 +169,16 @@ public class Execution implements Serializable {
 	
 	public boolean isFinished() {
 		return state == FINISHED || state == FAILED || state == CANCELED;
+	}
+	
+	/**
+	 * This method cleans fields that are irrelevant for the archived execution attempt.
+	 */
+	public void prepareForArchiving() {
+		if (assignedResource != null && assignedResource.isAlive()) {
+			throw new IllegalStateException("Cannot archive Execution while the assigned resource is still running.");
+		}
+		assignedResource = null;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -267,6 +287,7 @@ public class Execution implements Serializable {
 				throw new JobException("Could not assign the ExecutionVertex to the slot " + slot);
 			}
 			this.assignedResource = slot;
+			this.assignedResourceLocation = slot.getInstance().getInstanceConnectionInfo();
 
 			// race double check, did we fail/cancel and do we need to release the slot?
 			if (this.state != DEPLOYING) {

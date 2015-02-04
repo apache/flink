@@ -326,4 +326,35 @@ object JobManagerMessages {
 
   case object JobManagerStatusAlive extends JobManagerStatus
 
+    // --------------------------------------------------------------------------
+  // Utility methods to allow simpler case object access from Java
+  // --------------------------------------------------------------------------
+  
+  def getRequestNumberRegisteredTaskManager() : AnyRef = {
+    RequestNumberRegisteredTaskManager
+  }
+  
+  def getRequestTotalNumberOfSlots() : AnyRef = {
+    RequestTotalNumberOfSlots
+  }
+  
+  def getRequestBlobManagerPort() : AnyRef = {
+    RequestBlobManagerPort
+  }
+  
+  def getRequestRunningJobs() : AnyRef = {
+    RequestRunningJobs
+  }
+  
+  def getRequestRegisteredTaskManagers() : AnyRef = {
+    RequestRegisteredTaskManagers
+  }
+  
+  def getRequestJobManagerStatus() : AnyRef = {
+    RequestJobManagerStatus
+  }
+  
+  def getJobManagerStatusAlive() : AnyRef = {
+    JobManagerStatusAlive
+  }
 }

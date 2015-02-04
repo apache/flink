@@ -24,10 +24,12 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
- * Base class for slots.
+ * Base class for task slots. TaskManagers offer one or more task slots, they define how many
+ * parallel tasks or task groups a TaskManager executes.
  */
 public abstract class Slot {
-	protected static final AtomicIntegerFieldUpdater<Slot> STATUS_UPDATER =
+	
+	private static final AtomicIntegerFieldUpdater<Slot> STATUS_UPDATER =
 			AtomicIntegerFieldUpdater.newUpdater(Slot.class, "status");
 
 	protected static final int ALLOCATED_AND_ALIVE = 0;		// tasks may be added and might be running
@@ -35,25 +37,27 @@ public abstract class Slot {
 	protected static final int RELEASED = 2;					// has been given back to the instance
 
 	/** The ID of the job this slice belongs to. */
-	protected final JobID jobID;
+	private final JobID jobID;
 
-	/** The instance on which the slot is allocated */
-	protected final Instance instance;
-
-	/** The number of the slot on which the task is deployed */
-	protected final int slotNumber;
-
-	/** The state of the vertex, only atomically updated */
-	protected volatile int status = ALLOCATED_AND_ALIVE;
-
-	/** Indicates whether this slot was marked dead by the system */
-	private boolean dead = false;
-
+	/** The id of the group that this slot is allocated to */
 	private final AbstractID groupID;
-
+	
+	/** The instance on which the slot is allocated */
+	private final Instance instance;
+	
+	/** The parent of this slot in the hierarchy, or null, if this is the parent */
 	private final SharedSlot parent;
 
-	private boolean disposed = false;
+	/** The number of the slot on which the task is deployed */
+	private final int slotNumber;
+
+	/** The state of the vertex, only atomically updated */
+	private volatile int status = ALLOCATED_AND_ALIVE;
+
+	/** Indicates whether this slot was marked dead by the system */
+	private volatile boolean dead = false;
+
+	private volatile boolean disposed = false;
 
 
 	public Slot(JobID jobID, Instance instance, int slotNumber, SharedSlot parent, AbstractID groupID) {
@@ -101,6 +105,10 @@ public abstract class Slot {
 		} else {
 			return parent.getRoot();
 		}
+	}
+	
+	public int getStatus() {
+		return status;
 	}
 
 	public abstract int getNumberLeaves();

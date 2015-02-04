@@ -34,16 +34,15 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import akka.actor.ActorRef;
+
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchivedJobs;
-import org.apache.flink.runtime.messages.ArchiveMessages.RequestArchivedJobs$;
+import org.apache.flink.runtime.messages.ArchiveMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.AccumulatorResultsResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestTotalNumberOfSlots$;
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestNumberRegisteredTaskManager$;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestAccumulatorResults;
@@ -64,6 +63,7 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StringUtils;
 import org.eclipse.jetty.io.EofException;
+
 import scala.concurrent.duration.FiniteDuration;
 
 public class JobManagerInfoServlet extends HttpServlet {
@@ -94,7 +94,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 		try {
 			if("archive".equals(req.getParameter("get"))) {
 				List<ExecutionGraph> archivedJobs = new ArrayList<ExecutionGraph>(AkkaUtils
-						.<ArchivedJobs>ask(archive,RequestArchivedJobs$.MODULE$, timeout)
+						.<ArchivedJobs>ask(archive, ArchiveMessages.getRequestArchivedJobs(), timeout)
 						.asJavaCollection());
 
 				writeJsonForArchive(resp.getWriter(), archivedJobs);
@@ -129,9 +129,9 @@ public class JobManagerInfoServlet extends HttpServlet {
 			}
 			else if("taskmanagers".equals(req.getParameter("get"))) {
 				int numberOfTaskManagers = AkkaUtils.<Integer>ask(jobmanager,
-						RequestNumberRegisteredTaskManager$.MODULE$, timeout);
+						JobManagerMessages.getRequestNumberRegisteredTaskManager(), timeout);
 				int numberOfRegisteredSlots = AkkaUtils.<Integer>ask(jobmanager,
-						RequestTotalNumberOfSlots$.MODULE$, timeout);
+						JobManagerMessages.getRequestTotalNumberOfSlots(), timeout);
 
 				resp.getWriter().write("{\"taskmanagers\": " + numberOfTaskManagers +", " +
 						"\"slots\": "+numberOfRegisteredSlots+"}");
@@ -149,7 +149,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 			}
 			else{
 				Iterable<ExecutionGraph> runningJobs = AkkaUtils.<RunningJobs>ask
-						(jobmanager, RequestRunningJobs$.MODULE$, timeout).asJavaIterable();
+						(jobmanager, JobManagerMessages.getRequestRunningJobs(), timeout).asJavaIterable();
 				writeJsonForJobs(resp.getWriter(), runningJobs);
 			}
 			
@@ -292,17 +292,16 @@ public class JobManagerInfoServlet extends HttpServlet {
 				boolean first = true;
 				for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
 					if (vertex.getExecutionState() == ExecutionState.FAILED) {
-						SimpleSlot slot = vertex.getCurrentAssignedResource();
+						InstanceConnectionInfo location = vertex.getCurrentAssignedResourceLocation();
 						Throwable failureCause = vertex.getFailureCause();
-						if (slot != null || failureCause != null) {
+						if (location != null || failureCause != null) {
 							if (first) {
 								first = false;
 							} else {
 								wrt.write(",");
 							}
 							wrt.write("{");
-							wrt.write("\"node\": \"" + (slot == null ? "(none)" : slot
-									.getInstance().getInstanceConnectionInfo().getFQDNHostname()) + "\",");
+							wrt.write("\"node\": \"" + (location == null ? "(none)" : location.getFQDNHostname()) + "\",");
 							wrt.write("\"message\": \"" + (failureCause == null ? "" : StringUtils.escapeHtml(ExceptionUtils.stringifyException(failureCause))) + "\"");
 							wrt.write("}");
 						}
@@ -421,7 +420,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 		
 		try {
 			Iterable<ExecutionGraph> graphs = AkkaUtils.<RunningJobs>ask(jobmanager,
-					RequestRunningJobs$.MODULE$, timeout).asJavaIterable();
+					ArchiveMessages.getRequestArchivedJobs(), timeout).asJavaIterable();
 			
 			//Serialize job to json
 			wrt.write("{");

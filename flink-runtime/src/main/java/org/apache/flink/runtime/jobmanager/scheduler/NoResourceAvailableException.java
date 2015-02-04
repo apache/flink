@@ -54,7 +54,9 @@ public class NoResourceAvailableException extends JobException {
 	public NoResourceAvailableException(String message) {
 		super(message);
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public boolean equals(Object obj){
 		if(obj == null){
@@ -66,5 +68,10 @@ public class NoResourceAvailableException extends JobException {
 		}else{
 			return getMessage().equals(((NoResourceAvailableException)obj).getMessage());
 		}
+	}
+	
+	@Override
+	public int hashCode() {
+		return getMessage().hashCode();
 	}
 }

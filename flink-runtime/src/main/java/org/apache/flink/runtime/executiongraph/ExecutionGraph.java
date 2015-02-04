@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorRef;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
@@ -54,7 +56,7 @@ import static akka.dispatch.Futures.future;
 
 public class ExecutionGraph implements Serializable {
 
-	static final long serialVersionUID = 42L;
+	private static final long serialVersionUID = 42L;
 
 	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
@@ -71,10 +73,10 @@ public class ExecutionGraph implements Serializable {
 	private final String jobName;
 
 	/** The job configuration that was originally attached to the JobGraph. */
-	private transient final Configuration jobConfiguration;
+	private final Configuration jobConfiguration;
 
 	/** The classloader of the user code. */
-	private final ClassLoader userClassLoader;
+	private ClassLoader userClassLoader;
 
 	/** All job vertices that are part of this graph */
 	private final ConcurrentHashMap<JobVertexID, ExecutionJobVertex> tasks;
@@ -83,20 +85,20 @@ public class ExecutionGraph implements Serializable {
 	private final List<ExecutionJobVertex> verticesInCreationOrder;
 
 	/** All intermediate results that are part of this graph */
-	private transient final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
+	private final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
 
 	/** The currently executed tasks, for callbacks */
-	private transient final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
+	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
 
-	private transient final List<BlobKey> requiredJarFiles;
+	private final List<BlobKey> requiredJarFiles;
 
-	private transient final List<ActorRef> jobStatusListenerActors;
+	private final List<ActorRef> jobStatusListenerActors;
 
-	private transient final List<ActorRef> executionListenerActors;
+	private final List<ActorRef> executionListenerActors;
 
 	private final long[] stateTimestamps;
 
-	private transient final Object progressLock = new Object();
+	private final Object progressLock = new Object();
 
 	private int nextVertexToFinish;
 
@@ -110,12 +112,13 @@ public class ExecutionGraph implements Serializable {
 
 	private volatile Throwable failureCause;
 
-	private transient Scheduler scheduler;
+	private Scheduler scheduler;
 
 	private boolean allowQueuedScheduling = true;
 
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 
+	
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
 		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>());
 	}
@@ -598,8 +601,11 @@ public class ExecutionGraph implements Serializable {
 	public void restart() {
 		try {
 			if (state == JobStatus.FAILED) {
-				transitionState(JobStatus.FAILED, JobStatus.RESTARTING);
+				if (!transitionState(JobStatus.FAILED, JobStatus.RESTARTING)) {
+					throw new IllegalStateException("Execution Graph left the state FAILED while trying to restart.");
+				}
 			}
+			
 			synchronized (progressLock) {
 				if (state != JobStatus.RESTARTING) {
 					throw new IllegalStateException("Can only restart job from state restarting.");
@@ -626,5 +632,28 @@ public class ExecutionGraph implements Serializable {
 		catch (Throwable t) {
 			fail(t);
 		}
+	}
+	
+	/**
+	 * This method cleans fields that are irrelevant for the archived execution attempt.
+	 */
+	public void prepareForArchiving() {
+		if (!state.isTerminalState()) {
+			throw new IllegalStateException("Can only archive the job from a terminal state");
+		}
+		
+		userClassLoader = null;
+		
+		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
+			vertex.prepareForArchiving();
+		}
+		
+		intermediateResults.clear();
+		currentExecutions.clear();
+		requiredJarFiles.clear();
+		jobStatusListenerActors.clear();
+		executionListenerActors.clear();
+		
+		scheduler = null;
 	}
 }

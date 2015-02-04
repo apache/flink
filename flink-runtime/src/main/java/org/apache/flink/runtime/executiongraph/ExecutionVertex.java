@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.slf4j.Logger;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
@@ -56,9 +58,8 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
  */
 public class ExecutionVertex implements Serializable {
 
-	static final long serialVersionUID = 42L;
+	private static final long serialVersionUID = 42L;
 
-	@SuppressWarnings("unused")
 	private static final Logger LOG = ExecutionGraph.LOG;
 	
 	private static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
@@ -67,9 +68,9 @@ public class ExecutionVertex implements Serializable {
 	
 	private final ExecutionJobVertex jobVertex;
 	
-	private transient final IntermediateResultPartition[] resultPartitions;
+	private IntermediateResultPartition[] resultPartitions;
 	
-	private transient ExecutionEdge[][] inputEdges;
+	private ExecutionEdge[][] inputEdges;
 	
 	private final int subTaskIndex;
 	
@@ -180,6 +181,10 @@ public class ExecutionVertex implements Serializable {
 	
 	public SimpleSlot getCurrentAssignedResource() {
 		return currentExecution.getAssignedResource();
+	}
+	
+	public InstanceConnectionInfo getCurrentAssignedResourceLocation() {
+		return currentExecution.getAssignedResourceLocation();
 	}
 	
 	public ExecutionGraph getExecutionGraph() {
@@ -322,6 +327,11 @@ public class ExecutionVertex implements Serializable {
 	// --------------------------------------------------------------------------------------------
 
 	public void resetForNewExecution() {
+		
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Resetting exection vertex {} for new execution.", getSimpleName());
+		}
+		
 		synchronized (priorExecutions) {
 			Execution execution = currentExecution;
 			ExecutionState state = execution.getState();
@@ -368,6 +378,31 @@ public class ExecutionVertex implements Serializable {
 		IntermediateResultPartition partition = resultPartitions[partitionIndex];
 
 		return currentExecution.scheduleOrUpdateConsumers(partition.getConsumers());
+	}
+	
+	/**
+	 * This method cleans fields that are irrelevant for the archived execution attempt.
+	 */
+	public void prepareForArchiving() {
+		Execution execution = currentExecution;
+		ExecutionState state = execution.getState();
+
+		// sanity check
+		if (!(state == FINISHED || state == CANCELED || state == FAILED)) {
+			throw new IllegalStateException("Cannot archive ExecutionVertex that is not in a finished state.");
+		}
+		
+		// prepare the current execution for archiving
+		execution.prepareForArchiving();
+		
+		// prepare previous executions for archiving
+		for (Execution exec : priorExecutions) {
+			exec.prepareForArchiving();
+		}
+		
+		// clear the unnecessary fields in this class
+		this.resultPartitions = null;
+		this.inputEdges = null;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -445,13 +480,6 @@ public class ExecutionVertex implements Serializable {
 	 */
 	public String getSimpleName() {
 		return getTaskName() + " (" + (getParallelSubtaskIndex()+1) + '/' + getTotalNumberOfParallelSubtasks() + ')';
-	}
-
-	/*
-	 * Clears all Edges of this ExecutionVertex
-	 */
-	public void clearExecutionEdges() {
-		inputEdges = null;
 	}
 
 	@Override

@@ -460,7 +460,10 @@ class JobManager(val configuration: Configuration)
    */
   private def removeJob(jobID: JobID): Unit = {
     currentJobs.remove(jobID) match {
-      case Some((eg, _)) => archive ! ArchiveExecutionGraph(jobID, eg)
+      case Some((eg, _)) => {
+        eg.prepareForArchiving()
+        archive ! ArchiveExecutionGraph(jobID, eg)
+      }
       case None =>
     }
 

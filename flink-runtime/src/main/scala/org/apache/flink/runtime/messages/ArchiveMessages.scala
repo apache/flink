@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.JobID
  * This object contains the archive specific messages.
  */
 object ArchiveMessages {
+  
   case class ArchiveExecutionGraph(jobID: JobID, graph: ExecutionGraph)
 
   /**
@@ -46,5 +47,13 @@ object ArchiveMessages {
       import scala.collection.JavaConverters._
       jobs.asJavaCollection
     }
+  }
+  
+  // --------------------------------------------------------------------------
+  // Utility methods to allow simpler case object access from Java
+  // --------------------------------------------------------------------------
+  
+  def getRequestArchivedJobs() : AnyRef = {
+    RequestArchivedJobs
   }
 }

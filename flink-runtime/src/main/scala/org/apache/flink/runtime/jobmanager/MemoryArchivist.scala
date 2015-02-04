@@ -42,13 +42,7 @@ ActorLogging {
       // wrap graph inside a soft reference
       graphs.update(jobID, new SoftReference(graph))
 
-      // clear all execution edges of the graph
-      val iter = graph.getAllExecutionVertices().iterator()
-      while (iter.hasNext) {
-        iter.next().clearExecutionEdges()
-      }
-
-      cleanup(jobID)
+      trimHistory()
     }
 
     case RequestArchivedJobs => {
@@ -89,17 +83,17 @@ ActorLogging {
       case Some(graph) => graph
       case None => null
     }
+    case None => null
   }
 
   /**
    * Remove old ExecutionGraphs belonging to a jobID
    * * if more than max_entries are in the queue.
-   * @param jobID
    */
-  private def cleanup(jobID: JobID): Unit = {
+  private def trimHistory(): Unit = {
     while (graphs.size > max_entries) {
       // get first graph inserted
-      val (jobID, value) = graphs.iterator.next()
+      val (jobID, value) = graphs.head
       graphs.remove(jobID)
     }
   }

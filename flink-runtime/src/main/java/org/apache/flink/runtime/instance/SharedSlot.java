@@ -117,7 +117,7 @@ public class SharedSlot extends Slot {
 		if(isDead()){
 			return null;
 		} else {
-			SimpleSlot slot = new SimpleSlot(jobID, instance, subSlots.size(), this, jID);
+			SimpleSlot slot = new SimpleSlot(getJobID(), getInstance(), subSlots.size(), this, jID);
 			subSlots.add(slot);
 
 			return slot;
@@ -128,7 +128,7 @@ public class SharedSlot extends Slot {
 		if(isDead()){
 			return null;
 		} else {
-			SharedSlot slot = new SharedSlot(jobID, instance, subSlots.size(), assignmentGroup, this, jID);
+			SharedSlot slot = new SharedSlot(getJobID(), getInstance(), subSlots.size(), assignmentGroup, this, jID);
 			subSlots.add(slot);
 
 			return slot;

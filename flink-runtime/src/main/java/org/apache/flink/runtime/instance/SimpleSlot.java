@@ -71,7 +71,7 @@ public class SimpleSlot extends Slot {
 		}
 
 		// check that we can actually run in this slot
-		if (status != ALLOCATED_AND_ALIVE) {
+		if (getStatus() != ALLOCATED_AND_ALIVE) {
 			return false;
 		}
 
@@ -81,7 +81,7 @@ public class SimpleSlot extends Slot {
 		}
 
 		// we need to do a double check that we were not cancelled in the meantime
-		if (status != ALLOCATED_AND_ALIVE) {
+		if (getStatus() != ALLOCATED_AND_ALIVE) {
 			this.executedTask = null;
 			return false;
 		}
@@ -112,7 +112,7 @@ public class SimpleSlot extends Slot {
 				getParent().disposeChild(this);
 			} else {
 				// we have to give back the slot to the owning instance
-				instance.returnAllocatedSlot(this);
+				getInstance().returnAllocatedSlot(this);
 			}
 		}
 	}

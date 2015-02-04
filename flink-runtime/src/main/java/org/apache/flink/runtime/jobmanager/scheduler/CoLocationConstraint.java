@@ -24,11 +24,7 @@ import org.apache.flink.runtime.instance.Instance;
 import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.instance.SharedSlot;
 
-import java.io.Serializable;
-
-public class CoLocationConstraint implements Serializable {
-
-	static final long serialVersionUID = 42L;
+public class CoLocationConstraint {
 	
 	private final CoLocationGroup group;
 	

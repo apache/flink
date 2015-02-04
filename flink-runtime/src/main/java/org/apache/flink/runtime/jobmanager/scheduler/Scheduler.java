@@ -408,7 +408,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	 * local instance. If no such instance exists (all slots occupied), then return null.
 	 *
 	 * @param requestedLocations
-	 * @return
 	 */
 	private Pair<Instance, Locality> findInstance(Iterable<Instance> requestedLocations){
 		if (this.instancesWithAvailableResources.isEmpty()) {

@@ -41,7 +41,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for data sinks
  */
-
+@SuppressWarnings("serial")
 @RunWith(Parameterized.class)
 public class DataSinkITCase extends MultipleProgramsTestBase {
 

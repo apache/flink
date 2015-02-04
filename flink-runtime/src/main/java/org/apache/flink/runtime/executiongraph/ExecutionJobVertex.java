@@ -42,12 +42,13 @@ import scala.concurrent.duration.FiniteDuration;
 
 
 public class ExecutionJobVertex implements Serializable {
-	static final long serialVersionUID = 42L;
+	
+	private static final long serialVersionUID = 42L;
 	
 	/** Use the same log for all ExecutionGraph classes */
 	private static final Logger LOG = ExecutionGraph.LOG;
 	
-	private transient final Object stateMonitor = new Object();
+	private final Object stateMonitor = new Object();
 	
 	private final ExecutionGraph graph;
 	
@@ -55,9 +56,9 @@ public class ExecutionJobVertex implements Serializable {
 	
 	private final ExecutionVertex[] taskVertices;
 
-	private transient final IntermediateResult[] producedDataSets;
+	private IntermediateResult[] producedDataSets;
 	
-	private transient final List<IntermediateResult> inputs;
+	private final List<IntermediateResult> inputs;
 	
 	private final int parallelism;
 	
@@ -71,7 +72,7 @@ public class ExecutionJobVertex implements Serializable {
 	
 	private final InputSplit[] inputSplits;
 	
-	private transient InputSplitAssigner splitAssigner;
+	private InputSplitAssigner splitAssigner;
 	
 	
 	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex,
@@ -304,6 +305,36 @@ public class ExecutionJobVertex implements Serializable {
 			}
 			catch (Throwable t) {
 				throw new RuntimeException("Re-creating the input split assigner failed: " + t.getMessage(), t);
+			}
+		}
+	}
+	
+	/**
+	 * This method cleans fields that are irrelevant for the archived execution attempt.
+	 */
+	public void prepareForArchiving() {
+		
+		for (ExecutionVertex vertex : taskVertices) {
+			vertex.prepareForArchiving();
+		}
+		
+		// clear intermediate results
+		inputs.clear();
+		producedDataSets = null;
+		
+		// reset shared groups
+		if (slotSharingGroup != null) {
+			slotSharingGroup.clearTaskAssignment();
+		}
+		if (coLocationGroup != null) {
+			coLocationGroup.resetConstraints();
+		}
+		
+		// reset splits and split assigner
+		splitAssigner = null;
+		if (inputSplits != null) {
+			for (int i = 0; i < inputSplits.length; i++) {
+				inputSplits[i] = null;
 			}
 		}
 	}

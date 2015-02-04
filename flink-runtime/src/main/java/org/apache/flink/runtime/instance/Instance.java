@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.instance;
 
-import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -33,17 +32,16 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroupAssignment;
 
 /**
- * An taskManager represents a resource a {@link org.apache.flink.runtime.taskmanager.TaskManager} runs on.
+ * An instance represents a {@link org.apache.flink.runtime.taskmanager.TaskManager}
+ * registered at a JobManager and ready to receive work.
  */
-public class Instance implements Serializable {
-
-	static final long serialVersionUID = 42L;
+public class Instance {
 	
 	/** The lock on which to synchronize allocations and failure state changes */
-	private transient final Object instanceLock = new Object();
+	private final Object instanceLock = new Object();
 	
 	/** The actor ref to the task manager represented by this taskManager. */
-	private transient final ActorRef taskManager;
+	private final ActorRef taskManager;
 
 	/** The instance connection information for the data transfer. */
 	private final InstanceConnectionInfo connectionInfo;
@@ -58,28 +56,27 @@ public class Instance implements Serializable {
 	private final int numberOfSlots;
 
 	/** A list of available slot positions */
-	private transient final Queue<Integer> availableSlots;
+	private final Queue<Integer> availableSlots;
 	
 	/** Allocated slots on this taskManager */
 	private final Set<Slot> allocatedSlots = new HashSet<Slot>();
 
-	
 	/** A listener to be notified upon new slot availability */
-	private transient SlotAvailabilityListener slotAvailabilityListener;
+	private SlotAvailabilityListener slotAvailabilityListener;
 	
-	/**
-	 * Time when last heat beat has been received from the task manager running on this taskManager.
-	 */
+	/** Time when last heat beat has been received from the task manager running on this taskManager. */
 	private volatile long lastReceivedHeartBeat = System.currentTimeMillis();
 	
+	/** Flag marking the instance as alive or as dead. */
 	private volatile boolean isDead;
 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Constructs an abstract taskManager object.
+	 * Constructs an instance reflecting a registered TaskManager.
 	 * 
 	 * @param taskManager The actor reference of the represented task manager.
+	 * @param connectionInfo The remote connection where the task manager receives requests.
 	 * @param id The id under which the taskManager is registered.
 	 * @param resources The resources available on the machine.
 	 * @param numberOfSlots The number of task slots offered by this taskManager.
@@ -123,15 +120,23 @@ public class Instance implements Serializable {
 	}
 
 	public void markDead() {
+		
+		// create a copy of the slots to avoid concurrent modification exceptions
+		List<Slot> slots;
+		
 		synchronized (instanceLock) {
 			if (isDead) {
 				return;
 			}
-
 			isDead = true;
 
 			// no more notifications for the slot releasing
 			this.slotAvailabilityListener = null;
+			
+			slots = new ArrayList<Slot>(allocatedSlots);
+			
+			allocatedSlots.clear();
+			availableSlots.clear();
 		}
 
 		/*
@@ -139,13 +144,8 @@ public class Instance implements Serializable {
 		 * owning the assignment group lock wants to give itself back to the instance which requires
 		 * the instance lock
 		 */
-		for (Slot slot : allocatedSlots) {
+		for (Slot slot : slots) {
 			slot.releaseSlot();
-		}
-
-		synchronized (instanceLock) {
-			allocatedSlots.clear();
-			availableSlots.clear();
 		}
 	}
 
@@ -185,9 +185,9 @@ public class Instance implements Serializable {
 	// --------------------------------------------------------------------------------------------
 	// Resource allocation
 	// --------------------------------------------------------------------------------------------
-
+	
 	public SimpleSlot allocateSimpleSlot(JobID jobID) throws InstanceDiedException {
-		return allocateSimpleSlot(jobID, jobID);
+		return allocateSimpleSlot(jobID, new AbstractID());
 	}
 	
 	public SimpleSlot allocateSimpleSlot(JobID jobID, AbstractID groupID) throws InstanceDiedException {
@@ -211,8 +211,9 @@ public class Instance implements Serializable {
 		}
 	}
 
-	public SharedSlot allocateSharedSlot(JobID jobID, SlotSharingGroupAssignment sharingGroupAssignment, AbstractID groupID) throws
-	InstanceDiedException {
+	public SharedSlot allocateSharedSlot(JobID jobID, SlotSharingGroupAssignment sharingGroupAssignment, AbstractID groupID)
+			throws InstanceDiedException
+	{
 		// the slot needs to be in the returned to taskManager state
 		if (jobID == null) {
 			throw new IllegalArgumentException();
@@ -227,8 +228,7 @@ public class Instance implements Serializable {
 			if (nextSlot == null) {
 				return null;
 			} else {
-				SharedSlot slot = new SharedSlot(jobID, this, nextSlot,
-						sharingGroupAssignment, null, groupID);
+				SharedSlot slot = new SharedSlot(jobID, this, nextSlot, sharingGroupAssignment, null, groupID);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -267,10 +267,10 @@ public class Instance implements Serializable {
 	}
 	
 	public void cancelAndReleaseAllSlots() {
-		List<Slot> copy = null;
-
+		
+		// we need to do this copy because of concurrent modification exceptions
+		List<Slot> copy;
 		synchronized (instanceLock) {
-			// we need to do this copy because of concurrent modification exceptions
 			copy = new ArrayList<Slot>(this.allocatedSlots);
 		}
 			
@@ -329,7 +329,7 @@ public class Instance implements Serializable {
 	
 	@Override
 	public String toString() {
-		return instanceId + " @" + (taskManager != null ? taskManager.path() : "ActorRef.noSender") + " " +
+		return instanceId + " @ " + (taskManager != null ? taskManager.path() : "ActorRef.noSender") + " - " +
 				numberOfSlots + " slots" + " - " + hashCode();
 	}
 }
