@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.helper._
 import org.apache.flink.util.Collector
 
-class WindowedDataStream[T](javaStream: JavaWStream[T]) {
+class WindowedDataStream[T](javaStream: JavaWStream[WindowedDataStreamOld]) {
 
   /**
    * Defines the slide size (trigger frequency) for the windowed data stream.
@@ -86,6 +86,16 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
       def getKey(in: T) = cleanFun(in)
     }
     javaStream.groupBy(keyExtractor)
+  }
+  
+  /**
+   * Sets the computations local meaning that the windowing and reduce or
+   * aggregation logic will be computed for each parallel instance of this
+   * operator
+   * 
+   */
+  def local(): WindowedDataStream[T]= {
+    javaStream.local
   }
 
   /**
