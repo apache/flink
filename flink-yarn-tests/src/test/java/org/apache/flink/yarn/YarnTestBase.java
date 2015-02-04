@@ -72,6 +72,7 @@ public abstract class YarnTestBase {
 	protected static MiniYARNCluster yarnCluster = null;
 
 	protected static File flinkUberjar;
+	private static File yarnConfFile;
 
 	protected static final Configuration yarnConfiguration;
 	static {
@@ -238,8 +239,9 @@ public abstract class YarnTestBase {
 			File flinkConfFilePath = findFile(flinkDistRootDir, new ContainsName("flink-conf.yaml"));
 			Assert.assertNotNull(flinkConfFilePath);
 			map.put("FLINK_CONF_DIR", flinkConfFilePath.getParent());
-			File yarnConfFile = writeYarnSiteConfigXML(conf);
+			yarnConfFile = writeYarnSiteConfigXML(conf);
 			map.put("YARN_CONF_DIR", yarnConfFile.getParentFile().getAbsolutePath());
+			map.put("IN_TESTS", "yes we are in tests"); // see FlinkYarnClient() for more infos
 			setEnv(map);
 
 			Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
