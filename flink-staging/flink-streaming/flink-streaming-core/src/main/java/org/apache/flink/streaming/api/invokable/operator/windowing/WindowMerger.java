@@ -22,11 +22,11 @@ import java.util.Map;
 
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 
-public class WindowCombiner<T> extends ChainableInvokable<StreamWindow<T>, StreamWindow<T>> {
+public class WindowMerger<T> extends ChainableInvokable<StreamWindow<T>, StreamWindow<T>> {
 
 	private Map<Integer, StreamWindow<T>> windows;
 
-	public WindowCombiner() {
+	public WindowMerger() {
 		super(null);
 		this.windows = new HashMap<Integer, StreamWindow<T>>();
 	}

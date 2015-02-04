@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.windowing.policy;
 
-import org.apache.flink.streaming.api.invokable.operator.GroupedWindowInvokable;
 
 /**
  * When used in {@link GroupedWindowInvokable}, trigger policies can provide

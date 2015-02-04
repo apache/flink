@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator;
+package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -93,7 +93,7 @@ public class GroupedWindowInvokableTest {
 
 		// empty trigger and policy lists should fail
 		try {
-			new GroupedWindowInvokable<Object, Object>(userFunction, keySelector,
+			new GroupedStreamDiscretizer<Object, Object>(userFunction, keySelector,
 					distributedTriggerPolicies, distributedEvictionPolicies,
 					centralTriggerPolicies, centralEvictionPolicies);
 			fail("Creating instance without any trigger or eviction policy should cause an UnsupportedOperationException but didn't. (1)");
@@ -103,7 +103,7 @@ public class GroupedWindowInvokableTest {
 
 		// null for trigger and policy lists should fail
 		try {
-			new GroupedWindowInvokable<Object, Object>(userFunction, keySelector, null, null, null,
+			new GroupedStreamDiscretizer<Object, Object>(userFunction, keySelector, null, null, null,
 					null);
 			fail("Creating instance without any trigger or eviction policy should cause an UnsupportedOperationException but didn't. (2)");
 		} catch (UnsupportedOperationException e) {
@@ -114,7 +114,7 @@ public class GroupedWindowInvokableTest {
 		centralTriggerPolicies.add(new CountTriggerPolicy<Object>(5));
 		distributedTriggerPolicies.add(new CountTriggerPolicy<Object>(5));
 		try {
-			new GroupedWindowInvokable<Object, Object>(userFunction, keySelector,
+			new GroupedStreamDiscretizer<Object, Object>(userFunction, keySelector,
 					distributedTriggerPolicies, distributedEvictionPolicies,
 					centralTriggerPolicies, centralEvictionPolicies);
 			fail("Creating instance without any eviction policy should cause an UnsupportedOperationException but didn't. (3)");
@@ -127,7 +127,7 @@ public class GroupedWindowInvokableTest {
 		distributedTriggerPolicies.clear();
 		centralEvictionPolicies.add(new CountEvictionPolicy<Object>(5));
 		try {
-			new GroupedWindowInvokable<Object, Object>(userFunction, keySelector,
+			new GroupedStreamDiscretizer<Object, Object>(userFunction, keySelector,
 					distributedTriggerPolicies, distributedEvictionPolicies,
 					centralTriggerPolicies, centralEvictionPolicies);
 			fail("Creating instance without any trigger policy should cause an UnsupportedOperationException but didn't. (4)");
@@ -140,7 +140,7 @@ public class GroupedWindowInvokableTest {
 		centralTriggerPolicies.add(new CountTriggerPolicy<Object>(5));
 		distributedEvictionPolicies.add(new CountEvictionPolicy<Object>(5));
 		try {
-			new GroupedWindowInvokable<Object, Object>(userFunction, keySelector,
+			new GroupedStreamDiscretizer<Object, Object>(userFunction, keySelector,
 					distributedTriggerPolicies, distributedEvictionPolicies,
 					centralTriggerPolicies, centralEvictionPolicies);
 			fail("Creating instance with central and distributed eviction should cause an UnsupportedOperationException but didn't. (4)");
@@ -213,7 +213,7 @@ public class GroupedWindowInvokableTest {
 			}
 		};
 
-		GroupedWindowInvokable<Integer, Integer> invokable = new GroupedWindowInvokable<Integer, Integer>(
+		GroupedStreamDiscretizer<Integer, Integer> invokable = new GroupedStreamDiscretizer<Integer, Integer>(
 				reduceFunction, keySelector, triggers, evictions, centralTriggers, null);
 
 		List<Integer> result = MockContext.createAndExecute(invokable, inputs);
@@ -233,7 +233,7 @@ public class GroupedWindowInvokableTest {
 		LinkedList<EvictionPolicy<Integer>> centralEvictions = new LinkedList<EvictionPolicy<Integer>>();
 		centralEvictions.add(new CountEvictionPolicy<Integer>(2, 2, -1));
 
-		invokable = new GroupedWindowInvokable<Integer, Integer>(reduceFunction, keySelector,
+		invokable = new GroupedStreamDiscretizer<Integer, Integer>(reduceFunction, keySelector,
 				triggers, null, centralTriggers, centralEvictions);
 
 		result = MockContext.createAndExecute(invokable, inputs);
@@ -277,7 +277,7 @@ public class GroupedWindowInvokableTest {
 
 		LinkedList<TriggerPolicy<Tuple2<Integer, String>>> centralTriggers = new LinkedList<TriggerPolicy<Tuple2<Integer, String>>>();
 
-		GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable2 = new GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
+		GroupedStreamDiscretizer<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable2 = new GroupedStreamDiscretizer<Tuple2<Integer, String>, Tuple2<Integer, String>>(
 				new ReduceFunction<Tuple2<Integer, String>>() {
 					private static final long serialVersionUID = 1L;
 
@@ -394,7 +394,7 @@ public class GroupedWindowInvokableTest {
 
 		LinkedList<CloneableTriggerPolicy<Tuple2<Integer, String>>> distributedTriggers = new LinkedList<CloneableTriggerPolicy<Tuple2<Integer, String>>>();
 
-		GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable = new GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
+		GroupedStreamDiscretizer<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable = new GroupedStreamDiscretizer<Tuple2<Integer, String>, Tuple2<Integer, String>>(
 				myReduceFunction, keySelector, distributedTriggers, evictions, triggers, null);
 
 		ArrayList<Tuple2<Integer, String>> result = new ArrayList<Tuple2<Integer, String>>();
@@ -413,7 +413,7 @@ public class GroupedWindowInvokableTest {
 		LinkedList<EvictionPolicy<Tuple2<Integer, String>>> centralEvictions = new LinkedList<EvictionPolicy<Tuple2<Integer, String>>>();
 		centralEvictions.add(new TimeEvictionPolicy<Tuple2<Integer, String>>(4L, myTimeStampWrapper));
 
-		invokable = new GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
+		invokable = new GroupedStreamDiscretizer<Tuple2<Integer, String>, Tuple2<Integer, String>>(
 				myReduceFunction, keySelector, distributedTriggers, evictions, triggers,
 				centralEvictions);
 
@@ -476,7 +476,7 @@ public class GroupedWindowInvokableTest {
 			}
 		};
 
-		GroupedWindowInvokable<Integer, Integer> invokable = new GroupedWindowInvokable<Integer, Integer>(
+		GroupedStreamDiscretizer<Integer, Integer> invokable = new GroupedStreamDiscretizer<Integer, Integer>(
 				myReduceFunction, new KeySelector<Integer, Integer>() {
 					private static final long serialVersionUID = 1L;
 
@@ -552,7 +552,7 @@ public class GroupedWindowInvokableTest {
 			}
 		};
 
-		GroupedWindowInvokable<Integer, Integer> invokable = new GroupedWindowInvokable<Integer, Integer>(
+		GroupedStreamDiscretizer<Integer, Integer> invokable = new GroupedStreamDiscretizer<Integer, Integer>(
 				myReduceFunction, new KeySelector<Integer, Integer>() {
 					private static final long serialVersionUID = 1L;
 

@@ -63,7 +63,7 @@ public class IncrementalLearningSkeleton {
 		// build new model on every second of new data
 		DataStream<Double[]> model = env.addSource(new TrainingDataSource())
 				.window(Time.of(5000, TimeUnit.MILLISECONDS))
-				.reduceGroup(new PartialModelBuilder());
+				.mapWindow(new PartialModelBuilder()).flatten();
 
 		// use partial model for prediction
 		DataStream<Integer> prediction = env.addSource(new NewDataSource()).connect(model)

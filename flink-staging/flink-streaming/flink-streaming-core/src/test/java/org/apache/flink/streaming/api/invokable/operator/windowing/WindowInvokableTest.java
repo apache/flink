@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator;
+package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import static org.junit.Assert.assertEquals;
 
@@ -92,7 +92,7 @@ public class WindowInvokableTest {
 		evictions.add(new TimeEvictionPolicy<Integer>(4L, new TimestampWrapper<Integer>(
 				myTimeStamp, 1)));
 
-		WindowInvokable<Integer, Integer> invokable = new WindowReduceInvokable<Integer>(
+		WindowInvokable<Integer, Integer> invokable = new WindowReducer<Integer>(
 				myReduceFunction, triggers, evictions);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
@@ -136,7 +136,7 @@ public class WindowInvokableTest {
 		// time after the 3rd element
 		evictions.add(new CountEvictionPolicy<Integer>(2, 2, -1));
 
-		WindowInvokable<Integer, Integer> invokable = new WindowReduceInvokable<Integer>(
+		WindowInvokable<Integer, Integer> invokable = new WindowReducer<Integer>(
 				myReduceFunction, triggers, evictions);
 
 		List<Integer> expected = new ArrayList<Integer>();
@@ -189,7 +189,7 @@ public class WindowInvokableTest {
 		// time after on the 5th element
 		evictions.add(new CountEvictionPolicy<Integer>(3, 3, -1));
 
-		WindowInvokable<Integer, Integer> invokable2 = new WindowReduceInvokable<Integer>(
+		WindowInvokable<Integer, Integer> invokable2 = new WindowReducer<Integer>(
 				myReduceFunction, triggers, evictions);
 
 		List<Integer> expected2 = new ArrayList<Integer>();
@@ -247,7 +247,7 @@ public class WindowInvokableTest {
 			}
 		};
 
-		WindowInvokable<Integer, Integer> invokable = new WindowReduceInvokable<Integer>(
+		WindowInvokable<Integer, Integer> invokable = new WindowReducer<Integer>(
 				myReduceFunction, triggers, evictions);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();

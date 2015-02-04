@@ -35,40 +35,31 @@ object WindowJoin {
   def main(args: Array[String]) {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setDegreeOfParallelism(1)
 
-    //Create streams for names and ages by mapping the inputs to the corresponding objects
-    val names = env.fromCollection(nameStream).map(x => Name(x._1, x._2))
-    val ages = env.fromCollection(ageStream).map(x => Age(x._1, x._2))
-
-    //Join the two input streams by id on the last 2 seconds every second and create new 
-    //Person objects containing both name and age
-    val joined =
-      names.join(ages).onWindow(2, TimeUnit.SECONDS)
-                      .every(1, TimeUnit.SECONDS)
-                      .where("id")
-                      .equalTo("id") { (n, a) => Person(n.name, a.age) }
-
-    joined print
+    val split = env.generateSequence(1, 10).split(x => x % 3 toString)
+    
+    split.select("0").merge(split.select("1")).print
 
     env.execute("WindowJoin")
   }
 
-  def nameStream() : Stream[(Long,String)] = {
-    def nameMapper(names: Array[String])(x: Int) : (Long, String) =
-    {
-      if(x%100==0) Thread.sleep(1000)
-      (x, names(Random.nextInt(names.length)))
-    }
-    range(1,10000).map(nameMapper(Array("tom", "jerry", "alice", "bob", "john", "grace")))
+  def nameStream(): Stream[(Long, String)] = {
+    def nameMapper(names: Array[String])(x: Int): (Long, String) =
+      {
+        if (x % 100 == 0) Thread.sleep(1000)
+        (x, names(Random.nextInt(names.length)))
+      }
+    range(1, 10000).map(nameMapper(Array("tom", "jerry", "alice", "bob", "john", "grace")))
   }
 
-  def ageStream() : Stream[(Long,Int)] = {
-    def ageMapper(x: Int) : (Long, Int) =
-    {
-      if(x%100==0) Thread.sleep(1000)
-      (x, Random.nextInt(90))
-    }
-    range(1,10000).map(ageMapper)
+  def ageStream(): Stream[(Long, Int)] = {
+    def ageMapper(x: Int): (Long, Int) =
+      {
+        if (x % 100 == 0) Thread.sleep(1000)
+        (x, Random.nextInt(90))
+      }
+    range(1, 10000).map(ageMapper)
   }
 
 }

@@ -60,7 +60,7 @@ public class TopSpeedWindowingExample {
 									Tuple4<Integer, Integer, Double, Long> newDataPoint) {
 								return newDataPoint.f2 - oldDataPoint.f2;
 							}
-						}, new Tuple4<Integer, Integer, Double, Long>(0, 0, 0d, 0l))).maxBy(1);
+						}, new Tuple4<Integer, Integer, Double, Long>(0, 0, 0d, 0l))).local().maxBy(1).flatten();
 
 		topSpeeds.print();
 		env.execute("CarTopSpeedWindowingExample");

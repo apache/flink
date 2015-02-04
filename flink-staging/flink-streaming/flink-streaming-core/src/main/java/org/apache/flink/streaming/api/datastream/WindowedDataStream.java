@@ -25,17 +25,20 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.operator.GroupedWindowInvokable;
-import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvokable;
-import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedStreamDiscretizer;
+import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
+import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindow;
+import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindowTypeInfo;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
@@ -44,12 +47,14 @@ import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
+import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 /**
  * A {@link WindowedDataStream} represents a data stream that has been divided
  * into windows (predefined chunks). User defined function such as
- * {@link #reduce(ReduceFunction)}, {@link #reduceGroup(GroupReduceFunction)} or
- * aggregations can be applied to the windows.
+ * {@link #reduceWindow(ReduceFunction)},
+ * {@link #mapWindow(GroupReduceFunction)} or aggregations can be applied to the
+ * windows.
  * 
  * @param <OUT>
  *            The output type of the {@link WindowedDataStream}
@@ -57,15 +62,22 @@ import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 public class WindowedDataStream<OUT> {
 
 	protected DataStream<OUT> dataStream;
-	protected boolean isGrouped;
-	protected boolean allCentral;
-	protected KeySelector<OUT, ?> keySelector;
+
+	protected boolean isLocal = false;
+	protected boolean isCentral = true;
+
+	protected KeySelector<OUT, ?> discretizerKey;
+	protected KeySelector<OUT, ?> groupByKey;
 
 	protected List<WindowingHelper<OUT>> triggerHelpers;
 	protected List<WindowingHelper<OUT>> evictionHelpers;
 
 	protected LinkedList<TriggerPolicy<OUT>> userTriggers;
 	protected LinkedList<EvictionPolicy<OUT>> userEvicters;
+
+	protected WindowedDataStream() {
+
+	}
 
 	protected WindowedDataStream(DataStream<OUT> dataStream, WindowingHelper<OUT>... policyHelpers) {
 		this.dataStream = dataStream.copy();
@@ -75,15 +87,9 @@ public class WindowedDataStream<OUT> {
 		}
 
 		if (dataStream instanceof GroupedDataStream) {
-			this.isGrouped = true;
-			this.keySelector = ((GroupedDataStream<OUT>) dataStream).keySelector;
+			this.discretizerKey = ((GroupedDataStream<OUT>) dataStream).keySelector;
 			// set all policies distributed
-			this.allCentral = false;
-
-		} else {
-			this.isGrouped = false;
-			// set all policies central
-			this.allCentral = true;
+			this.isCentral = false;
 		}
 	}
 
@@ -102,27 +108,23 @@ public class WindowedDataStream<OUT> {
 		}
 
 		if (dataStream instanceof GroupedDataStream) {
-			this.isGrouped = true;
-			this.keySelector = ((GroupedDataStream<OUT>) dataStream).keySelector;
+			this.discretizerKey = ((GroupedDataStream<OUT>) dataStream).keySelector;
 			// set all policies distributed
-			this.allCentral = false;
+			this.isCentral = false;
 
-		} else {
-			this.isGrouped = false;
-			// set all policies central
-			this.allCentral = true;
 		}
 	}
 
 	protected WindowedDataStream(WindowedDataStream<OUT> windowedDataStream) {
 		this.dataStream = windowedDataStream.dataStream.copy();
-		this.isGrouped = windowedDataStream.isGrouped;
-		this.keySelector = windowedDataStream.keySelector;
+		this.discretizerKey = windowedDataStream.discretizerKey;
+		this.groupByKey = windowedDataStream.groupByKey;
 		this.triggerHelpers = windowedDataStream.triggerHelpers;
 		this.evictionHelpers = windowedDataStream.evictionHelpers;
 		this.userTriggers = windowedDataStream.userTriggers;
 		this.userEvicters = windowedDataStream.userEvicters;
-		this.allCentral = windowedDataStream.allCentral;
+		this.isCentral = windowedDataStream.isCentral;
+		this.isLocal = windowedDataStream.isLocal;
 	}
 
 	public <F> F clean(F f) {
@@ -169,11 +171,11 @@ public class WindowedDataStream<OUT> {
 	 * @return The grouped {@link WindowedDataStream}
 	 */
 	public WindowedDataStream<OUT> groupBy(int... fields) {
-		WindowedDataStream<OUT> ret = this.copy();
-		ret.dataStream = ret.dataStream.groupBy(fields);
-		ret.isGrouped = true;
-		ret.keySelector = ((GroupedDataStream<OUT>) ret.dataStream).keySelector;
-		return ret;
+		if (getType() instanceof BasicArrayTypeInfo || getType() instanceof PrimitiveArrayTypeInfo) {
+			return groupBy(new KeySelectorUtil.ArrayKeySelector<OUT>(fields));
+		} else {
+			return groupBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
+		}
 	}
 
 	/**
@@ -193,11 +195,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The grouped {@link WindowedDataStream}
 	 */
 	public WindowedDataStream<OUT> groupBy(String... fields) {
-		WindowedDataStream<OUT> ret = this.copy();
-		ret.dataStream = ret.dataStream.groupBy(fields);
-		ret.isGrouped = true;
-		ret.keySelector = ((GroupedDataStream<OUT>) ret.dataStream).keySelector;
-		return ret;
+		return groupBy(new Keys.ExpressionKeys<OUT>(fields, getType()));
 	}
 
 	/**
@@ -214,10 +212,46 @@ public class WindowedDataStream<OUT> {
 	 */
 	public WindowedDataStream<OUT> groupBy(KeySelector<OUT, ?> keySelector) {
 		WindowedDataStream<OUT> ret = this.copy();
-		ret.dataStream = ret.dataStream.groupBy(keySelector);
-		ret.isGrouped = true;
-		ret.keySelector = ((GroupedDataStream<OUT>) ret.dataStream).keySelector;
+		ret.groupByKey = keySelector;
 		return ret;
+	}
+
+	private WindowedDataStream<OUT> groupBy(Keys<OUT> keys) {
+		return groupBy(clean(KeySelectorUtil.getSelectorForKeys(keys, getType())));
+	}
+
+	/**
+	 * Sets the windowed computations local, so that the windowing and reduce or
+	 * aggregation logic will be computed for each parallel instance of this
+	 * operator
+	 * 
+	 * @return The local windowed data stream
+	 */
+	public WindowedDataStream<OUT> local() {
+		WindowedDataStream<OUT> out = copy();
+		out.isLocal = true;
+		return out;
+	}
+
+	private DiscretizedStream<OUT> discretize(boolean isMap) {
+
+		StreamInvokable<OUT, StreamWindow<OUT>> discretizer;
+
+		if (discretizerKey == null) {
+			discretizer = new StreamDiscretizer<OUT>(getTriggers(), getEvicters());
+		} else {
+			discretizer = new GroupedStreamDiscretizer<OUT>(discretizerKey,
+					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers(),
+					getCentralEvicters());
+		}
+
+		int parallelism = isLocal || (discretizerKey != null) ? dataStream.environment
+				.getDegreeOfParallelism() : 1;
+
+		return new DiscretizedStream<OUT>(dataStream.transform("Stream Discretizer",
+				new StreamWindowTypeInfo<OUT>(getType()), discretizer).setParallelism(parallelism),
+				groupByKey);
+
 	}
 
 	/**
@@ -230,9 +264,9 @@ public class WindowedDataStream<OUT> {
 	 *            The reduce function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
-	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reduceFunction) {
-		return dataStream.transform("Window-Reduce", getType(),
-				getReduceInvokable(reduceFunction));
+	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
+
+		return discretize(false).reduceWindow(reduceFunction);
 	}
 
 	/**
@@ -248,15 +282,12 @@ public class WindowedDataStream<OUT> {
 	 *            The reduce function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> reduceGroup(
-			GroupReduceFunction<OUT, R> reduceFunction) {
+	public <R> WindowedDataStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction) {
+		return discretize(true).mapWindow(reduceFunction);
+	}
 
-		TypeInformation<OUT> inType = getType();
-		TypeInformation<R> outType = TypeExtractor
-				.getGroupReduceReturnTypes(reduceFunction, inType);
-
-		return dataStream.transform("WindowReduce", outType,
-				getReduceGroupInvokable(reduceFunction));
+	public DataStream<OUT> flatten() {
+		return dataStream;
 	}
 
 	/**
@@ -269,18 +300,20 @@ public class WindowedDataStream<OUT> {
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * </br> </br> This version of reduceGroup uses user supplied
 	 * typeinformation for serializaton. Use this only when the system is unable
-	 * to detect type information using:
-	 * {@link #reduceGroup(GroupReduceFunction)}
+	 * to detect type information using: {@link #mapWindow(GroupReduceFunction)}
 	 * 
 	 * @param reduceFunction
 	 *            The reduce function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> reduceGroup(
+	public <R> SingleOutputStreamOperator<R, ?> mapWindow(
 			GroupReduceFunction<OUT, R> reduceFunction, TypeInformation<R> outType) {
 
-		return dataStream.transform("Window-Reduce", outType,
-				getReduceGroupInvokable(reduceFunction));
+		throw new RuntimeException("Not implemented yet");
+	}
+
+	protected Class<?> getClassAtPos(int pos) {
+		return dataStream.getClassAtPos(pos);
 	}
 
 	/**
@@ -291,10 +324,9 @@ public class WindowedDataStream<OUT> {
 	 *            The position in the tuple/array to sum
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
-		dataStream.checkFieldRange(positionToSum);
+	public WindowedDataStream<OUT> sum(int positionToSum) {
 		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(positionToSum,
-				dataStream.getClassAtPos(positionToSum), getType()));
+				getClassAtPos(positionToSum), getType()));
 	}
 
 	/**
@@ -308,7 +340,7 @@ public class WindowedDataStream<OUT> {
 	 *            The field to sum
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> sum(String field) {
+	public WindowedDataStream<OUT> sum(String field) {
 		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field, getType()));
 	}
 
@@ -320,8 +352,7 @@ public class WindowedDataStream<OUT> {
 	 *            The position to minimize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
-		dataStream.checkFieldRange(positionToMin);
+	public WindowedDataStream<OUT> min(int positionToMin) {
 		return aggregate(ComparableAggregator.getAggregator(positionToMin, getType(),
 				AggregationType.MIN));
 	}
@@ -338,7 +369,7 @@ public class WindowedDataStream<OUT> {
 	 *            applied.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> min(String field) {
+	public WindowedDataStream<OUT> min(String field) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MIN,
 				false));
 	}
@@ -352,7 +383,7 @@ public class WindowedDataStream<OUT> {
 	 *            The position to minimize by
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
+	public WindowedDataStream<OUT> minBy(int positionToMinBy) {
 		return this.minBy(positionToMinBy, true);
 	}
 
@@ -365,7 +396,7 @@ public class WindowedDataStream<OUT> {
 	 *            The position to minimize by
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(String positionToMinBy) {
+	public WindowedDataStream<OUT> minBy(String positionToMinBy) {
 		return this.minBy(positionToMinBy, true);
 	}
 
@@ -382,8 +413,7 @@ public class WindowedDataStream<OUT> {
 	 *            minimum value, otherwise returns the last
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
-		dataStream.checkFieldRange(positionToMinBy);
+	public WindowedDataStream<OUT> minBy(int positionToMinBy, boolean first) {
 		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getType(),
 				AggregationType.MINBY, first));
 	}
@@ -403,7 +433,7 @@ public class WindowedDataStream<OUT> {
 	 *            be returned
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(String field, boolean first) {
+	public WindowedDataStream<OUT> minBy(String field, boolean first) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(),
 				AggregationType.MINBY, first));
 	}
@@ -416,8 +446,7 @@ public class WindowedDataStream<OUT> {
 	 *            The position to maximize
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
-		dataStream.checkFieldRange(positionToMax);
+	public WindowedDataStream<OUT> max(int positionToMax) {
 		return aggregate(ComparableAggregator.getAggregator(positionToMax, getType(),
 				AggregationType.MAX));
 	}
@@ -434,7 +463,7 @@ public class WindowedDataStream<OUT> {
 	 *            applied.
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> max(String field) {
+	public WindowedDataStream<OUT> max(String field) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MAX,
 				false));
 	}
@@ -448,7 +477,7 @@ public class WindowedDataStream<OUT> {
 	 *            The position to maximize by
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
+	public WindowedDataStream<OUT> maxBy(int positionToMaxBy) {
 		return this.maxBy(positionToMaxBy, true);
 	}
 
@@ -461,7 +490,7 @@ public class WindowedDataStream<OUT> {
 	 *            The position to maximize by
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(String positionToMaxBy) {
+	public WindowedDataStream<OUT> maxBy(String positionToMaxBy) {
 		return this.maxBy(positionToMaxBy, true);
 	}
 
@@ -478,8 +507,7 @@ public class WindowedDataStream<OUT> {
 	 *            maximum value, otherwise returns the last
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
-		dataStream.checkFieldRange(positionToMaxBy);
+	public WindowedDataStream<OUT> maxBy(int positionToMaxBy, boolean first) {
 		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getType(),
 				AggregationType.MAXBY, first));
 	}
@@ -499,21 +527,17 @@ public class WindowedDataStream<OUT> {
 	 *            be returned
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(String field, boolean first) {
+	public WindowedDataStream<OUT> maxBy(String field, boolean first) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(),
 				AggregationType.MAXBY, first));
 	}
 
-	private SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregator) {
-		StreamInvokable<OUT, OUT> invokable = getReduceInvokable(aggregator);
+	private WindowedDataStream<OUT> aggregate(AggregationFunction<OUT> aggregator) {
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = dataStream.transform("Window-Aggregation",
-				getType(), invokable);
-
-		return returnStream;
+		return reduceWindow(aggregator);
 	}
 
-	private LinkedList<TriggerPolicy<OUT>> getTriggers() {
+	protected LinkedList<TriggerPolicy<OUT>> getTriggers() {
 
 		LinkedList<TriggerPolicy<OUT>> triggers = new LinkedList<TriggerPolicy<OUT>>();
 
@@ -531,7 +555,7 @@ public class WindowedDataStream<OUT> {
 
 	}
 
-	private LinkedList<EvictionPolicy<OUT>> getEvicters() {
+	protected LinkedList<EvictionPolicy<OUT>> getEvicters() {
 
 		LinkedList<EvictionPolicy<OUT>> evicters = new LinkedList<EvictionPolicy<OUT>>();
 
@@ -541,15 +565,15 @@ public class WindowedDataStream<OUT> {
 			}
 		} else {
 			if (userEvicters == null) {
-				boolean notOnlyTime=false;
-				for (WindowingHelper<OUT> helper : triggerHelpers){
-					if (helper instanceof Time<?>){
+				boolean notOnlyTime = false;
+				for (WindowingHelper<OUT> helper : triggerHelpers) {
+					if (helper instanceof Time<?>) {
 						evicters.add(helper.toEvict());
 					} else {
-						notOnlyTime=true;
+						notOnlyTime = true;
 					}
 				}
-				if (notOnlyTime){
+				if (notOnlyTime) {
 					evicters.add(new TumblingEvictionPolicy<OUT>());
 				}
 			}
@@ -562,9 +586,9 @@ public class WindowedDataStream<OUT> {
 		return evicters;
 	}
 
-	private LinkedList<TriggerPolicy<OUT>> getCentralTriggers() {
+	protected LinkedList<TriggerPolicy<OUT>> getCentralTriggers() {
 		LinkedList<TriggerPolicy<OUT>> cTriggers = new LinkedList<TriggerPolicy<OUT>>();
-		if (allCentral) {
+		if (isCentral) {
 			cTriggers.addAll(getTriggers());
 		} else {
 			for (TriggerPolicy<OUT> trigger : getTriggers()) {
@@ -576,10 +600,10 @@ public class WindowedDataStream<OUT> {
 		return cTriggers;
 	}
 
-	private LinkedList<CloneableTriggerPolicy<OUT>> getDistributedTriggers() {
+	protected LinkedList<CloneableTriggerPolicy<OUT>> getDistributedTriggers() {
 		LinkedList<CloneableTriggerPolicy<OUT>> dTriggers = null;
 
-		if (!allCentral) {
+		if (!isCentral) {
 			dTriggers = new LinkedList<CloneableTriggerPolicy<OUT>>();
 			for (TriggerPolicy<OUT> trigger : getTriggers()) {
 				if (!(trigger instanceof TimeTriggerPolicy)) {
@@ -591,10 +615,10 @@ public class WindowedDataStream<OUT> {
 		return dTriggers;
 	}
 
-	private LinkedList<CloneableEvictionPolicy<OUT>> getDistributedEvicters() {
+	protected LinkedList<CloneableEvictionPolicy<OUT>> getDistributedEvicters() {
 		LinkedList<CloneableEvictionPolicy<OUT>> evicters = null;
 
-		if (!allCentral) {
+		if (!isCentral) {
 			evicters = new LinkedList<CloneableEvictionPolicy<OUT>>();
 			for (EvictionPolicy<OUT> evicter : getEvicters()) {
 				evicters.add((CloneableEvictionPolicy<OUT>) evicter);
@@ -604,39 +628,12 @@ public class WindowedDataStream<OUT> {
 		return evicters;
 	}
 
-	private LinkedList<EvictionPolicy<OUT>> getCentralEvicters() {
-		if (allCentral) {
+	protected LinkedList<EvictionPolicy<OUT>> getCentralEvicters() {
+		if (isCentral) {
 			return getEvicters();
 		} else {
 			return null;
 		}
-	}
-
-	private <R> StreamInvokable<OUT, R> getReduceGroupInvokable(GroupReduceFunction<OUT, R> reducer) {
-		StreamInvokable<OUT, R> invokable;
-		if (isGrouped) {
-			invokable = new GroupedWindowInvokable<OUT, R>(clean(reducer), keySelector,
-					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers(),
-					getCentralEvicters());
-
-		} else {
-			invokable = new WindowGroupReduceInvokable<OUT, R>(clean(reducer), getTriggers(),
-					getEvicters());
-		}
-		return invokable;
-	}
-
-	private StreamInvokable<OUT, OUT> getReduceInvokable(ReduceFunction<OUT> reducer) {
-		StreamInvokable<OUT, OUT> invokable;
-		if (isGrouped) {
-			invokable = new GroupedWindowInvokable<OUT, OUT>(clean(reducer), keySelector,
-					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers(),
-					getCentralEvicters());
-
-		} else {
-			invokable = new WindowReduceInvokable<OUT>(clean(reducer), getTriggers(), getEvicters());
-		}
-		return invokable;
 	}
 
 	/**
@@ -648,11 +645,30 @@ public class WindowedDataStream<OUT> {
 		return dataStream.getType();
 	}
 
-	public DataStream<OUT> getDataStream() {
+	protected DataStream<OUT> getDataStream() {
 		return dataStream;
 	}
 
 	protected WindowedDataStream<OUT> copy() {
 		return new WindowedDataStream<OUT>(this);
+	}
+
+	protected boolean isGrouped() {
+		return groupByKey != null;
+	}
+
+	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
+		return discretize(true).getDiscretizedStream();
+	}
+
+	protected static class WindowKey<R> implements KeySelector<StreamWindow<R>, Integer> {
+
+		private static final long serialVersionUID = 1L;
+		
+		@Override
+		public Integer getKey(StreamWindow<R> value) throws Exception {
+			return value.windowID;
+		}
+
 	}
 }
