@@ -67,7 +67,7 @@ public class DirectMemorySegment extends MemorySegment {
 
 	public DirectMemorySegment(ByteBuffer buffer) {
 		if (buffer == null || !buffer.isDirect()) {
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("Can't initialize from non-direct ByteBuffer.");
 		}
 		
 		this.buffer = buffer;
