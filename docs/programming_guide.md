@@ -1346,8 +1346,9 @@ data.map (new RichMapFunction[String, Int] {
 
 Rich functions provide, in addition to the user-defined function (map,
 reduce, etc), four methods: `open`, `close`, `getRuntimeContext`, and
-`setRuntimeContext`. These are useful for creating and finalizing
-local state, accessing broadcast variables (see
+`setRuntimeContext`. These are useful for parameterizing the function
+(see [Passing parameters to functions](#passing-parameters-to-functions)),
+creating and finalizing local state, accessing broadcast variables (see
 [Broadcast Variables](#broadcast-variables), and for accessing runtime
 information such as accumulators and counters (see
 [Accumulators and Counters](#accumulators--counters), and information
@@ -2401,9 +2402,10 @@ of a function, or use the `withParameters(...)` method to pass in a configuratio
 Passing parameters to functions
 -------------------
 
-Parameters can be passed to rich functions using the `withParameters( ... )` method. This method takes a Configuration
-object as an argument, which will be passed into the rich functions `open()` method. The passed object is basically 
-a Map, using String keys and variable value types.
+Parameters can be passed to rich functions using either the constructor (if the function is
+defined as a static final class) or the `withParameters( ... )` method. This method takes a
+Configuration object as an argument, which will be passed into the rich functions `open()`
+method. The passed object is basically a Map, using String keys and variable value types.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
