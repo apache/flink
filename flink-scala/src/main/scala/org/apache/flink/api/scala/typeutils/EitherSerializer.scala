@@ -42,8 +42,8 @@ class EitherSerializer[A, B, T <: Either[A, B]](
   override def getLength: Int = -1
 
   override def copy(from: T): T = from match {
-    case Left(a: A) => Left(leftSerializer.copy(a)).asInstanceOf[T]
-    case Right(b: B) => Right(rightSerializer.copy(b)).asInstanceOf[T]
+    case Left(a) => Left(leftSerializer.copy(a)).asInstanceOf[T]
+    case Right(b) => Right(rightSerializer.copy(b)).asInstanceOf[T]
   }
 
   override def copy(from: T, reuse: T): T = copy(from)
@@ -59,10 +59,10 @@ class EitherSerializer[A, B, T <: Either[A, B]](
   }
 
   override def serialize(either: T, target: DataOutputView): Unit = either match {
-    case Left(a: A) =>
+    case Left(a) =>
       target.writeBoolean(true)
       leftSerializer.serialize(a, target)
-    case Right(b: B) =>
+    case Right(b) =>
       target.writeBoolean(false)
       rightSerializer.serialize(b, target)
   }
