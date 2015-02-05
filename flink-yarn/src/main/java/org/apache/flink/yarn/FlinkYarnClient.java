@@ -269,7 +269,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		}
 
 		// check if required Hadoop environment variables are set. If not, warn user
-		if(System.getenv("HADOOP_CONF_DIR") == null ||
+		if(System.getenv("HADOOP_CONF_DIR") == null &&
 				System.getenv("YARN_CONF_DIR") == null) {
 			LOG.warn("Neither the HADOOP_CONF_DIR nor the YARN_CONF_DIR environment variable is set." +
 					"The Flink YARN Client needs one of these to be set to properly load the Hadoop " +
