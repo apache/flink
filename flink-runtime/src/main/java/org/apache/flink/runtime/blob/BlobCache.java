@@ -57,7 +57,7 @@ public final class BlobCache implements BlobService {
 		LOG.info("Created BLOB cache storage directory " + storageDir);
 
 		// Add shutdown hook to delete storage directory
-		BlobUtils.addDeleteDirectoryShutdownHook(storageDir);
+		BlobUtils.addDeleteDirectoryShutdownHook(storageDir, LOG);
 	}
 
 	/**

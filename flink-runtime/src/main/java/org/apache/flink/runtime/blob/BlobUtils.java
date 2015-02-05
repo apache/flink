@@ -23,6 +23,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +35,7 @@ import java.util.UUID;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class BlobUtils {
+
 	/**
 	 * Algorithm to be used for calculating the BLOB keys.
 	 */
@@ -197,7 +199,7 @@ public class BlobUtils {
 	/**
 	 * Adds a shutdown hook to the JVM to delete the given directory.
 	 */
-	static void addDeleteDirectoryShutdownHook(final File dir) {
+	static void addDeleteDirectoryShutdownHook(final File dir, final Logger errorLogger) {
 		checkNotNull(dir);
 
 		// Add shutdown hook to delete directory
@@ -207,8 +209,8 @@ public class BlobUtils {
 				try {
 					FileUtils.deleteDirectory(dir);
 				}
-				catch (IOException e) {
-					throw new RuntimeException("Error deleting directory " + dir + " during JVM shutdown: " + e.getMessage(), e);
+				catch (Throwable t) {
+					errorLogger.error("Error deleting directory " + dir + " during JVM shutdown: " + t.getMessage(), t);
 				}
 			}
 		}));
