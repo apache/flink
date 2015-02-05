@@ -76,16 +76,15 @@ public class BlobUtils {
 			storageDir = new File(baseDir, String.format(
 					"blobStore-%s", UUID.randomUUID().toString()));
 
-			if(!storageDir.exists()){
-				// Create the storage directory
-				storageDir.mkdirs();
-
+			// Create the storage dir if it doesn't exist. Only return it when the operation was
+			// successful.
+			if (!storageDir.exists() && storageDir.mkdirs()) {
 				return storageDir;
 			}
 		}
 
 		// max attempts exceeded to find a storage directory
-		throw new RuntimeException("Could not create a storage directory");
+		throw new RuntimeException("Could not create storage directory in '" + baseDir + "'.");
 	}
 
 	/**
@@ -109,7 +108,10 @@ public class BlobUtils {
 	 */
 	private static File getCacheDirectory(File storageDir) {
 		final File cacheDirectory = new File(storageDir, "cache");
-		cacheDirectory.mkdir();
+
+		if (!cacheDirectory.exists() && !cacheDirectory.mkdir()) {
+			throw new RuntimeException("Could not create cache directory '" + cacheDirectory + "'.");
+		}
 
 		return cacheDirectory;
 	}
