@@ -43,6 +43,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -81,6 +82,11 @@ public class ExecutionVertex implements Serializable {
 	private volatile CoLocationConstraint locationConstraint;
 	
 	private volatile Execution currentExecution;	// this field must never be null
+	
+	
+	private volatile List<Instance> locationConstraintInstances;
+	
+	private volatile boolean scheduleLocalOnly;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -294,10 +300,22 @@ public class ExecutionVertex implements Serializable {
 		}
 	}
 	
-	public void setTargetHostConstraint(String hostname) {
+	public void setLocationConstraintHosts(List<Instance> instances) {
+		this.locationConstraintInstances = instances;
+	}
+	
+	public void setScheduleLocalOnly(boolean scheduleLocalOnly) {
+		if (scheduleLocalOnly && inputEdges != null && inputEdges.length > 0) {
+			throw new IllegalArgumentException("Strictly local scheduling is only supported for sources.");
+		}
 		
+		this.scheduleLocalOnly = scheduleLocalOnly;
 	}
 
+	public boolean isScheduleLocalOnly() {
+		return scheduleLocalOnly;
+	}
+	
 	/**
 	 * Gets the location preferences of this task, determined by the locations of the predecessors from which
 	 * it receives input data.
@@ -307,23 +325,37 @@ public class ExecutionVertex implements Serializable {
 	 * @return The preferred locations for this vertex execution, or null, if there is no preference.
 	 */
 	public Iterable<Instance> getPreferredLocations() {
-		HashSet<Instance> locations = new HashSet<Instance>();
+		// if we have hard location constraints, use those
+		{
+			List<Instance> constraintInstances = this.locationConstraintInstances;
+			if (constraintInstances != null && !constraintInstances.isEmpty()) {
+				return constraintInstances;
+			}
+		}
 		
-		for (int i = 0; i < inputEdges.length; i++) {
-			ExecutionEdge[] sources = inputEdges[i];
-			if (sources != null) {
-				for (int k = 0; k < sources.length; k++) {
-					SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
-					if (sourceSlot != null) {
-						locations.add(sourceSlot.getInstance());
-						if (locations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-							return null;
+		// otherwise, base the preferred locations on the input connections
+		if (inputEdges == null) {
+			return Collections.emptySet();
+		}
+		else {
+			HashSet<Instance> locations = new HashSet<Instance>();
+		
+			for (int i = 0; i < inputEdges.length; i++) {
+				ExecutionEdge[] sources = inputEdges[i];
+				if (sources != null) {
+					for (int k = 0; k < sources.length; k++) {
+						SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
+						if (sourceSlot != null) {
+							locations.add(sourceSlot.getInstance());
+							if (locations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
+								return null;
+							}
 						}
 					}
 				}
 			}
+			return locations;
 		}
-		return locations;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -407,6 +439,7 @@ public class ExecutionVertex implements Serializable {
 		// clear the unnecessary fields in this class
 		this.resultPartitions = null;
 		this.inputEdges = null;
+		this.locationConstraintInstances = null;
 	}
 
 	// --------------------------------------------------------------------------------------------

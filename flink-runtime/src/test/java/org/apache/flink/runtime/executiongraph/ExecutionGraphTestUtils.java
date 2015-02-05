@@ -101,9 +101,8 @@ public class ExecutionGraphTestUtils {
 		return getInstance(taskManager, 1);
 	}
 
-	public static Instance getInstance(final ActorRef taskManager, final int numberOfSlots) throws
-			Exception {
-				HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
+	public static Instance getInstance(final ActorRef taskManager, final int numberOfSlots) throws Exception {
+		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 		InetAddress address = InetAddress.getByName("127.0.0.1");
 		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 		

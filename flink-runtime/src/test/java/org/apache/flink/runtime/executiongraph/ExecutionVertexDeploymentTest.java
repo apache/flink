@@ -102,7 +102,7 @@ public class ExecutionVertexDeploymentTest {
 
 			final JobVertexID jid = new JobVertexID();
 
-			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleAcknowledgingTaskManager.class));
 			
 			final Instance instance = getInstance(simpleTaskManager);
@@ -146,7 +146,7 @@ public class ExecutionVertexDeploymentTest {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleAcknowledgingTaskManager.class));
 			
 			final Instance instance = getInstance(simpleTaskManager);
@@ -202,7 +202,7 @@ public class ExecutionVertexDeploymentTest {
 
 			final JobVertexID jid = new JobVertexID();
 
-			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleFailingTaskManager.class));
 			
 			final Instance instance = getInstance(simpleTaskManager);
@@ -238,7 +238,7 @@ public class ExecutionVertexDeploymentTest {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleFailingTaskManager.class));
 			
 			final Instance instance = getInstance(simpleTaskManager);
@@ -287,7 +287,7 @@ public class ExecutionVertexDeploymentTest {
 
 			TestingUtils.setExecutionContext(ec);
 
-			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleAcknowledgingTaskManager.class));
 			final Instance instance = getInstance(simpleTaskManager);
 			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
@@ -337,7 +337,7 @@ public class ExecutionVertexDeploymentTest {
 					AkkaUtils.getDefaultTimeout());
 			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-			final TestActorRef simpleTaskManager = TestActorRef.create(system, Props.create(new
+			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system, Props.create(new
 					ExecutionVertexCancelTest.CancelSequenceTaskManagerCreator(new
 					TaskOperationResult(eid, false), new TaskOperationResult(eid, true))));
 

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -41,13 +40,11 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.slf4j.Logger;
 
 
-public class SlotSharingGroupAssignment implements Serializable {
-
-	static final long serialVersionUID = 42L;
+public class SlotSharingGroupAssignment {
 
 	private static final Logger LOG = Scheduler.LOG;
 
-	private transient final Object lock = new Object();
+	private final Object lock = new Object();
 
 	/** All slots currently allocated to this sharing group */
 	private final Set<SharedSlot> allSlots = new LinkedHashSet<SharedSlot>();

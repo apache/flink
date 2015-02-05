@@ -259,6 +259,15 @@ public class ExecutionJobVertex implements Serializable {
 	//---------------------------------------------------------------------------------------------
 	
 	public void scheduleAll(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
+		
+//		ExecutionVertex[] vertices = this.taskVertices;
+//		
+//		for (int i = 0; i < vertices.length; i++) {
+//			ExecutionVertex v = vertices[i];
+//			
+//			if (v.get 
+//		}
+		
 		for (ExecutionVertex ev : getTaskVertices()) {
 			ev.scheduleForExecution(scheduler, queued);
 		}

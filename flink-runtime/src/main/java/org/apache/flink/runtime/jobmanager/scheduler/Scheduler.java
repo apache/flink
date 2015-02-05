@@ -29,6 +29,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import akka.dispatch.Futures;
+
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -71,6 +72,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	private int localizedAssignments;
 	
 	private int nonLocalizedAssignments;
+	
 	
 	public Scheduler() {
 		this.newlyAvailableInstances = new LinkedBlockingQueue<Instance>();
@@ -164,6 +166,10 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		}
 
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
+		
+		final Iterable<Instance> preferredLocations = vertex.getPreferredLocations();
+		final boolean forceExternalLocation = vertex.isScheduleLocalOnly() &&
+									preferredLocations != null && preferredLocations.iterator().hasNext();
 	
 		synchronized (globalLock) {
 		
@@ -178,6 +184,12 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				
 				final SlotSharingGroupAssignment assignment = sharingUnit.getTaskAssignment();
 				final CoLocationConstraint constraint = task.getLocationConstraint();
+				
+				// sanity check that we do not use an externally forced location and a co-location constraint together
+				if (constraint != null && forceExternalLocation) {
+					throw new IllegalArgumentException("The scheduling cannot be contrained simultaneously by a "
+							+ "co-location constriaint and an external location constraint.");
+				}
 				
 				// get a slot from the group, if the group has one for us (and can fulfill the constraint)
 				SimpleSlot slotFromGroup;
@@ -206,7 +218,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 							vertex.getPreferredLocations() : Collections.singleton(constraint.getLocation());
 					
 					// get a new slot, since we could not place it into the group, or we could not place it locally
-					newSlot = getFreeSubSlotForTask(vertex, locations, assignment, constraint);
+					newSlot = getFreeSubSlotForTask(vertex, locations, assignment, constraint, forceExternalLocation);
 
 					SimpleSlot toUse;
 					
@@ -214,8 +226,20 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 						if (slotFromGroup == null) {
 							// both null
 							if (constraint == null || constraint.isUnassigned()) {
-								throw new NoResourceAvailableException(task, getNumberOfAvailableInstances(), getTotalNumberOfSlots(), getNumberOfAvailableSlots());
-							} else {
+								if (forceExternalLocation) {
+									// could not satisfy the external location constraint
+									String hosts = getHostnamesFromInstances(preferredLocations);
+									throw new NoResourceAvailableException("Could not schedule task " + vertex
+											+ " to any of the required hosts: " + hosts);
+								}
+								else {
+									// simply nothing is available
+									throw new NoResourceAvailableException(task, getNumberOfAvailableInstances(),
+											getTotalNumberOfSlots(), getNumberOfAvailableSlots());
+								}
+							}
+							else {
+								// nothing is available on the node where the co-location constraint pushes us
 								throw new NoResourceAvailableException("Could not allocate a slot on instance " + 
 											constraint.getLocation() + ", as required by the co-location constraint.");
 							}
@@ -269,26 +293,49 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			}
 		
 			// 2) === schedule without hints and sharing ===
-			
-			SimpleSlot slot = getFreeSlotForTask(vertex, vertex.getPreferredLocations());
-			if (slot != null) {
-				updateLocalityCounters(slot.getLocality());
-				return slot;
-			}
-			else {
-				// no resource available now, so queue the request
-				if (queueIfNoResource) {
-					SlotAllocationFuture future = new SlotAllocationFuture();
-					this.taskQueue.add(new QueuedTask(task, future));
-					return future;
+			{
+				SimpleSlot slot = getFreeSlotForTask(vertex, preferredLocations, forceExternalLocation);
+				if (slot != null) {
+					updateLocalityCounters(slot.getLocality());
+					return slot;
 				}
 				else {
-					throw new NoResourceAvailableException(getNumberOfAvailableInstances(), getTotalNumberOfSlots(), getNumberOfAvailableSlots());
+					// no resource available now, so queue the request
+					if (queueIfNoResource) {
+						SlotAllocationFuture future = new SlotAllocationFuture();
+						this.taskQueue.add(new QueuedTask(task, future));
+						return future;
+					}
+					else if (forceExternalLocation) {
+						String hosts = getHostnamesFromInstances(preferredLocations);
+						throw new NoResourceAvailableException("Could not schedule task " + vertex
+								+ " to any of the required hosts: " + hosts);
+					}
+					else {
+						throw new NoResourceAvailableException(getNumberOfAvailableInstances(), getTotalNumberOfSlots(), getNumberOfAvailableSlots());
+					}
 				}
 			}
 		}
 	}
+	
+	private String getHostnamesFromInstances(Iterable<Instance> instances) {
+		StringBuilder bld = new StringBuilder();
 		
+		for (Instance i : instances) {
+			bld.append(i.getInstanceConnectionInfo().getHostname());
+			bld.append(", ");
+		}
+		
+		if (bld.length() == 0) {
+			return "";
+		}
+		else {
+			bld.setLength(bld.length() - 2);
+			return bld.toString();
+		}
+	}
+	
 	/**
 	 * Gets a suitable instance to schedule the vertex execution to.
 	 * <p>
@@ -297,21 +344,21 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	 * @param vertex The task to run. 
 	 * @return The instance to run the vertex on, it {@code null}, if no instance is available.
 	 */
-	protected SimpleSlot getFreeSlotForTask(ExecutionVertex vertex, Iterable<Instance> requestedLocations) {
+	protected SimpleSlot getFreeSlotForTask(ExecutionVertex vertex, Iterable<Instance> requestedLocations, boolean localOnly) {
 		
 		// we need potentially to loop multiple times, because there may be false positives
 		// in the set-with-available-instances
 		while (true) {
-			Pair<Instance, Locality> instanceLocalityPair = findInstance(requestedLocations);
+			Pair<Instance, Locality> instanceLocalityPair = findInstance(requestedLocations, localOnly);
 
-			if(instanceLocalityPair == null){
+			if (instanceLocalityPair == null){
 				return null;
 			}
 
 			Instance instanceToUse = instanceLocalityPair.getLeft();
 			Locality locality = instanceLocalityPair.getRight();
 
-			if(LOG.isDebugEnabled()){
+			if (LOG.isDebugEnabled()){
 				if(locality == Locality.LOCAL){
 					LOG.debug("Local assignment: " + vertex.getSimpleName() + " --> " + instanceToUse);
 				}else if(locality == Locality.NON_LOCAL){
@@ -348,25 +395,26 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	protected SimpleSlot getFreeSubSlotForTask(ExecutionVertex vertex,
 											Iterable<Instance> requestedLocations,
 											SlotSharingGroupAssignment groupAssignment,
-											CoLocationConstraint constraint) {
+											CoLocationConstraint constraint,
+											boolean localOnly) {
 		// we need potentially to loop multiple times, because there may be false positives
 		// in the set-with-available-instances
 		while (true) {
-			Pair<Instance, Locality> instanceLocalityPair = findInstance(requestedLocations);
+			Pair<Instance, Locality> instanceLocalityPair = findInstance(requestedLocations, localOnly);
 
-			if(instanceLocalityPair == null){
+			if (instanceLocalityPair == null) {
 				return null;
 			}
 
 			Instance instanceToUse = instanceLocalityPair.getLeft();
 			Locality locality = instanceLocalityPair.getRight();
 
-			if(LOG.isDebugEnabled()){
-				if(locality == Locality.LOCAL){
+			if (LOG.isDebugEnabled()) {
+				if (locality == Locality.LOCAL) {
 					LOG.debug("Local assignment: " + vertex.getSimpleName() + " --> " + instanceToUse);
-				}else if(locality == Locality.NON_LOCAL){
+				} else if(locality == Locality.NON_LOCAL) {
 					LOG.debug("Non-local assignment: " + vertex.getSimpleName() + " --> " + instanceToUse);
-				}else if(locality == Locality.UNCONSTRAINED) {
+				} else if(locality == Locality.UNCONSTRAINED) {
 					LOG.debug("Unconstrained assignment: " + vertex.getSimpleName() + " --> " + instanceToUse);
 				}
 			}
@@ -409,7 +457,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	 *
 	 * @param requestedLocations
 	 */
-	private Pair<Instance, Locality> findInstance(Iterable<Instance> requestedLocations){
+	private Pair<Instance, Locality> findInstance(Iterable<Instance> requestedLocations, boolean localOnly){
+		
 		if (this.instancesWithAvailableResources.isEmpty()) {
 			// check if the asynchronous calls did not yet return the queues
 			Instance queuedInstance = this.newlyAvailableInstances.poll();
@@ -434,14 +483,18 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				if (location != null && this.instancesWithAvailableResources.remove(location)) {
 					instanceToUse = location;
 					locality = Locality.LOCAL;
-
 					break;
 				}
 			}
 
 			if (instanceToUse == null) {
-				instanceToUse = this.instancesWithAvailableResources.poll();
-				locality = Locality.NON_LOCAL;
+				if (localOnly) {
+					return null;
+				}
+				else {
+					instanceToUse = this.instancesWithAvailableResources.poll();
+					locality = Locality.NON_LOCAL;
+				}
 			}
 		}
 		else {
@@ -603,8 +656,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	public int getNumberOfAvailableInstances() {
 		int numberAvailableInstances = 0;
 		synchronized (this.globalLock) {
-			for(Instance instance: allInstances){
-				if(instance.isAlive()){
+			for (Instance instance: allInstances ){
+				if (instance.isAlive()){
 					numberAvailableInstances++;
 				}
 			}
