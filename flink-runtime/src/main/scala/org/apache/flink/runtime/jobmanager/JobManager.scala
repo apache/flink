@@ -547,14 +547,13 @@ object JobManager {
     EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager")
     val (configuration, executionMode, listeningAddress) = parseArgs(args)
 
-
     val jobManagerSystem = AkkaUtils.createActorSystem(configuration, listeningAddress)
 
     startActor(Props(new JobManager(configuration) with WithWebServer))(jobManagerSystem)
 
     if(executionMode.equals(LOCAL)){
       TaskManager.startActorWithConfiguration("", configuration,
-        localAkkaCommunication = true, localTaskManagerCommunication = true)(jobManagerSystem)
+        localAkkaCommunication = false, localTaskManagerCommunication = true)(jobManagerSystem)
     }
 
     jobManagerSystem.awaitTermination()
@@ -593,17 +592,12 @@ object JobManager {
           configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, config.configDir + "/..")
         }
 
-        val listeningAddress = if(config.executionMode.equals(LOCAL)){
-          // All communication happens within the same actor system
-          None
-        }else{
-          val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-          val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-            ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+        val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+        val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-          // Listening address on which the actor system listens for remote messages
-          Some((hostname, port))
-        }
+        // Listening address on which the actor system listens for remote messages
+        val listeningAddress = Some((hostname, port))
 
         (configuration, config.executionMode, listeningAddress)
     } getOrElse {
