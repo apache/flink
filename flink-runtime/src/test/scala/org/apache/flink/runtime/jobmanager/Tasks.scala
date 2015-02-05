@@ -223,13 +223,18 @@ object Tasks {
     }
 
     override def invoke(): Unit = {
-      if(Math.random() < 0.05){
+      // this only works if the TaskManager runs in the same JVM as the test case
+      if(SometimesExceptionSender.failingSenders.contains(this.getIndexInSubtaskGroup)){
         throw new Exception("Test exception")
       }else{
         val o = new Object()
         o.synchronized(o.wait())
       }
     }
+  }
+
+  object SometimesExceptionSender {
+    var failingSenders = Set[Int](0)
   }
 
   class ExceptionReceiver extends AbstractInvokable {
@@ -253,7 +258,9 @@ object Tasks {
   }
 
   class SometimesInstantiationErrorSender extends AbstractInvokable{
-    if(Math.random < 0.05){
+
+    // this only works if the TaskManager runs in the same JVM as the test case
+    if(SometimesInstantiationErrorSender.failingSenders.contains(this.getIndexInSubtaskGroup)){
       throw new RuntimeException("Test exception in constructor")
     }
 
@@ -265,6 +272,10 @@ object Tasks {
       val o = new Object()
       o.synchronized(o.wait())
     }
+  }
+
+  object SometimesInstantiationErrorSender {
+    var failingSenders = Set[Int](0)
   }
 
   class BlockingReceiver extends AbstractInvokable {
