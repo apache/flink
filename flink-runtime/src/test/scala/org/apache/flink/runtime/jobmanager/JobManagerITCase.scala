@@ -34,6 +34,7 @@ import scheduler.{NoResourceAvailableException, SlotSharingGroup}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.Random
 
 @RunWith(classOf[JUnitRunner])
 class JobManagerITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
@@ -369,6 +370,9 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       sender.setInvokableClass(classOf[SometimesExceptionSender])
       receiver.setInvokableClass(classOf[Receiver])
 
+      // set failing senders
+      SometimesExceptionSender.failingSenders = Seq.fill(10)(Random.nextInt(num_tasks)).toSet
+
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
 
@@ -473,6 +477,10 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       sender.setInvokableClass(classOf[SometimesInstantiationErrorSender])
       receiver.setInvokableClass(classOf[Receiver])
+
+      // set the failing sender tasks
+      SometimesInstantiationErrorSender.failingSenders =
+        Seq.fill(10)(Random.nextInt(num_tasks)).toSet
 
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
