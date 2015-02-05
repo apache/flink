@@ -688,7 +688,7 @@ public class TypeExtractor {
 		try {
 			inType = getParameterType(baseClass, typeHierarchy, clazz, inputParamPos);
 		}
-		catch (Exception e) {
+		catch (IllegalArgumentException e) {
 			return; // skip input validation e.g. for raw types
 		}
 
