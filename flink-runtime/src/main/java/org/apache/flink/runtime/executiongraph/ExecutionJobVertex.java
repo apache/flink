@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.io.StrictlyLocalAssignment;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.slf4j.Logger;
+
 import scala.concurrent.duration.FiniteDuration;
 
 
@@ -71,6 +73,8 @@ public class ExecutionJobVertex implements Serializable {
 	private final CoLocationGroup coLocationGroup;
 	
 	private final InputSplit[] inputSplits;
+	
+	private List<InputSplit>[] inputSplitsPerSubtask;
 	
 	private InputSplitAssigner splitAssigner;
 	
@@ -134,7 +138,20 @@ public class ExecutionJobVertex implements Serializable {
 			InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
 			if (splitSource != null) {
 				this.inputSplits = splitSource.createInputSplits(numTaskVertices);
-				this.splitAssigner = splitSource.getInputSplitAssigner(this.inputSplits);
+				
+				if (splitSource instanceof StrictlyLocalAssignment) {
+					
+					// group the splits by host wile preserving order per host
+					
+					// assign splits to subtasks
+					
+					// this.splitAssigner = new AssignerBasedOnPreAssignment();
+					
+					// attach locality constraint to subtask
+					
+				} else {
+					this.splitAssigner = splitSource.getInputSplitAssigner(this.inputSplits);
+				}
 			} else {
 				this.inputSplits = null;
 				this.splitAssigner = null;
@@ -298,9 +315,17 @@ public class ExecutionJobVertex implements Serializable {
 			// set up the input splits again
 			try {
 				if (this.inputSplits != null) {
-					@SuppressWarnings("unchecked")
-					InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
-					this.splitAssigner = splitSource.getInputSplitAssigner(this.inputSplits);
+					
+					if (inputSplitsPerSubtask == null) {
+						// lazy assignment
+						@SuppressWarnings("unchecked")
+						InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
+						this.splitAssigner = splitSource.getInputSplitAssigner(this.inputSplits);
+					}
+					else {
+						// eager assignment
+						//TODO: this.splitAssigner = new AssignBasedOnPreAssignment();
+					}
 				}
 			}
 			catch (Throwable t) {
@@ -337,6 +362,7 @@ public class ExecutionJobVertex implements Serializable {
 				inputSplits[i] = null;
 			}
 		}
+		inputSplitsPerSubtask = null;
 	}
 	
 	//---------------------------------------------------------------------------------------------

@@ -293,6 +293,10 @@ public class ExecutionVertex implements Serializable {
 			}
 		}
 	}
+	
+	public void setTargetHostConstraint(String hostname) {
+		
+	}
 
 	/**
 	 * Gets the location preferences of this task, determined by the locations of the predecessors from which
