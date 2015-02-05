@@ -53,6 +53,8 @@ public final class BlobCache implements BlobService {
 		this.serverAddress = serverAddress;
 
 		this.storageDir = BlobUtils.initStorageDirectory();
+
+		LOG.info("Created BLOB cache storage directory " + storageDir);
 	}
 
 	/**

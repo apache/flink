@@ -110,6 +110,8 @@ public final class BlobServer extends Thread implements BlobService{
 		}
 
 		this.storageDir = BlobUtils.initStorageDirectory();
+
+		LOG.info("Created BLOB server storage directory " + storageDir);
 	}
 
 	/**
