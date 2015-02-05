@@ -24,29 +24,33 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedList;
 
 @RunWith(Parameterized.class)
-public class AvroPojoTest extends MultipleProgramsTestBase {
-	public AvroPojoTest(ExecutionMode mode) {
-		super(mode);
+public class AvroPojoTest extends JavaProgramTestBase {
+
+	public AvroPojoTest(Configuration config) {
+		super(config);
 	}
 
 	private File inFile;
-	private String resultPath;
 	private String expected;
 
 	@Rule
@@ -59,71 +63,8 @@ public class AvroPojoTest extends MultipleProgramsTestBase {
 		AvroRecordInputFormatTest.writeTestFile(inFile);
 	}
 
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
-	}
 
-	@Test
-	public void testSimpleAvroRead() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Path in = new Path(inFile.getAbsoluteFile().toURI());
-
-		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
-		DataSet<User> usersDS = env.createInput(users)
-				// null map type because the order changes in different JVMs (hard to test)
-				.map(new MapFunction<User, User>() {
-			@Override
-			public User map(User value) throws Exception {
-				value.setTypeMap(null);
-				return value;
-			}
-		});
-
-		usersDS.writeAsText(resultPath);
-
-		env.execute("Simple Avro read job");
-
-
-		expected = "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], \"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", \"type_map\": null, \"type_fixed\": null, \"type_union\": null}\n" +
-				"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, \"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", \"type_map\": null, \"type_fixed\": null, \"type_union\": null}\n";
-	}
-
-	@Test
-	public void testKeySelection() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Path in = new Path(inFile.getAbsoluteFile().toURI());
-
-		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
-		DataSet<User> usersDS = env.createInput(users);
-
-		DataSet<Tuple2<String, Integer>> res = usersDS.groupBy("name").reduceGroup(new GroupReduceFunction<User, Tuple2<String, Integer>>() {
-			@Override
-			public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
-				for(User u : values) {
-					out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
-				}
-			}
-		});
-
-		res.writeAsText(resultPath);
-		env.execute("Avro Key selection");
-
-
-		expected = "(Alyssa,1)\n(Charlie,1)\n";
-	}
-
-	/**
-	 * Test some know fields for grouping on
-	 */
-	@Test
-	public void testAllFields() throws Exception {
-		for(String fieldName : Arrays.asList("name", "type_enum", "type_double_test")) {
-			testField(fieldName);
-		}
-	}
-
-	private void testField(final String fieldName) throws Exception {
+	private String testField(final String fieldName) throws Exception {
 		before();
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -143,15 +84,108 @@ public class AvroPojoTest extends MultipleProgramsTestBase {
 		res.writeAsText(resultPath);
 		env.execute("Simple Avro read job");
 		if(fieldName.equals("name")) {
-			expected = "Alyssa\nCharlie";
+			return "Alyssa\nCharlie";
 		} else if(fieldName.equals("type_enum")) {
-			expected = "GREEN\nRED\n";
+			return "GREEN\nRED\n";
 		} else if(fieldName.equals("type_double_test")) {
-			expected = "123.45\n1.337\n";
+			return "123.45\n1.337\n";
 		} else {
 			Assert.fail("Unknown field");
 		}
 
-		after();
+		postSubmit();
+		return "";
+	}
+
+	private static int NUM_PROGRAMS = 3;
+
+	private int curProgId = config.getInteger("ProgramId", -1);
+	private String resultPath;
+	private String expectedResult;
+
+	@Override
+	protected void preSubmit() throws Exception {
+		resultPath = getTempDirPath("result");
+	}
+
+	@Override
+	protected void testProgram() throws Exception {
+		expectedResult = runProgram(curProgId);
+	}
+
+	private String runProgram(int curProgId) throws Exception {
+		switch(curProgId) {
+			case 1:
+				for (String fieldName : Arrays.asList("name", "type_enum", "type_double_test")) {
+					return testField(fieldName);
+				}
+				break;
+			case 2:
+				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				Path in = new Path(inFile.getAbsoluteFile().toURI());
+
+				AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
+				DataSet<User> usersDS = env.createInput(users);
+
+				DataSet<Tuple2<String, Integer>> res = usersDS.groupBy("name").reduceGroup(new GroupReduceFunction<User, Tuple2<String, Integer>>() {
+					@Override
+					public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
+						for (User u : values) {
+							out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
+						}
+					}
+				});
+
+				res.writeAsText(resultPath);
+				env.execute("Avro Key selection");
+
+
+				return "(Alyssa,1)\n(Charlie,1)\n";
+			case 3:
+				env = ExecutionEnvironment.getExecutionEnvironment();
+				in = new Path(inFile.getAbsoluteFile().toURI());
+
+				AvroInputFormat<User> users1 = new AvroInputFormat<User>(in, User.class);
+				DataSet<User> usersDS1 = env.createInput(users1)
+						// null map type because the order changes in different JVMs (hard to test)
+						.map(new MapFunction<User, User>() {
+							@Override
+							public User map(User value) throws Exception {
+								value.setTypeMap(null);
+								return value;
+							}
+						});
+
+				usersDS1.writeAsText(resultPath);
+
+				env.execute("Simple Avro read job");
+
+
+				return "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], \"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", \"type_map\": null, \"type_fixed\": null, \"type_union\": null}\n" +
+						"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, \"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", \"type_map\": null, \"type_fixed\": null, \"type_union\": null}\n";
+
+			default:
+				throw new RuntimeException("Unknown test");
+		}
+		return "";
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(expectedResult, resultPath);
+	}
+
+	@Parameterized.Parameters
+	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+
+		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+
+		for(int i=1; i <= NUM_PROGRAMS; i++) {
+			Configuration config = new Configuration();
+			config.setInteger("ProgramId", i);
+			tConfigs.add(config);
+		}
+
+		return toParameterList(tConfigs);
 	}
 }
