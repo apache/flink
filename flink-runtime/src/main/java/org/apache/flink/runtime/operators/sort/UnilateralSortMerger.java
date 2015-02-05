@@ -373,6 +373,20 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				memoryManager, ioManager, serializerFactory, comparator, this.sortReadMemory, this.writeMemory, 
 				maxNumFileHandles);
 		
+		// propagate the context class loader to the spawned threads
+		ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+		if (contextLoader != null) {
+			if (this.readThread != null) {
+				this.readThread.setContextClassLoader(contextLoader);
+			}
+			if (this.sortThread != null) {
+				this.sortThread.setContextClassLoader(contextLoader);
+			}
+			if (this.spillThread != null) {
+				this.spillThread.setContextClassLoader(contextLoader);
+			}
+		}
+		
 		startThreads();
 	}
 	
