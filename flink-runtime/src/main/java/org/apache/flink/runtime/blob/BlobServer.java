@@ -113,6 +113,9 @@ public final class BlobServer extends Thread implements BlobService{
 			this.storageDir = BlobUtils.initStorageDirectory();
 
 			LOG.info("Created BLOB server storage directory " + storageDir);
+
+			// Add shutdown hook to delete storage directory
+			BlobUtils.addDeleteDirectoryShutdownHook(storageDir);
 		}
 		catch (IOException e) {
 			throw new IOException("Could not create BlobServer with random port.", e);

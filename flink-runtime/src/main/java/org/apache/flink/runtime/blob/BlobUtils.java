@@ -31,6 +31,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class BlobUtils {
 	/**
 	 * Algorithm to be used for calculating the BLOB keys.
@@ -51,7 +53,6 @@ public class BlobUtils {
 	 * The default character set to translate between characters and bytes.
 	 */
 	static final Charset DEFAULT_CHARSET = Charset.forName("utf-8");
-
 
 	/**
 	 * Creates a storage directory for a blob service.
@@ -191,5 +192,25 @@ public class BlobUtils {
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/**
+	 * Adds a shutdown hook to the JVM to delete the given directory.
+	 */
+	static void addDeleteDirectoryShutdownHook(final File dir) {
+		checkNotNull(dir);
+
+		// Add shutdown hook to delete directory
+		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					FileUtils.deleteDirectory(dir);
+				}
+				catch (IOException e) {
+					throw new RuntimeException("Error deleting directory " + dir + " during JVM shutdown: " + e.getMessage(), e);
+				}
+			}
+		}));
 	}
 }
