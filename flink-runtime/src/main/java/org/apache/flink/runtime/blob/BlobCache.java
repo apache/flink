@@ -53,8 +53,21 @@ public final class BlobCache implements BlobService {
 		this.serverAddress = serverAddress;
 
 		this.storageDir = BlobUtils.initStorageDirectory();
+		LOG.info("Created BLOB cache storage directory {}.", storageDir);
 
-		LOG.info("Created BLOB cache storage directory " + storageDir);
+		// register shutdown hook for directory removal in case that the BlobServer was not properly shut down
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			public void run() {
+				if(storageDir.exists()){
+					try {
+						FileUtils.deleteDirectory(storageDir);
+					} catch(IOException ex) {
+						System.err.println("Could not delete blob cache's storage directory " + storageDir);
+						ex.printStackTrace();
+					}
+				}
+			}
+		});
 	}
 
 	/**
@@ -153,6 +166,7 @@ public final class BlobCache implements BlobService {
 
 	@Override
 	public void shutdown() throws IOException{
+		LOG.info("Delete BLOB cache storage directory {}.", storageDir);
 		FileUtils.deleteDirectory(storageDir);
 	}
 }

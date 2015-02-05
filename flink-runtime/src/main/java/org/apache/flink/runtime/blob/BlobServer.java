@@ -112,7 +112,21 @@ public final class BlobServer extends Thread implements BlobService{
 
 			this.storageDir = BlobUtils.initStorageDirectory();
 
-			LOG.info("Created BLOB server storage directory " + storageDir);
+			// register shutdown hook for directory removal in case that the BlobServer was not properly shut down
+			Runtime.getRuntime().addShutdownHook(new Thread() {
+				public void run() {
+					if(storageDir.exists()){
+						try {
+							FileUtils.deleteDirectory(storageDir);
+						} catch(IOException ex) {
+							System.err.println("Could not delete blob server's storage directory " + storageDir);
+							ex.printStackTrace();
+						}
+					}
+				}
+			});
+
+			LOG.info("Created BLOB server storage directory {}.", storageDir);
 		}
 		catch (IOException e) {
 			throw new IOException("Could not create BlobServer with random port.", e);
@@ -206,6 +220,7 @@ public final class BlobServer extends Thread implements BlobService{
 			LOG.debug("Error while waiting for this thread to die.", ie);
 		}
 
+		LOG.info("Delete BLOB server storage directory {}.", storageDir);
 		// Clean up the storage directory
 		FileUtils.deleteDirectory(storageDir);
 
