@@ -195,8 +195,8 @@ public class PipelinedPartitionQueueTest {
 
 			boolean success = false;
 			try {
-				success = producerSuccess.get(5, TimeUnit.SECONDS);
-				success &= consumerSuccess.get(5, TimeUnit.SECONDS);
+				success = producerSuccess.get(30, TimeUnit.SECONDS);
+				success &= consumerSuccess.get(30, TimeUnit.SECONDS);
 			}
 			catch (Throwable t) {
 				t.printStackTrace();
