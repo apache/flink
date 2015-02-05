@@ -41,7 +41,8 @@ import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
-import org.apache.flink.runtime.messages.TaskManagerMessages.{NextInputSplit, Heartbeat}
+import org.apache.flink.runtime.messages.TaskManagerMessages.{Disconnected, NextInputSplit,
+Heartbeat}
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.slf4j.LoggerFactory
 import scala.concurrent.Future
@@ -126,8 +127,12 @@ Actor with ActorLogMessages with ActorLogging {
   override def postStop(): Unit = {
     log.info(s"Stopping job manager ${self.path}.")
 
+    // disconnect the registered task managers
+    instanceManager.getAllRegisteredInstances.asScala.foreach{
+      _.getTaskManager ! Disconnected("JobManager is stopping")}
+
     for((e,_) <- currentJobs.values){
-      e.fail(new Exception("The JobManager is shutting down."))
+      e.fail(new Exception("JobManager is shutting down."))
     }
 
     instanceManager.shutdown()

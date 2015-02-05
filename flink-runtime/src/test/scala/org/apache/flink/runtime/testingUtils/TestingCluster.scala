@@ -19,11 +19,14 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{ActorSystem, Props}
+import akka.pattern.gracefulStop
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
+
+import scala.concurrent.Await
 
 /**
  * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
@@ -61,7 +64,13 @@ FlinkMiniCluster(userConfiguration, singleActorSystem) {
   }
 
   def restartJobManager(): Unit = {
-    jobManagerActorSystem.stop(jobManagerActor)
+    val stopped = gracefulStop(jobManagerActor, TestingUtils.TESTING_DURATION)
+    Await.result(stopped, TestingUtils.TESTING_DURATION)
+
+    jobManagerActorSystem.shutdown()
+    jobManagerActorSystem.awaitTermination()
+
+    jobManagerActorSystem = startJobManagerActorSystem()
     jobManagerActor = startJobManager(jobManagerActorSystem)
   }
 }

@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{PoisonPill, ActorSystem}
+import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestNumberRegisteredTaskManager
+import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, JobGraph}
+import org.apache.flink.runtime.jobmanager.Tasks.{NoOpInvokable, BlockingNoOpInvokable}
+import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{TaskManagerRegistered,
+NotifyWhenTaskManagerRegistered, ThrowException}
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated,
 NotifyWhenJobManagerTerminated}
 import org.apache.flink.runtime.testingUtils.TestingUtils
@@ -64,7 +68,60 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
         cluster.getJobManager ! RequestNumberRegisteredTaskManager
 
         expectMsg(1)
-      }finally{
+      } finally {
+        cluster.stop()
+      }
+    }
+  }
+
+  "The system" should {
+    "recover from an exception by aborting all running jobs" in {
+      val num_slots = 20
+
+      val sender = new AbstractJobVertex("BlockingSender")
+      sender.setParallelism(num_slots)
+      sender.setInvokableClass(classOf[BlockingNoOpInvokable])
+      val jobGraph = new JobGraph("Blocking Testjob", sender)
+
+      val noOp = new AbstractJobVertex("NoOpInvokable")
+      noOp.setParallelism(num_slots)
+      noOp.setInvokableClass(classOf[NoOpInvokable])
+      val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
+
+      val cluster = TestingUtils.startTestingClusterDeathWatch(num_slots/2, 2)
+
+      val jm = cluster.getJobManager
+
+      try{
+        within(TestingUtils.TESTING_DURATION) {
+          jm ! SubmitJob(jobGraph)
+          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+
+          jm ! ThrowException("Test exception")
+
+          // Check if the JobManager is still alive
+          jm ! Identify(1)
+
+          expectMsgType[ActorIdentity]
+
+          jm ! NotifyWhenTaskManagerRegistered(2)
+
+          expectMsg(TaskManagerRegistered(2))
+
+          jm ! SubmitJob(jobGraph2)
+          val response = expectMsgType[SubmissionResponse]
+
+          response match {
+            case SubmissionSuccess(jobID) => jobID should equal(jobGraph2.getJobID)
+            case SubmissionFailure(jobID, t) =>
+              fail("Submission of the second job failed.", t)
+          }
+
+          val result = expectMsgType[JobResultSuccess]
+
+          result.jobID should equal(jobGraph2.getJobID)
+        }
+      } finally {
         cluster.stop()
       }
     }

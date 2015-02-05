@@ -201,8 +201,6 @@ object AkkaUtils {
 
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
 
-    val logLevel = getLogLevel
-
     val configString =
       s"""
          |akka {

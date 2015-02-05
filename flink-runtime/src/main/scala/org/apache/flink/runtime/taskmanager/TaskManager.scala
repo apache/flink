@@ -152,31 +152,11 @@ import scala.collection.JavaConverters._
 
     cancelAndClearEverything(new Exception("Task Manager is shutting down."))
 
-    heartbeatScheduler foreach {
-      _.cancel()
-    }
-
-    networkEnvironment foreach {
-      ne =>
-        try {
-          ne.shutdown()
-        } catch {
-          case t: Throwable => log.error(t, "ChannelManager did not shutdown properly.")
-        }
-    }
+    cleanupTaskManager()
 
     ioManager.shutdown()
     memoryManager.shutdown()
     fileCache.shutdown()
-
-    if (libraryCacheManager != null) {
-      try {
-        libraryCacheManager.shutdown()
-      }
-      catch {
-        case t: Throwable => log.error(t, "LibraryCacheManager did not shutdown properly.")
-      }
-    }
 
     if(log.isDebugEnabled){
       log.debug("Task manager {} is completely stopped.", self.path)
@@ -277,27 +257,29 @@ import scala.collection.JavaConverters._
       unregisterTask(executionID)
 
     case updateMsg:UpdateTaskExecutionState =>
-      val futureResponse = (currentJobManager ? updateMsg)(timeout)
+      if(currentJobManager != null) {
+        val futureResponse = (currentJobManager ? updateMsg)(timeout)
 
-      val jobID = updateMsg.taskExecutionState.getJobID
-      val executionID = updateMsg.taskExecutionState.getID
-      val executionState = updateMsg.taskExecutionState.getExecutionState
+        val jobID = updateMsg.taskExecutionState.getJobID
+        val executionID = updateMsg.taskExecutionState.getID
+        val executionState = updateMsg.taskExecutionState.getExecutionState
 
-      futureResponse.mapTo[Boolean].onComplete{
-        case Success(result) =>
-          if(!result){
-            self ! FailTask(executionID,
-              new IllegalStateException("Task has been disposed on JobManager."))
-          }
+        futureResponse.mapTo[Boolean].onComplete {
+          case Success(result) =>
+            if (!result) {
+              self ! FailTask(executionID,
+                new IllegalStateException("Task has been disposed on JobManager."))
+            }
 
-          if (!result || executionState == ExecutionState.FINISHED || executionState ==
-            ExecutionState.CANCELED || executionState == ExecutionState.FAILED) {
+            if (!result || executionState == ExecutionState.FINISHED || executionState ==
+              ExecutionState.CANCELED || executionState == ExecutionState.FAILED) {
+              self ! UnregisterTask(executionID)
+            }
+          case Failure(t) =>
+            log.warning(s"Execution state change notification failed for task $executionID " +
+              s"of job $jobID. Cause ${t.getMessage}.")
             self ! UnregisterTask(executionID)
-          }
-        case Failure(t) =>
-          log.warning(s"Execution state change notification failed for task $executionID " +
-            s"of job $jobID. Cause ${t.getMessage}.")
-          self ! UnregisterTask(executionID)
+        }
       }
 
     case SendHeartbeat =>
@@ -325,9 +307,19 @@ import scala.collection.JavaConverters._
 
     case Terminated(jobManager) =>
       log.info("Job manager {} is no longer reachable. Cancelling all tasks and trying to " +
-        "reregister.", jobManager.path)
+        "reregister.", jobManagerAkkaURL)
 
       cancelAndClearEverything(new Throwable("Lost connection to JobManager"))
+
+      cleanupTaskManager()
+
+      tryJobManagerRegistration()
+
+    case Disconnected(reason) =>
+      log.info("TaskManager is disconnected from JobManager {}, because {}.",
+        currentJobManager.path, reason)
+
+      cancelAndClearEverything(new Throwable("Was disconnected from JobManager"))
 
       cleanupTaskManager()
 
@@ -397,7 +389,7 @@ import scala.collection.JavaConverters._
       if (jobConfig.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
         profiler match {
           case Some(profilerActorRef) => profilerActorRef ! MonitorTask(task)
-          case None => log.info("There is no profiling enabled for the task manager.")
+          case None => log.debug("There is no profiling enabled for the task manager.")
         }
       }
 
@@ -442,13 +434,23 @@ import scala.collection.JavaConverters._
     context.unwatch(currentJobManager)
 
     networkEnvironment foreach {
-      _.shutdown()
+      ne =>
+        try {
+          ne.shutdown()
+        } catch {
+          case t: Throwable => log.error(t, "ChannelManager did not shutdown properly.")
+        }
     }
 
     networkEnvironment = None
 
-    if(libraryCacheManager != null){
-      libraryCacheManager.shutdown()
+    if (libraryCacheManager != null) {
+      try {
+        libraryCacheManager.shutdown()
+      }
+      catch {
+        case t: Throwable => log.error(t, "LibraryCacheManager did not shutdown properly.")
+      }
     }
 
     libraryCacheManager = null
@@ -595,7 +597,7 @@ import scala.collection.JavaConverters._
 
       for (t <- runningTasks.values) {
         t.failExternally(cause)
-        runningTasks.remove(t.getExecutionId)
+        unregisterTask(t.getExecutionId)
       }
     }
   }
