@@ -749,7 +749,7 @@ DataSet<Tuple2<String, Double>>
             ratings.join(weights)
 
                    // key of the first input
-                   .where("category)
+                   .where("category")
 
                    // key of the second input
                    .equalTo("f0")
