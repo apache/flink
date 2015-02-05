@@ -100,7 +100,6 @@ public final class BlobServer extends Thread implements BlobService{
 	 *         thrown if the BLOB server cannot bind to a free network port
 	 */
 	public BlobServer() throws IOException {
-
 		try {
 			this.serverSocket = new ServerSocket(0);
 
@@ -112,10 +111,12 @@ public final class BlobServer extends Thread implements BlobService{
 			}
 
 			this.storageDir = BlobUtils.initStorageDirectory();
-		}catch(IOException e){
+
+			LOG.info("Created BLOB server storage directory " + storageDir);
+		}
+		catch (IOException e) {
 			throw new IOException("Could not create BlobServer with random port.", e);
 		}
-
 	}
 
 	/**
