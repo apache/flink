@@ -20,14 +20,16 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.{IOException, File}
 import java.net.InetSocketAddress
+import akka.actor.Status.Failure
 import akka.actor._
 import akka.pattern.ask
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
-import org.apache.flink.runtime.executiongraph.{Execution, ExecutionJobVertex, ExecutionGraph}
+import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
+import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.runtime.{JobException, ActorLogMessages}
@@ -295,13 +297,13 @@ Actor with ActorLogMessages with ActorLogging {
     case ScheduleOrUpdateConsumers(jobId, executionId, partitionIndex) =>
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
-          sender ! ConsumerNotificationResult(
-            executionGraph.scheduleOrUpdateConsumers(executionId, partitionIndex)
-          )
+          sender ! Acknowledge
+          executionGraph.scheduleOrUpdateConsumers(executionId, partitionIndex)
         case None =>
-          log.error("Cannot find execution graph for job ID {}.", jobId)
-          sender ! ConsumerNotificationResult(success = false, Some(
-            new IllegalStateException("Cannot find execution graph for job ID " + jobId)))
+          log.error("Cannot find execution graph for job ID {} to schedule or update consumers",
+            jobId);
+          sender ! Failure(new IllegalStateException("Cannot find execution graph for job ID " +
+            jobId + " to schedule or update consumers."))
       }
 
     case ReportAccumulatorResult(accumulatorEvent) =>

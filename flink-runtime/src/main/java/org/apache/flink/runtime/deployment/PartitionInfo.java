@@ -130,7 +130,8 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 
 		// The producer needs to be running, otherwise the consumer might request a partition,
 		// which has not been registered yet.
-		if (producerSlot != null && producerState == ExecutionState.RUNNING) {
+		if (producerSlot != null && (producerState == ExecutionState.RUNNING ||
+			producerState == ExecutionState.FINISHED)) {
 			if (producerSlot.getInstance().equals(consumerSlot.getInstance())) {
 				producerLocation = PartitionLocation.LOCAL;
 			}

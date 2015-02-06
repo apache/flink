@@ -58,12 +58,32 @@ object TaskManagerMessages {
   case class UnregisterTask(executionID: ExecutionAttemptID)
 
   /**
-   * Updates the reader identified by [[resultId]] of the task identified by
-   * [[executionId]] from the task manager.
+   * Updates the reader of the task identified by
+   * [[executionID]] from the task manager.
    */
-  case class UpdateTask(executionId: ExecutionAttemptID,
+  sealed trait UpdateTask{
+    def executionID: ExecutionAttemptID
+  }
+
+  case class UpdateTaskSinglePartitionInfo(executionID: ExecutionAttemptID,
                         resultId: IntermediateDataSetID,
-                        partitionInfo: PartitionInfo)
+                        partitionInfo: PartitionInfo) extends UpdateTask
+
+  case class UpdateTaskMultiplePartitionInfos(executionID: ExecutionAttemptID,
+                                              partitionInfos: Seq[(IntermediateDataSetID,
+                                                PartitionInfo)]) extends UpdateTask
+
+  def createUpdateTaskMultiplePartitionInfos(executionID: ExecutionAttemptID,
+                                             resultIDs: java.util.List[IntermediateDataSetID],
+                                             partitionInfos: java.util.List[PartitionInfo]):
+  UpdateTaskMultiplePartitionInfos = {
+    require(resultIDs.size() == partitionInfos.size(), "ResultIDs must have the same length as" +
+      "partitionInfos.")
+
+    import scala.collection.JavaConverters.asScalaBufferConverter
+    new UpdateTaskMultiplePartitionInfos(executionID,
+      resultIDs.asScala.zip(partitionInfos.asScala))
+  }
 
   /**
    * Fails all intermediate result partitions identified by [[executionID]] from the task manager.

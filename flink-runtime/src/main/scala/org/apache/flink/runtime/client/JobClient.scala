@@ -171,11 +171,10 @@ object JobClient{
     var waitForAnswer = true
     var answer: JobExecutionResult = null
 
-    val result =(jobClient ? SubmitJobAndWait(jobGraph, listenToEvents = listenToStatusEvents))(
-      AkkaUtils.INF_TIMEOUT).mapTo[JobExecutionResult]
-
     while(waitForAnswer) {
       try {
+        val result =(jobClient ? SubmitJobAndWait(jobGraph, listenToEvents = listenToStatusEvents))(
+          timeout).mapTo[JobExecutionResult]
         answer = Await.result(result, timeout)
         waitForAnswer = false
       } catch {

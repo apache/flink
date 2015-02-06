@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import akka.actor.ActorRef;
+import akka.dispatch.OnFailure;
+import akka.pattern.Patterns;
 import com.google.common.base.Optional;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
@@ -36,10 +39,11 @@ import org.apache.flink.runtime.io.network.partition.queue.PipelinedPartitionQue
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
+import org.apache.flink.runtime.messages.TaskManagerMessages.FailTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
+import scala.concurrent.Future;
 
 import java.io.IOException;
 
@@ -243,28 +247,26 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	}
 
 	private void scheduleOrUpdateConsumers() throws IOException {
-		while (!isReleased) {
-			final JobManagerMessages.ConsumerNotificationResult result = AkkaUtils.ask(
-					networkEnvironment.getJobManager(),
-					new JobManagerMessages.ScheduleOrUpdateConsumers(jobId, producerExecutionId, partitionIndex),
+		if(!isReleased){
+			ScheduleOrUpdateConsumers msg = new ScheduleOrUpdateConsumers(jobId,
+					producerExecutionId, partitionIndex);
+
+			Future<Object> futureResponse = Patterns.ask(networkEnvironment.getJobManager(), msg,
 					networkEnvironment.getJobManagerTimeout());
 
-			if (result.success()) {
-				return;
-			}
-			else {
-				Option<Throwable> error = result.error();
-				if (error.isDefined()) {
-					throw new IOException(error.get().getMessage(), error.get());
-				}
-			}
+			futureResponse.onFailure(new OnFailure(){
+				@Override
+				public void onFailure(Throwable failure) throws Throwable {
+					LOG.error("Could not schedule or update consumers at the JobManager.", failure);
 
-			try {
-				Thread.sleep(10);
-			}
-			catch (InterruptedException e) {
-				throw new IOException("Unexpected interruption during consumer schedule or update.", e);
-			}
+					// Fail task at the TaskManager
+					FailTask failMsg = new FailTask(producerExecutionId,
+							new RuntimeException("Could not schedule or update consumers at " +
+									"the JobManager.", failure));
+
+					networkEnvironment.getTaskManager().tell(failMsg, ActorRef.noSender());
+				}
+			}, AkkaUtils.globalExecutionContext());
 		}
 	}
 

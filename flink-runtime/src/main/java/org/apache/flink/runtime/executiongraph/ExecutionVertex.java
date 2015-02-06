@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.deployment.PartialPartitionInfo;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.JobException;
@@ -46,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.google.common.base.Preconditions.checkElementIndex;
@@ -72,6 +74,8 @@ public class ExecutionVertex implements Serializable {
 	private IntermediateResultPartition[] resultPartitions;
 	
 	private ExecutionEdge[][] inputEdges;
+
+	private ConcurrentLinkedQueue<PartialPartitionInfo> partialPartitionInfos;
 	
 	private final int subTaskIndex;
 	
@@ -109,6 +113,9 @@ public class ExecutionVertex implements Serializable {
 		}
 
 		this.inputEdges = new ExecutionEdge[jobVertex.getJobVertex().getInputs().size()][];
+
+		this.partialPartitionInfos = new ConcurrentLinkedQueue<PartialPartitionInfo>();
+
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 
 		this.currentExecution = new Execution(this, 0, createTimestamp, timeout);
@@ -195,6 +202,10 @@ public class ExecutionVertex implements Serializable {
 	
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
+	}
+
+	public ConcurrentLinkedQueue<PartialPartitionInfo> getPartialPartitionInfos() {
+		return partialPartitionInfos;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -408,18 +419,18 @@ public class ExecutionVertex implements Serializable {
 	 * Schedules or updates the {@link IntermediateResultPartition} consumer
 	 * tasks of the intermediate result partition with the given index.
 	 */
-	boolean scheduleOrUpdateConsumers(int partitionIndex) throws Exception {
+	void scheduleOrUpdateConsumers(int partitionIndex) {
 		checkElementIndex(partitionIndex, resultPartitions.length);
 
 		IntermediateResultPartition partition = resultPartitions[partitionIndex];
 
-		return currentExecution.scheduleOrUpdateConsumers(partition.getConsumers());
+		currentExecution.scheduleOrUpdateConsumers(partition.getConsumers());
 	}
 	
 	/**
 	 * This method cleans fields that are irrelevant for the archived execution attempt.
 	 */
-	public void prepareForArchiving() {
+	public void prepareForArchiving() throws IllegalStateException {
 		Execution execution = currentExecution;
 		ExecutionState state = execution.getState();
 
@@ -440,6 +451,16 @@ public class ExecutionVertex implements Serializable {
 		this.resultPartitions = null;
 		this.inputEdges = null;
 		this.locationConstraintInstances = null;
+		this.partialPartitionInfos.clear();
+		this.partialPartitionInfos = null;
+	}
+
+	public void cachePartitionInfo(PartialPartitionInfo partitionInfo){
+		this.partialPartitionInfos.add(partitionInfo);
+	}
+
+	void sendPartitionInfos() {
+		currentExecution.sendPartitionInfos();
 	}
 
 	// --------------------------------------------------------------------------------------------
