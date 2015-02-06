@@ -41,27 +41,24 @@ if [ -z "$here" ] ; then
 fi
 flink_home="`dirname \"$here\"`"
 
-echo "flink_home=$flink_home here=$here"
 cd $here
 
 if [ ! -d  "_qa_workdir" ] ; then
 	echo "_qa_workdir doesnt exist. Creating it"
 	mkdir _qa_workdir
 fi
-# attention, it overwrites
-echo "_qa_workdir" > .gitignore
 
 cd _qa_workdir
 
 if [ ! -d  "flink" ] ; then
 	echo "There is no flink copy in the workdir. Cloning flink"
-	git clone https://github.com/apache/flink.git flink
-	cd flink
-	
+	git clone http://git-wip-us.apache.org/repos/asf/flink.git flink
 fi
+
 cd flink
-git fetch origin
-git checkout $BRANCH
+# fetch and checkout quietly
+git fetch -q origin
+git checkout -q $BRANCH
 cd $here
 # go to refrence flink directory
 
@@ -100,16 +97,19 @@ checkJavadocsErrors() {
 
 
 ############ Compiler warnings ############
-COMPILER_WARN_MVN_COMMAND="mvn clean compile -Dmaven.compiler.showWarning=true -Dmaven.compiler.showDeprecation=true | grep \"WARNING\" | wc -l"
+COMPILER_WARN_MVN_COMMAND="mvn clean compile -Dmaven.compiler.showWarning=true -Dmaven.compiler.showDeprecation=true | grep \"WARNING\""
 referenceCompilerWarnings() {
-	eval $COMPILER_WARN_MVN_COMMAND > "$VAR_DIR/_COMPILER_NUM_WARNINGS"
+	eval "$COMPILER_WARN_MVN_COMMAND | tee $VAR_DIR/_COMPILER_REFERENCE_WARNINGS | wc -l" > "$VAR_DIR/_COMPILER_NUM_WARNINGS"
 }
 
 checkCompilerWarnings() {
 	OLD_COMPILER_ERR_CNT=`cat $VAR_DIR/_COMPILER_NUM_WARNINGS` 
-	NEW_COMPILER_ERR_CNT=`eval $COMPILER_WARN_MVN_COMMAND`
+	NEW_COMPILER_ERR_CNT=`eval $COMPILER_WARN_MVN_COMMAND | tee $VAR_DIR/_COMPILER_NEW_WARNINGS | wc -l`
 	if [ "$NEW_COMPILER_ERR_CNT" -gt "$OLD_COMPILER_ERR_CNT" ]; then
 		MESSAGES+=":-1: The change increases the number of compiler warnings from $OLD_COMPILER_ERR_CNT to $NEW_COMPILER_ERR_CNT"$'\n'
+		MESSAGES+='```diff'$'\n'
+		MESSAGES+=`diff $VAR_DIR/_COMPILER_REFERENCE_WARNINGS $VAR_DIR/_COMPILER_NEW_WARNINGS`$'\n'
+		MESSAGES+='```'$'\n'
 		TESTS_PASSED=false
 	else
 		MESSAGES+=":+1: The number of compiler warnings was $OLD_COMPILER_ERR_CNT and is now $NEW_COMPILER_ERR_CNT"$'\n'
@@ -117,7 +117,7 @@ checkCompilerWarnings() {
 }
 
 ############ Files in lib ############
-BUILD_MVN_COMMAND="mvn clean package -DskipTests"
+BUILD_MVN_COMMAND="mvn clean package -DskipTests -Dmaven.javadoc.skip=true"
 COUNT_LIB_FILES="find . | grep \"\/lib\/\" | grep -v \"_qa_workdir\" | wc -l"
 referenceLibFiles() {
 	eval $BUILD_MVN_COMMAND > /dev/null
