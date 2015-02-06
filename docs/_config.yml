@@ -28,15 +28,15 @@ FLINK_VERSION_HADOOP2_STABLE: "0.8.0"
 FLINK_SCALA_VERSION: "2.10.4"
 FLINK_SCALA_VERSION_SHORT: "2.10"
 FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
-FLINK_GITHUB_URL:  https://github.com/apache/incubator-flink
+FLINK_GITHUB_URL:  https://github.com/apache/flink
 
-FLINK_WEBSITE_URL: http://flink.incubator.apache.org
-FLINK_DOWNLOAD_URL: http://flink.incubator.apache.org/downloads.html
+FLINK_WEBSITE_URL: http://flink.apache.org
+FLINK_DOWNLOAD_URL: http://flink.apache.org/downloads.html
 
-FLINK_DOWNLOAD_URL_HADOOP1_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.7.0-incubating/flink-0.7.0-incubating-bin-hadoop1.tgz
-FLINK_DOWNLOAD_URL_HADOOP2_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.7.0-incubating/flink-0.7.0-incubating-bin-hadoop2.tgz
-FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.7.0-incubating/flink-0.7.0-incubating-bin-hadoop2-yarn.tgz
-FLINK_WGET_URL_YARN_STABLE: http://artfiles.org/apache.org/incubator/flink/flink-0.7.0-incubating/flink-0.7.0-incubating-bin-hadoop2-yarn.tgz
+FLINK_DOWNLOAD_URL_HADOOP1_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.0/flink-0.8.0-bin-hadoop1.tgz
+FLINK_DOWNLOAD_URL_HADOOP2_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.0/flink-0.8.0-bin-hadoop2.tgz
+FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.0/flink-0.8.0-bin-hadoop2-yarn.tgz
+FLINK_WGET_URL_YARN_STABLE: http://artfiles.org/apache.org/flink/flink-0.8.0/flink-0.8.0-bin-hadoop2-yarn.tgz
 
 #------------------------------------------------------------------------------
 # BUILD CONFIG

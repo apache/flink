@@ -3,7 +3,7 @@ documentation of Apache Flink.
 
 The documentation is included with the source of Apache Flink in order to ensure
 that you always have docs corresponding to your checked out version. The online
-documentation at http://flink.incubator.apache.org/ is also generated from the
+documentation at http://flink.apache.org/ is also generated from the
 files found here.
 
 # Requirements

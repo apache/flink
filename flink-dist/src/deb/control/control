@@ -23,4 +23,4 @@ Depends: default-jre
 Priority: low
 Architecture: all
 Description: Flink is a distributed parallel data processing system
-Maintainer: Flink team <dev@flink.incubator.apache.org>
+Maintainer: Flink team <dev@flink.apache.org>
