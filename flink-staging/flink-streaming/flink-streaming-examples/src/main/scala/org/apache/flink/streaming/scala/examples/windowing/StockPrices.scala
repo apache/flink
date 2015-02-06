@@ -18,12 +18,13 @@
 
 package org.apache.flink.streaming.scala.examples.windowing
 
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.windowing.helper.Count
-import org.apache.flink.util.Collector
-import org.apache.flink.streaming.api.windowing.helper.Time
 import java.util.concurrent.TimeUnit._
+
+import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.scala.windowing.Delta
+import org.apache.flink.streaming.api.windowing.helper.Time
+import org.apache.flink.util.Collector
+
 import scala.util.Random
 
 object StockPrices {
@@ -66,7 +67,8 @@ object StockPrices {
     val rollingMean = windowedStream.groupBy("symbol").reduceGroup(mean _)
 
     //Step 3 
-    //Use  delta policy to create price change warnings, and also count the number of warning every half minute
+    //Use  delta policy to create price change warnings,
+    // and also count the number of warning every half minute
 
     val priceWarnings = stockStream.groupBy("symbol")
       .window(Delta.of(0.05, priceChange, defaultPrice))
@@ -82,17 +84,20 @@ object StockPrices {
 
     val tweetStream = env.addSource(generateTweets _)
 
-    val mentionedSymbols = tweetStream.flatMap(
-      tweet => for (word <- tweet.split(" ").map(_.toUpperCase()) if symbols.contains(word)) yield word)
-
+    val mentionedSymbols = tweetStream.flatMap(tweet => tweet.split(" "))
+      .map(_.toUpperCase())
+      .filter(symbols.contains(_))                     
+                    
     val tweetsPerStock = mentionedSymbols.map(Count(_, 1))
       .groupBy("symbol")
       .window(Time.of(30, SECONDS))
       .sum("count")
 
     //Step 5
-    //For advanced analysis we join the number of tweets and the number of price change warnings by stock
-    //for the last half minute, we keep only the counts. We use this information to compute rolling correlations
+    //For advanced analysis we join the number of tweets and
+    //the number of price change warnings by stock
+    //for the last half minute, we keep only the counts.
+    //This information is used to compute rolling correlations
     //between the tweets and the price changes                              
 
     val tweetsAndWarning = warningsPerStock.join(tweetsPerStock)
@@ -100,7 +105,8 @@ object StockPrices {
       .where("symbol")
       .equalTo("symbol") { (c1, c2) => (c1.count, c2.count) }
 
-    val rollingCorrelation = tweetsAndWarning.window(Time.of(30, SECONDS)).reduceGroup(computeCorrelation _).setParallelism(1)
+    val rollingCorrelation = tweetsAndWarning.window(Time.of(30, SECONDS))
+      .reduceGroup(computeCorrelation _).setParallelism(1)
 
     rollingCorrelation.print
 
@@ -112,7 +118,9 @@ object StockPrices {
   }
 
   def mean(ts: Iterable[StockPrice], out: Collector[StockPrice]) = {
-    if (ts.nonEmpty) out.collect(StockPrice(ts.head.symbol, ts.foldLeft(0: Double)(_ + _.price) / ts.size))
+    if (ts.nonEmpty) {
+      out.collect(StockPrice(ts.head.symbol, ts.foldLeft(0: Double)(_ + _.price) / ts.size))
+    }
   }
 
   def sendWarning(ts: Iterable[StockPrice], out: Collector[String]) = {
