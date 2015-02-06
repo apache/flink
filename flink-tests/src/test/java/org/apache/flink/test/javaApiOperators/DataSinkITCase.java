@@ -208,8 +208,8 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds =
-				CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
+		DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> ds =
+				CollectionDataSets.getGroupSortedNestedTupleDataSet2(env);
 		ds.writeAsText(resultPath)
 				.sortLocalOutput("f0.f1", Order.ASCENDING)
 				.sortLocalOutput("f1", Order.DESCENDING)
@@ -218,13 +218,39 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 		env.execute();
 
 		expected =
-				"((2,1),a)\n" +
-				"((2,2),b)\n" +
-				"((1,2),a)\n" +
-				"((3,3),c)\n" +
-				"((1,3),a)\n" +
-				"((3,6),c)\n" +
-				"((4,9),c)\n";
+				"((2,1),a,3)\n" +
+				"((2,2),b,4)\n" +
+				"((1,2),a,1)\n" +
+				"((3,3),c,5)\n" +
+				"((1,3),a,2)\n" +
+				"((3,6),c,6)\n" +
+				"((4,9),c,7)\n";
+
+		compareResultsByLinesInMemoryWithStrictOrder(expected, resultPath);
+	}
+
+	@Test
+	public void testTupleSortingNestedDOP1_2() throws Exception {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> ds =
+				CollectionDataSets.getGroupSortedNestedTupleDataSet2(env);
+		ds.writeAsText(resultPath)
+				.sortLocalOutput(1, Order.ASCENDING)
+				.sortLocalOutput(2, Order.DESCENDING)
+				.setParallelism(1);
+
+		env.execute();
+
+		expected =
+				"((2,1),a,3)\n" +
+				"((1,3),a,2)\n" +
+				"((1,2),a,1)\n" +
+				"((2,2),b,4)\n" +
+				"((4,9),c,7)\n" +
+				"((3,6),c,6)\n" +
+				"((3,3),c,5)\n";
 
 		compareResultsByLinesInMemoryWithStrictOrder(expected, resultPath);
 	}

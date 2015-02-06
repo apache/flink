@@ -115,18 +115,33 @@ public class DataSink<T> {
 			throw new InvalidProgramException("Order key out of tuple bounds.");
 		}
 
+		// get flat keys
+		Keys.ExpressionKeys<T> ek;
+		try {
+			ek = new Keys.ExpressionKeys<T>(new int[]{field}, this.type);
+		} catch(IllegalArgumentException iae) {
+			throw new InvalidProgramException("Invalid specification of field expression.", iae);
+		}
+		int[] flatKeys = ek.computeLogicalKeyPositions();
+
 		if(this.sortKeyPositions == null) {
 			// set sorting info
-			this.sortKeyPositions = new int[] {field};
-			this.sortOrders = new Order[] {order};
+			this.sortKeyPositions = flatKeys;
+			this.sortOrders = new Order[flatKeys.length];
+			Arrays.fill(this.sortOrders, order);
 		} else {
 			// append sorting info to exising info
-			int newLength = this.sortKeyPositions.length + 1;
+			int oldLength = this.sortKeyPositions.length;
+			int newLength = oldLength + flatKeys.length;
 			this.sortKeyPositions = Arrays.copyOf(this.sortKeyPositions, newLength);
 			this.sortOrders = Arrays.copyOf(this.sortOrders, newLength);
-			this.sortKeyPositions[newLength-1] = field;
-			this.sortOrders[newLength-1] = order;
+
+			for(int i=0; i<flatKeys.length; i++) {
+				this.sortKeyPositions[oldLength+i] = flatKeys[i];
+				this.sortOrders[oldLength+i] = order;
+			}
 		}
+
 		return this;
 	}
 

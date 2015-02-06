@@ -184,6 +184,27 @@ public class CollectionDataSets {
 		return env.fromCollection(data, type);
 	}
 
+	public static DataSet<Tuple3<Tuple2<Integer, Integer>, String, Integer>> getGroupSortedNestedTupleDataSet2(ExecutionEnvironment env) {
+
+		List<Tuple3<Tuple2<Integer, Integer>, String, Integer>> data = new ArrayList<Tuple3<Tuple2<Integer, Integer>, String, Integer>>();
+		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(1, 3), "a", 2));
+		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(1, 2), "a", 1));
+		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(2, 1), "a", 3));
+		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(2, 2), "b", 4));
+		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(3, 3), "c", 5));
+		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(3, 6), "c", 6));
+		data.add(new Tuple3<Tuple2<Integer, Integer>, String, Integer>(new Tuple2<Integer, Integer>(4, 9), "c", 7));
+
+		TupleTypeInfo<Tuple3<Tuple2<Integer, Integer>, String, Integer>> type = new
+				TupleTypeInfo<Tuple3<Tuple2<Integer, Integer>, String, Integer>>(
+				new TupleTypeInfo<Tuple2<Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.INT_TYPE_INFO
+		);
+
+		return env.fromCollection(data, type);
+	}
+
 	public static DataSet<String> getStringDataSet(ExecutionEnvironment env) {
 
 		List<String> data = new ArrayList<String>();
