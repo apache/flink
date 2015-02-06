@@ -28,7 +28,6 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState
  * The job manager specific messages
  */
 object JobManagerMessages {
-
   /**
    * Submits a job to the job manager. If [[registerForEvents]] is true,
    * then the sender will be registered as listener for the state change messages. If [[detached]]

@@ -521,14 +521,20 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-	public boolean scheduleOrUpdateConsumers(ExecutionAttemptID executionId, int partitionIndex) throws Exception {
+	public void scheduleOrUpdateConsumers(ExecutionAttemptID executionId, int partitionIndex) {
 		Execution execution = currentExecutions.get(executionId);
 
-		if (execution == null) {
-			throw new IllegalStateException("Cannot find execution for execution ID " + executionId);
-		}
 
-		return execution.getVertex().scheduleOrUpdateConsumers(partitionIndex);
+		if (execution == null) {
+			fail(new IllegalStateException("Cannot find execution for execution ID " +
+					executionId));
+		}
+		else if(execution.getVertex() == null){
+			fail(new IllegalStateException("Execution with execution ID " + executionId +
+				" has no vertex assigned."));
+		} else {
+			execution.getVertex().scheduleOrUpdateConsumers(partitionIndex);
+		}
 	}
 
 	public Map<ExecutionAttemptID, Execution> getRegisteredExecutions() {

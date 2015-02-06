@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network;
 
 import akka.actor.ActorRef;
+import akka.util.Timeout;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
@@ -47,6 +48,8 @@ public class NetworkEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetworkEnvironment.class);
 
+	private final ActorRef taskManager;
+
 	private final ActorRef jobManager;
 
 	private final FiniteDuration jobManagerTimeout;
@@ -64,7 +67,10 @@ public class NetworkEnvironment {
 	/**
 	 * Initializes all network I/O components.
 	 */
-	public NetworkEnvironment(ActorRef jobManager, FiniteDuration jobManagerTimeout, NetworkEnvironmentConfiguration config) throws IOException {
+	public NetworkEnvironment(ActorRef taskManager, ActorRef jobManager,
+							FiniteDuration jobManagerTimeout,
+							NetworkEnvironmentConfiguration config) throws IOException {
+		this.taskManager = checkNotNull(taskManager);
 		this.jobManager = checkNotNull(jobManager);
 		this.jobManagerTimeout = checkNotNull(jobManagerTimeout);
 
@@ -96,12 +102,16 @@ public class NetworkEnvironment {
 		}
 	}
 
+	public ActorRef getTaskManager() {
+		return taskManager;
+	}
+
 	public ActorRef getJobManager() {
 		return jobManager;
 	}
 
-	public FiniteDuration getJobManagerTimeout() {
-		return jobManagerTimeout;
+	public Timeout getJobManagerTimeout() {
+		return new Timeout(jobManagerTimeout);
 	}
 
 	public void registerTask(Task task) throws IOException {

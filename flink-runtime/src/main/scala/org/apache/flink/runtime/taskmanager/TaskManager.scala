@@ -46,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
+import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
 RefuseRegistration, AcknowledgeRegistration, RegisterTaskManager}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
@@ -251,8 +252,13 @@ import scala.collection.JavaConverters._
     case SubmitTask(tdd) =>
       submitTask(tdd)
 
-    case UpdateTask(executionId, resultId, partitionInfo) =>
-      updateTask(executionId, resultId, partitionInfo)
+    case updateMsg:UpdateTask =>
+      updateMsg match {
+        case UpdateTaskSinglePartitionInfo(executionID, resultID, partitionInfo) =>
+          updateTask(executionID, List((resultID, partitionInfo)))
+        case UpdateTaskMultiplePartitionInfos(executionID, partitionInfos) =>
+          updateTask(executionID, partitionInfos)
+      }
 
     case CancelTask(executionID) =>
       runningTasks.get(executionID) match {
@@ -462,43 +468,45 @@ import scala.collection.JavaConverters._
     registered = false
   }
 
-  private def updateTask(executionId: ExecutionAttemptID, resultId: IntermediateDataSetID,
-                         partitionInfo: PartitionInfo): Unit = {
+  private def updateTask(executionId: ExecutionAttemptID,
+                         partitionInfos: Seq[(IntermediateDataSetID, PartitionInfo)]): Unit = {
 
-    partitionInfo.getProducerLocation match {
-      case PartitionInfo.PartitionLocation.UNKNOWN =>
-        sender ! TaskOperationResult(executionId, success = false,
-          "Tried to update task with UNKNOWN channel.")
-
-      case _ =>
-        runningTasks.get(executionId) match {
-          case Some(task) =>
-            Option(task.getEnvironment.getReaderById(resultId)) match {
+    runningTasks.get(executionId) match {
+      case Some(task) =>
+        val errors = partitionInfos flatMap {
+          case (resultID, partitionInfo) =>
+            Option(task.getEnvironment.getReaderById(resultID)) match {
               case Some(reader) =>
                 Future {
                   try {
                     reader.updateInputChannel(partitionInfo)
                   } catch {
                     case t: Throwable =>
-                      log.error("Task update failure: {} Trying to cancel task.", t.getMessage)
+                      log.error(t, "Task update failure. Trying to cancel task.")
 
                       try {
                         task.cancelExecution()
                       } catch {
                         case t: Throwable =>
-                          log.error("Failed canceling task with execution ID {} after task" +
-                            "update failure: {}.", executionId, t.getMessage)
+                          log.error(t, "Failed canceling task with execution ID {} after task" +
+                            "update failure..", executionId)
                       }
                   }
                 }
-                sender ! TaskOperationResult(executionId, success = true)
-              case None => sender ! TaskOperationResult(executionId, success = false,
-                s"No reader with ID $resultId  was found.")
+                None
+              case None => Some(s"No reader with ID $resultID for task $executionId was found.")
             }
-
-          case None => sender ! TaskOperationResult(executionId, success = false,
-            s"No task with execution ID $executionId was found.")
         }
+
+        if(errors.isEmpty) {
+          sender ! Acknowledge
+        } else {
+          sender ! Failure(new IllegalStateException(errors.mkString("\n")))
+        }
+      case None =>
+        log.info("Could not update task with ID {}, because it is no longer running.",
+          executionId)
+        sender ! Acknowledge
     }
   }
 
@@ -544,7 +552,8 @@ import scala.collection.JavaConverters._
     }
 
     try {
-      networkEnvironment = Some(new NetworkEnvironment(currentJobManager, timeout, networkConfig))
+      networkEnvironment = Some(new NetworkEnvironment(self, currentJobManager, timeout,
+        networkConfig))
     } catch {
       case ioe: IOException =>
         log.error(ioe, "Failed to instantiate network environment.")
