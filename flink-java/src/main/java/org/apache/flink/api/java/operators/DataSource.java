@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.SplitDataProperties;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -40,6 +41,8 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	private final String dataSourceLocationName;
 
 	private Configuration parameters;
+
+	private SplitDataProperties<OUT> splitDataProperties;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -90,7 +93,28 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	public Configuration getParameters() {
 		return this.parameters;
 	}
-	
+
+
+	/**
+	 * Returns the {@link org.apache.flink.api.java.io.SplitDataProperties} for the
+	 * {@link org.apache.flink.core.io.InputSplit}s of this DataSource
+	 * for configurations.
+	 *
+	 * SplitDataProperties can help to generate more efficient execution plans.
+	 * <br>
+	 * <b>
+	 *     IMPORTANT: Incorrect configuration of SplitDataProperties can cause wrong results!
+	 * </b>
+	 *
+	 * @return The SplitDataProperties for the InputSplits of this DataSource.
+	 */
+	public SplitDataProperties<OUT> getSplitDataProperties() {
+		if(this.splitDataProperties == null) {
+			this.splitDataProperties = new SplitDataProperties<OUT>(this);
+		}
+		return this.splitDataProperties;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	protected GenericDataSourceBase<OUT, ?> translateToDataFlow() {
@@ -106,6 +130,10 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 		if(this.parameters != null) {
 			source.getParameters().addAll(this.parameters);
 		}
+		if(this.splitDataProperties != null) {
+			source.setSplitDataProperties(this.splitDataProperties);
+		}
 		return source;
 	}
+
 }
