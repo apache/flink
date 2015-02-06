@@ -46,9 +46,9 @@ object TaskManagerMessages {
    * Contains the next input split for a task. This message is a response to
    * [[org.apache.flink.runtime.messages.JobManagerMessages.RequestNextInputSplit]].
    *
-   * @param inputSplit
+   * @param splitData
    */
-  case class NextInputSplit(inputSplit: InputSplit)
+  case class NextInputSplit(splitData: Array[Byte])
 
   /**
    * Unregisters the task identified by [[executionID]] from the task manager.

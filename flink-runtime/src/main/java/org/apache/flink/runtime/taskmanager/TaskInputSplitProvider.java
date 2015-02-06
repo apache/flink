@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
+
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -27,6 +28,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.util.InstantiationUtil;
+
 import scala.concurrent.duration.FiniteDuration;
 
 public class TaskInputSplitProvider implements InputSplitProvider {
@@ -39,14 +42,19 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 
 	private final ExecutionAttemptID executionID;
 
+	private final ClassLoader usercodeClassLoader;
+	
 	private final FiniteDuration timeout;
 	
 	public TaskInputSplitProvider(ActorRef jobManager, JobID jobId, JobVertexID vertexId,
-								ExecutionAttemptID executionID, FiniteDuration timeout) {
+								ExecutionAttemptID executionID, ClassLoader userCodeClassLoader,
+								FiniteDuration timeout)
+	{
 		this.jobManager = jobManager;
 		this.jobId = jobId;
 		this.vertexId = vertexId;
 		this.executionID = executionID;
+		this.usercodeClassLoader = userCodeClassLoader;
 		this.timeout = timeout;
 	}
 
@@ -54,10 +62,11 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 	public InputSplit getNextInputSplit() {
 		try {
 			TaskManagerMessages.NextInputSplit nextInputSplit = AkkaUtils.ask(jobManager,
-					new JobManagerMessages.RequestNextInputSplit(jobId, vertexId, executionID),
-					timeout);
+					new JobManagerMessages.RequestNextInputSplit(jobId, vertexId, executionID), timeout);
 
-			return nextInputSplit.inputSplit();
+			byte[] serializedData = nextInputSplit.splitData();
+			Object deserialized = InstantiationUtil.deserializeObject(serializedData, usercodeClassLoader);
+			return (InputSplit) deserialized;
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Requesting the next InputSplit failed.", e);

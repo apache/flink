@@ -29,10 +29,10 @@ import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.Assert;
 import org.junit.Test;
 
-// When the API changes KMeansForTest needs to be rebuilt and the KMeansForTest.jar in resources needs
-// to be replaced with the new one.
 
 public class PackagedProgramEndToEndITCase {
+	
+	private static final String JAR_PATH = "target/kmeans-test-jar.jar";
 
 	@Test
 	public void testEverything() {
@@ -58,7 +58,7 @@ public class PackagedProgramEndToEndITCase {
 			fwClusters.write(KMeansData.INITIAL_CENTERS);
 			fwClusters.close();
 
-			String jarPath = "target/maven-test-jar.jar";
+			
 
 			// run KMeans
 			Configuration config = new Configuration();
@@ -68,7 +68,7 @@ public class PackagedProgramEndToEndITCase {
 
 			RemoteExecutor ex = new RemoteExecutor("localhost", cluster.getJobManagerRPCPort());
 
-			ex.executeJar(jarPath,
+			ex.executeJar(JAR_PATH,
 					"org.apache.flink.test.util.testjar.KMeansForTest",
 					new String[] {
 							points.toURI().toString(),

@@ -372,7 +372,7 @@ import scala.collection.JavaConverters._
       }
 
       val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID,
-        executionID, timeout)
+        executionID, userCodeClassLoader, timeout)
 
       val env = new RuntimeEnvironment(currentJobManager, task, tdd, userCodeClassLoader,
         memoryManager, ioManager, splitProvider, bcVarManager, networkEnvironment.get)

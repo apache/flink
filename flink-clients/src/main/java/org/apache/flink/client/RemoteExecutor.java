@@ -90,7 +90,7 @@ public class RemoteExecutor extends PlanExecutor {
 		return c.run(p, -1, true);
 	}
 
-	public JobExecutionResult executeJar(String jarPath, String assemblerClass, String[] args) throws Exception {
+	public JobExecutionResult executeJar(String jarPath, String assemblerClass, String... args) throws Exception {
 		File jarFile = new File(jarPath);
 		PackagedProgram program = new PackagedProgram(jarFile, assemblerClass, args);
 		

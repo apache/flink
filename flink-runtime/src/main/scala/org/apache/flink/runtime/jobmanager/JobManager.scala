@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.{IOException, File}
 import java.net.InetSocketAddress
-
 import akka.actor._
 import akka.pattern.ask
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
@@ -43,10 +42,10 @@ import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{NextInputSplit, Heartbeat}
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.slf4j.LoggerFactory
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import org.apache.flink.util.InstantiationUtil
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -242,7 +241,10 @@ Actor with ActorLogMessages with ActorLogging {
       if(log.isDebugEnabled) {
         log.debug("Send next input split {}.", nextInputSplit)
       }
-      sender ! NextInputSplit(nextInputSplit)
+      
+      val serializedData = InstantiationUtil.serializeObject(nextInputSplit)
+      
+      sender ! NextInputSplit(serializedData)
 
     case JobStatusChanged(jobID, newJobStatus, timeStamp, optionalMessage) =>
       currentJobs.get(jobID) match {

@@ -88,6 +88,7 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 		return toParameterList(tConfigs);
 	}
 	
+	@SuppressWarnings({"unchecked", "serial"})
 	private static class Progs {
 		
 		public static String runProgram(int progId, String resultPath) throws Exception {

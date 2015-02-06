@@ -303,7 +303,7 @@ under the License.
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
-						<id>create-test-dependency</id>
+						<id>create-kmeans-jar</id>
 						<phase>process-test-classes</phase>
 						<goals>
 							<goal>single</goal>
@@ -314,10 +314,29 @@ under the License.
 									<mainClass>org.apache.flink.test.util.testjar.KMeansForTest</mainClass>
 								</manifest>
 							</archive>
-							<finalName>maven</finalName>
+							<finalName>kmeans</finalName>
 							<attach>false</attach>
 							<descriptors>
-								<descriptor>src/test/assembly/test-assembly.xml</descriptor>
+								<descriptor>src/test/assembly/test-kmeans-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>create-custominputsplit-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.test.classloading.jar.CustomInputSpitProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>customsplit</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-custominput-assembly.xml</descriptor>
 							</descriptors>
 						</configuration>
 					</execution>
@@ -332,7 +351,7 @@ under the License.
 				<version>2.5</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
-						<id>remove-kmeansfortest</id>
+						<id>remove-kmeans-test-dependencies</id>
 						<phase>process-test-classes</phase>
 						<goals>
 							<goal>clean</goal>
@@ -344,6 +363,24 @@ under the License.
 									<directory>${project.build.testOutputDirectory}</directory>
 									<includes>
 										<include>**/testjar/*.class</include>
+									</includes>
+								</fileset>
+							</filesets>
+						</configuration>
+					</execution>
+					<execution>
+						<id>remove-custominputformat-test-dependencies</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>clean</goal>
+						</goals>
+						<configuration>
+							<excludeDefaultDirectories>true</excludeDefaultDirectories>
+							<filesets>
+								<fileset>
+									<directory>${project.build.testOutputDirectory}</directory>
+									<includes>
+										<include>**/classloading/jar/*.class</include>
 									</includes>
 								</fileset>
 							</filesets>
