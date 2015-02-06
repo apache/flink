@@ -20,4 +20,4 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The "How to contribute"-guide is now located [on the project website](http://flink.incubator.apache.org/how-to-contribute.html).
+The "How to contribute"-guide is now located [on the project website](http://flink.apache.org/how-to-contribute.html).

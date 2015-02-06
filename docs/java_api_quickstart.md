@@ -41,7 +41,7 @@ Use one of the following commands to __create a project__:
 <div class="tab-content">
     <div class="tab-pane active" id="quickstart-script">
     {% highlight bash %}
-    $ curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-quickstart/quickstart.sh | bash
+    $ curl https://raw.githubusercontent.com/apache/flink/master/flink-quickstart/quickstart.sh | bash
     {% endhighlight %}
     </div>
     <div class="tab-pane" id="maven-archetype">
@@ -147,5 +147,5 @@ public class LineSplitter implements FlatMapFunction<String, Tuple2<String, Inte
 
 {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java "Check GitHub" %} for the full example code.
 
-For a complete overview over our API, have a look at the [Programming Guide](programming_guide.html) and [further example programs](examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/incubator-flink-dev/). We are happy to provide help.
+For a complete overview over our API, have a look at the [Programming Guide](programming_guide.html) and [further example programs](examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.
 

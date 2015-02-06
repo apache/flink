@@ -57,11 +57,11 @@ public class Job {
 		 * and many more.
 		 * Have a look at the programming guide for the Java API:
 		 *
-		 * http://flink.incubator.apache.org/docs/0.6-SNAPSHOT/java_api_guide.html
+		 * http://flink.apache.org/docs/latest/programming_guide.html
 		 *
 		 * and the examples
 		 *
-		 * http://flink.incubator.apache.org/docs/0.6-SNAPSHOT/java_api_examples.html
+		 * http://flink.apache.org/docs/latest/examples.html
 		 *
 		 */
 

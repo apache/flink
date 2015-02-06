@@ -46,9 +46,9 @@ under the License.
 	</licenses>
 
 	<scm>
-		<url>https://github.com/apache/incubator-flink</url>
+		<url>https://github.com/apache/flink</url>
 		<connection>git@github.com:apache/flink.git</connection>
-		<developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-flink.git</developerConnection>
+		<developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/flink.git</developerConnection>
 	</scm>
 
 	<modules>

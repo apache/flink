@@ -41,7 +41,7 @@ Use one of the following commands to __create a project__:
 <div class="tab-content">
     <div class="tab-pane active" id="quickstart-script">
 {% highlight bash %}
-$ curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-quickstart/quickstart-scala.sh | bash
+$ curl https://raw.githubusercontent.com/apache/flink/master/flink-quickstart/quickstart-scala.sh | bash
 {% endhighlight %}
     </div>
     <div class="tab-pane" id="maven-archetype">
@@ -49,7 +49,7 @@ $ curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-qui
 $ mvn archetype:generate                             \
   -DarchetypeGroupId=org.apache.flink              \
   -DarchetypeArtifactId=flink-quickstart-scala           \
-  -DarchetypeVersion={{site.FLINK_VERSION_SHORT}}                  
+  -DarchetypeVersion={{site.FLINK_VERSION_SHORT}}
 {% endhighlight %}
     This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
@@ -131,6 +131,6 @@ object WordCountJob {
 
 {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala "Check GitHub" %} for the full example code.
 
-For a complete overview over our API, have a look at the [Programming Guide](programming_guide.html) and [further example programs](examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/incubator-flink-dev/). We are happy to provide help.
+For a complete overview over our API, have a look at the [Programming Guide](programming_guide.html) and [further example programs](examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.
 
 

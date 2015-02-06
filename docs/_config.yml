@@ -36,7 +36,7 @@ FLINK_DOWNLOAD_URL: http://flink.apache.org/downloads.html
 FLINK_DOWNLOAD_URL_HADOOP1_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.0/flink-0.8.0-bin-hadoop1.tgz
 FLINK_DOWNLOAD_URL_HADOOP2_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.0/flink-0.8.0-bin-hadoop2.tgz
 FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.0/flink-0.8.0-bin-hadoop2-yarn.tgz
-FLINK_WGET_URL_YARN_STABLE: http://mirror.23media.de/apache/flink/flink-0.8.0/flink-0.8.0-bin-hadoop2-yarn.tgz
+FLINK_WGET_URL_YARN_STABLE: http://artfiles.org/apache.org/flink/flink-0.8.0/flink-0.8.0-bin-hadoop2-yarn.tgz
 
 #------------------------------------------------------------------------------
 # BUILD CONFIG

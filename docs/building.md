@@ -31,7 +31,7 @@ git clone {{ site.FLINK_GITHUB_URL }}
 The simplest way of building Flink is by running:
 
 ~~~bash
-cd incubator-flink
+cd flink
 mvn clean install -DskipTests
 ~~~
 
