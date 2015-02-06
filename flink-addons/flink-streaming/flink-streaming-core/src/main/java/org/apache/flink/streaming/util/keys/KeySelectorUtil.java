@@ -82,14 +82,11 @@ public class KeySelectorUtil {
 			this.comparator = comparator;
 			this.keyLength = keyLength;
 			keyArray = new Object[keyLength];
-			try {
-				key = (Tuple) tupleClasses[keyLength - 1].newInstance();
-			} catch (Exception e) {
-			}
 		}
 
 		@Override
 		public Tuple getKey(IN value) throws Exception {
+			key = (Tuple) tupleClasses[keyLength - 1].newInstance();
 			comparator.extractKeys(value, keyArray, 0);
 			for (int i = 0; i < keyLength; i++) {
 				key.setField(keyArray[i], i);
@@ -108,14 +105,11 @@ public class KeySelectorUtil {
 
 		public ArrayKeySelector(int... fields) {
 			this.fields = fields;
-			try {
-				key = (Tuple) tupleClasses[fields.length - 1].newInstance();
-			} catch (Exception e) {
-			}
 		}
 
 		@Override
 		public Tuple getKey(IN value) throws Exception {
+			key = (Tuple) tupleClasses[fields.length - 1].newInstance();
 			for (int i = 0; i < fields.length; i++) {
 				int pos = fields[i];
 				key.setField(Array.get(value, fields[pos]), i);
