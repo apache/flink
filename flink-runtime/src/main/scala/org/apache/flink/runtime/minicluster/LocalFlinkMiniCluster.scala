@@ -25,6 +25,7 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.slf4j.LoggerFactory
@@ -66,7 +67,11 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
   override def startJobManager(system: ActorSystem): ActorRef = {
     val config = configuration.clone()
-    val (jobManager, _) = JobManager.startJobManagerActors(config, system)
+    val (jobManager, archiver) = JobManager.startJobManagerActors(config, system)
+    if(config.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, false)) {
+      val webServer = new WebInfoServer(configuration, jobManager, archiver)
+      webServer.start()
+    }
     jobManager
   }
 
@@ -84,6 +89,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     if(rpcPort > 0){
       config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort + index)
     }
+
     if(dataPort > 0){
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)
     }
@@ -199,4 +205,11 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
 object LocalFlinkMiniCluster{
   val LOG = LoggerFactory.getLogger(classOf[LocalFlinkMiniCluster])
+
+  def main(args: Array[String]) {
+    var conf = new Configuration;
+    conf.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 4)
+    conf.setBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, true)
+    var cluster = new LocalFlinkMiniCluster(conf, true)
+  }
 }

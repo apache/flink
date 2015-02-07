@@ -118,7 +118,7 @@ public class InstanceManager {
 		}
 	}
 
-	public boolean reportHeartBeat(InstanceID instanceId) {
+	public boolean reportHeartBeat(InstanceID instanceId, byte[] lastMetricsReport) {
 		if (instanceId == null) {
 			throw new IllegalArgumentException("InstanceID may not be null.");
 		}
@@ -140,6 +140,7 @@ public class InstanceManager {
 			}
 
 			host.reportHeartBeat();
+			host.setMetricsReport(lastMetricsReport);
 			return true;
 		}
 	}

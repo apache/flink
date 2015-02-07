@@ -70,6 +70,8 @@ public class TestBaseUtils {
 	protected static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration
 			(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
+	protected static File logDir;
+
 	protected TestBaseUtils(){
 		verifyJvmOptions();
 	}
@@ -81,7 +83,10 @@ public class TestBaseUtils {
 	}
 
 	protected static ForkableFlinkMiniCluster startCluster(int numTaskManagers, int
-			taskManagerNumSlots) throws Exception {
+			taskManagerNumSlots, boolean startWebserver) throws Exception {
+		logDir = File.createTempFile("TestBaseUtils-logdir", null);
+		Assert.assertTrue("Unable to delete temp file", logDir.delete());
+		Assert.assertTrue("Unable to create temp directory", logDir.mkdir());
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 		config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, true);
@@ -90,11 +95,16 @@ public class TestBaseUtils {
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
+		config.setBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, startWebserver);
+		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.toString());
 		return new ForkableFlinkMiniCluster(config);
 	}
 
 	protected static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout)
 			throws Exception {
+		if(logDir != null) {
+			logDir.delete();
+		}
 		if(executor != null) {
 			int numUnreleasedBCVars = 0;
 			int numActiveConnections = 0;
