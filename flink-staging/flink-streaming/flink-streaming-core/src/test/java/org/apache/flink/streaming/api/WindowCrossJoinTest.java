@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -119,8 +120,10 @@ public class WindowCrossJoinTest implements Serializable {
 
 		env.execute();
 
-		assertEquals(joinExpectedResults, joinResults);
-		assertEquals(crossExpectedResults, crossResults);
+		assertEquals(new HashSet<Tuple2<Tuple2<Integer, String>, Integer>>(joinExpectedResults),
+				new HashSet<Tuple2<Tuple2<Integer, String>, Integer>>(joinResults));
+		assertEquals(new HashSet<Tuple2<Tuple2<Integer, String>, Integer>>(crossExpectedResults),
+				new HashSet<Tuple2<Tuple2<Integer, String>, Integer>>(crossResults));
 	}
 
 	private static class MyTimestamp<T> implements Timestamp<T> {

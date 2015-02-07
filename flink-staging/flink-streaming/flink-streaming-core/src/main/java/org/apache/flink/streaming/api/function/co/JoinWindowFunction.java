@@ -18,7 +18,10 @@
 
 package org.apache.flink.streaming.api.function.co;
 
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -40,16 +43,35 @@ public class JoinWindowFunction<IN1, IN2, OUT> implements CoWindowFunction<IN1, 
 
 	@Override
 	public void coWindow(List<IN1> first, List<IN2> second, Collector<OUT> out) throws Exception {
-		for (IN1 item1 : first) {
-			Object key1 = keySelector1.getKey(item1);
 
-			for (IN2 item2 : second) {
-				Object key2 = keySelector2.getKey(item2);
+		Map<Object, List<IN1>> map = build(first);
 
-				if (key1.equals(key2)) {
-					out.collect(joinFunction.join(item1, item2));
+		for (IN2 record : second) {
+			Object key = keySelector2.getKey(record);
+			List<IN1> match = map.get(key);
+			if (match != null) {
+				for (IN1 matching : match) {
+					out.collect(joinFunction.join(matching, record));
 				}
 			}
 		}
+
+	}
+
+	private Map<Object, List<IN1>> build(List<IN1> records) throws Exception {
+
+		Map<Object, List<IN1>> map = new HashMap<Object, List<IN1>>();
+
+		for (IN1 record : records) {
+			Object key = keySelector1.getKey(record);
+			List<IN1> current = map.get(key);
+			if (current == null) {
+				current = new LinkedList<IN1>();
+				map.put(key, current);
+			}
+			current.add(record);
+		}
+
+		return map;
 	}
 }
