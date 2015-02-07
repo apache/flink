@@ -66,9 +66,12 @@ public class Instance {
 	
 	/** Time when last heat beat has been received from the task manager running on this taskManager. */
 	private volatile long lastReceivedHeartBeat = System.currentTimeMillis();
+
+	private byte[] lastMetricsReport;
 	
 	/** Flag marking the instance as alive or as dead. */
 	private volatile boolean isDead;
+
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -168,6 +171,14 @@ public class Instance {
 	 */
 	public void reportHeartBeat() {
 		this.lastReceivedHeartBeat = System.currentTimeMillis();
+	}
+
+	public void setMetricsReport(byte[] lastMetricsReport) {
+		this.lastMetricsReport = lastMetricsReport;
+	}
+
+	public byte[] getLastMetricsReport() {
+		return lastMetricsReport;
 	}
 
 	/**
@@ -332,4 +343,6 @@ public class Instance {
 		return String.format("%s @ %s - %d slots - URL: %s", instanceId, connectionInfo.getHostname(),
 				numberOfSlots, (taskManager != null ? taskManager.path() : "ActorRef.noSender"));
 	}
+
+
 }

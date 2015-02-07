@@ -34,6 +34,10 @@ under the License.
 
 	<packaging>jar</packaging>
 
+    <properties>
+        <metrics.version>3.1.0</metrics.version>
+    </properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -145,6 +149,23 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+
+        <dependency>
+            <groupId>io.dropwizard.metrics</groupId>
+            <artifactId>metrics-core</artifactId>
+            <version>${metrics.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.dropwizard.metrics</groupId>
+            <artifactId>metrics-jvm</artifactId>
+            <version>${metrics.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.dropwizard.metrics</groupId>
+            <artifactId>metrics-json</artifactId>
+            <version>${metrics.version}</version>
+        </dependency>
 
 	</dependencies>
 

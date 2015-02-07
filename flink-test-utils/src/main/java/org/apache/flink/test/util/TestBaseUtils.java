@@ -24,6 +24,7 @@ import akka.pattern.Patterns;
 import akka.util.Timeout;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -31,6 +32,8 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -42,8 +45,11 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,6 +60,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class TestBaseUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
 
 	protected static final int MINIMUM_HEAP_SIZE_MB = 192;
 
@@ -70,6 +78,8 @@ public class TestBaseUtils {
 	protected static FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration
 			(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
+	protected static File logDir;
+
 	protected TestBaseUtils(){
 		verifyJvmOptions();
 	}
@@ -80,9 +90,11 @@ public class TestBaseUtils {
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
 
-	protected static ForkableFlinkMiniCluster startCluster(int numTaskManagers, int taskManagerNumSlots)
-			throws Exception {
-
+	protected static ForkableFlinkMiniCluster startCluster(int numTaskManagers, int
+			taskManagerNumSlots, boolean startWebserver) throws Exception {
+		logDir = File.createTempFile("TestBaseUtils-logdir", null);
+		Assert.assertTrue("Unable to delete temp file", logDir.delete());
+		Assert.assertTrue("Unable to create temp directory", logDir.mkdir());
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 		config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, true);
@@ -91,13 +103,18 @@ public class TestBaseUtils {
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
+		config.setBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, startWebserver);
+		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
+		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDir.toString());
 		return new ForkableFlinkMiniCluster(config);
 	}
 
 	protected static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout)
 			throws Exception {
-
-		if (executor != null) {
+		if(logDir != null) {
+			logDir.delete();
+		}
+		if(executor != null) {
 			int numUnreleasedBCVars = 0;
 			int numActiveConnections = 0;
 			{
@@ -385,4 +402,27 @@ public class TestBaseUtils {
 	public static String constructTestURI(Class<?> forClass, String folder) {
 		return new File(constructTestPath(forClass, folder)).toURI().toString();
 	}
+
+	//---------------------------------------------------------------------------------------------
+	// Web utils
+	//---------------------------------------------------------------------------------------------
+
+	public static String getFromHTTP(String url) throws Exception{
+		URL u = new URL(url);
+		LOG.info("Accessing URL "+url+" as URL: "+u);
+		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
+		connection.setConnectTimeout(100000);
+		connection.connect();
+		InputStream is = null;
+		if(connection.getResponseCode() >= 400) {
+			// error!
+			LOG.warn("HTTP Response code when connecting to {} was {}", url, connection.getResponseCode());
+			is = connection.getErrorStream();
+		} else {
+			is = connection.getInputStream();
+		}
+
+		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
+	}
+
 }

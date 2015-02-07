@@ -615,6 +615,9 @@ public final class ConfigConstants {
 	 * Sets the number of local task managers
 	 */
 	public static final String LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER = "localinstancemanager.numtaskmanager";
+
+
+	public static final String LOCAL_INSTANCE_MANAGER_START_WEBSERVER = "localinstancemanager.start-webserver";
 	
 	// ------------------------------------------------------------------------
 	

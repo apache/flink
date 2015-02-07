@@ -59,7 +59,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	 * Enum that defines which execution environment to run the next test on:
 	 * An embedded local flink cluster, or the collection execution backend.
 	 */
-	public static enum TestExecutionMode {
+	public enum TestExecutionMode {
 		CLUSTER,
 		COLLECTION
 	}
@@ -88,7 +88,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 
 	@BeforeClass
 	public static void setup() throws Exception{
-		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM);
+		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, false);
 	}
 
 	@AfterClass

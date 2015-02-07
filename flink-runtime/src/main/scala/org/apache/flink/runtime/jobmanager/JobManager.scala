@@ -394,9 +394,9 @@ class JobManager(val configuration: Configuration,
       import scala.collection.JavaConverters._
       sender ! RegisteredTaskManagers(instanceManager.getAllRegisteredInstances.asScala)
 
-    case Heartbeat(instanceID) =>
+    case Heartbeat(instanceID, metricsReport) =>
       try {
-        instanceManager.reportHeartBeat(instanceID)
+        instanceManager.reportHeartBeat(instanceID, metricsReport)
       } catch {
         case t: Throwable => log.error(t, "Could not report heart beat from {}.", sender.path)
       }

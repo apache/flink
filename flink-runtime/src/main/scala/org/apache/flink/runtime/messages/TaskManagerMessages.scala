@@ -115,8 +115,9 @@ object TaskManagerMessages {
    * manager which forwards it to the InstanceManager.
    *
    * @param instanceID
+   * @param metricsReport utf-8 encoded JSON report from the metricRegistry.
    */
-  case class Heartbeat(instanceID: InstanceID)
+  case class Heartbeat(instanceID: InstanceID, metricsReport: Array[Byte])
 
   /**
    * Sends StackTrace Message of an instance with [[instanceID]]. This message is a response to

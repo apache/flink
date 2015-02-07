@@ -18,12 +18,12 @@
 package org.apache.flink.yarn;
 
 import com.google.common.base.Joiner;
-import org.apache.commons.io.IOUtils;
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.yarn.appMaster.YarnTaskManagerRunner;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -50,9 +50,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -174,16 +171,16 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			LOG.info("Got application URL from YARN {}", url);
 
 			// get number of TaskManagers:
-			Assert.assertEquals("{\"taskmanagers\": 1, \"slots\": 1}", getFromHTTP(url + "jobsInfo?get=taskmanagers"));
+			Assert.assertEquals("{\"taskmanagers\": 1, \"slots\": 1}", TestBaseUtils.getFromHTTP(url + "jobsInfo?get=taskmanagers"));
 
 			// get the configuration from webinterface & check if the dynamic properties from YARN show up there.
-			String config = getFromHTTP(url + "setupInfo?get=globalC");
+			String config = TestBaseUtils.getFromHTTP(url + "setupInfo?get=globalC");
 			JSONObject parsed = new JSONObject(config);
 			Assert.assertEquals("veryFancy", parsed.getString("fancy-configuration-value"));
 			Assert.assertEquals("3", parsed.getString("yarn.maximum-failed-containers"));
 
 			// test logfile access
-			String logs = getFromHTTP(url + "logInfo");
+			String logs = TestBaseUtils.getFromHTTP(url + "logInfo");
 			Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster/JobManager (Version"));
 		} catch(Throwable e) {
 			LOG.warn("Error while running test",e);
@@ -466,29 +463,4 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		return false;
 	}
 
-
-	///------------------------ Ported tool form: https://github.com/rmetzger/flink/blob/flink1501/flink-tests/src/test/java/org/apache/flink/test/web/WebFrontendITCase.java
-
-	public static String getFromHTTP(String url) throws Exception{
-		URL u = new URL(url);
-		LOG.info("Accessing URL "+url+" as URL: "+u);
-		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
-		connection.setConnectTimeout(100000);
-		connection.connect();
-		InputStream is = null;
-		if(connection.getResponseCode() >= 400) {
-			// error!
-			LOG.warn("HTTP Response code when connecting to {} was {}", url, connection.getResponseCode());
-			is = connection.getErrorStream();
-		} else {
-			is = connection.getInputStream();
-		}
-
-		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
-	}
-
-
-
-
-	
 }
