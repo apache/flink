@@ -240,7 +240,6 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
-
 		return discretize(false).reduceWindow(reduceFunction);
 	}
 
@@ -261,10 +260,6 @@ public class WindowedDataStream<OUT> {
 		return discretize(true).mapWindow(reduceFunction);
 	}
 
-	public DataStream<OUT> flatten() {
-		return dataStream;
-	}
-
 	/**
 	 * Applies a reduceGroup transformation on the windowed data stream by
 	 * reducing the current window at every trigger. In contrast with the
@@ -281,10 +276,14 @@ public class WindowedDataStream<OUT> {
 	 *            The reduce function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> mapWindow(
+	public <R> WindowedDataStream<R> mapWindow(
 			GroupReduceFunction<OUT, R> reduceFunction, TypeInformation<R> outType) {
 
-		throw new RuntimeException("Not implemented yet");
+		return discretize(true).mapWindow(reduceFunction, outType);
+	}
+
+	public DataStream<OUT> flatten() {
+		return dataStream;
 	}
 
 	protected Class<?> getClassAtPos(int pos) {
