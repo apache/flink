@@ -317,6 +317,15 @@ import scala.collection.JavaConverters._
     case LogMemoryUsage =>
       logMemoryStats()
 
+    case SendStackTrace =>
+      val traces = Thread.getAllStackTraces.asScala
+      val stackTraceStr = traces.map((trace: (Thread, Array[StackTraceElement])) => {
+        val (thread, elements) = trace
+        "Thread: " + thread.getName + '\n' + elements.mkString("\n")
+      }).mkString("\n\n")
+
+      sender ! StackTrace(instanceID, stackTraceStr)
+
     case NotifyWhenRegisteredAtJobManager =>
       if (registered) {
         sender ! RegisteredAtJobManager

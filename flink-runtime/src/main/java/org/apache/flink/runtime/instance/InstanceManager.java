@@ -231,6 +231,10 @@ public class InstanceManager {
 		}
 	}
 
+	public Instance getRegisteredInstanceById(InstanceID instanceID) {
+		return registeredHostsById.get(instanceID);
+	}
+
 	public Instance getRegisteredInstance(ActorRef ref) {
 		return registeredHostsByConnection.get(ref);
 	}

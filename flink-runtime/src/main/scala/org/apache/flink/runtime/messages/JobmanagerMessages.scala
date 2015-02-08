@@ -20,7 +20,7 @@ package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
-import org.apache.flink.runtime.instance.Instance
+import org.apache.flink.runtime.instance.{InstanceID, Instance}
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobID, JobStatus, JobVertexID}
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
@@ -312,6 +312,13 @@ object JobManagerMessages {
       taskManagers.asJavaCollection
     }
   }
+
+  /**
+   * Requests stack trace messages of the task manager
+   *
+   * @param instanceID Instance ID of the task manager
+   */
+  case class RequestStackTrace(instanceID: InstanceID)
 
   /**
    * Requests the current state of the job manager

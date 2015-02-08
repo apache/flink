@@ -115,6 +115,15 @@ object TaskManagerMessages {
   case class Heartbeat(instanceID: InstanceID)
 
   /**
+   * Sends StackTrace Message of an instance with [[instanceID]]. This message is a response to
+   * [[org.apache.flink.runtime.messages.TaskManagerMessages.SendStackTrace]].
+   *
+   * @param instanceID
+   * @param stackTrace
+   */
+  case class StackTrace(instanceID: InstanceID, stackTrace: String)
+
+  /**
    * Requests a notification from the task manager as soon as the task manager has been
    * registered at the job manager. Once the task manager is registered at the job manager a
    * [[RegisteredAtJobManager]] message will be sent to the sender.
@@ -141,6 +150,11 @@ object TaskManagerMessages {
    * Logs the current memory usage as debug level output.
    */
   case object LogMemoryUsage
+
+  /**
+   * Makes the task manager sending a stack trace message to the sender.
+   */
+  case object SendStackTrace
 
   /**
    * Fail the specified task externally

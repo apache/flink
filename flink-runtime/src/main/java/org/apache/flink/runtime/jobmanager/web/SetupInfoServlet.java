@@ -38,8 +38,12 @@ import akka.util.Timeout;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.instance.Instance;
 
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestStackTrace;
+import org.apache.flink.runtime.messages.TaskManagerMessages.StackTrace;
+import org.apache.flink.util.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -57,40 +61,43 @@ public class SetupInfoServlet extends HttpServlet {
 
 	/** Serial UID for serialization interoperability. */
 	private static final long serialVersionUID = 3704963598772630435L;
-	
+
 	/** The log for this class. */
 	private static final Logger LOG = LoggerFactory.getLogger(SetupInfoServlet.class);
-	
-	
+
+
 	final private Configuration configuration;
 	final private ActorRef jobmanager;
 	final private FiniteDuration timeout;
-	
-	
+
+
 	public SetupInfoServlet(Configuration conf, ActorRef jm, FiniteDuration timeout) {
 		configuration = conf;
 		this.jobmanager = jm;
 		this.timeout = timeout;
 	}
-	
+
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
 		resp.setStatus(HttpServletResponse.SC_OK);
 		resp.setContentType("application/json");
-		
+
 		if ("globalC".equals(req.getParameter("get"))) {
 			writeGlobalConfiguration(resp);
 		} else if ("taskmanagers".equals(req.getParameter("get"))) {
 			writeTaskmanagers(resp);
+		} else if ("stackTrace".equals(req.getParameter("get"))) {
+			String instanceId = req.getParameter("instanceID");
+			writeStackTraceOfTaskManager(instanceId, resp);
 		}
 	}
-	
+
 	private void writeGlobalConfiguration(HttpServletResponse resp) throws IOException {
 		Set<String> keys = configuration.keySet();
 		List<String> list = new ArrayList<String>(keys);
 		Collections.sort(list);
-		
+
 		JSONObject obj = new JSONObject();
 		for (String k : list) {
 			try {
@@ -100,11 +107,11 @@ public class SetupInfoServlet extends HttpServlet {
 				LOG.warn("Json object creation failed", e);
 			}
 		}
-		
+
 		PrintWriter w = resp.getWriter();
 		w.write(obj.toString());
 	}
-	
+
 	private void writeTaskmanagers(HttpServletResponse resp) throws IOException {
 
 		final Future<Object> response = Patterns.ask(jobmanager,
@@ -149,6 +156,7 @@ public class SetupInfoServlet extends HttpServlet {
 					objInner.put("physicalMemory", instance.getResources().getSizeOfPhysicalMemory() >>> 20);
 					objInner.put("freeMemory", instance.getResources().getSizeOfJvmHeap() >>> 20);
 					objInner.put("managedMemory", instance.getResources().getSizeOfManagedMemory() >>> 20);
+					objInner.put("instanceID", instance.getId());
 					array.put(objInner);
 				} catch (JSONException e) {
 					LOG.warn("Json object creation failed", e);
@@ -165,9 +173,39 @@ public class SetupInfoServlet extends HttpServlet {
 			w.write(jsonObj.toString());
 		}
 	}
-	
+
+
+	private void writeStackTraceOfTaskManager(String instanceIdStr, HttpServletResponse resp) throws IOException {
+		InstanceID instanceID = new InstanceID(StringUtils.hexStringToByte(instanceIdStr));
+		StackTrace message = null;
+		Throwable exception = null;
+
+		final Future<Object> response = Patterns.ask(jobmanager,
+				new RequestStackTrace(instanceID),
+				new Timeout(timeout));
+
+		try {
+			message = (StackTrace) Await.result(response, timeout);
+		} catch (Exception ex) {
+			exception = ex;
+		}
+
+		JSONObject obj = new JSONObject();
+		try {
+			if (message != null) {
+				obj.put("stackTrace", message.stackTrace());
+			} else if (exception != null) {
+				obj.put("errorMessage", exception.getMessage());
+			}
+		} catch (JSONException e) {
+			LOG.warn("Json object creation failed", e);
+		}
+
+		PrintWriter writer = resp.getWriter();
+		writer.write(obj.toString());
+	}
 	// --------------------------------------------------------------------------------------------
-	
+
 	private static final Comparator<Instance> INSTANCE_SORTER = new Comparator<Instance>() {
 		@Override
 		public int compare(Instance o1, Instance o2) {
