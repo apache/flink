@@ -19,9 +19,13 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -58,6 +62,9 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	/** All instances that the scheduler can deploy to */
 	private final Set<Instance> allInstances = new HashSet<Instance>();
 	
+	/** All instances by hostname */
+	private final HashMap<String, Set<Instance>> allInstancesByHost = new HashMap<String, Set<Instance>>();
+	
 	/** All instances that still have available resources */
 	private final Queue<Instance> instancesWithAvailableResources = new SetQueue<Instance>();
 	
@@ -89,6 +96,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				i.cancelAndReleaseAllSlots();
 			}
 			allInstances.clear();
+			allInstancesByHost.clear();
 			instancesWithAvailableResources.clear();
 			taskQueue.clear();
 		}
@@ -384,8 +392,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			catch (InstanceDiedException e) {
 				// the instance died it has not yet been propagated to this scheduler
 				// remove the instance from the set of available instances
-				this.allInstances.remove(instanceToUse);
-				this.instancesWithAvailableResources.remove(instanceToUse);
+				removeInstance(instanceToUse);
 			}
 			
 			// if we failed to get a slot, fall through the loop
@@ -441,8 +448,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			catch (InstanceDiedException e) {
 				// the instance died it has not yet been propagated to this scheduler
 				// remove the instance from the set of available instances
-				this.allInstances.remove(instanceToUse);
-				this.instancesWithAvailableResources.remove(instanceToUse);
+				removeInstance(instanceToUse);
 			}
 
 			// if we failed to get a slot, fall through the loop
@@ -563,10 +569,11 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					}
 				}
 				catch (InstanceDiedException e) {
-					this.allInstances.remove(instance);
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Instance " + instance + " was marked dead asynchronously.");
 					}
+					
+					removeInstance(instance);
 				}
 			}
 			else {
@@ -590,6 +597,10 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			throw new RuntimeException(locality.name());
 		}
 	}
+	
+	
+	
+	
 	
 	// --------------------------------------------------------------------------------------------
 	//  Instance Availability
@@ -616,19 +627,30 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 			}
 			
 			try {
+				// make sure we get notifications about slots becoming available
 				instance.setSlotAvailabilityListener(this);
+				
+				// store the instance in the by-host-lookup
+				String instanceHostName = instance.getInstanceConnectionInfo().getHostname();
+				Set<Instance> instanceSet = allInstancesByHost.get(instanceHostName);
+				if (instanceSet == null) {
+					instanceSet = new HashSet<Instance>();
+					allInstancesByHost.put(instanceHostName, instanceSet);
+				}
+				instanceSet.add(instance);
+				
+					
+				// add it to the available resources and let potential waiters know
+				this.instancesWithAvailableResources.add(instance);
+	
+				// add all slots as available
+				for (int i = 0; i < instance.getNumberOfAvailableSlots(); i++) {
+					newSlotAvailable(instance);
+				}
 			}
-			catch (IllegalStateException e) {
-				this.allInstances.remove(instance);
-				LOG.error("Scheduler could not attach to the instance as a listener.");
-			}
-			
-			
-			// add it to the available resources and let potential waiters know
-			this.instancesWithAvailableResources.add(instance);
-			
-			for (int i = 0; i < instance.getNumberOfAvailableSlots(); i++) {
-				newSlotAvailable(instance);
+			catch (Throwable t) {
+				LOG.error("Scheduler could not add new instance " + instance, t);
+				removeInstance(instance);
 			}
 		}
 	}
@@ -644,8 +666,25 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		// we only remove the instance from the pools, we do not care about the 
 		synchronized (this.globalLock) {
 			// the instance must not be available anywhere any more
-			this.allInstances.remove(instance);
-			this.instancesWithAvailableResources.remove(instance);
+			removeInstance(instance);
+		}
+	}
+	
+	private void removeInstance(Instance instance) {
+		if (instance == null) {
+			throw new NullPointerException();
+		}
+		
+		allInstances.remove(instance);
+		instancesWithAvailableResources.remove(instance);
+		
+		String instanceHostName = instance.getInstanceConnectionInfo().getHostname();
+		Set<Instance> instanceSet = allInstancesByHost.get(instanceHostName);
+		if (instanceSet != null) {
+			instanceSet.remove(instance);
+			if (instanceSet.isEmpty()) {
+				allInstancesByHost.remove(instanceHostName);
+			}
 		}
 	}
 	
@@ -668,6 +707,17 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	
 	public int getNumberOfInstancesWithAvailableSlots() {
 		return instancesWithAvailableResources.size();
+	}
+	
+	public Map<String, List<Instance>> getInstancesByHost() {
+		synchronized (globalLock) {
+			HashMap<String, List<Instance>> copy = new HashMap<String, List<Instance>>();
+			
+			for (Map.Entry<String, Set<Instance>> entry : allInstancesByHost.entrySet()) {
+				copy.put(entry.getKey(), new ArrayList<Instance>(entry.getValue()));
+			}
+			return copy;
+		}
 	}
 	
 	public int getNumberOfUnconstrainedAssignments() {
