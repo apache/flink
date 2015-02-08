@@ -33,12 +33,12 @@ public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWind
 	 */
 	private static final long serialVersionUID = -3469545957144404137L;
 
-	private KeySelector<IN, ?> keySelector;
-	private Configuration parameters;
-	private CloneableTriggerPolicy<IN> triggerPolicy;
-	private CloneableEvictionPolicy<IN> evictionPolicy;
+	protected KeySelector<IN, ?> keySelector;
+	protected Configuration parameters;
+	protected CloneableTriggerPolicy<IN> triggerPolicy;
+	protected CloneableEvictionPolicy<IN> evictionPolicy;
 
-	private Map<Object, StreamDiscretizer<IN>> groupedDiscretizers;
+	protected Map<Object, StreamDiscretizer<IN>> groupedDiscretizers;
 
 	public GroupedStreamDiscretizer(KeySelector<IN, ?> keySelector,
 			CloneableTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy) {
@@ -92,7 +92,7 @@ public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWind
 	 * @param key
 	 *            The key of the new group.
 	 */
-	private StreamDiscretizer<IN> makeNewGroup(Object key) throws Exception {
+	protected StreamDiscretizer<IN> makeNewGroup(Object key) throws Exception {
 
 		StreamDiscretizer<IN> groupDiscretizer = new StreamDiscretizer<IN>(triggerPolicy.clone(),
 				evictionPolicy.clone());

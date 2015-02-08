@@ -34,12 +34,21 @@ object WindowJoin {
 
   def main(args: Array[String]) {
 
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+   val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val split = env.generateSequence(1, 10).split(x => x % 3 toString)
-    
-    split.select("0").merge(split.select("1")).print
+    //Create streams for names and ages by mapping the inputs to the corresponding objects
+    val names = env.fromCollection(nameStream).map(x => Name(x._1, x._2))
+    val ages = env.fromCollection(ageStream).map(x => Age(x._1, x._2))
+
+    //Join the two input streams by id on the last 2 seconds every second and create new 
+    //Person objects containing both name and age
+    val joined =
+      names.join(ages).onWindow(2, TimeUnit.SECONDS)
+                      .every(1, TimeUnit.SECONDS)
+                      .where("id")
+                      .equalTo("id") { (n, a) => Person(n.name, a.age) }
+
+    joined print
 
     env.execute("WindowJoin")
   }

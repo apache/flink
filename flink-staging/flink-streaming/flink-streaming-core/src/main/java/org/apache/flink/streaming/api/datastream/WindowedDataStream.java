@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedStreamDiscretizer;
+import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedTimeDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindow;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindowTypeInfo;
@@ -40,6 +41,7 @@ import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
+import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
@@ -210,15 +212,7 @@ public class WindowedDataStream<OUT> {
 
 	private DiscretizedStream<OUT> discretize(boolean isMap) {
 
-		StreamInvokable<OUT, StreamWindow<OUT>> discretizer;
-
-		if (discretizerKey == null) {
-			discretizer = new StreamDiscretizer<OUT>(getTrigger(), getEvicter());
-		} else {
-			discretizer = new GroupedStreamDiscretizer<OUT>(discretizerKey,
-					(CloneableTriggerPolicy<OUT>) getTrigger(),
-					(CloneableEvictionPolicy<OUT>) getEvicter());
-		}
+		StreamInvokable<OUT, StreamWindow<OUT>> discretizer = getDiscretizer();
 
 		int parallelism = isLocal || (discretizerKey != null) ? dataStream.environment
 				.getDegreeOfParallelism() : 1;
@@ -226,6 +220,22 @@ public class WindowedDataStream<OUT> {
 		return new DiscretizedStream<OUT>(dataStream.transform("Stream Discretizer",
 				new StreamWindowTypeInfo<OUT>(getType()), discretizer).setParallelism(parallelism),
 				groupByKey);
+
+	}
+
+	private StreamInvokable<OUT, StreamWindow<OUT>> getDiscretizer() {
+		if (discretizerKey == null) {
+			return new StreamDiscretizer<OUT>(getTrigger(), getEvicter());
+		} else if (getTrigger() instanceof TimeTriggerPolicy
+				&& ((TimeTriggerPolicy<OUT>) getTrigger()).timestampWrapper.isDefaultTimestamp()) {
+			return new GroupedTimeDiscretizer<OUT>(discretizerKey,
+					(TimeTriggerPolicy<OUT>) getTrigger(),
+					(CloneableEvictionPolicy<OUT>) getEvicter());
+		} else {
+			return new GroupedStreamDiscretizer<OUT>(discretizerKey,
+					(CloneableTriggerPolicy<OUT>) getTrigger(),
+					(CloneableEvictionPolicy<OUT>) getEvicter());
+		}
 
 	}
 
@@ -276,8 +286,8 @@ public class WindowedDataStream<OUT> {
 	 *            The reduce function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
-	public <R> WindowedDataStream<R> mapWindow(
-			GroupReduceFunction<OUT, R> reduceFunction, TypeInformation<R> outType) {
+	public <R> WindowedDataStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction,
+			TypeInformation<R> outType) {
 
 		return discretize(true).mapWindow(reduceFunction, outType);
 	}
