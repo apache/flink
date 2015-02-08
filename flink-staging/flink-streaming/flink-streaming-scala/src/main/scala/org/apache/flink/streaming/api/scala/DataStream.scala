@@ -451,8 +451,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * the trigger and eviction policies please use to
    * window(List(triggers), List(evicters))
    */
-  def window(windowingHelper: WindowingHelper[_]*): WindowedDataStream[T] =
-    javaStream.window(windowingHelper: _*)
+  def window(windowingHelper: WindowingHelper[_]): WindowedDataStream[T] =
+    javaStream.window(windowingHelper)
 
   /**
    * Create a WindowedDataStream using the given TriggerPolicy-s and EvictionPolicy-s.
@@ -461,8 +461,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * use-cases please refer to window(WindowingHelper[_]*)
    *
    */
-  def window(triggers: List[TriggerPolicy[T]], evicters: List[EvictionPolicy[T]]):
-    WindowedDataStream[T] = javaStream.window(triggers, evicters)
+  def window(trigger: TriggerPolicy[T], evicter: EvictionPolicy[T]):
+    WindowedDataStream[T] = javaStream.window(trigger, evicter)
 
   /**
    *

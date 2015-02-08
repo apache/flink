@@ -52,7 +52,7 @@ object TopSpeedWindowing {
       .local    
       .maxBy("speed")
 
-    cars print
+    cars.flatten print
 
     StreamExecutionEnvironment.getExecutionEnvironment.execute("TopSpeedWindowing")
 

@@ -17,13 +17,9 @@
 
 package org.apache.flink.streaming.examples.socket;
 
-import java.util.concurrent.TimeUnit;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.examples.wordcount.WordCount.Tokenizer;
 
 /**
@@ -55,19 +51,29 @@ import org.apache.flink.streaming.examples.wordcount.WordCount.Tokenizer;
 public class SocketTextStreamWordCount {
 	public static void main(String[] args) throws Exception {
 
+		if (!parseParameters(args)) {
+			return;
+		}
+
 		// set up the execution environment
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.getExecutionEnvironment();
 
 		// get input data
-		DataStream<String> text = env.socketTextStream("localhost", 9999);
+		DataStream<String> text = env.socketTextStream(hostName, port);
 
-		WindowedDataStream<Tuple2<String, Integer>> counts =
+		DataStream<Tuple2<String, Integer>> counts =
 		// split up the lines in pairs (2-tuples) containing: (word,1)
 		text.flatMap(new Tokenizer())
 		// group by the tuple field "0" and sum up tuple field "1"
-				.window(Time.of(5, TimeUnit.SECONDS)).groupBy(0).sum(1);
+				.groupBy(0)
+				.sum(1);
 
-		counts.print();
+		if (fileOutput) {
+			counts.writeAsText(outputPath, 1);
+		} else {
+			counts.print();
+		}
 
 		// execute program
 		env.execute("WordCount from SocketTextStream Example");
@@ -94,8 +100,7 @@ public class SocketTextStreamWordCount {
 			hostName = args[0];
 			port = Integer.valueOf(args[1]);
 		} else {
-			System.err
-					.println("Usage: SocketTextStreamWordCount <hostname> <port> [<output path>]");
+			System.err.println("Usage: SocketTextStreamWordCount <hostname> <port> [<output path>]");
 			return false;
 		}
 		return true;

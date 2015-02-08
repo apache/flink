@@ -67,6 +67,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	 *            The reduce function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
+	@Override
 	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
 
 		DiscretizedStream<OUT> out = partition(false).transform("Window Reduce", getType(),
@@ -93,12 +94,19 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	 *            The reduce function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
+	@Override
 	public <R> DiscretizedStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction) {
 
 		TypeInformation<R> retType = TypeExtractor.getGroupReduceReturnTypes(reduceFunction,
 				getType());
 
-		DiscretizedStream<R> out = partition(true).transform("Window Reduce", retType,
+		return mapWindow(reduceFunction, retType);
+	}
+
+	@Override
+	public <R> DiscretizedStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction,
+			TypeInformation<R> returnType) {
+		DiscretizedStream<R> out = partition(true).transform("Window Reduce", returnType,
 				new WindowMapper<OUT, R>(reduceFunction));
 
 		if (isGrouped()) {
@@ -106,7 +114,6 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		} else {
 			return out;
 		}
-
 	}
 
 	private <R> DiscretizedStream<R> transform(String operatorName, TypeInformation<R> retType,
