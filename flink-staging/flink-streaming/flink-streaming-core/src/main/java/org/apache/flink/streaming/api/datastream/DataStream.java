@@ -865,7 +865,7 @@ public class DataStream<OUT> {
 	 * @return A {@link WindowedDataStream} providing further operations.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public WindowedDataStream<OUT> window(WindowingHelper... policyHelpers) {
+	public WindowedDataStream<OUT> window(WindowingHelper policyHelpers) {
 		return new WindowedDataStream<OUT>(this, policyHelpers);
 	}
 
@@ -884,9 +884,8 @@ public class DataStream<OUT> {
 	 *            number of elements in each time window.
 	 * @return A {@link WindowedDataStream} providing further operations.
 	 */
-	public WindowedDataStream<OUT> window(List<TriggerPolicy<OUT>> triggers,
-			List<EvictionPolicy<OUT>> evicters) {
-		return new WindowedDataStream<OUT>(this, triggers, evicters);
+	public WindowedDataStream<OUT> window(TriggerPolicy<OUT> trigger, EvictionPolicy<OUT> evicter) {
+		return new WindowedDataStream<OUT>(this, trigger, evicter);
 	}
 
 	/**
