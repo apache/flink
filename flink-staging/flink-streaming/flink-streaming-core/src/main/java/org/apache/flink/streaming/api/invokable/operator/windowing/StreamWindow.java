@@ -143,6 +143,11 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 	}
 
 	@Override
+	public boolean equals(Object o) {
+		return super.equals(o);
+	}
+
+	@Override
 	public void collect(T record) {
 		add(record);
 	}
@@ -153,6 +158,14 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 
 	@Override
 	public String toString() {
-		return super.toString() + " " + windowID + " (" + numberOfParts + ")";
+		return super.toString();
+	}
+
+	public static <R> StreamWindow<R> fromElements(R... elements) {
+		StreamWindow<R> window = new StreamWindow<R>();
+		for (R element : elements) {
+			window.add(element);
+		}
+		return window;
 	}
 }

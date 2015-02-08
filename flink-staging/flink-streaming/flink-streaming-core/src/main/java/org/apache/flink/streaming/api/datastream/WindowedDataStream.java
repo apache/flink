@@ -17,10 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -44,7 +40,6 @@ import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
@@ -64,54 +59,34 @@ public class WindowedDataStream<OUT> {
 	protected DataStream<OUT> dataStream;
 
 	protected boolean isLocal = false;
-	protected boolean isCentral = true;
 
 	protected KeySelector<OUT, ?> discretizerKey;
 	protected KeySelector<OUT, ?> groupByKey;
 
-	protected List<WindowingHelper<OUT>> triggerHelpers;
-	protected List<WindowingHelper<OUT>> evictionHelpers;
+	protected WindowingHelper<OUT> triggerHelper;
+	protected WindowingHelper<OUT> evictionHelper;
 
-	protected LinkedList<TriggerPolicy<OUT>> userTriggers;
-	protected LinkedList<EvictionPolicy<OUT>> userEvicters;
+	protected TriggerPolicy<OUT> userTrigger;
+	protected EvictionPolicy<OUT> userEvicter;
 
-	protected WindowedDataStream() {
-
-	}
-
-	protected WindowedDataStream(DataStream<OUT> dataStream, WindowingHelper<OUT>... policyHelpers) {
+	protected WindowedDataStream(DataStream<OUT> dataStream, WindowingHelper<OUT> policyHelper) {
 		this.dataStream = dataStream.copy();
-		this.triggerHelpers = new ArrayList<WindowingHelper<OUT>>();
-		for (WindowingHelper<OUT> helper : policyHelpers) {
-			this.triggerHelpers.add(helper);
-		}
+		this.triggerHelper = policyHelper;
 
 		if (dataStream instanceof GroupedDataStream) {
 			this.discretizerKey = ((GroupedDataStream<OUT>) dataStream).keySelector;
-			// set all policies distributed
-			this.isCentral = false;
 		}
 	}
 
-	protected WindowedDataStream(DataStream<OUT> dataStream, List<TriggerPolicy<OUT>> triggers,
-			List<EvictionPolicy<OUT>> evicters) {
+	protected WindowedDataStream(DataStream<OUT> dataStream, TriggerPolicy<OUT> trigger,
+			EvictionPolicy<OUT> evicter) {
 		this.dataStream = dataStream.copy();
 
-		if (triggers != null) {
-			this.userTriggers = new LinkedList<TriggerPolicy<OUT>>();
-			this.userTriggers.addAll(triggers);
-		}
-
-		if (evicters != null) {
-			this.userEvicters = new LinkedList<EvictionPolicy<OUT>>();
-			this.userEvicters.addAll(evicters);
-		}
+		this.userTrigger = trigger;
+		this.userEvicter = evicter;
 
 		if (dataStream instanceof GroupedDataStream) {
 			this.discretizerKey = ((GroupedDataStream<OUT>) dataStream).keySelector;
-			// set all policies distributed
-			this.isCentral = false;
-
 		}
 	}
 
@@ -119,12 +94,14 @@ public class WindowedDataStream<OUT> {
 		this.dataStream = windowedDataStream.dataStream.copy();
 		this.discretizerKey = windowedDataStream.discretizerKey;
 		this.groupByKey = windowedDataStream.groupByKey;
-		this.triggerHelpers = windowedDataStream.triggerHelpers;
-		this.evictionHelpers = windowedDataStream.evictionHelpers;
-		this.userTriggers = windowedDataStream.userTriggers;
-		this.userEvicters = windowedDataStream.userEvicters;
-		this.isCentral = windowedDataStream.isCentral;
+		this.triggerHelper = windowedDataStream.triggerHelper;
+		this.evictionHelper = windowedDataStream.evictionHelper;
+		this.userTrigger = windowedDataStream.userTrigger;
+		this.userEvicter = windowedDataStream.userEvicter;
 		this.isLocal = windowedDataStream.isLocal;
+	}
+
+	public WindowedDataStream() {
 	}
 
 	public <F> F clean(F f) {
@@ -146,15 +123,13 @@ public class WindowedDataStream<OUT> {
 	 * @return The windowed data stream with triggering set
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public WindowedDataStream<OUT> every(WindowingHelper... policyHelpers) {
+	public WindowedDataStream<OUT> every(WindowingHelper policyHelper) {
 		WindowedDataStream<OUT> ret = this.copy();
-		if (ret.evictionHelpers == null) {
-			ret.evictionHelpers = ret.triggerHelpers;
-			ret.triggerHelpers = new ArrayList<WindowingHelper<OUT>>();
+		if (ret.evictionHelper == null) {
+			ret.evictionHelper = ret.triggerHelper;
+			ret.triggerHelper = policyHelper;
 		}
-		for (WindowingHelper<OUT> helper : policyHelpers) {
-			ret.triggerHelpers.add(helper);
-		}
+
 		return ret;
 	}
 
@@ -238,11 +213,11 @@ public class WindowedDataStream<OUT> {
 		StreamInvokable<OUT, StreamWindow<OUT>> discretizer;
 
 		if (discretizerKey == null) {
-			discretizer = new StreamDiscretizer<OUT>(getTriggers(), getEvicters());
+			discretizer = new StreamDiscretizer<OUT>(getTrigger(), getEvicter());
 		} else {
 			discretizer = new GroupedStreamDiscretizer<OUT>(discretizerKey,
-					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers(),
-					getCentralEvicters());
+					(CloneableTriggerPolicy<OUT>) getTrigger(),
+					(CloneableEvictionPolicy<OUT>) getEvicter());
 		}
 
 		int parallelism = isLocal || (discretizerKey != null) ? dataStream.environment
@@ -537,103 +512,32 @@ public class WindowedDataStream<OUT> {
 		return reduceWindow(aggregator);
 	}
 
-	protected LinkedList<TriggerPolicy<OUT>> getTriggers() {
+	protected TriggerPolicy<OUT> getTrigger() {
 
-		LinkedList<TriggerPolicy<OUT>> triggers = new LinkedList<TriggerPolicy<OUT>>();
-
-		if (triggerHelpers != null) {
-			for (WindowingHelper<OUT> helper : triggerHelpers) {
-				triggers.add(helper.toTrigger());
-			}
+		if (triggerHelper != null) {
+			return triggerHelper.toTrigger();
+		} else if (userTrigger != null) {
+			return userTrigger;
+		} else {
+			throw new RuntimeException("Trigger must not be null");
 		}
-
-		if (userTriggers != null) {
-			triggers.addAll(userTriggers);
-		}
-
-		return triggers;
 
 	}
 
-	protected LinkedList<EvictionPolicy<OUT>> getEvicters() {
+	protected EvictionPolicy<OUT> getEvicter() {
 
-		LinkedList<EvictionPolicy<OUT>> evicters = new LinkedList<EvictionPolicy<OUT>>();
-
-		if (evictionHelpers != null) {
-			for (WindowingHelper<OUT> helper : evictionHelpers) {
-				evicters.add(helper.toEvict());
+		if (evictionHelper != null) {
+			return evictionHelper.toEvict();
+		} else if (userEvicter == null) {
+			if (triggerHelper instanceof Time) {
+				return triggerHelper.toEvict();
+			} else {
+				return new TumblingEvictionPolicy<OUT>();
 			}
 		} else {
-			if (userEvicters == null) {
-				boolean notOnlyTime = false;
-				for (WindowingHelper<OUT> helper : triggerHelpers) {
-					if (helper instanceof Time<?>) {
-						evicters.add(helper.toEvict());
-					} else {
-						notOnlyTime = true;
-					}
-				}
-				if (notOnlyTime) {
-					evicters.add(new TumblingEvictionPolicy<OUT>());
-				}
-			}
+			return userEvicter;
 		}
 
-		if (userEvicters != null) {
-			evicters.addAll(userEvicters);
-		}
-
-		return evicters;
-	}
-
-	protected LinkedList<TriggerPolicy<OUT>> getCentralTriggers() {
-		LinkedList<TriggerPolicy<OUT>> cTriggers = new LinkedList<TriggerPolicy<OUT>>();
-		if (isCentral) {
-			cTriggers.addAll(getTriggers());
-		} else {
-			for (TriggerPolicy<OUT> trigger : getTriggers()) {
-				if (trigger instanceof TimeTriggerPolicy) {
-					cTriggers.add(trigger);
-				}
-			}
-		}
-		return cTriggers;
-	}
-
-	protected LinkedList<CloneableTriggerPolicy<OUT>> getDistributedTriggers() {
-		LinkedList<CloneableTriggerPolicy<OUT>> dTriggers = null;
-
-		if (!isCentral) {
-			dTriggers = new LinkedList<CloneableTriggerPolicy<OUT>>();
-			for (TriggerPolicy<OUT> trigger : getTriggers()) {
-				if (!(trigger instanceof TimeTriggerPolicy)) {
-					dTriggers.add((CloneableTriggerPolicy<OUT>) trigger);
-				}
-			}
-		}
-
-		return dTriggers;
-	}
-
-	protected LinkedList<CloneableEvictionPolicy<OUT>> getDistributedEvicters() {
-		LinkedList<CloneableEvictionPolicy<OUT>> evicters = null;
-
-		if (!isCentral) {
-			evicters = new LinkedList<CloneableEvictionPolicy<OUT>>();
-			for (EvictionPolicy<OUT> evicter : getEvicters()) {
-				evicters.add((CloneableEvictionPolicy<OUT>) evicter);
-			}
-		}
-
-		return evicters;
-	}
-
-	protected LinkedList<EvictionPolicy<OUT>> getCentralEvicters() {
-		if (isCentral) {
-			return getEvicters();
-		} else {
-			return null;
-		}
 	}
 
 	/**
@@ -664,7 +568,7 @@ public class WindowedDataStream<OUT> {
 	protected static class WindowKey<R> implements KeySelector<StreamWindow<R>, Integer> {
 
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public Integer getKey(StreamWindow<R> value) throws Exception {
 			return value.windowID;

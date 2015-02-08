@@ -100,16 +100,26 @@ public class StreamWindowTest {
 		assertEquals(window1.windowID, merged2.windowID);
 		assertEquals(values, new HashSet<Integer>(merged2));
 
+	}
+
+	@Test
+	public void serializerTest() throws IOException {
+
+		StreamWindow<Integer> streamWindow = new StreamWindow<Integer>();
+		streamWindow.add(1);
+		streamWindow.add(2);
+		streamWindow.add(3);
+
 		TypeSerializer<StreamWindow<Integer>> ts = new StreamWindowSerializer<Integer>(
 				BasicTypeInfo.INT_TYPE_INFO);
 
 		TestOutputView ow = new TestOutputView();
 
-		ts.serialize(merged2, ow);
+		ts.serialize(streamWindow, ow);
 
 		TestInputView iw = ow.getInputView();
 
-		System.out.println(ts.deserialize(iw));
+		assertEquals(streamWindow, ts.deserialize(iw));
 
 	}
 

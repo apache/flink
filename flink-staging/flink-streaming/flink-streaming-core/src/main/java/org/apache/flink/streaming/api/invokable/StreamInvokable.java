@@ -58,7 +58,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	protected IN nextObject;
 	protected boolean isMutable;
 
-	protected Collector<OUT> collector;
+	public Collector<OUT> collector;
 	protected Function userFunction;
 	protected volatile boolean isRunning;
 

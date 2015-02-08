@@ -43,6 +43,7 @@ public class WindowFlattener<T> extends ChainableInvokable<StreamWindow<T>, T> {
 
 	@Override
 	public void collect(StreamWindow<T> record) {
+		nextObject = record;
 		callUserFunctionAndLogException();
 	}
 
