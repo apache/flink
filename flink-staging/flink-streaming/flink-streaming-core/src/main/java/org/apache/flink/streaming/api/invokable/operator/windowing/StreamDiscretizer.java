@@ -34,12 +34,13 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 	 */
 	private static final long serialVersionUID = -8038984294071650730L;
 
-	private TriggerPolicy<IN> triggerPolicy;
-	private EvictionPolicy<IN> evictionPolicy;
+	protected TriggerPolicy<IN> triggerPolicy;
+	protected EvictionPolicy<IN> evictionPolicy;
 	private boolean isActiveTrigger;
 	private boolean isActiveEviction;
 	private Thread activePolicyThread;
 	protected LinkedList<IN> buffer;
+	public int emptyCount = 0;
 
 	public StreamDiscretizer(TriggerPolicy<IN> triggerPolicy, EvictionPolicy<IN> evictionPolicy) {
 		super(null);
@@ -113,13 +114,24 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 		emitWindow();
 	}
 
+	protected synchronized void externalTriggerOnFakeElement(Object input) {
+		emitWindow();
+		activeEvict(input);
+	}
+
 	/**
 	 * This method emits the content of the buffer as a new {@link StreamWindow}
+	 * if not empty
 	 */
 	protected void emitWindow() {
-		StreamWindow<IN> currentWindow = new StreamWindow<IN>();
-		currentWindow.addAll(buffer);
-		collector.collect(currentWindow);
+		if (!buffer.isEmpty()) {
+			StreamWindow<IN> currentWindow = new StreamWindow<IN>();
+			currentWindow.addAll(buffer);
+			collector.collect(currentWindow);
+			emptyCount = 0;
+		} else {
+			emptyCount++;
+		}
 	}
 
 	private void activeEvict(Object input) {
