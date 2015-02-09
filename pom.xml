@@ -1043,7 +1043,7 @@ under the License.
 						<exclude>**/target/**</exclude>
 						<exclude>docs/_site/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
-                        <exclude>build-target/**</exclude>
+						<exclude>build-target/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -1099,7 +1099,7 @@ under the License.
 						  the property is null when we have just the variable-->
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 					</systemPropertyVariables>
-					<argLine>-Xmx800m -Dlog4j.configuration=log4j-test.properties -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=log4j-test.properties -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -1112,7 +1112,7 @@ under the License.
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 					</systemPropertyVariables>
-					<argLine>-Xmx800m -Dlog4j.configuration=log4j-test.properties -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=log4j-test.properties -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
