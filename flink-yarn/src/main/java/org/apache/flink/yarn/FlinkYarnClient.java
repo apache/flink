@@ -586,7 +586,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 			Thread.sleep(1000);
 		}
 		// the Flink cluster is deployed in YARN. Represent cluster
-		return new FlinkYarnCluster(yarnClient, appId, conf, sessionFilesDir);
+		return new FlinkYarnCluster(yarnClient, appId, conf, flinkConfiguration, sessionFilesDir);
 	}
 
 	/**

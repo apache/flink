@@ -24,7 +24,6 @@ import static akka.pattern.Patterns.ask;
 
 import akka.actor.Props;
 import akka.util.Timeout;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.AkkaUtils$;
 import org.apache.flink.runtime.net.NetUtils;
@@ -46,9 +45,7 @@ import scala.None$;
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.Await;
-import scala.concurrent.Awaitable;
 import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -56,7 +53,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
@@ -69,21 +65,24 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 	private Thread actorRunner;
 	private Thread clientShutdownHook = new ClientShutdownHook();
 	private PollingThread pollingRunner;
-	private Configuration hadoopConfig;
+	private final Configuration hadoopConfig;
 	// (HDFS) location of the files required to run on YARN. Needed here to delete them on shutdown.
-	private Path sessionFilesDir;
-	private InetSocketAddress jobManagerAddress;
+	private final Path sessionFilesDir;
+	private final InetSocketAddress jobManagerAddress;
 
 	//---------- Class internal fields -------------------
 
 	private ActorSystem actorSystem;
 	private ActorRef applicationClient;
 	private ApplicationReport intialAppReport;
-	private static FiniteDuration akkaDuration = Duration.apply(5, TimeUnit.SECONDS);
-	private static Timeout akkaTimeout = Timeout.durationToTimeout(akkaDuration);
+	private final FiniteDuration akkaDuration;
+	private final Timeout akkaTimeout;
 
-	public FlinkYarnCluster(final YarnClient yarnClient, final ApplicationId appId,
-							Configuration hadoopConfig, Path sessionFilesDir) throws IOException, YarnException {
+	public FlinkYarnCluster(final YarnClient yarnClient, final ApplicationId appId, Configuration hadoopConfig,
+							org.apache.flink.configuration.Configuration flinkConfig,
+							Path sessionFilesDir) throws IOException, YarnException {
+		this.akkaDuration = AkkaUtils.getTimeout(flinkConfig);
+		this.akkaTimeout = Timeout.durationToTimeout(akkaDuration);
 		this.yarnClient = yarnClient;
 		this.hadoopConfig = hadoopConfig;
 		this.sessionFilesDir = sessionFilesDir;
@@ -97,7 +96,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		// start actor system
 		LOG.info("Start actor system.");
 		InetAddress ownHostname = NetUtils.resolveAddress(jobManagerAddress); // find name of own public interface, able to connect to the JM
-		actorSystem = AkkaUtils.createActorSystem(GlobalConfiguration.getConfiguration(),
+		actorSystem = AkkaUtils.createActorSystem(flinkConfig,
 				new Some(new Tuple2<String, Integer>(ownHostname.getCanonicalHostName(), 0)));
 
 		// start application client
@@ -166,7 +165,12 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			throw new RuntimeException("The FlinkYarnCluster has alread been stopped");
 		}
 		Future<Object> clusterStatusOption = ask(applicationClient, Messages.LocalGetYarnClusterStatus$.MODULE$, akkaTimeout);
-		Object clusterStatus = awaitUtil(clusterStatusOption, "Unable to get Cluster status from Application Client");
+		Object clusterStatus;
+		try {
+			clusterStatus = Await.result(clusterStatusOption, akkaDuration);
+		} catch (Exception e) {
+			throw new RuntimeException("Unable to get Cluster status from Application Client", e);
+		}
 		if(clusterStatus instanceof None$) {
 			return null;
 		} else if(clusterStatus instanceof Some) {
@@ -232,14 +236,6 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			}
 		}
 		return ret;
-	}
-
-	private static <T> T awaitUtil(Awaitable<T> awaitable, String message) {
-		try {
-			return Await.result(awaitable, akkaDuration);
-		} catch (Exception e) {
-			throw new RuntimeException(message, e);
-		}
 	}
 
 	// -------------------------- Shutdown handling ------------------------
