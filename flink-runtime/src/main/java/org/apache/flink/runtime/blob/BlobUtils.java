@@ -23,6 +23,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +32,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class BlobUtils {
+
 	/**
 	 * Algorithm to be used for calculating the BLOB keys.
 	 */
@@ -51,7 +55,6 @@ public class BlobUtils {
 	 * The default character set to translate between characters and bytes.
 	 */
 	static final Charset DEFAULT_CHARSET = Charset.forName("utf-8");
-
 
 	/**
 	 * Creates a storage directory for a blob service.
@@ -191,5 +194,30 @@ public class BlobUtils {
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/**
+	 * Adds a shutdown hook to the JVM and returns the Thread, which has been registered.
+	 */
+	static Thread addShutdownHook(final BlobService service, final Logger logger) {
+		checkNotNull(service);
+		checkNotNull(logger);
+
+		final Thread shutdownHook = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					service.shutdown();
+				}
+				catch (Throwable t) {
+					logger.error("Error during shutdown of blob service via JVM shutdown hook: " + t.getMessage(), t);
+				}
+			}
+		});
+
+		// Add JVM shutdown hook to call shutdown of service
+		Runtime.getRuntime().addShutdownHook(shutdownHook);
+
+		return shutdownHook;
 	}
 }

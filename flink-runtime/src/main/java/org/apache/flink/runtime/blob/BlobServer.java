@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.URL;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
@@ -86,7 +87,10 @@ public final class BlobServer extends Thread implements BlobService{
 	/**
 	 * Indicates whether a shutdown of server component has been requested.
 	 */
-	private volatile boolean shutdownRequested = false;
+	private AtomicBoolean shutdownRequested = new AtomicBoolean();
+
+	/** Shutdown hook thread to ensure deletion of the storage directory. */
+	private final Thread shutdownHook;
 
 	/**
 	 * Is the root directory for file storage
@@ -100,18 +104,25 @@ public final class BlobServer extends Thread implements BlobService{
 	 *         thrown if the BLOB server cannot bind to a free network port
 	 */
 	public BlobServer() throws IOException {
+		try {
+			this.serverSocket = new ServerSocket(0);
 
-		this.serverSocket = new ServerSocket(0);
-		start();
+			start();
 
-		if (LOG.isInfoEnabled()) {
-			LOG.info(String.format("Started BLOB server on port %d",
-				this.serverSocket.getLocalPort()));
+			if (LOG.isInfoEnabled()) {
+				LOG.info(String.format("Started BLOB server on port %d",
+						this.serverSocket.getLocalPort()));
+			}
+
+			this.storageDir = BlobUtils.initStorageDirectory();
+
+			LOG.info("Created BLOB server storage directory " + storageDir);
+
+			shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 		}
-
-		this.storageDir = BlobUtils.initStorageDirectory();
-
-		LOG.info("Created BLOB server storage directory " + storageDir);
+		catch (IOException e) {
+			throw new IOException("Could not create BlobServer with random port.", e);
+		}
 	}
 
 	/**
@@ -172,12 +183,12 @@ public final class BlobServer extends Thread implements BlobService{
 
 		try {
 
-			while (!this.shutdownRequested) {
+			while (!this.shutdownRequested.get()) {
 				new BlobConnection(this.serverSocket.accept(), this).start();
 			}
 
 		} catch (IOException ioe) {
-			if (!this.shutdownRequested && LOG.isErrorEnabled()) {
+			if (!this.shutdownRequested.get() && LOG.isErrorEnabled()) {
 				LOG.error("Blob server stopped working.", ioe);
 			}
 		}
@@ -188,23 +199,28 @@ public final class BlobServer extends Thread implements BlobService{
 	 */
 	@Override
 	public void shutdown() throws IOException {
-
-		this.shutdownRequested = true;
-		try {
-			this.serverSocket.close();
-		} catch (IOException ioe) {
+		if (shutdownRequested.compareAndSet(false, true)) {
+			try {
+				this.serverSocket.close();
+			}
+			catch (IOException ioe) {
 				LOG.debug("Error while closing the server socket.", ioe);
-		}
-		try {
-			join();
-		} catch (InterruptedException ie) {
-			LOG.debug("Error while waiting for this thread to die.", ie);
-		}
+			}
+			try {
+				join();
+			}
+			catch (InterruptedException ie) {
+				LOG.debug("Error while waiting for this thread to die.", ie);
+			}
 
-		// Clean up the storage directory
-		FileUtils.deleteDirectory(storageDir);
+			// Clean up the storage directory
+			FileUtils.deleteDirectory(storageDir);
 
-		// TODO: Find/implement strategy to handle content-addressable BLOBs
+			// Remove shutdown hook to prevent resource leaks
+			Runtime.getRuntime().removeShutdownHook(shutdownHook);
+
+			// TODO: Find/implement strategy to handle content-addressable BLOBs
+		}
 	}
 
 	/**
