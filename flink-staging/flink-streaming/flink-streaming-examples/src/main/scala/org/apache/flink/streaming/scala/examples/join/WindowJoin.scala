@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.scala.examples.windowing
+package org.apache.flink.streaming.scala.examples.join
+
+import java.util.concurrent.TimeUnit
 
 import org.apache.flink.streaming.api.scala._
 
 import scala.Stream._
-import scala.util.Random
-import java.util.concurrent.TimeUnit
 import scala.language.postfixOps
+import scala.util.Random
 
 object WindowJoin {
 

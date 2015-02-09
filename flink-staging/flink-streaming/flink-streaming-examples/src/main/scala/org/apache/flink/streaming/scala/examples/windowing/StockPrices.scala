@@ -27,6 +27,33 @@ import org.apache.flink.util.Collector
 
 import scala.util.Random
 
+/**
+ * This example showcases a moderately complex Flink Streaming pipeline.
+ * It to computes statistics on stock market data that arrive continuously,
+ * and combines the stock market data with tweet streams.
+ * For a detailed explanation of the job, check out the
+ * [[http://flink.apache.org/news/2015/02/09/streaming-example.html blog post]]
+ * unrolling it. To run the example make sure that the service providing
+ * the text data is already up and running.
+ *
+ * To start an example socket text stream on your local machine run netcat
+ * from a command line, where the parameter specifies the port number:
+ *
+ * {{{
+ *   nc -lk 9999
+ * }}}
+ *
+ * Usage:
+ * {{{
+ *   StockPrices <hostname> <port> <output path>
+ * }}}
+ *
+ * This example shows how to:
+ *
+ *   - merge and join data streams,
+ *   - use different windowing policies,
+ *   - define windowing aggregations.
+ */
 object StockPrices {
 
   case class StockPrice(symbol: String, price: Double)
@@ -36,7 +63,16 @@ object StockPrices {
 
   val defaultPrice = StockPrice("", 1000)
 
+  private var fileOutput: Boolean = false
+  private var hostName: String = null
+  private var port: Int = 0
+  private var outputPath: String = null
+
   def main(args: Array[String]) {
+
+    if (!parseParameters(args)) {
+      return
+    }
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
@@ -161,6 +197,22 @@ object StockPrices {
       out.collect(s.mkString(" "))
       Thread.sleep(Random.nextInt(500))
     }
+  }
+
+  private def parseParameters(args: Array[String]): Boolean = {
+    if (args.length == 3) {
+      fileOutput = true
+      hostName = args(0)
+      port = args(1).toInt
+      outputPath = args(2)
+    } else if (args.length == 2) {
+      hostName = args(0)
+      port = args(1).toInt
+    } else {
+      System.err.println("Usage: StockPrices <hostname> <port> [<output path>]")
+      return false
+    }
+    true
   }
 
 }

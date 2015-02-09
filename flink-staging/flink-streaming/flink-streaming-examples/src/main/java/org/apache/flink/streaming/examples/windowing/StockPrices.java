@@ -38,6 +38,36 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This example showcases a moderately complex Flink Streaming pipeline.
+ * It to computes statistics on stock market data that arrive continuously,
+ * and combines the stock market data with tweet streams.
+ * For a detailed explanation of the job, check out the blog post unrolling it.
+ * To run the example make sure that the service providing the text data
+ * is already up and running.
+ *
+ * <p>
+ * To start an example socket text stream on your local machine run netcat from
+ * a command line: <code>nc -lk 9999</code>, where the parameter specifies the
+ * port number.
+ *
+ *
+ * <p>
+ * Usage:
+ * <code>StockPrices &lt;hostname&gt; &lt;port&gt; &lt;result path&gt;</code>
+ * <br>
+ *
+ * <p>
+ * This example shows how to:
+ * <ul>
+ * <li>merge and join data streams,
+ * <li>use different windowing policies,
+ * <li>define windowing aggregations.
+ * </ul>
+ *
+ * @see <a href="www.openbsd.org/cgi-bin/man.cgi?query=nc">netcat</a>
+ * @see <a href="http://flink.apache.org/news/2015/02/09/streaming-example.html">blogpost</a>
+ */
 public class StockPrices {
 
 	private static final ArrayList<String> SYMBOLS = new ArrayList<String>(Arrays.asList("SPX", "FTSE", "DJI", "DJT", "BUX", "DAX", "GOOG"));
@@ -50,13 +80,17 @@ public class StockPrices {
 
 	public static void main(String[] args) throws Exception {
 
+		if (!parseParameters(args)) {
+			return;
+		}
+
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		//Step 1 
 	    //Read a stream of stock prices from different sources and merge it into one stream
 		
 		//Read from a socket stream at map it to StockPrice objects
-		DataStream<StockPrice> socketStockStream = env.socketTextStream("localhost", 9999)
+		DataStream<StockPrice> socketStockStream = env.socketTextStream(hostName, port)
 				.map(new MapFunction<String, StockPrice>() {
 					private String[] tokens;
 
@@ -155,7 +189,11 @@ public class StockPrices {
 				.reduceGroup(new CorrelationReduce())
 				.setParallelism(1);
 
-		rollingCorrelation.print();
+		if (fileOutput) {
+			rollingCorrelation.writeAsText(outputPath, 1);
+		} else {
+			rollingCorrelation.print();
+		}
 
 		env.execute("Stock stream");
 
@@ -336,6 +374,33 @@ public class StockPrices {
 
 			out.collect(cov / (leftSd * rightSd));
 		}
+	}
+
+	// *************************************************************************
+	// UTIL METHODS
+	// *************************************************************************
+
+	private static boolean fileOutput = false;
+	private static String hostName;
+	private static int port;
+	private static String outputPath;
+
+	private static boolean parseParameters(String[] args) {
+
+		// parse input arguments
+		if (args.length == 3) {
+			fileOutput = true;
+			hostName = args[0];
+			port = Integer.valueOf(args[1]);
+			outputPath = args[2];
+		} else if (args.length == 2) {
+			hostName = args[0];
+			port = Integer.valueOf(args[1]);
+		} else {
+			System.err.println("Usage: StockPrices <hostname> <port> [<output path>]");
+			return false;
+		}
+		return true;
 	}
 
 }

@@ -258,101 +258,57 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- DeltaExract -->
+					<!-- StockPrices -->
 					<execution>
-						<id>DeltaExract</id>
+						<id>StockPrices</id>
 						<phase>package</phase>
 						<goals>
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>DeltaExract</classifier>
+							<classifier>StockPrices</classifier>
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.windowing.DeltaExtractExample</program-class>
+									<program-class>org.apache.flink.streaming.examples.windowing.StockPrices</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/DeltaExtractExample.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/DeltaExtractExample$*.class</include>
+								<include>org/apache/flink/streaming/examples/windowing/StockPrices.class</include>
+								<include>org/apache/flink/streaming/examples/windowing/StockPrices$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
 
-					<!-- MultiplePolicies -->
+					<!-- TopSpeedWindowing -->
 					<execution>
-						<id>MultiplePolicies</id>
+						<id>TopSpeedWindowing</id>
 						<phase>package</phase>
 						<goals>
 							<goal>jar</goal>
 						</goals>
 						<configuration>
-							<classifier>MultiplePolicies</classifier>
+							<classifier>TopSpeedWindowing</classifier>
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.windowing.MultiplePoliciesExample</program-class>
+									<program-class>org.apache.flink.streaming.examples.windowing.TopSpeedWindowing</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/MultiplePoliciesExample.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/MultiplePoliciesExample$*.class</include>
+								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing.class</include>
+								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
 
-					<!-- SlidingExample -->
-					<execution>
-						<id>SlidingExample</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>SlidingExample</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.windowing.SlidingExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/SlidingExample.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/SlidingExample$*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- TimeWindowing -->
-					<execution>
-						<id>TimeWindowing</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>TimeWindowing</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.windowing.TimeWindowingExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/TimeWindowingExample.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/TimeWindowingExample$*.class</include>
-							</includes>
-						</configuration>
-					</execution>
 				</executions>
 			</plugin>
 
-<!-- Scala Compiler -->
+
+			<!-- Scala Compiler -->
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
