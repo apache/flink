@@ -481,6 +481,10 @@ public class ExecutionJobVertex implements Serializable {
 				throw new JobException("Strictly local assignment requires exactly one hostname for each LocatableInputSplit.");
 			}
 			String hostName = lis.getHostnames()[0];
+			
+			if (hostName == null) {
+				throw new JobException("For strictly local input split assignment, no null host names are allowed.");
+			}
 
 			List<LocatableInputSplit> hostSplits = splitsByHost.get(hostName);
 			if (hostSplits == null) {
