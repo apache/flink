@@ -1022,7 +1022,7 @@ public class DataStream<OUT> {
 				operatorName, outTypeInfo);
 
 		jobGraphBuilder.addStreamVertex(returnStream.getId(), invokable, getType(), outTypeInfo,
-				operatorName, degreeOfParallelism);
+				operatorName, returnStream.getParallelism());
 
 		connectGraph(inputStream, returnStream.getId(), 0);
 
@@ -1086,7 +1086,7 @@ public class DataStream<OUT> {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType());
 
 		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(
-				clean(sinkFunction)), getType(), null, "sink", degreeOfParallelism);
+				clean(sinkFunction)), getType(), null, "sink", returnStream.getParallelism());
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);
 

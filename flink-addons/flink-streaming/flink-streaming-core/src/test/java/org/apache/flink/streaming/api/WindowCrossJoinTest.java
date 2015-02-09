@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.HashSet;
 
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -38,19 +38,19 @@ public class WindowCrossJoinTest implements Serializable {
 
 	private static final long MEMORYSIZE = 32;
 
-	private static ArrayList<Tuple2<Tuple2<Integer, String>, Integer>> joinResults = new ArrayList<Tuple2<Tuple2<Integer, String>, Integer>>();
-	private static ArrayList<Tuple2<Tuple2<Integer, String>, Integer>> joinExpectedResults = new ArrayList<Tuple2<Tuple2<Integer, String>, Integer>>();
+	private static HashSet<Tuple2<Tuple2<Integer, String>, Integer>> joinResults = new HashSet<Tuple2<Tuple2<Integer, String>, Integer>>();
+	private static HashSet<Tuple2<Tuple2<Integer, String>, Integer>> joinExpectedResults = new HashSet<Tuple2<Tuple2<Integer, String>, Integer>>();
 
-	private static ArrayList<Tuple2<Tuple2<Integer, String>, Integer>> crossResults = new ArrayList<Tuple2<Tuple2<Integer, String>, Integer>>();
-	private static ArrayList<Tuple2<Tuple2<Integer, String>, Integer>> crossExpectedResults = new ArrayList<Tuple2<Tuple2<Integer, String>, Integer>>();
+	private static HashSet<Tuple2<Tuple2<Integer, String>, Integer>> crossResults = new HashSet<Tuple2<Tuple2<Integer, String>, Integer>>();
+	private static HashSet<Tuple2<Tuple2<Integer, String>, Integer>> crossExpectedResults = new HashSet<Tuple2<Tuple2<Integer, String>, Integer>>();
 
 	@Test
 	public void test() throws Exception {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		env.setBufferTimeout(1);
 
-		ArrayList<Tuple2<Integer, String>> in1 = new ArrayList<Tuple2<Integer, String>>();
-		ArrayList<Tuple1<Integer>> in2 = new ArrayList<Tuple1<Integer>>();
+		HashSet<Tuple2<Integer, String>> in1 = new HashSet<Tuple2<Integer, String>>();
+		HashSet<Tuple1<Integer>> in2 = new HashSet<Tuple1<Integer>>();
 
 		in1.add(new Tuple2<Integer, String>(10, "a"));
 		in1.add(new Tuple2<Integer, String>(20, "b"));
