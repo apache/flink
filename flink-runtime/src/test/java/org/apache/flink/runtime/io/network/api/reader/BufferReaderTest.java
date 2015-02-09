@@ -18,9 +18,27 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
+import com.google.common.base.Optional;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.deployment.PartitionInfo;
 import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.execution.RuntimeEnvironment;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.reader.MockBufferReader.TestTaskEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.UnknownInputChannel;
+import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.junit.Test;
@@ -32,9 +50,13 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Task.class)
@@ -112,10 +134,65 @@ public class BufferReaderTest {
 		reader.getNextBufferBlocking();
 	}
 
+	@Test
+	public void testBackwardsEventWithUninitializedChannel() throws Exception {
+		// Setup environment
+		final NetworkEnvironment networkEnvironment = mock(NetworkEnvironment.class);
+		final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
+		when(taskEventDispatcher.publish(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), any(TaskEvent.class))).thenReturn(true);
+
+		final IntermediateResultPartitionManager partitionManager = mock(IntermediateResultPartitionManager.class);
+
+		final IntermediateResultPartitionQueueIterator iterator = mock(IntermediateResultPartitionQueueIterator.class);
+		when(iterator.getNextBuffer()).thenReturn(new Buffer(new MemorySegment(new byte[1024]), mock(BufferRecycler.class)));
+
+		final BufferPool bufferPool = mock(BufferPool.class);
+		when(bufferPool.getNumberOfRequiredMemorySegments()).thenReturn(2);
+
+		when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
+		when(networkEnvironment.getPartitionManager()).thenReturn(partitionManager);
+
+		when(partitionManager.getIntermediateResultPartitionIterator(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), anyInt(), any(Optional.class))).thenReturn(iterator);
+
+		// Setup reader with one local and one unknown input channel
+		final IntermediateDataSetID resultId = new IntermediateDataSetID();
+		final BufferReader reader = new BufferReader(mock(RuntimeEnvironment.class), networkEnvironment, resultId, 2, 0);
+		reader.setBufferPool(bufferPool);
+
+		ExecutionAttemptID localProducer = new ExecutionAttemptID();
+		IntermediateResultPartitionID localPartitionId = new IntermediateResultPartitionID();
+		InputChannel local = new LocalInputChannel(0, localProducer, localPartitionId, reader);
+
+		ExecutionAttemptID unknownProducer = new ExecutionAttemptID();
+		IntermediateResultPartitionID unknownPartitionId = new IntermediateResultPartitionID();
+		InputChannel unknown = new UnknownInputChannel(2, unknownProducer, unknownPartitionId, reader);
+
+		reader.setInputChannel(localPartitionId, local);
+		reader.setInputChannel(unknownPartitionId, unknown);
+
+		reader.requestPartitionsOnce();
+
+		// Just request the one local channel
+		verify(partitionManager, times(1)).getIntermediateResultPartitionIterator(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), anyInt(), any(Optional.class));
+
+		// Send event backwards and initialize unknown channel afterwards
+		final TaskEvent event = new TestTaskEvent();
+		reader.sendTaskEvent(event);
+
+		// Only the local channel can send out the record
+		verify(taskEventDispatcher, times(1)).publish(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), any(TaskEvent.class));
+
+		// After the update, the pending event should be send to local channel
+		reader.updateInputChannel(new PartitionInfo(unknownPartitionId, unknownProducer, PartitionInfo.PartitionLocation.LOCAL, null));
+
+		verify(partitionManager, times(2)).getIntermediateResultPartitionIterator(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), anyInt(), any(Optional.class));
+		verify(taskEventDispatcher, times(2)).publish(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), any(TaskEvent.class));
+	}
+
 	// ------------------------------------------------------------------------
 
 	static void verifyListenerCalled(EventListener<TaskEvent> mockListener, int expectedNumCalls) {
-		verify(mockListener, times(expectedNumCalls)).onEvent(Matchers.any(TestTaskEvent.class));
+		verify(mockListener, times(expectedNumCalls)).onEvent(any(TestTaskEvent.class));
 	}
 
 	static void consumeAndVerify(BufferReaderBase reader, int expectedNumReadBuffers) throws IOException, InterruptedException {
