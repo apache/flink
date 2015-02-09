@@ -49,6 +49,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -90,6 +92,10 @@ public final class BufferReader implements BufferReaderBase {
 	private final BlockingQueue<InputChannel> inputChannelsWithData = new LinkedBlockingQueue<InputChannel>();
 
 	private final AtomicReference<EventListener<BufferReaderBase>> readerListener = new AtomicReference<EventListener<BufferReaderBase>>(null);
+
+	private final List<TaskEvent> pendingEvents = new ArrayList<TaskEvent>();
+
+	private int numberOfUninitializedChannels;
 
 	// ------------------------------------------------------------------------
 
@@ -149,17 +155,13 @@ public final class BufferReader implements BufferReaderBase {
 		return networkEnvironment.getConnectionManager();
 	}
 
-	// TODO This is a work-around for the union reader
-	boolean hasInputChannelWithData() {
-		return !inputChannelsWithData.isEmpty();
-	}
-
 	/**
 	 * Returns the total number of input channels for this reader.
 	 * <p>
 	 * Note: This number might be smaller the current number of input channels
 	 * of the reader as channels are possibly updated during runtime.
 	 */
+	@Override
 	public int getNumberOfInputChannels() {
 		return totalNumberOfInputChannels;
 	}
@@ -170,7 +172,11 @@ public final class BufferReader implements BufferReaderBase {
 
 	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
 		synchronized (requestLock) {
-			inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel));
+			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null &&
+					inputChannel.getClass() == UnknownInputChannel.class) {
+
+				numberOfUninitializedChannels++;
+			}
 		}
 	}
 
@@ -202,7 +208,16 @@ public final class BufferReader implements BufferReaderBase {
 
 				inputChannels.put(partitionId, newChannel);
 
+
 				newChannel.requestIntermediateResultPartition(queueToRequest);
+
+				for (TaskEvent event : pendingEvents) {
+					newChannel.sendTaskEvent(event);
+				}
+
+				if (--numberOfUninitializedChannels == 0) {
+					pendingEvents.clear();
+				}
 			}
 		}
 	}
@@ -386,6 +401,10 @@ public final class BufferReader implements BufferReaderBase {
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
 				inputChannel.sendTaskEvent(event);
+			}
+
+			if (numberOfUninitializedChannels > 0) {
+				pendingEvents.add(event);
 			}
 		}
 	}
