@@ -197,22 +197,27 @@ public class BlobUtils {
 	}
 
 	/**
-	 * Adds a shutdown hook to the JVM to delete the given directory.
+	 * Adds a shutdown hook to the JVM and returns the Thread, which has been registered.
 	 */
-	static void addDeleteDirectoryShutdownHook(final File dir, final Logger errorLogger) {
-		checkNotNull(dir);
+	static Thread addShutdownHook(final BlobService service, final Logger logger) {
+		checkNotNull(service);
+		checkNotNull(logger);
 
-		// Add shutdown hook to delete directory
-		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+		final Thread shutdownHook = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				try {
-					FileUtils.deleteDirectory(dir);
+					service.shutdown();
 				}
 				catch (Throwable t) {
-					errorLogger.error("Error deleting directory " + dir + " during JVM shutdown: " + t.getMessage(), t);
+					logger.error("Error during shutdown of blob service via JVM shutdown hook: " + t.getMessage(), t);
 				}
 			}
-		}));
+		});
+
+		// Add JVM shutdown hook to call shutdown of service
+		Runtime.getRuntime().addShutdownHook(shutdownHook);
+
+		return shutdownHook;
 	}
 }
