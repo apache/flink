@@ -58,6 +58,8 @@ public class ExternalSortLargeRecordsITCase {
 	private IOManager ioManager;
 
 	private MemoryManager memoryManager;
+	
+	private boolean errored;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -76,7 +78,7 @@ public class ExternalSortLargeRecordsITCase {
 		
 		if (this.memoryManager != null) {
 			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.", 
-				this.memoryManager.verifyEmpty());
+				errored || this.memoryManager.verifyEmpty());
 			this.memoryManager.shutdown();
 			this.memoryManager = null;
 		}
@@ -147,6 +149,7 @@ public class ExternalSortLargeRecordsITCase {
 			sorter.close();
 		}
 		catch (Exception e) {
+			errored = true;
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -216,6 +219,7 @@ public class ExternalSortLargeRecordsITCase {
 			sorter.close();
 		}
 		catch (Exception e) {
+			errored = true;
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -300,6 +304,7 @@ public class ExternalSortLargeRecordsITCase {
 			sorter.close();
 		}
 		catch (Exception e) {
+			errored = true;
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -370,6 +375,7 @@ public class ExternalSortLargeRecordsITCase {
 			sorter.close();
 		}
 		catch (Exception e) {
+			errored = true;
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
