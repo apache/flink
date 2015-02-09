@@ -289,7 +289,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 		}
 
 		// let the operator know that we preserve the key field
-		updates.withConstantSetFirst("0").withConstantSetSecond("0");
+		updates.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0");
 		
 		return iteration.closeWith(updates, updates);
 		
