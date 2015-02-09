@@ -25,10 +25,7 @@ public enum Aggregations {
 	
 	SUM (new SumAggregationFunction.SumAggregationFunctionFactory()),
 	MIN (new MinAggregationFunction.MinAggregationFunctionFactory()),
-	MAX (new MaxAggregationFunction.MaxAggregationFunctionFactory()),
-//	AVG (new AvgAggregationFunction.AvgAggregationFunctionFactory())
-	;
-//	STD_DEV;
+	MAX (new MaxAggregationFunction.MaxAggregationFunctionFactory());
 	
 	// --------------------------------------------------------------------------------------------
 	
