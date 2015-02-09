@@ -20,16 +20,16 @@ package org.apache.flink.runtime.protocols;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.InputSplitWrapper;
 
 /**
  * The input split provider protocol is used to facilitate RPC calls related to the lazy split assignment.
  */
 public interface InputSplitProviderProtocol extends VersionedProtocol {
 
-	InputSplit requestNextInputSplit(JobID jobID, JobVertexID vertex, ExecutionAttemptID executionAttempt) throws IOException;
+	InputSplitWrapper requestNextInputSplit(JobID jobID, JobVertexID vertex, ExecutionAttemptID executionAttempt) throws IOException;
 }

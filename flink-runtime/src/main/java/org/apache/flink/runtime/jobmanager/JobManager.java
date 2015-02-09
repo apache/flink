@@ -480,7 +480,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	}
 	
 	@Override
-	public InputSplit requestNextInputSplit(JobID jobID, JobVertexID vertexId, ExecutionAttemptID executionAttempt) throws IOException {
+	public InputSplitWrapper requestNextInputSplit(JobID jobID, JobVertexID vertexId, ExecutionAttemptID executionAttempt) throws IOException {
 
 		final ExecutionGraph graph = this.currentJobs.get(jobID);
 		if (graph == null) {
@@ -505,6 +505,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		Execution execution = graph.getRegisteredExecutions().get(executionAttempt);
 		if(execution == null) {
 			LOG.error("Can not find Execution for attempt " + executionAttempt);
+			return null;
 		} else {
 			SimpleSlot slot = execution.getAssignedResource();
 			if(slot != null) {
@@ -512,7 +513,18 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			}
 		}
 		
-		return splitAssigner.getNextInputSplit(host);
+		InputSplit split = splitAssigner.getNextInputSplit(host);
+		if (split == null) {
+			return null;
+		}
+		
+		try {
+			return new InputSplitWrapper(split);
+		}
+		catch (Throwable t) {
+			graph.fail(new Exception("Error serializing input split: " + t.getMessage(), t));
+			return null;
+		}
 	}
 	
 	@Override

@@ -190,7 +190,7 @@ object TestObjectWithBogusReturns {
       nums.map { x => return 1; x * 2}.print()
     } catch {
       case inv: InvalidProgramException => // all good
-      case _ => fail("Bogus return statement not detected.")
+      case _: Throwable => fail("Bogus return statement not detected.")
     }
 
     nums.writeAsText(resultPath)

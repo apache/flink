@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import java.io.IOException;
-
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobmanager.InputSplitWrapper;
 import org.apache.flink.runtime.protocols.InputSplitProviderProtocol;
 
 public class TaskInputSplitProvider implements InputSplitProvider {
@@ -37,19 +36,30 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 	
 	private final ExecutionAttemptID executionAttempt;
 	
-	public TaskInputSplitProvider(InputSplitProviderProtocol protocol, JobID jobId, JobVertexID vertexId, ExecutionAttemptID executionAttempt) {
+	private final ClassLoader userCodeClassLoader;
+	
+	public TaskInputSplitProvider(InputSplitProviderProtocol protocol, JobID jobId, JobVertexID vertexId,
+			ExecutionAttemptID executionAttempt, ClassLoader userCodeClassLoader)
+	{
 		this.protocol = protocol;
 		this.jobId = jobId;
 		this.vertexId = vertexId;
 		this.executionAttempt = executionAttempt;
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
 
 	@Override
 	public InputSplit getNextInputSplit() {
 		try {
-			return protocol.requestNextInputSplit(jobId, vertexId, executionAttempt);
+			InputSplitWrapper wrapper = protocol.requestNextInputSplit(jobId, vertexId, executionAttempt);
+			if (wrapper == null) {
+				return null;
+			}
+			else {
+				return wrapper.getSplit(userCodeClassLoader);
+			}
 		}
-		catch (IOException e) {
+		catch (Exception e) {
 			throw new RuntimeException("Requesting the next InputSplit failed.", e);
 		}
 	}
