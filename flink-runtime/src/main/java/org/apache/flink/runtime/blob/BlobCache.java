@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The BLOB cache implements a local cache for content-addressable BLOBs. When requesting BLOBs through the
@@ -48,6 +49,10 @@ public final class BlobCache implements BlobService {
 
 	private final File storageDir;
 
+	private AtomicBoolean shutdownRequested = new AtomicBoolean();
+
+	/** Shutdown hook thread to ensure deletion of the storage directory. */
+	private final Thread shutdownHook;
 
 	public BlobCache(InetSocketAddress serverAddress) {
 		this.serverAddress = serverAddress;
@@ -57,7 +62,7 @@ public final class BlobCache implements BlobService {
 		LOG.info("Created BLOB cache storage directory " + storageDir);
 
 		// Add shutdown hook to delete storage directory
-		BlobUtils.addDeleteDirectoryShutdownHook(storageDir, LOG);
+		shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 	}
 
 	/**
@@ -155,7 +160,11 @@ public final class BlobCache implements BlobService {
 	}
 
 	@Override
-	public void shutdown() throws IOException{
-		FileUtils.deleteDirectory(storageDir);
+	public void shutdown() throws IOException {
+		if (shutdownRequested.compareAndSet(false, true)) {
+			FileUtils.deleteDirectory(storageDir);
+
+			Runtime.getRuntime().removeShutdownHook(shutdownHook);
+		}
 	}
 }
