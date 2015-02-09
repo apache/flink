@@ -22,6 +22,7 @@ package org.apache.flink.api.common.operators;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
@@ -43,6 +44,8 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 	protected final UserCodeWrapper<? extends T> formatWrapper;
 
 	protected String statisticsKey;
+
+	private SplitDataProperties splitProperties;
 
 	/**
 	 * Creates a new instance for the given file using the given input format.
@@ -156,7 +159,30 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 	public void setStatisticsKey(String statisticsKey) {
 		this.statisticsKey = statisticsKey;
 	}
-	
+
+	/**
+	 * Sets properties of input splits for this data source.
+	 * Split properties can help to generate more efficient execution plans.
+	 * <br>
+	 * <b>
+	 *     IMPORTANT: Providing wrong split data properties can cause wrong results!
+	 * </b>
+	 *
+	 * @param splitDataProperties The data properties of this data source's splits.
+	 */
+	public void setSplitDataProperties(SplitDataProperties<OUT> splitDataProperties) {
+		this.splitProperties = splitDataProperties;
+	}
+
+	/**
+	 * Returns the data properties of this data source's splits.
+	 *
+	 * @return The data properties of this data source's splits or null if no properties have been set.
+	 */
+	public SplitDataProperties<OUT> getSplitDataProperties() {
+		return this.splitProperties;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -207,5 +233,18 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 	
 	public String toString() {
 		return this.name;
+	}
+
+
+	public static interface SplitDataProperties<T> {
+
+		public int[] getSplitPartitionKeys();
+
+		public Partitioner<T> getSplitPartitioner();
+
+		public int[] getSplitGroupKeys();
+
+		public Ordering getSplitOrder();
+
 	}
 }
