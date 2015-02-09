@@ -24,7 +24,6 @@ import static akka.pattern.Patterns.ask;
 
 import akka.actor.Props;
 import akka.util.Timeout;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.AkkaUtils$;
 import org.apache.flink.runtime.net.NetUtils;
