@@ -74,7 +74,8 @@ public class StreamDiscretizerTest {
 		EvictionPolicy<Integer> eviction = new TimeEvictionPolicy<Integer>(4L,
 				new TimestampWrapper<Integer>(myTimeStamp, 1));
 
-		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction);
+		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction,
+				new BasicWindowBuffer<Integer>());
 
 		List<StreamWindow<Integer>> result = MockContext.createAndExecute(discretizer, inputs);
 		assertEquals(expected, result);
@@ -99,7 +100,8 @@ public class StreamDiscretizerTest {
 
 		EvictionPolicy<Integer> eviction = new TumblingEvictionPolicy<Integer>();
 
-		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction);
+		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction,
+				new BasicWindowBuffer<Integer>());
 
 		List<StreamWindow<Integer>> result = MockContext.createAndExecute(discretizer, inputs);
 		assertEquals(expected, result);

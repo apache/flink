@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -31,11 +32,14 @@ import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.A
 import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.operator.windowing.BasicWindowBuffer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedStreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedTimeDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindow;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindowTypeInfo;
+import org.apache.flink.streaming.api.invokable.operator.windowing.TumblingPreReducer;
+import org.apache.flink.streaming.api.invokable.operator.windowing.WindowBuffer;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
@@ -210,33 +214,73 @@ public class WindowedDataStream<OUT> {
 		return out;
 	}
 
-	private DiscretizedStream<OUT> discretize(boolean isMap) {
+	private DiscretizedStream<OUT> discretize(WindowTransformation transformation) {
 
-		StreamInvokable<OUT, StreamWindow<OUT>> discretizer = getDiscretizer();
+		StreamInvokable<OUT, StreamWindow<OUT>> discretizer = getDiscretizer(transformation,
+				getTrigger(), getEviction(), discretizerKey);
 
-		int parallelism = isLocal || (discretizerKey != null) ? dataStream.environment
-				.getDegreeOfParallelism() : 1;
+		int parallelism = getDiscretizerParallelism();
 
 		return new DiscretizedStream<OUT>(dataStream.transform("Stream Discretizer",
 				new StreamWindowTypeInfo<OUT>(getType()), discretizer).setParallelism(parallelism),
-				groupByKey);
+				groupByKey, transformation);
 
 	}
 
-	private StreamInvokable<OUT, StreamWindow<OUT>> getDiscretizer() {
+	protected enum WindowTransformation {
+
+		REDUCEWINDOW, MAPWINDOW, NONE;
+
+		private Function UDF;
+
+		public WindowTransformation with(Function UDF) {
+			this.UDF = UDF;
+			return this;
+		}
+	}
+
+	private int getDiscretizerParallelism() {
+		return isLocal || (discretizerKey != null) ? dataStream.environment
+				.getDegreeOfParallelism() : 1;
+	}
+
+	private StreamInvokable<OUT, StreamWindow<OUT>> getDiscretizer(
+			WindowTransformation transformation, TriggerPolicy<OUT> trigger,
+			EvictionPolicy<OUT> eviction, KeySelector<OUT, ?> discretizerKey) {
+
+		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation, trigger, eviction,
+				discretizerKey);
+
 		if (discretizerKey == null) {
-			return new StreamDiscretizer<OUT>(getTrigger(), getEvicter());
-		} else if (getTrigger() instanceof TimeTriggerPolicy
-				&& ((TimeTriggerPolicy<OUT>) getTrigger()).timestampWrapper.isDefaultTimestamp()) {
+			return new StreamDiscretizer<OUT>(trigger, eviction, windowBuffer);
+		} else if (trigger instanceof TimeTriggerPolicy
+				&& ((TimeTriggerPolicy<OUT>) trigger).timestampWrapper.isDefaultTimestamp()) {
 			return new GroupedTimeDiscretizer<OUT>(discretizerKey,
-					(TimeTriggerPolicy<OUT>) getTrigger(),
-					(CloneableEvictionPolicy<OUT>) getEvicter());
+					(TimeTriggerPolicy<OUT>) trigger, (CloneableEvictionPolicy<OUT>) eviction,
+					windowBuffer);
 		} else {
 			return new GroupedStreamDiscretizer<OUT>(discretizerKey,
-					(CloneableTriggerPolicy<OUT>) getTrigger(),
-					(CloneableEvictionPolicy<OUT>) getEvicter());
+					(CloneableTriggerPolicy<OUT>) trigger, (CloneableEvictionPolicy<OUT>) eviction,
+					windowBuffer);
 		}
 
+	}
+
+	@SuppressWarnings("unchecked")
+	private WindowBuffer<OUT> getWindowBuffer(WindowTransformation transformation,
+			TriggerPolicy<OUT> trigger, EvictionPolicy<OUT> eviction,
+			KeySelector<OUT, ?> discretizerKey) {
+
+		if (transformation == WindowTransformation.REDUCEWINDOW
+				&& eviction instanceof TumblingEvictionPolicy) {
+			if (discretizerKey == null) {
+				return new TumblingPreReducer<OUT>((ReduceFunction<OUT>) transformation.UDF,
+						getType().createSerializer());
+			} else {
+				return new BasicWindowBuffer<OUT>();
+			}
+		}
+		return new BasicWindowBuffer<OUT>();
 	}
 
 	/**
@@ -250,7 +294,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
-		return discretize(false).reduceWindow(reduceFunction);
+		return discretize(WindowTransformation.REDUCEWINDOW.with(reduceFunction)).reduceWindow(
+				reduceFunction);
 	}
 
 	/**
@@ -267,7 +312,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public <R> WindowedDataStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction) {
-		return discretize(true).mapWindow(reduceFunction);
+		return discretize(WindowTransformation.MAPWINDOW.with(reduceFunction)).mapWindow(
+				reduceFunction);
 	}
 
 	/**
@@ -289,7 +335,8 @@ public class WindowedDataStream<OUT> {
 	public <R> WindowedDataStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction,
 			TypeInformation<R> outType) {
 
-		return discretize(true).mapWindow(reduceFunction, outType);
+		return discretize(WindowTransformation.MAPWINDOW.with(reduceFunction)).mapWindow(
+				reduceFunction, outType);
 	}
 
 	public DataStream<OUT> flatten() {
@@ -533,7 +580,7 @@ public class WindowedDataStream<OUT> {
 
 	}
 
-	protected EvictionPolicy<OUT> getEvicter() {
+	protected EvictionPolicy<OUT> getEviction() {
 
 		if (evictionHelper != null) {
 			return evictionHelper.toEvict();
@@ -571,7 +618,7 @@ public class WindowedDataStream<OUT> {
 	}
 
 	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
-		return discretize(true).getDiscretizedStream();
+		return discretize(WindowTransformation.NONE).getDiscretizedStream();
 	}
 
 	protected static class WindowKey<R> implements KeySelector<StreamWindow<R>, Integer> {

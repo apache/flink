@@ -101,6 +101,8 @@ public class WindowIntegrationTest implements Serializable {
 		source.groupBy(new ModKey(3)).window(Count.of(2)).groupBy(new ModKey(2))
 				.mapWindow(new IdentityWindowMap()).flatten().addSink(new DistributedSink2());
 
+		env.generateSequence(1, 10).window(Count.of(3)).sum(0).getDiscretizedStream().print();
+		
 		env.execute();
 
 		// sum ( Count of 2 slide 3 )

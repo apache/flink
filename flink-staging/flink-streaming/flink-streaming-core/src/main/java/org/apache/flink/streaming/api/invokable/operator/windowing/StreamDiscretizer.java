@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
-import java.util.LinkedList;
-import java.util.NoSuchElementException;
-
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.windowing.policy.ActiveEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerCallback;
@@ -39,10 +36,12 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 	private boolean isActiveTrigger;
 	private boolean isActiveEviction;
 	private Thread activePolicyThread;
-	protected LinkedList<IN> buffer;
 	public int emptyCount = 0;
 
-	public StreamDiscretizer(TriggerPolicy<IN> triggerPolicy, EvictionPolicy<IN> evictionPolicy) {
+	protected WindowBuffer<IN> bufferHandler;
+
+	public StreamDiscretizer(TriggerPolicy<IN> triggerPolicy, EvictionPolicy<IN> evictionPolicy,
+			WindowBuffer<IN> bufferHandler) {
 		super(null);
 
 		this.triggerPolicy = triggerPolicy;
@@ -51,7 +50,7 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 		this.isActiveTrigger = triggerPolicy instanceof ActiveTriggerPolicy;
 		this.isActiveEviction = evictionPolicy instanceof ActiveEvictionPolicy;
 
-		this.buffer = new LinkedList<IN>();
+		this.bufferHandler = bufferHandler;
 	}
 
 	@Override
@@ -66,7 +65,7 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 			activePolicyThread.interrupt();
 		}
 
-		emitFinalWindow();
+		emitWindow();
 
 	}
 
@@ -77,8 +76,9 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 	 * 
 	 * @param input
 	 *            a real input element
+	 * @throws Exception
 	 */
-	protected synchronized void processRealElement(IN input) {
+	protected synchronized void processRealElement(IN input) throws Exception {
 
 		if (isActiveTrigger) {
 			ActiveTriggerPolicy<IN> trigger = (ActiveTriggerPolicy<IN>) triggerPolicy;
@@ -97,7 +97,7 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 
 		evict(input, isTriggered);
 
-		buffer.add(input);
+		bufferHandler.store(input);
 
 	}
 
@@ -124,10 +124,7 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 	 * if not empty
 	 */
 	protected void emitWindow() {
-		if (!buffer.isEmpty()) {
-			StreamWindow<IN> currentWindow = new StreamWindow<IN>();
-			currentWindow.addAll(buffer);
-			collector.collect(currentWindow);
+		if (bufferHandler.emitWindow(collector)) {
 			emptyCount = 0;
 		} else {
 			emptyCount++;
@@ -139,37 +136,16 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 
 		if (isActiveEviction) {
 			ActiveEvictionPolicy<IN> ep = (ActiveEvictionPolicy<IN>) evictionPolicy;
-			numToEvict = ep.notifyEvictionWithFakeElement(input, buffer.size());
+			numToEvict = ep.notifyEvictionWithFakeElement(input, bufferHandler.size());
 		}
 
-		evictFromBuffer(numToEvict);
+		bufferHandler.evict(numToEvict);
 	}
 
 	private void evict(IN input, boolean isTriggered) {
-		int numToEvict = evictionPolicy.notifyEviction(input, isTriggered, buffer.size());
+		int numToEvict = evictionPolicy.notifyEviction(input, isTriggered, bufferHandler.size());
 
-		evictFromBuffer(numToEvict);
-	}
-
-	private void evictFromBuffer(int n) {
-		for (int i = 0; i < n; i++) {
-			try {
-				buffer.removeFirst();
-			} catch (NoSuchElementException e) {
-				// In case no more elements are in the buffer:
-				// Prevent failure and stop deleting.
-				break;
-			}
-		}
-	}
-
-	/**
-	 * This function emits the partial windows at the end of the stream
-	 */
-	protected void emitFinalWindow() {
-		if (!buffer.isEmpty()) {
-			emitWindow();
-		}
+		bufferHandler.evict(numToEvict);
 	}
 
 	@Override
@@ -189,7 +165,7 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 
 	@Override
 	public String toString() {
-		return buffer.toString();
+		return bufferHandler.toString();
 	}
 
 	/**

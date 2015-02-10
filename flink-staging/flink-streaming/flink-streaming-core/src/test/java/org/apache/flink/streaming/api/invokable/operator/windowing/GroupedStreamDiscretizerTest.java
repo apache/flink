@@ -82,7 +82,7 @@ public class GroupedStreamDiscretizerTest {
 		CloneableEvictionPolicy<Integer> eviction = new TumblingEvictionPolicy<Integer>();
 
 		GroupedStreamDiscretizer<Integer> discretizer = new GroupedStreamDiscretizer<Integer>(
-				keySelector, trigger, eviction);
+				keySelector, trigger, eviction, new BasicWindowBuffer<Integer>());
 
 		List<StreamWindow<Integer>> result = MockContext.createAndExecute(discretizer, inputs);
 		assertEquals(expected, new HashSet<StreamWindow<Integer>>(result));
