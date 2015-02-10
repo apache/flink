@@ -33,11 +33,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import akka.actor.ActorRef;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.Instance;
 
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestRegisteredTaskManagers$;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RegisteredTaskManagers;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
@@ -45,6 +46,8 @@ import org.codehaus.jettison.json.JSONObject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -104,44 +107,63 @@ public class SetupInfoServlet extends HttpServlet {
 	
 	private void writeTaskmanagers(HttpServletResponse resp) throws IOException {
 
-		List<Instance> instances = new ArrayList<Instance>(AkkaUtils.<RegisteredTaskManagers>ask
-				(jobmanager, RequestRegisteredTaskManagers$.MODULE$, timeout).asJavaCollection());
+		final Future<Object> response = Patterns.ask(jobmanager,
+				JobManagerMessages.getRequestRegisteredTaskManagers(),
+				new Timeout(timeout));
 
-		Collections.sort(instances, INSTANCE_SORTER);
-				
-		JSONObject obj = new JSONObject();
-		JSONArray array = new JSONArray();
-		for (Instance instance : instances) {
-			JSONObject objInner = new JSONObject();
-				
-			long time = new Date().getTime() - instance.getLastHeartBeat();
-	
-			try {
-				objInner.put("inetAdress", instance.getInstanceConnectionInfo().getInetAdress());
-				objInner.put("ipcPort", instance.getTaskManager().path().address().hostPort());
-				objInner.put("dataPort", instance.getInstanceConnectionInfo().dataPort());
-				objInner.put("timeSinceLastHeartbeat", time / 1000);
-				objInner.put("slotsNumber", instance.getTotalNumberOfSlots());
-				objInner.put("freeSlots", instance.getNumberOfAvailableSlots());
-				objInner.put("cpuCores", instance.getResources().getNumberOfCPUCores());
-				objInner.put("physicalMemory", instance.getResources().getSizeOfPhysicalMemory() >>> 20);
-				objInner.put("freeMemory", instance.getResources().getSizeOfJvmHeap() >>> 20);
-				objInner.put("managedMemory", instance.getResources().getSizeOfManagedMemory() >>> 20);
-				array.put(objInner);
+		Object obj = null;
+
+		try{
+			obj = Await.result(response, timeout);
+		} catch (Exception ex) {
+			throw new IOException("Could not retrieve all registered task managers from the " +
+					"job manager.", ex);
+		}
+
+		if(!(obj instanceof RegisteredTaskManagers)){
+			throw new RuntimeException("RequestRegisteredTaskManagers should return a response of " +
+					"type RegisteredTaskManagers. Instead the respone is of type " +
+					obj.getClass() + ".");
+		} else {
+
+			final List<Instance> instances = new ArrayList<Instance>(
+					((RegisteredTaskManagers) obj).asJavaCollection());
+
+			Collections.sort(instances, INSTANCE_SORTER);
+
+			JSONObject jsonObj = new JSONObject();
+			JSONArray array = new JSONArray();
+			for (Instance instance : instances) {
+				JSONObject objInner = new JSONObject();
+
+				long time = new Date().getTime() - instance.getLastHeartBeat();
+
+				try {
+					objInner.put("inetAdress", instance.getInstanceConnectionInfo().getInetAdress());
+					objInner.put("ipcPort", instance.getTaskManager().path().address().hostPort());
+					objInner.put("dataPort", instance.getInstanceConnectionInfo().dataPort());
+					objInner.put("timeSinceLastHeartbeat", time / 1000);
+					objInner.put("slotsNumber", instance.getTotalNumberOfSlots());
+					objInner.put("freeSlots", instance.getNumberOfAvailableSlots());
+					objInner.put("cpuCores", instance.getResources().getNumberOfCPUCores());
+					objInner.put("physicalMemory", instance.getResources().getSizeOfPhysicalMemory() >>> 20);
+					objInner.put("freeMemory", instance.getResources().getSizeOfJvmHeap() >>> 20);
+					objInner.put("managedMemory", instance.getResources().getSizeOfManagedMemory() >>> 20);
+					array.put(objInner);
+				} catch (JSONException e) {
+					LOG.warn("Json object creation failed", e);
+				}
+
 			}
-			catch (JSONException e) {
+			try {
+				jsonObj.put("taskmanagers", array);
+			} catch (JSONException e) {
 				LOG.warn("Json object creation failed", e);
 			}
-			
+
+			PrintWriter w = resp.getWriter();
+			w.write(jsonObj.toString());
 		}
-		try {
-			obj.put("taskmanagers", array);
-		} catch (JSONException e) {
-			LOG.warn("Json object creation failed", e);
-		}
-		
-		PrintWriter w = resp.getWriter();
-		w.write(obj.toString());
 	}
 	
 	// --------------------------------------------------------------------------------------------

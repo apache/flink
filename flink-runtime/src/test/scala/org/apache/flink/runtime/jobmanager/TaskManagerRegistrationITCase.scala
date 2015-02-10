@@ -92,7 +92,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
         within(TestingUtils.TESTING_DURATION) {
           expectMsgType[RegisterTaskManager]
 
-          tm ! AcknowledgeRegistration(new InstanceID(), 42)
+          tm ! AcknowledgeRegistration(new InstanceID(), 42, None)
 
           tm ! RefuseRegistration("Should be ignored")
 

@@ -143,12 +143,13 @@ class JobManager(val configuration: Configuration,
       // TaskManager is already registered
       if(instanceID == null){
         val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
-        taskManager ! AlreadyRegistered(instanceID, libraryCacheManager.getBlobServerPort)
+        taskManager ! AlreadyRegistered(instanceID, libraryCacheManager.getBlobServerPort, profiler)
       } else {
         // to be notified when the taskManager is no longer reachable
         context.watch(taskManager)
 
-        taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
+        taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort,
+          profiler)
       }
 
 
@@ -796,28 +797,17 @@ object JobManager {
     s"akka.tcp://flink@$address/user/$JOB_MANAGER_NAME"
   }
 
+  def getRemoteAkkaURL(address : InetSocketAddress): String = {
+    getRemoteAkkaURL(address.getHostName + ":" + address.getPort)
+  }
+
   def getLocalAkkaURL: String = {
     s"akka://flink/user/$JOB_MANAGER_NAME"
   }
 
-  def getProfiler(jobManager: ActorRef)(implicit system: ActorSystem, timeout: FiniteDuration):
-  ActorRef = {
-    AkkaUtils.getChild(jobManager, PROFILER_NAME)
-  }
-
-  def getEventCollector(jobManager: ActorRef)(implicit system: ActorSystem, timeout:
-  FiniteDuration): ActorRef = {
-    AkkaUtils.getChild(jobManager, EVENT_COLLECTOR_NAME)
-  }
-
-  def getArchivist(jobManager: ActorRef)(implicit system: ActorSystem, timeout: FiniteDuration):
-  ActorRef = {
-    AkkaUtils.getChild(jobManager, ARCHIVE_NAME)
-  }
-
   def getJobManager(address: InetSocketAddress)(implicit system: ActorSystem, timeout:
-  FiniteDuration): ActorRef = {
-    AkkaUtils.getReference(getRemoteAkkaURL(address.getHostName + ":" + address.getPort))
+  FiniteDuration): Future[ActorRef] = {
+    AkkaUtils.getReference(getRemoteAkkaURL(address))
   }
 
   private def checkJavaVersion(): Unit = {

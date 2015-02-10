@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager;
 
 import static org.junit.Assert.*;
 
+import java.net.InetAddress;
 import java.net.ServerSocket;
 
 import org.apache.flink.configuration.ConfigConstants;
@@ -40,7 +41,7 @@ public class JobManagerStartupTest {
 		
 		try {
 			portNum = NetUtils.getAvailablePort();
-			portOccupier = new ServerSocket(portNum);
+			portOccupier = new ServerSocket(portNum, 10, InetAddress.getByName("127.0.0.1"));
 		}
 		catch (Throwable t) {
 			// could not find free port, or open a connection there
@@ -48,13 +49,16 @@ public class JobManagerStartupTest {
 		}
 		
 		try {
-			Tuple2<String, Object> connection = new Tuple2<String, Object>("localhost", portNum);
+			Tuple2<String, Object> connection = new Tuple2<String, Object>("\"127.0.0.1\"", portNum);
 			JobManager.runJobManager(new Configuration(), ExecutionMode.CLUSTER(), new Some<Tuple2<String, Object>>(connection));
 			fail("this should throw an exception");
 		}
 		catch (Exception e) {
 			// expected
-			assertTrue(e.getMessage().contains("Address already in use"));
+			if(!e.getMessage().contains("Address already in use")) {
+				e.printStackTrace();
+				fail("Received wrong exception");
+			}
 		}
 		finally {
 			try {

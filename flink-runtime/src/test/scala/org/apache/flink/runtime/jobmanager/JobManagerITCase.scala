@@ -20,10 +20,10 @@ package org.apache.flink.runtime.jobmanager
 
 import Tasks._
 import akka.actor.ActorSystem
+import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.akka.AkkaUtils
+import akka.util.Timeout
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph, ScheduleMode}
-import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingUtils
@@ -32,6 +32,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scheduler.{NoResourceAvailableException, SlotSharingGroup}
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Random
@@ -39,7 +40,8 @@ import scala.util.Random
 @RunWith(classOf[JUnitRunner])
 class JobManagerITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
 WordSpecLike with Matchers with BeforeAndAfterAll {
-  implicit val timeout = 1 minute
+  implicit val duration = 1 minute
+  implicit val timeout = Timeout.durationToTimeout(duration)
 
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
@@ -59,7 +61,10 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        val availableSlots = AkkaUtils.ask[Int](jm, RequestTotalNumberOfSlots)
+        val response = (jm ? RequestTotalNumberOfSlots).mapTo[Int]
+
+        val availableSlots = Await.result(response, duration)
+
         availableSlots should equal(1)
 
         within(1 second) {
@@ -89,7 +94,10 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        val availableSlots = AkkaUtils.ask[Int](jm, RequestTotalNumberOfSlots)
+        val response = (jm ? RequestTotalNumberOfSlots).mapTo[Int]
+
+        val availableSlots = Await.result(response, duration)
+
         availableSlots should equal(num_tasks)
 
         within(TestingUtils.TESTING_DURATION) {

@@ -20,6 +20,7 @@ package org.apache.flink.yarn
 
 import java.util.Date
 
+import akka.actor.ActorRef
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 
@@ -32,6 +33,8 @@ object Messages {
   case object JobManagerStopped
   case class StartYarnSession(configuration: Configuration, actorSystemPort: Int)
 
+  case class JobManagerActorRef(jobManager: ActorRef)
+
   case object PollContainerCompletion
   case object PollYarnClusterStatus // see org.apache.flink.runtime.yarn.FlinkYarnClusterStatus for
                                     // the response
@@ -41,4 +44,8 @@ object Messages {
   case class LocalRegisterClient(jobManagerAddress: String)
   case object LocalGetYarnMessage // request new message
   case object LocalGetYarnClusterStatus // request the latest cluster status
+
+  def getLocalGetYarnMessage(): AnyRef = {
+    LocalGetYarnMessage
+  }
 }

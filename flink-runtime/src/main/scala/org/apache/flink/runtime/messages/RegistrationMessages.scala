@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.messages
 
+import akka.actor.ActorRef
 import org.apache.flink.runtime.instance.{InstanceConnectionInfo, InstanceID, HardwareDescription}
 
 object RegistrationMessages {
@@ -40,16 +41,20 @@ object RegistrationMessages {
    *
    * @param instanceID
    * @param blobPort
+   * @param profilerListener
    */
-  case class AcknowledgeRegistration(instanceID: InstanceID, blobPort: Int)
+  case class AcknowledgeRegistration(instanceID: InstanceID, blobPort: Int,
+                                     profilerListener: Option[ActorRef])
 
   /**
    * Denotes that the TaskManager has already been registered at the JobManager.
    *
    * @param instanceID
    * @param blobPort
+   * @param profilerListener
    */
-  case class AlreadyRegistered(instanceID: InstanceID, blobPort: Int)
+  case class AlreadyRegistered(instanceID: InstanceID, blobPort: Int,
+                                profilerListener: Option[ActorRef])
 
   /**
    * Denotes the unsuccessful registration of a task manager at the job manager. This is the

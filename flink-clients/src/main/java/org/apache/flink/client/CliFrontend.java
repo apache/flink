@@ -37,6 +37,8 @@ import java.util.Properties;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -57,6 +59,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -64,11 +67,12 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.util.StringUtils;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -517,67 +521,83 @@ public class CliFrontend {
 				return 1;
 			}
 
-			Iterable<ExecutionGraph> jobs = AkkaUtils.<RunningJobs>ask(jobManager,
-					RequestRunningJobs$.MODULE$, getAkkaTimeout()).asJavaIterable();
+			final Future<Object> response = Patterns.ask(jobManager,
+					JobManagerMessages.getRequestRunningJobs(), new Timeout(getAkkaTimeout()));
 
-			ArrayList<ExecutionGraph> runningJobs = null;
-			ArrayList<ExecutionGraph> scheduledJobs = null;
-			if (running) {
-				runningJobs = new ArrayList<ExecutionGraph>();
+			Object result = null;
+
+			try{
+				result = Await.result(response, getAkkaTimeout());
+			} catch (Exception exception) {
+				throw new IOException("Could not retrieve running jobs from job manager.",
+						exception);
 			}
-			if (scheduled) {
-				scheduledJobs = new ArrayList<ExecutionGraph>();
-			}
-			
-			for (ExecutionGraph rj : jobs) {
-				
-				if (running && rj.getState().equals(JobStatus.RUNNING)) {
-					runningJobs.add(rj);
+
+			if(!(result instanceof RunningJobs)){
+				throw new RuntimeException("ReqeustRunningJobs requires a response of type " +
+						"RunningJobs. Instead the response is of type " + result.getClass() + ".");
+			} else {
+				Iterable<ExecutionGraph> jobs = ((RunningJobs) result).asJavaIterable();
+
+				ArrayList<ExecutionGraph> runningJobs = null;
+				ArrayList<ExecutionGraph> scheduledJobs = null;
+				if (running) {
+					runningJobs = new ArrayList<ExecutionGraph>();
 				}
-				if (scheduled && rj.getState().equals(JobStatus.CREATED)) {
-					scheduledJobs.add(rj);
+				if (scheduled) {
+					scheduledJobs = new ArrayList<ExecutionGraph>();
 				}
-			}
-			
-			SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-			Comparator<ExecutionGraph> njec = new Comparator<ExecutionGraph>(){
-				
-				@Override
-				public int compare(ExecutionGraph o1, ExecutionGraph o2) {
-					return (int)(o1.getStatusTimestamp(o1.getState())-o2.getStatusTimestamp(o2
-							.getState()));
-				}
-			};
-			
-			if (running) {
-				if(runningJobs.size() == 0) {
-					System.out.println("No running jobs.");
-				} else {
-					Collections.sort(runningJobs, njec);
-					
-					System.out.println("------------------------ Running Jobs ------------------------");
-					for(ExecutionGraph rj : runningJobs) {
-						System.out.println(df.format(new Date(rj.getStatusTimestamp(rj.getState())))
-								+" : "+rj.getJobID().toString()+" : "+rj.getJobName());
+
+				for (ExecutionGraph rj : jobs) {
+
+					if (running && rj.getState().equals(JobStatus.RUNNING)) {
+						runningJobs.add(rj);
 					}
-					System.out.println("--------------------------------------------------------------");
-				}
-			}
-			if (scheduled) {
-				if(scheduledJobs.size() == 0) {
-					System.out.println("No scheduled jobs.");
-				} else {
-					Collections.sort(scheduledJobs, njec);
-					
-					System.out.println("----------------------- Scheduled Jobs -----------------------");
-					for(ExecutionGraph rj : scheduledJobs) {
-						System.out.println(df.format(new Date(rj.getStatusTimestamp(rj.getState())))
-								+" : "+rj.getJobID().toString()+" : "+rj.getJobName());
+					if (scheduled && rj.getState().equals(JobStatus.CREATED)) {
+						scheduledJobs.add(rj);
 					}
-					System.out.println("--------------------------------------------------------------");
 				}
+
+				SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+				Comparator<ExecutionGraph> njec = new Comparator<ExecutionGraph>(){
+
+					@Override
+					public int compare(ExecutionGraph o1, ExecutionGraph o2) {
+						return (int)(o1.getStatusTimestamp(o1.getState())-o2.getStatusTimestamp(o2
+								.getState()));
+					}
+				};
+
+				if (running) {
+					if(runningJobs.size() == 0) {
+						System.out.println("No running jobs.");
+					} else {
+						Collections.sort(runningJobs, njec);
+
+						System.out.println("------------------------ Running Jobs ------------------------");
+						for(ExecutionGraph rj : runningJobs) {
+							System.out.println(df.format(new Date(rj.getStatusTimestamp(rj.getState())))
+									+" : "+rj.getJobID().toString()+" : "+rj.getJobName());
+						}
+						System.out.println("--------------------------------------------------------------");
+					}
+				}
+				if (scheduled) {
+					if(scheduledJobs.size() == 0) {
+						System.out.println("No scheduled jobs.");
+					} else {
+						Collections.sort(scheduledJobs, njec);
+
+						System.out.println("----------------------- Scheduled Jobs -----------------------");
+						for(ExecutionGraph rj : scheduledJobs) {
+							System.out.println(df.format(new Date(rj.getStatusTimestamp(rj.getState())))
+									+" : "+rj.getJobID().toString()+" : "+rj.getJobName());
+						}
+						System.out.println("--------------------------------------------------------------");
+					}
+				}
+				return 0;
 			}
-			return 0;
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -637,7 +657,16 @@ public class CliFrontend {
 				return 1;
 			}
 
-			AkkaUtils.ask(jobManager, new CancelJob(jobId), getAkkaTimeout());
+			final Future<Object> response = Patterns.ask(jobManager, new CancelJob(jobId),
+					new Timeout(getAkkaTimeout()));
+
+			try {
+				Await.ready(response, getAkkaTimeout());
+			} catch (Exception exception) {
+				throw new IOException("Canceling the job with job ID " + jobId + " failed.",
+						exception);
+			}
+
 			return 0;
 		}
 		catch (Throwable t) {
@@ -753,9 +782,19 @@ public class CliFrontend {
 			return null;
 		}
 
-		return JobManager.getJobManager(RemoteExecutor.getInetFromHostport(jobManagerAddressStr),
-				ActorSystem.create("CliFrontendActorSystem",
-						AkkaUtils.getDefaultAkkaConfig()),getAkkaTimeout());
+		InetSocketAddress address = RemoteExecutor.getInetFromHostport(jobManagerAddressStr);
+
+		Future<ActorRef> jobManagerFuture = JobManager.getJobManager(
+				address,
+				ActorSystem.create("CliFrontendActorSystem", AkkaUtils.getDefaultAkkaConfig()),
+				getAkkaTimeout());
+
+		try{
+			return Await.result(jobManagerFuture, getAkkaTimeout());
+		} catch (Exception exception) {
+			throw new IOException("Could not find job manager at address " +
+					JobManager.getRemoteAkkaURL(address) + ".");
+		}
 	}
 	
 

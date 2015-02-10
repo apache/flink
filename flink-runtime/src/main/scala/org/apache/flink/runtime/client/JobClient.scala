@@ -23,7 +23,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.Status.Failure
 import akka.actor._
-import akka.pattern.ask
+import akka.pattern.{Patterns, ask}
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.ActorLogMessages
@@ -35,19 +35,16 @@ import org.apache.flink.runtime.messages.JobManagerMessages._
 
 import scala.concurrent.{TimeoutException, Await}
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Success
 
 /**
  * Actor which constitutes the bridge between the non-actor code and the JobManager. The JobClient
  * is used to submit jobs to the JobManager and to request the port of the BlobManager.
  *
- * @param jobManagerURL Akka URL of the JobManager
- * @param timeout Timeout used for futures
+ * @param jobManager ActorRef to jobmanager
  */
-class JobClient(jobManagerURL: String, timeout: FiniteDuration) extends
+class JobClient(jobManager: ActorRef) extends
 Actor with ActorLogMessages with ActorLogging {
-  import context._
-
-  val jobManager = AkkaUtils.getReference(jobManagerURL)(system, timeout)
 
   override def receiveWithLogMessages: Receive = {
     case SubmitJobDetached(jobGraph) =>
@@ -111,7 +108,16 @@ object JobClient{
 
   def startActor(jobManagerURL: String)(implicit actorSystem: ActorSystem, timeout: FiniteDuration):
   ActorRef = {
-    actorSystem.actorOf(Props(classOf[JobClient], jobManagerURL, timeout), JOB_CLIENT_NAME)
+    val jobManagerFuture = AkkaUtils.getReference(jobManagerURL)(actorSystem, timeout)
+
+    val jobManager = try {
+      Await.result(jobManagerFuture, timeout)
+    } catch {
+      case ex: Exception =>
+        throw new RuntimeException("Could not connect to JobManager at " + jobManagerURL + ".")
+    }
+
+    actorSystem.actorOf(Props(classOf[JobClient], jobManager), JOB_CLIENT_NAME)
   }
 
   def startActorWithConfiguration(config: Configuration, localActorSystem: Boolean)
@@ -215,19 +221,27 @@ object JobClient{
 
   /**
    * Uploads the specified jar files of the [[JobGraph]] jobGraph to the BlobServer of the
-   * JobManager. The respective port is retrieved from the JobManager.
+   * JobManager. The respective port is retrieved from the JobManager. This function issues a
+   * blocking call.
    *
    * @param jobGraph Flink job containing the information about the required jars
    * @param hostname Hostname of the instance on which the BlobServer and also the JobManager run
    * @param jobClient ActorRef to the JobClient
    * @param timeout Timeout for futures
-   * @throws java.io.IOException
+   * @throws IOException
    * @return
    */
   @throws(classOf[IOException])
   def uploadJarFiles(jobGraph: JobGraph, hostname: String, jobClient: ActorRef)(implicit timeout:
    FiniteDuration): Unit = {
-    val port = AkkaUtils.ask[Int](jobClient, RequestBlobManagerPort)
+
+    val futureBlobPort = Patterns.ask(jobClient, RequestBlobManagerPort, timeout).mapTo[Int]
+
+    val port = try {
+      Await.result(futureBlobPort, timeout)
+    } catch {
+      case e:Exception => throw new IOException("Could not retrieve the server's blob port.", e)
+    }
 
     val serverAddress = new InetSocketAddress(hostname, port)
 

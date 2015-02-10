@@ -23,9 +23,9 @@ import akka.actor.ActorSystem;
 import static akka.pattern.Patterns.ask;
 
 import akka.actor.Props;
+import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.akka.AkkaUtils$;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
@@ -42,6 +42,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.None$;
+import scala.Option;
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -220,19 +221,34 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		// get messages from ApplicationClient (locally)
 
 		while(true) {
-			Object messageOption = null;
+			Object result = null;
 			try {
-				messageOption = AkkaUtils$.MODULE$.ask(applicationClient, Messages.LocalGetYarnMessage$.MODULE$, akkaDuration);
-			} catch(IOException ioe) {
-				LOG.warn("Error getting the yarn messages locally", ioe);
+				Future<Object> response = Patterns.ask(applicationClient,
+						Messages.getLocalGetYarnMessage(), new Timeout(akkaDuration));
+
+				result = Await.result(response, akkaDuration);
+			} catch(Exception ioe) {
+				LOG.warn("Error retrieving the yarn messages locally", ioe);
 			}
-			if(messageOption instanceof None$) {
-				break;
-			} else if(messageOption instanceof org.apache.flink.yarn.Messages.YarnMessage) {
-				Messages.YarnMessage msg = (Messages.YarnMessage) messageOption;
-				ret.add("["+msg.date()+"] "+msg.message());
+
+			if(!(result instanceof Option)) {
+				throw new RuntimeException("LocalGetYarnMessage requires a response of type " +
+						"Option. Instead the response is of type " + result.getClass() + ".");
 			} else {
-				LOG.warn("LocalGetYarnMessage returned unexpected type: "+messageOption);
+				Option messageOption = (Option) result;
+
+				if(messageOption.isEmpty()) {
+					break;
+				} else {
+					Object obj = messageOption.get();
+
+					if(obj instanceof Messages.YarnMessage) {
+						Messages.YarnMessage msg = (Messages.YarnMessage) obj;
+						ret.add("["+msg.date()+"] "+msg.message());
+					} else {
+						LOG.warn("LocalGetYarnMessage returned unexpected type: "+messageOption);
+					}
+				}
 			}
 		}
 		return ret;
@@ -258,8 +274,12 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 			LOG.info("Sending shutdown request to the Application Master");
 			if(applicationClient != ActorRef.noSender()) {
 				try {
-					AkkaUtils$.MODULE$.ask(applicationClient, new Messages.StopYarnSession(FinalApplicationStatus.SUCCEEDED), akkaDuration);
-				} catch(IOException e) {
+					Future<Object> response = Patterns.ask(applicationClient,
+							new Messages.StopYarnSession(FinalApplicationStatus.SUCCEEDED),
+							new Timeout(akkaDuration));
+
+					Await.ready(response, akkaDuration);
+				} catch(Exception e) {
 					throw new RuntimeException("Error while stopping YARN Application Client", e);
 				}
 			}

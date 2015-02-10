@@ -136,6 +136,7 @@ import scala.collection.JavaConverters._
   var registrationAttempts: Int = 0
   var registered: Boolean = false
   var currentJobManager = ActorRef.noSender
+  var profilerListener: Option[ActorRef] = None
   var instanceID: InstanceID = null
   var heartbeatScheduler: Option[Cancellable] = None
 
@@ -218,20 +219,20 @@ import scala.collection.JavaConverters._
         }
       }
 
-    case AcknowledgeRegistration(id, blobPort) =>
+    case AcknowledgeRegistration(id, blobPort, profilerListener) =>
       if(!registered) {
-        finishRegistration(sender, id, blobPort)
+        finishRegistration(sender, id, blobPort, profilerListener)
       } else {
         log.info("The TaskManager {} is already registered at the JobManager {}, but received " +
           "another AcknowledgeRegistration message.", self.path, currentJobManager.path)
       }
 
-    case AlreadyRegistered(id, blobPort) =>
+    case AlreadyRegistered(id, blobPort, profilerListener) =>
       if(!registered) {
         log.warning("The TaskManager {} seems to be already registered at the JobManager {} even" +
           "though it has not yet finished the registration process.", self.path, sender.path)
 
-        finishRegistration(sender, id, blobPort)
+        finishRegistration(sender, id, blobPort, profilerListener)
       } else {
         // ignore AlreadyRegistered messages which arrived after AcknowledgeRegistration
         log.info("The TaskManager {} has already been registered at the JobManager {}.",
@@ -461,10 +462,14 @@ import scala.collection.JavaConverters._
 
     heartbeatScheduler = None
 
-    profiler foreach {
-      _.tell(UnregisterProfilingListener, JobManager.getProfiler(currentJobManager))
+    profilerListener foreach {
+      listener =>
+        profiler foreach {
+          _.tell(UnregisterProfilingListener, listener)
+        }
     }
 
+    profilerListener = None
     currentJobManager = ActorRef.noSender
     instanceID = null
     registered = false
@@ -512,8 +517,9 @@ import scala.collection.JavaConverters._
     }
   }
 
-  private def finishRegistration(jobManager: ActorRef, id: InstanceID, blobPort: Int): Unit = {
-    setupTaskManager(jobManager, id, blobPort)
+  private def finishRegistration(jobManager: ActorRef, id: InstanceID, blobPort: Int,
+                                  profilerListener: Option[ActorRef]): Unit = {
+    setupTaskManager(jobManager, id, blobPort, profilerListener)
 
     for (listener <- waitForRegistration) {
       listener ! RegisteredAtJobManager
@@ -522,9 +528,11 @@ import scala.collection.JavaConverters._
     waitForRegistration.clear()
   }
 
-  private def setupTaskManager(jobManager: ActorRef, id: InstanceID, blobPort: Int): Unit = {
+  private def setupTaskManager(jobManager: ActorRef, id: InstanceID, blobPort: Int,
+                                profilerListener: Option[ActorRef]): Unit = {
     registered = true
     currentJobManager = jobManager
+    this.profilerListener = profilerListener
     instanceID = id
 
     // watch job manager to detect when it dies
@@ -537,8 +545,11 @@ import scala.collection.JavaConverters._
     heartbeatScheduler = Some(context.system.scheduler.schedule(
       TaskManager.HEARTBEAT_INTERVAL, TaskManager.HEARTBEAT_INTERVAL, self, SendHeartbeat))
 
-    profiler foreach {
-      _.tell(RegisterProfilingListener, JobManager.getProfiler(currentJobManager))
+    profilerListener foreach {
+      listener =>
+        profiler foreach {
+          _.tell(RegisterProfilingListener, listener)
+        }
     }
   }
 

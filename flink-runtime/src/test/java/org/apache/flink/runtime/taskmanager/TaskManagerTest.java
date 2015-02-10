@@ -55,6 +55,9 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import scala.None;
+import scala.None$;
+import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -486,7 +489,8 @@ public class TaskManagerTest {
 		public void onReceive(Object message) throws Exception {
 			if(message instanceof RegistrationMessages.RegisterTaskManager){
 				final InstanceID iid = new InstanceID();
-				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(iid, -1),
+				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(iid, -1,
+								Option.<ActorRef>apply(null)),
 						getSelf());
 			}else if(message instanceof JobManagerMessages.UpdateTaskExecutionState){
 				getSender().tell(true, getSelf());

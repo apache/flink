@@ -31,14 +31,18 @@ import javax.servlet.http.HttpServletResponse;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
+import scala.concurrent.Await;
 import scala.concurrent.duration.FiniteDuration;
+import scala.concurrent.Future;
 
 
 public class JobsInfoServlet extends HttpServlet {
@@ -54,12 +58,29 @@ public class JobsInfoServlet extends HttpServlet {
 	private final ActorSystem system;
 
 	private final FiniteDuration timeout;
+
+	private final ActorRef jobmanager;
 	
 	public JobsInfoServlet(Configuration flinkConfig) {
 		this.config = flinkConfig;
 		system = ActorSystem.create("JobsInfoServletActorSystem",
 				AkkaUtils.getDefaultAkkaConfig());
 		this.timeout = AkkaUtils.getTimeout(flinkConfig);
+
+		String jmHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		int jmPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+
+		InetSocketAddress address = new InetSocketAddress(jmHost, jmPort);
+
+		Future<ActorRef> jobManagerFuture = JobManager.getJobManager(address, system, timeout);
+
+		try {
+			this.jobmanager = Await.result(jobManagerFuture, timeout);
+		} catch (Exception ex) {
+			throw new RuntimeException("Could not find job manager at specified address " +
+					JobManager.getRemoteAkkaURL(address) + ".");
+		}
 	}
 
 	@Override
@@ -67,38 +88,48 @@ public class JobsInfoServlet extends HttpServlet {
 		//resp.setContentType("application/json");
 		
 		try {
-			String jmHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-			int jmPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-					ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+			final Future<Object> response = Patterns.ask(jobmanager,
+					JobManagerMessages.getRequestRunningJobs(),
+					new Timeout(timeout));
 
-			ActorRef jm = JobManager.getJobManager(new InetSocketAddress(jmHost, jmPort), system,
-					timeout);
+			Object result = null;
 
-			Iterator<ExecutionGraph> graphs = AkkaUtils.<RunningJobs>ask(jm,
-					RequestRunningJobs$.MODULE$, timeout).asJavaIterable().iterator();
-
-
-			resp.setStatus(HttpServletResponse.SC_OK);
-			PrintWriter wrt = resp.getWriter();
-			wrt.write("[");
-			while(graphs.hasNext()){
-				ExecutionGraph graph = graphs.next();
-				//Serialize job to json
-				wrt.write("{");
-				wrt.write("\"jobid\": \"" + graph.getJobID() + "\",");
-				if(graph.getJobName() != null) {
-					wrt.write("\"jobname\": \"" + graph.getJobName()+"\",");
-				}
-				wrt.write("\"status\": \""+ graph.getState() + "\",");
-				wrt.write("\"time\": " + graph.getStatusTimestamp(graph.getState()));
-				wrt.write("}");
-				//Write seperator between json objects
-				if(graphs.hasNext()) {
-					wrt.write(",");
-				}
+			try {
+				result = Await.result(response, timeout);
+			} catch (Exception exception) {
+				throw new IOException("Could not retrieve the running jobs from the job manager.",
+						exception);
 			}
-			wrt.write("]");
-			
+
+			if(!(result instanceof RunningJobs)) {
+				throw new RuntimeException("ReqeustRunningJobs requires a response of type " +
+						"RunningJob. Instead the response is of type " + result.getClass() + ".");
+			} else {
+
+				final Iterator<ExecutionGraph> graphs = ((RunningJobs) result).
+						asJavaIterable().iterator();
+
+				resp.setStatus(HttpServletResponse.SC_OK);
+				PrintWriter wrt = resp.getWriter();
+				wrt.write("[");
+				while(graphs.hasNext()){
+					ExecutionGraph graph = graphs.next();
+					//Serialize job to json
+					wrt.write("{");
+					wrt.write("\"jobid\": \"" + graph.getJobID() + "\",");
+					if(graph.getJobName() != null) {
+						wrt.write("\"jobname\": \"" + graph.getJobName()+"\",");
+					}
+					wrt.write("\"status\": \""+ graph.getState() + "\",");
+					wrt.write("\"time\": " + graph.getStatusTimestamp(graph.getState()));
+					wrt.write("}");
+					//Write seperator between json objects
+					if(graphs.hasNext()) {
+						wrt.write(",");
+					}
+				}
+				wrt.write("]");
+			}
 		} catch (Throwable t) {
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 			resp.getWriter().print(t.getMessage());

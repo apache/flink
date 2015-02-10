@@ -18,10 +18,8 @@
 
 package org.apache.flink.yarn
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor._
-import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration}
+import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.JobManager
@@ -31,6 +29,7 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
   import context._
@@ -67,21 +66,28 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
     case LocalRegisterClient(address: String) =>
       val jmAkkaUrl = JobManager.getRemoteAkkaURL(address)
 
-      yarnJobManager = Some(AkkaUtils.getReference(jmAkkaUrl)(system, timeout))
-      yarnJobManager match {
-        case Some(jm) =>
-          // the message came from the FlinkYarnCluster. We send the message to the JobManager.
-          // it is important not to forward the message because the JobManager is storing the
-          // sender as the Application Client (this class).
-          jm ! RegisterClient
+      val jobManagerFuture = AkkaUtils.getReference(jmAkkaUrl)(system, timeout)
 
-          // schedule a periodic status report from the JobManager
-          // request the number of task managers and slots from the job manager
-          pollingTimer = Some(context.system.scheduler.schedule(INITIAL_POLLING_DELAY,
-            WAIT_FOR_YARN_INTERVAL, yarnJobManager.get, PollYarnClusterStatus))
-        case None => throw new RuntimeException("Registration at JobManager/ApplicationMaster " +
-          "failed. Job Manager RPC connection has not properly been initialized")
+      jobManagerFuture.onComplete {
+        case Success(jm) => self ! JobManagerActorRef(jm)
+        case Failure(t) =>
+          log.error(t, "Registration at JobManager/ApplicationMaster failed. Shutting " +
+            "ApplicationClient down.")
+          self ! PoisonPill
       }
+
+    case JobManagerActorRef(jm) =>
+      yarnJobManager = Some(jm)
+
+      // the message came from the FlinkYarnCluster. We send the message to the JobManager.
+      // it is important not to forward the message because the JobManager is storing the
+      // sender as the Application Client (this class).
+      jm ! RegisterClient
+
+      // schedule a periodic status report from the JobManager
+      // request the number of task managers and slots from the job manager
+      pollingTimer = Some(context.system.scheduler.schedule(INITIAL_POLLING_DELAY,
+        WAIT_FOR_YARN_INTERVAL, jm, PollYarnClusterStatus))
 
     case msg: StopYarnSession =>
       log.info("Stop yarn session.")
@@ -117,9 +123,7 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
 
     // locally forward messages
     case LocalGetYarnMessage =>
-      sender() ! (if( messagesQueue.size == 0) None else messagesQueue.dequeue)
-
-    case _ =>
+      sender() ! messagesQueue.headOption
   }
 
 }

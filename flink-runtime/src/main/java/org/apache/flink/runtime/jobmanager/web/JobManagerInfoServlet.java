@@ -35,7 +35,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import akka.actor.ActorRef;
 
-import org.apache.flink.runtime.akka.AkkaUtils;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchivedJobs;
 import org.apache.flink.runtime.messages.ArchiveMessages;
@@ -43,7 +44,6 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.AccumulatorResultsResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestAccumulatorResults;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestJob;
@@ -64,6 +64,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StringUtils;
 import org.eclipse.jetty.io.EofException;
 
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 public class JobManagerInfoServlet extends HttpServlet {
@@ -86,60 +88,121 @@ public class JobManagerInfoServlet extends HttpServlet {
 	
 	
 	@Override
-	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
+			IOException {
 			
 		resp.setStatus(HttpServletResponse.SC_OK);
 		resp.setContentType("application/json");
+
+		Future<Object> response;
+		Object result;
 		
 		try {
 			if("archive".equals(req.getParameter("get"))) {
-				List<ExecutionGraph> archivedJobs = new ArrayList<ExecutionGraph>(AkkaUtils
-						.<ArchivedJobs>ask(archive, ArchiveMessages.getRequestArchivedJobs(), timeout)
-						.asJavaCollection());
+				response = Patterns.ask(archive, ArchiveMessages.getRequestArchivedJobs(),
+						new Timeout(timeout));
 
-				writeJsonForArchive(resp.getWriter(), archivedJobs);
+				result = Await.result(response, timeout);
+
+				if(!(result instanceof ArchivedJobs)) {
+					throw new RuntimeException("RequestArchiveJobs requires a response of type " +
+							"ArchivedJobs. Instead the response is of type " + result.getClass() +
+							".");
+				} else {
+					final List<ExecutionGraph> archivedJobs = new ArrayList<ExecutionGraph>(
+							((ArchivedJobs) result).asJavaCollection());
+
+					writeJsonForArchive(resp.getWriter(), archivedJobs);
+				}
 			}
 			else if("job".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
-				JobResponse response = AkkaUtils.ask(archive,
-						new RequestJob(JobID.fromHexString(jobId)), timeout);
 
-				if(response instanceof JobFound){
-					ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
-					writeJsonForArchivedJob(resp.getWriter(), archivedJob);
+				response = Patterns.ask(archive, new RequestJob(JobID.fromHexString(jobId)),
+						new Timeout(timeout));
+
+				result = Await.result(response, timeout);
+
+				if(!(result instanceof JobResponse)){
+					throw new RuntimeException("RequestJob requires a response of type JobResponse. " +
+							"Instead the response is of type " + result.getClass());
+				}else {
+					final JobResponse jobResponse = (JobResponse) response;
+
+					if(jobResponse instanceof JobFound){
+						ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
+						writeJsonForArchivedJob(resp.getWriter(), archivedJob);
 				} else {
-					LOG.warn("DoGet:job: Could not find job for job ID " + jobId);
+						LOG.warn("DoGet:job: Could not find job for job ID " + jobId);
+					}
 				}
 			}
 			else if("groupvertex".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
 				String groupvertexId = req.getParameter("groupvertex");
 
-				JobResponse response = AkkaUtils.ask(archive,
-						new RequestJob(JobID.fromHexString(jobId)), timeout);
+				response = Patterns.ask(archive, new RequestJob(JobID.fromHexString(jobId)),
+						new Timeout(timeout));
 
-				if (response instanceof JobFound && groupvertexId != null) {
-					ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
+				result = Await.result(response, timeout);
 
-					writeJsonForArchivedJobGroupvertex(resp.getWriter(), archivedJob,
-							JobVertexID.fromHexString(groupvertexId));
+				if(!(result instanceof JobResponse)){
+					throw new RuntimeException("RequestJob requires a response of type JobResponse. " +
+							"Instead the response is of type " + result.getClass());
+				}else {
+					final JobResponse jobResponse = (JobResponse) result;
+
+					if(jobResponse instanceof JobFound && groupvertexId != null){
+						ExecutionGraph archivedJob = ((JobFound)jobResponse).executionGraph();
+
+						writeJsonForArchivedJobGroupvertex(resp.getWriter(), archivedJob,
+								JobVertexID.fromHexString(groupvertexId));
 				} else {
-					LOG.warn("DoGet:groupvertex: Could not find job for job ID " + jobId);
+						LOG.warn("DoGet:groupvertex: Could not find job for job ID " + jobId);
+					}
 				}
 			}
 			else if("taskmanagers".equals(req.getParameter("get"))) {
-				int numberOfTaskManagers = AkkaUtils.<Integer>ask(jobmanager,
-						JobManagerMessages.getRequestNumberRegisteredTaskManager(), timeout);
-				int numberOfRegisteredSlots = AkkaUtils.<Integer>ask(jobmanager,
-						JobManagerMessages.getRequestTotalNumberOfSlots(), timeout);
 
-				resp.getWriter().write("{\"taskmanagers\": " + numberOfTaskManagers +", " +
-						"\"slots\": "+numberOfRegisteredSlots+"}");
+				response = Patterns.ask(jobmanager,
+						JobManagerMessages.getRequestNumberRegisteredTaskManager(),
+						new Timeout(timeout));
+
+				result = Await.result(response, timeout);
+
+				if(!(result instanceof Integer)) {
+					throw new RuntimeException("RequestNumberRegisteredTaskManager requires a " +
+							"response of type Integer. Instead the response is of type " +
+							result.getClass() + ".");
+				} else {
+					final int numberOfTaskManagers = (Integer)result;
+
+					final Future<Object> responseRegisteredSlots = Patterns.ask(jobmanager,
+							JobManagerMessages.getRequestTotalNumberOfSlots(),
+							new Timeout(timeout));
+
+					final Object resultRegisteredSlots = Await.result(responseRegisteredSlots,
+							timeout);
+
+					if(!(resultRegisteredSlots instanceof Integer)) {
+						throw new RuntimeException("RequestTotalNumberOfSlots requires a response of " +
+								"type Integer. Instaed the response of type " +
+								resultRegisteredSlots.getClass() + ".");
+					} else {
+						final int numberOfRegisteredSlots = (Integer) resultRegisteredSlots;
+
+						resp.getWriter().write("{\"taskmanagers\": " + numberOfTaskManagers +", " +
+								"\"slots\": "+numberOfRegisteredSlots+"}");
+					}
+				}
 			}
 			else if("cancel".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
-				AkkaUtils.<CancellationResponse>ask(jobmanager,
-						new CancelJob(JobID.fromHexString(jobId)), timeout);
+
+				response = Patterns.ask(jobmanager, new CancelJob(JobID.fromHexString(jobId)),
+						new Timeout(timeout));
+
+				Await.ready(response, timeout);
 			}
 			else if("updates".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
@@ -148,9 +211,20 @@ public class JobManagerInfoServlet extends HttpServlet {
 				writeJsonForVersion(resp.getWriter());
 			}
 			else{
-				Iterable<ExecutionGraph> runningJobs = AkkaUtils.<RunningJobs>ask
-						(jobmanager, JobManagerMessages.getRequestRunningJobs(), timeout).asJavaIterable();
-				writeJsonForJobs(resp.getWriter(), runningJobs);
+				response = Patterns.ask(jobmanager, JobManagerMessages.getRequestRunningJobs(),
+						new Timeout(timeout));
+
+				result = Await.result(response, timeout);
+
+				if(!(result instanceof RunningJobs)){
+					throw new RuntimeException("RequestRunningJobs requires a response of type " +
+							"RunningJobs. Instead the response of type " + result.getClass() + ".");
+				} else {
+					final Iterable<ExecutionGraph> runningJobs =
+							((RunningJobs) result).asJavaIterable();
+
+					writeJsonForJobs(resp.getWriter(), runningJobs);
+				}
 			}
 			
 		} catch (Exception e) {
@@ -273,19 +347,19 @@ public class JobManagerInfoServlet extends HttpServlet {
 	private void writeJsonForArchivedJob(PrintWriter wrt, ExecutionGraph graph) {
 		
 		try {
-		
+
 			wrt.write("[");
-		
+
 			//Serialize job to json
 			wrt.write("{");
 			wrt.write("\"jobid\": \"" + graph.getJobID() + "\",");
-			wrt.write("\"jobname\": \"" + graph.getJobName()+"\",");
-			wrt.write("\"status\": \""+ graph.getState() + "\",");
-			wrt.write("\"SCHEDULED\": "+ graph.getStatusTimestamp(JobStatus.CREATED) + ",");
-			wrt.write("\"RUNNING\": "+ graph.getStatusTimestamp(JobStatus.RUNNING) + ",");
-			wrt.write("\"FINISHED\": "+ graph.getStatusTimestamp(JobStatus.FINISHED) + ",");
-			wrt.write("\"FAILED\": "+ graph.getStatusTimestamp(JobStatus.FAILED) + ",");
-			wrt.write("\"CANCELED\": "+ graph.getStatusTimestamp(JobStatus.CANCELED) + ",");
+			wrt.write("\"jobname\": \"" + graph.getJobName() + "\",");
+			wrt.write("\"status\": \"" + graph.getState() + "\",");
+			wrt.write("\"SCHEDULED\": " + graph.getStatusTimestamp(JobStatus.CREATED) + ",");
+			wrt.write("\"RUNNING\": " + graph.getStatusTimestamp(JobStatus.RUNNING) + ",");
+			wrt.write("\"FINISHED\": " + graph.getStatusTimestamp(JobStatus.FINISHED) + ",");
+			wrt.write("\"FAILED\": " + graph.getStatusTimestamp(JobStatus.FAILED) + ",");
+			wrt.write("\"CANCELED\": " + graph.getStatusTimestamp(JobStatus.CANCELED) + ",");
 
 			if (graph.getState() == JobStatus.FAILED) {
 				wrt.write("\"failednodes\": [");
@@ -315,101 +389,118 @@ public class JobManagerInfoServlet extends HttpServlet {
 			boolean first = true;
 			for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
 				//Write seperator between json objects
-				if(first) {
+				if (first) {
 					first = false;
 				} else {
-					wrt.write(","); }
-				
+					wrt.write(",");
+				}
+
 				wrt.write(JsonFactory.toJson(groupVertex));
-				
+
 			}
 			wrt.write("],");
-			
+
 			// write accumulators
-			AccumulatorResultsResponse response = AkkaUtils.ask(jobmanager,
-					new RequestAccumulatorResults(graph.getJobID()), timeout);
+			final Future<Object> response = Patterns.ask(jobmanager,
+					new RequestAccumulatorResults(graph.getJobID()), new Timeout(timeout));
 
-			if (response instanceof AccumulatorResultsFound) {
-				Map<String, Object> accMap = ((AccumulatorResultsFound)response).asJavaMap();
+			Object result = null;
 
-				wrt.write("\n\"accumulators\": [");
-				int i = 0;
-				for( Entry<String, Object> accumulator : accMap.entrySet()) {
-					wrt.write("{ \"name\": \""+accumulator.getKey()+" (" + accumulator.getValue().getClass().getName()+")\","
-							+ " \"value\": \""+accumulator.getValue().toString()+"\"}\n");
-					if(++i < accMap.size()) {
-						wrt.write(",");
-					}
-				}
-				wrt.write("],\n");
-
-				wrt.write("\"groupverticetimes\": {");
-				first = true;
-				for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
-
-					if(first) {
-						first = false;
-					} else {
-						wrt.write(","); }
-
-					// Calculate start and end time for groupvertex
-					long started = Long.MAX_VALUE;
-					long ended = 0;
-
-					// Take earliest running state and latest endstate of groupmembers
-					for (ExecutionVertex vertex : groupVertex.getTaskVertices()) {
-
-						long running = vertex.getStateTimestamp(ExecutionState.RUNNING);
-						if (running != 0 && running < started) {
-							started = running;
-						}
-
-						long finished = vertex.getStateTimestamp(ExecutionState.FINISHED);
-						long canceled = vertex.getStateTimestamp(ExecutionState.CANCELED);
-						long failed = vertex.getStateTimestamp(ExecutionState.FAILED);
-
-						if(finished != 0 && finished > ended) {
-							ended = finished;
-						}
-
-						if(canceled != 0 && canceled > ended) {
-							ended = canceled;
-						}
-
-						if(failed != 0 && failed > ended) {
-							ended = failed;
-						}
-
-					}
-
-					wrt.write("\""+groupVertex.getJobVertexId()+"\": {");
-					wrt.write("\"groupvertexid\": \"" + groupVertex.getJobVertexId() + "\",");
-					wrt.write("\"groupvertexname\": \"" + groupVertex + "\",");
-					wrt.write("\"STARTED\": "+ started + ",");
-					wrt.write("\"ENDED\": "+ ended);
-					wrt.write("}");
-
-				}
-			} else {
-				LOG.warn("Could not find accumulator results for job ID " + graph.getJobID());
+			try {
+				result = Await.result(response, timeout);
+			} catch (Exception ex) {
+				throw new IOException("Could not retrieve the accumulator results from the " +
+						"job manager.", ex);
 			}
 
-			wrt.write("}");
-			
-			wrt.write("}");
-			
-			
-		wrt.write("]");
-		
-		} catch (EofException eof) { // Connection closed by client
-			LOG.info("Info server for jobmanager: Connection closed by client, EofException");
-		} catch (IOException ioe) { // Connection closed by client	
-			LOG.info("Info server for jobmanager: Connection closed by client, IOException");
-		} 
-		
+			if (!(result instanceof AccumulatorResultsResponse)) {
+				throw new RuntimeException("RequestAccumulatorResults requires a response of type " +
+						"AccumulatorResultsReponse. Instead the response is of type " +
+						result.getClass() + ".");
+			} else {
+				final AccumulatorResultsResponse accumulatorResponse =
+						(AccumulatorResultsResponse) result;
+
+				if (accumulatorResponse instanceof AccumulatorResultsFound) {
+					Map<String, Object> accMap = ((AccumulatorResultsFound) accumulatorResponse).
+							asJavaMap();
+
+					wrt.write("\n\"accumulators\": [");
+					int i = 0;
+					for (Entry<String, Object> accumulator : accMap.entrySet()) {
+						wrt.write("{ \"name\": \"" + accumulator.getKey() + " (" + accumulator.getValue().getClass().getName() + ")\","
+								+ " \"value\": \"" + accumulator.getValue().toString() + "\"}\n");
+						if (++i < accMap.size()) {
+							wrt.write(",");
+						}
+					}
+					wrt.write("],\n");
+
+					wrt.write("\"groupverticetimes\": {");
+					first = true;
+					for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
+
+						if (first) {
+							first = false;
+						} else {
+							wrt.write(",");
+						}
+
+						// Calculate start and end time for groupvertex
+						long started = Long.MAX_VALUE;
+						long ended = 0;
+
+						// Take earliest running state and latest endstate of groupmembers
+						for (ExecutionVertex vertex : groupVertex.getTaskVertices()) {
+
+							long running = vertex.getStateTimestamp(ExecutionState.RUNNING);
+							if (running != 0 && running < started) {
+								started = running;
+							}
+
+							long finished = vertex.getStateTimestamp(ExecutionState.FINISHED);
+							long canceled = vertex.getStateTimestamp(ExecutionState.CANCELED);
+							long failed = vertex.getStateTimestamp(ExecutionState.FAILED);
+
+							if (finished != 0 && finished > ended) {
+								ended = finished;
+							}
+
+							if (canceled != 0 && canceled > ended) {
+								ended = canceled;
+							}
+
+							if (failed != 0 && failed > ended) {
+								ended = failed;
+							}
+
+						}
+
+						wrt.write("\"" + groupVertex.getJobVertexId() + "\": {");
+						wrt.write("\"groupvertexid\": \"" + groupVertex.getJobVertexId() + "\",");
+						wrt.write("\"groupvertexname\": \"" + groupVertex + "\",");
+						wrt.write("\"STARTED\": " + started + ",");
+						wrt.write("\"ENDED\": " + ended);
+						wrt.write("}");
+
+					}
+			} else {
+					LOG.warn("Could not find accumulator results for job ID " + graph.getJobID());
+				}
+
+				wrt.write("}");
+
+				wrt.write("}");
+
+
+				wrt.write("]");
+			}
+		} catch (Exception ex) { // Connection closed by client
+			LOG.info("Info server for jobmanager: Failed to write json for archived jobs, " +
+					"because {}.", StringUtils.stringifyException(ex));
+		}
 	}
-	
-	
+
 	/**
 	 * Writes all updates (events) for a given job since a given time
 	 * 
@@ -419,80 +510,115 @@ public class JobManagerInfoServlet extends HttpServlet {
 	private void writeJsonUpdatesForJob(PrintWriter wrt, JobID jobId) {
 		
 		try {
-			Iterable<ExecutionGraph> graphs = AkkaUtils.<RunningJobs>ask(jobmanager,
-					JobManagerMessages.getRequestRunningJobs(), timeout).asJavaIterable();
-			
-			//Serialize job to json
-			wrt.write("{");
-			wrt.write("\"jobid\": \"" + jobId + "\",");
-			wrt.write("\"timestamp\": \"" + System.currentTimeMillis() + "\",");
-			wrt.write("\"recentjobs\": [");
+			final Future<Object> responseArchivedJobs = Patterns.ask(jobmanager,
+					JobManagerMessages.getRequestRunningJobs(),
+					new Timeout(timeout));
 
-			boolean first = true;
+			Object resultArchivedJobs = null;
 
-			for(ExecutionGraph g : graphs){
-				if (first) {
-					first = false;
-				} else {
-					wrt.write(",");
-				}
-
-				wrt.write("\"" + g.getJobID() + "\"");
+			try{
+				resultArchivedJobs = Await.result(responseArchivedJobs, timeout);
+			} catch (Exception ex) {
+				throw new IOException("Could not retrieve archived jobs from the job manager.", ex);
 			}
 
-			wrt.write("],");
+			if(!(resultArchivedJobs instanceof RunningJobs)){
+				throw new RuntimeException("RequestArchivedJobs requires a response of type " +
+						"RunningJobs. Instead the response is of type " +
+						resultArchivedJobs.getClass() + ".");
+			} else {
+				final Iterable<ExecutionGraph> graphs = ((RunningJobs)resultArchivedJobs).
+						asJavaIterable();
 
-			JobResponse response = AkkaUtils.ask(jobmanager, new RequestJob(jobId), timeout);
+				//Serialize job to json
+				wrt.write("{");
+				wrt.write("\"jobid\": \"" + jobId + "\",");
+				wrt.write("\"timestamp\": \"" + System.currentTimeMillis() + "\",");
+				wrt.write("\"recentjobs\": [");
 
-			if(response instanceof JobFound){
-				ExecutionGraph graph = ((JobFound)response).executionGraph();
+				boolean first = true;
 
-				wrt.write("\"vertexevents\": [");
-
-				first = true;
-				for (ExecutionVertex ev : graph.getAllExecutionVertices()) {
-					if (first) {
+				for(ExecutionGraph g : graphs){
+				if (first) {
 						first = false;
-					} else {
+				} else {
 						wrt.write(",");
 					}
 
-					wrt.write("{");
-					wrt.write("\"vertexid\": \"" + ev.getCurrentExecutionAttempt().getAttemptId()
-							+ "\",");
-					wrt.write("\"newstate\": \"" + ev.getExecutionState() + "\",");
-					wrt.write("\"timestamp\": \"" + ev.getStateTimestamp(ev.getExecutionState())
-							+ "\"");
-					wrt.write("}");
+					wrt.write("\"" + g.getJobID() + "\"");
 				}
 
 				wrt.write("],");
 
-				wrt.write("\"jobevents\": [");
+				final Future<Object> responseJob = Patterns.ask(jobmanager, new RequestJob(jobId),
+						new Timeout(timeout));
 
-				wrt.write("{");
-				wrt.write("\"newstate\": \"" + graph.getState() + "\",");
-				wrt.write("\"timestamp\": \"" + graph.getStatusTimestamp(graph.getState()) + "\"");
-				wrt.write("}");
+				Object resultJob = null;
 
-				wrt.write("]");
+				try{
+					resultJob = Await.result(responseJob, timeout);
+				} catch (Exception ex){
+					throw new IOException("Could not retrieve the job with jobID " + jobId +
+						"from the job manager.", ex);
+				}
 
-				wrt.write("}");
+				if(!(resultJob instanceof JobResponse)) {
+					throw new RuntimeException("RequestJob requires a response of type JobResponse. " +
+							"Instead the response is of type " + resultJob.getClass() + ".");
+				} else {
+					final JobResponse response = (JobResponse) resultJob;
+
+					if(response instanceof JobFound){
+						ExecutionGraph graph = ((JobFound)response).executionGraph();
+
+						wrt.write("\"vertexevents\": [");
+
+						first = true;
+						for (ExecutionVertex ev : graph.getAllExecutionVertices()) {
+							if (first) {
+								first = false;
+							} else {
+								wrt.write(",");
+							}
+
+							wrt.write("{");
+							wrt.write("\"vertexid\": \"" + ev.getCurrentExecutionAttempt().getAttemptId()
+									+ "\",");
+							wrt.write("\"newstate\": \"" + ev.getExecutionState() + "\",");
+							wrt.write("\"timestamp\": \"" + ev.getStateTimestamp(ev.getExecutionState())
+									+ "\"");
+							wrt.write("}");
+						}
+
+						wrt.write("],");
+
+						wrt.write("\"jobevents\": [");
+
+						wrt.write("{");
+						wrt.write("\"newstate\": \"" + graph.getState() + "\",");
+						wrt.write("\"timestamp\": \"" + graph.getStatusTimestamp(graph.getState()) + "\"");
+						wrt.write("}");
+
+						wrt.write("]");
+
+						wrt.write("}");
 			} else {
-				wrt.write("\"vertexevents\": [],");
-				wrt.write("\"jobevents\": [");
-				wrt.write("{");
-				wrt.write("\"newstate\": \"" + JobStatus.FINISHED + "\",");
-				wrt.write("\"timestamp\": \"" + System.currentTimeMillis() + "\"");
-				wrt.write("}");
-				wrt.write("]");
-				wrt.write("}");
-				LOG.warn("WriteJsonUpdatesForJob: Could not find job with job ID " + jobId);
+						wrt.write("\"vertexevents\": [],");
+						wrt.write("\"jobevents\": [");
+						wrt.write("{");
+						wrt.write("\"newstate\": \"" + JobStatus.FINISHED + "\",");
+						wrt.write("\"timestamp\": \"" + System.currentTimeMillis() + "\"");
+						wrt.write("}");
+						wrt.write("]");
+						wrt.write("}");
+						LOG.warn("WriteJsonUpdatesForJob: Could not find job with job ID " + jobId);
+					}
+				}
 			}
-		} catch (EofException eof) { // Connection closed by client
-			LOG.info("Info server for jobmanager: Connection closed by client, EofException");
-		} catch (IOException ioe) { // Connection closed by client	
-			LOG.info("Info server for jobmanager: Connection closed by client, IOException");
+			
+		} catch (Exception exception) { // Connection closed by client
+			LOG.info("Info server for jobmanager: Failed to write json updates for job {}, " +
+					"because {}.", jobId, StringUtils.stringifyException(exception));
 		} 
 		
 	}
