@@ -24,23 +24,22 @@ import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 
 /**
- * The basic API every reader (both buffer- and record-oriented) has to support.
+ * The basic API for every reader.
  */
 public interface ReaderBase {
 
-	// ------------------------------------------------------------------------
-	// Properties
-	// ------------------------------------------------------------------------
-
+	/**
+	 * Returns whether the reader has consumed the input.
+	 */
 	boolean isFinished();
 
 	// ------------------------------------------------------------------------
-	// Events
+	// Task events
 	// ------------------------------------------------------------------------
 
-	void subscribeToTaskEvent(EventListener<TaskEvent> eventListener, Class<? extends TaskEvent> eventType);
+	void sendTaskEvent(TaskEvent event) throws IOException;
 
-	void sendTaskEvent(TaskEvent event) throws IOException, InterruptedException;
+	void registerTaskEventListener(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType);
 
 	// ------------------------------------------------------------------------
 	// Iterations

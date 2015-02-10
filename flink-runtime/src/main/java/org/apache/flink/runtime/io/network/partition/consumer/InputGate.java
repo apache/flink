@@ -16,22 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.io;
+package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.util.event.EventListener;
 
-public class IndexedMutableReader<T extends IOReadableWritable> extends MutableRecordReader<T> {
+import java.io.IOException;
 
-	InputGate reader;
+public interface InputGate {
 
-	public IndexedMutableReader(InputGate reader) {
-		super(reader);
-		this.reader = reader;
-	}
+	public int getNumberOfInputChannels();
 
-	public int getNumberOfInputChannels() {
-		return reader.getNumberOfInputChannels();
-	}
+	public boolean isFinished();
+
+	public void requestPartitions() throws IOException;
+
+	public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException;
+
+	public void sendTaskEvent(TaskEvent event) throws IOException;
+
+	public void registerListener(EventListener<InputGate> listener);
+
 }

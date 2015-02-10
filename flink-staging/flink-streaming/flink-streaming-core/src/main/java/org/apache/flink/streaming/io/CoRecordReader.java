@@ -18,13 +18,13 @@
 package org.apache.flink.streaming.io;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.event.task.TaskEvent;
-import org.apache.flink.runtime.io.network.api.reader.BufferReaderBase;
+import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
-import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.util.event.EventListener;
 
 import java.io.IOException;
@@ -36,11 +36,11 @@ import java.util.concurrent.LinkedBlockingQueue;
  * types to read records effectively.
  */
 @SuppressWarnings("rawtypes")
-public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> implements ReaderBase, EventListener<BufferReaderBase> {
+public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> extends AbstractReader implements EventListener<InputGate> {
 
-	private final BufferReaderBase bufferReader1;
+	private final InputGate bufferReader1;
 
-	private final BufferReaderBase bufferReader2;
+	private final InputGate bufferReader2;
 
 	private final BlockingQueue<Integer> availableRecordReaders = new LinkedBlockingQueue<Integer>();
 
@@ -57,7 +57,9 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	private boolean hasRequestedPartitions;
 
-	public CoRecordReader(BufferReaderBase bufferReader1, BufferReaderBase bufferReader2) {
+	public CoRecordReader(InputGate bufferReader1, InputGate bufferReader2) {
+		super(new UnionInputGate(bufferReader1, bufferReader2));
+
 		this.bufferReader1 = bufferReader1;
 		this.bufferReader2 = bufferReader2;
 
@@ -72,14 +74,14 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 			reader2RecordDeserializers[i] = new AdaptiveSpanningRecordDeserializer<T2>();
 		}
 
-		bufferReader1.subscribeToReader(this);
-		bufferReader2.subscribeToReader(this);
+		bufferReader1.registerListener(this);
+		bufferReader2.registerListener(this);
 	}
 
 	public void requestPartitionsOnce() throws IOException {
 		if (!hasRequestedPartitions) {
-			bufferReader1.requestPartitionsOnce();
-			bufferReader2.requestPartitionsOnce();
+			bufferReader1.requestPartitions();
+			bufferReader2.requestPartitions();
 
 			hasRequestedPartitions = true;
 		}
@@ -115,18 +117,20 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 							return 1;
 						}
 					}
+					else {
 
-					final Buffer nextBuffer = bufferReader1.getNextBufferBlocking();
-					final int channelIndex = bufferReader1.getChannelIndexOfLastBuffer();
+						final BufferOrEvent boe = bufferReader1.getNextBufferOrEvent();
 
-					if (nextBuffer == null) {
-						currentReaderIndex = 0;
+						if (boe.isBuffer()) {
+							reader1currentRecordDeserializer = reader1RecordDeserializers[boe.getChannelIndex()];
+							reader1currentRecordDeserializer.setNextBuffer(boe.getBuffer());
+						}
+						else if (handleEvent(boe.getEvent())) {
+							currentReaderIndex = 0;
 
-						break;
+							break;
+						}
 					}
-
-					reader1currentRecordDeserializer = reader1RecordDeserializers[channelIndex];
-					reader1currentRecordDeserializer.setNextBuffer(nextBuffer);
 				}
 			}
 			else if (currentReaderIndex == 2) {
@@ -145,18 +149,19 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 							return 2;
 						}
 					}
+					else {
+						final BufferOrEvent boe = bufferReader2.getNextBufferOrEvent();
 
-					final Buffer nextBuffer = bufferReader2.getNextBufferBlocking();
-					final int channelIndex = bufferReader2.getChannelIndexOfLastBuffer();
+						if (boe.isBuffer()) {
+							reader2currentRecordDeserializer = reader2RecordDeserializers[boe.getChannelIndex()];
+							reader2currentRecordDeserializer.setNextBuffer(boe.getBuffer());
+						}
+						else if (handleEvent(boe.getEvent())) {
+							currentReaderIndex = 0;
 
-					if (nextBuffer == null) {
-						currentReaderIndex = 0;
-
-						break;
+							break;
+						}
 					}
-
-					reader2currentRecordDeserializer = reader2RecordDeserializers[channelIndex];
-					reader2currentRecordDeserializer.setNextBuffer(nextBuffer);
 				}
 			}
 			else {
@@ -174,48 +179,12 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void onEvent(BufferReaderBase bufferReader) {
+	public void onEvent(InputGate bufferReader) {
 		if (bufferReader == bufferReader1) {
 			availableRecordReaders.add(1);
 		}
 		else if (bufferReader == bufferReader2) {
 			availableRecordReaders.add(2);
 		}
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public boolean isFinished() {
-		return bufferReader1.isFinished() && bufferReader2.isFinished();
-	}
-
-	@Override
-	public void subscribeToTaskEvent(EventListener<TaskEvent> eventListener, Class<? extends TaskEvent> eventType) {
-		bufferReader1.subscribeToTaskEvent(eventListener, eventType);
-		bufferReader2.subscribeToTaskEvent(eventListener, eventType);
-	}
-
-	@Override
-	public void sendTaskEvent(TaskEvent event) throws IOException, InterruptedException {
-		bufferReader1.sendTaskEvent(event);
-		bufferReader2.sendTaskEvent(event);
-	}
-
-	@Override
-	public void setIterativeReader() {
-		bufferReader1.setIterativeReader();
-		bufferReader2.setIterativeReader();
-	}
-
-	@Override
-	public void startNextSuperstep() {
-		bufferReader1.startNextSuperstep();
-		bufferReader2.startNextSuperstep();
-	}
-
-	@Override
-	public boolean hasReachedEndOfSuperstep() {
-		return bufferReader1.hasReachedEndOfSuperstep() && bufferReader2.hasReachedEndOfSuperstep();
 	}
 }

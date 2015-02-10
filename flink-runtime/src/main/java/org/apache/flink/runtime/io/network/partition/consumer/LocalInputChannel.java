@@ -21,8 +21,9 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import com.google.common.base.Optional;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.api.reader.BufferReader;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.util.event.NotificationListener;
@@ -31,23 +32,37 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 /**
- * An input channel, which requests a local partition queue.
+ * An input channel, which requests a local subpartition.
  */
 public class LocalInputChannel extends InputChannel implements NotificationListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocalInputChannel.class);
 
+	private final IntermediateResultPartitionManager partitionManager;
+
+	private final TaskEventDispatcher taskEventDispatcher;
+
 	private IntermediateResultPartitionQueueIterator queueIterator;
 
 	private boolean isReleased;
 
-	private Buffer lookAhead;
+	private volatile Buffer lookAhead;
 
-	public LocalInputChannel(int channelIndex, ExecutionAttemptID producerExecutionId, IntermediateResultPartitionID partitionId, BufferReader reader) {
-		super(channelIndex, producerExecutionId, partitionId, reader);
+	public LocalInputChannel(
+			SingleInputGate gate, int channelIndex,
+			ExecutionAttemptID producerExecutionId,
+			IntermediateResultPartitionID partitionId,
+			IntermediateResultPartitionManager partitionManager,
+			TaskEventDispatcher taskEventDispatcher) {
+
+		super(gate, channelIndex, producerExecutionId, partitionId);
+
+		this.partitionManager = checkNotNull(partitionManager);
+		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
 	}
 
 	// ------------------------------------------------------------------------
@@ -61,8 +76,8 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 				LOG.debug("Requesting queue {} from LOCAL partition {}.", partitionId, queueIndex);
 			}
 
-			queueIterator = reader.getIntermediateResultPartitionProvider()
-					.getIntermediateResultPartitionIterator(producerExecutionId, partitionId, queueIndex, Optional.of(reader.getBufferProvider()));
+			queueIterator = partitionManager.getIntermediateResultPartitionIterator(
+					producerExecutionId, partitionId, queueIndex, Optional.of(inputGate.getBufferProvider()));
 
 			getNextLookAhead();
 		}
@@ -93,7 +108,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 	public void sendTaskEvent(TaskEvent event) throws IOException {
 		checkState(queueIterator != null, "Tried to send task event to producer before requesting a queue.");
 
-		if (!reader.getTaskEventDispatcher().publish(producerExecutionId, partitionId, event)) {
+		if (!taskEventDispatcher.publish(producerExecutionId, partitionId, event)) {
 			throw new IOException("Error while publishing event " + event + " to producer. The producer could not be found.");
 		}
 	}
@@ -139,7 +154,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 	@Override
 	public void onNotification() {
-		notifyReaderAboutAvailableBuffer();
+		notifyAvailableBuffer();
 	}
 
 	// ------------------------------------------------------------------------
@@ -149,7 +164,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 			lookAhead = queueIterator.getNextBuffer();
 
 			if (lookAhead != null) {
-				notifyReaderAboutAvailableBuffer();
+				notifyAvailableBuffer();
 				break;
 			}
 

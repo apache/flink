@@ -26,6 +26,9 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.util.MockInputChannel;
+import org.apache.flink.runtime.io.network.util.MockSingleInputGate;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 import org.mockito.invocation.InvocationOnMock;
@@ -33,11 +36,12 @@ import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MockIteratorBufferReader<T extends IOReadableWritable> extends MockBufferReader {
+public class IteratorWrappingMockSingleInputGate<T extends IOReadableWritable> extends MockSingleInputGate {
+
+	private final MockInputChannel inputChannel = new MockInputChannel(inputGate, 0);
 
 	private final int bufferSize;
 
@@ -47,24 +51,16 @@ public class MockIteratorBufferReader<T extends IOReadableWritable> extends Mock
 
 	private final T reuse;
 
-	public MockIteratorBufferReader(int bufferSize, Class<T> recordType) throws IOException {
+	public IteratorWrappingMockSingleInputGate(int bufferSize, Class<T> recordType, MutableObjectIterator<T> iterator) throws IOException, InterruptedException {
+		super(1, false);
+
 		this.bufferSize = bufferSize;
-
-		this.reuse = InstantiationUtil.instantiate(recordType);
-	}
-
-	public MockIteratorBufferReader(int bufferSize, Class<T> recordType, MutableObjectIterator<T> iterator) throws IOException {
-		this.bufferSize = bufferSize;
-
 		this.reuse = InstantiationUtil.instantiate(recordType);
 
 		wrapIterator(iterator);
 	}
 
-	public MockIteratorBufferReader<T> wrapIterator(MutableObjectIterator<T> iterator) throws IOException {
-		checkState(inputIterator == null, "Iterator has already been set.");
-		checkState(stubbing == null, "There is already an ongoing stubbing from the MockBufferReader, which can't be mixed with an Iterator.");
-
+	private IteratorWrappingMockSingleInputGate<T> wrapIterator(MutableObjectIterator<T> iterator) throws IOException, InterruptedException {
 		inputIterator = iterator;
 		serializer = new SpanningRecordSerializer<T>();
 
@@ -78,29 +74,29 @@ public class MockIteratorBufferReader<T extends IOReadableWritable> extends Mock
 					serializer.setNextBuffer(buffer);
 					serializer.addRecord(reuse);
 
-					reader.onAvailableInputChannel(inputChannel);
+					inputGate.onAvailableBuffer(inputChannel.getInputChannel());
 
 					// Call getCurrentBuffer to ensure size is set
 					return serializer.getCurrentBuffer();
 				}
 				else {
-					// Return true after finishing
-					when(inputChannel.isReleased()).thenReturn(true);
+
+					when(inputChannel.getInputChannel().isReleased()).thenReturn(true);
 
 					return EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
 				}
 			}
 		};
 
-		stubbing = when(inputChannel.getNextBuffer()).thenAnswer(answer);
+		when(inputChannel.getInputChannel().getNextBuffer()).thenAnswer(answer);
+
+		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel.getInputChannel());
 
 		return this;
 	}
 
-	public MockIteratorBufferReader<T> read() {
-		checkState(inputIterator != null && serializer != null, "Iterator/serializer has not been set. Call wrapIterator() first.");
-
-		reader.onAvailableInputChannel(inputChannel);
+	public IteratorWrappingMockSingleInputGate<T> read() {
+		inputGate.onAvailableBuffer(inputChannel.getInputChannel());
 
 		return this;
 	}

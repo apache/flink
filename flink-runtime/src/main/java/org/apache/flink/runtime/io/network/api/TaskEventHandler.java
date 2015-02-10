@@ -16,40 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util.event;
+package org.apache.flink.runtime.io.network.api;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.util.event.EventListener;
 
 /**
  * The event handler manages {@link EventListener} instances and allows to
  * to publish events to them.
  */
-public class EventNotificationHandler<T> {
+public class TaskEventHandler {
 
 	// Listeners for each event type
-	private final Multimap<Class<? extends T>, EventListener<T>> listeners = HashMultimap.create();
+	private final Multimap<Class<? extends TaskEvent>, EventListener<TaskEvent>> listeners = HashMultimap.create();
 
-	public void subscribe(EventListener<T> listener, Class<? extends T> eventType) {
+	public void subscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
 		synchronized (listeners) {
 			listeners.put(eventType, listener);
 		}
 	}
 
-	public void unsubscribe(EventListener<T> listener, Class<? extends T> eventType) {
+	public void unsubscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
 		synchronized (listeners) {
 			listeners.remove(eventType, listener);
 		}
 	}
 
 	/**
-	 * Publishes the event to all subscribed {@link EventListener} objects.
+	 * Publishes the task event to all subscribed event listeners..
 	 *
 	 * @param event The event to publish.
 	 */
-	public void publish(T event) {
+	public void publish(TaskEvent event) {
 		synchronized (listeners) {
-			for (EventListener<T> listener : listeners.get((Class<? extends T>) event.getClass())) {
+			for (EventListener<TaskEvent> listener : listeners.get(event.getClass())) {
 				listener.onEvent(event);
 			}
 		}

@@ -17,11 +17,8 @@
 
 package org.apache.flink.streaming.api.streamvertex;
 
-import java.util.ArrayList;
-
-import org.apache.flink.runtime.io.network.api.reader.BufferReader;
-import org.apache.flink.runtime.io.network.api.reader.BufferReaderBase;
-import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -30,6 +27,8 @@ import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.streaming.io.CoRecordReader;
 import org.apache.flink.streaming.io.IndexedReaderIterator;
 import org.apache.flink.util.MutableObjectIterator;
+
+import java.util.ArrayList;
 
 public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 
@@ -77,12 +76,12 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 
 		int numberOfInputs = configuration.getNumberOfInputs();
 
-		ArrayList<BufferReader> inputList1 = new ArrayList<BufferReader>();
-		ArrayList<BufferReader> inputList2 = new ArrayList<BufferReader>();
+		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
+		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
 
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = configuration.getInputIndex(i);
-			BufferReader reader = getEnvironment().getReader(i);
+			InputGate reader = getEnvironment().getInputGate(i);
 			switch (inputType) {
 			case 1:
 				inputList1.add(reader);
@@ -95,11 +94,11 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 			}
 		}
 
-		final BufferReaderBase reader1 = inputList1.size() == 1 ? inputList1.get(0)
-				: new UnionBufferReader(inputList1.toArray(new BufferReader[inputList1.size()]));
+		final InputGate reader1 = inputList1.size() == 1 ? inputList1.get(0)
+				: new UnionInputGate(inputList1.toArray(new InputGate[inputList1.size()]));
 
-		final BufferReaderBase reader2 = inputList2.size() == 1 ? inputList2.get(0)
-				: new UnionBufferReader(inputList2.toArray(new BufferReader[inputList2.size()]));
+		final InputGate reader2 = inputList2.size() == 1 ? inputList2.get(0)
+				: new UnionInputGate(inputList2.toArray(new InputGate[inputList2.size()]));
 
 		coReader = new CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
 				reader1, reader2);

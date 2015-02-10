@@ -16,111 +16,115 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.api.reader;
+package org.apache.flink.runtime.io.network.util;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.event.task.TaskEvent;
-import org.apache.flink.runtime.execution.RuntimeEnvironment;
-import org.apache.flink.runtime.io.network.MockNetworkEnvironment;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.OngoingStubbing;
 
 import java.io.IOException;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MockBufferReader {
+/**
+ * A mocked input channel.
+ */
+public class MockInputChannel {
 
-	protected final BufferReader reader;
+	private final InputChannel mock = Mockito.mock(InputChannel.class);
 
-	protected final InputChannel inputChannel = mock(InputChannel.class);
+	private final SingleInputGate inputGate;
 
 	// Abusing Mockito here... ;)
 	protected OngoingStubbing<Buffer> stubbing;
 
-	public MockBufferReader() throws IOException {
-		reader = new BufferReader(mock(RuntimeEnvironment.class), MockNetworkEnvironment.getMock(), new IntermediateDataSetID(), 1, 0);
-		reader.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
+	public MockInputChannel(SingleInputGate inputGate, int channelIndex) {
+		checkArgument(channelIndex >= 0);
+		this.inputGate = checkNotNull(inputGate);
+
+		when(mock.getChannelIndex()).thenReturn(channelIndex);
 	}
 
-	MockBufferReader read(Buffer buffer) throws IOException {
+	public MockInputChannel read(Buffer buffer) throws IOException {
 		if (stubbing == null) {
-			stubbing = when(inputChannel.getNextBuffer()).thenReturn(buffer);
+			stubbing = when(mock.getNextBuffer()).thenReturn(buffer);
 		}
 		else {
 			stubbing = stubbing.thenReturn(buffer);
 		}
 
-		reader.onAvailableInputChannel(inputChannel);
+		inputGate.onAvailableBuffer(mock);
 
 		return this;
 	}
 
-	MockBufferReader readBuffer() throws IOException {
+	public MockInputChannel readBuffer() throws IOException {
 		final Buffer buffer = mock(Buffer.class);
 		when(buffer.isBuffer()).thenReturn(true);
 
 		return read(buffer);
 	}
 
-	MockBufferReader readEvent() throws IOException {
+	public MockInputChannel readEvent() throws IOException {
 		return read(EventSerializer.toBuffer(new TestTaskEvent()));
 	}
 
-	MockBufferReader finishSuperstep() throws IOException {
+	public MockInputChannel readEndOfSuperstepEvent() throws IOException {
 		return read(EventSerializer.toBuffer(EndOfSuperstepEvent.INSTANCE));
 	}
 
-	MockBufferReader finish() throws IOException {
+	public MockInputChannel readEndOfPartitionEvent() throws IOException {
 		final Answer<Buffer> answer = new Answer<Buffer>() {
 			@Override
 			public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
 				// Return true after finishing
-				when(inputChannel.isReleased()).thenReturn(true);
+				when(mock.isReleased()).thenReturn(true);
 
 				return EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
 			}
 		};
 
 		if (stubbing == null) {
-			stubbing = when(inputChannel.getNextBuffer()).thenAnswer(answer);
+			stubbing = when(mock.getNextBuffer()).thenAnswer(answer);
 		}
 		else {
 			stubbing = stubbing.thenAnswer(answer);
 		}
 
-		reader.onAvailableInputChannel(inputChannel);
+		inputGate.onAvailableBuffer(mock);
 
 		return this;
 	}
 
-	public BufferReader getMock() {
-		return reader;
+	public InputChannel getInputChannel() {
+		return mock;
 	}
 
 	// ------------------------------------------------------------------------
 
-	public static class TestTaskEvent extends TaskEvent {
+	public static MockInputChannel[] createInputChannels(SingleInputGate inputGate, int numberOfInputChannels) {
+		checkNotNull(inputGate);
+		checkArgument(numberOfInputChannels > 0);
 
-		public TestTaskEvent() {
+		MockInputChannel[] mocks = new MockInputChannel[numberOfInputChannels];
+
+		for (int i = 0; i < numberOfInputChannels; i++) {
+			mocks[i] = new MockInputChannel(inputGate, i);
+
+			inputGate.setInputChannel(new IntermediateResultPartitionID(), mocks[i].getInputChannel());
 		}
 
-		@Override
-		public void write(DataOutputView out) throws IOException {
-		}
-
-		@Override
-		public void read(DataInputView in) throws IOException {
-		}
+		return mocks;
 	}
 }

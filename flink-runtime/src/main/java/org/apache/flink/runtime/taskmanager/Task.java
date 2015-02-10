@@ -19,18 +19,18 @@
 package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
 import org.apache.flink.runtime.io.network.partition.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.profiling.TaskManagerProfiler;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -363,8 +363,8 @@ public class Task {
 	// Intermediate result partitions
 	// ------------------------------------------------------------------------
 
-	public BufferReader[] getReaders() {
-		return environment != null ? environment.getAllReaders() : null;
+	public SingleInputGate[] getInputGates() {
+		return environment != null ? environment.getAllInputGates() : null;
 	}
 
 	public BufferWriter[] getWriters() {

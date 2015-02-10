@@ -25,13 +25,14 @@ import static org.junit.Assert.assertNotNull;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.event.task.IntegerTaskEvent;
 import org.apache.flink.runtime.event.task.StringTaskEvent;
+import org.apache.flink.runtime.io.network.api.TaskEventHandler;
 import org.junit.Test;
 
 /**
- * This class contains unit tests for the {@link EventNotificationHandler}.
+ * This class contains unit tests for the {@link TaskEventHandler}.
  * 
  */
-public class EventNotificationHandlerTest {
+public class TaskEventHandlerTest {
 	/**
 	 * A test implementation of an {@link EventListener}.
 	 * 
@@ -66,12 +67,12 @@ public class EventNotificationHandlerTest {
 	}
 
 	/**
-	 * Tests the publish/subscribe mechanisms implemented in the {@link EventNotificationHandler}.
+	 * Tests the publish/subscribe mechanisms implemented in the {@link TaskEventHandler}.
 	 */
 	@Test
 	public void testEventNotificationManager() {
 
-		final EventNotificationHandler evm = new EventNotificationHandler();
+		final TaskEventHandler evm = new TaskEventHandler();
 		final TestEventListener listener = new TestEventListener();
 
 		evm.subscribe(listener, StringTaskEvent.class);

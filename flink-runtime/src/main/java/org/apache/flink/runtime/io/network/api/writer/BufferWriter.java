@@ -27,7 +27,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.util.event.EventListener;
-import org.apache.flink.runtime.util.event.EventNotificationHandler;
+import org.apache.flink.runtime.io.network.api.TaskEventHandler;
 
 import java.io.IOException;
 
@@ -44,7 +44,7 @@ public final class BufferWriter implements EventListener<TaskEvent> {
 
 	private final IntermediateResultPartition partition;
 
-	private final EventNotificationHandler<TaskEvent> taskEventHandler = new EventNotificationHandler<TaskEvent>();
+	private final TaskEventHandler taskEventHandler = new TaskEventHandler();
 
 	public BufferWriter(IntermediateResultPartition partition) {
 		this.partition = partition;
@@ -104,7 +104,7 @@ public final class BufferWriter implements EventListener<TaskEvent> {
 	// Event handling
 	// ------------------------------------------------------------------------
 
-	public EventNotificationHandler<TaskEvent> getTaskEventHandler() {
+	public TaskEventHandler getTaskEventHandler() {
 		return taskEventHandler;
 	}
 

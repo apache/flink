@@ -86,11 +86,6 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 				return null;
 			}
 		}
-
-		@Override
-		public int getLastChannelIndex() {
-			return 0;
-		}
 	}
 
 	public List<OUT> getOutputs() {
