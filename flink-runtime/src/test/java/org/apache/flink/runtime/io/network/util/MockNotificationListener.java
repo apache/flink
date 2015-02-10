@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition;
+package org.apache.flink.runtime.io.network.util;
 
 import org.apache.flink.runtime.util.event.NotificationListener;
 

@@ -24,19 +24,10 @@ import org.apache.flink.runtime.plugable.DeserializationDelegate;
 
 public class IndexedReaderIterator<T> extends ReaderIterator<T> {
 
-	private IndexedMutableReader<DeserializationDelegate<T>> reader;
-
-	public IndexedReaderIterator(IndexedMutableReader<DeserializationDelegate<T>> reader,
+	public IndexedReaderIterator(
+			IndexedMutableReader<DeserializationDelegate<T>> reader,
 			TypeSerializer<T> serializer) {
+
 		super(reader, serializer);
-		this.reader = reader;
-	}
-
-	public int getLastChannelIndex() {
-		return reader.getLastChannelIndex();
-	}
-
-	public int getNumberOfInputChannels() {
-		return reader.getNumberOfInputChannels();
 	}
 }

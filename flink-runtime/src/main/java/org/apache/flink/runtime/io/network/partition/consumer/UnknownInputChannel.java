@@ -20,9 +20,12 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.RemoteAddress;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.io.IOException;
@@ -35,8 +38,25 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class UnknownInputChannel extends InputChannel {
 
-	public UnknownInputChannel(int channelIndex, ExecutionAttemptID producerExecutionId, IntermediateResultPartitionID partitionId, BufferReader reader) {
-		super(channelIndex, producerExecutionId, partitionId, reader);
+	private final IntermediateResultPartitionManager partitionManager;
+
+	private final TaskEventDispatcher taskEventDispatcher;
+
+	private final ConnectionManager connectionManager;
+
+	public UnknownInputChannel(
+			SingleInputGate gate, int channelIndex,
+			ExecutionAttemptID producerExecutionId,
+			IntermediateResultPartitionID partitionId,
+			IntermediateResultPartitionManager partitionManager,
+			TaskEventDispatcher taskEventDispatcher,
+			ConnectionManager connectionManager) {
+
+		super(gate, channelIndex, producerExecutionId, partitionId);
+
+		this.partitionManager = partitionManager;
+		this.taskEventDispatcher = taskEventDispatcher;
+		this.connectionManager = connectionManager;
 	}
 
 	@Override
@@ -83,10 +103,10 @@ public class UnknownInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	public RemoteInputChannel toRemoteInputChannel(RemoteAddress producerAddress) {
-		return new RemoteInputChannel(channelIndex, producerExecutionId, partitionId, reader, checkNotNull(producerAddress));
+		return new RemoteInputChannel(inputGate, channelIndex, producerExecutionId, partitionId, checkNotNull(producerAddress), connectionManager);
 	}
 
 	public LocalInputChannel toLocalInputChannel() {
-		return new LocalInputChannel(channelIndex, producerExecutionId, partitionId, reader);
+		return new LocalInputChannel(inputGate, channelIndex, producerExecutionId, partitionId, partitionManager, taskEventDispatcher);
 	}
 }

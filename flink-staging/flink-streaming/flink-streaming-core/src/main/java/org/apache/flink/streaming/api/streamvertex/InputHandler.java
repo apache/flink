@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.streamvertex;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
-import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
+import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -54,14 +54,12 @@ public class InputHandler<IN> {
 		if (numberOfInputs > 0) {
 
 			if (numberOfInputs < 2) {
-
 				inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(
-						streamVertex.getEnvironment().getReader(0));
+						streamVertex.getEnvironment().getInputGate(0));
 
 			} else {
-				UnionBufferReader reader = new UnionBufferReader(streamVertex.getEnvironment()
-						.getAllReaders());
-				inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(reader);
+				inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(
+						new UnionInputGate(streamVertex.getEnvironment().getAllInputGates()));
 			}
 
 			inputIter = createInputIterator();

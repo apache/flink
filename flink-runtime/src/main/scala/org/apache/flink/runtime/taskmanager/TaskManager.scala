@@ -532,7 +532,7 @@ import scala.collection.JavaConverters._
       case Some(task) =>
         val errors = partitionInfos flatMap {
           case (resultID, partitionInfo) =>
-            Option(task.getEnvironment.getReaderById(resultID)) match {
+            Option(task.getEnvironment.getInputGateById(resultID)) match {
               case Some(reader) =>
                 Future {
                   try {

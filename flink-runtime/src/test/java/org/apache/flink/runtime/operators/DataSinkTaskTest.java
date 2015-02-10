@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
 import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.api.reader.MockIteratorBufferReader;
+import org.apache.flink.runtime.io.network.api.reader.IteratorWrappingMockSingleInputGate;
 import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
 import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
@@ -144,7 +144,7 @@ public class DataSinkTaskTest extends TaskTestBase
 
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 
-		MockIteratorBufferReader<?>[] readers = new MockIteratorBufferReader[4];
+		IteratorWrappingMockSingleInputGate<?>[] readers = new IteratorWrappingMockSingleInputGate[4];
 		readers[0] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, 0, 0, false), 0, false);
 		readers[1] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0, false);
 		readers[2] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 2, 0, false), 0, false);
@@ -157,7 +157,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		try {
 			// For the union reader to work, we need to start notifications *after* the union reader
 			// has been initialized.
-			for (MockIteratorBufferReader<?> reader : readers) {
+			for (IteratorWrappingMockSingleInputGate<?> reader : readers) {
 				reader.read();
 			}
 

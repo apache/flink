@@ -200,7 +200,7 @@ public class NetworkStackThroughputITCase {
 
 		@Override
 		public void registerInputOutput() {
-			this.reader = new RecordReader<SpeedTestRecord>(getEnvironment().getReader(0), SpeedTestRecord.class);
+			this.reader = new RecordReader<SpeedTestRecord>(getEnvironment().getInputGate(0), SpeedTestRecord.class);
 			this.writer = new RecordWriter<SpeedTestRecord>(getEnvironment().getWriter(0));
 		}
 
@@ -222,7 +222,7 @@ public class NetworkStackThroughputITCase {
 
 		@Override
 		public void registerInputOutput() {
-			this.reader = new RecordReader<SpeedTestRecord>(getEnvironment().getReader(0), SpeedTestRecord.class);
+			this.reader = new RecordReader<SpeedTestRecord>(getEnvironment().getInputGate(0), SpeedTestRecord.class);
 		}
 
 		@Override

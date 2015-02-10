@@ -72,7 +72,8 @@ object Tasks {
     var reader: RecordReader[IntegerRecord] = _
     var writer: RecordWriter[IntegerRecord] = _
     override def registerInputOutput(): Unit = {
-      reader = new RecordReader[IntegerRecord](getEnvironment.getReader(0), classOf[IntegerRecord])
+      reader = new RecordReader[IntegerRecord](getEnvironment.getInputGate(0),
+        classOf[IntegerRecord])
       writer = new RecordWriter[IntegerRecord](getEnvironment.getWriter(0))
     }
 
@@ -101,7 +102,7 @@ object Tasks {
     override def registerInputOutput(): Unit = {
       val env = getEnvironment
 
-      reader = new RecordReader[IntegerRecord](env.getReader(0), classOf[IntegerRecord])
+      reader = new RecordReader[IntegerRecord](env.getInputGate(0), classOf[IntegerRecord])
     }
 
     override def invoke(): Unit = {
@@ -158,7 +159,7 @@ object Tasks {
     override def registerInputOutput(): Unit = {
       val env = getEnvironment
 
-      reader = new RecordReader[IntegerRecord](env.getReader(0), classOf[IntegerRecord])
+      reader = new RecordReader[IntegerRecord](env.getInputGate(0), classOf[IntegerRecord])
     }
 
     override def invoke(): Unit = {
@@ -173,8 +174,8 @@ object Tasks {
     override def registerInputOutput(): Unit = {
       val env = getEnvironment
 
-      reader1 = new RecordReader[IntegerRecord](env.getReader(0), classOf[IntegerRecord])
-      reader2 = new RecordReader[IntegerRecord](env.getReader(1), classOf[IntegerRecord])
+      reader1 = new RecordReader[IntegerRecord](env.getInputGate(0), classOf[IntegerRecord])
+      reader2 = new RecordReader[IntegerRecord](env.getInputGate(1), classOf[IntegerRecord])
     }
 
     override def invoke(): Unit = {
@@ -191,9 +192,9 @@ object Tasks {
     override def registerInputOutput(): Unit = {
       val env = getEnvironment
 
-      reader1 = new RecordReader[IntegerRecord](env.getReader(0), classOf[IntegerRecord])
-      reader2 = new RecordReader[IntegerRecord](env.getReader(1), classOf[IntegerRecord])
-      reader3 = new RecordReader[IntegerRecord](env.getReader(2), classOf[IntegerRecord])
+      reader1 = new RecordReader[IntegerRecord](env.getInputGate(0), classOf[IntegerRecord])
+      reader2 = new RecordReader[IntegerRecord](env.getInputGate(1), classOf[IntegerRecord])
+      reader3 = new RecordReader[IntegerRecord](env.getInputGate(2), classOf[IntegerRecord])
     }
 
     override def invoke(): Unit = {
@@ -239,7 +240,7 @@ object Tasks {
 
   class ExceptionReceiver extends AbstractInvokable {
     override def registerInputOutput(): Unit = {
-      new RecordReader[IntegerRecord](getEnvironment.getReader(0), classOf[IntegerRecord])
+      new RecordReader[IntegerRecord](getEnvironment.getInputGate(0), classOf[IntegerRecord])
     }
 
     override def invoke(): Unit = {
@@ -280,7 +281,7 @@ object Tasks {
 
   class BlockingReceiver extends AbstractInvokable {
     override def registerInputOutput(): Unit = {
-      new RecordReader[IntegerRecord](getEnvironment.getReader(0), classOf[IntegerRecord])
+      new RecordReader[IntegerRecord](getEnvironment.getInputGate(0), classOf[IntegerRecord])
     }
 
     override def invoke(): Unit = {
