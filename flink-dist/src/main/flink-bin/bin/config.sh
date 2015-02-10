@@ -205,6 +205,8 @@ if [ -n "$HADOOP_HOME" ]; then
     fi
 fi
 
+INTERNAL_HADOOP_CLASSPATHS="$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR"
+
 # Auxilliary function which extracts the name of host from a line which
 # also potentialy includes topology information and the taskManager type
 extractHostName() {
