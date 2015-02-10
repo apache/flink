@@ -17,10 +17,6 @@
 
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map.Entry;
-
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
@@ -33,9 +29,10 @@ public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 	private Thread policyThread;
 
 	public GroupedTimeDiscretizer(KeySelector<IN, ?> keySelector,
-			TimeTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy) {
+			TimeTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy,
+			WindowBuffer<IN> windowBuffer) {
 
-		super(keySelector, triggerPolicy, evictionPolicy);
+		super(keySelector, triggerPolicy, evictionPolicy, windowBuffer);
 		this.timeTriggerPolicy = triggerPolicy;
 	}
 
@@ -43,7 +40,7 @@ public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 	protected StreamDiscretizer<IN> makeNewGroup(Object key) throws Exception {
 
 		StreamDiscretizer<IN> groupDiscretizer = new StreamDiscretizer<IN>(triggerPolicy.clone(),
-				evictionPolicy.clone());
+				evictionPolicy.clone(), windowBuffer.clone());
 
 		groupDiscretizer.collector = taskContext.getOutputCollector();
 		// We omit the groupDiscretizer.open(...) call here to avoid starting
@@ -58,20 +55,6 @@ public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 		Runnable runnable = new TimeCheck();
 		policyThread = new Thread(runnable);
 		policyThread.start();
-	}
-
-	private void removeUnusedGroups(int threshold) {
-		List<Object> toRemove = new ArrayList<Object>();
-
-		for (Entry<Object, StreamDiscretizer<IN>> entry : groupedDiscretizers.entrySet()) {
-			if (entry.getValue().emptyCount > threshold) {
-				toRemove.add(entry.getKey());
-			}
-		}
-
-		for (Object key : toRemove) {
-			groupedDiscretizers.remove(key);
-		}
 	}
 
 	private class TimeCheck implements Runnable {
@@ -93,8 +76,6 @@ public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 						group.triggerOnFakeElement(fake);
 					}
 				}
-
-				removeUnusedGroups(10);
 			}
 		}
 	}

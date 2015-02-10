@@ -28,11 +28,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowFlattener;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindow;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindowTypeInfo;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMerger;
+import org.apache.flink.streaming.api.invokable.operator.windowing.WindowFlattener;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMapper;
+import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMerger;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowPartitioner;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowReducer;
 
@@ -48,13 +48,15 @@ import org.apache.flink.streaming.api.invokable.operator.windowing.WindowReducer
  */
 public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
-	protected SingleOutputStreamOperator<StreamWindow<OUT>, ?> discretizedStream;
+	private SingleOutputStreamOperator<StreamWindow<OUT>, ?> discretizedStream;
+	private WindowTransformation transformation;
 
 	protected DiscretizedStream(SingleOutputStreamOperator<StreamWindow<OUT>, ?> discretizedStream,
-			KeySelector<OUT, ?> groupByKey) {
+			KeySelector<OUT, ?> groupByKey, WindowTransformation tranformation) {
 		super();
 		this.groupByKey = groupByKey;
 		this.discretizedStream = discretizedStream;
+		this.transformation = tranformation;
 	}
 
 	/**
@@ -70,12 +72,13 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	@Override
 	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
 
-		DiscretizedStream<OUT> out = partition(false).transform("Window Reduce", getType(),
+		DiscretizedStream<OUT> out = partition(transformation).transform(
+				WindowTransformation.REDUCEWINDOW, "Window Reduce", getType(),
 				new WindowReducer<OUT>(reduceFunction)).merge();
 
 		if (!isGrouped()) {
-			return out.transform("Window Reduce", out.getType(), new WindowReducer<OUT>(
-					reduceFunction));
+			return out.transform(WindowTransformation.REDUCEWINDOW, "Window Reduce", out.getType(),
+					new WindowReducer<OUT>(reduceFunction));
 		} else {
 			return out;
 		}
@@ -106,7 +109,8 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	@Override
 	public <R> DiscretizedStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction,
 			TypeInformation<R> returnType) {
-		DiscretizedStream<R> out = partition(true).transform("Window Reduce", returnType,
+		DiscretizedStream<R> out = partition(transformation).transform(
+				WindowTransformation.REDUCEWINDOW, "Window Reduce", returnType,
 				new WindowMapper<OUT, R>(reduceFunction));
 
 		if (isGrouped()) {
@@ -116,30 +120,31 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		}
 	}
 
-	private <R> DiscretizedStream<R> transform(String operatorName, TypeInformation<R> retType,
+	private <R> DiscretizedStream<R> transform(WindowTransformation transformation,
+			String operatorName, TypeInformation<R> retType,
 			StreamInvokable<StreamWindow<OUT>, StreamWindow<R>> invokable) {
 
 		return wrap(discretizedStream.transform(operatorName, new StreamWindowTypeInfo<R>(retType),
-				invokable));
+				invokable), transformation);
 	}
 
-	private DiscretizedStream<OUT> partition(boolean isMap) {
+	private DiscretizedStream<OUT> partition(WindowTransformation transformation) {
 
 		int parallelism = discretizedStream.getParallelism();
 
 		if (isGrouped()) {
-			DiscretizedStream<OUT> out = transform("Window partitioner", getType(),
+			DiscretizedStream<OUT> out = transform(transformation, "Window partitioner", getType(),
 					new WindowPartitioner<OUT>(groupByKey)).setParallelism(parallelism);
 
 			out.groupByKey = null;
 
 			return out;
-		} else if (!isMap) {
+		} else if (transformation == WindowTransformation.MAPWINDOW) {
 			return transform(
+					transformation,
 					"Window partitioner",
 					getType(),
-					new WindowPartitioner<OUT>(discretizedStream.environment
-							.getDegreeOfParallelism())).setParallelism(parallelism);
+					new WindowPartitioner<OUT>(parallelism)).setParallelism(parallelism);
 		} else {
 			return this;
 		}
@@ -160,9 +165,15 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		return discretizedStream.transform("Window Flatten", getType(), new WindowFlattener<OUT>());
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings("rawtypes")
 	private <R> DiscretizedStream<R> wrap(SingleOutputStreamOperator stream) {
-		return new DiscretizedStream<R>(stream, (KeySelector<R, ?>) this.groupByKey);
+		return wrap(stream, transformation);
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private <R> DiscretizedStream<R> wrap(SingleOutputStreamOperator stream,
+			WindowTransformation transformation) {
+		return new DiscretizedStream<R>(stream, (KeySelector<R, ?>) this.groupByKey, transformation);
 	}
 
 	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
@@ -218,7 +229,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	}
 
 	protected DiscretizedStream<OUT> copy() {
-		return new DiscretizedStream<OUT>(discretizedStream.copy(), groupByKey);
+		return new DiscretizedStream<OUT>(discretizedStream.copy(), groupByKey, transformation);
 	}
 
 }

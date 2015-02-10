@@ -80,7 +80,7 @@ object StockPrices {
     //Read a stream of stock prices from different sources and merge it into one stream
 
     //Read from a socket stream at map it to StockPrice objects
-    val socketStockStream = env.socketTextStream("localhost", 9999).map(x => {
+    val socketStockStream = env.socketTextStream(hostName, port).map(x => {
       val split = x.split(",")
       StockPrice(split(0), split(1).toDouble)
     })
@@ -98,9 +98,9 @@ object StockPrices {
     //Compute some simple statistics on a rolling window
     val windowedStream = stockStream.window(Time.of(10, SECONDS)).every(Time.of(5, SECONDS))
 
-    val lowest = windowedStream.minBy("price").setParallelism(1)
-    val maxByStock = windowedStream.groupBy("symbol").maxBy("price")
-    val rollingMean = windowedStream.groupBy("symbol").reduceGroup(mean _)
+    val lowest = windowedStream.minBy("price")
+    val maxByStock = windowedStream.groupBy("symbol").maxBy("price").getDiscretizedStream
+    val rollingMean = windowedStream.groupBy("symbol").mapWindow(mean _).getDiscretizedStream
 
     //Step 3 
     //Use  delta policy to create price change warnings,
@@ -108,13 +108,13 @@ object StockPrices {
 
     val priceWarnings = stockStream.groupBy("symbol")
       .window(Delta.of(0.05, priceChange, defaultPrice))
-      .reduceGroup(sendWarning _)
-
+      .mapWindow(sendWarning _)
+      
     val warningsPerStock = priceWarnings.map(Count(_, 1))
-      .groupBy("symbol")
       .window(Time.of(30, SECONDS))
+      .groupBy("symbol")
       .sum("count")
-
+      
     //Step 4 
     //Read a stream of tweets and extract the stock symbols
 
@@ -125,10 +125,10 @@ object StockPrices {
       .filter(symbols.contains(_))                     
                     
     val tweetsPerStock = mentionedSymbols.map(Count(_, 1))
-      .groupBy("symbol")
       .window(Time.of(30, SECONDS))
+      .groupBy("symbol")
       .sum("count")
-
+      
     //Step 5
     //For advanced analysis we join the number of tweets and
     //the number of price change warnings by stock
@@ -140,11 +140,16 @@ object StockPrices {
       .onWindow(30, SECONDS)
       .where("symbol")
       .equalTo("symbol") { (c1, c2) => (c1.count, c2.count) }
+    
 
     val rollingCorrelation = tweetsAndWarning.window(Time.of(30, SECONDS))
-      .reduceGroup(computeCorrelation _).setParallelism(1)
+      .mapWindow(computeCorrelation _)
 
-    rollingCorrelation.print
+    if (fileOutput) {
+      rollingCorrelation.writeAsText(outputPath, 1);
+    } else {
+      rollingCorrelation.print;
+    }
 
     env.execute("Stock stream")
   }

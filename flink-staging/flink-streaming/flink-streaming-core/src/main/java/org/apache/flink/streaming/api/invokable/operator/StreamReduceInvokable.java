@@ -51,7 +51,7 @@ public class StreamReduceInvokable<IN> extends ChainableInvokable<IN, IN> {
 		nextValue = nextObject;
 
 		if (currentValue != null) {
-			currentValue = reducer.reduce(currentValue, nextValue);
+			currentValue = reducer.reduce(copy(currentValue), nextValue);
 		} else {
 			currentValue = nextValue;
 

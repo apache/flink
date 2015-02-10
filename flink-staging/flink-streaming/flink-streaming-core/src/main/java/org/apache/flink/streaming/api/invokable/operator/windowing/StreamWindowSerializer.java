@@ -47,11 +47,6 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 	}
 
 	@Override
-	public boolean isStateful() {
-		return false;
-	}
-
-	@Override
 	public StreamWindow<T> createInstance() {
 		return new StreamWindow<T>(0, 0, 0);
 	}
@@ -132,5 +127,10 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		// Needs to be implemented
+	}
+
+	@Override
+	public TypeSerializer<StreamWindow<T>> duplicate() {
+		return this;
 	}
 }

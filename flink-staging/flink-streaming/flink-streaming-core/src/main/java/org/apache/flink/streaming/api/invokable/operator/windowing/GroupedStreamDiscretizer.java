@@ -37,11 +37,13 @@ public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWind
 	protected Configuration parameters;
 	protected CloneableTriggerPolicy<IN> triggerPolicy;
 	protected CloneableEvictionPolicy<IN> evictionPolicy;
+	protected WindowBuffer<IN> windowBuffer;
 
 	protected Map<Object, StreamDiscretizer<IN>> groupedDiscretizers;
 
 	public GroupedStreamDiscretizer(KeySelector<IN, ?> keySelector,
-			CloneableTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy) {
+			CloneableTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy,
+			WindowBuffer<IN> windowBuffer) {
 
 		super(null);
 
@@ -51,6 +53,7 @@ public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWind
 		this.evictionPolicy = evictionPolicy;
 
 		this.groupedDiscretizers = new HashMap<Object, StreamDiscretizer<IN>>();
+		this.windowBuffer = windowBuffer;
 
 	}
 
@@ -76,9 +79,8 @@ public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWind
 			readNext();
 		}
 
-		// finally trigger the buffer.
 		for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {
-			group.emitFinalWindow();
+			group.emitWindow();
 		}
 
 	}
@@ -95,7 +97,7 @@ public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWind
 	protected StreamDiscretizer<IN> makeNewGroup(Object key) throws Exception {
 
 		StreamDiscretizer<IN> groupDiscretizer = new StreamDiscretizer<IN>(triggerPolicy.clone(),
-				evictionPolicy.clone());
+				evictionPolicy.clone(), windowBuffer.clone());
 
 		groupDiscretizer.collector = taskContext.getOutputCollector();
 		groupDiscretizer.open(this.parameters);
