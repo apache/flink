@@ -83,8 +83,9 @@ case $STARTSTOP in
         rotateLogFile $out
 
         echo Starting task manager on host $HOSTNAME
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$FLINK_TM_CLASSPATH:$HADOOP_CLASSPATH" org.apache.flink.runtime.taskmanager.TaskManager --configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
+        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS" org.apache.flink.runtime.taskmanager.TaskManager --configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
         echo $! > $pid
+
     ;;
 
     (stop)

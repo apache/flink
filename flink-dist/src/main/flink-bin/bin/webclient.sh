@@ -64,7 +64,7 @@ case $STARTSTOP in
                         fi
                 fi
                 echo Starting Flink webclient
-		$JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "$FLINK_WEBCLIENT_CLASSPATH:$HADOOP_CLASSPATH" org.apache.flink.client.WebFrontend --configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
+		$JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "$FLINK_WEBCLIENT_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS" org.apache.flink.client.WebFrontend --configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
 		echo $! > $pid
 	;;
 

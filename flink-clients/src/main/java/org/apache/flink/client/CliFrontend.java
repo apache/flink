@@ -55,6 +55,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -807,24 +808,10 @@ public class CliFrontend {
 		return configurationDirectory;
 	}
 
-	public static String getConfigurationDirectoryFromEnv() {
-		String location = null;
-		if (System.getenv(ENV_CONFIG_DIRECTORY) != null) {
-			location = System.getenv(ENV_CONFIG_DIRECTORY);
-		} else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
-			location = CONFIG_DIRECTORY_FALLBACK_1;
-		} else if (new File(CONFIG_DIRECTORY_FALLBACK_2).exists()) {
-			location = CONFIG_DIRECTORY_FALLBACK_2;
-		} else {
-			throw new RuntimeException("The configuration directory was not found. Please configure the '" + 
-					ENV_CONFIG_DIRECTORY + "' environment variable properly.");
-		}
-		return location;
-	}
 	/**
 	 * Reads configuration settings. The default path can be overridden
 	 * by setting the ENV variable "FLINK_CONF_DIR".
-	 * 
+	 *
 	 * @return Flink's global configuration
 	 */
 	protected Configuration getGlobalConfiguration() {
@@ -857,10 +844,24 @@ public class CliFrontend {
 				System.err.println("Error while loading YARN properties: "+e.getMessage());
 				e.printStackTrace();
 			}
-			
+
 			globalConfigurationLoaded = true;
 		}
 		return GlobalConfiguration.getConfiguration();
+	}
+	public static String getConfigurationDirectoryFromEnv() {
+		String location = null;
+		if (System.getenv(ENV_CONFIG_DIRECTORY) != null) {
+			location = System.getenv(ENV_CONFIG_DIRECTORY);
+		} else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
+			location = CONFIG_DIRECTORY_FALLBACK_1;
+		} else if (new File(CONFIG_DIRECTORY_FALLBACK_2).exists()) {
+			location = CONFIG_DIRECTORY_FALLBACK_2;
+		} else {
+			throw new RuntimeException("The configuration directory was not found. Please configure the '" +
+					ENV_CONFIG_DIRECTORY + "' environment variable properly.");
+		}
+		return location;
 	}
 
 	protected FiniteDuration getAkkaTimeout(){
@@ -1057,10 +1058,24 @@ public class CliFrontend {
 		String action = args[0];
 		
 		// remove action from parameters
-		String[] params = Arrays.copyOfRange(args, 1, args.length);
+		final String[] params = Arrays.copyOfRange(args, 1, args.length);
 		
 		// do action
 		if (action.equals(ACTION_RUN)) {
+			// run() needs to run in a secured environment for the optimizer.
+			if(SecurityUtils.isSecurityEnabled()) {
+				System.out.println("Secure Hadoop setup detected.");
+				try {
+					return SecurityUtils.runSecured(new SecurityUtils.FlinkSecuredRunner<Integer>() {
+						@Override
+						public Integer run() throws Exception {
+							return CliFrontend.this.run(params);
+						}
+					});
+				} catch (Exception e) {
+					handleError(e);
+				}
+			}
 			return run(params);
 		} else if (action.equals(ACTION_LIST)) {
 			return list(params);

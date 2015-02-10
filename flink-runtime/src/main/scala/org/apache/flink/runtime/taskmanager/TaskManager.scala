@@ -54,6 +54,8 @@ import org.apache.flink.runtime.messages.TaskManagerProfilerMessages
 .{UnregisterProfilingListener, UnmonitorTask, MonitorTask, RegisterProfilingListener}
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.profiling.ProfilingUtils
+import org.apache.flink.runtime.security.SecurityUtils
+import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.util.ExceptionUtils
 import org.slf4j.LoggerFactory
@@ -668,8 +670,21 @@ object TaskManager {
 
   def main(args: Array[String]): Unit = {
     EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager")
-
     val (hostname, port, configuration) = parseArgs(args)
+
+    if(SecurityUtils.isSecurityEnabled) {
+      LOG.info("Security is enabled. Starting secure TaskManager.")
+      SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
+        override def run(): Unit = {
+          startActor(hostname, port, configuration)
+        }
+      })
+    } else {
+      startActor(hostname, port, configuration)
+    }
+  }
+
+  def startActor(hostname: String, port: Int, configuration: Configuration) : Unit = {
 
     val (taskManagerSystem, _) = startActorSystemAndActor(hostname, port, configuration,
       localAkkaCommunication = false, localTaskManagerCommunication = false)

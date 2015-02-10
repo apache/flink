@@ -325,25 +325,32 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 		// ------------------ Check if the specified queue exists --------------
 
-		List<QueueInfo> queues = yarnClient.getAllQueues();
-		if(queues.size() > 0 && this.yarnQueue != null) { // check only if there are queues configured in yarn and for this session.
-			boolean queueFound = false;
-			for (QueueInfo queue : queues) {
-				if (queue.getQueueName().equals(this.yarnQueue)) {
-					queueFound = true;
-					break;
-				}
-			}
-			if (!queueFound) {
-				String queueNames = "";
+		try {
+			List<QueueInfo> queues = yarnClient.getAllQueues();
+			if (queues.size() > 0 && this.yarnQueue != null) { // check only if there are queues configured in yarn and for this session.
+				boolean queueFound = false;
 				for (QueueInfo queue : queues) {
-					queueNames += queue.getQueueName() + ", ";
+					if (queue.getQueueName().equals(this.yarnQueue)) {
+						queueFound = true;
+						break;
+					}
 				}
-				throw new YarnDeploymentException("The specified queue '" + this.yarnQueue + "' does not exist. " +
-						"Available queues: " + queueNames);
+				if (!queueFound) {
+					String queueNames = "";
+					for (QueueInfo queue : queues) {
+						queueNames += queue.getQueueName() + ", ";
+					}
+					LOG.warn("The specified queue '" + this.yarnQueue + "' does not exist. " +
+							"Available queues: " + queueNames);
+				}
+			} else {
+				LOG.debug("The YARN cluster does not have any queues configured");
 			}
-		} else {
-			LOG.debug("The YARN cluster does not have any queues configured");
+		} catch(Throwable e) {
+			LOG.warn("Error while getting queue information from YARN: "+e.getMessage());
+			if(LOG.isDebugEnabled()) {
+				LOG.debug("Error details", e);
+			}
 		}
 
 		// ------------------ Check if the YARN Cluster has the requested resources --------------

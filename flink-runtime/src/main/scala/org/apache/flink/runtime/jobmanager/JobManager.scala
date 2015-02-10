@@ -23,13 +23,15 @@ import java.net.InetSocketAddress
 import akka.actor.Status.Failure
 import akka.actor._
 import akka.pattern.ask
-import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
+import org.apache.flink.configuration.{Configuration, ConfigConstants, GlobalConfiguration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.Acknowledge
+import org.apache.flink.runtime.security.SecurityUtils
+import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.runtime.{JobException, ActorLogMessages}
@@ -551,6 +553,20 @@ object JobManager {
     EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager")
     val (configuration, executionMode, listeningAddress) = parseArgs(args)
 
+      if(SecurityUtils.isSecurityEnabled) {
+        LOG.info("Security is enabled. Starting secure JobManager.")
+        SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
+          override def run(): Unit = {
+            start(configuration, executionMode, listeningAddress)
+          }
+        })
+      } else {
+        start(configuration, executionMode, listeningAddress)
+      }
+  }
+
+  def start(configuration: Configuration, executionMode: ExecutionMode,
+            listeningAddress : Option[(String, Int)]): Unit = {
     val jobManagerSystem = AkkaUtils.createActorSystem(configuration, listeningAddress)
 
     startActor(Props(new JobManager(configuration) with WithWebServer))(jobManagerSystem)
@@ -573,10 +589,10 @@ object JobManager {
   def parseArgs(args: Array[String]): (Configuration, ExecutionMode, Option[(String, Int)]) = {
     val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("jobmanager") {
       head("flink jobmanager")
-      opt[String]("configDir") action { (x, c) => c.copy(configDir = x) } text ("Specify " +
+      opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text ("Specify " +
         "configuration directory.")
-      opt[String]("executionMode") optional() action { (x, c) =>
-        if(x.equals("local")){
+      opt[String]("executionMode") optional() action { (arg, c) =>
+        if(arg.equals("local")){
           c.copy(executionMode = LOCAL)
         }else{
           c.copy(executionMode = CLUSTER)
