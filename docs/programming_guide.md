@@ -653,6 +653,19 @@ DataSet<Integer> result = in.partitionByHash(0)
       </td>
     </tr>
     <tr>
+      <td><strong>Sort Partition</strong></td>
+      <td>
+        <p>Locally sorts all partitions of a data set on a specified field in a specified order. 
+          Fields can be specified as tuple positions or field expressions. 
+          Sorting on multiple fields is done by chaining sortPartition() calls.</p>
+{% highlight java %}
+DataSet<Tuple2<String,Integer>> in = // [...]
+DataSet<Integer> result = in.sortPartition(1, Order.ASCENDING)
+                            .mapPartition(new PartitionMapper());
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
       <td><strong>First-n</strong></td>
       <td>
         <p>Returns the first n (arbitrary) elements of a data set. First-n can be applied on a regular data set, a grouped data set, or a grouped-sorted data set. Grouping keys can be specified as key-selector functions or field position keys.</p>
@@ -866,6 +879,19 @@ data.union(data2)
 {% highlight scala %}
 val in: DataSet[(Int, String)] = // [...]
 val result = in.partitionByHash(0).mapPartition { ... }
+{% endhighlight %}
+      </td>
+    </tr>
+    </tr>
+    <tr>
+      <td><strong>Sort Partition</strong></td>
+      <td>
+        <p>Locally sorts all partitions of a data set on a specified field in a specified order. 
+          Fields can be specified as tuple positions or field expressions. 
+          Sorting on multiple fields is done by chaining sortPartition() calls.</p>
+{% highlight scala %}
+val in: DataSet[(Int, String)] = // [...]
+val result = in.sortPartition(1, Order.ASCENDING).mapPartition { ... }
 {% endhighlight %}
       </td>
     </tr>

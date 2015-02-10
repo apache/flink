@@ -22,6 +22,7 @@ import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
+import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
@@ -30,7 +31,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
-import org.apache.flink.api.java.{DataSet => JavaDataSet}
+import org.apache.flink.api.java.{DataSet => JavaDataSet, SortPartitionOperator}
 import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileSystem, Path}
@@ -1132,6 +1133,26 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def rebalance(): DataSet[T] = {
     wrap(new PartitionOperator[T](javaSet, PartitionMethod.REBALANCE, getCallLocationName()))
+  }
+
+  // --------------------------------------------------------------------------------------------
+  //  Partition Sorting
+  // --------------------------------------------------------------------------------------------
+
+  /**
+   * Locally sorts the partitions of the DataSet on the specified field in the specified order.
+   * The DataSet can be sorted on multiple fields by chaining sortPartition() calls.
+   */
+  def sortPartition(field: Int, order: Order): DataSet[T] = {
+    wrap (new SortPartitionOperator[T](javaSet, field, order, getCallLocationName()))
+  }
+
+  /**
+   * Locally sorts the partitions of the DataSet on the specified field in the specified order.
+   * The DataSet can be sorted on multiple fields by chaining sortPartition() calls.
+   */
+  def sortPartition(field: String, order: Order): DataSet[T] = {
+    wrap (new SortPartitionOperator[T](javaSet, field, order, getCallLocationName()))
   }
 
   // --------------------------------------------------------------------------------------------

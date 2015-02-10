@@ -30,6 +30,7 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
@@ -1086,7 +1087,35 @@ public abstract class DataSet<T> {
 	public PartitionOperator<T> rebalance() {
 		return new PartitionOperator<T>(this, PartitionMethod.REBALANCE, Utils.getCallLocationName());
 	}
-		
+
+	// --------------------------------------------------------------------------------------------
+	//  Sorting
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Locally sorts the partitions of the DataSet on the specified field in the specified order.
+	 * DataSet can be sorted on multiple fields by chaining sortPartition() calls.
+	 *
+	 * @param field The field index on which the DataSet is sorted.
+	 * @param order The order in which the DataSet is sorted.
+	 * @return The DataSet with sorted local partitions.
+	 */
+	public SortPartitionOperator<T> sortPartition(int field, Order order) {
+		return new SortPartitionOperator<T>(this, field, order, Utils.getCallLocationName());
+	}
+
+	/**
+	 * Locally sorts the partitions of the DataSet on the specified field in the specified order.
+	 * DataSet can be sorted on multiple fields by chaining sortPartition() calls.
+	 *
+	 * @param field The field expression referring to the field on which the DataSet is sorted.
+	 * @param order The order in which the DataSet is sorted.
+	 * @return The DataSet with sorted local partitions.
+	 */
+	public SortPartitionOperator<T> sortPartition(String field, Order order) {
+		return new SortPartitionOperator<T>(this, field, order, Utils.getCallLocationName());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Top-K
 	// --------------------------------------------------------------------------------------------

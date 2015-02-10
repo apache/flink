@@ -301,8 +301,6 @@ public class CollectionDataSets {
 		public CustomType() {
 		}
 
-		;
-
 		public CustomType(int i, long l, String s) {
 			myInt = i;
 			myLong = l;
