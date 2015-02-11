@@ -115,6 +115,17 @@ under the License.
 			<outputDirectory>tools</outputDirectory>
 			<fileMode>0644</fileMode>
 		</fileSet>
+		<fileSet>
+			<directory>../flink-clients/src/main/resources/web-docs</directory>
+			<outputDirectory>tools</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>*.html</exclude>
+				<exclude>img/delete-icon.png</exclude>
+				<exclude>img/GradientBoxes.png</exclude>
+				<exclude>img/gradient.jpg</exclude>
+			</excludes>
+		</fileSet>
 
 		<fileSet>
 			<!-- copy jar files of java examples -->
