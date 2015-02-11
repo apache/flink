@@ -86,7 +86,7 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the current number of subtasks the respective task is split into
 	 */
-	public final int getCurrentNumberOfSubtasks() {
+	public int getCurrentNumberOfSubtasks() {
 		return this.environment.getNumberOfSubtasks();
 	}
 
@@ -95,7 +95,7 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the index of this subtask in the subtask group
 	 */
-	public final int getIndexInSubtaskGroup() {
+	public int getIndexInSubtaskGroup() {
 		return this.environment.getIndexInSubtaskGroup();
 	}
 
@@ -104,7 +104,7 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.AbstractJobVertex}
 	 */
-	public final Configuration getTaskConfiguration() {
+	public Configuration getTaskConfiguration() {
 		return this.environment.getTaskConfiguration();
 	}
 
@@ -113,7 +113,7 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the job configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobGraph}
 	 */
-	public final Configuration getJobConfiguration() {
+	public Configuration getJobConfiguration() {
 		return this.environment.getJobConfiguration();
 	}
 
