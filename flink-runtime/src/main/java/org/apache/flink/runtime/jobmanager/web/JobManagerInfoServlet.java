@@ -420,7 +420,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 		
 		try {
 			Iterable<ExecutionGraph> graphs = AkkaUtils.<RunningJobs>ask(jobmanager,
-					ArchiveMessages.getRequestArchivedJobs(), timeout).asJavaIterable();
+					JobManagerMessages.getRequestRunningJobs(), timeout).asJavaIterable();
 			
 			//Serialize job to json
 			wrt.write("{");
