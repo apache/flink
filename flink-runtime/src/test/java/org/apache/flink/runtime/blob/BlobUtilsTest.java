@@ -18,33 +18,18 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
+import static org.mockito.Mockito.mock;
+
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.File;
 
-import static org.mockito.Mockito.mock;
-
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(BlobKey.class)
 public class BlobUtilsTest {
 
 	@Test(expected = Exception.class)
 	public void testExceptionOnCreateStorageDirectoryFailure() {
-
-		// Configure a non existing directory
-		Configuration config = new Configuration();
-		config.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, "/cannot-create-this");
-
-		GlobalConfiguration.includeConfiguration(config);
-
 		// Should throw an Exception
-		BlobUtils.initStorageDirectory();
+		BlobUtils.initStorageDirectory("/cannot-create-this");
 	}
 
 	@Test(expected = Exception.class)

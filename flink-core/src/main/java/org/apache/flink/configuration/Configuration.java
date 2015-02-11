@@ -366,7 +366,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable, 
 		if (o == null) {
 			return defaultValue;
 		}
-		else if (o.getClass() == byte[].class) {
+		else if (o.getClass().equals(byte[].class)) {
 			return (byte[]) o;
 		}
 		else {

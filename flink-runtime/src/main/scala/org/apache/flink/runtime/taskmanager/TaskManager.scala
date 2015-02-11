@@ -582,7 +582,8 @@ import scala.collection.JavaConverters._
 
       log.info("Determined BLOB server address to be {}.", address)
 
-      libraryCacheManager = new BlobLibraryCacheManager(new BlobCache(address), cleanupInterval)
+      libraryCacheManager = new BlobLibraryCacheManager(
+                                     new BlobCache(address, configuration), cleanupInterval)
     } else {
       libraryCacheManager = new FallbackLibraryCacheManager
     }
@@ -871,7 +872,7 @@ object TaskManager {
 
     val taskManagerConfig = TaskManagerConfiguration(numberOfSlots, memorySize, pageSize,
       tmpDirs, cleanupInterval, memoryLoggingIntervalMs, profilingInterval, timeout,
-      maxRegistrationDuration)
+      maxRegistrationDuration, configuration)
 
     (connectionInfo, jobManagerURL, taskManagerConfig, networkConfig)
   }

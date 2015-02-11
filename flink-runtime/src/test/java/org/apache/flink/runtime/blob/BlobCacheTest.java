@@ -31,6 +31,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.configuration.Configuration;
 import org.junit.Test;
 
 /**
@@ -50,7 +51,7 @@ public class BlobCacheTest {
 		try {
 
 			// Start the BLOB server
-			blobServer = new BlobServer();
+			blobServer = new BlobServer(new Configuration());
 			final InetSocketAddress serverAddress = new InetSocketAddress(blobServer.getServerPort());
 
 			// Upload BLOBs
@@ -68,7 +69,7 @@ public class BlobCacheTest {
 				}
 			}
 
-			blobCache = new BlobCache(serverAddress);
+			blobCache = new BlobCache(serverAddress, new Configuration());
 
 			for(int i = 0; i < blobKeys.size(); i++){
 				blobCache.getURL(blobKeys.get(i));
@@ -109,19 +110,11 @@ public class BlobCacheTest {
 			fail(ioe.getMessage());
 		} finally {
 			if (blobServer != null) {
-				try {
-					blobServer.shutdown();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+				blobServer.shutdown();
 			}
 
 			if(blobCache != null){
-				try {
-					blobCache.shutdown();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+				blobCache.shutdown();
 			}
 		}
 	}

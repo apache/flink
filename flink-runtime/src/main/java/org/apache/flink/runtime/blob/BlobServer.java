@@ -30,6 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 import org.slf4j.Logger;
@@ -39,10 +41,8 @@ import org.slf4j.LoggerFactory;
  * This class implements the BLOB server. The BLOB server is responsible for listening for incoming requests and
  * spawning threads to handle these requests. Furthermore, it takes care of creating the directory structure to store
  * the BLOBs or temporarily cache them.
- * <p>
- * This class is thread-safe.
  */
-public final class BlobServer extends Thread implements BlobService{
+public final class BlobServer extends Thread implements BlobService {
 
 	/**
 	 * The log object used for debugging.
@@ -103,7 +103,15 @@ public final class BlobServer extends Thread implements BlobService{
 	 * @throws IOException
 	 *         thrown if the BLOB server cannot bind to a free network port
 	 */
-	public BlobServer() throws IOException {
+	public BlobServer(Configuration config) throws IOException {
+
+		String storageDirectory = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
+		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
+		LOG.info("Created BLOB server storage directory {}", storageDir);
+
+		// Add shutdown hook to delete storage directory
+		this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
+
 		try {
 			this.serverSocket = new ServerSocket(0);
 
@@ -113,12 +121,6 @@ public final class BlobServer extends Thread implements BlobService{
 				LOG.info(String.format("Started BLOB server on port %d",
 						this.serverSocket.getLocalPort()));
 			}
-
-			this.storageDir = BlobUtils.initStorageDirectory();
-
-			LOG.info("Created BLOB server storage directory " + storageDir);
-
-			shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 		}
 		catch (IOException e) {
 			throw new IOException("Could not create BlobServer with random port.", e);
@@ -132,7 +134,6 @@ public final class BlobServer extends Thread implements BlobService{
 	 * @return the network port the BLOB server is bound to
 	 */
 	public int getServerPort() {
-
 		return this.serverSocket.getLocalPort();
 	}
 
@@ -143,7 +144,7 @@ public final class BlobServer extends Thread implements BlobService{
 	 * @param key identifying the file
 	 * @return file handle to the file
 	 */
-	public File getStorageLocation(BlobKey key){
+	public File getStorageLocation(BlobKey key) {
 		return BlobUtils.getStorageLocation(storageDir, key);
 	}
 
@@ -154,7 +155,7 @@ public final class BlobServer extends Thread implements BlobService{
 	 * @param key to identify the file within the job context
 	 * @return file handle to the file
 	 */
-	public File getStorageLocation(JobID jobID, String key){
+	public File getStorageLocation(JobID jobID, String key) {
 		return BlobUtils.getStorageLocation(storageDir, jobID, key);
 	}
 
@@ -164,7 +165,7 @@ public final class BlobServer extends Thread implements BlobService{
 	 * @param jobID all files associated to this jobID will be deleted
 	 * @throws IOException
 	 */
-	public void deleteJobDirectory(JobID jobID) throws IOException{
+	public void deleteJobDirectory(JobID jobID) throws IOException {
 		BlobUtils.deleteJobDirectory(storageDir, jobID);
 	}
 
@@ -174,22 +175,21 @@ public final class BlobServer extends Thread implements BlobService{
 	 * @return a temporary file inside the BLOB server's incoming directory
 	 */
 	File getTemporaryFilename() {
-		return new File(BlobUtils.getIncomingDirectory(storageDir), String.format("temp-%08d",
-				tempFileCounter.getAndIncrement()));
+		return new File(BlobUtils.getIncomingDirectory(storageDir),
+				String.format("temp-%08d", tempFileCounter.getAndIncrement()));
 	}
 
 	@Override
 	public void run() {
-
 		try {
-
 			while (!this.shutdownRequested.get()) {
 				new BlobConnection(this.serverSocket.accept(), this).start();
 			}
-
-		} catch (IOException ioe) {
-			if (!this.shutdownRequested.get() && LOG.isErrorEnabled()) {
-				LOG.error("Blob server stopped working.", ioe);
+		}
+		catch (Throwable t) {
+			if (!this.shutdownRequested.get()) {
+				LOG.error("BLOB server stopped working. Shutting down", t);
+				shutdown();
 			}
 		}
 	}
@@ -198,7 +198,7 @@ public final class BlobServer extends Thread implements BlobService{
 	 * Shuts down the BLOB server.
 	 */
 	@Override
-	public void shutdown() throws IOException {
+	public void shutdown() {
 		if (shutdownRequested.compareAndSet(false, true)) {
 			try {
 				this.serverSocket.close();
@@ -214,12 +214,26 @@ public final class BlobServer extends Thread implements BlobService{
 			}
 
 			// Clean up the storage directory
-			FileUtils.deleteDirectory(storageDir);
+			try {
+				FileUtils.deleteDirectory(storageDir);
+			}
+			catch (IOException e) {
+				LOG.error("BLOB server failed to properly clean up its storage directory.");
+			}
 
-			// Remove shutdown hook to prevent resource leaks
-			Runtime.getRuntime().removeShutdownHook(shutdownHook);
-
-			// TODO: Find/implement strategy to handle content-addressable BLOBs
+			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
+			// shutdown hook itself
+			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
+				try {
+					Runtime.getRuntime().removeShutdownHook(shutdownHook);
+				}
+				catch (IllegalStateException e) {
+					// race, JVM is in shutdown already, we can safely ignore this
+				}
+				catch (Throwable t) {
+					LOG.warn("Exception while unregistering BLOB server's cleanup shutdown hook.");
+				}
+			}
 		}
 	}
 

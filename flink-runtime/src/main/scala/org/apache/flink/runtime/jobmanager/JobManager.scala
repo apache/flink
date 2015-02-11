@@ -113,7 +113,8 @@ Actor with ActorLogMessages with ActorLogging {
   val accumulatorManager = new AccumulatorManager(Math.min(1, archiveCount))
   val instanceManager = new InstanceManager()
   val scheduler = new FlinkScheduler()
-  val libraryCacheManager = new BlobLibraryCacheManager(new BlobServer(), cleanupInterval)
+  val libraryCacheManager = new BlobLibraryCacheManager(
+                                        new BlobServer(configuration), cleanupInterval)
 
   // List of current jobs running
   val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
