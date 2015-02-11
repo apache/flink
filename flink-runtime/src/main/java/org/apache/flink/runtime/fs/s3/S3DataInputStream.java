@@ -50,6 +50,7 @@ public class S3DataInputStream extends FSDataInputStream {
 	 */
 	private long marked;
 
+
 	/**
 	 * Constructs a new input stream which reads its data from the specified S3 object.
 	 *

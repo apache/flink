@@ -33,17 +33,17 @@ import org.apache.flink.core.fs.FSDataInputStream;
  */
 public class FSDataInputStreamWrapper implements Closeable, SeekableInput {
 	private final FSDataInputStream stream;
-	private final long len;
 	private long pos;
+	private long len;
 
 	public FSDataInputStreamWrapper(FSDataInputStream stream, long len) {
 		this.stream = stream;
-		this.len = len;
 		this.pos = 0;
+		this.len = len;
 	}
 
-	public long length() {
-		return len;
+	public long length() throws IOException {
+		return this.len;
 	}
 
 	public int read(byte[] b, int off, int len) throws IOException {
