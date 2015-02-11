@@ -159,6 +159,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	public JobManager(ExecutionMode executionMode) throws Exception {
 
+		final Configuration config = GlobalConfiguration.getConfiguration();
 		final String ipcAddressString = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 
 		InetAddress ipcAddress = null;
@@ -189,8 +190,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		// Load the job progress collector
 		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
 
-		this.libraryCacheManager = new BlobLibraryCacheManager(new BlobServer(),
-				GlobalConfiguration.getConfiguration());
+		this.libraryCacheManager = new BlobLibraryCacheManager(new BlobServer(config), config);
 		
 		// Register simple job archive
 		int archived_items = GlobalConfiguration.getInteger(

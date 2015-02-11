@@ -69,7 +69,6 @@ final class BlobInputStream extends InputStream {
 	 *         throws if an I/O error occurs while reading the BLOB data from the BLOB server
 	 */
 	BlobInputStream(final InputStream wrappedInputStream, final BlobKey blobKey, final byte[] buf) throws IOException {
-
 		this.wrappedInputStream = wrappedInputStream;
 		this.blobKey = blobKey;
 		this.bytesToReceive = BlobServer.readLength(buf, wrappedInputStream);
@@ -93,7 +92,6 @@ final class BlobInputStream extends InputStream {
 
 	@Override
 	public int read() throws IOException {
-
 		if (this.bytesReceived == this.bytesToReceive) {
 			return -1;
 		}
@@ -125,7 +123,6 @@ final class BlobInputStream extends InputStream {
 
 	@Override
 	public int read(byte[] b, int off, int len) throws IOException {
-
 		final int bytesMissing = this.bytesToReceive - this.bytesReceived;
 
 		if (bytesMissing == 0) {
@@ -155,13 +152,11 @@ final class BlobInputStream extends InputStream {
 
 	@Override
 	public long skip(long n) throws IOException {
-
 		return 0L;
 	}
 
 	@Override
 	public int available() throws IOException {
-
 		return 0;
 	}
 
@@ -171,19 +166,16 @@ final class BlobInputStream extends InputStream {
 	}
 
 	public void mark(final int readlimit) {
-
 		// Do not do anything here
 	}
 
 	@Override
 	public void reset() throws IOException {
-
 		throw new IOException("mark/reset not supported");
 	}
 
 	@Override
 	public boolean markSupported() {
-
 		return false;
 	}
 }

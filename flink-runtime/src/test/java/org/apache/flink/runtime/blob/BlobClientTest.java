@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.util.StringUtils;
 import org.junit.AfterClass;
@@ -57,9 +58,8 @@ public class BlobClientTest {
 	 */
 	@BeforeClass
 	public static void startServer() {
-
 		try {
-			BLOB_SERVER = new BlobServer();
+			BLOB_SERVER = new BlobServer(new Configuration());
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 		}
@@ -71,13 +71,8 @@ public class BlobClientTest {
 	 */
 	@AfterClass
 	public static void stopServer() {
-
 		if (BLOB_SERVER != null) {
-			try {
-				BLOB_SERVER.shutdown();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			BLOB_SERVER.shutdown();
 		}
 	}
 

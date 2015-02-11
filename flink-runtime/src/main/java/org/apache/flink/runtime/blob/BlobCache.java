@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,8 +37,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The BLOB cache implements a local cache for content-addressable BLOBs. When requesting BLOBs through the
  * {@link BlobCache#getURL} methods, the BLOB cache will first attempt serve the file from its local cache. Only if the
  * local cache does not contain the desired BLOB, the BLOB cache will try to download it from the BLOB server.
- * <p>
- * This class is thread-safe.
  */
 public final class BlobCache implements BlobService {
 
@@ -49,16 +49,21 @@ public final class BlobCache implements BlobService {
 
 	private final File storageDir;
 
-	private AtomicBoolean shutdownRequested = new AtomicBoolean();
+	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
 	/** Shutdown hook thread to ensure deletion of the storage directory. */
 	private final Thread shutdownHook;
 
-	public BlobCache(InetSocketAddress serverAddress) {
+
+	public BlobCache(InetSocketAddress serverAddress, Configuration configuration) {
+		if (serverAddress == null || configuration == null) {
+			throw new NullPointerException();
+		}
+
 		this.serverAddress = serverAddress;
 
-		this.storageDir = BlobUtils.initStorageDirectory();
-
+		String storageDirectory = configuration.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
+		this.storageDir = BlobUtils.initStorageDirectory(storageDirectory);
 		LOG.info("Created BLOB cache storage directory " + storageDir);
 
 		// Add shutdown hook to delete storage directory
@@ -77,7 +82,6 @@ public final class BlobCache implements BlobService {
 	 *         thrown if an I/O error occurs while downloading the BLOBs from the BLOB server
 	 */
 	public URL getURL(final BlobKey requiredBlob) throws IOException {
-
 		if (requiredBlob == null) {
 			throw new IllegalArgumentException("Required BLOB cannot be null.");
 		}
@@ -95,16 +99,8 @@ public final class BlobCache implements BlobService {
 					LOG.debug("Trying to download " + requiredBlob + " from " + serverAddress);
 				}
 
-				if (bc == null) {
-
-					if (serverAddress == null) {
-						throw new IllegalArgumentException(
-							"Argument serverAddress is null: Cannot download libraries from BLOB server");
-					}
-
-					bc = new BlobClient(serverAddress);
-					buf = new byte[BlobServer.BUFFER_SIZE];
-				}
+				bc = new BlobClient(serverAddress);
+				buf = new byte[BlobServer.BUFFER_SIZE];
 
 				InputStream is = null;
 				OutputStream os = null;
@@ -160,11 +156,28 @@ public final class BlobCache implements BlobService {
 	}
 
 	@Override
-	public void shutdown() throws IOException {
+	public void shutdown() {
 		if (shutdownRequested.compareAndSet(false, true)) {
-			FileUtils.deleteDirectory(storageDir);
+			// Clean up the storage directory
+			try {
+				FileUtils.deleteDirectory(storageDir);
+			}
+			catch (IOException e) {
+				LOG.error("BLOB cache failed to properly clean up its storage directory.");
+			}
 
-			Runtime.getRuntime().removeShutdownHook(shutdownHook);
+			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the shutdown hook itself
+			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
+				try {
+					Runtime.getRuntime().removeShutdownHook(shutdownHook);
+				}
+				catch (IllegalStateException e) {
+					// race, JVM is in shutdown already, we can safely ignore this
+				}
+				catch (Throwable t) {
+					LOG.warn("Exception while unregistering BLOB cache's cleanup shutdown hook.");
+				}
+			}
 		}
 	}
 }

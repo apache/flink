@@ -20,8 +20,6 @@ package org.apache.flink.runtime.blob;
 
 import com.google.common.io.BaseEncoding;
 import org.apache.commons.io.FileUtils;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.slf4j.Logger;
 
@@ -61,15 +59,10 @@ public class BlobUtils {
 	 *
 	 * @return the storage directory used by a BLOB service
 	 */
-	static File initStorageDirectory() {
-		File baseDir;
-		String sd = GlobalConfiguration.getString(
-				ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
-		if (sd != null) {
-			baseDir = new File(sd);
-		} else {
-			baseDir = new File(System.getProperty("java.io.tmpdir"));
-		}
+	static File initStorageDirectory(String storageDirectory) {
+		File baseDir = storageDirectory != null ?
+				new File(storageDirectory) :
+				new File(System.getProperty("java.io.tmpdir"));
 
 		File storageDir;
 		final int MAX_ATTEMPTS = 10;
@@ -87,7 +80,7 @@ public class BlobUtils {
 		}
 
 		// max attempts exceeded to find a storage directory
-		throw new RuntimeException("Could not create storage directory in '" + baseDir + "'.");
+		throw new RuntimeException("Could not create storage directory for BLOB store in '" + baseDir + "'.");
 	}
 
 	/**
@@ -139,9 +132,7 @@ public class BlobUtils {
 	 *        the key of the BLOB
 	 * @return the (designated) physical storage location of the BLOB with the given job ID and key
 	 */
-	static File getStorageLocation(final File storageDir, final JobID jobID,
-									final String key) {
-
+	static File getStorageLocation(final File storageDir, final JobID jobID, final String key) {
 		return new File(getJobDirectory(storageDir, jobID), BLOB_FILE_PREFIX + encodeKey(key));
 	}
 
@@ -192,7 +183,7 @@ public class BlobUtils {
 		try {
 			return MessageDigest.getInstance(HASHING_ALGORITHM);
 		} catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
+			throw new RuntimeException("Cannot instantiate the message digest algorithm " + HASHING_ALGORITHM, e);
 		}
 	}
 
@@ -215,9 +206,18 @@ public class BlobUtils {
 			}
 		});
 
-		// Add JVM shutdown hook to call shutdown of service
-		Runtime.getRuntime().addShutdownHook(shutdownHook);
-
-		return shutdownHook;
+		try {
+			// Add JVM shutdown hook to call shutdown of service
+			Runtime.getRuntime().addShutdownHook(shutdownHook);
+			return shutdownHook;
+		}
+		catch (IllegalStateException e) {
+			// JVM is already shutting down. no need to do our work
+			return null;
+		}
+		catch (Throwable t) {
+			logger.error("Cannot register shutdown hook that cleanly terminates the BLOB service.");
+			return null;
+		}
 	}
 }

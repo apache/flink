@@ -354,8 +354,9 @@ public class TaskManager implements TaskOperationProtocol {
 					jobManagerAddress.getAddress(), blobPort);
 				LOG.info("Determined BLOB server address to be " + blobServerAddress);
 
-				this.libraryCacheManager = new BlobLibraryCacheManager(new BlobCache
-						(blobServerAddress), GlobalConfiguration.getConfiguration());
+				Configuration config = GlobalConfiguration.getConfiguration();
+				
+				this.libraryCacheManager = new BlobLibraryCacheManager(new BlobCache(blobServerAddress, config), config);
 			}
 		}
 		this.ioManager = new IOManagerAsync(tmpDirPaths);
