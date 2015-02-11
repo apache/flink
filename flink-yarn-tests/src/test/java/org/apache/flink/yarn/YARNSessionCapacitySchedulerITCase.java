@@ -25,6 +25,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.flink.yarn.YARNSessionFIFOITCase.addTestAppender;
+import static org.apache.flink.yarn.YARNSessionFIFOITCase.checkForLogString;
+
 
 /**
  * This test starts a MiniYARNCluster with a CapacityScheduler.
@@ -61,10 +64,12 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testNonexistingQueue() {
+		addTestAppender();
 		runWithArgs(new String[] {"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "1",
 				"-jm", "512",
 				"-tm", "1024",
-				"-qu", "doesntExist"}, "Error while deploying YARN cluster: The specified queue 'doesntExist' does not exist. Available queues: default, qa-team, ", RunTypes.YARN_SESSION);
+				"-qu", "doesntExist"}, "to unknown queue: doesntExist", RunTypes.YARN_SESSION);
+		checkForLogString("The specified queue 'doesntExist' does not exist. Available queues: default, qa-team");
 	}
 }
