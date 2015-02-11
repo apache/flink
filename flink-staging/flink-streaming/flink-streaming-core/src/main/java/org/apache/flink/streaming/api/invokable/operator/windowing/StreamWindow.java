@@ -27,8 +27,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.util.Collector;
 
-import com.google.common.collect.Lists;
-
 public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 
 	private static final long serialVersionUID = -5150196421193988403L;
@@ -90,15 +88,29 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 	}
 
 	public List<StreamWindow<T>> split(int n) {
-		List<List<T>> subLists = Lists.partition(this, (int) Math.ceil((double) size() / n));
-		List<StreamWindow<T>> split = new ArrayList<StreamWindow<T>>(n);
-		for (List<T> partition : subLists) {
-			StreamWindow<T> subWindow = new StreamWindow<T>(windowID, transformationID,
-					subLists.size());
-			subWindow.addAll(partition);
-			split.add(subWindow);
+		int numElements = size();
+		if (n > numElements) {
+			return split(numElements);
+		} else {
+			List<StreamWindow<T>> split = new ArrayList<StreamWindow<T>>();
+			int splitSize = numElements / n;
+
+			int index = -1;
+
+			StreamWindow<T> currentSubWindow = new StreamWindow<T>(windowID, transformationID, n);
+			split.add(currentSubWindow);
+
+			for (T element : this) {
+				index++;
+				if (index == splitSize && split.size() < n) {
+					currentSubWindow = new StreamWindow<T>(windowID, transformationID, n);
+					split.add(currentSubWindow);
+					index = 0;
+				}
+				currentSubWindow.add(element);
+			}
+			return split;
 		}
-		return split;
 	}
 
 	public StreamWindow<T> setNumberOfParts(int n) {
