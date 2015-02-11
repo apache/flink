@@ -44,20 +44,19 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(AvroInputFormat.class);
-	
-	
+
 	private final Class<E> avroValueType;
 	
 	private boolean reuseAvroValue = true;
-	
 
 	private transient FileReader<E> dataFileReader;
+
+	private transient long end;
 
 	
 	public AvroInputFormat(Path filePath, Class<E> type) {
 		super(filePath);
 		this.avroValueType = type;
-		this.unsplittable = true;
 	}
 	
 	
@@ -101,16 +100,17 @@ public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultType
 		
 		dataFileReader = DataFileReader.openReader(in, datumReader);
 		dataFileReader.sync(split.getStart());
+		this.end = split.getStart() + split.getLength();
 	}
 
 	@Override
 	public boolean reachedEnd() throws IOException {
-		return !dataFileReader.hasNext();
+		return !dataFileReader.hasNext() || dataFileReader.pastSync(end);
 	}
 
 	@Override
 	public E nextRecord(E reuseValue) throws IOException {
-		if (!dataFileReader.hasNext()) {
+		if (!dataFileReader.hasNext() || dataFileReader.pastSync(end)) {
 			return null;
 		}
 		
