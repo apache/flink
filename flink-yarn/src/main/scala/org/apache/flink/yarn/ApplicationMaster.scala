@@ -167,8 +167,8 @@ object ApplicationMaster {
   }
 
   def startJobManager(currDir: String, hostname: String, dynamicPropertiesEncodedString: String,
-                       jobManagerWebPort: Int, logDirs: String):
-    (ActorSystem, ActorRef) = {
+                       jobManagerWebPort: Int, logDirs: String): (ActorSystem, ActorRef) = {
+
     LOG.info("Start job manager for yarn")
     val args = Array[String]("--configDir", currDir)
 
@@ -185,10 +185,28 @@ object ApplicationMaster {
     configuration.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
 
     // set port to 0 to let Akka automatically determine the port.
-   implicit val jobManagerSystem = AkkaUtils.createActorSystem(configuration, Some((hostname, 0)))
+    val jobManagerSystem = AkkaUtils.createActorSystem(configuration, Some((hostname, 0)))
 
-    LOG.info("Start job manager actor.")
-    (jobManagerSystem, JobManager.startActor(Props(new JobManager(configuration) with
-      WithWebServer with YarnJobManager)))
+    LOG.info("Start job manager actor");
+
+    // start all the components inside the job manager
+    val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
+                   profilerProps, executionRetries, delayBetweenRetries,
+                   timeout, _) = JobManager.createJobManagerComponents(configuration)
+
+    // start the profiler, if needed
+    val profiler: Option[ActorRef] =
+      profilerProps.map( props => jobManagerSystem.actorOf(props, JobManager.PROFILER_NAME) )
+
+    // start the archiver
+    val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
+
+    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
+      libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
+      delayBetweenRetries, timeout) with WithWebServer with YarnJobManager)
+
+    val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)
+
+    (jobManagerSystem, jobManager)
   }
 }

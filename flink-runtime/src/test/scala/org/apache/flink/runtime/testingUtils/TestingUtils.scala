@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.actor.{Props, ActorRef, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ActionQueue
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import scala.concurrent.duration._
 
@@ -67,7 +67,18 @@ object TestingUtils {
   def startTestingJobManager(implicit system: ActorSystem): ActorRef = {
     val config = new Configuration()
 
-    system.actorOf(Props(new JobManager(config) with TestingJobManager))
+    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _ ,
+        executionRetries, delayBetweenRetries,
+        timeout, archiveCount) = JobManager.createJobManagerComponents(config)
+
+    val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
+    val archive = system.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
+
+    val jobManagerProps = Props(new JobManager(config, instanceManager, scheduler,
+      libraryCacheManager, archive, accumulatorManager, None, executionRetries,
+      delayBetweenRetries, timeout) with TestingJobManager)
+
+    system.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
   }
 
   def startTestingTaskManager(jobManager: ActorRef)(implicit system: ActorSystem): ActorRef = {
