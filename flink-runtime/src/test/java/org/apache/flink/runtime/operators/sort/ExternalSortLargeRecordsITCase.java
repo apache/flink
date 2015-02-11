@@ -52,7 +52,7 @@ import static org.junit.Assert.fail;
 
 public class ExternalSortLargeRecordsITCase {
 
-	private static final int MEMORY_SIZE = 1024 * 1024 * 78;	
+	private static final int MEMORY_SIZE = 1024 * 1024 * 78;
 	
 	private final AbstractInvokable parentTask = new DummyInvokable();
 
@@ -60,7 +60,7 @@ public class ExternalSortLargeRecordsITCase {
 
 	private MemoryManager memoryManager;
 	
-	private boolean errored;
+	private boolean testSuccess;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -77,9 +77,9 @@ public class ExternalSortLargeRecordsITCase {
 			Assert.fail("I/O Manager was not properly shut down.");
 		}
 		
-		if (this.memoryManager != null) {
+		if (this.memoryManager != null && testSuccess) {
 			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.", 
-				errored || this.memoryManager.verifyEmpty());
+				this.memoryManager.verifyEmpty());
 			this.memoryManager.shutdown();
 			this.memoryManager = null;
 		}
@@ -104,7 +104,7 @@ public class ExternalSortLargeRecordsITCase {
 
 			MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>> source =
 					new MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>>() {
-						private final Random rnd = new Random();
+						private final Random rnd = new Random(457821643089756298L);
 						private int num = 0;
 
 						@Override
@@ -148,9 +148,9 @@ public class ExternalSortLargeRecordsITCase {
 			assertNull(iterator.next(val));
 			
 			sorter.close();
+			testSuccess = true;
 		}
 		catch (Exception e) {
-			errored = true;
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -174,7 +174,7 @@ public class ExternalSortLargeRecordsITCase {
 
 			MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>> source =
 					new MutableObjectIterator<Tuple2<Long, SomeMaybeLongValue>>() {
-						private final Random rnd = new Random();
+						private final Random rnd = new Random(145610843608763871L);
 						private int num = -1;
 
 						@Override
@@ -211,16 +211,16 @@ public class ExternalSortLargeRecordsITCase {
 			for (int i = 0; i < NUM_RECORDS; i++) {
 				val = iterator.next(val);
 				
-				assertTrue(val.f0 <= prevKey);
-				assertTrue(val.f0.intValue() == val.f1.val());
+				assertTrue("Sort order violated", val.f0 <= prevKey);
+				assertEquals("Serialization of test data type incorrect", val.f0.intValue(), val.f1.val());
 			}
 			
 			assertNull(iterator.next(val));
 			
 			sorter.close();
+			testSuccess = true;
 		}
 		catch (Exception e) {
-			errored = true;
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -246,7 +246,7 @@ public class ExternalSortLargeRecordsITCase {
 
 			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> source =
 					new MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>>() {
-						private final Random rnd = new Random();
+						private final Random rnd = new Random(1456108743687167086L);
 						private int num = -1;
 
 						@Override
@@ -303,9 +303,9 @@ public class ExternalSortLargeRecordsITCase {
 			assertNull(iterator.next(val));
 			
 			sorter.close();
+			testSuccess = true;
 		}
 		catch (Exception e) {
-			errored = true;
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -329,7 +329,7 @@ public class ExternalSortLargeRecordsITCase {
 
 			MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>> source =
 					new MutableObjectIterator<Tuple2<Long, SmallOrMediumOrLargeValue>>() {
-						private final Random rnd = new Random();
+						private final Random rnd = new Random(62360187263087678L);
 						private int num = -1;
 
 						@Override
@@ -374,9 +374,9 @@ public class ExternalSortLargeRecordsITCase {
 			assertNull(iterator.next(val));
 			
 			sorter.close();
+			testSuccess = true;
 		}
 		catch (Exception e) {
-			errored = true;
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -444,7 +444,7 @@ public class ExternalSortLargeRecordsITCase {
 				out.write(BUFFER);
 			}
 		}
-		
+
 		@Override
 		public int hashCode() {
 			return val;
@@ -464,10 +464,6 @@ public class ExternalSortLargeRecordsITCase {
 	public static final class SmallOrMediumOrLargeValue implements org.apache.flink.types.Value {
 		
 		private static final long serialVersionUID = 1L;
-		
-		public static final int TYPE_SMALL = 0;
-		public static final int TYPE_MEDIUM = 1;
-		public static final int TYPE_LARGE = 2;
 		
 		public static final int SMALL_SIZE = 0;
 		public static final int MEDIUM_SIZE = 12 * 1024 * 1024;

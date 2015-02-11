@@ -75,7 +75,7 @@ public class ExternalSortITCase {
 	
 	private TypeComparator<Record> pactRecordComparator;
 	
-	private boolean failed;
+	private boolean testSuccess;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -96,9 +96,9 @@ public class ExternalSortITCase {
 			Assert.fail("I/O Manager was not properly shut down.");
 		}
 		
-		if (this.memoryManager != null) {
-			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.", 
-				failed || this.memoryManager.verifyEmpty());
+		if (this.memoryManager != null && testSuccess) {
+			Assert.assertTrue("Memory leak: not all segments have been returned to the memory manager.",
+					this.memoryManager.verifyEmpty());
 			this.memoryManager.shutdown();
 			this.memoryManager = null;
 		}
@@ -151,9 +151,9 @@ public class ExternalSortITCase {
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 			
 			merger.close();
+			testSuccess = true;
 		}
 		catch (Exception e) {
-			failed = true;
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
@@ -204,9 +204,9 @@ public class ExternalSortITCase {
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 			
 			merger.close();
+			testSuccess = true;
 		}
 		catch (Exception e) {
-			failed = true;
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
@@ -257,9 +257,9 @@ public class ExternalSortITCase {
 			Assert.assertTrue(NUM_PAIRS == pairsEmitted);
 			
 			merger.close();
+			testSuccess = true;
 		}
 		catch (Exception e) {
-			failed = true;
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
@@ -318,9 +318,9 @@ public class ExternalSortITCase {
 			}
 			Assert.assertEquals("Not all pairs were read back in.", PAIRS, pairsRead);
 			merger.close();
+			testSuccess = true;
 		}
 		catch (Exception e) {
-			failed = true;
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
@@ -377,9 +377,9 @@ public class ExternalSortITCase {
 			}
 			Assert.assertEquals("Not all pairs were read back in.", PAIRS, pairsRead);
 			merger.close();
+			testSuccess = true;
 		}
 		catch (Exception e) {
-			failed = true;
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
