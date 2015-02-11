@@ -125,6 +125,36 @@ public class StreamWindowTest {
 
 	@Test
 	public void partitionTest() {
+		StreamWindow<Integer> streamWindow = new StreamWindow<Integer>();
+		streamWindow.add(1);
+		streamWindow.add(2);
+		streamWindow.add(3);
+		streamWindow.add(4);
+		streamWindow.add(5);
+		streamWindow.add(6);
+
+		List<StreamWindow<Integer>> split = streamWindow.split(2);
+		assertEquals(2, split.size());
+		assertEquals(StreamWindow.fromElements(1, 2, 3), split.get(0));
+		assertEquals(StreamWindow.fromElements(4, 5, 6), split.get(1));
+
+		List<StreamWindow<Integer>> split2 = streamWindow.split(6);
+		assertEquals(6, split2.size());
+		assertEquals(StreamWindow.fromElements(1), split2.get(0));
+		assertEquals(StreamWindow.fromElements(2), split2.get(1));
+		assertEquals(StreamWindow.fromElements(3), split2.get(2));
+		assertEquals(StreamWindow.fromElements(4), split2.get(3));
+		assertEquals(StreamWindow.fromElements(5), split2.get(4));
+		assertEquals(StreamWindow.fromElements(6), split2.get(5));
+
+		List<StreamWindow<Integer>> split3 = streamWindow.split(10);
+		assertEquals(6, split3.size());
+		assertEquals(StreamWindow.fromElements(1), split3.get(0));
+		assertEquals(StreamWindow.fromElements(2), split3.get(1));
+		assertEquals(StreamWindow.fromElements(3), split3.get(2));
+		assertEquals(StreamWindow.fromElements(4), split3.get(3));
+		assertEquals(StreamWindow.fromElements(5), split3.get(4));
+		assertEquals(StreamWindow.fromElements(6), split3.get(5));
 
 	}
 
