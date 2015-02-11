@@ -48,7 +48,7 @@ object TestingUtils {
       |akka.test.timefactor = 10
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
       |akka.loglevel = $logLevel
-      |akka.stdout-loglevel = $logLevel
+      |akka.stdout-loglevel = WARNING
       |akka.jvm-exit-on-fata-error = off
       |akka.log-config-on-start = off
     """.stripMargin
