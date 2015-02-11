@@ -566,7 +566,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		return length;
 	}
 
-	private boolean testForUnsplittable(FileStatus pathFile) {
+	protected boolean testForUnsplittable(FileStatus pathFile) {
 		if(pathFile.getPath().getName().endsWith(DEFLATE_SUFFIX)) {
 			unsplittable = true;
 			return true;
