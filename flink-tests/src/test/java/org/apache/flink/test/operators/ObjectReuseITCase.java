@@ -43,11 +43,17 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class ObjectReuseITCase extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 3;
+	private static int NUM_PROGRAMS = 4;
 
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
 	private String expectedResult;
+
+	private static String inReducePath;
+	private static String inGroupReducePath;
+
+	private String IN_REDUCE = "a,1\na,2\na,3\na,4\na,50\n";
+	private String IN_GROUP_REDUCE = "a,1\na,2\na,3\na,4\na,5\n";
 
 	public ObjectReuseITCase(Configuration config) {
 		super(config);
@@ -55,6 +61,8 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 	
 	@Override
 	protected void preSubmit() throws Exception {
+		inReducePath = createTempFile("in_reduce.txt", IN_REDUCE);
+		inGroupReducePath = createTempFile("in_group_reduce.txt", IN_GROUP_REDUCE);
 		resultPath = getTempDirPath("result");
 	}
 
@@ -100,13 +108,7 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				env.getConfig().enableObjectReuse();
 
-				DataSet<Tuple2<String, Integer>> input = env.fromElements(
-						new Tuple2<String, Integer>("a", 1),
-						new Tuple2<String, Integer>("a", 2),
-						new Tuple2<String, Integer>("a", 3),
-						new Tuple2<String, Integer>("a", 4),
-						new Tuple2<String, Integer>("a", 50));
-
+				DataSet<Tuple2<String, Integer>> input = env.readCsvFile(inReducePath).types(String.class, Integer.class).setParallelism(1);
 				DataSet<Tuple2<String, Integer>> result = input.groupBy(0).reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 
 					@Override
@@ -131,24 +133,20 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				env.getConfig().enableObjectReuse();
 
-				DataSet<Tuple2<String, Integer>> input = env.fromElements(
-						new Tuple2<String, Integer>("a", 1),
-						new Tuple2<String, Integer>("a", 2),
-						new Tuple2<String, Integer>("a", 3),
-						new Tuple2<String, Integer>("a", 4),
-						new Tuple2<String, Integer>("a", 50));
+				DataSet<Tuple2<String, Integer>> input = env.readCsvFile(inReducePath).types(String.class, Integer.class).setParallelism(1);
 
-				DataSet<Tuple2<String, Integer>> result = input.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
+				DataSet<Tuple2<String, Integer>> result = input
+						.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
 
-					@Override
-					public Tuple2<String, Integer> reduce(
-							Tuple2<String, Integer> value1,
-							Tuple2<String, Integer> value2) throws Exception {
-						value2.f1 += value1.f1;
-						return value2;
-					}
+							@Override
+							public Tuple2<String, Integer> reduce(
+									Tuple2<String, Integer> value1,
+									Tuple2<String, Integer> value2) throws Exception {
+								value2.f1 += value1.f1;
+								return value2;
+							}
 
-				});
+						});
 
 				result.writeAsCsv(resultPath);
 				env.execute();
@@ -163,12 +161,7 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				env.getConfig().enableObjectReuse();
 
-				DataSet<Tuple2<String, Integer>> input = env.fromElements(
-						new Tuple2<String, Integer>("a", 1),
-						new Tuple2<String, Integer>("a", 2),
-						new Tuple2<String, Integer>("a", 3),
-						new Tuple2<String, Integer>("a", 4),
-						new Tuple2<String, Integer>("a", 5));
+				DataSet<Tuple2<String, Integer>> input = env.readCsvFile(inGroupReducePath).types(String.class, Integer.class).setParallelism(1);
 
 				DataSet<Tuple2<String, Integer>> result = input.reduceGroup(new GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>() {
 
@@ -203,12 +196,7 @@ public class ObjectReuseITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				env.getConfig().enableObjectReuse();
 
-				DataSet<Tuple2<String, Integer>> input = env.fromElements(
-						new Tuple2<String, Integer>("a", 1),
-						new Tuple2<String, Integer>("a", 2),
-						new Tuple2<String, Integer>("a", 3),
-						new Tuple2<String, Integer>("a", 4),
-						new Tuple2<String, Integer>("a", 5));
+				DataSet<Tuple2<String, Integer>> input = env.readCsvFile(inGroupReducePath).types(String.class, Integer.class).setParallelism(1);
 
 				DataSet<Tuple2<String, Integer>> result = input.reduceGroup(new GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>() {
 
