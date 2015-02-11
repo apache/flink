@@ -24,7 +24,7 @@ import java.util.Iterator;
 
 public abstract class SplittableIterator<T> implements Iterator<T>, Serializable {
 
-	abstract Iterator<T>[] split(int numPartitions);
+	public abstract Iterator<T>[] split(int numPartitions);
 
 	public Iterator<T> getSplit(int num, int numPartitions) {
 		if (numPartitions < 1 || num < 0 || num >= numPartitions) {
@@ -34,5 +34,5 @@ public abstract class SplittableIterator<T> implements Iterator<T>, Serializable
 		return split(numPartitions)[num];
 	}
 
-	abstract int getMaximumNumberOfSplits();
+	public abstract int getMaximumNumberOfSplits();
 }
