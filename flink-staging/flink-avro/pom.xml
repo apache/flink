@@ -47,7 +47,7 @@ under the License.
 			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>

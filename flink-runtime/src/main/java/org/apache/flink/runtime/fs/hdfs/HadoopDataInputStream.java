@@ -42,6 +42,7 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 		this.fsDataInputStream = fsDataInputStream;
 	}
 
+
 	@Override
 	public synchronized void seek(long desired) throws IOException {
 
@@ -50,25 +51,21 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 
 	@Override
 	public long getPos() throws IOException {
-
 		return fsDataInputStream.getPos();
 	}
 
 	@Override
 	public int read() throws IOException {
-
 		return fsDataInputStream.read();
 	}
 
 	@Override
 	public void close() throws IOException {
-
 		fsDataInputStream.close();
 	}
 
 	@Override
 	public int read(byte[] buffer, int offset, int length) throws IOException {
-
 		return fsDataInputStream.read(buffer, offset, length);
 	}
 
