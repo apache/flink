@@ -29,8 +29,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamTaskContext;
+import org.apache.flink.streaming.io.IndexedReaderIterator;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +51,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	protected ExecutionConfig executionConfig = null;
 
-	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
+	protected IndexedReaderIterator<StreamRecord<IN>> recordIterator;
 	protected StreamRecordSerializer<IN> inSerializer;
 	protected TypeSerializer<IN> objectSerializer;
 	protected StreamRecord<IN> nextRecord;
@@ -70,14 +70,14 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	/**
 	 * Initializes the {@link StreamInvokable} for input and output handling
-	 *
+	 * 
 	 * @param taskContext
 	 *            StreamTaskContext representing the vertex
 	 * @param executionConfig
 	 */
 	public void setup(StreamTaskContext<OUT> taskContext, ExecutionConfig executionConfig) {
 		this.collector = taskContext.getOutputCollector();
-		this.recordIterator = taskContext.getInput(0);
+		this.recordIterator = taskContext.getIndexedInput(0);
 		this.inSerializer = taskContext.getInputSerializer(0);
 		if (this.inSerializer != null) {
 			this.nextRecord = inSerializer.createInstance();

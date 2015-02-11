@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
+import org.apache.flink.streaming.io.IndexedReaderIterator;
 import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
@@ -111,7 +112,8 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	public StreamingRuntimeContext createRuntimeContext(String taskName,
 			Map<String, OperatorState<?>> states) {
 		Environment env = getEnvironment();
-		return new StreamingRuntimeContext(taskName, env, getUserCodeClassLoader(), getExecutionConfig(), states);
+		return new StreamingRuntimeContext(taskName, env, getUserCodeClassLoader(),
+				getExecutionConfig(), states);
 	}
 
 	@Override
@@ -136,6 +138,16 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	@SuppressWarnings("unchecked")
 	@Override
+	public <X> IndexedReaderIterator<X> getIndexedInput(int index) {
+		if (index == 0) {
+			return (IndexedReaderIterator<X>) inputHandler.getInputIter();
+		} else {
+			throw new IllegalArgumentException("There is only 1 input");
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
 	public <X> StreamRecordSerializer<X> getInputSerializer(int index) {
 		if (index == 0) {
 			return (StreamRecordSerializer<X>) inputHandler.getInputSerializer();
@@ -153,4 +165,5 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	public <X, Y> CoReaderIterator<X, Y> getCoReader() {
 		throw new IllegalArgumentException("CoReader not available");
 	}
+
 }

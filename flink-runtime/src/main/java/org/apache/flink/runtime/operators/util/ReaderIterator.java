@@ -34,7 +34,7 @@ import org.apache.flink.util.MutableObjectIterator;
  * The reader supports reading objects with possible reuse of mutable types, and
  * without reuse of mutable types.
  */
-public final class ReaderIterator<T> implements MutableObjectIterator<T> {
+public class ReaderIterator<T> implements MutableObjectIterator<T> {
 	
 	private final MutableReader<DeserializationDelegate<T>> reader;   // the source
 	

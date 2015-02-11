@@ -18,21 +18,19 @@
 package org.apache.flink.streaming.api.streamvertex;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
-import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
-import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
-import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.streaming.io.IndexedMutableReader;
+import org.apache.flink.streaming.io.IndexedReaderIterator;
 
 public class InputHandler<IN> {
 	private StreamRecordSerializer<IN> inputSerializer = null;
-	private MutableObjectIterator<StreamRecord<IN>> inputIter;
-	private MutableReader<IOReadableWritable> inputs;
+	private IndexedReaderIterator<StreamRecord<IN>> inputIter;
+	private IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>> inputs;
 
 	private StreamVertex<IN, ?> streamVertex;
 	private StreamConfig configuration;
@@ -57,32 +55,33 @@ public class InputHandler<IN> {
 
 			if (numberOfInputs < 2) {
 
-				inputs = new MutableRecordReader<IOReadableWritable>(streamVertex.getEnvironment().getReader(0));
+				inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(
+						streamVertex.getEnvironment().getReader(0));
 
 			} else {
-				UnionBufferReader reader = new UnionBufferReader(streamVertex.getEnvironment().getAllReaders());
-				inputs = new MutableRecordReader<IOReadableWritable>(reader);
+				UnionBufferReader reader = new UnionBufferReader(streamVertex.getEnvironment()
+						.getAllReaders());
+				inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(reader);
 			}
 
 			inputIter = createInputIterator();
 		}
 	}
 
-	private MutableObjectIterator<StreamRecord<IN>> createInputIterator() {
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		final MutableObjectIterator<StreamRecord<IN>> iter = new ReaderIterator(inputs,
-				inputSerializer);
+	private IndexedReaderIterator<StreamRecord<IN>> createInputIterator() {
+		final IndexedReaderIterator<StreamRecord<IN>> iter = new IndexedReaderIterator<StreamRecord<IN>>(
+				inputs, inputSerializer);
 		return iter;
 	}
 
-	protected static <T> MutableObjectIterator<StreamRecord<T>> staticCreateInputIterator(
-			MutableReader<?> inputReader, TypeSerializer<?> serializer) {
+	protected static <T> IndexedReaderIterator<StreamRecord<T>> staticCreateInputIterator(
+			MutableReader<?> inputReader, TypeSerializer<StreamRecord<T>> serializer) {
 
 		// generic data type serialization
 		@SuppressWarnings("unchecked")
-		MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		final MutableObjectIterator<StreamRecord<T>> iter = new ReaderIterator(reader, serializer);
+		IndexedMutableReader<DeserializationDelegate<StreamRecord<T>>> reader = (IndexedMutableReader<DeserializationDelegate<StreamRecord<T>>>) inputReader;
+		final IndexedReaderIterator<StreamRecord<T>> iter = new IndexedReaderIterator<StreamRecord<T>>(
+				reader, serializer);
 		return iter;
 	}
 
@@ -90,7 +89,7 @@ public class InputHandler<IN> {
 		return inputSerializer;
 	}
 
-	public MutableObjectIterator<StreamRecord<IN>> getInputIter() {
+	public IndexedReaderIterator<StreamRecord<IN>> getInputIter() {
 		return inputIter;
 	}
 }

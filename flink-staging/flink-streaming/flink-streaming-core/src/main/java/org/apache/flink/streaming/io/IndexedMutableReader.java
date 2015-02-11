@@ -16,28 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.streamvertex;
+package org.apache.flink.streaming.io;
 
-import org.apache.flink.streaming.api.StreamConfig;
-import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.io.CoReaderIterator;
-import org.apache.flink.streaming.io.IndexedReaderIterator;
-import org.apache.flink.util.Collector;
-import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.io.network.api.reader.BufferReaderBase;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 
-public interface StreamTaskContext<OUT> {
+public class IndexedMutableReader<T extends IOReadableWritable> extends MutableRecordReader<T> {
 
-	StreamConfig getConfig();
+	BufferReaderBase reader;
 
-	ClassLoader getUserCodeClassLoader();
+	public IndexedMutableReader(BufferReaderBase reader) {
+		super(reader);
+		this.reader = reader;
+	}
 
-	<X> MutableObjectIterator<X> getInput(int index);
-	
-	<X> IndexedReaderIterator<X> getIndexedInput(int index);
+	public int getLastChannelIndex() {
+		return reader.getChannelIndexOfLastBuffer();
+	}
 
-	<X> StreamRecordSerializer<X> getInputSerializer(int index);
-
-	Collector<OUT> getOutputCollector();
-
-	<X, Y> CoReaderIterator<X, Y> getCoReader();
+	public int getNumberOfInputChannels() {
+		return reader.getNumberOfInputChannels();
+	}
 }

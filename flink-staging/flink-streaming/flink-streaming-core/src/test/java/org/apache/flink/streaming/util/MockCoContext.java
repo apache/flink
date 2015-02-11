@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamTaskContext;
 import org.apache.flink.streaming.io.CoReaderIterator;
+import org.apache.flink.streaming.io.IndexedReaderIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -213,6 +214,12 @@ public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 	@Override
 	public Collector<OUT> getOutputCollector() {
 		return collector;
+	}
+
+	@Override
+	public <X> IndexedReaderIterator<X> getIndexedInput(int index) {
+		throw new UnsupportedOperationException(
+				"Indexed iterator is currently unsupported for connected streams.");
 	}
 
 }
