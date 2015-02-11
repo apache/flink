@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, Props, ActorSystem}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -46,9 +46,20 @@ FlinkMiniCluster(userConfiguration, singleActorSystem) {
     cfg
   }
 
-  override def startJobManager(implicit system: ActorSystem) = {
-    system.actorOf(Props(new JobManager(configuration) with TestingJobManager),
-      JobManager.JOB_MANAGER_NAME)
+  override def startJobManager(implicit actorSystem: ActorSystem): ActorRef = {
+
+    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _ ,
+        executionRetries, delayBetweenRetries,
+        timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
+
+    val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
+    val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
+
+    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
+      libraryCacheManager, archive, accumulatorManager, None, executionRetries,
+      delayBetweenRetries, timeout) with TestingJobManager)
+
+    actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
   }
 
   override def startTaskManager(index: Int)(implicit system: ActorSystem) = {

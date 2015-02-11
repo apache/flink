@@ -69,11 +69,7 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)
     }
 
-    val localExecution = if(numTaskManagers == 1){
-      true
-    }else{
-      false
-    }
+    val localExecution = numTaskManagers == 1
 
     val (connectionInfo, jobManagerAkkaURL, taskManagerConfig, networkConnectionConfig) =
       TaskManager.parseConfiguration(HOSTNAME, config, singleActorSystem, localExecution)

@@ -67,7 +67,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
   override def startJobManager(implicit system: ActorSystem):
   ActorRef = {
     val config = configuration.clone()
-    JobManager.startActor(config)
+    JobManager.startActor(config, system, false)
   }
 
   override def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef = {
