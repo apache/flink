@@ -257,8 +257,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
 
     val agg = new ScalaStreamingAggregator[Product](
-      jStream.getType().createSerializer(
-        javaStream.getDataStream.getExecutionEnvironment.getConfig),
+      jStream.getType().createSerializer(javaStream.getExecutionConfig),
       position)
 
     val reducer = aggregationType match {
