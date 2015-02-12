@@ -22,7 +22,7 @@ import akka.actor.{Terminated, ActorRef}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.JobID
-import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask
+import org.apache.flink.runtime.messages.TaskManagerMessages.{Disconnected, UnregisterTask}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.ActorLogMessages
@@ -60,7 +60,7 @@ trait TestingTaskManager extends ActorLogMessages {
       
     case UnregisterTask(executionID) =>
       super.receiveWithLogMessages(UnregisterTask(executionID))
-      waitForRemoval.get(executionID) match {
+      waitForRemoval.remove(executionID) match {
         case Some(actors) => for(actor <- actors) actor ! true
         case None =>
       }
@@ -77,7 +77,7 @@ trait TestingTaskManager extends ActorLogMessages {
         case None => sender ! ResponseNumActiveConnections(0)
       }
 
-  case NotifyWhenJobRemoved(jobID) =>
+    case NotifyWhenJobRemoved(jobID) =>
       if(runningTasks.values.exists(_.getJobID == jobID)){
         val set = waitForJobRemoval.getOrElse(jobID, Set())
         waitForJobRemoval += (jobID -> (set + sender))
@@ -92,7 +92,7 @@ trait TestingTaskManager extends ActorLogMessages {
 
     case CheckIfJobRemoved(jobID) =>
       if(runningTasks.values.forall(_.getJobID != jobID)){
-        waitForJobRemoval.get(jobID) match {
+        waitForJobRemoval.remove(jobID) match {
           case Some(listeners) => listeners foreach (_ ! true)
           case None =>
         }
@@ -108,7 +108,18 @@ trait TestingTaskManager extends ActorLogMessages {
     case msg@Terminated(jobManager) =>
       super.receiveWithLogMessages(msg)
 
-      waitForJobManagerToBeTerminated.get(jobManager.path.name) foreach {
+      waitForJobManagerToBeTerminated.remove(jobManager.path.name) foreach {
+        _ foreach {
+          _ ! JobManagerTerminated(jobManager)
+        }
+      }
+
+    case msg: Disconnected =>
+      val jobManager = currentJobManager
+
+      super.receiveWithLogMessages(msg)
+
+      waitForJobManagerToBeTerminated.remove(jobManager.path.name) foreach {
         _ foreach {
           _ ! JobManagerTerminated(jobManager)
         }

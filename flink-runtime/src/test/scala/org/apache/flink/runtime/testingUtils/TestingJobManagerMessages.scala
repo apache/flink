@@ -51,4 +51,9 @@ object TestingJobManagerMessages {
 
   case class NotifyWhenTaskManagerTerminated(taskManager: ActorRef)
   case class TaskManagerTerminated(taskManager: ActorRef)
+
+  case class ThrowException(msg: String)
+
+  case class NotifyWhenTaskManagerRegistered(num: Int)
+  case class TaskManagerRegistered(num: Int)
 }

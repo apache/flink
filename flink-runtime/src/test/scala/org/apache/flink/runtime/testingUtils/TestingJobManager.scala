@@ -25,6 +25,7 @@ import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
+import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 
 import scala.collection.convert.WrapAsScala
@@ -51,6 +52,12 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
   val waitForJobStatus = scala.collection.mutable.HashMap[JobID,
     collection.mutable.HashMap[JobStatus, Set[ActorRef]]]()
+
+  val waitForTaskManagerRegistered = scala.collection.mutable.PriorityQueue[(Int, ActorRef)]()(
+  new Ordering[(Int, ActorRef)]{
+    override def compare(x: (Int, ActorRef), y: (Int, ActorRef)): Int = y._1 - x._1
+  }
+  )
 
   override def archiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
 
@@ -116,10 +123,11 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
     case NotifyWhenTaskManagerTerminated(taskManager) =>
       val waiting = waitForTaskManagerToBeTerminated.getOrElse(taskManager.path.name, Set())
       waitForTaskManagerToBeTerminated += taskManager.path.name -> (waiting + sender)
+
     case msg@Terminated(taskManager) =>
       super.receiveWithLogMessages(msg)
 
-      waitForTaskManagerToBeTerminated.get(taskManager.path.name) foreach {
+      waitForTaskManagerToBeTerminated.remove(taskManager.path.name) foreach {
         _ foreach {
           listener =>
             listener ! TaskManagerTerminated(taskManager)
@@ -152,17 +160,42 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
     case msg@JobStatusChanged(jobID, newJobStatus, _, _) =>
       super.receiveWithLogMessages(msg)
-      waitForJobStatus.get(jobID) match {
+      val cleanup = waitForJobStatus.get(jobID) match {
         case Some(stateListener) =>
-          stateListener.get(newJobStatus) match {
+          stateListener.remove(newJobStatus) match {
             case Some(listeners) =>
               listeners foreach {
                 _ ! JobStatusIs(jobID, newJobStatus)
               }
             case _ =>
           }
-        case _ =>
+          stateListener.isEmpty
+        case _ => false
       }
+
+      if(cleanup){
+        waitForJobStatus.remove(jobID)
+      }
+
+    case ThrowException(msg) =>
+      throw new RuntimeException(msg)
+
+    case NotifyWhenTaskManagerRegistered(num) =>
+      if(instanceManager.getNumberOfRegisteredTaskManagers >= num) {
+        sender ! TaskManagerRegistered(num)
+      } else {
+        waitForTaskManagerRegistered += (num -> sender)
+      }
+
+    case msg:RegisterTaskManager =>
+      super.receiveWithLogMessages(msg)
+
+      while(waitForTaskManagerRegistered.nonEmpty &&
+        waitForTaskManagerRegistered.head._1 <= instanceManager.getNumberOfRegisteredTaskManagers) {
+        val (num, listener) = waitForTaskManagerRegistered.dequeue()
+        listener ! TaskManagerRegistered(num)
+      }
+
   }
 
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {
@@ -186,30 +219,25 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   }
 
   def notifyListeners(jobID: JobID): Unit = {
-    val cleanupRunning = waitForAllVerticesToBeRunning.get(jobID) match {
-      case Some(listeners) if checkIfAllVerticesRunning(jobID) =>
-        for(listener <- listeners){
-          listener ! AllVerticesRunning(jobID)
-        }
-        true
-      case _ => false
+
+    if(checkIfAllVerticesRunning((jobID))) {
+      waitForAllVerticesToBeRunning.remove(jobID) match {
+        case Some(listeners) =>
+          for (listener <- listeners) {
+            listener ! AllVerticesRunning(jobID)
+          }
+        case _ =>
+      }
     }
 
-    if(cleanupRunning){
-      waitForAllVerticesToBeRunning.remove(jobID)
-    }
-
-    val cleanupRunningOrFinished = waitForAllVerticesToBeRunningOrFinished.get(jobID) match {
-      case Some(listeners) if checkIfAllVerticesRunningOrFinished(jobID) =>
-        for(listener <- listeners){
-          listener ! AllVerticesRunning(jobID)
-        }
-        true
-      case _ => false
-    }
-
-    if (cleanupRunningOrFinished) {
-      waitForAllVerticesToBeRunningOrFinished.remove(jobID)
+    if(checkIfAllVerticesRunningOrFinished(jobID)) {
+      waitForAllVerticesToBeRunningOrFinished.remove(jobID) match {
+        case Some(listeners) =>
+          for (listener <- listeners) {
+            listener ! AllVerticesRunning(jobID)
+          }
+        case _ =>
+      }
     }
   }
 }

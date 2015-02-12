@@ -149,6 +149,13 @@ object TaskManagerMessages {
    * @param cause reason for the external failure
    */
   case class FailTask(executionID: ExecutionAttemptID, cause: Throwable)
+
+  /**
+   * Disconnects the TaskManager from the registered JobManager
+   *
+   * @param reason
+   */
+  case class Disconnected(reason: String)
   
   // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
