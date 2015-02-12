@@ -21,9 +21,9 @@ package org.apache.flink.api.io.avro;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.flink.api.io.avro.generated.Colors;
-import org.apache.flink.api.io.avro.generated.User;
 import org.apache.flink.api.java.io.AvroInputFormat;
+import org.apache.flink.api.java.record.io.avro.generated.Colors;
+import org.apache.flink.api.java.record.io.avro.generated.OtherUser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -83,7 +83,7 @@ public class AvroSplittableInputFormatTest {
 		longMap.put(TEST_MAP_KEY2, TEST_MAP_VALUE2);
 		
 		
-		User user1 = new User();
+		OtherUser user1 = new OtherUser();
 		user1.setName(TEST_NAME);
 		user1.setFavoriteNumber(256);
 		user1.setTypeDoubleTest(123.45d);
@@ -94,7 +94,7 @@ public class AvroSplittableInputFormatTest {
 		user1.setTypeMap(longMap);
 		
 		// Construct via builder
-		User user2 = User.newBuilder()
+		OtherUser user2 = OtherUser.newBuilder()
 		             .setName(TEST_NAME)
 		             .setFavoriteColor("blue")
 		             .setFavoriteNumber(null)
@@ -108,15 +108,15 @@ public class AvroSplittableInputFormatTest {
 		             .setTypeEnum(Colors.RED)
 		             .setTypeMap(new HashMap<CharSequence, Long>())
 		             .build();
-		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<User>(User.class);
-		DataFileWriter<User> dataFileWriter = new DataFileWriter<User>(userDatumWriter);
+		DatumWriter<OtherUser> userDatumWriter = new SpecificDatumWriter<OtherUser>(OtherUser.class);
+		DataFileWriter<OtherUser> dataFileWriter = new DataFileWriter<OtherUser>(userDatumWriter);
 		dataFileWriter.create(user1.getSchema(), testFile);
 		dataFileWriter.append(user1);
 		dataFileWriter.append(user2);
 
 		Random rnd = new Random(1337);
 		for(int i = 0; i < NUM_RECORDS -2 ; i++) {
-			User user = new User();
+			OtherUser user = new OtherUser();
 			user.setName(TEST_NAME + rnd.nextInt());
 			user.setFavoriteNumber(rnd.nextInt());
 			user.setTypeDoubleTest(rnd.nextDouble());
@@ -135,7 +135,7 @@ public class AvroSplittableInputFormatTest {
 	public void testSplittedIF() throws IOException {
 		Configuration parameters = new Configuration();
 		
-		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
+		AvroInputFormat<OtherUser> format = new AvroInputFormat<OtherUser>(new Path(testFile.getAbsolutePath()), OtherUser.class);
 		
 		format.configure(parameters);
 		FileInputSplit[] splits = format.createInputSplits(4);
@@ -145,7 +145,7 @@ public class AvroSplittableInputFormatTest {
 		for(int i = 0; i < splits.length; i++) {
 			format.open(splits[i]);
 			while(!format.reachedEnd()) {
-				User u = format.nextRecord(null);
+				OtherUser u = format.nextRecord(null);
 				Assert.assertTrue(u.getName().toString().startsWith(TEST_NAME));
 				elements++;
 				elementsPerSplit[i]++;
