@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -31,10 +32,11 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 	private static final long serialVersionUID = 1L;
 
 	private final TypeSerializer<T> typeSerializer;
-	TypeSerializer<Integer> intSerializer = BasicTypeInfo.INT_TYPE_INFO.createSerializer();
+	TypeSerializer<Integer> intSerializer;
 
-	public StreamWindowSerializer(TypeInformation<T> typeInfo) {
-		this.typeSerializer = typeInfo.createSerializer();
+	public StreamWindowSerializer(TypeInformation<T> typeInfo, ExecutionConfig conf) {
+		this.typeSerializer = typeInfo.createSerializer(conf);
+		this.intSerializer = BasicTypeInfo.INT_TYPE_INFO.createSerializer(conf);
 	}
 
 	public TypeSerializer<T> getObjectSerializer() {

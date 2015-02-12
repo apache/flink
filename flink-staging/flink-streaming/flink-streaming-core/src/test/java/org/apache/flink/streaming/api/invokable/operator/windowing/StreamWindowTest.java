@@ -111,7 +111,7 @@ public class StreamWindowTest {
 		streamWindow.add(3);
 
 		TypeSerializer<StreamWindow<Integer>> ts = new StreamWindowSerializer<Integer>(
-				BasicTypeInfo.INT_TYPE_INFO);
+				BasicTypeInfo.INT_TYPE_INFO, null);
 
 		TestOutputView ow = new TestOutputView();
 

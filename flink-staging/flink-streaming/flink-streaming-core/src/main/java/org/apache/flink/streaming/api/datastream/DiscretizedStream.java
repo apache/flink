@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -140,10 +141,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 			return out;
 		} else if (transformation == WindowTransformation.MAPWINDOW) {
-			return transform(
-					transformation,
-					"Window partitioner",
-					getType(),
+			return transform(transformation, "Window partitioner", getType(),
 					new WindowPartitioner<OUT>(parallelism)).setParallelism(parallelism);
 		} else {
 			return this;
@@ -217,6 +215,11 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 			throw new IndexOutOfBoundsException("Position is out of range");
 		}
 		return type;
+	}
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return discretizedStream.getExecutionConfig();
 	}
 
 	/**

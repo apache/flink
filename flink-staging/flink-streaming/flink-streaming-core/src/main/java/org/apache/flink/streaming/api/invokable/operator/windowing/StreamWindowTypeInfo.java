@@ -18,11 +18,13 @@
 
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 public class StreamWindowTypeInfo<T> extends TypeInformation<StreamWindow<T>> {
 
+	private static final long serialVersionUID = 1L;
 	TypeInformation<T> innerType;
 
 	public StreamWindowTypeInfo(TypeInformation<T> innerType) {
@@ -60,8 +62,8 @@ public class StreamWindowTypeInfo<T> extends TypeInformation<StreamWindow<T>> {
 	}
 
 	@Override
-	public TypeSerializer<StreamWindow<T>> createSerializer() {
-		return new StreamWindowSerializer<T>(innerType);
+	public TypeSerializer<StreamWindow<T>> createSerializer(ExecutionConfig conf) {
+		return new StreamWindowSerializer<T>(innerType, conf);
 	}
 
 	@Override

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.Validate;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -207,6 +208,10 @@ public class DataStream<OUT> {
 		return environment;
 	}
 
+	public ExecutionConfig getExecutionConfig() {
+		return environment.getConfig();
+	}
+
 	/**
 	 * Creates a new {@link DataStream} by merging {@link DataStream} outputs of
 	 * the same type with each other. The DataStreams merged using this operator
@@ -319,7 +324,7 @@ public class DataStream<OUT> {
 
 	private GroupedDataStream<OUT> groupBy(Keys<OUT> keys) {
 		return new GroupedDataStream<OUT>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
-				getType(), environment.getConfig())));
+				getType(), getExecutionConfig())));
 	}
 
 	/**

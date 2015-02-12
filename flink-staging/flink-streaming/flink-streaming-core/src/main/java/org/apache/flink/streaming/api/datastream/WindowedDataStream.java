@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -33,11 +34,13 @@ import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.windowing.BasicWindowBuffer;
+import org.apache.flink.streaming.api.invokable.operator.windowing.CompletePreAggregator;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedStreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedTimeDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindow;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindowTypeInfo;
+import org.apache.flink.streaming.api.invokable.operator.windowing.TumblingGroupedPreReducer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.TumblingPreReducer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowBuffer;
 import org.apache.flink.streaming.api.windowing.helper.Time;
@@ -198,7 +201,8 @@ public class WindowedDataStream<OUT> {
 	}
 
 	private WindowedDataStream<OUT> groupBy(Keys<OUT> keys) {
-		return groupBy(clean(KeySelectorUtil.getSelectorForKeys(keys, getType())));
+		return groupBy(clean(KeySelectorUtil.getSelectorForKeys(keys, getType(),
+				getExecutionConfig())));
 	}
 
 	/**
@@ -214,10 +218,11 @@ public class WindowedDataStream<OUT> {
 		return out;
 	}
 
-	private DiscretizedStream<OUT> discretize(WindowTransformation transformation) {
+	private DiscretizedStream<OUT> discretize(WindowTransformation transformation,
+			WindowBuffer<OUT> windowBuffer) {
 
 		StreamInvokable<OUT, StreamWindow<OUT>> discretizer = getDiscretizer(transformation,
-				getTrigger(), getEviction(), discretizerKey);
+				windowBuffer, getTrigger(), getEviction(), discretizerKey);
 
 		int parallelism = getDiscretizerParallelism();
 
@@ -245,11 +250,9 @@ public class WindowedDataStream<OUT> {
 	}
 
 	private StreamInvokable<OUT, StreamWindow<OUT>> getDiscretizer(
-			WindowTransformation transformation, TriggerPolicy<OUT> trigger,
-			EvictionPolicy<OUT> eviction, KeySelector<OUT, ?> discretizerKey) {
-
-		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation, trigger, eviction,
-				discretizerKey);
+			WindowTransformation transformation, WindowBuffer<OUT> windowBuffer,
+			TriggerPolicy<OUT> trigger, EvictionPolicy<OUT> eviction,
+			KeySelector<OUT, ?> discretizerKey) {
 
 		if (discretizerKey == null) {
 			return new StreamDiscretizer<OUT>(trigger, eviction, windowBuffer);
@@ -273,11 +276,12 @@ public class WindowedDataStream<OUT> {
 
 		if (transformation == WindowTransformation.REDUCEWINDOW
 				&& eviction instanceof TumblingEvictionPolicy) {
-			if (discretizerKey == null) {
+			if (groupByKey == null) {
 				return new TumblingPreReducer<OUT>((ReduceFunction<OUT>) transformation.UDF,
-						getType().createSerializer());
+						getType().createSerializer(getExecutionConfig()));
 			} else {
-				return new BasicWindowBuffer<OUT>();
+				return new TumblingGroupedPreReducer<OUT>((ReduceFunction<OUT>) transformation.UDF,
+						groupByKey, getType().createSerializer(getExecutionConfig()));
 			}
 		}
 		return new BasicWindowBuffer<OUT>();
@@ -294,8 +298,18 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
-		return discretize(WindowTransformation.REDUCEWINDOW.with(reduceFunction)).reduceWindow(
-				reduceFunction);
+
+		WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
+				.with(reduceFunction);
+
+		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation, getTrigger(),
+				getEviction(), discretizerKey);
+
+		if (windowBuffer instanceof CompletePreAggregator) {
+			return discretize(transformation, windowBuffer);
+		} else {
+			return discretize(transformation, windowBuffer).reduceWindow(reduceFunction);
+		}
 	}
 
 	/**
@@ -312,8 +326,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public <R> WindowedDataStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction) {
-		return discretize(WindowTransformation.MAPWINDOW.with(reduceFunction)).mapWindow(
-				reduceFunction);
+		return discretize(WindowTransformation.MAPWINDOW.with(reduceFunction),
+				new BasicWindowBuffer<OUT>()).mapWindow(reduceFunction);
 	}
 
 	/**
@@ -335,8 +349,8 @@ public class WindowedDataStream<OUT> {
 	public <R> WindowedDataStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction,
 			TypeInformation<R> outType) {
 
-		return discretize(WindowTransformation.MAPWINDOW.with(reduceFunction)).mapWindow(
-				reduceFunction, outType);
+		return discretize(WindowTransformation.MAPWINDOW.with(reduceFunction),
+				new BasicWindowBuffer<OUT>()).mapWindow(reduceFunction, outType);
 	}
 
 	public DataStream<OUT> flatten() {
@@ -605,10 +619,6 @@ public class WindowedDataStream<OUT> {
 		return dataStream.getType();
 	}
 
-	protected DataStream<OUT> getDataStream() {
-		return dataStream;
-	}
-
 	protected WindowedDataStream<OUT> copy() {
 		return new WindowedDataStream<OUT>(this);
 	}
@@ -618,7 +628,12 @@ public class WindowedDataStream<OUT> {
 	}
 
 	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
-		return discretize(WindowTransformation.NONE).getDiscretizedStream();
+		return discretize(WindowTransformation.NONE, new BasicWindowBuffer<OUT>())
+				.getDiscretizedStream();
+	}
+
+	public ExecutionConfig getExecutionConfig() {
+		return dataStream.getExecutionConfig();
 	}
 
 	protected static class WindowKey<R> implements KeySelector<StreamWindow<R>, Integer> {
