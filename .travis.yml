@@ -30,6 +30,12 @@ git:
   depth: 10
 
 notifications:
+  email:
+    recipients:
+      - dev@flink.apache.org
+    on_success: change
+    on_failure: change
+
   webhooks:
     urls:
       - https://webhooks.gitter.im/e/d70a7e674cb9354c77b2
