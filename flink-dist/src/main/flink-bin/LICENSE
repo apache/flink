@@ -233,6 +233,7 @@ under the Apache License (v 2.0):
  - Apache Kafka (http://kafka.apache.org)
  - Apache Flume (http://flume.apache.org)
  - Apache Sling (http://sling.apache.org)
+ - Apache Thrift (http://thrift.apache.org)
  - Google Guava (https://code.google.com/p/guava-libraries/)
  - Netty v4.0.21 (http://netty.io)
  - Chill_2.10 v0.5.1 (https://github.com/twitter/chill)
@@ -298,7 +299,8 @@ BSD-style licenses:
  - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
  - LevelDB JNI (https://github.com/fusesource/leveldbjni/) - Copyright (c) 2011, FuseSource Corp.
  - Redis (http://redis.io/) - Copyright (c) 2009, Salvatore Sanfilippo and Pieter Noordhuis
- 
+ - Google Protocol Buffers Java (https://code.google.com/p/protobuf/) - Copyright (c) 2008, Google Inc.
+
 [BSD-like License]
  - Scala Library (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - Scala Compiler (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
@@ -562,4 +564,63 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
 -----------------------------------------------------------------------
+ For Apache Thrift
+-----------------------------------------------------------------------
+
+The Apache Thrift software includes a number of subcomponents with
+separate copyright notices and license terms. Your use of the source
+code for the these subcomponents is subject to the terms and
+conditions of the following licenses.
+
+--------------------------------------------------
+Portions of the following files are licensed under the MIT License:
+
+  lib/erl/src/Makefile.am
+
+Please see doc/otp-base-license.txt for the full terms of this license.
+
+--------------------------------------------------
+For the aclocal/ax_boost_base.m4 and contrib/fb303/aclocal/ax_boost_base.m4 components:
+
+#   Copyright (c) 2007 Thomas Porschberg <thomas@randspringer.de>
+#
+#   Copying and distribution of this file, with or without
+#   modification, are permitted in any medium without royalty provided
+#   the copyright notice and this notice are preserved.
+
+--------------------------------------------------
+For the compiler/cpp/src/thrift/md5.[ch] components:
+
+/*
+  Copyright (C) 1999, 2000, 2002 Aladdin Enterprises.  All rights reserved.
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+
+  L. Peter Deutsch
+  ghost@aladdin.com
+
+ */
+
+---------------------------------------------------
+For the lib/rb/setup.rb: Copyright (c) 2000-2005 Minero Aoki,
+lib/ocaml/OCamlMakefile and lib/ocaml/README-OCamlMakefile components:
+     Copyright (C) 1999 - 2007  Markus Mottl
+
+Licensed under the terms of the GNU Lesser General Public License 2.1
+(see doc/lgpl-2.1.txt for the full terms of this license)
