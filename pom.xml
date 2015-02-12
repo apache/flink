@@ -1050,6 +1050,8 @@ under the License.
 						<exclude>docs/_site/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
+						<!-- Tools: watchdog -->
+						<exclude>tools/watchdog*</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
