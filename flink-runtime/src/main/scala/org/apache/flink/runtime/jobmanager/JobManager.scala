@@ -137,14 +137,22 @@ class JobManager(val configuration: Configuration,
   override def receiveWithLogMessages: Receive = {
     case RegisterTaskManager(connectionInfo, hardwareInformation, numberOfSlots) =>
       val taskManager = sender
-      val instanceID = instanceManager.registerTaskManager(taskManager, connectionInfo,
-        hardwareInformation, numberOfSlots)
 
-      // TaskManager is already registered
-      if(instanceID == null){
+      if(instanceManager.isRegistered(taskManager)) {
         val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
         taskManager ! AlreadyRegistered(instanceID, libraryCacheManager.getBlobServerPort, profiler)
       } else {
+
+        val instanceID = try {
+           instanceManager.registerTaskManager(taskManager, connectionInfo,
+            hardwareInformation, numberOfSlots)
+        } catch {
+          // registerTaskManager throws an IllegalStateException if it is already shut down
+          // let the actor crash and restart itself in this case
+          case ex: Exception => throw new RuntimeException(s"Could not register the task manager " +
+            s"${taskManager.path} at the instance manager.", ex)
+        }
+
         // to be notified when the taskManager is no longer reachable
         context.watch(taskManager)
 
@@ -182,7 +190,7 @@ class JobManager(val configuration: Configuration,
     case UpdateTaskExecutionState(taskExecutionState) =>
       if(taskExecutionState == null){
         sender ! false
-      }else {
+      } else {
         currentJobs.get(taskExecutionState.getJobID) match {
           case Some((executionGraph, _)) =>
             val originalSender = sender
@@ -196,7 +204,7 @@ class JobManager(val configuration: Configuration,
       }
 
     case RequestNextInputSplit(jobID, vertexID, executionAttempt) =>
-      val nextInputSplit = currentJobs.get(jobID) match {
+      val serializedInputSplit = currentJobs.get(jobID) match {
         case Some((executionGraph,_)) =>
           val execution = executionGraph.getRegisteredExecutions.get(executionAttempt)
 
@@ -216,7 +224,23 @@ class JobManager(val configuration: Configuration,
             executionGraph.getJobVertex(vertexID) match {
               case vertex: ExecutionJobVertex => vertex.getSplitAssigner match {
                 case splitAssigner: InputSplitAssigner =>
-                  splitAssigner.getNextInputSplit(host, taskId)
+                  val nextInputSplit = splitAssigner.getNextInputSplit(host, taskId)
+
+                  if(log.isDebugEnabled) {
+                    log.debug("Send next input split {}.", nextInputSplit)
+                  }
+
+                  try {
+                    InstantiationUtil.serializeObject(nextInputSplit)
+                  } catch {
+                    case ex: Exception =>
+                      log.error(ex, "Could not serialize the next input split of class {}.",
+                        nextInputSplit.getClass)
+                      vertex.fail(new RuntimeException("Could not serialize the next input split " +
+                        "of class " + nextInputSplit.getClass + ".", ex))
+                      null
+                  }
+
                 case _ =>
                   log.error("No InputSplitAssigner for vertex ID {}.", vertexID)
                   null
@@ -231,13 +255,7 @@ class JobManager(val configuration: Configuration,
           null
       }
 
-      if(log.isDebugEnabled) {
-        log.debug("Send next input split {}.", nextInputSplit)
-      }
-      
-      val serializedData = InstantiationUtil.serializeObject(nextInputSplit)
-      
-      sender ! NextInputSplit(serializedData)
+      sender ! NextInputSplit(serializedInputSplit)
 
     case JobStatusChanged(jobID, newJobStatus, timeStamp, optionalMessage) =>
       currentJobs.get(jobID) match {
@@ -259,7 +277,9 @@ class JobManager(val configuration: Configuration,
                   jobInfo.client ! JobResultCanceled(jobID, optionalMessage)
                 case JobStatus.FAILED =>
                   jobInfo.client ! JobResultFailed(jobID, optionalMessage)
-                case x => throw new IllegalArgumentException(s"$x is not a terminal state.")
+                case x =>
+                  jobInfo.client ! JobResultFailed(jobID, s"$x is not a terminal state.")
+                  throw new IllegalStateException(s"$x is not a terminal state.")
               }
             }
 
@@ -294,15 +314,21 @@ class JobManager(val configuration: Configuration,
           log.error("Cannot find execution graph for job ID {} to schedule or update consumers",
             jobId)
           sender ! Failure(new IllegalStateException("Cannot find execution graph for job ID " +
-            jobId + " to schedule or update consumers."))
+            s"$jobId to schedule or update consumers."))
       }
 
     case ReportAccumulatorResult(accumulatorEvent) =>
-      accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID,
-        accumulatorEvent.getAccumulators(
-          libraryCacheManager.getClassLoader(accumulatorEvent.getJobID)
+      try {
+        accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID,
+          accumulatorEvent.getAccumulators(
+            libraryCacheManager.getClassLoader(accumulatorEvent.getJobID)
+          )
         )
-      )
+      } catch {
+        case t: Throwable =>
+          log.error(t, "Could not process accumulator event of job {} received from {}.",
+            accumulatorEvent.getJobID, sender.path)
+      }
 
     case RequestAccumulatorResults(jobID) =>
       import scala.collection.JavaConverters._
@@ -340,11 +366,14 @@ class JobManager(val configuration: Configuration,
       sender ! RegisteredTaskManagers(instanceManager.getAllRegisteredInstances.asScala)
 
     case Heartbeat(instanceID) =>
-      instanceManager.reportHeartBeat(instanceID)
+      try {
+        instanceManager.reportHeartBeat(instanceID)
+      } catch {
+        case t: Throwable => log.error(t, "Could not report heart beat from {}.", sender.path)
+      }
 
     case Terminated(taskManager) =>
       log.info("Task manager {} terminated.", taskManager.path)
-      JobManager.LOG.warn(s"Task manager ${taskManager.path} terminated.")
       instanceManager.unregisterTaskManager(taskManager)
       context.unwatch(taskManager)
 
@@ -495,6 +524,7 @@ class JobManager(val configuration: Configuration,
    * Handle unmatched messages with an exception.
    */
   override def unhandled(message: Any): Unit = {
+    // let the actor crash
     throw new RuntimeException("Received unknown message " + message)
   }
 
@@ -505,8 +535,14 @@ class JobManager(val configuration: Configuration,
   private def removeJob(jobID: JobID): Unit = {
     currentJobs.remove(jobID) match {
       case Some((eg, _)) =>
-        eg.prepareForArchiving()
-        archive ! ArchiveExecutionGraph(jobID, eg)
+        try {
+          eg.prepareForArchiving()
+
+          archive ! ArchiveExecutionGraph(jobID, eg)
+        } catch {
+          case t: Throwable => log.error(t, "Could not prepare the execution graph {} for " +
+            "archiving.", eg)
+        }
 
       case None =>
     }

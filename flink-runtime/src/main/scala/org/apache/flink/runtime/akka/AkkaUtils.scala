@@ -146,6 +146,7 @@ object AkkaUtils {
         | log-dead-letters-during-shutdown = $logLifecycleEvents
         |
         | actor {
+        |   guardian-supervisor-strategy = "akka.actor.StoppingSupervisorStrategy"
         |   default-dispatcher {
         |     throughput = $akkaThroughput
         |

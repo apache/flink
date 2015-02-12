@@ -170,7 +170,12 @@ import scala.collection.JavaConverters._
 
     ioManager.shutdown()
     memoryManager.shutdown()
-    fileCache.shutdown()
+
+    try {
+      fileCache.shutdown()
+    } catch {
+      case t: Throwable => log.error(t, "FileCache did not shutdown properly.")
+    }
 
     if (libraryCacheManager != null) {
       try {
@@ -269,7 +274,10 @@ import scala.collection.JavaConverters._
           // execute cancel operation concurrently
           Future {
             task.cancelExecution()
+          }.onFailure{
+            case t: Throwable => log.error(t, "Could not cancel task {}.", task)
           }
+
           sender ! new TaskOperationResult(executionID, true)
         case None =>
           sender ! new TaskOperationResult(executionID, false,
@@ -322,6 +330,8 @@ import scala.collection.JavaConverters._
           // execute failing operation concurrently
           Future {
             task.failExternally(cause)
+          }.onFailure{
+            case t: Throwable => log.error(t, "Could not fail task {} externally.", task)
           }
         case None =>
       }
@@ -451,7 +461,11 @@ import scala.collection.JavaConverters._
     networkEnvironment = None
 
     if(libraryCacheManager != null){
-      libraryCacheManager.shutdown()
+      try {
+        libraryCacheManager.shutdown()
+      } catch {
+        case t: Throwable => log.error(t, "Could not shut down the library cache manager.")
+      }
     }
 
     libraryCacheManager = null

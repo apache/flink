@@ -437,9 +437,9 @@ public class Execution implements Serializable {
 						try {
 							consumerVertex.scheduleForExecution(
 								consumerVertex.getExecutionGraph().getScheduler(), false);
-						} catch (Exception exception) {
+						} catch (Throwable t) {
 							fail(new IllegalStateException("Could not schedule consumer " +
-									"vertex " + consumerVertex, exception));
+									"vertex " + consumerVertex, t));
 						}
 
 						return true;
