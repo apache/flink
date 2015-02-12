@@ -233,12 +233,14 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			if(SpecificRecordBase.class.isAssignableFrom(type)) {
 				ClassTag<SpecificRecordBase> tag = scala.reflect.ClassTag$.MODULE$.apply(type);
 				this.kryo.register(type, com.twitter.chill.avro.AvroSerializer.SpecificRecordSerializer(tag));
+
+				// register Avro types.
+				this.kryo.register(Utf8.class);
+				this.kryo.register(GenericData.EnumSymbol.class);
+				this.kryo.register(GenericData.Fixed.class);
+				this.kryo.register(GenericData.StringType.class);
 			}
-			// register Avro types.
-			this.kryo.register(Utf8.class);
-			this.kryo.register(GenericData.EnumSymbol.class);
-			this.kryo.register(GenericData.Fixed.class);
-			this.kryo.register(GenericData.StringType.class);
+
 
 			// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
 			// because Kryo is not able to serialize them properly, we use this serializer for them
