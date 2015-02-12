@@ -33,6 +33,7 @@ import com.twitter.chill.thrift.TBaseSerializer;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.avro.util.Utf8;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -232,8 +233,13 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			if(SpecificRecordBase.class.isAssignableFrom(type)) {
 				ClassTag<SpecificRecordBase> tag = scala.reflect.ClassTag$.MODULE$.apply(type);
 				this.kryo.register(type, com.twitter.chill.avro.AvroSerializer.SpecificRecordSerializer(tag));
-
 			}
+			// register Avro types.
+			this.kryo.register(Utf8.class);
+			this.kryo.register(GenericData.EnumSymbol.class);
+			this.kryo.register(GenericData.Fixed.class);
+			this.kryo.register(GenericData.StringType.class);
+
 			// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
 			// because Kryo is not able to serialize them properly, we use this serializer for them
 			this.kryo.register(GenericData.Array.class, new SpecificInstanceCollectionSerializer(ArrayList.class));
