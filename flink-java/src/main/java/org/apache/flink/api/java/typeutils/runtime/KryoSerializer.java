@@ -195,7 +195,18 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			input = new NoFetchingInput(inputStream);
 			previousIn = source;
 		}
-		return (T) kryo.readClassAndObject(input);
+
+		try {
+			return (T) kryo.readClassAndObject(input);
+		} catch (KryoException ke) {
+			Throwable cause = ke.getCause();
+
+			if(cause instanceof EOFException) {
+				throw (EOFException) cause;
+			} else {
+				throw ke;
+			}
+		}
 	}
 	
 	@Override
