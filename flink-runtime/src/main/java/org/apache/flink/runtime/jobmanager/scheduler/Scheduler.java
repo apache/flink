@@ -432,17 +432,23 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				// root SharedSlot
 				SharedSlot sharedSlot = instanceToUse.allocateSharedSlot(vertex.getJobId(), groupAssignment, groupID);
 
-				// If constraint != null, then slot nested in a SharedSlot nested in sharedSlot
-				// If constraint == null, then slot nested in sharedSlot
-				SimpleSlot slot = groupAssignment.addSharedSlotAndAllocateSubSlot(sharedSlot, locality, groupID, constraint);
-
 				// if the instance has further available slots, re-add it to the set of available resources.
 				if (instanceToUse.hasResourcesAvailable()) {
 					this.instancesWithAvailableResources.add(instanceToUse);
 				}
 
-				if (slot != null) {
-					return slot;
+				if(sharedSlot != null){
+					// If constraint != null, then slot nested in a SharedSlot nested in sharedSlot
+					// If constraint == null, then slot nested in sharedSlot
+					SimpleSlot slot = groupAssignment.addSharedSlotAndAllocateSubSlot(sharedSlot,
+							locality, groupID, constraint);
+
+					if(slot != null){
+						return slot;
+					} else {
+						// release shared slot
+						sharedSlot.releaseSlot();
+					}
 				}
 			}
 			catch (InstanceDiedException e) {

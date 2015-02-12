@@ -65,38 +65,56 @@ public class SlotSharingGroupAssignment {
 
 			SimpleSlot subSlot = null;
 
-			if(constraint == null){
+			if (constraint == null) {
 				// allocate us a sub slot to return
 				subSlot = sharedSlot.allocateSubSlot(groupId);
 			} else {
 				// we need a colocation slot --> a SimpleSlot nested in a SharedSlot to host other colocated tasks
 				SharedSlot constraintGroupSlot = sharedSlot.allocateSharedSlot(groupId);
-				subSlot = constraintGroupSlot.allocateSubSlot(null);
+
+				if(constraintGroupSlot == null) {
+					subSlot = null;
+				} else {
+					subSlot = constraintGroupSlot.allocateSubSlot(null);
+
+					// could not create a sub slot --> release constraintGroupSlot
+					if(subSlot == null){
+						constraintGroupSlot.releaseSlot();
+					}
+				}
 			}
 
-			// preserve the locality information
-			subSlot.setLocality(locality);
+			// if sharedSlot is dead, but this should never happen since we just created a fresh
+			// SharedSlot in the caller
+			if(subSlot == null) {
+				LOG.warn("Could not allocate a sub slot.");
 
-			boolean entryForNewJidExists = false;
+				return null;
+			} else {
+				// preserve the locality information
+				subSlot.setLocality(locality);
 
-			// let the other vertex types know about this one as well
-			for (Map.Entry<AbstractID, Map<Instance, List<SharedSlot>>> entry : availableSlotsPerJid.entrySet()) {
+				boolean entryForNewJidExists = false;
 
-				if (entry.getKey().equals(groupId)) {
-					entryForNewJidExists = true;
-					continue;
+				// let the other vertex types know about this one as well
+				for (Map.Entry<AbstractID, Map<Instance, List<SharedSlot>>> entry : availableSlotsPerJid.entrySet()) {
+
+					if (entry.getKey().equals(groupId)) {
+						entryForNewJidExists = true;
+						continue;
+					}
+
+					Map<Instance, List<SharedSlot>> available = entry.getValue();
+					putIntoMultiMap(available, location, sharedSlot);
 				}
 
-				Map<Instance, List<SharedSlot>> available = entry.getValue();
-				putIntoMultiMap(available, location, sharedSlot);
-			}
+				// make sure an empty entry exists for this group, if no other entry exists
+				if (!entryForNewJidExists) {
+					availableSlotsPerJid.put(groupId, new LinkedHashMap<Instance, List<SharedSlot>>());
+				}
 
-			// make sure an empty entry exists for this group, if no other entry exists
-			if (!entryForNewJidExists) {
-				availableSlotsPerJid.put(groupId, new LinkedHashMap<Instance, List<SharedSlot>>());
+				return subSlot;
 			}
-
-			return subSlot;
 		}
 	}
 
