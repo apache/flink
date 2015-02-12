@@ -59,6 +59,13 @@ public final class TestDataOutputSerializer implements DataOutputView {
 		return this.wrapper;
 	}
 
+	public byte[] copyByteBuffer() {
+		byte[] target = new byte[position];
+		System.arraycopy(buffer, 0, target, 0, position);
+
+		return target;
+	}
+
 	public void clear() {
 		this.position = 0;
 	}
