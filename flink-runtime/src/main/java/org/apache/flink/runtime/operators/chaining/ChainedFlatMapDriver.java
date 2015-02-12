@@ -22,6 +22,8 @@ package org.apache.flink.runtime.operators.chaining;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.RegularPactTask;
@@ -29,6 +31,7 @@ import org.apache.flink.runtime.operators.RegularPactTask;
 public class ChainedFlatMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
 	private FlatMapFunction<IT, OT> mapper;
+	private TypeSerializer<IT> serializer;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -38,6 +41,10 @@ public class ChainedFlatMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 		final FlatMapFunction<IT, OT> mapper =
 			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, FlatMapFunction.class);
 		this.mapper = mapper;
+
+		TypeSerializerFactory<IT> serializerFactory = this.config.getInputSerializer(0, userCodeClassLoader);
+		this.serializer = serializerFactory.getSerializer();
+
 		FunctionUtils.setFunctionRuntimeContext(mapper, getUdfRuntimeContext());
 	}
 
@@ -76,7 +83,7 @@ public class ChainedFlatMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	@Override
 	public void collect(IT record) {
 		try {
-			this.mapper.flatMap(record, this.outputCollector);
+			this.mapper.flatMap(objectReuseEnabled ? record : serializer.copy(record), this.outputCollector);
 		} catch (Exception ex) {
 			throw new ExceptionInChainedStubException(this.taskName, ex);
 		}
