@@ -19,16 +19,7 @@
 
 package org.apache.flink.client;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
 import org.apache.commons.cli.CommandLine;
-import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.CliFrontendTestUtils.TestingCliFrontend;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
@@ -37,6 +28,12 @@ import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.configuration.Configuration;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
+import static org.junit.Assert.*;
 
 public class CliFrontendInfoTest {
 	
@@ -54,7 +51,7 @@ public class CliFrontendInfoTest {
 				String[] parameters = {"-v", "-l"};
 				CliFrontend testFrontend = new CliFrontend();
 				int retCode = testFrontend.cancel(parameters);
-				assertTrue(retCode == 2);
+				assertTrue(retCode == 1);
 			}
 			
 			// test missing options
@@ -77,8 +74,7 @@ public class CliFrontendInfoTest {
 		try {
 			String[] parameters = {"-e", CliFrontendTestUtils.getTestJarPath()};
 			InfoTestCliFrontend testFrontend = new InfoTestCliFrontend(-1);
-			int retCode = testFrontend.info(parameters);
-			assertTrue(retCode == 0);
+			testFrontend.info(parameters);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -92,8 +88,7 @@ public class CliFrontendInfoTest {
 		try {
 			String[] parameters = {"-e", "-p", "17", CliFrontendTestUtils.getTestJarPath()};
 			InfoTestCliFrontend testFrontend = new InfoTestCliFrontend(17);
-			int retCode = testFrontend.info(parameters);
-			assertTrue(retCode == 0);
+			testFrontend.info(parameters);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

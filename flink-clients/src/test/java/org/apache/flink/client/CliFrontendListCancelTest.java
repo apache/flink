@@ -18,15 +18,7 @@
 
 package org.apache.flink.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.Status;
-import akka.actor.UntypedActor;
+import akka.actor.*;
 import akka.testkit.JavaTestKit;
 import org.apache.commons.cli.CommandLine;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -34,6 +26,8 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 public class CliFrontendListCancelTest {
 
@@ -64,7 +58,7 @@ public class CliFrontendListCancelTest {
 				String[] parameters = {"-v", "-l"};
 				CliFrontend testFrontend = new CliFrontendTestUtils.TestingCliFrontend();
 				int retCode = testFrontend.cancel(parameters);
-				assertTrue(retCode == 2);
+				assertTrue(retCode == 1);
 			}
 			
 			// test missing job id
@@ -82,7 +76,7 @@ public class CliFrontendListCancelTest {
 
 				final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, jid));
 				
-				String[] parameters = {"-i", jidString};
+				String[] parameters = {jidString};
 				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(jm);
 				int retCode = testFrontend.cancel(parameters);
 				assertTrue(retCode == 0);
@@ -106,7 +100,7 @@ public class CliFrontendListCancelTest {
 				String[] parameters = {"-v", "-k"};
 				CliFrontend testFrontend = new CliFrontendTestUtils.TestingCliFrontend();
 				int retCode = testFrontend.list(parameters);
-				assertTrue(retCode == 2);
+				assertTrue(retCode == 1);
 			}
 			
 			// test missing flags
