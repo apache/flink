@@ -78,6 +78,13 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -330,13 +337,32 @@ under the License.
 						<configuration>
 							<archive>
 								<manifest>
-									<mainClass>org.apache.flink.test.classloading.jar.CustomInputSpitProgram</mainClass>
+									<mainClass>org.apache.flink.test.classloading.jar.CustomInputSplitProgram</mainClass>
 								</manifest>
 							</archive>
 							<finalName>customsplit</finalName>
 							<attach>false</attach>
 							<descriptors>
 								<descriptor>src/test/assembly/test-custominput-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>create-streamingclassloader-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.test.classloading.jar.StreamingProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>streamingclassloader</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-streamingclassloader-assembly.xml</descriptor>
 							</descriptors>
 						</configuration>
 					</execution>
@@ -369,7 +395,7 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
-						<id>remove-custominputformat-test-dependencies</id>
+						<id>remove-classloading-test-dependencies</id>
 						<phase>process-test-classes</phase>
 						<goals>
 							<goal>clean</goal>

@@ -40,7 +40,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 @SuppressWarnings("serial")
-public class CustomInputSpitProgram {
+public class CustomInputSplitProgram {
 	
 	public static void main(String[] args) throws Exception {
 		

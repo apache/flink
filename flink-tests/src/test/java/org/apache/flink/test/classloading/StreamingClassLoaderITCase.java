@@ -18,22 +18,21 @@
 
 package org.apache.flink.test.classloading;
 
-import java.io.File;
-
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-
 import org.junit.Assert;
 import org.junit.Test;
 
-public class InputSplitClassLoaderITCase {
+import java.io.File;
+
+public class StreamingClassLoaderITCase {
 	
-	private static final String JAR_FILE = "target/customsplit-test-jar.jar";
+	private static final String JAR_FILE = "target/streamingclassloader-test-jar.jar";
 	
 	@Test
-	public void testJobWithCustomInputFormat() {
+	public void testStreamingJob() {
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
