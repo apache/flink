@@ -23,8 +23,6 @@ import java.util.NoSuchElementException;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -38,17 +36,11 @@ public class FileSourceFunction extends RichSourceFunction<String> {
 
 	private InputFormat<String, ?> inputFormat;
 
-	private TypeSerializerFactory<String> serializerFactory;
+	private TypeInformation<String> typeInfo;
 
 	public FileSourceFunction(InputFormat<String, ?> format, TypeInformation<String> typeInfo) {
 		this.inputFormat = format;
-		this.serializerFactory = createSerializer(typeInfo);
-	}
-
-	private TypeSerializerFactory<String> createSerializer(TypeInformation<String> typeInfo) {
-		TypeSerializer<String> serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
-
-		return new RuntimeSerializerFactory<String>(serializer, typeInfo.getTypeClass());
+		this.typeInfo = typeInfo;
 	}
 
 	@Override
@@ -60,7 +52,8 @@ public class FileSourceFunction extends RichSourceFunction<String> {
 
 	@Override
 	public void invoke(Collector<String> collector) throws Exception {
-		final TypeSerializer<String> serializer = serializerFactory.getSerializer();
+		final TypeSerializer<String> serializer = typeInfo.createSerializer(getRuntimeContext()
+				.getExecutionConfig());
 		final Iterator<InputSplit> splitIterator = getInputSplits();
 		@SuppressWarnings("unchecked")
 		final InputFormat<String, InputSplit> format = (InputFormat<String, InputSplit>) this.inputFormat;

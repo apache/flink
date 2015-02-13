@@ -381,7 +381,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public WindowedDataStream<OUT> sum(String field) {
-		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field, getType()));
+		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field, getType(),
+				getExecutionConfig()));
 	}
 
 	/**
@@ -411,7 +412,7 @@ public class WindowedDataStream<OUT> {
 	 */
 	public WindowedDataStream<OUT> min(String field) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MIN,
-				false));
+				false, getExecutionConfig()));
 	}
 
 	/**
@@ -475,7 +476,7 @@ public class WindowedDataStream<OUT> {
 	 */
 	public WindowedDataStream<OUT> minBy(String field, boolean first) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(),
-				AggregationType.MINBY, first));
+				AggregationType.MINBY, first, getExecutionConfig()));
 	}
 
 	/**
@@ -505,7 +506,7 @@ public class WindowedDataStream<OUT> {
 	 */
 	public WindowedDataStream<OUT> max(String field) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MAX,
-				false));
+				false, getExecutionConfig()));
 	}
 
 	/**
@@ -569,11 +570,10 @@ public class WindowedDataStream<OUT> {
 	 */
 	public WindowedDataStream<OUT> maxBy(String field, boolean first) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(),
-				AggregationType.MAXBY, first));
+				AggregationType.MAXBY, first, getExecutionConfig()));
 	}
 
 	private WindowedDataStream<OUT> aggregate(AggregationFunction<OUT> aggregator) {
-
 		return reduceWindow(aggregator);
 	}
 

@@ -22,7 +22,7 @@ import java.io.Serializable;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
-public interface WindowBuffer<T> extends Serializable {
+public interface WindowBuffer<T> extends Serializable, Cloneable {
 
 	public void store(T element) throws Exception;
 
@@ -31,7 +31,7 @@ public interface WindowBuffer<T> extends Serializable {
 	public boolean emitWindow(Collector<StreamWindow<T>> collector);
 
 	public int size();
-	
+
 	public WindowBuffer<T> clone();
 
 }

@@ -69,7 +69,7 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 	@Override
 	protected void setInvokable() {
 		userInvokable = configuration.getUserInvokable(userClassLoader);
-		userInvokable.setup(this, getExecutionConfig());
+		userInvokable.setup(this);
 	}
 
 	protected void setConfigInputs() throws StreamVertexException {
