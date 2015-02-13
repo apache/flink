@@ -112,7 +112,7 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 	public static <IN, OUT> List<OUT> createAndExecute(StreamInvokable<IN, OUT> invokable,
 			List<IN> inputs) {
 		MockContext<IN, OUT> mockContext = new MockContext<IN, OUT>(inputs);
-		invokable.setup(mockContext, new ExecutionConfig());
+		invokable.setup(mockContext);
 		try {
 			invokable.open(null);
 			invokable.invoke();
@@ -168,6 +168,11 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 	@Override
 	public <X> IndexedReaderIterator<X> getIndexedInput(int index) {
 		return (IndexedReaderIterator<X>) iterator;
+	}
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return new ExecutionConfig();
 	}
 
 }

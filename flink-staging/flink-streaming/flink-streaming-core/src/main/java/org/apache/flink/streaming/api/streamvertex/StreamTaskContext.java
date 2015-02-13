@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.streamvertex;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
@@ -32,7 +33,7 @@ public interface StreamTaskContext<OUT> {
 	ClassLoader getUserCodeClassLoader();
 
 	<X> MutableObjectIterator<X> getInput(int index);
-	
+
 	<X> IndexedReaderIterator<X> getIndexedInput(int index);
 
 	<X> StreamRecordSerializer<X> getInputSerializer(int index);
@@ -40,4 +41,6 @@ public interface StreamTaskContext<OUT> {
 	Collector<OUT> getOutputCollector();
 
 	<X, Y> CoReaderIterator<X, Y> getCoReader();
+
+	ExecutionConfig getExecutionConfig();
 }

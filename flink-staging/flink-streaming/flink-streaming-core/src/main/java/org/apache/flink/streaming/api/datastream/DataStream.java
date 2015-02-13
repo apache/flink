@@ -636,7 +636,8 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> sum(String field) {
-		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field, getType()));
+		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field, getType(),
+				getExecutionConfig()));
 	}
 
 	/**
@@ -667,7 +668,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(String field) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MIN,
-				false));
+				false, getExecutionConfig()));
 	}
 
 	/**
@@ -698,7 +699,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> max(String field) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MAX,
-				false));
+				false, getExecutionConfig()));
 	}
 
 	/**
@@ -718,7 +719,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> minBy(String field, boolean first) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(),
-				AggregationType.MINBY, first));
+				AggregationType.MINBY, first, getExecutionConfig()));
 	}
 
 	/**
@@ -738,7 +739,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> maxBy(String field, boolean first) {
 		return aggregate(ComparableAggregator.getAggregator(field, getType(),
-				AggregationType.MAXBY, first));
+				AggregationType.MAXBY, first, getExecutionConfig()));
 	}
 
 	/**

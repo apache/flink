@@ -21,6 +21,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -47,9 +48,10 @@ public abstract class SumAggregator {
 
 	}
 
-	public static <T> ReduceFunction<T> getSumFunction(String field, TypeInformation<T> typeInfo) {
+	public static <T> ReduceFunction<T> getSumFunction(String field, TypeInformation<T> typeInfo,
+			ExecutionConfig config) {
 
-		return new PojoSumAggregator<T>(field, typeInfo);
+		return new PojoSumAggregator<T>(field, typeInfo, config);
 	}
 
 	private static class TupleSumAggregator<T> extends AggregationFunction<T> {
@@ -126,7 +128,7 @@ public abstract class SumAggregator {
 		SumFunction adder;
 		PojoComparator<T> comparator;
 
-		public PojoSumAggregator(String field, TypeInformation<?> type) {
+		public PojoSumAggregator(String field, TypeInformation<?> type, ExecutionConfig config) {
 			super(0);
 			if (!(type instanceof CompositeType<?>)) {
 				throw new IllegalArgumentException(
@@ -146,7 +148,7 @@ public abstract class SumAggregator {
 
 			if (cType instanceof PojoTypeInfo) {
 				comparator = (PojoComparator<T>) cType.createComparator(
-						new int[] { logicalKeyPosition }, new boolean[] { false }, 0, getRuntimeContext().getExecutionConfig());
+						new int[] { logicalKeyPosition }, new boolean[] { false }, 0, config);
 			} else {
 				throw new IllegalArgumentException(
 						"Key expressions are only supported on POJO types. "

@@ -156,7 +156,7 @@ public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 	public static <IN1, IN2, OUT> List<OUT> createAndExecute(CoInvokable<IN1, IN2, OUT> invokable,
 			List<IN1> input1, List<IN2> input2) {
 		MockCoContext<IN1, IN2, OUT> mockContext = new MockCoContext<IN1, IN2, OUT>(input1, input2);
-		invokable.setup(mockContext, new ExecutionConfig());
+		invokable.setup(mockContext);
 
 		try {
 			invokable.open(null);
@@ -220,6 +220,11 @@ public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 	public <X> IndexedReaderIterator<X> getIndexedInput(int index) {
 		throw new UnsupportedOperationException(
 				"Indexed iterator is currently unsupported for connected streams.");
+	}
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return new ExecutionConfig();
 	}
 
 }
