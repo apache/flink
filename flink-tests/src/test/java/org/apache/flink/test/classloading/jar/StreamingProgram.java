@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.test.recordJobs.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.util.Collector;
 
@@ -41,23 +42,63 @@ public class StreamingProgram {
 
 		DataStream<String> text = env.fromElements(WordCountData.TEXT);
 
-		DataStream<Tuple2<String, Integer>> counts =
-				text.flatMap(new FlatMapFunction<String, Tuple2<String, Integer>>() {
-					@Override
-					public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
-						StringTokenizer tokenizer = new StringTokenizer(value);
-						while (tokenizer.hasMoreTokens()){
-							out.collect(new Tuple2<String, Integer>(tokenizer.nextToken(), 1));
-						}
-					}
-				}).groupBy(0).sum(1);
+		DataStream<Word> counts =
+				text.flatMap(new Tokenizer()).groupBy("word").sum("frequency");
 
-		counts.addSink(new SinkFunction<Tuple2<String, Integer>>() {
-			@Override
-			public void invoke(Tuple2<String, Integer> value) throws Exception {
-			}
-		});
+		counts.addSink(new NoOpSink());
 
 		env.execute();
+	}
+	// --------------------------------------------------------------------------------------------
+
+	public static class Word {
+
+		private String word;
+		private Integer frequency;
+
+		public Word() {
+		}
+
+		public Word(String word, int i) {
+			this.word = word;
+			this.frequency = i;
+		}
+
+		public String getWord() {
+			return word;
+		}
+
+		public void setWord(String word) {
+			this.word = word;
+		}
+
+		public Integer getFrequency() {
+			return frequency;
+		}
+
+		public void setFrequency(Integer frequency) {
+			this.frequency = frequency;
+		}
+
+		@Override
+		public String toString() {
+			return "(" + word + ", " + frequency + ")";
+		}
+	}
+
+	public static class Tokenizer implements FlatMapFunction<String, Word>{
+		@Override
+		public void flatMap(String value, Collector<Word> out) throws Exception {
+			StringTokenizer tokenizer = new StringTokenizer(value);
+			while (tokenizer.hasMoreTokens()){
+				out.collect(new Word(tokenizer.nextToken(), 1));
+			}
+		}
+	}
+
+	public static class NoOpSink implements SinkFunction<Word>{
+		@Override
+		public void invoke(Word value) throws Exception {
+		}
 	}
 }
