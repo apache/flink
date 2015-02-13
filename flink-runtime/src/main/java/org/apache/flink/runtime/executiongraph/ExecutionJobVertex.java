@@ -446,7 +446,7 @@ public class ExecutionJobVertex implements Serializable {
 					
 					// tell the graph
 					graph.jobVertexInFinalState(this);
-				}else{
+				} else {
 					numSubtasksInFinalState++;
 				}
 			}

@@ -63,9 +63,9 @@ public class NoResourceAvailableException extends JobException {
 			return false;
 		}
 
-		if(!(obj instanceof NoResourceAvailableException)){
+		if (!(obj instanceof NoResourceAvailableException)) {
 			return false;
-		}else{
+		} else {
 			return getMessage().equals(((NoResourceAvailableException)obj).getMessage());
 		}
 	}

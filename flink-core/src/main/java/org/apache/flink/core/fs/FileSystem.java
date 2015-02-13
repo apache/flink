@@ -228,7 +228,7 @@ public abstract class FileSystem {
 			if (!FSDIRECTORY.containsKey(uri.getScheme())) {
 				// no build in support for this file system. Falling back to Hadoop's FileSystem impl.
 				Class<?> wrapperClass = getHadoopWrapperClassNameForFileSystem(uri.getScheme());
-				if(wrapperClass != null) {
+				if (wrapperClass != null) {
 					// hadoop has support for the FileSystem
 					FSKey wrappedKey = new FSKey(HADOOP_WRAPPER_SCHEME + "+" + uri.getScheme(), uri.getAuthority());
 					if (CACHE.containsKey(wrappedKey)) {
@@ -249,7 +249,7 @@ public abstract class FileSystem {
 			} else {
 				// we end up here if we have a file system with build-in flink support.
 				String fsClass = FSDIRECTORY.get(uri.getScheme());
-				if(fsClass.equals(HADOOP_WRAPPER_FILESYSTEM_CLASS)) {
+				if (fsClass.equals(HADOOP_WRAPPER_FILESYSTEM_CLASS)) {
 					fs = instantiateHadoopFileSystemWrapper(null);
 				} else {
 					fs = instantiateFileSystem(fsClass);
@@ -303,7 +303,7 @@ public abstract class FileSystem {
 	private static HadoopFileSystemWrapper hadoopWrapper;
 
 	private static Class<?> getHadoopWrapperClassNameForFileSystem(String scheme) {
-		if(hadoopWrapper == null) {
+		if (hadoopWrapper == null) {
 			try {
 				hadoopWrapper = (HadoopFileSystemWrapper) instantiateHadoopFileSystemWrapper(null);
 			} catch (IOException e) {
@@ -664,12 +664,12 @@ public abstract class FileSystem {
 	 * @throws IOException
 	 */
 	public boolean initOutPathDistFS(Path outPath, WriteMode writeMode, boolean createDirectory) throws IOException {
-		if(!this.isDistributedFS()) {
+		if (!this.isDistributedFS()) {
 			return false;
 		}
 		
 		// check if path exists
-		if(this.exists(outPath)) {
+		if (this.exists(outPath)) {
 			// path exists, check write mode
 			switch(writeMode) {
 			case NO_OVERWRITE:
@@ -692,10 +692,10 @@ public abstract class FileSystem {
 			}
 		}
 		
-		if(createDirectory) {
+		if (createDirectory) {
 			// Output directory needs to be created
 			try {
-				if(!this.exists(outPath)) {
+				if (!this.exists(outPath)) {
 					this.mkdirs(outPath);
 				}
 			} catch(IOException ioe) {

@@ -107,7 +107,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 				if(response instanceof JobFound){
 					ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
 					writeJsonForArchivedJob(resp.getWriter(), archivedJob);
-				}else{
+				} else {
 					LOG.warn("DoGet:job: Could not find job for job ID " + jobId);
 				}
 			}
@@ -118,12 +118,12 @@ public class JobManagerInfoServlet extends HttpServlet {
 				JobResponse response = AkkaUtils.ask(archive,
 						new RequestJob(JobID.fromHexString(jobId)), timeout);
 
-				if(response instanceof JobFound && groupvertexId != null){
+				if (response instanceof JobFound && groupvertexId != null) {
 					ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
 
 					writeJsonForArchivedJobGroupvertex(resp.getWriter(), archivedJob,
 							JobVertexID.fromHexString(groupvertexId));
-				}else{
+				} else {
 					LOG.warn("DoGet:groupvertex: Could not find job for job ID " + jobId);
 				}
 			}
@@ -329,7 +329,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 			AccumulatorResultsResponse response = AkkaUtils.ask(jobmanager,
 					new RequestAccumulatorResults(graph.getJobID()), timeout);
 
-			if(response instanceof AccumulatorResultsFound){
+			if (response instanceof AccumulatorResultsFound) {
 				Map<String, Object> accMap = ((AccumulatorResultsFound)response).asJavaMap();
 
 				wrt.write("\n\"accumulators\": [");
@@ -390,7 +390,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 					wrt.write("}");
 
 				}
-			}else{
+			} else {
 				LOG.warn("Could not find accumulator results for job ID " + graph.getJobID());
 			}
 
@@ -431,9 +431,9 @@ public class JobManagerInfoServlet extends HttpServlet {
 			boolean first = true;
 
 			for(ExecutionGraph g : graphs){
-				if(first){
+				if (first) {
 					first = false;
-				}else{
+				} else {
 					wrt.write(",");
 				}
 
@@ -478,7 +478,7 @@ public class JobManagerInfoServlet extends HttpServlet {
 				wrt.write("]");
 
 				wrt.write("}");
-			}else{
+			} else {
 				wrt.write("\"vertexevents\": [],");
 				wrt.write("\"jobevents\": [");
 				wrt.write("{");

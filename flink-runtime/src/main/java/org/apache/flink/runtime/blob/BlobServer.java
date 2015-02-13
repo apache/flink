@@ -248,16 +248,16 @@ public final class BlobServer extends Thread implements BlobService {
 	 */
 	@Override
 	public URL getURL(BlobKey requiredBlob) throws IOException {
-		if(requiredBlob == null){
+		if (requiredBlob == null) {
 			throw new IllegalArgumentException("Required BLOB cannot be null.");
 		}
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
-		if(!localFile.exists()){
+		if (!localFile.exists()) {
 			throw new FileNotFoundException("File " + localFile.getCanonicalPath() + " does " +
 					"not exist.");
-		}else{
+		} else {
 			return localFile.toURI().toURL();
 		}
 	}
@@ -273,7 +273,7 @@ public final class BlobServer extends Thread implements BlobService {
 	public void delete(BlobKey blobKey) throws IOException {
 		final File localFile = BlobUtils.getStorageLocation(storageDir, blobKey);
 
-		if(localFile.exists()){
+		if (localFile.exists()) {
 			localFile.delete();
 		}
 	}

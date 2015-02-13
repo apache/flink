@@ -248,7 +248,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	}
 
 	public Costs getCumulativeCostsShare() {
-		if (this.cumulativeCosts == null){
+		if (this.cumulativeCosts == null) {
 			return null;
 		} else {
 			Costs result = cumulativeCosts.clone();
@@ -398,9 +398,9 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	}
 
 	public PlanNode getCandidateAtBranchPoint(OptimizerNode branchPoint) {
-		if(branchPlan == null){
+		if (branchPlan == null) {
 			return null;
-		}else{
+		} else {
 			return this.branchPlan.get(branchPoint);
 		}
 	}

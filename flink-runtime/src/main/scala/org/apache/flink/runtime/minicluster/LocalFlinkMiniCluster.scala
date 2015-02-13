@@ -45,7 +45,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
   val jobClientActorSystem = if(singleActorSystem){
     jobManagerActorSystem
-  }else{
+  } else {
     // create an actor system listening on a random port
     AkkaUtils.createDefaultActorSystem()
   }
@@ -88,7 +88,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
     val localExecution = if(numTaskManagers == 1){
       true
-    }else{
+    } else {
       false
     }
 

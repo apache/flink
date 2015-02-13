@@ -387,7 +387,7 @@ import scala.collection.JavaConverters._
 
       task.setEnvironment(env)
 
-      // register the task with the network stack and profilers
+      // register the task with the network stack and profiles
       networkEnvironment match {
         case Some(ne) => ne.registerTask(task)
         case None => throw new RuntimeException(

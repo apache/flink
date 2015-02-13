@@ -56,16 +56,16 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
 		ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(configuration);
 
-		try{
+		try {
 			ActorRef client = cluster.getJobClient();
 			JobClient.submitJobAndWait(jobGraph, false, client, cluster.timeout());
-		}catch(JobExecutionException e){
+		} catch(JobExecutionException e){
 			if(e.getMessage().contains("GraphConversionException")){
 				throw new Exception(CANNOT_EXECUTE_EMPTY_JOB, e);
-			}else{
+			} else {
 				throw e;
 			}
-		}finally{
+		} finally{
 			cluster.stop();
 		}
 	}

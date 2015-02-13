@@ -170,9 +170,9 @@ public class AccumulatorEvent implements Serializable {
 			baos.close();
 
 			buffer = baos.toByteArray();
-		}else if(serializedData != null){
+		} else if(serializedData != null) {
 			buffer = serializedData;
-		}else{
+		} else {
 			throw new RuntimeException("The AccumulatorEvent's accumulator is null and there is " +
 					"no serialized data attached to it.");
 		}

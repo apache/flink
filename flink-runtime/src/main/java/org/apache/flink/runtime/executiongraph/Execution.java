@@ -742,9 +742,9 @@ public class Execution implements Serializable {
 
 			@Override
 			public void onComplete(Throwable failure, Object success) throws Throwable {
-				if(failure != null){
+				if (failure != null) {
 					fail(new Exception("Task could not be canceled.", failure));
-				}else{
+				} else {
 					TaskOperationResult result = (TaskOperationResult)success;
 					if(!result.success()){
 						LOG.debug("Cancel task call did not find task. Probably akka message call" +

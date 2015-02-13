@@ -84,7 +84,9 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 
 	private BufferPool bufferPool;
 
-	public IntermediateResultPartition(RuntimeEnvironment environment, int partitionIndex, JobID jobId, ExecutionAttemptID executionId, IntermediateResultPartitionID partitionId, IntermediateResultPartitionType partitionType, IntermediateResultPartitionQueue[] partitionQueues, NetworkEnvironment networkEnvironment) {
+	public IntermediateResultPartition(RuntimeEnvironment environment, int partitionIndex, JobID jobId,
+			ExecutionAttemptID executionId, IntermediateResultPartitionID partitionId, IntermediateResultPartitionType partitionType,
+			IntermediateResultPartitionQueue[] partitionQueues, NetworkEnvironment networkEnvironment) {
 		this.environment = environment;
 		this.partitionIndex = partitionIndex;
 		this.jobId = jobId;
@@ -100,7 +102,8 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	public void setBufferPool(BufferPool bufferPool) {
-		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() == getNumberOfQueues(), "Buffer pool has not enough buffers for this intermediate result.");
+		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() == getNumberOfQueues(),
+				"Buffer pool has not enough buffers for this intermediate result.");
 		checkState(this.bufferPool == null, "Buffer pool has already been set for intermediate result partition.");
 
 		this.bufferPool = checkNotNull(bufferPool);

@@ -510,9 +510,9 @@ public class TaskManagerTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception{
-			if(message instanceof JobManagerMessages.UpdateTaskExecutionState){
+			if (message instanceof JobManagerMessages.UpdateTaskExecutionState) {
 				getSender().tell(false, getSelf());
-			}else{
+			} else {
 				super.onReceive(message);
 			}
 		}
