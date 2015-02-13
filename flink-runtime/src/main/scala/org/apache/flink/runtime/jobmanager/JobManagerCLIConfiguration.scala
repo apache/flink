@@ -24,5 +24,5 @@ object ExecutionMode extends Enumeration{
   val CLUSTER = Value
 }
 
-case class JobManagerCLIConfiguration(configDir: String = null, executionMode: ExecutionMode
-.ExecutionMode = ExecutionMode.CLUSTER) {}
+case class JobManagerCLIConfiguration(configDir: String = null, 
+          executionMode: ExecutionMode.ExecutionMode = ExecutionMode.CLUSTER) {}
