@@ -52,8 +52,6 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   val waitForJobStatus = scala.collection.mutable.HashMap[JobID,
     collection.mutable.HashMap[JobStatus, Set[ActorRef]]]()
 
-  override def archiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
-
   abstract override def receiveWithLogMessages: Receive = {
     receiveTestingMessages orElse super.receiveWithLogMessages
   }

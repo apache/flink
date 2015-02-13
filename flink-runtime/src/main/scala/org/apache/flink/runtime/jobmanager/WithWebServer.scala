@@ -27,7 +27,7 @@ import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 trait WithWebServer extends Actor {
   that: JobManager =>
 
-  val webServer = new WebInfoServer(configuration,self, archive, timeout)
+  val webServer = new WebInfoServer(configuration, self, archive, timeout)
   webServer.start()
 
   abstract override def postStop(): Unit = {
