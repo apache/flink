@@ -20,21 +20,45 @@ package org.apache.flink.runtime.blob;
 
 import static org.mockito.Mockito.mock;
 
+import com.google.common.io.Files;
+
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 
 public class BlobUtilsTest {
 
+	private final static String CANNOT_CREATE_THIS = "cannot-create-this";
+
+	private File blobUtilsTestDirectory;
+
+	@Before
+	public void before() {
+		// Prepare test directory
+		blobUtilsTestDirectory = Files.createTempDir();
+
+		blobUtilsTestDirectory.setExecutable(true, false);
+		blobUtilsTestDirectory.setReadable(true, false);
+		blobUtilsTestDirectory.setWritable(false, false);
+	}
+
+	@After
+	public void after() {
+		// Cleanup test directory
+		blobUtilsTestDirectory.delete();
+	}
+
 	@Test(expected = Exception.class)
 	public void testExceptionOnCreateStorageDirectoryFailure() {
 		// Should throw an Exception
-		BlobUtils.initStorageDirectory("/cannot-create-this");
+		BlobUtils.initStorageDirectory(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS).getAbsolutePath());
 	}
 
 	@Test(expected = Exception.class)
 	public void testExceptionOnCreateCacheDirectoryFailure() {
 		// Should throw an Exception
-		BlobUtils.getStorageLocation(new File("/cannot-create-this"), mock(BlobKey.class));
+		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), mock(BlobKey.class));
 	}
 }
