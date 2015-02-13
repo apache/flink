@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.windowing;
+package org.apache.flink.streaming.api.windowing;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,32 +33,30 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 	private static Random rnd = new Random();
 
 	public int windowID;
-	public int transformationID;
 
 	public int numberOfParts;
 
 	public StreamWindow() {
-		this(rnd.nextInt(), rnd.nextInt(), 1);
+		this(rnd.nextInt(), 1);
 	}
 
 	public StreamWindow(int windowID) {
-		this(windowID, rnd.nextInt(), 1);
+		this(windowID, 1);
 	}
 
-	public StreamWindow(int windowID, int transformationID, int numberOfParts) {
+	public StreamWindow(int windowID, int numberOfParts) {
 		super();
 		this.windowID = windowID;
-		this.transformationID = transformationID;
 		this.numberOfParts = numberOfParts;
 	}
 
 	public StreamWindow(StreamWindow<T> window) {
-		this(window.windowID, window.transformationID, window.numberOfParts);
+		this(window.windowID, window.numberOfParts);
 		addAll(window);
 	}
 
 	public StreamWindow(StreamWindow<T> window, TypeSerializer<T> serializer) {
-		this(window.windowID, window.transformationID, window.numberOfParts);
+		this(window.windowID, window.numberOfParts);
 		for (T element : window) {
 			add(serializer.copy(element));
 		}
@@ -71,7 +69,7 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 			Object key = keySelector.getKey(value);
 			StreamWindow<T> window = partitions.get(key);
 			if (window == null) {
-				window = new StreamWindow<T>(this.windowID, this.transformationID, 0);
+				window = new StreamWindow<T>(this.windowID, 0);
 				partitions.put(key, window);
 			}
 			window.add(value);
@@ -97,13 +95,13 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 
 			int index = -1;
 
-			StreamWindow<T> currentSubWindow = new StreamWindow<T>(windowID, transformationID, n);
+			StreamWindow<T> currentSubWindow = new StreamWindow<T>(windowID, n);
 			split.add(currentSubWindow);
 
 			for (T element : this) {
 				index++;
 				if (index == splitSize && split.size() < n) {
-					currentSubWindow = new StreamWindow<T>(windowID, transformationID, n);
+					currentSubWindow = new StreamWindow<T>(windowID, n);
 					split.add(currentSubWindow);
 					index = 0;
 				}

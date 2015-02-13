@@ -18,24 +18,22 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
-
 import scala.Array.canBuildFrom
 import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.reflect.ClassTag
 
-import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
 import org.apache.flink.streaming.api.datastream.{WindowedDataStream => JavaWStream}
+import org.apache.flink.streaming.api.function.WindowMapFunction
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.function.aggregation.SumFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
+import org.apache.flink.streaming.api.windowing.StreamWindow
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
-import org.apache.flink.streaming.api.windowing.helper._
-import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindow
 import org.apache.flink.util.Collector
 
 class WindowedDataStream[T](javaStream: JavaWStream[T]) {
@@ -144,7 +142,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * </br>
    * Whenever possible try to use reduce instead of groupReduce for increased efficiency
    */
-  def mapWindow[R: ClassTag: TypeInformation](reducer: GroupReduceFunction[T, R]):
+  def mapWindow[R: ClassTag: TypeInformation](reducer: WindowMapFunction[T, R]):
   WindowedDataStream[R] = {
     if (reducer == null) {
       throw new NullPointerException("GroupReduce function must not be null.")
@@ -165,9 +163,9 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     if (fun == null) {
       throw new NullPointerException("GroupReduce function must not be null.")
     }
-    val reducer = new GroupReduceFunction[T, R] {
+    val reducer = new WindowMapFunction[T, R] {
       val cleanFun = clean(fun)
-      def reduce(in: java.lang.Iterable[T], out: Collector[R]) = { cleanFun(in, out) }
+      def mapWindow(in: java.lang.Iterable[T], out: Collector[R]) = { cleanFun(in, out) }
     }
     mapWindow(reducer)
   }

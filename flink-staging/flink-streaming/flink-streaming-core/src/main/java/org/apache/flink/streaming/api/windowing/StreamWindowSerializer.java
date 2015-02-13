@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.windowing;
+package org.apache.flink.streaming.api.windowing;
 
 import java.io.IOException;
 
@@ -50,7 +50,7 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 
 	@Override
 	public StreamWindow<T> createInstance() {
-		return new StreamWindow<T>(0, 0, 0);
+		return new StreamWindow<T>(0, 0);
 	}
 
 	@Override
@@ -62,7 +62,6 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 	public StreamWindow<T> copy(StreamWindow<T> from, StreamWindow<T> reuse) {
 		reuse.clear();
 		reuse.windowID = from.windowID;
-		reuse.transformationID = from.transformationID;
 		reuse.numberOfParts = from.numberOfParts;
 
 		for (T element : from) {
@@ -80,7 +79,6 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 	public void serialize(StreamWindow<T> value, DataOutputView target) throws IOException {
 
 		intSerializer.serialize(value.windowID, target);
-		intSerializer.serialize(value.transformationID, target);
 		intSerializer.serialize(value.numberOfParts, target);
 		intSerializer.serialize(value.size(), target);
 
@@ -94,7 +92,6 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 		StreamWindow<T> window = createInstance();
 
 		window.windowID = intSerializer.deserialize(source);
-		window.transformationID = intSerializer.deserialize(source);
 		window.numberOfParts = intSerializer.deserialize(source);
 
 		int size = intSerializer.deserialize(source);
@@ -114,7 +111,6 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 		window.clear();
 
 		window.windowID = source.readInt();
-		window.transformationID = source.readInt();
 		window.numberOfParts = source.readInt();
 
 		int size = source.readInt();

@@ -19,30 +19,24 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.operator.windowing.BasicWindowBuffer;
-import org.apache.flink.streaming.api.invokable.operator.windowing.CompletePreAggregator;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedStreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedTimeDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
-import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindow;
-import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindowTypeInfo;
-import org.apache.flink.streaming.api.invokable.operator.windowing.TumblingGroupedPreReducer;
-import org.apache.flink.streaming.api.invokable.operator.windowing.TumblingPreReducer;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowBuffer;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.StreamWindowTypeInfo;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
@@ -51,19 +45,35 @@ import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
+import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBuffer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.CompletePreAggregator;
+import org.apache.flink.streaming.api.windowing.windowbuffer.TumblingGroupedPreReducer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.TumblingPreReducer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 /**
  * A {@link WindowedDataStream} represents a data stream that has been divided
  * into windows (predefined chunks). User defined function such as
- * {@link #reduceWindow(ReduceFunction)},
- * {@link #mapWindow(GroupReduceFunction)} or aggregations can be applied to the
- * windows.
+ * {@link #reduceWindow(ReduceFunction)}, {@link #mapWindow()} or aggregations
+ * can be applied to the windows.
  * 
  * @param <OUT>
  *            The output type of the {@link WindowedDataStream}
  */
 public class WindowedDataStream<OUT> {
+
+	protected enum WindowTransformation {
+
+		REDUCEWINDOW, MAPWINDOW, NONE;
+
+		private Function UDF;
+
+		public WindowTransformation with(Function UDF) {
+			this.UDF = UDF;
+			return this;
+		}
+	}
 
 	protected DataStream<OUT> dataStream;
 
@@ -111,10 +121,6 @@ public class WindowedDataStream<OUT> {
 	}
 
 	public WindowedDataStream() {
-	}
-
-	public <F> F clean(F f) {
-		return dataStream.clean(f);
 	}
 
 	/**
@@ -201,7 +207,7 @@ public class WindowedDataStream<OUT> {
 	}
 
 	private WindowedDataStream<OUT> groupBy(Keys<OUT> keys) {
-		return groupBy(clean(KeySelectorUtil.getSelectorForKeys(keys, getType(),
+		return groupBy(dataStream.clean(KeySelectorUtil.getSelectorForKeys(keys, getType(),
 				getExecutionConfig())));
 	}
 
@@ -218,6 +224,79 @@ public class WindowedDataStream<OUT> {
 		return out;
 	}
 
+	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
+		return discretize(WindowTransformation.NONE, new BasicWindowBuffer<OUT>())
+				.getDiscretizedStream();
+	}
+
+	public DataStream<OUT> flatten() {
+		return dataStream;
+	}
+
+	/**
+	 * Applies a reduce transformation on the windowed data stream by reducing
+	 * the current window at every trigger.The user can also extend the
+	 * {@link RichReduceFunction} to gain access to other features provided by
+	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * 
+	 * @param reduceFunction
+	 *            The reduce function that will be applied to the windows.
+	 * @return The transformed DataStream
+	 */
+	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
+
+		WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
+				.with(reduceFunction);
+
+		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation, getTrigger(),
+				getEviction(), discretizerKey);
+
+		if (windowBuffer instanceof CompletePreAggregator) {
+			return discretize(transformation, windowBuffer);
+		} else {
+			return discretize(transformation, windowBuffer).reduceWindow(reduceFunction);
+		}
+	}
+
+	/**
+	 * Applies a reduceGroup transformation on the windowed data stream by
+	 * reducing the current window at every trigger. In contrast with the
+	 * standard binary reducer, with reduceGroup the user can access all
+	 * elements of the window at the same time through the iterable interface.
+	 * The user can also extend the to gain access to other features provided by
+	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * 
+	 * @param windowMapFunction
+	 *            The reduce function that will be applied to the windows.
+	 * @return The transformed DataStream
+	 */
+	public <R> WindowedDataStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction) {
+		return discretize(WindowTransformation.MAPWINDOW.with(windowMapFunction),
+				new BasicWindowBuffer<OUT>()).mapWindow(windowMapFunction);
+	}
+
+	/**
+	 * Applies a reduceGroup transformation on the windowed data stream by
+	 * reducing the current window at every trigger. In contrast with the
+	 * standard binary reducer, with reduceGroup the user can access all
+	 * elements of the window at the same time through the iterable interface.
+	 * The user can also extend the to gain access to other features provided by
+	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * </br> </br> This version of reduceGroup uses user supplied
+	 * typeinformation for serializaton. Use this only when the system is unable
+	 * to detect type information using: {@link #mapWindow()}
+	 * 
+	 * @param windowMapFunction
+	 *            The reduce function that will be applied to the windows.
+	 * @return The transformed DataStream
+	 */
+	public <R> WindowedDataStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction,
+			TypeInformation<R> outType) {
+
+		return discretize(WindowTransformation.MAPWINDOW.with(windowMapFunction),
+				new BasicWindowBuffer<OUT>()).mapWindow(windowMapFunction, outType);
+	}
+
 	private DiscretizedStream<OUT> discretize(WindowTransformation transformation,
 			WindowBuffer<OUT> windowBuffer) {
 
@@ -230,18 +309,6 @@ public class WindowedDataStream<OUT> {
 				new StreamWindowTypeInfo<OUT>(getType()), discretizer).setParallelism(parallelism),
 				groupByKey, transformation);
 
-	}
-
-	protected enum WindowTransformation {
-
-		REDUCEWINDOW, MAPWINDOW, NONE;
-
-		private Function UDF;
-
-		public WindowTransformation with(Function UDF) {
-			this.UDF = UDF;
-			return this;
-		}
 	}
 
 	private int getDiscretizerParallelism() {
@@ -277,88 +344,16 @@ public class WindowedDataStream<OUT> {
 		if (transformation == WindowTransformation.REDUCEWINDOW
 				&& eviction instanceof TumblingEvictionPolicy) {
 			if (groupByKey == null) {
-				return new TumblingPreReducer<OUT>((ReduceFunction<OUT>) transformation.UDF,
-						getType().createSerializer(getExecutionConfig()));
+				return new TumblingPreReducer<OUT>(
+						dataStream.clean((ReduceFunction<OUT>) transformation.UDF), getType()
+								.createSerializer(getExecutionConfig()));
 			} else {
-				return new TumblingGroupedPreReducer<OUT>((ReduceFunction<OUT>) transformation.UDF,
-						groupByKey, getType().createSerializer(getExecutionConfig()));
+				return new TumblingGroupedPreReducer<OUT>(
+						dataStream.clean((ReduceFunction<OUT>) transformation.UDF), groupByKey,
+						getType().createSerializer(getExecutionConfig()));
 			}
 		}
 		return new BasicWindowBuffer<OUT>();
-	}
-
-	/**
-	 * Applies a reduce transformation on the windowed data stream by reducing
-	 * the current window at every trigger.The user can also extend the
-	 * {@link RichReduceFunction} to gain access to other features provided by
-	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
-	 * @param reduceFunction
-	 *            The reduce function that will be applied to the windows.
-	 * @return The transformed DataStream
-	 */
-	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
-
-		WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
-				.with(reduceFunction);
-
-		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation, getTrigger(),
-				getEviction(), discretizerKey);
-
-		if (windowBuffer instanceof CompletePreAggregator) {
-			return discretize(transformation, windowBuffer);
-		} else {
-			return discretize(transformation, windowBuffer).reduceWindow(reduceFunction);
-		}
-	}
-
-	/**
-	 * Applies a reduceGroup transformation on the windowed data stream by
-	 * reducing the current window at every trigger. In contrast with the
-	 * standard binary reducer, with reduceGroup the user can access all
-	 * elements of the window at the same time through the iterable interface.
-	 * The user can also extend the {@link RichGroupReduceFunction} to gain
-	 * access to other features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
-	 * @param reduceFunction
-	 *            The reduce function that will be applied to the windows.
-	 * @return The transformed DataStream
-	 */
-	public <R> WindowedDataStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction) {
-		return discretize(WindowTransformation.MAPWINDOW.with(reduceFunction),
-				new BasicWindowBuffer<OUT>()).mapWindow(reduceFunction);
-	}
-
-	/**
-	 * Applies a reduceGroup transformation on the windowed data stream by
-	 * reducing the current window at every trigger. In contrast with the
-	 * standard binary reducer, with reduceGroup the user can access all
-	 * elements of the window at the same time through the iterable interface.
-	 * The user can also extend the {@link RichGroupReduceFunction} to gain
-	 * access to other features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * </br> </br> This version of reduceGroup uses user supplied
-	 * typeinformation for serializaton. Use this only when the system is unable
-	 * to detect type information using: {@link #mapWindow(GroupReduceFunction)}
-	 * 
-	 * @param reduceFunction
-	 *            The reduce function that will be applied to the windows.
-	 * @return The transformed DataStream
-	 */
-	public <R> WindowedDataStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction,
-			TypeInformation<R> outType) {
-
-		return discretize(WindowTransformation.MAPWINDOW.with(reduceFunction),
-				new BasicWindowBuffer<OUT>()).mapWindow(reduceFunction, outType);
-	}
-
-	public DataStream<OUT> flatten() {
-		return dataStream;
-	}
-
-	protected Class<?> getClassAtPos(int pos) {
-		return dataStream.getClassAtPos(pos);
 	}
 
 	/**
@@ -610,6 +605,10 @@ public class WindowedDataStream<OUT> {
 
 	}
 
+	protected boolean isGrouped() {
+		return groupByKey != null;
+	}
+
 	/**
 	 * Gets the output type.
 	 * 
@@ -619,21 +618,16 @@ public class WindowedDataStream<OUT> {
 		return dataStream.getType();
 	}
 
-	protected WindowedDataStream<OUT> copy() {
-		return new WindowedDataStream<OUT>(this);
-	}
-
-	protected boolean isGrouped() {
-		return groupByKey != null;
-	}
-
-	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
-		return discretize(WindowTransformation.NONE, new BasicWindowBuffer<OUT>())
-				.getDiscretizedStream();
-	}
-
 	public ExecutionConfig getExecutionConfig() {
 		return dataStream.getExecutionConfig();
+	}
+
+	protected Class<?> getClassAtPos(int pos) {
+		return dataStream.getClassAtPos(pos);
+	}
+
+	protected WindowedDataStream<OUT> copy() {
+		return new WindowedDataStream<OUT>(this);
 	}
 
 	protected static class WindowKey<R> implements KeySelector<StreamWindow<R>, Integer> {

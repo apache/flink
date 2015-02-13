@@ -18,9 +18,8 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -28,21 +27,21 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindow;
-import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindowTypeInfo;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowFlattener;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMapper;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMerger;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowPartitioner;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowReducer;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.StreamWindowTypeInfo;
 
 /**
  * A {@link DiscretizedStream} represents a data stream that has been divided
  * into windows (predefined chunks). User defined function such as
- * {@link #reduceWindow(ReduceFunction)},
- * {@link #mapWindow(GroupReduceFunction)} or aggregations can be applied to the
- * windows.
+ * {@link #reduceWindow(ReduceFunction)}, {@link #mapWindow()} or aggregations
+ * can be applied to the windows.
  * 
  * @param <OUT>
  *            The output type of the {@link DiscretizedStream}
@@ -58,6 +57,14 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		this.groupByKey = groupByKey;
 		this.discretizedStream = discretizedStream;
 		this.transformation = tranformation;
+	}
+
+	public DataStream<OUT> flatten() {
+		return discretizedStream.transform("Window Flatten", getType(), new WindowFlattener<OUT>());
+	}
+
+	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
+		return discretizedStream;
 	}
 
 	/**
@@ -79,7 +86,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 		if (!isGrouped()) {
 			return out.transform(WindowTransformation.REDUCEWINDOW, "Window Reduce", out.getType(),
-					new WindowReducer<OUT>(reduceFunction));
+					new WindowReducer<OUT>(discretizedStream.clean(reduceFunction)));
 		} else {
 			return out;
 		}
@@ -90,29 +97,27 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	 * reducing the current window at every trigger. In contrast with the
 	 * standard binary reducer, with reduceGroup the user can access all
 	 * elements of the window at the same time through the iterable interface.
-	 * The user can also extend the {@link RichGroupReduceFunction} to gain
-	 * access to other features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * The user can also extend the to gain access to other features provided by
+	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
-	 * @param reduceFunction
+	 * @param windowMapFunction
 	 *            The reduce function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
 	@Override
-	public <R> DiscretizedStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction) {
+	public <R> DiscretizedStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction) {
 
-		TypeInformation<R> retType = TypeExtractor.getGroupReduceReturnTypes(reduceFunction,
-				getType());
+		TypeInformation<R> retType = getWindowMapReturnTypes(windowMapFunction, getType());
 
-		return mapWindow(reduceFunction, retType);
+		return mapWindow(windowMapFunction, retType);
 	}
 
 	@Override
-	public <R> DiscretizedStream<R> mapWindow(GroupReduceFunction<OUT, R> reduceFunction,
+	public <R> DiscretizedStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction,
 			TypeInformation<R> returnType) {
 		DiscretizedStream<R> out = partition(transformation).transform(
 				WindowTransformation.REDUCEWINDOW, "Window Reduce", returnType,
-				new WindowMapper<OUT, R>(reduceFunction));
+				new WindowMapper<OUT, R>(discretizedStream.clean(windowMapFunction)));
 
 		if (isGrouped()) {
 			return out.merge();
@@ -159,10 +164,6 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 				type, new WindowMerger<OUT>()));
 	}
 
-	public DataStream<OUT> flatten() {
-		return discretizedStream.transform("Window Flatten", getType(), new WindowFlattener<OUT>());
-	}
-
 	@SuppressWarnings("rawtypes")
 	private <R> DiscretizedStream<R> wrap(SingleOutputStreamOperator stream) {
 		return wrap(stream, transformation);
@@ -172,10 +173,6 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	private <R> DiscretizedStream<R> wrap(SingleOutputStreamOperator stream,
 			WindowTransformation transformation) {
 		return new DiscretizedStream<R>(stream, (KeySelector<R, ?>) this.groupByKey, transformation);
-	}
-
-	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
-		return discretizedStream;
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -229,6 +226,12 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	 */
 	public TypeInformation<OUT> getType() {
 		return ((StreamWindowTypeInfo<OUT>) discretizedStream.getType()).getInnerType();
+	}
+
+	private static <IN, OUT> TypeInformation<OUT> getWindowMapReturnTypes(
+			WindowMapFunction<IN, OUT> windowMapInterface, TypeInformation<IN> inType) {
+		return TypeExtractor.getUnaryOperatorReturnType((Function) windowMapInterface,
+				WindowMapFunction.class, true, true, inType, null, false);
 	}
 
 	protected DiscretizedStream<OUT> copy() {

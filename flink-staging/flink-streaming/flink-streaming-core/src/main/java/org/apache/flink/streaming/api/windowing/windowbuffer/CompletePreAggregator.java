@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.windowing;
+package org.apache.flink.streaming.api.windowing.windowbuffer;
 
 public interface CompletePreAggregator {
 

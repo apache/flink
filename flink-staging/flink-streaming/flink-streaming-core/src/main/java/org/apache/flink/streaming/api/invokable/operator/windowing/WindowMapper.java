@@ -17,29 +17,29 @@
 
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 
 public class WindowMapper<IN, OUT> extends MapInvokable<StreamWindow<IN>, StreamWindow<OUT>> {
 
 	private static final long serialVersionUID = 1L;
 
-	GroupReduceFunction<IN, OUT> reducer;
+	WindowMapFunction<IN, OUT> mapper;
 
-	public WindowMapper(GroupReduceFunction<IN, OUT> reducer) {
-		super(new WindowMapfunction<IN, OUT>(reducer));
-		this.reducer = reducer;
+	public WindowMapper(WindowMapFunction<IN, OUT> mapper) {
+		super(new WindowMap<IN, OUT>(mapper));
+		this.mapper = mapper;
 	}
 
-	private static class WindowMapfunction<T, R> implements
-			MapFunction<StreamWindow<T>, StreamWindow<R>> {
+	private static class WindowMap<T, R> implements MapFunction<StreamWindow<T>, StreamWindow<R>> {
 
 		private static final long serialVersionUID = 1L;
-		GroupReduceFunction<T, R> reducer;
+		WindowMapFunction<T, R> mapper;
 
-		public WindowMapfunction(GroupReduceFunction<T, R> reducer) {
-			this.reducer = reducer;
+		public WindowMap(WindowMapFunction<T, R> mapper) {
+			this.mapper = mapper;
 		}
 
 		@Override
@@ -47,7 +47,7 @@ public class WindowMapper<IN, OUT> extends MapInvokable<StreamWindow<IN>, Stream
 			StreamWindow<R> outputWindow = new StreamWindow<R>(window.windowID);
 			outputWindow.numberOfParts = window.numberOfParts;
 
-			reducer.reduce(window, outputWindow);
+			mapper.mapWindow(window, outputWindow);
 
 			return outputWindow;
 		}

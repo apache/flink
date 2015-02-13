@@ -15,13 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.windowing;
+package org.apache.flink.streaming.api.windowing.windowbuffer;
 
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBuffer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 

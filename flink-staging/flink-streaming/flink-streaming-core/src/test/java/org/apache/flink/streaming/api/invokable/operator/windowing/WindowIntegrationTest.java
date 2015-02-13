@@ -24,11 +24,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
@@ -55,10 +56,10 @@ public class WindowIntegrationTest implements Serializable {
 
 	@SuppressWarnings("serial")
 	public static class IdentityWindowMap implements
-			GroupReduceFunction<Integer, StreamWindow<Integer>> {
+			WindowMapFunction<Integer, StreamWindow<Integer>> {
 
 		@Override
-		public void reduce(Iterable<Integer> values, Collector<StreamWindow<Integer>> out)
+		public void mapWindow(Iterable<Integer> values, Collector<StreamWindow<Integer>> out)
 				throws Exception {
 
 			StreamWindow<Integer> window = new StreamWindow<Integer>();

@@ -15,8 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.function.source;
+package org.apache.flink.streaming.api.windowing.windowbuffer;
 
-public interface ParallelSourceFunction<OUT> extends SourceFunction<OUT> {
+import java.io.Serializable;
+
+import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.util.Collector;
+
+public interface WindowBuffer<T> extends Serializable {
+
+	public void store(T element) throws Exception;
+
+	public void evict(int n);
+
+	public boolean emitWindow(Collector<StreamWindow<T>> collector);
+
+	public int size();
+	
+	public WindowBuffer<T> clone();
 
 }

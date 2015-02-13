@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 
 public class WindowFlattener<T> extends ChainableInvokable<StreamWindow<T>, T> {
 

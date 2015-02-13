@@ -15,8 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.function.source;
+package org.apache.flink.streaming.api.function;
 
-public interface ParallelSourceFunction<OUT> extends SourceFunction<OUT> {
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.util.Collector;
+
+public abstract class RichWindowMapFunction<IN, OUT> extends AbstractRichFunction implements
+		WindowMapFunction<IN, OUT> {
+
+	private static final long serialVersionUID = 9052714915997374185L;
+
+	@Override
+	public abstract void mapWindow(Iterable<IN> values, Collector<OUT> out) throws Exception;
 
 }
