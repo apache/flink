@@ -72,9 +72,10 @@ public class CliFrontendInfoTest {
 	@Test
 	public void testShowExecutionPlan() {
 		try {
-			String[] parameters = {"-e", CliFrontendTestUtils.getTestJarPath()};
+			String[] parameters = {CliFrontendTestUtils.getTestJarPath()};
 			InfoTestCliFrontend testFrontend = new InfoTestCliFrontend(-1);
-			testFrontend.info(parameters);
+			int retCode = testFrontend.info(parameters);
+			assertTrue(retCode == 0);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -86,9 +87,10 @@ public class CliFrontendInfoTest {
 	@Test
 	public void testShowExecutionPlanWithParallelism() {
 		try {
-			String[] parameters = {"-e", "-p", "17", CliFrontendTestUtils.getTestJarPath()};
+			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath()};
 			InfoTestCliFrontend testFrontend = new InfoTestCliFrontend(17);
-			testFrontend.info(parameters);
+			int retCode = testFrontend.info(parameters);
+			assertTrue(retCode == 0);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
