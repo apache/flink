@@ -37,16 +37,15 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /**
  * Test the functionality of aggregators in bulk and delta iterative cases.
- *
  */
 @RunWith(Parameterized.class)
 public class AggregatorsITCase extends MultipleProgramsTestBase {
@@ -287,7 +286,6 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void open(Configuration conf) {
-
 			aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
 		}
 
@@ -319,10 +317,16 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	public static final class TupleMakerMap extends RichMapFunction<Integer, Tuple2<Integer, Integer>> {
 
+		private Random rnd;
+
 		@Override
-		public Tuple2<Integer, Integer> map(Integer value) throws Exception {
-			Random ran = new Random();
-			Integer nodeId = Integer.valueOf(ran.nextInt(100000));
+		public void open(Configuration parameters){
+			rnd = new Random(0xC0FFEBADBEEFDEADL + getRuntimeContext().getIndexOfThisSubtask());
+		}
+
+		@Override
+		public Tuple2<Integer, Integer> map(Integer value) {
+			Integer nodeId = Integer.valueOf(rnd.nextInt(100000));
 			return new Tuple2<Integer, Integer>(nodeId, value);
 		}
 
@@ -337,7 +341,6 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void open(Configuration conf) {
-
 			aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
 			superstep = getIterationRuntimeContext().getSuperstepNumber();
 
@@ -366,15 +369,13 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		private int superstep;
 
 		@Override
-		public void open(Configuration conf) { 
-
+		public void open(Configuration conf) {
 			superstep = getIterationRuntimeContext().getSuperstepNumber();
-
 		}
 
 		@Override
 		public void flatMap(Tuple2<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> value,
-				Collector<Tuple2<Integer, Integer>> out) throws Exception {
+				Collector<Tuple2<Integer, Integer>> out) {
 
 			if (value.f0.f1  > superstep) {
 				out.collect(value.f0);
