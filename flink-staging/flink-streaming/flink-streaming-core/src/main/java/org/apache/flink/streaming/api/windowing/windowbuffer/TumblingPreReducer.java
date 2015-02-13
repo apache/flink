@@ -15,63 +15,47 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.windowing;
-
-import java.util.HashMap;
-import java.util.Map;
+package org.apache.flink.streaming.api.windowing.windowbuffer;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
-public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
+public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
 
 	private static final long serialVersionUID = 1L;
 
 	private ReduceFunction<T> reducer;
-	private KeySelector<T, ?> keySelector;
 
-	private Map<Object, T> reducedValues;
-
+	private T reduced;
 	private int numOfElements = 0;
 	private TypeSerializer<T> serializer;
 
-	public TumblingGroupedPreReducer(ReduceFunction<T> reducer, KeySelector<T, ?> keySelector,
-			TypeSerializer<T> serializer) {
+	public TumblingPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer) {
 		this.reducer = reducer;
 		this.serializer = serializer;
-		this.keySelector = keySelector;
-		this.reducedValues = new HashMap<Object, T>();
 	}
 
 	public boolean emitWindow(Collector<StreamWindow<T>> collector) {
-
-		if (!reducedValues.isEmpty()) {
+		if (reduced != null) {
 			StreamWindow<T> currentWindow = new StreamWindow<T>();
-			currentWindow.addAll(reducedValues.values());
+			currentWindow.add(reduced);
 			collector.collect(currentWindow);
-			reducedValues.clear();
+			reduced = null;
 			numOfElements = 0;
 			return true;
 		} else {
 			return false;
 		}
-
 	}
 
 	public void store(T element) throws Exception {
-		Object key = keySelector.getKey(element);
-
-		T reduced = reducedValues.get(key);
-
 		if (reduced == null) {
 			reduced = element;
 		} else {
 			reduced = reducer.reduce(serializer.copy(reduced), element);
 		}
-
-		reducedValues.put(key, reduced);
 		numOfElements++;
 	}
 
@@ -83,13 +67,13 @@ public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePr
 	}
 
 	@Override
-	public TumblingGroupedPreReducer<T> clone() {
-		return new TumblingGroupedPreReducer<T>(reducer, keySelector, serializer);
+	public TumblingPreReducer<T> clone() {
+		return new TumblingPreReducer<T>(reducer, serializer);
 	}
 
 	@Override
 	public String toString() {
-		return reducedValues.toString();
+		return reduced.toString();
 	}
 
 }

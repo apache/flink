@@ -208,7 +208,7 @@ public class DataStream<OUT> {
 		return environment;
 	}
 
-	public ExecutionConfig getExecutionConfig() {
+	protected ExecutionConfig getExecutionConfig() {
 		return environment.getConfig();
 	}
 
@@ -254,11 +254,12 @@ public class DataStream<OUT> {
 
 	/**
 	 * Creates a new {@link ConnectedDataStream} by connecting
-	 * {@link DataStream} outputs of different type with each other. The
-	 * DataStreams connected using this operators can be used with CoFunctions.
+	 * {@link DataStream} outputs of (possible) different typea with each other.
+	 * The DataStreams connected using this operator can be used with
+	 * CoFunctions to apply joint transformations.
 	 * 
 	 * @param dataStream
-	 *            The DataStream with which this stream will be joined.
+	 *            The DataStream with which this stream will be connected.
 	 * @return The {@link ConnectedDataStream}.
 	 */
 	public <R> ConnectedDataStream<OUT, R> connect(DataStream<R> dataStream) {
@@ -502,9 +503,10 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies a reduce transformation on the data stream. The user can also
-	 * extend the {@link RichReduceFunction} to gain access to other features
-	 * provided by the
+	 * Applies a reduce transformation on the data stream. The returned stream
+	 * contains all the intermediate values of the reduce transformation. The
+	 * user can also extend the {@link RichReduceFunction} to gain access to
+	 * other features provided by the
 	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
 	 * @param reducer

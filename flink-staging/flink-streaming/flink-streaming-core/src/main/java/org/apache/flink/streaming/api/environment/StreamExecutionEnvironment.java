@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 
 import com.esotericsoftware.kryo.Serializer;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;

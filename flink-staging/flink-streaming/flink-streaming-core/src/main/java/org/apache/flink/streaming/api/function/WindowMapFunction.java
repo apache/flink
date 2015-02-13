@@ -15,22 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.windowing;
+package org.apache.flink.streaming.api.function;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.util.Collector;
 
-public interface WindowBuffer<T> extends Serializable {
+public interface WindowMapFunction<T, O> extends Function, Serializable {
 
-	public void store(T element) throws Exception;
-
-	public void evict(int n);
-
-	public boolean emitWindow(Collector<StreamWindow<T>> collector);
-
-	public int size();
-	
-	public WindowBuffer<T> clone();
-
+	void mapWindow(Iterable<T> values, Collector<O> out) throws Exception;
 }

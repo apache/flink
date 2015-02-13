@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.windowing;
+package org.apache.flink.streaming.api.windowing;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -35,6 +35,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.StreamWindowSerializer;
 import org.junit.Test;
 
 public class StreamWindowTest {
@@ -65,10 +67,8 @@ public class StreamWindowTest {
 	@Test
 	public void mergeTest() throws IOException {
 		StreamWindow<Integer> window1 = new StreamWindow<Integer>().setNumberOfParts(3);
-		StreamWindow<Integer> window2 = new StreamWindow<Integer>(window1.windowID,
-				window1.transformationID, 3);
-		StreamWindow<Integer> window3 = new StreamWindow<Integer>(window1.windowID,
-				window1.transformationID, 3);
+		StreamWindow<Integer> window2 = new StreamWindow<Integer>(window1.windowID, 3);
+		StreamWindow<Integer> window3 = new StreamWindow<Integer>(window1.windowID, 3);
 
 		window1.add(1);
 		window2.add(2);

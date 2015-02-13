@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 
 public class WindowMerger<T> extends ChainableInvokable<StreamWindow<T>, StreamWindow<T>> {
 

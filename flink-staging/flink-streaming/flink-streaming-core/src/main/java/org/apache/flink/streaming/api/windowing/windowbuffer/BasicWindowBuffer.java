@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.windowing;
+package org.apache.flink.streaming.api.windowing.windowbuffer;
 
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
 public class BasicWindowBuffer<T> implements WindowBuffer<T> {

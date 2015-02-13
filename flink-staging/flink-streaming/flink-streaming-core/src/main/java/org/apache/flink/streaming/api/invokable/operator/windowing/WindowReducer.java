@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.invokable.operator.windowing;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 
 public class WindowReducer<IN> extends MapInvokable<StreamWindow<IN>, StreamWindow<IN>> {
 

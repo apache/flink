@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.invokable.operator.windowing;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
+import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
 public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 

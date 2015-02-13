@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 
 public class WindowPartitioner<T> extends
 		ChainableInvokable<StreamWindow<T>, StreamWindow<T>> {

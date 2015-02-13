@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.{ WindowedDataStream => JavaWSt
 import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaStream }
 import org.apache.flink.streaming.api.datastream.{ ConnectedDataStream => JavaConStream }
 import language.implicitConversions
-import org.apache.flink.streaming.api.invokable.operator.windowing.StreamWindow
+import org.apache.flink.streaming.api.windowing.StreamWindow
 
 package object scala {
   // We have this here so that we always have generated TypeInformationS when
