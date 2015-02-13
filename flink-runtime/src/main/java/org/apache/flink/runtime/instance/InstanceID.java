@@ -25,4 +25,11 @@ import org.apache.flink.runtime.AbstractID;
  */
 public class InstanceID extends AbstractID {
 	private static final long serialVersionUID = 1L;
+
+	public InstanceID() {
+	}
+
+	public InstanceID(byte[] bytes) {
+		super(bytes);
+	}
 }
