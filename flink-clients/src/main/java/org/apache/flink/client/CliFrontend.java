@@ -526,14 +526,14 @@ public class CliFrontend {
 
 			Object result = null;
 
-			try{
+			try {
 				result = Await.result(response, getAkkaTimeout());
 			} catch (Exception exception) {
 				throw new IOException("Could not retrieve running jobs from job manager.",
 						exception);
 			}
 
-			if(!(result instanceof RunningJobs)){
+			if (!(result instanceof RunningJobs)) {
 				throw new RuntimeException("ReqeustRunningJobs requires a response of type " +
 						"RunningJobs. Instead the response is of type " + result.getClass() + ".");
 			} else {

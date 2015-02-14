@@ -19,6 +19,7 @@
 package org.apache.flink.yarn
 
 import akka.actor._
+import akka.pattern.ask
 import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -59,6 +60,9 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
     }
 
     pollingTimer = None
+
+    // Terminate the whole actor system because there is only the application client running
+    context.system.shutdown()
   }
 
   override def receiveWithLogMessages: Receive = {
@@ -73,6 +77,8 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
         case Failure(t) =>
           log.error(t, "Registration at JobManager/ApplicationMaster failed. Shutting " +
             "ApplicationClient down.")
+
+          // we could not connect to the job manager --> poison ourselves
           self ! PoisonPill
       }
 
@@ -82,7 +88,11 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
       // the message came from the FlinkYarnCluster. We send the message to the JobManager.
       // it is important not to forward the message because the JobManager is storing the
       // sender as the Application Client (this class).
-      jm ! RegisterClient
+      (jm ? RegisterClient(self))(timeout).onFailure{
+        case t: Throwable =>
+          log.error(t, "Could not register at the job manager.")
+          self ! PoisonPill
+      }
 
       // schedule a periodic status report from the JobManager
       // request the number of task managers and slots from the job manager
@@ -91,7 +101,7 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
 
     case msg: StopYarnSession =>
       log.info("Stop yarn session.")
-      stopMessageReceiver = Some(sender())
+      stopMessageReceiver = Some(sender)
       yarnJobManager foreach {
         _ forward msg
       }
@@ -102,9 +112,8 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
       stopMessageReceiver foreach {
         _ ! JobManagerStopped
       }
-      // stop ourselves
-      context.system.shutdown()
-
+      // poison ourselves
+      self ! PoisonPill
 
     // handle the responses from the PollYarnClusterStatus messages to the yarn job mgr
     case status: FlinkYarnClusterStatus =>
