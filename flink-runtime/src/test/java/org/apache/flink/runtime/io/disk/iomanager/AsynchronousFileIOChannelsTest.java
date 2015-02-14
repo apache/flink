@@ -92,8 +92,7 @@ public class AsynchronousFileIOChannelsTest {
 			testExceptionForwardsToClose(ioMan, 100, 1);
 			testExceptionForwardsToClose(ioMan, 100, 50);
 			testExceptionForwardsToClose(ioMan, 100, 100);
-		}
-		finally {
+		} finally {
 			ioMan.shutdown();
 		}
 	}
