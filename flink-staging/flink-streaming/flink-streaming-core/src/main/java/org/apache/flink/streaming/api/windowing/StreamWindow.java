@@ -140,6 +140,9 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 	 */
 	public List<StreamWindow<T>> split(int n) {
 		int numElements = size();
+		if (n == 0) {
+			return new ArrayList<StreamWindow<T>>();
+		}
 		if (n > numElements) {
 			return split(numElements);
 		} else {
