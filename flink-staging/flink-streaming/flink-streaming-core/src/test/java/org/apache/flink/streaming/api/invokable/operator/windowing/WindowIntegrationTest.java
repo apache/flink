@@ -147,7 +147,7 @@ public class WindowIntegrationTest implements Serializable {
 
 	}
 
-	private <R> void validateOutput(List<R> expected, List<R> actual) {
+	public static <R> void validateOutput(List<R> expected, List<R> actual) {
 		assertEquals(new HashSet<R>(expected), new HashSet<R>(actual));
 	}
 
