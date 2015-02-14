@@ -22,6 +22,10 @@ import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
+/**
+ * A specialized {@link GroupedStreamDiscretizer} to be used with time only
+ * policies
+ */
 public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 
 	private static final long serialVersionUID = -3469545957144404137L;

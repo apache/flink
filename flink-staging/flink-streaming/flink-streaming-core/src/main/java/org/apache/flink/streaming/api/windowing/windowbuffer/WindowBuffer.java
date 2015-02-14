@@ -22,6 +22,10 @@ import java.io.Serializable;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
+/**
+ * Interface for defining specialized buffers to store/emit window data.
+ * Pre-aggregators should be implemented using this interface.
+ */
 public interface WindowBuffer<T> extends Serializable, Cloneable {
 
 	public void store(T element) throws Exception;

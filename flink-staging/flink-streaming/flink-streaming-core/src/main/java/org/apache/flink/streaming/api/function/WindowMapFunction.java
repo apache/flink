@@ -20,8 +20,15 @@ package org.apache.flink.streaming.api.function;
 import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.streaming.api.datastream.WindowedDataStream;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
+/**
+ * Interface for defining mapWindow transformation to be applied on
+ * {@link WindowedDataStream}s. The mapWindow function will be called on each
+ * {@link StreamWindow}.
+ */
 public interface WindowMapFunction<T, O> extends Function, Serializable {
 
 	void mapWindow(Iterable<T> values, Collector<O> out) throws Exception;

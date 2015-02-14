@@ -49,7 +49,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
   /**
    * Groups the elements of the WindowedDataStream using the given
    * field positions. The window sizes (evictions) and slide sizes
-   * (triggers) will be calculated on the whole stream (in a central fashion),
+   * (triggers) will be calculated on the whole stream (in a global fashion),
    * but the user defined functions will be applied on a per group basis.
    * </br></br> To get windows and triggers on a per group basis apply the
    * DataStream.window(...) operator on an already grouped data stream.
@@ -60,7 +60,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
   /**
    * Groups the elements of the WindowedDataStream using the given
    * field expressions. The window sizes (evictions) and slide sizes
-   * (triggers) will be calculated on the whole stream (in a central fashion),
+   * (triggers) will be calculated on the whole stream (in a global fashion),
    * but the user defined functions will be applied on a per group basis.
    * </br></br> To get windows and triggers on a per group basis apply the
    * DataStream.window(...) operator on an already grouped data stream.
@@ -72,7 +72,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
   /**
    * Groups the elements of the WindowedDataStream using the given
    * KeySelector function. The window sizes (evictions) and slide sizes
-   * (triggers) will be calculated on the whole stream (in a central fashion),
+   * (triggers) will be calculated on the whole stream (in a global fashion),
    * but the user defined functions will be applied on a per group basis.
    * </br></br> To get windows and triggers on a per group basis apply the
    * DataStream.window(...) operator on an already grouped data stream.
@@ -88,16 +88,15 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
   }
   
   /**
-   * Sets the computations local meaning that the windowing and reduce or
-   * aggregation logic will be computed for each parallel instance of this
-   * operator
+   * Sets the window discretisation local, meaning that windows will be
+   * created in parallel at environment parallelism.
    * 
    */
   def local(): WindowedDataStream[T] = javaStream.local
  
   /**
    * Flattens the result of a window transformation returning the stream of window
-   * contents elementwise
+   * contents elementwise.
    */
   def flatten(): DataStream[T] = javaStream.flatten()
   
@@ -135,12 +134,12 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
   }
 
   /**
-   * Applies a reduceGroup transformation on the windowed data stream by reducing
-   * the current window at every trigger. In contrast with the simple binary reduce operator,
-   * groupReduce exposes the whole window through the Iterable interface.
+   * Applies a mapWindow transformation on the windowed data stream by calling the mapWindow
+   * method on current window at every trigger. In contrast with the simple binary reduce 
+   * operator, mapWindow exposes the whole window through the Iterable interface.
    * </br>
    * </br>
-   * Whenever possible try to use reduce instead of groupReduce for increased efficiency
+   * Whenever possible try to use reduceWindow instead of mapWindow for increased efficiency
    */
   def mapWindow[R: ClassTag: TypeInformation](reducer: WindowMapFunction[T, R]):
   WindowedDataStream[R] = {
@@ -151,12 +150,12 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
   }
 
   /**
-   * Applies a reduceGroup transformation on the windowed data stream by reducing
-   * the current window at every trigger. In contrast with the simple binary reduce operator,
-   * groupReduce exposes the whole window through the Iterable interface.
+   * Applies a mapWindow transformation on the windowed data stream by calling the mapWindow
+   * method on current window at every trigger. In contrast with the simple binary reduce 
+   * operator, mapWindow exposes the whole window through the Iterable interface.
    * </br>
    * </br>
-   * Whenever possible try to use reduce instead of groupReduce for increased efficiency
+   * Whenever possible try to use reduceWindow instead of mapWindow for increased efficiency
    */
   def mapWindow[R: ClassTag: TypeInformation](fun: (Iterable[T], Collector[R]) => Unit):
   WindowedDataStream[R] = {

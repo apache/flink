@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.streaming.api.function.RichWindowMapFunction;
 import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType;
@@ -53,10 +54,11 @@ import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 /**
- * A {@link WindowedDataStream} represents a data stream that has been divided
- * into windows (predefined chunks). User defined function such as
+ * A {@link WindowedDataStream} represents a data stream that has been
+ * discretised into windows. User defined function such as
  * {@link #reduceWindow(ReduceFunction)}, {@link #mapWindow()} or aggregations
- * can be applied to the windows.
+ * can be applied to the windows. The results of these transformations are also
+ * WindowedDataStreams of the same discretisation unit.
  * 
  * @param <OUT>
  *            The output type of the {@link WindowedDataStream}
@@ -64,9 +66,7 @@ import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 public class WindowedDataStream<OUT> {
 
 	protected enum WindowTransformation {
-
 		REDUCEWINDOW, MAPWINDOW, NONE;
-
 		private Function UDF;
 
 		public WindowTransformation with(Function UDF) {
@@ -132,8 +132,8 @@ public class WindowedDataStream<OUT> {
 	 * </br></br> The user function in this case will be called on the 5 most
 	 * recent elements every 2 seconds
 	 * 
-	 * @param policyHelpers
-	 *            The policies that define the triggering frequency
+	 * @param policyHelper
+	 *            The policy that define the triggering frequency
 	 * 
 	 * @return The windowed data stream with triggering set
 	 */
@@ -151,7 +151,7 @@ public class WindowedDataStream<OUT> {
 	/**
 	 * Groups the elements of the {@link WindowedDataStream} by the given key
 	 * positions. The window sizes (evictions) and slide sizes (triggers) will
-	 * be calculated on the whole stream (in a central fashion), but the user
+	 * be calculated on the whole stream (in a global fashion), but the user
 	 * defined functions will be applied on a per group basis. </br></br> To get
 	 * windows and triggers on a per group basis apply the
 	 * {@link DataStream#window} operator on an already grouped data stream.
@@ -171,7 +171,7 @@ public class WindowedDataStream<OUT> {
 	/**
 	 * Groups the elements of the {@link WindowedDataStream} by the given field
 	 * expressions. The window sizes (evictions) and slide sizes (triggers) will
-	 * be calculated on the whole stream (in a central fashion), but the user
+	 * be calculated on the whole stream (in a global fashion), but the user
 	 * defined functions will be applied on a per group basis. </br></br> To get
 	 * windows and triggers on a per group basis apply the
 	 * {@link DataStream#window} operator on an already grouped data stream.
@@ -191,7 +191,7 @@ public class WindowedDataStream<OUT> {
 	/**
 	 * Groups the elements of the {@link WindowedDataStream} using the given
 	 * {@link KeySelector}. The window sizes (evictions) and slide sizes
-	 * (triggers) will be calculated on the whole stream (in a central fashion),
+	 * (triggers) will be calculated on the whole stream (in a global fashion),
 	 * but the user defined functions will be applied on a per group basis.
 	 * </br></br> To get windows and triggers on a per group basis apply the
 	 * {@link DataStream#window} operator on an already grouped data stream.
@@ -212,11 +212,10 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Sets the windowed computations local, so that the windowing and reduce or
-	 * aggregation logic will be computed for each parallel instance of this
-	 * operator
+	 * Sets the window discretisation local, meaning that windows will be
+	 * created in parallel at environment parallelism.
 	 * 
-	 * @return The local windowed data stream
+	 * @return The WindowedDataStream with local discretisation
 	 */
 	public WindowedDataStream<OUT> local() {
 		WindowedDataStream<OUT> out = copy();
@@ -224,11 +223,24 @@ public class WindowedDataStream<OUT> {
 		return out;
 	}
 
+	/**
+	 * Returns the {@link DataStream} of {@link StreamWindow}s which represent
+	 * the discretised stream. There is no ordering guarantee for the received
+	 * windows.
+	 * 
+	 * @return The discretised stream
+	 */
 	public DataStream<StreamWindow<OUT>> getDiscretizedStream() {
 		return discretize(WindowTransformation.NONE, new BasicWindowBuffer<OUT>())
 				.getDiscretizedStream();
 	}
 
+	/**
+	 * Flattens the results of the window computations and streams out the
+	 * window elements.
+	 * 
+	 * @return The data stream consisting of the individual records.
+	 */
 	public DataStream<OUT> flatten() {
 		return dataStream;
 	}
@@ -259,15 +271,16 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Applies a reduceGroup transformation on the windowed data stream by
-	 * reducing the current window at every trigger. In contrast with the
-	 * standard binary reducer, with reduceGroup the user can access all
+	 * Applies a mapWindow transformation on the windowed data stream by calling
+	 * the mapWindow function on the window at every trigger. In contrast with
+	 * the standard binary reducer, with mapWindow allows the user to access all
 	 * elements of the window at the same time through the iterable interface.
-	 * The user can also extend the to gain access to other features provided by
-	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * The user can also extend the {@link RichWindowMapFunction} to gain access
+	 * to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
 	 * @param windowMapFunction
-	 *            The reduce function that will be applied to the windows.
+	 *            The function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
 	public <R> WindowedDataStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction) {
@@ -276,18 +289,21 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Applies a reduceGroup transformation on the windowed data stream by
-	 * reducing the current window at every trigger. In contrast with the
-	 * standard binary reducer, with reduceGroup the user can access all
+	 * Applies a mapWindow transformation on the windowed data stream by calling
+	 * the mapWindow function on the window at every trigger. In contrast with
+	 * the standard binary reducer, with mapWindow allows the user to access all
 	 * elements of the window at the same time through the iterable interface.
-	 * The user can also extend the to gain access to other features provided by
-	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * </br> </br> This version of reduceGroup uses user supplied
-	 * typeinformation for serializaton. Use this only when the system is unable
-	 * to detect type information using: {@link #mapWindow()}
+	 * The user can also extend the {@link RichWindowMapFunction} to gain access
+	 * to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * </br> </br> This version of mapWindow uses user supplied typeinformation
+	 * for serializaton. Use this only when the system is unable to detect type
+	 * information.
 	 * 
 	 * @param windowMapFunction
-	 *            The reduce function that will be applied to the windows.
+	 *            The function that will be applied to the windows.
+	 * @param outType
+	 *            The output type of the operator.
 	 * @return The transformed DataStream
 	 */
 	public <R> WindowedDataStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction,

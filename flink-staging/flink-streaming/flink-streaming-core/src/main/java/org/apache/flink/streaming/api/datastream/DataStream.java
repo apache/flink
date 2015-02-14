@@ -850,14 +850,15 @@ public class DataStream<OUT> {
 
 	/**
 	 * Create a {@link WindowedDataStream} that can be used to apply
-	 * transformation like {@link WindowedDataStream#reduce} or aggregations on
-	 * preset chunks(windows) of the data stream. To define the windows one or
-	 * more {@link WindowingHelper} such as {@link Time}, {@link Count} and
+	 * transformation like {@link WindowedDataStream#reduceWindow},
+	 * {@link WindowedDataStream#mapWindow} or aggregations on preset
+	 * chunks(windows) of the data stream. To define windows a
+	 * {@link WindowingHelper} such as {@link Time}, {@link Count} and
 	 * {@link Delta} can be used.</br></br> When applied to a grouped data
 	 * stream, the windows (evictions) and slide sizes (triggers) will be
 	 * computed on a per group basis. </br></br> For more advanced control over
 	 * the trigger and eviction policies please refer to
-	 * {@link #window(triggers, evicters)} </br> </br> For example to create a
+	 * {@link #window(trigger, eviction)} </br> </br> For example to create a
 	 * sum every 5 seconds in a tumbling fashion:</br>
 	 * {@code ds.window(Time.of(5, TimeUnit.SECONDS)).sum(field)} </br></br> To
 	 * create sliding windows use the
@@ -867,33 +868,34 @@ public class DataStream<OUT> {
 	 * {@code ds.window(Time.of(5, TimeUnit.SECONDS)).every(Time.of(3,
 	 *       TimeUnit.SECONDS)).sum(field)}
 	 * 
-	 * @param policyHelpers
+	 * @param policyHelper
 	 *            Any {@link WindowingHelper} such as {@link Time},
-	 *            {@link Count} and {@link Delta} to define the window.
+	 *            {@link Count} and {@link Delta} to define the window size.
 	 * @return A {@link WindowedDataStream} providing further operations.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public WindowedDataStream<OUT> window(WindowingHelper policyHelpers) {
-		return new WindowedDataStream<OUT>(this, policyHelpers);
+	public WindowedDataStream<OUT> window(WindowingHelper policyHelper) {
+		return new WindowedDataStream<OUT>(this, policyHelper);
 	}
 
 	/**
 	 * Create a {@link WindowedDataStream} using the given {@link TriggerPolicy}
-	 * s and {@link EvictionPolicy}s. Windowing can be used to apply
-	 * transformation like {@link WindowedDataStream#reduce} or aggregations on
-	 * preset chunks(windows) of the data stream.</br></br>For most common
-	 * use-cases please refer to {@link #window(WindowingHelper...)}
+	 * and {@link EvictionPolicy}. Windowing can be used to apply transformation
+	 * like {@link WindowedDataStream#reduceWindow},
+	 * {@link WindowedDataStream#mapWindow} or aggregations on preset
+	 * chunks(windows) of the data stream.</br></br>For most common use-cases
+	 * please refer to {@link #window(WindowingHelper)}
 	 * 
-	 * @param triggers
-	 *            The list of {@link TriggerPolicy}s that will determine how
-	 *            often the user function is called on the window.
-	 * @param evicters
-	 *            The list of {@link EvictionPolicy}s that will determine the
-	 *            number of elements in each time window.
+	 * @param trigger
+	 *            The {@link TriggerPolicy} that will determine how often the
+	 *            user function is called on the window.
+	 * @param eviction
+	 *            The {@link EvictionPolicy} that will determine the number of
+	 *            elements in each time window.
 	 * @return A {@link WindowedDataStream} providing further operations.
 	 */
-	public WindowedDataStream<OUT> window(TriggerPolicy<OUT> trigger, EvictionPolicy<OUT> evicter) {
-		return new WindowedDataStream<OUT>(this, trigger, evicter);
+	public WindowedDataStream<OUT> window(TriggerPolicy<OUT> trigger, EvictionPolicy<OUT> eviction) {
+		return new WindowedDataStream<OUT>(this, trigger, eviction);
 	}
 
 	/**

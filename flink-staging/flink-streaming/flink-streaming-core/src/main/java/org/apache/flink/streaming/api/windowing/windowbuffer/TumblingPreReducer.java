@@ -22,6 +22,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
+/**
+ * Non-grouped pre-reducer for tumbling eviction policy.
+ */
 public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
 
 	private static final long serialVersionUID = 1L;

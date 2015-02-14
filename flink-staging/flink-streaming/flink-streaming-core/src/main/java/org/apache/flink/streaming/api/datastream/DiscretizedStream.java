@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -67,16 +66,6 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		return discretizedStream;
 	}
 
-	/**
-	 * Applies a reduce transformation on the windowed data stream by reducing
-	 * the current window at every trigger.The user can also extend the
-	 * {@link RichReduceFunction} to gain access to other features provided by
-	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
-	 * @param reduceFunction
-	 *            The reduce function that will be applied to the windows.
-	 * @return The transformed DataStream
-	 */
 	@Override
 	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
 
@@ -92,18 +81,6 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		}
 	}
 
-	/**
-	 * Applies a reduceGroup transformation on the windowed data stream by
-	 * reducing the current window at every trigger. In contrast with the
-	 * standard binary reducer, with reduceGroup the user can access all
-	 * elements of the window at the same time through the iterable interface.
-	 * The user can also extend the to gain access to other features provided by
-	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
-	 * @param windowMapFunction
-	 *            The reduce function that will be applied to the windows.
-	 * @return The transformed DataStream
-	 */
 	@Override
 	public <R> DiscretizedStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction) {
 
@@ -236,6 +213,12 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 	protected DiscretizedStream<OUT> copy() {
 		return new DiscretizedStream<OUT>(discretizedStream.copy(), groupByKey, transformation);
+	}
+
+	@Override
+	public WindowedDataStream<OUT> local() {
+		throw new UnsupportedOperationException(
+				"Local discretisation can only be applied after defining the discretisation logic");
 	}
 
 }

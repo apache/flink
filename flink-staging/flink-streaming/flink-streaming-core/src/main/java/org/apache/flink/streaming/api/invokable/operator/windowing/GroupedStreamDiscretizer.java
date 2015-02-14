@@ -28,11 +28,15 @@ import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
+/**
+ * This invokable represents the grouped discretization step of a window
+ * transformation. The user supplied eviction and trigger policies are applied
+ * on a per group basis to create the {@link StreamWindow} that will be further
+ * transformed in the next stages. </p> To allow pre-aggregations supply an
+ * appropriate {@link WindowBuffer}
+ */
 public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>> {
 
-	/**
-	 * Auto-generated serial version UID
-	 */
 	private static final long serialVersionUID = -3469545957144404137L;
 
 	protected KeySelector<IN, ?> keySelector;

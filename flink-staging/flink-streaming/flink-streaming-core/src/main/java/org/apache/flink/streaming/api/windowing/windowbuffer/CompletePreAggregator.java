@@ -18,6 +18,10 @@
 
 package org.apache.flink.streaming.api.windowing.windowbuffer;
 
+/**
+ * Interface for marking window pre-aggregators that fully process the window so
+ * that no further reduce step is necessary afterwards.
+ */
 public interface CompletePreAggregator {
 
 }
