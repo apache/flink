@@ -102,38 +102,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 		}
 	}
 
-	/**
-	 * 
-	 * NOTE: In the presence of multi-threaded operations, this number may be inexact.
-	 * 
-	 * @return The number of empty slots, for tasks.
-	 */
-	public int getNumberOfAvailableSlots() {
-		int count = 0;
-		
-		synchronized (globalLock) {
-			for (Instance instance : instancesWithAvailableResources) {
-				count += instance.getNumberOfAvailableSlots();
-			}
-		}
-		
-		return count;
-	}
-	
-	public int getTotalNumberOfSlots() {
-		int count = 0;
-		
-		synchronized (globalLock) {
-			for (Instance instance : allInstances) {
-				if (instance.isAlive()) {
-					count += instance.getTotalNumberOfSlots();
-				}
-			}
-		}
-		
-		return count;
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	//  Scheduling
 	// --------------------------------------------------------------------------------------------
@@ -209,7 +177,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 				}
 
 				SimpleSlot newSlot = null;
-				
+				SimpleSlot toUse = null;
+
 				// the following needs to make sure any allocated slot is released in case of an error
 				try {
 					
@@ -228,8 +197,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					// get a new slot, since we could not place it into the group, or we could not place it locally
 					newSlot = getFreeSubSlotForTask(vertex, locations, assignment, constraint, forceExternalLocation);
 
-					SimpleSlot toUse;
-					
 					if (newSlot == null) {
 						if (slotFromGroup == null) {
 							// both null
@@ -283,7 +250,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					}
 					
 					updateLocalityCounters(toUse.getLocality());
-					return toUse;
 				}
 				catch (NoResourceAvailableException e) {
 					throw e;
@@ -295,13 +261,13 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 					if (newSlot != null) {
 						newSlot.releaseSlot();
 					}
-					
+
 					ExceptionUtils.rethrow(t, "An error occurred while allocating a slot in a sharing group");
 				}
-			}
-		
-			// 2) === schedule without hints and sharing ===
-			{
+
+				return toUse;
+			} else {
+				// 2) === schedule without hints and sharing ===
 				SimpleSlot slot = getFreeSlotForTask(vertex, preferredLocations, forceExternalLocation);
 				if (slot != null) {
 					updateLocalityCounters(slot.getLocality());
@@ -698,6 +664,40 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	//  Status reporting
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 *
+	 * NOTE: In the presence of multi-threaded operations, this number may be inexact.
+	 *
+	 * @return The number of empty slots, for tasks.
+	 */
+	public int getNumberOfAvailableSlots() {
+		int count = 0;
+
+		synchronized (globalLock) {
+			processNewlyAvailableInstances();
+
+			for (Instance instance : instancesWithAvailableResources) {
+				count += instance.getNumberOfAvailableSlots();
+			}
+		}
+
+		return count;
+	}
+
+	public int getTotalNumberOfSlots() {
+		int count = 0;
+
+		synchronized (globalLock) {
+			for (Instance instance : allInstances) {
+				if (instance.isAlive()) {
+					count += instance.getTotalNumberOfSlots();
+				}
+			}
+		}
+
+		return count;
+	}
+
 	public int getNumberOfAvailableInstances() {
 		int numberAvailableInstances = 0;
 		synchronized (this.globalLock) {
@@ -712,7 +712,11 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	}
 	
 	public int getNumberOfInstancesWithAvailableSlots() {
-		return instancesWithAvailableResources.size();
+		synchronized (globalLock) {
+			processNewlyAvailableInstances();
+
+			return instancesWithAvailableResources.size();
+		}
 	}
 	
 	public Map<String, List<Instance>> getInstancesByHost() {
@@ -739,6 +743,18 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 	}
 	
 	// --------------------------------------------------------------------------------------------
+
+	private void processNewlyAvailableInstances() {
+		synchronized (globalLock) {
+			Instance instance;
+
+			while((instance = newlyAvailableInstances.poll()) != null){
+				if(instance.hasResourcesAvailable()){
+					instancesWithAvailableResources.add(instance);
+				}
+			}
+		}
+	}
 	
 	private static final class QueuedTask {
 		
