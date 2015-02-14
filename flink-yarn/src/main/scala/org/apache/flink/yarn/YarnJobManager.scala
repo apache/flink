@@ -26,6 +26,7 @@ import akka.actor.ActorRef
 import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
 import org.apache.flink.yarn.Messages._
 import org.apache.flink.yarn.appMaster.YarnTaskManagerRunner
@@ -42,6 +43,7 @@ import org.apache.hadoop.yarn.util.Records
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.Try
 
 
 trait YarnJobManager extends ActorLogMessages {
@@ -69,7 +71,7 @@ trait YarnJobManager extends ActorLogMessages {
 
   def receiveYarnMessages: Receive = {
     case StopYarnSession(status) =>
-      log.info("Stopping YARN Session.")
+      log.info("Stopping YARN JobManager with status {}.", status)
 
       instanceManager.getAllRegisteredInstances.asScala foreach {
         instance =>
@@ -78,121 +80,41 @@ trait YarnJobManager extends ActorLogMessages {
 
       rmClientOption foreach {
         rmClient =>
-          rmClient.unregisterApplicationMaster(status, "", "")
-          rmClient.close()
+          Try(rmClient.unregisterApplicationMaster(status, "", "")).recover{
+            case t: Throwable => log.error(t, "Could not unregister the application master.")
+          }
+
+          Try(rmClient.close()).recover{
+            case t:Throwable => log.error(t, "Could not close the AMRMClient.")
+          }
       }
 
       rmClientOption = None
 
       nmClientOption foreach {
-        _.close()
+        nmClient =>
+        Try(nmClient.close()).recover{
+          case t: Throwable => log.error(t, "Could not close the NMClient.")
+        }
       }
 
       nmClientOption = None
       messageListener foreach {
-        _ ! JobManagerStopped
+          _ ! JobManagerStopped
       }
+
       context.system.shutdown()
 
-    case RegisterClient =>
-      messageListener = Some(sender())
+    case RegisterClient(client) =>
+      log.info("Register {} as client.", client.path)
+      messageListener = Some(client)
+      sender ! Acknowledge
 
     case PollYarnClusterStatus =>
       sender() ! new FlinkYarnClusterStatus(instanceManager.getNumberOfRegisteredTaskManagers,
         instanceManager.getTotalNumberOfSlots)
 
-    case StartYarnSession(conf, actorSystemPort, webServerport) =>
-      log.info("Start yarn session.")
-      val memoryPerTaskManager = env.get(FlinkYarnClient.ENV_TM_MEMORY).toInt
-      val heapLimit = Utils.calculateHeapSize(memoryPerTaskManager)
-
-      val applicationMasterHost = env.get(Environment.NM_HOST.key)
-      require(applicationMasterHost != null, s"Application master (${Environment.NM_HOST} not set.")
-
-      numTaskManager = env.get(FlinkYarnClient.ENV_TM_COUNT).toInt
-      log.info(s"Requesting $numTaskManager task managers.")
-
-      val remoteFlinkJarPath = env.get(FlinkYarnClient.FLINK_JAR_PATH)
-      val fs = FileSystem.get(conf)
-      val appId = env.get(FlinkYarnClient.ENV_APP_ID)
-      val currDir = env.get(Environment.PWD.key())
-      val clientHomeDir = env.get(FlinkYarnClient.ENV_CLIENT_HOME_DIR)
-      val shipListString = env.get(FlinkYarnClient.ENV_CLIENT_SHIP_FILES)
-      val yarnClientUsername = env.get(FlinkYarnClient.ENV_CLIENT_USERNAME)
-
-      val rm = AMRMClient.createAMRMClient[ContainerRequest]()
-      rm.init(conf)
-      rm.start()
-
-      rmClientOption = Some(rm)
-
-      val nm = NMClient.createNMClient()
-      nm.init(conf)
-      nm.start()
-      nm.cleanupRunningContainersOnStop(true)
-
-      nmClientOption = Some(nm)
-
-      // Register with ResourceManager
-      val url = s"http://$applicationMasterHost:$webServerport"
-      log.info(s"Registering ApplicationMaster with tracking url $url.")
-      rm.registerApplicationMaster(applicationMasterHost, actorSystemPort, url)
-
-
-      // Priority for worker containers - priorities are intra-application
-      val priority = Records.newRecord(classOf[Priority])
-      priority.setPriority(0)
-
-      // Resource requirements for worker containers
-      val capability = Records.newRecord(classOf[Resource])
-      capability.setMemory(memoryPerTaskManager)
-      capability.setVirtualCores(1) // hard-code that number (YARN is not accunting for CPUs)
-
-      // Make container requests to ResourceManager
-      for (i <- 0 until numTaskManager) {
-        val containerRequest = new ContainerRequest(capability, null, null, priority)
-        log.info(s"Requesting TaskManager container $i.")
-        rm.addContainerRequest(containerRequest)
-      }
-
-      val flinkJar = Records.newRecord(classOf[LocalResource])
-      val flinkConf = Records.newRecord(classOf[LocalResource])
-
-      // register Flink Jar with remote HDFS
-      val remoteJarPath = new Path(remoteFlinkJarPath)
-      Utils.registerLocalResource(fs, remoteJarPath, flinkJar)
-
-      // register conf with local fs
-      Utils.setupLocalResource(conf, fs, appId, new Path(s"file://$currDir/flink-conf-modified" +
-        s".yaml"), flinkConf, new Path(clientHomeDir))
-      log.info(s"Prepared local resource for modified yaml: $flinkConf")
-
-      val hasLogback = new File(s"$currDir/logback.xml").exists()
-      val hasLog4j = new File(s"$currDir/log4j.properties").exists()
-
-      // prepare files to be shipped
-      val resources = shipListString.split(",") flatMap {
-        pathStr =>
-          if (pathStr.isEmpty) {
-            None
-          } else {
-            val resource = Records.newRecord(classOf[LocalResource])
-            val path = new Path(pathStr)
-            Utils.registerLocalResource(fs, path, resource)
-            Some((path.getName, resource))
-          }
-      } toList
-
-      val taskManagerLocalResources = ("flink.jar", flinkJar) ::("flink-conf.yaml",
-        flinkConf) :: resources toMap
-
-      allocatedContainers = 0
-      completedContainers = 0
-
-      containerLaunchContext = Some(createContainerLaunchContext(heapLimit, hasLogback, hasLog4j,
-        yarnClientUsername, conf, taskManagerLocalResources))
-
-      context.system.scheduler.scheduleOnce(ALLOCATION_DELAY, self, PollContainerCompletion)
+    case StartYarnSession(conf, actorSystemPort, webServerPort) => startYarnSession(conf, actorSystemPort, webServerPort)
 
     case PollContainerCompletion =>
       rmClientOption match {
@@ -246,7 +168,107 @@ trait YarnJobManager extends ActorLogMessages {
       }
   }
 
-  def createContainerLaunchContext(heapLimit: Int, hasLogback: Boolean, hasLog4j: Boolean,
+  private def startYarnSession(conf: Configuration, actorSystemPort: Int, webServerPort: Int): Unit = {
+    Try {
+      log.info("Start yarn session.")
+      val memoryPerTaskManager = env.get(FlinkYarnClient.ENV_TM_MEMORY).toInt
+      val heapLimit = Utils.calculateHeapSize(memoryPerTaskManager)
+
+      val applicationMasterHost = env.get(Environment.NM_HOST.key)
+      require(applicationMasterHost != null, s"Application master (${Environment.NM_HOST} not set.")
+
+      numTaskManager = env.get(FlinkYarnClient.ENV_TM_COUNT).toInt
+      log.info(s"Requesting $numTaskManager task managers.")
+
+      val remoteFlinkJarPath = env.get(FlinkYarnClient.FLINK_JAR_PATH)
+      val fs = FileSystem.get(conf)
+      val appId = env.get(FlinkYarnClient.ENV_APP_ID)
+      val currDir = env.get(Environment.PWD.key())
+      val clientHomeDir = env.get(FlinkYarnClient.ENV_CLIENT_HOME_DIR)
+      val shipListString = env.get(FlinkYarnClient.ENV_CLIENT_SHIP_FILES)
+      val yarnClientUsername = env.get(FlinkYarnClient.ENV_CLIENT_USERNAME)
+
+      val rm = AMRMClient.createAMRMClient[ContainerRequest]()
+      rm.init(conf)
+      rm.start()
+
+      rmClientOption = Some(rm)
+
+      val nm = NMClient.createNMClient()
+      nm.init(conf)
+      nm.start()
+      nm.cleanupRunningContainersOnStop(true)
+
+      nmClientOption = Some(nm)
+
+      // Register with ResourceManager
+      val url = s"http://$applicationMasterHost:$webServerPort"
+      log.info(s"Registering ApplicationMaster with tracking url $url.")
+      rm.registerApplicationMaster(applicationMasterHost, actorSystemPort, url)
+
+
+      // Priority for worker containers - priorities are intra-application
+      val priority = Records.newRecord(classOf[Priority])
+      priority.setPriority(0)
+
+      // Resource requirements for worker containers
+      val capability = Records.newRecord(classOf[Resource])
+      capability.setMemory(memoryPerTaskManager)
+      capability.setVirtualCores(1) // hard-code that number (YARN is not accounting for CPUs)
+
+      // Make container requests to ResourceManager
+      for (i <- 0 until numTaskManager) {
+        val containerRequest = new ContainerRequest(capability, null, null, priority)
+        log.info(s"Requesting TaskManager container $i.")
+        rm.addContainerRequest(containerRequest)
+      }
+
+      val flinkJar = Records.newRecord(classOf[LocalResource])
+      val flinkConf = Records.newRecord(classOf[LocalResource])
+
+      // register Flink Jar with remote HDFS
+      val remoteJarPath = new Path(remoteFlinkJarPath)
+      Utils.registerLocalResource(fs, remoteJarPath, flinkJar)
+
+      // register conf with local fs
+      Utils.setupLocalResource(conf, fs, appId, new Path(s"file://$currDir/flink-conf-modified" +
+        s".yaml"), flinkConf, new Path(clientHomeDir))
+      log.info(s"Prepared local resource for modified yaml: $flinkConf")
+
+      val hasLogback = new File(s"$currDir/logback.xml").exists()
+      val hasLog4j = new File(s"$currDir/log4j.properties").exists()
+
+      // prepare files to be shipped
+      val resources = shipListString.split(",") flatMap {
+        pathStr =>
+          if (pathStr.isEmpty) {
+            None
+          } else {
+            val resource = Records.newRecord(classOf[LocalResource])
+            val path = new Path(pathStr)
+            Utils.registerLocalResource(fs, path, resource)
+            Some((path.getName, resource))
+          }
+      } toList
+
+      val taskManagerLocalResources = ("flink.jar", flinkJar) ::("flink-conf.yaml",
+        flinkConf) :: resources toMap
+
+      allocatedContainers = 0
+      completedContainers = 0
+
+      containerLaunchContext = Some(createContainerLaunchContext(heapLimit, hasLogback, hasLog4j,
+        yarnClientUsername, conf, taskManagerLocalResources))
+
+      context.system.scheduler.scheduleOnce(ALLOCATION_DELAY, self, PollContainerCompletion)
+    } recover {
+      case t: Throwable =>
+        log.error(t, "Could not start yarn session.")
+        self ! StopYarnSession(FinalApplicationStatus.FAILED)
+    }
+  }
+
+  private def createContainerLaunchContext(heapLimit: Int, hasLogback: Boolean, hasLog4j: Boolean,
                                    yarnClientUsername: String, yarnConf: Configuration,
                                    taskManagerLocalResources: Map[String, LocalResource]):
   ContainerLaunchContext = {
@@ -294,12 +316,12 @@ trait YarnJobManager extends ActorLogMessages {
       val securityTokens = ByteBuffer.wrap(dob.getData, 0, dob.getLength)
       ctx.setTokens(securityTokens)
     } catch {
-      case e: IOException =>
-        log.warning("Getting current user info failed when trying to launch the container", e)
+      case t: Throwable =>
+        log.error(t, "Getting current user info failed when trying to launch the container")
     }
 
     ctx
   }
 
-  def env = System.getenv()
+  private def env = System.getenv()
 }

@@ -115,7 +115,7 @@ class JobManager(val configuration: Configuration,
     log.info(s"Stopping job manager ${self.path}.")
 
     archive ! PoisonPill
-    profiler.map( ref => ref ! PoisonPill )
+    profiler.foreach( ref => ref ! PoisonPill )
 
     for((e,_) <- currentJobs.values){
       e.fail(new Exception("The JobManager is shutting down."))

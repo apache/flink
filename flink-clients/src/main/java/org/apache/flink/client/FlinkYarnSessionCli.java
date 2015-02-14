@@ -407,8 +407,10 @@ public class FlinkYarnSessionCli {
 
 			runInteractiveCli(yarnCluster);
 
-			LOG.info("Command Line Interface requested session shutdown");
-			yarnCluster.shutdown();
+			if(!yarnCluster.hasBeenStopped()) {
+				LOG.info("Command Line Interface requested session shutdown");
+				yarnCluster.shutdown();
+			}
 
 			try {
 				yarnPropertiesFile.delete();

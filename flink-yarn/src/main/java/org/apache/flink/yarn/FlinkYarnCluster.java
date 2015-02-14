@@ -103,7 +103,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		// start application client
 		LOG.info("Start application client.");
 
-		applicationClient = actorSystem.actorOf(Props.create(ApplicationClient.class));
+		applicationClient = actorSystem.actorOf(Props.create(ApplicationClient.class), "applicationClient");
 
 		// instruct ApplicationClient to start a periodical status polling
 		applicationClient.tell(new Messages.LocalRegisterClient(this.jobManagerAddress), applicationClient);
