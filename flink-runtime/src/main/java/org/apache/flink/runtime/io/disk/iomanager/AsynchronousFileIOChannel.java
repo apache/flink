@@ -48,7 +48,7 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends 
 	/** An atomic integer that counts the number of requests that we still wait for to return. */
 	protected final AtomicInteger requestsNotReturned = new AtomicInteger(0);
 	
-	/** Hander for completed requests */
+	/** Handler for completed requests */
 	protected final RequestDoneCallback<T> resultHandler;
 	
 	/** An exception that was encountered by the asynchronous request handling thread.*/
@@ -117,6 +117,9 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends 
 						throw new IOException("Closing of asynchronous file channel was interrupted.");
 					}
 				}
+
+				// Additional check because we might have skipped the while loop
+				checkErroneous();
 			}
 			finally {
 				// close the file
