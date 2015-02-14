@@ -18,10 +18,15 @@
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 
+/**
+ * This invokable is used to apply mapWindow transformations on
+ * {@link WindowedDataStream}s.
+ */
 public class WindowMapper<IN, OUT> extends MapInvokable<StreamWindow<IN>, StreamWindow<OUT>> {
 
 	private static final long serialVersionUID = 1L;

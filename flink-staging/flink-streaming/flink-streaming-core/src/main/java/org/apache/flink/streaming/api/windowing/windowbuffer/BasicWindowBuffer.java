@@ -23,6 +23,10 @@ import java.util.NoSuchElementException;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
+/**
+ * Basic window buffer that stores the elements in a simple list without any
+ * pre-aggregation.
+ */
 public class BasicWindowBuffer<T> implements WindowBuffer<T> {
 
 	private static final long serialVersionUID = 1L;

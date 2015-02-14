@@ -23,6 +23,11 @@ import java.util.Map;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 
+/**
+ * This invokable merges together the different partitions of the
+ * {@link StreamWindow}s used to merge the results of parallel transformations
+ * that belong in the same window.
+ */
 public class WindowMerger<T> extends ChainableInvokable<StreamWindow<T>, StreamWindow<T>> {
 
 	private Map<Integer, StreamWindow<T>> windows;

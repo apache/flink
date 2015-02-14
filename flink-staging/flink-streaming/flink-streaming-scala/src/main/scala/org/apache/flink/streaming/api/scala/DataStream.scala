@@ -442,9 +442,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
 
   /**
    * Create a WindowedDataStream that can be used to apply
-   * transformation like .reduce(...) or aggregations on
-   * preset chunks(windows) of the data stream. To define the windows one or
-   * more WindowingHelper-s such as Time, Count and
+   * transformation like .reduceWindow(...) or aggregations on
+   * preset chunks(windows) of the data stream. To define the windows a
+   * WindowingHelper such as Time, Count and
    * Delta can be used.</br></br> When applied to a grouped data
    * stream, the windows (evictions) and slide sizes (triggers) will be
    * computed on a per group basis. </br></br> For more advanced control over
@@ -455,14 +455,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
     javaStream.window(windowingHelper)
 
   /**
-   * Create a WindowedDataStream using the given TriggerPolicy-s and EvictionPolicy-s.
-   * Windowing can be used to apply transformation like .reduce(...) or aggregations on
-   * preset chunks(windows) of the data stream.</br></br>For most common
-   * use-cases please refer to window(WindowingHelper[_]*)
+   * Create a WindowedDataStream using the given Trigger and Eviction policies.
+   * Windowing can be used to apply transformation like .reduceWindow(...) or 
+   * aggregations on preset chunks(windows) of the data stream.</br></br>For most common
+   * use-cases please refer to window(WindowingHelper[_])
    *
    */
-  def window(trigger: TriggerPolicy[T], evicter: EvictionPolicy[T]):
-    WindowedDataStream[T] = javaStream.window(trigger, evicter)
+  def window(trigger: TriggerPolicy[T], eviction: EvictionPolicy[T]):
+    WindowedDataStream[T] = javaStream.window(trigger, eviction)
 
   /**
    *

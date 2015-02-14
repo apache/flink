@@ -18,8 +18,17 @@
 package org.apache.flink.streaming.api.function;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.streaming.api.datastream.WindowedDataStream;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
+/**
+ * Abstract class for defining rich mapWindow transformation to be applied on
+ * {@link WindowedDataStream}s. The mapWindow function will be called on each
+ * {@link StreamWindow}.</p> In addition the user can access the functionality
+ * provided by the {@link RichFunction} interface.
+ */
 public abstract class RichWindowMapFunction<IN, OUT> extends AbstractRichFunction implements
 		WindowMapFunction<IN, OUT> {
 

@@ -26,6 +26,9 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
+/**
+ * Grouped pre-reducer for tumbling eviction polciy.
+ */
 public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
 
 	private static final long serialVersionUID = 1L;

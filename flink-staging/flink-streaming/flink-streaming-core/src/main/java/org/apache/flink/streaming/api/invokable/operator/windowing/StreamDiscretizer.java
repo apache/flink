@@ -26,6 +26,12 @@ import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
+/**
+ * This invokable represents the discretization step of a window transformation.
+ * The user supplied eviction and trigger policies are applied to create the
+ * {@link StreamWindow} that will be further transformed in the next stages.
+ * </p> To allow pre-aggregations supply an appropriate {@link WindowBuffer}
+ */
 public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>> {
 
 	/**

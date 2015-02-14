@@ -25,8 +25,17 @@ import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.util.Collector;
 
+/**
+ * Core abstraction for representing windows for {@link WindowedDataStream}s.
+ * The user can apply transformations on these windows with the appropriate
+ * {@link WindowedDataStream} methods. </p> Each stream window consists of a
+ * random ID, a number representing the number of partitions for this specific
+ * window (ID) and the elements itself. The ID and number of parts will be used
+ * to merge the subwindows after distributed transformations.
+ */
 public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 
 	private static final long serialVersionUID = -5150196421193988403L;
@@ -36,25 +45,54 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 
 	public int numberOfParts;
 
+	/**
+	 * Creates a new window with a random id
+	 */
 	public StreamWindow() {
 		this(rnd.nextInt(), 1);
 	}
 
+	/**
+	 * Creates a new window with the specific id
+	 * 
+	 * @param windowID
+	 *            ID of the window
+	 */
 	public StreamWindow(int windowID) {
 		this(windowID, 1);
 	}
 
+	/**
+	 * Creates a new window with the given id and number of parts
+	 * 
+	 * @param windowID
+	 * @param numberOfParts
+	 */
 	public StreamWindow(int windowID, int numberOfParts) {
 		super();
 		this.windowID = windowID;
 		this.numberOfParts = numberOfParts;
 	}
 
+	/**
+	 * Creates a shallow copy of the window
+	 * 
+	 * @param window
+	 *            The window to be copied
+	 */
 	public StreamWindow(StreamWindow<T> window) {
 		this(window.windowID, window.numberOfParts);
 		addAll(window);
 	}
 
+	/**
+	 * Creates a deep copy of the window using the given serializer
+	 * 
+	 * @param window
+	 *            The window to be copied
+	 * @param serializer
+	 *            The serializer used for copying the records.
+	 */
 	public StreamWindow(StreamWindow<T> window, TypeSerializer<T> serializer) {
 		this(window.windowID, window.numberOfParts);
 		for (T element : window) {
@@ -62,6 +100,14 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 		}
 	}
 
+	/**
+	 * Partitions the window using the given keyselector. A subwindow will be
+	 * created for each key.
+	 * 
+	 * @param keySelector
+	 *            The keyselector used for extracting keys.
+	 * @return A list of the subwindows
+	 */
 	public List<StreamWindow<T>> partitionBy(KeySelector<T, ?> keySelector) throws Exception {
 		Map<Object, StreamWindow<T>> partitions = new HashMap<Object, StreamWindow<T>>();
 
@@ -85,6 +131,13 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 		return output;
 	}
 
+	/**
+	 * Splits the window into n equal (if possible) sizes.
+	 * 
+	 * @param n
+	 *            Number of desired partitions
+	 * @return The list of subwindows.
+	 */
 	public List<StreamWindow<T>> split(int n) {
 		int numElements = size();
 		if (n > numElements) {
@@ -116,10 +169,24 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 		return this;
 	}
 
+	/**
+	 * Checks whether this window can be merged with the given one.
+	 * 
+	 * @param otherWindow
+	 *            The window to test
+	 * @return Window compatibility
+	 */
 	public boolean compatibleWith(StreamWindow<T> otherWindow) {
 		return this.windowID == otherWindow.windowID && this.numberOfParts > 1;
 	}
 
+	/**
+	 * Merges compatible windows together.
+	 * 
+	 * @param windows
+	 *            Windows to merge
+	 * @return Merged window
+	 */
 	public static <R> StreamWindow<R> merge(StreamWindow<R>... windows) {
 		StreamWindow<R> window = new StreamWindow<R>(windows[0]);
 		for (int i = 1; i < windows.length; i++) {
@@ -134,6 +201,13 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 		return window;
 	}
 
+	/**
+	 * Merges compatible windows together.
+	 * 
+	 * @param windows
+	 *            Windows to merge
+	 * @return Merged window
+	 */
 	public static <R> StreamWindow<R> merge(List<StreamWindow<R>> windows) {
 		if (windows.isEmpty()) {
 			throw new RuntimeException("Need at least one window to merge");
@@ -171,6 +245,13 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 		return super.toString();
 	}
 
+	/**
+	 * Creates a new {@link StreamWindow} with random id from the given elements
+	 * 
+	 * @param elements
+	 *            The elements contained in the resulting window
+	 * @return The window
+	 */
 	public static <R> StreamWindow<R> fromElements(R... elements) {
 		StreamWindow<R> window = new StreamWindow<R>();
 		for (R element : elements) {
