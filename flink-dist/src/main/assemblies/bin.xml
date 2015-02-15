@@ -129,7 +129,7 @@ under the License.
 			<fileMode>0644</fileMode>
 		</fileSet>
 		<fileSet>
-			<directory>../flink-clients/src/main/resources/web-docs</directory>
+			<directory>../flink-clients/resources/web-docs</directory>
 			<outputDirectory>tools</outputDirectory>
 			<fileMode>0644</fileMode>
 			<excludes>
