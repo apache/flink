@@ -1120,17 +1120,30 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	/**
-	 * Runs a Vertex-Centric iteration on the graph.
+	 * Create a Vertex-Centric iteration on the graph.
 	 * 
 	 * @param vertexUpdateFunction the vertex update function
 	 * @param messagingFunction the messaging function
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
 	 * @return
 	 */
-	public <M> Graph<K, VV, EV> runVertexCentricIteration(VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
-			MessagingFunction<K, VV, M, EV> messagingFunction,	int maximumNumberOfIterations) {
-		DataSet<Vertex<K, VV>> newVertices = vertices.runOperation(VertexCentricIteration
-				.withEdges(edges, vertexUpdateFunction, messagingFunction, maximumNumberOfIterations));
+	public <M> VertexCentricIteration<K, VV, M, EV> createVertexCentricIteration(
+			VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
+			MessagingFunction<K, VV, M, EV> messagingFunction,
+			int maximumNumberOfIterations) {
+		return VertexCentricIteration.withEdges(edges, vertexUpdateFunction,
+				messagingFunction, maximumNumberOfIterations);
+	}
+    
+	/**
+	 * Runs a Vertex-Centric iteration on the graph.
+	 * 
+	 * @param iteration the Vertex-Centric iteration to run
+	 * @return
+	 */
+	public <M> Graph<K, VV, EV> runVertexCentricIteration(
+			VertexCentricIteration<K, VV, M, EV> iteration) {
+		DataSet<Vertex<K, VV>> newVertices = vertices.runOperation(iteration);
 		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
 	}
 
