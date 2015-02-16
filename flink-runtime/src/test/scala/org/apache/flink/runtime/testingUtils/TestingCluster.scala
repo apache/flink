@@ -68,7 +68,8 @@ FlinkMiniCluster(userConfiguration, singleActorSystem) {
         localAkkaCommunication = singleActorSystem, localTaskManagerCommunication = true)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
-      networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + index)
+      networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + "_" +
+      (index + 1))
   }
 
   def restartJobManager(): Unit = {

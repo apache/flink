@@ -38,7 +38,8 @@ object YarnUtils {
       TaskManager.parseConfiguration(hostname, config, localAkkaCommunication = false,
         localTaskManagerCommunication = false)
 
-    (actorSystem, TaskManager.startActor(Props(new TaskManager(connectionInfo, jobManagerURL,
-      taskManagerConfig, networkConnectionConfiguration) with YarnTaskManager))(actorSystem))
+    (actorSystem, TaskManager.startActor(TaskManager.TASK_MANAGER_NAME,
+      Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
+        networkConnectionConfiguration) with YarnTaskManager))(actorSystem))
   }
 }

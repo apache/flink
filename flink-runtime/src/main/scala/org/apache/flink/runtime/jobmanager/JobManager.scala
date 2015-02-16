@@ -650,7 +650,7 @@ object JobManager {
       if(executionMode.equals(LOCAL)){
         LOG.info("Starting embedded TaskManager for JobManager's LOCAL mode execution")
 
-        TaskManager.startActorWithConfiguration("", configuration,
+        TaskManager.startActorWithConfiguration("", TaskManager.TASK_MANAGER_NAME, configuration,
           localAkkaCommunication = false, localTaskManagerCommunication = true)(jobManagerSystem)
       }
 
