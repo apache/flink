@@ -94,8 +94,6 @@ public class CliFrontendListCancelTest {
 	@Test
 	public void testList() {
 		try {
-			final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, (Object)null));
-
 			// test unrecognized option
 			{
 				String[] parameters = {"-v", "-k"};
@@ -104,16 +102,9 @@ public class CliFrontendListCancelTest {
 				assertTrue(retCode == 1);
 			}
 			
-			// test missing flags
-			{
-				String[] parameters = {};
-				CliFrontend testFrontend = new CliFrontendTestUtils.TestingCliFrontend();
-				int retCode = testFrontend.list(parameters);
-				assertTrue(retCode != 0);
-			}
-			
 			// test list properly
 			{
+				final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, (Object)null));
 				String[] parameters = {"-r", "-s"};
 				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(jm);
 				int retCode = testFrontend.list(parameters);

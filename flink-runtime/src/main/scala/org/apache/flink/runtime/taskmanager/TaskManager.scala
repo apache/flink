@@ -354,6 +354,20 @@ import scala.collection.JavaConverters._
       cleanupTaskManager()
 
       tryJobManagerRegistration()
+
+    case FailIntermediateResultPartitions(executionID) =>
+      log.info("Fail intermediate result partitions associated with execution {}.", executionID)
+      networkEnvironment foreach {
+        _.getPartitionManager.failIntermediateResultPartitions(executionID)
+      }
+  }
+
+  /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    // let the actor crash
+    throw new RuntimeException("Received unknown message " + message)
   }
 
   /**

@@ -19,43 +19,20 @@
 package org.apache.flink.runtime.client;
 
 /**
- * This exception is thrown by the {@link JobClient} if a job has been aborted either as a result of a user
- * request or an error which occurred during the execution.
+ * This exception is thrown by the {@link JobClient} if a job has been aborted as a result of an
+ * error which occurred during the execution.
  */
 public class JobExecutionException extends Exception {
 
-	public static enum ExecutionErrorCause {
-		CANCELED,
-		TIMEOUT_TO_JOB_MANAGER,
-		ERROR
-	}
-
-	// ------------------------------------------------------------------------
-
 	private static final long serialVersionUID = 2818087325120827525L;
-
-	private final ExecutionErrorCause cause;
 
 	/**
 	 * Constructs a new job execution exception.
 	 * 
-	 * @param msg The message that shall be encapsulated by this exception.
-	 * @param cause The cause for the execution exception.
+	 * @param msg The cause for the execution exception.
+	 * @param cause The cause of the exception
 	 */
-	public JobExecutionException(String msg, ExecutionErrorCause cause) {
-		super(msg);
-		this.cause = cause;
-	}
-
-	public boolean isJobCanceledByUser() {
-		return cause == ExecutionErrorCause.CANCELED;
-	}
-
-	public boolean isConnectionTimedOut() {
-		return cause == ExecutionErrorCause.TIMEOUT_TO_JOB_MANAGER;
-	}
-
-	public boolean isError() {
-		return cause == ExecutionErrorCause.ERROR;
+	public JobExecutionException(String msg, Throwable cause) {
+		super(msg, cause);
 	}
 }

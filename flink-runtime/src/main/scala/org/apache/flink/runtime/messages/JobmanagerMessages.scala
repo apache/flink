@@ -196,16 +196,16 @@ object JobManagerMessages {
   /**
    * Denotes a cancellation of the job.
    * @param jobID
-   * @param msg
+   * @param t
    */
-  case class JobResultCanceled(jobID: JobID, msg: String) extends JobResult
+  case class JobResultCanceled(jobID: JobID, t: Throwable) extends JobResult
 
   /**
    * Denotes a failed job execution.
    * @param jobID
-   * @param msg
+   * @param t
    */
-  case class JobResultFailed(jobID: JobID, msg:String) extends JobResult
+  case class JobResultFailed(jobID: JobID, t: Throwable) extends JobResult
 
   sealed trait SubmissionResponse{
     def jobID: JobID

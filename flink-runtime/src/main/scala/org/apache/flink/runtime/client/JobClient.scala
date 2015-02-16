@@ -48,15 +48,27 @@ Actor with ActorLogMessages with ActorLogging {
   override def receiveWithLogMessages: Receive = {
     case SubmitJobDetached(jobGraph) =>
       jobManager forward SubmitJob(jobGraph, registerForEvents = false, detached = true)
+
     case cancelJob: CancelJob =>
       jobManager forward cancelJob
+
     case SubmitJobAndWait(jobGraph, listen) =>
       val listener = context.actorOf(Props(classOf[JobClientListener], sender))
       jobManager.tell(SubmitJob(jobGraph, registerForEvents = listen, detached = false), listener)
+
     case RequestBlobManagerPort =>
       jobManager forward RequestBlobManagerPort
+
     case RequestJobManagerStatus =>
       jobManager forward RequestJobManagerStatus
+  }
+
+  /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    // let the actor crash
+    throw new RuntimeException("Received unknown message " + message)
   }
 }
 
@@ -70,9 +82,9 @@ Actor with ActorLogMessages with ActorLogging {
 class JobClientListener(jobSubmitter: ActorRef) extends Actor with ActorLogMessages with
 ActorLogging {
   override def receiveWithLogMessages: Receive = {
-    case SubmissionFailure(_, t) =>
-      jobSubmitter ! Failure(t)
-      self ! PoisonPill
+    case SubmissionFailure(jobID, t) =>
+      System.out.println(s"Submission of job with ID $jobID was unsuccessful, " +
+        s"because ${t.getMessage}.")
 
     case SubmissionSuccess(_) =>
 
@@ -80,19 +92,25 @@ ActorLogging {
       jobSubmitter ! new JobExecutionResult(duration, accumulatorResults)
       self ! PoisonPill
 
-    case JobResultCanceled(_, msg) =>
-      jobSubmitter ! Failure(
-        new JobExecutionException(msg, JobExecutionException.ExecutionErrorCause.CANCELED))
+    case JobResultCanceled(_, t) =>
+      jobSubmitter ! Failure(new JobCancellationException("The job has been cancelled.", t))
       self ! PoisonPill
 
-    case JobResultFailed(_, msg) =>
-      jobSubmitter ! Failure(new JobExecutionException(msg,
-        JobExecutionException.ExecutionErrorCause.ERROR))
+    case JobResultFailed(_, t) =>
+      jobSubmitter ! Failure(new JobExecutionException("The job execution failed.", t))
       self ! PoisonPill
 
     case msg =>
       // we have to use System.out.println here to avoid erroneous behavior for output redirection
       System.out.println(msg.toString)
+  }
+
+  /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    // let the actor crash
+    throw new RuntimeException("Received unknown message " + message)
   }
 }
 
@@ -193,7 +211,7 @@ object JobClient {
    *                                                               execution fails.
    * @return The job execution result
    */
-  @throws(classOf[JobExecutionException])
+  @throws(classOf[Exception])
   def submitJobAndWait(jobGraph: JobGraph, listenToStatusEvents: Boolean, jobClient: ActorRef)
                       (implicit timeout: FiniteDuration): JobExecutionResult = {
 
@@ -215,9 +233,7 @@ object JobClient {
             Await.result(jmStatus, timeout)
           } catch {
             case t: Throwable =>
-              throw new JobExecutionException(
-                "JobManager not reachable anymore. Terminate waiting for job answer.",
-                JobExecutionException.ExecutionErrorCause.TIMEOUT_TO_JOB_MANAGER)
+              throw new JobTimeoutException("Lost connection to job manager.", t)
           }
       }
     }
@@ -236,11 +252,19 @@ object JobClient {
    * @param timeout Tiemout for futures
    * @return The submission response
    */
+  @throws(classOf[Exception])
   def submitJobDetached(jobGraph: JobGraph, jobClient: ActorRef)(implicit timeout: FiniteDuration):
   SubmissionResponse = {
     val response = (jobClient ? SubmitJobDetached(jobGraph))(timeout)
 
-    Await.result(response.mapTo[SubmissionResponse], timeout)
+    try {
+      Await.result(response.mapTo[SubmissionResponse], timeout)
+    } catch {
+      case timeout: TimeoutException =>
+        throw new JobTimeoutException("Timeout while waiting for the submission result.", timeout);
+      case t: Throwable =>
+        throw new JobExecutionException("Exception while waiting for the submission result.", t)
+    }
   }
 
   /**

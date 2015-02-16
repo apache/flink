@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn
 
-import java.io.{IOException, File}
+import java.io.File
 import java.nio.ByteBuffer
 import java.util.Collections
 
@@ -114,7 +114,8 @@ trait YarnJobManager extends ActorLogMessages {
       sender() ! new FlinkYarnClusterStatus(instanceManager.getNumberOfRegisteredTaskManagers,
         instanceManager.getTotalNumberOfSlots)
 
-    case StartYarnSession(conf, actorSystemPort, webServerPort) => startYarnSession(conf, actorSystemPort, webServerPort)
+    case StartYarnSession(conf, actorSystemPort, webServerPort) =>
+      startYarnSession(conf, actorSystemPort, webServerPort)
 
     case PollContainerCompletion =>
       rmClientOption match {
@@ -168,7 +169,9 @@ trait YarnJobManager extends ActorLogMessages {
       }
   }
 
-  private def startYarnSession(conf: Configuration, actorSystemPort: Int, webServerPort: Int): Unit = {
+  private def startYarnSession(conf: Configuration,
+                               actorSystemPort: Int,
+                               webServerPort: Int): Unit = {
     Try {
       log.info("Start yarn session.")
       val memoryPerTaskManager = env.get(FlinkYarnClient.ENV_TM_MEMORY).toInt

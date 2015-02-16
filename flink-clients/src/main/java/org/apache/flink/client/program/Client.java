@@ -45,8 +45,10 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobTimeoutException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionResponse;
@@ -331,7 +333,11 @@ public class Client {
 
 		try {
 			JobClient.uploadJarFiles(jobGraph, hostname, client, timeout);
+		} catch (IOException e) {
+			throw new ProgramInvocationException("Could not upload the programs JAR files to the JobManager.", e);
+		}
 
+		try{
 			if (wait) {
 				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client, timeout);
 			}
@@ -340,30 +346,20 @@ public class Client {
 				if (response instanceof SubmissionFailure) {
 					SubmissionFailure failure = (SubmissionFailure) response;
 					throw new ProgramInvocationException(
-							"Failed to submit the job to the flink JobManager", failure.cause());
+							"Failed to submit the job to the JobManager.", failure.cause());
 				}
 			}
-		}
-		catch (IOException e) {
-			throw new ProgramInvocationException("Could not upload the programs JAR files to the JobManager.", e);
-		}
-		catch (JobExecutionException e) {
-			if (e.isJobCanceledByUser()) {
-				throw new ProgramInvocationException("The program has been canceled.");
-			}
-			else if (e.isConnectionTimedOut()) {
-				Throwable ae = null; //getAssociationError(monitoredErrors);
-				String message = ae == null ? "." : ": " + ae.getMessage();
-				throw new ProgramInvocationException("Lost connection to the JobManager" + message);
-			}
-			else {
-				throw new ProgramInvocationException("The program execution failed: " + e.getMessage());
-			}
-		}
-		catch (Exception e) {
-			Throwable ae = null; //getAssociationError(monitoredErrors);
-			String message = ae == null ? "." : ": " + ae.getMessage();
-			throw new ProgramInvocationException("Connection to JobManager failed" + message);
+		} catch (JobExecutionException e) {
+			throw new ProgramInvocationException("The program execution failed.", e);
+		} catch (JobTimeoutException e) {
+			throw new ProgramInvocationException("Lost connection to the JobManager.", e);
+		} catch (JobCancellationException e) {
+			throw new ProgramInvocationException("The program has been canceled.", e);
+		} catch (ProgramInvocationException e) {
+			// forward exception resulting from submission failure
+			throw e;
+		} catch (Exception e) {
+			throw new ProgramInvocationException("Exception occurred during job execution.", e);
 		}
 		finally {
 			actorSystem.shutdown();

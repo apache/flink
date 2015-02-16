@@ -16,19 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution;
+package org.apache.flink.runtime.client;
 
 /**
- * Thrown to trigger a canceling of the executing task. Intended to cause a cancelled status, rather than a failed status.
+ * An exception which is thrown by the JobClient if the job manager is no longer reachable.
  */
-public class CancelTaskException extends RuntimeException {
-	private static final long serialVersionUID = 1L;
+public class JobTimeoutException extends Exception {
 
-	public CancelTaskException(final String msg) {
-		super(msg);
-	}
-
-	public CancelTaskException() {
-		super("");
+	public JobTimeoutException(final String msg, final Throwable cause) {
+		super(msg, cause);
 	}
 }
