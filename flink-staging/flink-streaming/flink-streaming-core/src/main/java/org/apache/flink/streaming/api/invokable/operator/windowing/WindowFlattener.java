@@ -15,37 +15,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator;
+package org.apache.flink.streaming.api.invokable.operator.windowing;
 
-import java.util.LinkedList;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
+/**
+ * This invokable flattens the results of the window transformations by
+ * outputing the elements of the {@link StreamWindow} one-by-one
+ */
+public class WindowFlattener<T> extends ChainableInvokable<StreamWindow<T>, T> {
 
-public class WindowGroupReduceInvokable<IN, OUT> extends WindowInvokable<IN, OUT> {
+	public WindowFlattener() {
+		super(null);
+	}
 
 	private static final long serialVersionUID = 1L;
-	GroupReduceFunction<IN, OUT> reducer;
 
-	public WindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> userFunction,
-			LinkedList<TriggerPolicy<IN>> triggerPolicies,
-			LinkedList<EvictionPolicy<IN>> evictionPolicies) {
-		super(userFunction, triggerPolicies, evictionPolicies);
-		this.reducer = userFunction;
+	@Override
+	public void invoke() throws Exception {
+		while (readNext() != null) {
+			callUserFunctionAndLogException();
+		}
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		reducer.reduce(copyBuffer(), collector);
+		for (T element : nextObject) {
+			collector.collect(element);
+		}
 	}
 
-	public LinkedList<IN> copyBuffer() {
-		LinkedList<IN> copy = new LinkedList<IN>();
-		for (IN element : buffer) {
-			copy.add(copy(element));
-		}
-		return copy;
+	@Override
+	public void collect(StreamWindow<T> record) {
+		nextObject = record;
+		callUserFunctionAndLogException();
 	}
 
 }

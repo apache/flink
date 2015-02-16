@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.operators.CrossOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -33,16 +34,24 @@ import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 
 public class StreamCrossOperator<I1, I2> extends
 		TemporalOperator<I1, I2, StreamCrossOperator.CrossWindow<I1, I2>> {
-	
+
 	public StreamCrossOperator(DataStream<I1> input1, DataStream<I2> input2) {
 		super(input1, input2);
+	}
+
+	protected <F> F clean(F f) {
+		if (input1.getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
+			ClosureCleaner.clean(f, true);
+		}
+		ClosureCleaner.ensureSerializable(f);
+		return f;
 	}
 
 	@Override
 	protected CrossWindow<I1, I2> createNextWindowOperator() {
 
 		CrossWindowFunction<I1, I2, Tuple2<I1, I2>> crossWindowFunction = new CrossWindowFunction<I1, I2, Tuple2<I1, I2>>(
-				input1.clean(new CrossOperator.DefaultCrossFunction<I1, I2>()));
+				clean(new CrossOperator.DefaultCrossFunction<I1, I2>()));
 
 		return new CrossWindow<I1, I2>(this, input1.connect(input2).addGeneralWindowCombine(
 				crossWindowFunction,

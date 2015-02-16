@@ -26,8 +26,8 @@ import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
 import org.apache.flink.streaming.api.datastream.{ WindowedDataStream => JavaWStream }
 import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaStream }
 import org.apache.flink.streaming.api.datastream.{ ConnectedDataStream => JavaConStream }
-
 import language.implicitConversions
+import org.apache.flink.streaming.api.windowing.StreamWindow
 
 package object scala {
   // We have this here so that we always have generated TypeInformationS when
@@ -48,7 +48,9 @@ package object scala {
 
   implicit def seqToFlinkSource[T: ClassTag: TypeInformation](scalaSeq: Seq[T]) : DataStream[T] =
     StreamExecutionEnvironment.getExecutionEnvironment.fromCollection(scalaSeq)
-
+    
+  implicit def windowedToDataStream[R](windowedStream: WindowedDataStream[R]): DataStream[R] =
+    windowedStream.flatten      
 
   private[flink] def fieldNames2Indices(
       typeInfo: TypeInformation[_],

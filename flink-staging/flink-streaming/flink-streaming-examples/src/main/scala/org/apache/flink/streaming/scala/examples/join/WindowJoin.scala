@@ -34,7 +34,7 @@ object WindowJoin {
 
   def main(args: Array[String]) {
 
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+   val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     //Create streams for names and ages by mapping the inputs to the corresponding objects
     val names = env.fromCollection(nameStream).map(x => Name(x._1, x._2))
@@ -53,22 +53,22 @@ object WindowJoin {
     env.execute("WindowJoin")
   }
 
-  def nameStream() : Stream[(Long,String)] = {
-    def nameMapper(names: Array[String])(x: Int) : (Long, String) =
-    {
-      if(x%100==0) Thread.sleep(1000)
-      (x, names(Random.nextInt(names.length)))
-    }
-    range(1,10000).map(nameMapper(Array("tom", "jerry", "alice", "bob", "john", "grace")))
+  def nameStream(): Stream[(Long, String)] = {
+    def nameMapper(names: Array[String])(x: Int): (Long, String) =
+      {
+        if (x % 100 == 0) Thread.sleep(1000)
+        (x, names(Random.nextInt(names.length)))
+      }
+    range(1, 10000).map(nameMapper(Array("tom", "jerry", "alice", "bob", "john", "grace")))
   }
 
-  def ageStream() : Stream[(Long,Int)] = {
-    def ageMapper(x: Int) : (Long, Int) =
-    {
-      if(x%100==0) Thread.sleep(1000)
-      (x, Random.nextInt(90))
-    }
-    range(1,10000).map(ageMapper)
+  def ageStream(): Stream[(Long, Int)] = {
+    def ageMapper(x: Int): (Long, Int) =
+      {
+        if (x % 100 == 0) Thread.sleep(1000)
+        (x, Random.nextInt(90))
+      }
+    range(1, 10000).map(ageMapper)
   }
 
 }

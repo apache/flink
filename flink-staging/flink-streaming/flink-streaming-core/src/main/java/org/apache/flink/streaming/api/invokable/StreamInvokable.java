@@ -58,7 +58,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	protected IN nextObject;
 	protected boolean isMutable;
 
-	protected Collector<OUT> collector;
+	public Collector<OUT> collector;
 	protected Function userFunction;
 	protected volatile boolean isRunning;
 
@@ -73,9 +73,8 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	 * 
 	 * @param taskContext
 	 *            StreamTaskContext representing the vertex
-	 * @param executionConfig
 	 */
-	public void setup(StreamTaskContext<OUT> taskContext, ExecutionConfig executionConfig) {
+	public void setup(StreamTaskContext<OUT> taskContext) {
 		this.collector = taskContext.getOutputCollector();
 		this.recordIterator = taskContext.getIndexedInput(0);
 		this.inSerializer = taskContext.getInputSerializer(0);
@@ -84,7 +83,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 			this.objectSerializer = inSerializer.getObjectSerializer();
 		}
 		this.taskContext = taskContext;
-		this.executionConfig = executionConfig;
+		this.executionConfig = taskContext.getExecutionConfig();
 	}
 
 	/**

@@ -212,7 +212,7 @@ public class TypeExtractor {
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	private static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(Function function, Class<?> baseClass, 
+	public static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(Function function, Class<?> baseClass, 
 			boolean hasIterable, boolean hasCollector, TypeInformation<IN> inType,
 			String functionName, boolean allowMissing)
 	{

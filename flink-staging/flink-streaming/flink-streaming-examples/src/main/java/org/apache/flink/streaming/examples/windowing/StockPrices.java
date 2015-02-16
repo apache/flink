@@ -17,26 +17,26 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.util.Collector;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This example showcases a moderately complex Flink Streaming pipeline.
@@ -78,6 +78,7 @@ public class StockPrices {
 	// PROGRAM
 	// *************************************************************************
 
+	@SuppressWarnings({ "serial", "unused" })
 	public static void main(String[] args) throws Exception {
 
 		if (!parseParameters(args)) {
@@ -108,6 +109,7 @@ public class StockPrices {
 		DataStream<StockPrice> BUX_stream = env.addSource(new StockSource("BUX", 40));
 
 		//Merge all stock streams together
+		@SuppressWarnings("unchecked")
 		DataStream<StockPrice> stockStream = socketStockStream.merge(SPX_stream, FTSE_stream, DJI_stream, BUX_stream);
 		
 		//Step 2
@@ -116,9 +118,9 @@ public class StockPrices {
 				.window(Time.of(10, TimeUnit.SECONDS))
 				.every(Time.of(5, TimeUnit.SECONDS));
 
-		DataStream<StockPrice> lowest = windowedStream.minBy("price").setParallelism(1);
-		DataStream<StockPrice> maxByStock = windowedStream.groupBy("symbol").maxBy("price");
-		DataStream<StockPrice> rollingMean = windowedStream.groupBy("symbol").reduceGroup(new MeanReduce());
+		DataStream<StockPrice> lowest = windowedStream.minBy("price").flatten();
+		DataStream<StockPrice> maxByStock = windowedStream.groupBy("symbol").maxBy("price").flatten();
+		DataStream<StockPrice> rollingMean = windowedStream.groupBy("symbol").mapWindow(new WindowMean()).flatten();
 
 		//Step 3
 		//Use  delta policy to create price change warnings, and also count the number of warning every half minute
@@ -130,7 +132,7 @@ public class StockPrices {
 						return Math.abs(oldDataPoint.price - newDataPoint.price);
 					}
 				}, DEFAULT_STOCK_PRICE))
-				.reduceGroup(new SendWarning());
+				.mapWindow(new SendWarning()).flatten();
 
 
 		DataStream<Count> warningsPerStock = priceWarnings.map(new MapFunction<String, Count>() {
@@ -138,7 +140,7 @@ public class StockPrices {
 			public Count map(String value) throws Exception {
 				return new Count(value, 1);
 			}
-		}).groupBy("symbol").window(Time.of(30, TimeUnit.SECONDS)).sum("count");
+		}).groupBy("symbol").window(Time.of(30, TimeUnit.SECONDS)).sum("count").flatten();
 
 		//Step 4
 		//Read a stream of tweets and extract the stock symbols
@@ -166,7 +168,7 @@ public class StockPrices {
 			}
 		}).groupBy("symbol")
 				.window(Time.of(30, TimeUnit.SECONDS))
-				.sum("count");
+				.sum("count").flatten();
 
 		//Step 5
 		//For advanced analysis we join the number of tweets and the number of price change warnings by stock
@@ -186,8 +188,7 @@ public class StockPrices {
 
 		DataStream<Double> rollingCorrelation = tweetsAndWarning
 				.window(Time.of(30, TimeUnit.SECONDS))
-				.reduceGroup(new CorrelationReduce())
-				.setParallelism(1);
+				.mapWindow(new WindowCorrelation()).flatten();
 
 		if (fileOutput) {
 			rollingCorrelation.writeAsText(outputPath, 1);
@@ -205,6 +206,7 @@ public class StockPrices {
 
 	public static class StockPrice implements Serializable {
 
+		private static final long serialVersionUID = 1L;
 		public String symbol;
 		public Double price;
 
@@ -226,6 +228,8 @@ public class StockPrices {
 	}
 
 	public static class Count implements Serializable {
+		
+		private static final long serialVersionUID = 1L;
 		public String symbol;
 		public Integer count;
 
@@ -252,6 +256,7 @@ public class StockPrices {
 
 	public final static class StockSource implements SourceFunction<StockPrice> {
 
+		private static final long serialVersionUID = 1L;
 		private Double price;
 		private String symbol;
 		private Integer sigma;
@@ -274,14 +279,15 @@ public class StockPrices {
 		}
 	}
 
-	public final static class MeanReduce implements GroupReduceFunction<StockPrice, StockPrice> {
+	public final static class WindowMean implements WindowMapFunction<StockPrice, StockPrice> {
 
+		private static final long serialVersionUID = 1L;
 		private Double sum = 0.0;
 		private Integer count = 0;
 		private String symbol = "";
 
 		@Override
-		public void reduce(Iterable<StockPrice> values, Collector<StockPrice> out) throws Exception {
+		public void mapWindow(Iterable<StockPrice> values, Collector<StockPrice> out) throws Exception {
 			if (values.iterator().hasNext()) {
 
 				for (StockPrice sp : values) {
@@ -296,6 +302,7 @@ public class StockPrices {
 
 	public static final class TweetSource implements SourceFunction<String> {
 
+		private static final long serialVersionUID = 1L;
 		Random random;
 		StringBuilder stringBuilder;
 
@@ -317,17 +324,21 @@ public class StockPrices {
 		}
 	}
 
-	public static final class SendWarning implements GroupReduceFunction<StockPrice, String> {
+	public static final class SendWarning implements WindowMapFunction<StockPrice, String> {
+
+		private static final long serialVersionUID = 1L;
+
 		@Override
-		public void reduce(Iterable<StockPrice> values, Collector<String> out) throws Exception {
+		public void mapWindow(Iterable<StockPrice> values, Collector<String> out) throws Exception {
 			if (values.iterator().hasNext()) {
 				out.collect(values.iterator().next().symbol);
 			}
 		}
 	}
 
-	public static final class CorrelationReduce implements GroupReduceFunction<Tuple2<Integer, Integer>, Double> {
+	public static final class WindowCorrelation implements WindowMapFunction<Tuple2<Integer, Integer>, Double> {
 
+		private static final long serialVersionUID = 1L;
 		private Integer leftSum;
 		private Integer rightSum;
 		private Integer count;
@@ -340,7 +351,7 @@ public class StockPrices {
 		private Double rightSd;
 
 		@Override
-		public void reduce(Iterable<Tuple2<Integer, Integer>> values, Collector<Double> out) throws Exception {
+		public void mapWindow(Iterable<Tuple2<Integer, Integer>> values, Collector<Double> out) throws Exception {
 
 			leftSum = 0;
 			rightSum = 0;

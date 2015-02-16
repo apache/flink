@@ -19,9 +19,9 @@ package org.apache.flink.streaming.examples.ml;
 
 import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.helper.Time;
@@ -63,7 +63,7 @@ public class IncrementalLearningSkeleton {
 		// build new model on every second of new data
 		DataStream<Double[]> model = env.addSource(new TrainingDataSource())
 				.window(Time.of(5000, TimeUnit.MILLISECONDS))
-				.reduceGroup(new PartialModelBuilder());
+				.mapWindow(new PartialModelBuilder()).flatten();
 
 		// use partial model for prediction
 		DataStream<Integer> prediction = env.addSource(new NewDataSource()).connect(model)
@@ -131,7 +131,7 @@ public class IncrementalLearningSkeleton {
 	/**
 	 * Builds up-to-date partial models on new training data.
 	 */
-	public static class PartialModelBuilder implements GroupReduceFunction<Integer, Double[]> {
+	public static class PartialModelBuilder implements WindowMapFunction<Integer, Double[]> {
 		private static final long serialVersionUID = 1L;
 
 		protected Double[] buildPartialModel(Iterable<Integer> values) {
@@ -139,7 +139,7 @@ public class IncrementalLearningSkeleton {
 		}
 
 		@Override
-		public void reduce(Iterable<Integer> values, Collector<Double[]> out) throws Exception {
+		public void mapWindow(Iterable<Integer> values, Collector<Double[]> out) throws Exception {
 			out.collect(buildPartialModel(values));
 		}
 	}
