@@ -135,6 +135,11 @@ under the License.
 			<artifactId>scalatest_2.10</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-testkit_2.10</artifactId>
+		</dependency>
 		
 		<dependency>
 			<groupId>joda-time</groupId>
