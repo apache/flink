@@ -821,18 +821,22 @@ object TaskManager {
     val jobManagerURL = if (localAkkaCommunication) {
       // JobManager and TaskManager are in the same ActorSystem -> Use local Akka URL
       JobManager.getLocalJobManagerAkkaURL
-    } else {
-      val jobManagerAddress = configuration.getString(ConfigConstants
-          .JOB_MANAGER_IPC_ADDRESS_KEY, null)
-      val jobManagerRPCPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+    }
+    else {
+      val jobManagerAddress = configuration.getString(
+        ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+
+      val jobManagerRPCPort = configuration.getInteger(
+        ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+        ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
       if (jobManagerAddress == null) {
-        throw new RuntimeException("JobManager address has not been specified in the " +
-          "configuration.")
+        throw new RuntimeException(
+          "JobManager address has not been specified in the configuration.")
       }
 
-      JobManager.getRemoteJobManagerAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
+      val hostPort = new InetSocketAddress(InetAddress.getByName(jobManagerAddress), jobManagerRPCPort)
+      JobManager.getRemoteJobManagerAkkaURL(hostPort)
     }
 
     val slots = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)

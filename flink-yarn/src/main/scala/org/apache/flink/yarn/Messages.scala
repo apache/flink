@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn
 
+import java.net.InetSocketAddress
 import java.util.Date
 
 import akka.actor.ActorRef
@@ -41,7 +42,7 @@ object Messages {
   case object CheckForUserCommand
 
   // Client-local messages
-  case class LocalRegisterClient(jobManagerAddress: String)
+  case class LocalRegisterClient(jobManagerAddress: InetSocketAddress)
   case object LocalGetYarnMessage // request new message
   case object LocalGetYarnClusterStatus // request the latest cluster status
 

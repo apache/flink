@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.client
 
 import java.io.IOException
-import java.net.InetSocketAddress
+import java.net.{InetAddress, InetSocketAddress}
 
 import akka.actor.Status.Failure
 import akka.actor._
@@ -172,7 +172,8 @@ object JobClient {
           "JobManager address has not been specified in the configuration.")
       }
 
-      JobManager.getRemoteJobManagerAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
+      val hostPort = new InetSocketAddress(InetAddress.getByName(jobManagerAddress), jobManagerRPCPort)
+      JobManager.getRemoteJobManagerAkkaURL(hostPort)
     }
   }
 

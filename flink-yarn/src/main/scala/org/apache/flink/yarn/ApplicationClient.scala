@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn
 
+import java.net.InetSocketAddress
+
 import akka.actor._
 import org.apache.flink.configuration.GlobalConfiguration
 import org.apache.flink.runtime.ActorLogMessages
@@ -63,7 +65,7 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
 
   override def receiveWithLogMessages: Receive = {
     // ----------------------------- Registration -> Status updates -> shutdown ----------------
-    case LocalRegisterClient(address: String) =>
+    case LocalRegisterClient(address: InetSocketAddress) =>
       val jmAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(address)
 
       val jobManagerFuture = AkkaUtils.getReference(jmAkkaUrl, system, timeout)

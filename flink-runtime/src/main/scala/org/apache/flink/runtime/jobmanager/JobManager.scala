@@ -849,17 +849,6 @@ object JobManager {
   // --------------------------------------------------------------------------
 
   /**
-   * Builds the akka actor path for the JobManager actor, given the address (host:port)
-   * where the JobManager's actor system runs.
-   *
-   * @param address The address (host:port) of the JobManager's actor system.
-   * @return The akka URL of the JobManager actor.
-   */
-  def getRemoteJobManagerAkkaURL(address: String): String = {
-    s"akka.tcp://flink@$address/user/$JOB_MANAGER_NAME"
-  }
-
-  /**
    * Builds the akka actor path for the JobManager actor, given the socket address
    * where the JobManager's actor system runs.
    *
@@ -867,7 +856,8 @@ object JobManager {
    * @return The akka URL of the JobManager actor.
    */
   def getRemoteJobManagerAkkaURL(address: InetSocketAddress): String = {
-    getRemoteJobManagerAkkaURL(address.getAddress().getHostAddress() + ":" + address.getPort)
+    val hostPort = address.getAddress().getHostAddress() + ":" + address.getPort()
+    s"akka.tcp://flink@$hostPort/user/$JOB_MANAGER_NAME"
   }
 
   /**

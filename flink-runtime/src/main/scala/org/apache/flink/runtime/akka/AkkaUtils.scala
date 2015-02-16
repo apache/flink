@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.akka
 
 import java.io.IOException
+import java.net.InetAddress
 import java.util.concurrent.{TimeUnit, Callable}
 
 import akka.actor.Actor.Receive
@@ -94,9 +95,12 @@ object AkkaUtils {
     val defaultConfig = getBasicAkkaConfig(configuration)
 
     listeningAddress match {
+
       case Some((hostname, port)) =>
-        val remoteConfig = getRemoteAkkaConfig(configuration, hostname, port)
+        val ipAddress = InetAddress.getByName(hostname).getHostAddress()
+        val remoteConfig = getRemoteAkkaConfig(configuration, ipAddress, port)
         remoteConfig.withFallback(defaultConfig)
+
       case None =>
         defaultConfig
     }
@@ -174,10 +178,12 @@ object AkkaUtils {
    */
   private def getRemoteAkkaConfig(configuration: Configuration,
                                   hostname: String, port: Int): Config = {
-    val akkaAskTimeout = Duration(configuration.getString(ConfigConstants.AKKA_ASK_TIMEOUT,
+    val akkaAskTimeout = Duration(configuration.getString(
+      ConfigConstants.AKKA_ASK_TIMEOUT,
       ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT))
 
-    val startupTimeout = configuration.getString(ConfigConstants.AKKA_STARTUP_TIMEOUT,
+    val startupTimeout = configuration.getString(
+      ConfigConstants.AKKA_STARTUP_TIMEOUT,
       akkaAskTimeout.toString)
 
     val transportHeartbeatInterval = configuration.getString(
@@ -188,25 +194,32 @@ object AkkaUtils {
       ConfigConstants.AKKA_TRANSPORT_HEARTBEAT_PAUSE,
       ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE)
 
-    val transportThreshold = configuration.getDouble(ConfigConstants.AKKA_TRANSPORT_THRESHOLD,
+    val transportThreshold = configuration.getDouble(
+      ConfigConstants.AKKA_TRANSPORT_THRESHOLD,
       ConfigConstants.DEFAULT_AKKA_TRANSPORT_THRESHOLD)
 
     val watchHeartbeatInterval = configuration.getString(
-        ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, (akkaAskTimeout/10).toString)
+      ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
+      (akkaAskTimeout/10).toString)
 
-    val watchHeartbeatPause = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
+    val watchHeartbeatPause = configuration.getString(
+      ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
       akkaAskTimeout.toString)
 
-    val watchThreshold = configuration.getDouble(ConfigConstants.AKKA_WATCH_THRESHOLD,
+    val watchThreshold = configuration.getDouble(
+      ConfigConstants.AKKA_WATCH_THRESHOLD,
       ConfigConstants.DEFAULT_AKKA_WATCH_THRESHOLD)
 
-    val akkaTCPTimeout = configuration.getString(ConfigConstants.AKKA_TCP_TIMEOUT,
+    val akkaTCPTimeout = configuration.getString(
+      ConfigConstants.AKKA_TCP_TIMEOUT,
       akkaAskTimeout.toString)
 
-    val akkaFramesize = configuration.getString(ConfigConstants.AKKA_FRAMESIZE,
+    val akkaFramesize = configuration.getString(
+      ConfigConstants.AKKA_FRAMESIZE,
       ConfigConstants.DEFAULT_AKKA_FRAMESIZE)
 
-    val lifecycleEvents = configuration.getBoolean(ConfigConstants.AKKA_LOG_LIFECYCLE_EVENTS,
+    val lifecycleEvents = configuration.getBoolean(
+      ConfigConstants.AKKA_LOG_LIFECYCLE_EVENTS,
       ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS)
 
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"

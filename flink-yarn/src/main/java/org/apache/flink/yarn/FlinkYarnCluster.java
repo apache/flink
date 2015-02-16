@@ -106,7 +106,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		applicationClient = actorSystem.actorOf(Props.create(ApplicationClient.class));
 
 		// instruct ApplicationClient to start a periodical status polling
-		applicationClient.tell(new Messages.LocalRegisterClient(jobManagerHost + ":" + jobManagerPort), applicationClient);
+		applicationClient.tell(new Messages.LocalRegisterClient(this.jobManagerAddress), applicationClient);
 
 
 		// add hook to ensure proper shutdown
