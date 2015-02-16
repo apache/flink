@@ -656,7 +656,9 @@ public class TaskManager implements TaskOperationProtocol {
 			
 			try {
 				try {
-					task.failExternally(t);
+					if(task != null) {
+						task.failExternally(t);
+					}
 				}
 				catch (Throwable t2) {
 					LOG.error("Error during cleanup of task deployment", t2);
