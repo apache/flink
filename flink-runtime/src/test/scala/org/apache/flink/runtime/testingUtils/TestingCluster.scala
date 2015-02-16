@@ -46,7 +46,7 @@ FlinkMiniCluster(userConfiguration, singleActorSystem) {
     cfg
   }
 
-  override def startJobManager(implicit actorSystem: ActorSystem): ActorRef = {
+  override def startJobManager(actorSystem: ActorSystem): ActorRef = {
 
     val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _ ,
         executionRetries, delayBetweenRetries,

@@ -25,7 +25,8 @@ import akka.actor.Status.Failure
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
-import org.apache.flink.runtime.executiongraph.{Execution, ExecutionJobVertex, ExecutionGraph}
+import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
+import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.Acknowledge
@@ -42,7 +43,7 @@ import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
-import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, StackTrace, NextInputSplit, Heartbeat}
+import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, NextInputSplit, Heartbeat}
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.util.InstantiationUtil
 
@@ -656,8 +657,10 @@ object JobManager {
     try {
       LOG.debug("Starting JobManager actor")
 
-      startActor(configuration, jobManagerSystem, true)
+      // bring up the job manager actor
+      val (jobManager, archiver) = startJobManagerActors(configuration, jobManagerSystem)
 
+      // bring up a local task manager, if needed
       if(executionMode.equals(LOCAL)){
         LOG.info("Starting embedded TaskManager for JobManager's LOCAL mode execution")
 
@@ -665,10 +668,14 @@ object JobManager {
           localAkkaCommunication = false, localTaskManagerCommunication = true)(jobManagerSystem)
       }
 
-      jobManagerSystem.awaitTermination()
+      // start the job manager web frontend
+      LOG.info("Starting JobManger web frontend")
+      val webServer = new WebInfoServer(configuration, jobManager, archiver)
+      webServer.start()
     }
     catch {
       case t: Throwable => {
+        LOG.error("Error while starting up JobManager", t)
         try {
           jobManagerSystem.shutdown()
         } catch {
@@ -677,6 +684,9 @@ object JobManager {
         throw t
       }
     }
+
+    // block until everything is shut down
+    jobManagerSystem.awaitTermination()
   }
 
   /**
@@ -814,9 +824,16 @@ object JobManager {
       profilerProps, executionRetries, delayBetweenRetries, timeout, archiveCount)
   }
 
-  def startActor(configuration: Configuration,
-                 actorSystem: ActorSystem,
-                 withWebServer: Boolean): ActorRef = {
+  /**
+   * Starts the JobManager and job archiver based on the given configuration, in the
+   * given actor system.
+   *
+   * @param configuration
+   * @param actorSystem
+   * @return A tuple of references (JobManager Ref, Archiver Ref)
+   */
+  def startJobManagerActors(configuration: Configuration,
+                            actorSystem: ActorSystem): (ActorRef, ActorRef) = {
 
     val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
       profilerProps, executionRetries, delayBetweenRetries,
@@ -827,17 +844,13 @@ object JobManager {
 
     val archiver: ActorRef = actorSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
 
-    val jobManagerProps = if (withWebServer) {
-      Props(new JobManager(configuration, instanceManager, scheduler,
-        libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
-        delayBetweenRetries, timeout) with WithWebServer)
-    } else {
-      Props(classOf[JobManager], configuration, instanceManager, scheduler,
+    val jobManagerProps = Props(classOf[JobManager], configuration, instanceManager, scheduler,
         libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
         delayBetweenRetries, timeout)
-    }
 
-    startActor(jobManagerProps, actorSystem)
+    val jobManager = startActor(jobManagerProps, actorSystem)
+
+    (jobManager, archiver)
   }
 
   def startActor(props: Props, actorSystem: ActorSystem): ActorRef = {

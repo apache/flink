@@ -75,7 +75,8 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
 
   def generateConfiguration(userConfiguration: Configuration): Configuration
 
-  def startJobManager(implicit system: ActorSystem): ActorRef
+  def startJobManager(system: ActorSystem): ActorRef
+
   def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef
 
   def getJobManagerAkkaConfig: Config = {

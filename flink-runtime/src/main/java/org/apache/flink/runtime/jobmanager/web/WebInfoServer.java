@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.net.URL;
 
 import akka.actor.ActorRef;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,13 +78,15 @@ public class WebInfoServer {
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
-	public WebInfoServer(Configuration config, ActorRef jobmanager,
-						ActorRef archive, FiniteDuration timeout) throws IOException {
-		
-		// if no explicit configuration is given, use the global configuration
+	public WebInfoServer(Configuration config, ActorRef jobmanager, ActorRef archive) throws IOException {
 		if (config == null) {
 			throw new IllegalArgumentException("No Configuration has been passed to the web server");
 		}
+		if (jobmanager == null || archive == null) {
+			throw new NullPointerException();
+		}
+
+		final FiniteDuration timeout = AkkaUtils.getTimeout(config);
 		
 		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);

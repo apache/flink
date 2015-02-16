@@ -26,13 +26,18 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 
 object Messages {
+
   case class YarnMessage(message: String, date: Date = new Date())
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
   case object RegisterClient
 
   case class StopYarnSession(status: FinalApplicationStatus)
+
   case object JobManagerStopped
-  case class StartYarnSession(configuration: Configuration, actorSystemPort: Int)
+
+  case class StartYarnSession(configuration: Configuration,
+                              actorSystemPort: Int,
+                              webServerport: Int)
 
   case class JobManagerActorRef(jobManager: ActorRef)
 

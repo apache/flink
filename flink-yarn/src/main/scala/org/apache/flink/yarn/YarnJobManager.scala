@@ -25,7 +25,7 @@ import java.util.Collections
 import akka.actor.ActorRef
 import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.runtime.ActorLogMessages
-import org.apache.flink.runtime.jobmanager.{WithWebServer, JobManager}
+import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
 import org.apache.flink.yarn.Messages._
 import org.apache.flink.yarn.appMaster.YarnTaskManagerRunner
@@ -45,7 +45,7 @@ import scala.language.postfixOps
 
 
 trait YarnJobManager extends ActorLogMessages {
-  that: JobManager with WithWebServer =>
+  that: JobManager =>
 
   import context._
   import scala.collection.JavaConverters._
@@ -101,7 +101,7 @@ trait YarnJobManager extends ActorLogMessages {
       sender() ! new FlinkYarnClusterStatus(instanceManager.getNumberOfRegisteredTaskManagers,
         instanceManager.getTotalNumberOfSlots)
 
-    case StartYarnSession(conf, actorSystemPort: Int) =>
+    case StartYarnSession(conf, actorSystemPort, webServerport) =>
       log.info("Start yarn session.")
       val memoryPerTaskManager = env.get(FlinkYarnClient.ENV_TM_MEMORY).toInt
       val heapLimit = Utils.calculateHeapSize(memoryPerTaskManager)
@@ -120,8 +120,6 @@ trait YarnJobManager extends ActorLogMessages {
       val shipListString = env.get(FlinkYarnClient.ENV_CLIENT_SHIP_FILES)
       val yarnClientUsername = env.get(FlinkYarnClient.ENV_CLIENT_USERNAME)
 
-      val jobManagerWebPort = that.webServer.getServer.getConnectors()(0).getLocalPort
-
       val rm = AMRMClient.createAMRMClient[ContainerRequest]()
       rm.init(conf)
       rm.start()
@@ -136,7 +134,7 @@ trait YarnJobManager extends ActorLogMessages {
       nmClientOption = Some(nm)
 
       // Register with ResourceManager
-      val url = s"http://$applicationMasterHost:$jobManagerWebPort"
+      val url = s"http://$applicationMasterHost:$webServerport"
       log.info(s"Registering ApplicationMaster with tracking url $url.")
       rm.registerApplicationMaster(applicationMasterHost, actorSystemPort, url)
 
