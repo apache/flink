@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client;
 
 import java.io.File;
@@ -71,6 +70,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.util.StringUtils;
+import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -115,9 +115,6 @@ public class CliFrontend {
 		initOptions();
 	}
 	
-	// general options
-	private static final Options GENERAL_OPTIONS = createGeneralOptions();
-	
 	// action options all include the general options
 	private static final Options RUN_OPTIONS = getRunOptions(createGeneralOptions());
 	private static final Options INFO_OPTIONS = getInfoOptions(createGeneralOptions());
@@ -145,7 +142,7 @@ public class CliFrontend {
 	private boolean printHelp;
 	
 	private boolean globalConfigurationLoaded;
-	
+
 	private boolean yarnPropertiesLoaded = false;
 	
 	private Properties yarnProperties;
@@ -516,7 +513,7 @@ public class CliFrontend {
 		}
 		
 		try {
-			ActorRef jobManager = getJobManager(line);
+			ActorRef jobManager = getJobManager(line, getGlobalConfiguration());
 			if (jobManager == null) {
 				return 1;
 			}
@@ -524,16 +521,15 @@ public class CliFrontend {
 			final Future<Object> response = Patterns.ask(jobManager,
 					JobManagerMessages.getRequestRunningJobs(), new Timeout(getAkkaTimeout()));
 
-			Object result = null;
-
-			try{
+			Object result;
+			try {
 				result = Await.result(response, getAkkaTimeout());
 			} catch (Exception exception) {
 				throw new IOException("Could not retrieve running jobs from job manager.",
 						exception);
 			}
 
-			if(!(result instanceof RunningJobs)){
+			if (!(result instanceof RunningJobs)) {
 				throw new RuntimeException("ReqeustRunningJobs requires a response of type " +
 						"RunningJobs. Instead the response is of type " + result.getClass() + ".");
 			} else {
@@ -651,7 +647,7 @@ public class CliFrontend {
 		}
 		
 		try {
-			ActorRef jobManager = getJobManager(line);
+			ActorRef jobManager = getJobManager(line, getGlobalConfiguration());
 
 			if (jobManager == null) {
 				return 1;
@@ -686,7 +682,7 @@ public class CliFrontend {
 				line.getArgs();
 	
 		// take the jar file from the option, or as the first trailing parameter (if available)
-		String jarFilePath = null;
+		String jarFilePath;
 		if (line.hasOption(JAR_OPTION.getOpt())) {
 			jarFilePath = line.getOptionValue(JAR_OPTION.getOpt());
 		}
@@ -775,31 +771,34 @@ public class CliFrontend {
 		}
 	}
 	
-	protected ActorRef getJobManager(CommandLine line) throws IOException {
+	protected ActorRef getJobManager(CommandLine line, Configuration config) throws IOException {
 		//TODO: Get ActorRef from YarnCluster if we are in YARN mode.
 		String jobManagerAddressStr = getJobManagerAddressString(line);
 		if (jobManagerAddressStr == null) {
 			return null;
 		}
 
-		InetSocketAddress address = RemoteExecutor.getInetFromHostport(jobManagerAddressStr);
+		final ActorSystem actorSystem;
+		try {
+			scala.Tuple2<String, Object> systemEndpoint = new scala.Tuple2<String, Object>("", 0);
+			actorSystem = AkkaUtils.createActorSystem(config, new Some<scala.Tuple2<String, Object>>(systemEndpoint));
+		}
+		catch (Exception e) {
+			throw new IOException("Could not start actor system to communicate with JobManager", e);
+		}
 
-		Future<ActorRef> jobManagerFuture = JobManager.getJobManager(
-				address,
-				ActorSystem.create("CliFrontendActorSystem", AkkaUtils.getDefaultAkkaConfig()),
-				getAkkaTimeout());
-
-		try{
-			return Await.result(jobManagerFuture, getAkkaTimeout());
-		} catch (Exception exception) {
-			throw new IOException("Could not find job manager at address " +
-					JobManager.getRemoteAkkaURL(address) + ".");
+		try {
+			InetSocketAddress address = RemoteExecutor.getInetFromHostport(jobManagerAddressStr);
+			return JobManager.getJobManagerRemoteReference(address, actorSystem, config);
+		}
+		finally {
+			actorSystem.shutdown();
 		}
 	}
 	
 
 	public String getConfigurationDirectory() {
-		if(configurationDirectory == null) {
+		if (configurationDirectory == null) {
 			configurationDirectory = getConfigurationDirectoryFromEnv();
 		}
 		return configurationDirectory;
@@ -847,7 +846,7 @@ public class CliFrontend {
 		return GlobalConfiguration.getConfiguration();
 	}
 	public static String getConfigurationDirectoryFromEnv() {
-		String location = null;
+		String location;
 		if (System.getenv(ENV_CONFIG_DIRECTORY) != null) {
 			location = System.getenv(ENV_CONFIG_DIRECTORY);
 		} else if (new File(CONFIG_DIRECTORY_FALLBACK_1).exists()) {
@@ -863,7 +862,6 @@ public class CliFrontend {
 
 	protected FiniteDuration getAkkaTimeout(){
 		Configuration config = getGlobalConfiguration();
-
 		return AkkaUtils.getTimeout(config);
 	}
 	
@@ -897,6 +895,7 @@ public class CliFrontend {
 			} else {
 				yarnProperties = null;
 			}
+			yarnPropertiesLoaded = true;
 		}
 		return yarnProperties;
 	}

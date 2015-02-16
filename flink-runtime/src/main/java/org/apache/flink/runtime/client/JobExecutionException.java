@@ -16,48 +16,46 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.client;
 
 /**
- * This exception is thrown by the {@link JobClient} if a Nephele job has been aborted either as a result of a user
+ * This exception is thrown by the {@link JobClient} if a job has been aborted either as a result of a user
  * request or an error which occurred during the execution.
- * 
  */
 public class JobExecutionException extends Exception {
 
-	/**
-	 * The generated serial UID.
-	 */
+	public static enum ExecutionErrorCause {
+		CANCELED,
+		TIMEOUT_TO_JOB_MANAGER,
+		ERROR
+	}
+
+	// ------------------------------------------------------------------------
+
 	private static final long serialVersionUID = 2818087325120827525L;
 
-	/**
-	 * Indicates whether the job has been aborted as a result of user request.
-	 */
-	private final boolean canceledByUser;
+	private final ExecutionErrorCause cause;
 
 	/**
 	 * Constructs a new job execution exception.
 	 * 
-	 * @param msg
-	 *        the message that shall be encapsulated by this exception
-	 * @param canceledByUser
-	 *        <code>true</code> if the job has been aborted as a result of a user request, <code>false</code> otherwise
+	 * @param msg The message that shall be encapsulated by this exception.
+	 * @param cause The cause for the execution exception.
 	 */
-	public JobExecutionException(final String msg, final boolean canceledByUser) {
+	public JobExecutionException(String msg, ExecutionErrorCause cause) {
 		super(msg);
-
-		this.canceledByUser = canceledByUser;
+		this.cause = cause;
 	}
 
-	/**
-	 * Returns <code>true</code> if the job has been aborted as a result of a user request, <code>false</code>
-	 * otherwise.
-	 * 
-	 * @return <code>true</code> if the job has been aborted as a result of a user request, <code>false</code> otherwise
-	 */
 	public boolean isJobCanceledByUser() {
+		return cause == ExecutionErrorCause.CANCELED;
+	}
 
-		return this.canceledByUser;
+	public boolean isConnectionTimedOut() {
+		return cause == ExecutionErrorCause.TIMEOUT_TO_JOB_MANAGER;
+	}
+
+	public boolean isError() {
+		return cause == ExecutionErrorCause.ERROR;
 	}
 }

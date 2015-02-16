@@ -64,9 +64,9 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
   override def receiveWithLogMessages: Receive = {
     // ----------------------------- Registration -> Status updates -> shutdown ----------------
     case LocalRegisterClient(address: String) =>
-      val jmAkkaUrl = JobManager.getRemoteAkkaURL(address)
+      val jmAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(address)
 
-      val jobManagerFuture = AkkaUtils.getReference(jmAkkaUrl)(system, timeout)
+      val jobManagerFuture = AkkaUtils.getReference(jmAkkaUrl, system, timeout)
 
       jobManagerFuture.onComplete {
         case Success(jm) => self ! JobManagerActorRef(jm)
