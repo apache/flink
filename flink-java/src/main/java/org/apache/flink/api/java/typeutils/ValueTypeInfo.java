@@ -31,9 +31,16 @@ import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.Value;
 
-
+/**
+ * Type information for data types that extend the {@link Value} interface. The value
+ * interface allows types to define their custom serialization and deserialization routines.
+ *
+ * @param <T> The type of the class represented by this type information.
+ */
 public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implements AtomicType<T> {
 
+	private static final long serialVersionUID = 1L;
+	
 	private final Class<T> type;
 
 	

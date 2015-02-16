@@ -835,7 +835,8 @@ object TaskManager {
           "JobManager address has not been specified in the configuration.")
       }
 
-      val hostPort = new InetSocketAddress(InetAddress.getByName(jobManagerAddress), jobManagerRPCPort)
+      val hostPort = new InetSocketAddress(InetAddress.getByName(jobManagerAddress),
+                                           jobManagerRPCPort)
       JobManager.getRemoteJobManagerAkkaURL(hostPort)
     }
 

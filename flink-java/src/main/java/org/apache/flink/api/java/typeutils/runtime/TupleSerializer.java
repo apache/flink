@@ -38,7 +38,7 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 	@Override
 	public TupleSerializer<T> duplicate() {
 		boolean stateful = false;
-		TypeSerializer[] duplicateFieldSerializers = new TypeSerializer[fieldSerializers.length];
+		TypeSerializer<?>[] duplicateFieldSerializers = new TypeSerializer<?>[fieldSerializers.length];
 
 		for (int i = 0; i < fieldSerializers.length; i++) {
 			duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();

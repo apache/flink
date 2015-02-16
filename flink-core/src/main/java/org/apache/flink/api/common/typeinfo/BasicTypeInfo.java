@@ -55,6 +55,8 @@ import org.apache.flink.api.common.typeutils.base.VoidSerializer;
  */
 public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
+	private static final long serialVersionUID = 1L;
+	
 	public static final BasicTypeInfo<String> STRING_TYPE_INFO = new BasicTypeInfo<String>(String.class, StringSerializer.INSTANCE, StringComparator.class);
 	public static final BasicTypeInfo<Boolean> BOOLEAN_TYPE_INFO = new BasicTypeInfo<Boolean>(Boolean.class, BooleanSerializer.INSTANCE, BooleanComparator.class);
 	public static final BasicTypeInfo<Byte> BYTE_TYPE_INFO = new BasicTypeInfo<Byte>(Byte.class, ByteSerializer.INSTANCE, ByteComparator.class);

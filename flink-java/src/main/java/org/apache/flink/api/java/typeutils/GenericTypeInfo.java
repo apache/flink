@@ -28,6 +28,8 @@ import org.apache.flink.api.java.typeutils.runtime.KryoSerializer;
 
 public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
+	private static final long serialVersionUID = -7959114120287706504L;
+	
 	private final Class<T> typeClass;
 
 	public GenericTypeInfo(Class<T> typeClass) {

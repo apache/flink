@@ -31,6 +31,8 @@ import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
 public class ObjectArrayTypeInfo<T, C> extends TypeInformation<T> {
 
+	private static final long serialVersionUID = 1L;
+	
 	private final Type arrayType;
 	private final Type componentType;
 	private final TypeInformation<C> componentInfo;

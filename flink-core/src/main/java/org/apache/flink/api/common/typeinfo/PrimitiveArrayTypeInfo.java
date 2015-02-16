@@ -33,7 +33,15 @@ import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySeriali
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
 
+/**
+ * A {@link TypeInformation} for arrays of primitive types (int, long, double, ...).
+ * Supports the creation of dedicated efficient serializers for these types.
+ *
+ * @param <T> The type represented by this type information, e.g., int[], double[], long[]
+ */
 public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
+	
+	private static final long serialVersionUID = 1L;
 
 	public static final PrimitiveArrayTypeInfo<boolean[]> BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<boolean[]>(boolean[].class, BooleanPrimitiveArraySerializer.INSTANCE);
 	public static final PrimitiveArrayTypeInfo<byte[]> BYTE_PRIMITIVE_ARRAY_TYPE_INFO = new PrimitiveArrayTypeInfo<byte[]>(byte[].class, BytePrimitiveArraySerializer.INSTANCE);
@@ -46,10 +54,24 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 	
 	// --------------------------------------------------------------------------------------------
 	
+	/** The class of the array (such as int[].class) */
 	private final Class<T> arrayClass;
+	
+	/** The serializer for the array */
 	private final TypeSerializer<T> serializer;
 
+	/**
+	 * Creates a new type info for a 
+	 * @param arrayClass The class of the array (such as int[].class)
+	 * @param serializer The serializer for the array.
+	 */
 	private PrimitiveArrayTypeInfo(Class<T> arrayClass, TypeSerializer<T> serializer) {
+		if (arrayClass == null || serializer == null) {
+			throw new NullPointerException();
+		}
+		if (!(arrayClass.isArray() && arrayClass.getComponentType().isPrimitive())) {
+			throw new IllegalArgumentException("Class must represent an array of primitives.");
+		}
 		this.arrayClass = arrayClass;
 		this.serializer = serializer;
 	}
@@ -98,6 +120,14 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 	
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Tries to get the PrimitiveArrayTypeInfo for an array. Returns null, if the type is an array,
+	 * but the component type is not a primitive type.
+	 * 
+	 * @param type The class of the array.
+	 * @return The corresponding PrimitiveArrayTypeInfo, or null, if the array is not an array of primitives.
+	 * @throws InvalidTypesException Thrown, if the given class does not represent an array.
+	 */
 	@SuppressWarnings("unchecked")
 	public static <X> PrimitiveArrayTypeInfo<X> getInfoFor(Class<X> type) {
 		if (!type.isArray()) {
@@ -108,8 +138,10 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 		return (PrimitiveArrayTypeInfo<X>) TYPES.get(type);
 	}
 
+	/** Static map from array class to type info */
 	private static final Map<Class<?>, PrimitiveArrayTypeInfo<?>> TYPES = new HashMap<Class<?>, PrimitiveArrayTypeInfo<?>>();
 
+	// initialization of the static map
 	static {
 		TYPES.put(boolean[].class, BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO);
 		TYPES.put(byte[].class, BYTE_PRIMITIVE_ARRAY_TYPE_INFO);

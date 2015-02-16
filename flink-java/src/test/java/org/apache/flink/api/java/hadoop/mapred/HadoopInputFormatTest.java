@@ -16,19 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapred;
-
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.junit.Test;
 
@@ -39,11 +35,9 @@ import static org.junit.Assert.fail;
 
 public class HadoopInputFormatTest {
 
-
 	public class DummyVoidKeyInputFormat<T> extends FileInputFormat<Void, T> {
 
-		public DummyVoidKeyInputFormat() {
-		}
+		public DummyVoidKeyInputFormat() {}
 
 		@Override
 		public org.apache.hadoop.mapred.RecordReader<Void, T> getRecordReader(org.apache.hadoop.mapred.InputSplit inputSplit, JobConf jobConf, Reporter reporter) throws IOException {
@@ -51,21 +45,17 @@ public class HadoopInputFormatTest {
 		}
 	}
 	
-	
 	@Test
 	public void checkTypeInformation() {
 		try {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-			// Set up the Hadoop Input Format
-			Job job = Job.getInstance();
-			HadoopInputFormat<Void, Long> hadoopInputFormat = new HadoopInputFormat<Void, Long>( new DummyVoidKeyInputFormat(), Void.class, Long.class, new JobConf());
+			HadoopInputFormat<Void, Long> hadoopInputFormat = new HadoopInputFormat<Void, Long>(
+					new DummyVoidKeyInputFormat<Long>(), Void.class, Long.class, new JobConf());
 
 			TypeInformation<Tuple2<Void,Long>> tupleType = hadoopInputFormat.getProducedType();
 			TypeInformation<Tuple2<Void,Long>> testTupleType = new TupleTypeInfo<Tuple2<Void,Long>>(BasicTypeInfo.VOID_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
 			
 			if(tupleType.isTupleType()) {
-				if(!((TupleTypeInfo)tupleType).equals(testTupleType)) {
+				if(!((TupleTypeInfo<?>)tupleType).equals(testTupleType)) {
 					fail("Tuple type information was not set correctly!");
 				}
 			} else {
@@ -76,7 +66,5 @@ public class HadoopInputFormatTest {
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
-
 	}
-	
 }

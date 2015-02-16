@@ -30,6 +30,8 @@ import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 
 public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 
+	private static final long serialVersionUID = 1L;
+	
 	private final static String REGEX_FIELD = "(f?)([0-9]+)";
 	private final static String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
 	private final static String REGEX_NESTED_FIELDS_WILDCARD = REGEX_NESTED_FIELDS
@@ -40,6 +42,8 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	private static final Pattern PATTERN_NESTED_FIELDS = Pattern.compile(REGEX_NESTED_FIELDS);
 	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
 
+	// --------------------------------------------------------------------------------------------
+	
 	protected final TypeInformation<?>[] types;
 	
 	protected final Class<T> tupleType;

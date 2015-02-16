@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapred.wrapper;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -30,11 +30,13 @@ import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapred.JobConf;
 
-
+/**
+ * A wrapper that represents an input split from the Hadoop mapred API as
+ * a Flink {@link InputSplit}.
+ */
 public class HadoopInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = 1L;
-
 	
 	private transient org.apache.hadoop.mapred.InputSplit hadoopInputSplit;
 	
@@ -100,7 +102,6 @@ public class HadoopInputSplit extends LocatableInputSplit {
 
 	}
 
-	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		this.splitNumber=in.readInt();
 		this.hadoopInputSplitTypeName = in.readUTF();

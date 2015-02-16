@@ -33,6 +33,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  */
 public abstract class CompositeType<T> extends TypeInformation<T> {
 	
+	private static final long serialVersionUID = 1L;
+	
 	protected final Class<T> typeClass;
 	
 	public CompositeType(Class<T> typeClass) {
@@ -161,6 +163,8 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	}
 
 	public static class InvalidFieldReferenceException extends IllegalArgumentException {
+
+		private static final long serialVersionUID = 1L;
 
 		public InvalidFieldReferenceException(String s) {
 			super(s);

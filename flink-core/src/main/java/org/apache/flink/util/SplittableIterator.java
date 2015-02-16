@@ -24,6 +24,8 @@ import java.util.Iterator;
 
 public abstract class SplittableIterator<T> implements Iterator<T>, Serializable {
 
+	private static final long serialVersionUID = 200377674313072307L;
+
 	public abstract Iterator<T>[] split(int numPartitions);
 
 	public Iterator<T> getSplit(int num, int numPartitions) {
