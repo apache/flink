@@ -97,7 +97,7 @@ object AkkaUtils {
     listeningAddress match {
 
       case Some((hostname, port)) =>
-        val ipAddress = InetAddress.getByName(hostname).getHostAddress()
+        val ipAddress = "\"" + InetAddress.getByName(hostname).getHostAddress() + "\""
         val remoteConfig = getRemoteAkkaConfig(configuration, ipAddress, port)
         remoteConfig.withFallback(defaultConfig)
 
