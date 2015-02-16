@@ -1052,6 +1052,7 @@ under the License.
 						<exclude>build-target/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/watchdog*</exclude>
+						<exclude>tools/artifacts*</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -1107,7 +1108,7 @@ under the License.
 						  the property is null when we have just the variable-->
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=log4j-test.properties -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=log4j-test.properties -Dlog.file=${log.dir}/${surefire.forkNumber}.log -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -1120,7 +1121,7 @@ under the License.
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=log4j-test.properties -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=log4j-test.properties -Dlog.file=${log.dir}/${surefire.forkNumber}.log -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
