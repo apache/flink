@@ -25,6 +25,12 @@ if [ -z "$HERE" ] ; then
 	exit 1  # fail
 fi
 
+ARTIFACTS_DIR="${HERE}/artifacts"
+
+mkdir -p $ARTIFACTS_DIR || { echo "FAILURE: cannot create log directory '${ARTIFACTS_DIR}'." ; exit 1; }
+
+echo "Build for commit ${TRAVIS_COMMIT} of ${TRAVIS_REPO_SLUG} [build ID: ${TRAVIS_BUILD_ID}, job number: $TRAVIS_JOB_NUMBER]." | tee "${ARTIFACTS_DIR}/build_info"
+
 # =============================================================================
 # CONFIG
 # =============================================================================
@@ -35,17 +41,55 @@ MAX_NO_OUTPUT=${1:-300}
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=20
 
-# Maven command to run
-MVN="mvn -Dflink.forkCount=2 -B $PROFILE clean install verify"
+LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
-MVN_PID="${HERE}/watchdog.mvn.pid"
-MVN_EXIT="${HERE}/watchdog.mvn.exit"
-MVN_OUT="${HERE}/watchdog.mvn.out"
-TRACE_OUT="${HERE}/watchdog.trace.out"
+# Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
+# on the Travis VMs.
+MVN="mvn -Dflink.forkCount=2 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES clean install verify"
+
+MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
+MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
+MVN_OUT="${ARTIFACTS_DIR}/mvn.out"
+
+TRACE_OUT="${ARTIFACTS_DIR}/jps-traces.out"
+
+# E.g. travis-artifacts/apache/flink/1595/1595.1
+UPLOAD_TARGET_PATH="travis-artifacts/${TRAVIS_REPO_SLUG}/${TRAVIS_BUILD_NUMBER}/"
+# These variables are stored as secure variables in '.travis.yml', which are generated per repo via
+# the travis command line tool.
+UPLOAD_BUCKET=$ARTIFACTS_AWS_BUCKET
+UPLOAD_ACCESS_KEY=$ARTIFACTS_AWS_ACCESS_KEY
+UPLOAD_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
+
+ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
+upload_artifacts_s3() {
+	echo "PRODUCED build artifacts."
+
+	ls $ARTIFACTS_DIR
+
+	if [ -n "$UPLOAD_BUCKET" ] && [ -n "$UPLOAD_ACCESS_KEY" ] && [ -n "$UPLOAD_SECRET_KEY" ]; then
+		echo "COMPRESSING build artifacts."
+
+		cd $ARTIFACTS_DIR
+		tar -zcvf $ARTIFACTS_FILE *
+
+		# Install artifacts tool
+		curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
+
+		PATH=$HOME/bin:$PATH
+
+		echo "UPLOADING build artifacts."
+
+		# Upload everything in $ARTIFACTS_DIR. Use relative path, otherwise the upload tool
+		# re-creates the whole directory structure from root.
+		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH $ARTIFACTS_FILE
+	fi
+}
 
 print_stacktraces () {
 	echo "=============================================================================="
@@ -114,7 +158,7 @@ echo "STARTED watchdog (${WD_PID})."
 # Make sure to be in project root
 cd $HERE/../
 
-echo "RUNNING ${MVN} command."
+echo "RUNNING '${MVN}'."
 
 # Run $MVN and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
 # allow the watchdog to kill $MVN if it is not producing any output anymore. $MVN_EXIT contains
@@ -133,4 +177,7 @@ echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 rm $MVN_PID
 rm $MVN_EXIT
 
+upload_artifacts_s3
+
+# Exit code for Travis build success/failure
 exit $EXIT_CODE

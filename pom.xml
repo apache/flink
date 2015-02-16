@@ -79,6 +79,7 @@ under the License.
 			 it on the "mvn" commandline in travis. -->
 		<flink.forkCount>1.5C</flink.forkCount>
 		<flink.reuseForks>true</flink.reuseForks>
+		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>17.0</guava.version>
 		<scala.version>2.10.4</scala.version>
@@ -1051,7 +1052,7 @@ under the License.
 						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
 						<!-- Tools: watchdog -->
-						<exclude>tools/watchdog*</exclude>
+						<exclude>tools/artifacts/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -1107,7 +1108,7 @@ under the License.
 						  the property is null when we have just the variable-->
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=log4j-test.properties -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -1120,7 +1121,7 @@ under the License.
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=log4j-test.properties -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
