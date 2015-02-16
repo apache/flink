@@ -1051,8 +1051,7 @@ under the License.
 						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
 						<!-- Tools: watchdog -->
-						<exclude>tools/watchdog*</exclude>
-						<exclude>tools/artifacts*</exclude>
+						<exclude>tools/artifacts/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
