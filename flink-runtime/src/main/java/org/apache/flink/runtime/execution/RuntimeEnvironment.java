@@ -205,7 +205,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 
 			// Make sure, we enter the catch block when the task has been canceled
 			if (owner.isCanceledOrFailed()) {
-				throw new CancelTaskException();
+				throw new CancelTaskException("Task has been canceled or failed");
 			}
 
 			// Finish the produced partitions

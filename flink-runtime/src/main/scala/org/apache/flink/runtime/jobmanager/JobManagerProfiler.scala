@@ -41,4 +41,12 @@ class JobManagerProfiler extends Actor with ActorLogMessages with ActorLogging w
           log.error(s"Received unknown profiling data: ${x.getClass.getName}" )
       }
   }
+
+  /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    // let the actor crash
+    throw new RuntimeException("Received unknown message " + message)
+  }
 }

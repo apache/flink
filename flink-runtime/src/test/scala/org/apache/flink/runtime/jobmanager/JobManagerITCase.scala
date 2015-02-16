@@ -72,7 +72,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           expectMsg(SubmissionFailure(jobGraph.getJobID, new NoResourceAvailableException(1,1,0)))
 
-          expectNoMsg()
+          expectMsg(JobResultFailed(jobGraph.getJobID, new NoResourceAvailableException(1,1,0)))
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
