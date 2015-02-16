@@ -43,7 +43,7 @@ SLEEP_TIME=20
 
 # Maven command to run. We set the forkCount manually, because otherwise Maven assumes that the
 # Travis machine has way more cores. File loggers should use the specified log.dir property.
-MVN="mvn -Dflink.forkCount=2 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} clean install test"
+MVN="mvn -Dflink.forkCount=2 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} clean install verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
