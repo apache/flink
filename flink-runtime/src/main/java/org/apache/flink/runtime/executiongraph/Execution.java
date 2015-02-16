@@ -601,7 +601,7 @@ public class Execution implements Serializable {
 
 		// check if the ExecutionVertex has already been archived and thus cleared the
 		// partial partition infos queue
-		if(partialPartitionInfos != null) {
+		if(partialPartitionInfos != null && !partialPartitionInfos.isEmpty()) {
 
 			PartialPartitionInfo partialPartitionInfo;
 
@@ -730,64 +730,64 @@ public class Execution implements Serializable {
 
 	private void sendCancelRpcCall() {
 		final SimpleSlot slot = this.assignedResource;
-		if (slot == null) {
-			return;
-		}
 
-		Future<Object> cancelResult = AkkaUtils.retry(slot.getInstance().getTaskManager(), new
-						TaskManagerMessages.CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
-				AkkaUtils.globalExecutionContext(), timeout);
+		if (slot != null) {
 
-		cancelResult.onComplete(new OnComplete<Object>(){
+			Future<Object> cancelResult = AkkaUtils.retry(slot.getInstance().getTaskManager(), new
+							TaskManagerMessages.CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
+					AkkaUtils.globalExecutionContext(), timeout);
 
-			@Override
-			public void onComplete(Throwable failure, Object success) throws Throwable {
-				if (failure != null) {
-					fail(new Exception("Task could not be canceled.", failure));
-				} else {
-					TaskOperationResult result = (TaskOperationResult)success;
-					if(!result.success()){
-						LOG.debug("Cancel task call did not find task. Probably akka message call" +
-								" race.");
+			cancelResult.onComplete(new OnComplete<Object>() {
+
+				@Override
+				public void onComplete(Throwable failure, Object success) throws Throwable {
+					if (failure != null) {
+						fail(new Exception("Task could not be canceled.", failure));
+					} else {
+						TaskOperationResult result = (TaskOperationResult) success;
+						if (!result.success()) {
+							LOG.debug("Cancel task call did not find task. Probably akka message call" +
+									" race.");
+						}
 					}
 				}
-			}
-		}, AkkaUtils.globalExecutionContext());
+			}, AkkaUtils.globalExecutionContext());
+		}
 	}
 
 	private void sendFailIntermediateResultPartitionsRPCCall() {
 		final SimpleSlot slot = this.assignedResource;
-		if (slot == null) {
-			return;
-		}
 
-		final Instance instance = slot.getInstance();
+		if (slot != null) {
+			final Instance instance = slot.getInstance();
 
-		if (instance.isAlive()) {
-			try {
-				// TODO For some tests this could be a problem when querying too early if all resources were released
-				instance.getTaskManager().tell(new TaskManagerMessages.FailIntermediateResultPartitions(attemptId), ActorRef.noSender());
-			}
-			catch (Throwable t) {
-				fail(new Exception("Intermediate result partition could not be failed.", t));
+			if (instance.isAlive()) {
+				try {
+					// TODO For some tests this could be a problem when querying too early if all resources were released
+					instance.getTaskManager().tell(new TaskManagerMessages.FailIntermediateResultPartitions(attemptId), ActorRef.noSender());
+				} catch (Throwable t) {
+					fail(new Exception("Intermediate result partition could not be failed.", t));
+				}
 			}
 		}
 	}
 
 	private void sendUpdateTaskRpcCall(final SimpleSlot consumerSlot,
 									final TaskManagerMessages.UpdateTask updateTaskMsg) {
-		final Instance instance = consumerSlot.getInstance();
+		if (consumerSlot != null) {
+			final Instance instance = consumerSlot.getInstance();
 
-		Future<Object> futureUpdate = Patterns.ask(instance.getTaskManager(), updateTaskMsg,
-				new Timeout(timeout));
+			Future<Object> futureUpdate = Patterns.ask(instance.getTaskManager(), updateTaskMsg,
+					new Timeout(timeout));
 
-		futureUpdate.onFailure(new OnFailure() {
-			@Override
-			public void onFailure(Throwable failure) throws Throwable {
-				fail(new IllegalStateException("Update task on instance " + instance +
-						" failed due to:", failure));
-			}
-		}, AkkaUtils.globalExecutionContext());
+			futureUpdate.onFailure(new OnFailure() {
+				@Override
+				public void onFailure(Throwable failure) throws Throwable {
+					fail(new IllegalStateException("Update task on instance " + instance +
+							" failed due to:", failure));
+				}
+			}, AkkaUtils.globalExecutionContext());
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

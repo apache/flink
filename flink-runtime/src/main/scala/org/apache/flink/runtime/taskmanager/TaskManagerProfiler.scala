@@ -137,6 +137,14 @@ ActorLogMessages with ActorLogging {
       }
   }
 
+  /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    // let the actor crash
+    throw new RuntimeException("Received unknown message " + message)
+  }
+
   def startMonitoring(): Unit = {
     val interval = new FiniteDuration(reportInterval, TimeUnit.MILLISECONDS)
     val delay = new FiniteDuration((reportInterval * Math.random()).toLong, TimeUnit.MILLISECONDS)

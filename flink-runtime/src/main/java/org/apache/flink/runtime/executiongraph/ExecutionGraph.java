@@ -398,10 +398,15 @@ public class ExecutionGraph implements Serializable {
 			}
 			else if (transitionState(current, JobStatus.FAILING, t)) {
 				this.failureCause = t;
-				
-				// cancel all. what is failed will not cancel but stay failed
-				for (ExecutionJobVertex ejv : verticesInCreationOrder) {
-					ejv.cancel();
+
+				if (!verticesInCreationOrder.isEmpty()) {
+					// cancel all. what is failed will not cancel but stay failed
+					for (ExecutionJobVertex ejv : verticesInCreationOrder) {
+						ejv.cancel();
+					}
+				} else {
+					// set the state of the job to failed
+					transitionState(current, JobStatus.FAILED, t);
 				}
 				
 				return;
@@ -568,15 +573,18 @@ public class ExecutionGraph implements Serializable {
 		this.executionListenerActors.add(listener);
 	}
 
+	public boolean containsJobStatusListener(ActorRef listener) {
+		return this.jobStatusListenerActors.contains(listener);
+	}
+
 	/**
 	 * NOTE: This method never throws an error, only logs errors caused by the notified listeners.
 	 */
 	private void notifyJobStatusChange(JobStatus newState, Throwable error) {
 		if(jobStatusListenerActors.size() > 0){
-			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			for(ActorRef listener: jobStatusListenerActors){
 				listener.tell(new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(),
-								message), ActorRef.noSender());
+								error), ActorRef.noSender());
 			}
 		}
 	}

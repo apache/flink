@@ -59,6 +59,14 @@ Actor with ActorLogMessages with ActorLogging {
     case RequestJobManagerStatus =>
       jobManager forward RequestJobManagerStatus
   }
+
+  /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    // let the actor crash
+    throw new RuntimeException("Received unknown message " + message)
+  }
 }
 
 /**
@@ -71,22 +79,30 @@ Actor with ActorLogMessages with ActorLogging {
 class JobClientListener(jobSubmitter: ActorRef) extends Actor with ActorLogMessages with
 ActorLogging {
   override def receiveWithLogMessages: Receive = {
-    case SubmissionFailure(_, t) =>
-      jobSubmitter ! Failure(t)
-      self ! PoisonPill
-    case SubmissionSuccess(_) =>
+    case SubmissionFailure(jobID, t) =>
+      System.out.println(s"Submission of job with ID $jobID was unsuccessful, " +
+        s"because ${t.getMessage}.")
+    case SubmissionSuccess(jobID) =>
     case JobResultSuccess(_, duration, accumulatorResults) =>
       jobSubmitter ! new JobExecutionResult(duration, accumulatorResults)
       self ! PoisonPill
-    case JobResultCanceled(_, msg) =>
-      jobSubmitter ! Failure(new JobExecutionException(msg, true))
+    case JobResultCanceled(_, t) =>
+      jobSubmitter ! Failure(new JobExecutionException(t, true))
       self ! PoisonPill
-    case JobResultFailed(_, msg) =>
-      jobSubmitter ! Failure(new JobExecutionException(msg, false))
+    case JobResultFailed(_, t) =>
+      jobSubmitter ! Failure(new JobExecutionException(t, false))
       self ! PoisonPill
     case msg =>
       // we have to use System.out.println here to avoid erroneous behavior for output redirection
       System.out.println(msg.toString)
+  }
+
+  /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    // let the actor crash
+    throw new RuntimeException("Received unknown message " + message)
   }
 }
 

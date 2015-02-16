@@ -82,6 +82,14 @@ ActorLogging {
   }
 
   /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    // let the actor crash
+    throw new RuntimeException("Received unknown message " + message)
+  }
+
+  /**
    * Gets all graphs that have not been garbage collected.
    * @return An iterable with all valid ExecutionGraphs
    */

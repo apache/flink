@@ -25,7 +25,7 @@ import akka.actor.Status.Failure
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
-import org.apache.flink.runtime.executiongraph.{Execution, ExecutionJobVertex, ExecutionGraph}
+import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.Acknowledge
@@ -42,14 +42,13 @@ import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
-import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, StackTrace, NextInputSplit, Heartbeat}
+import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, NextInputSplit, Heartbeat}
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.util.InstantiationUtil
 
 import org.slf4j.LoggerFactory
 
 import akka.actor._
-import akka.pattern.ask
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -101,9 +100,6 @@ class JobManager(val configuration: Configuration,
 
   // List of current jobs running
   val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
-
-  // Map of actors which want to be notified once a specific job terminates
-  val finalJobStatusListener = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
 
 
   override def preStart(): Unit = {
@@ -260,9 +256,9 @@ class JobManager(val configuration: Configuration,
     case JobStatusChanged(jobID, newJobStatus, timeStamp, optionalMessage) =>
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
-          log.info("Status of job {} ({}) changed to {}{}.",
+          log.info("Status of job {} ({}) changed to {} {}.",
             jobID, executionGraph.getJobName, newJobStatus,
-            if(optionalMessage == null) "" else optionalMessage)
+            if(optionalMessage == null) "" else optionalMessage.getMessage)
 
           if(newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
@@ -278,14 +274,9 @@ class JobManager(val configuration: Configuration,
                 case JobStatus.FAILED =>
                   jobInfo.client ! JobResultFailed(jobID, optionalMessage)
                 case x =>
-                  jobInfo.client ! JobResultFailed(jobID, s"$x is not a terminal state.")
-                  throw new IllegalStateException(s"$x is not a terminal state.")
-              }
-            }
-
-            finalJobStatusListener.get(jobID) foreach {
-              _ foreach {
-                _ ! CurrentJobStatus(jobID, newJobStatus)
+                  val exception = new IllegalStateException(s"$x is not a terminal state.")
+                  jobInfo.client ! JobResultFailed(jobID, exception)
+                  throw exception
               }
             }
 
@@ -293,16 +284,6 @@ class JobManager(val configuration: Configuration,
           }
         case None =>
           removeJob(jobID)
-      }
-
-    case RequestFinalJobStatus(jobID) =>
-      currentJobs.get(jobID) match {
-        case Some(_) =>
-          val listeners = finalJobStatusListener.getOrElse(jobID, Set())
-          finalJobStatusListener += jobID -> (listeners + sender)
-        case None =>
-          // There is no job running with this job ID. Check the archive.
-          archive forward RequestJobStatus(jobID)
       }
 
     case ScheduleOrUpdateConsumers(jobId, executionId, partitionIndex) =>
@@ -496,25 +477,12 @@ class JobManager(val configuration: Configuration,
              * before. That way the proper cleanup of the job is triggered in the JobStatusChanged
              * handler.
              */
-            val status = (self ? RequestFinalJobStatus(jobGraph.getJobID))(10 second)
-
-            /*
-             * if we cannot register as final job status listener, then send manually a
-             * JobStatusChanged message with JobStatus.FAILED.
-             */
-            val selfActorRef = self
-            status.onFailure{
-              case _: Throwable => selfActorRef ! JobStatusChanged(executionGraph.getJobID,
-                JobStatus.FAILED, System.currentTimeMillis(), s"Cleanup job ${jobGraph.getJobID}.")
+            if (!executionGraph.containsJobStatusListener(self)) {
+              executionGraph.registerJobStatusListener(self)
             }
 
-            /*
-             * Don't send the client the final job status because we will send him a
-             * SubmissionFailure.
-             */
-            jobInfo.detached = true
-
             executionGraph.fail(t)
+
           case None =>
             libraryCacheManager.unregisterJob(jobGraph.getJobID)
             currentJobs.remove(jobGraph.getJobID)

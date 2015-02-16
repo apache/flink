@@ -50,6 +50,12 @@ public class JobExecutionException extends Exception {
 		this.canceledByUser = canceledByUser;
 	}
 
+	public JobExecutionException(final Throwable cause, final boolean canceledByUser) {
+		super(cause);
+
+		this.canceledByUser = canceledByUser;
+	}
+
 	/**
 	 * Returns <code>true</code> if the job has been aborted as a result of a user request, <code>false</code>
 	 * otherwise.
