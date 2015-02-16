@@ -40,6 +40,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -374,6 +375,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 				LOG.debug(String.format("Running master initialization of job %s (%s)", job.getJobID(), job.getName()));
 			}
 
+			final int numSlots = scheduler.getTotalNumberOfSlots();
+
 			for (AbstractJobVertex vertex : job.getVertices()) {
 				// check that the vertex has an executable class
 				String executableClass = vertex.getInvokableClassName();
@@ -383,6 +386,10 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 				// master side initialization
 				vertex.initializeOnMaster(userCodeLoader);
+
+				if (vertex.getParallelism() == ExecutionConfig.PARALLELISM_AUTO_MAX) {
+					vertex.setParallelism(numSlots);
+				}
 			}
 
 			// first topologically sort the job vertices to form the basis of creating the execution graph
