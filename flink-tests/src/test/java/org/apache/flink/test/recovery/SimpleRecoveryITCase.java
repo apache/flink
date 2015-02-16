@@ -37,8 +37,8 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 
+@SuppressWarnings("serial")
 public class SimpleRecoveryITCase {
-
 
 	private static ForkableFlinkMiniCluster cluster;
 
