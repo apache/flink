@@ -127,10 +127,10 @@ public class JobManagerInfoServlet extends HttpServlet {
 					throw new RuntimeException("RequestJob requires a response of type JobResponse. " +
 							"Instead the response is of type " + result.getClass());
 				}else {
-					final JobResponse jobResponse = (JobResponse) response;
+					final JobResponse jobResponse = (JobResponse) result;
 
 					if(jobResponse instanceof JobFound){
-						ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
+						ExecutionGraph archivedJob = ((JobFound)result).executionGraph();
 						writeJsonForArchivedJob(resp.getWriter(), archivedJob);
 				} else {
 						LOG.warn("DoGet:job: Could not find job for job ID " + jobId);
