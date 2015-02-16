@@ -73,13 +73,13 @@ public class JobsInfoServlet extends HttpServlet {
 
 		InetSocketAddress address = new InetSocketAddress(jmHost, jmPort);
 
-		Future<ActorRef> jobManagerFuture = JobManager.getJobManager(address, system, timeout);
+		Future<ActorRef> jobManagerFuture = JobManager.getJobManagerRemoteReferenceFuture(address, system, timeout);
 
 		try {
 			this.jobmanager = Await.result(jobManagerFuture, timeout);
 		} catch (Exception ex) {
 			throw new RuntimeException("Could not find job manager at specified address " +
-					JobManager.getRemoteAkkaURL(address) + ".");
+					JobManager.getRemoteJobManagerAkkaURL(address) + ".");
 		}
 	}
 

@@ -16,38 +16,69 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common;
 
 import java.util.Map;
 
+/**
+ * The result of a job execution. Gives access to the execution time of the job,
+ * and to all accumulators created by this job.
+ */
 public class JobExecutionResult {
 
 	private long netRuntime;
 	private Map<String, Object> accumulatorResults;
 
+	/**
+	 * Creates a new JobExecutionResult.
+	 *
+	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer)
+	 * @param accumulators A map of all accumulators produced by the job.
+	 */
 	public JobExecutionResult(long netRuntime, Map<String, Object> accumulators) {
 		this.netRuntime = netRuntime;
 		this.accumulatorResults = accumulators;
 	}
-	
+
+	/**
+	 * Gets the net execution time of the job, i.e., the execution time in the parallel system,
+	 * without the pre-flight steps like the optimizer.
+	 *
+	 * @return The net execution time.
+	 */
 	public long getNetRuntime() {
 		return this.netRuntime;
 	}
 
+	/**
+	 * Gets the accumulator with the given name. Returns {@code null}, if no accumulator with
+	 * that name was produced.
+	 *
+	 * @param accumulatorName The name of the accumulator.
+	 * @param <T> The generic type of the accumulator value.
+	 * @return The value of the accumulator with the given name.
+	 */
 	@SuppressWarnings("unchecked")
 	public <T> T getAccumulatorResult(String accumulatorName) {
 		return (T) this.accumulatorResults.get(accumulatorName);
 	}
 
+	/**
+	 * Gets all accumulators produced by the job. The map contains the accumulators as
+	 * mappings from the accumulator name to the accumulator value.
+	 *
+	 * @return A map containing all accumulators produced by the job.
+	 */
 	public Map<String, Object> getAllAccumulatorResults() {
 		return this.accumulatorResults;
 	}
 	
 	/**
-	 * @param accumulatorName
-	 *            Name of the counter
+	 * Gets the accumulator with the given name as an integer.
+	 *
+	 * @param accumulatorName Name of the counter
 	 * @return Result of the counter, or null if the counter does not exist
+	 * @throws java.lang.ClassCastException Thrown, if the accumulator was not aggregating a {@link java.lang.Integer}
 	 */
 	public Integer getIntCounterResult(String accumulatorName) {
 		Object result = this.accumulatorResults.get(accumulatorName);
@@ -62,5 +93,4 @@ public class JobExecutionResult {
 	}
 
 	// TODO Create convenience methods for the other shipped accumulator types
-
 }

@@ -364,6 +364,15 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
+	 * Checks whether the JobGraph has user code JAR files attached.
+	 *
+	 * @return True, if the JobGraph has user code JAR files attached, false otherwise.
+	 */
+	public boolean hasUsercodeJarFiles() {
+		return this.userJars.size() > 0;
+	}
+
+	/**
 	 * Returns a set of BLOB keys referring to the JAR files required to run this job.
 	 *
 	 * @return set of BLOB keys referring to the JAR files required to run this job
