@@ -813,6 +813,9 @@ public abstract class ExecutionEnvironment {
 		if (getDegreeOfParallelism() > 0) {
 			plan.setDefaultParallelism(getDegreeOfParallelism());
 		}
+		if (getNumberOfExecutionRetries() >= 0) {
+			plan.setNumberOfExecutionRetries(getNumberOfExecutionRetries());
+		}
 
 		try {
 			registerCachedFilesWithPlan(plan);

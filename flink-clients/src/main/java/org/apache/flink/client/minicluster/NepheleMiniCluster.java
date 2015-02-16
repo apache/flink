@@ -82,6 +82,9 @@ public class NepheleMiniCluster {
 	
 	private boolean defaultAlwaysCreateDirectory = false;
 
+	private long heartbeatInterval = ConfigConstants.DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL;
+
+	private long heartbeatTimeout = ConfigConstants.DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT;
 	
 	private JobManager jobManager;
 
@@ -163,11 +166,33 @@ public class NepheleMiniCluster {
 
 	public void setNumTaskManager(int numTaskManager) { this.numTaskManager = numTaskManager; }
 
-	public int getNumTaskManager() { return numTaskManager; }
+	public int getNumTaskManager() {
+		return numTaskManager;
+	}
 
-	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
+	public void setTaskManagerNumSlots(int taskManagerNumSlots) {
+		this.taskManagerNumSlots = taskManagerNumSlots;
+	}
 
-	public int getTaskManagerNumSlots() { return taskManagerNumSlots; }
+	public int getTaskManagerNumSlots() {
+		return taskManagerNumSlots;
+	}
+
+	public void setHeartbeatInterval(long heartbeatInterval) {
+		this.heartbeatInterval = heartbeatInterval;
+	}
+
+	public long getHeartbeatInterval() {
+		return heartbeatInterval;
+	}
+
+	public void setHeartbeatTimeout(long heartbeatTimeout) {
+		this.heartbeatTimeout = heartbeatTimeout;
+	}
+
+	public long getHeartbeatTimeout() {
+		return heartbeatTimeout;
+	}
 
 	// ------------------------------------------------------------------------
 	// Life cycle and Job Submission
@@ -206,7 +231,8 @@ public class NepheleMiniCluster {
 			} else {
 				Configuration conf = getMiniclusterDefaultConfig(jobManagerRpcPort, taskManagerRpcPort,
 					taskManagerDataPort, memorySize, hdfsConfigFile, lazyMemoryAllocation, defaultOverwriteFiles,
-						defaultAlwaysCreateDirectory, taskManagerNumSlots, numTaskManager);
+						defaultAlwaysCreateDirectory, taskManagerNumSlots, numTaskManager,
+					heartbeatInterval, heartbeatTimeout);
 				GlobalConfiguration.includeConfiguration(conf);
 			}
 
@@ -297,7 +323,8 @@ public class NepheleMiniCluster {
 	public static Configuration getMiniclusterDefaultConfig(int jobManagerRpcPort, int taskManagerRpcPort,
 			int taskManagerDataPort, long memorySize, String hdfsConfigFile, boolean lazyMemory,
 			boolean defaultOverwriteFiles, boolean defaultAlwaysCreateDirectory,
-			int taskManagerNumSlots, int numTaskManager)
+			int taskManagerNumSlots, int numTaskManager,
+			long heartbeatInterval, long heartbeatTimeout)
 	{
 		final Configuration config = new Configuration();
 		
@@ -350,6 +377,9 @@ public class NepheleMiniCluster {
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManager);
 
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
+
+		config.setLong(ConfigConstants.TASK_MANAGER_HEARTBEAT_INTERVAL_KEY, heartbeatInterval);
+		config.setLong(ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY, heartbeatTimeout);
 		
 		return config;
 	}

@@ -735,7 +735,7 @@ public class ExecutionGraph {
 					throw new IllegalStateException("Can only restart job from state restarting.");
 				}
 				if (scheduler == null) {
-					throw new IllegalStateException("The execution graph has not been schedudled before - scheduler is null.");
+					throw new IllegalStateException("The execution graph has not been scheduled before - scheduler is null.");
 				}
 				
 				this.currentExecutions.clear();

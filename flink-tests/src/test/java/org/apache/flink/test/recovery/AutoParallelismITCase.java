@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program;
+package org.apache.flink.test.recovery;
 
 import static org.junit.Assert.*;
 
@@ -33,7 +33,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -60,6 +59,7 @@ public class AutoParallelismITCase {
 
 			DataSet<Integer> result = env
 					.createInput(new ParallelismDependentInputFormat())
+					.rebalance()
 					.mapPartition(new ParallelismDependentMapPartition());
 
 			List<Integer> resultCollection = new ArrayList<Integer>();
@@ -82,6 +82,10 @@ public class AutoParallelismITCase {
 			}
 		}
 	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Utility classes
+	// --------------------------------------------------------------------------------------------
 
 	private static class ParallelismDependentInputFormat extends GenericInputFormat<Integer> {
 
