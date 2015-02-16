@@ -19,3 +19,4 @@ tmp
 _site
 docs/api
 build-target
+tools/watchdog*
