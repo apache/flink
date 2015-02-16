@@ -43,15 +43,18 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.graph.spargel.IterationConfiguration;
+import org.apache.flink.graph.gsa.ApplyFunction;
+import org.apache.flink.graph.gsa.GatherFunction;
+import org.apache.flink.graph.gsa.GatherSumApplyIteration;
+import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.EdgeToTuple3Map;
+import org.apache.flink.graph.utils.GraphUtils;
 import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
@@ -79,7 +82,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	private final DataSet<Edge<K, EV>> edges;
 
 	/**
-	 * Creates a graph from two DataSets: vertices and edges
+	 * Creates a graph from two DataSets: vertices and edges and allow setting
+	 * the undirected property
 	 * 
 	 * @param vertices a DataSet of vertices.
 	 * @param edges a DataSet of edges.
@@ -347,7 +351,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 					@Override
 					public void join(Tuple4<K, K, VV, EV> tripletWithSrcValSet,
-									Vertex<K, VV> vertex, Collector<Triplet<K, VV, EV>> collector) throws Exception {
+					                 Vertex<K, VV> vertex, Collector<Triplet<K, VV, EV>> collector) throws Exception {
 
 						collector.collect(new Triplet<K, VV, EV>(tripletWithSrcValSet.f0, tripletWithSrcValSet.f1,
 								tripletWithSrcValSet.f2, vertex.getValue(), tripletWithSrcValSet.f3));
@@ -914,7 +918,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	/**
-	 * @return a long integer representing the number of edges
+	 * @return Singleton DataSet containing the edge count
 	 */
 	public long numberOfEdges() throws Exception {
 		return edges.count();
@@ -1008,6 +1012,13 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	private static final class EmitFirstReducer<K> implements GroupReduceFunction<Tuple2<K, K>, Tuple2<K, K>> {
 		public void reduce(Iterable<Tuple2<K, K>> values, Collector<Tuple2<K, K>> out) {
 			out.collect(values.iterator().next());
+		}
+	}
+
+	private static final class CheckIfOneComponentMapper implements	MapFunction<Integer, Boolean> {
+		@Override
+		public Boolean map(Integer n) {
+			return (n == 1);
 		}
 	}
 
@@ -1165,7 +1176,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			int maximumNumberOfIterations) {
 
 		return this.runVertexCentricIteration(vertexUpdateFunction, messagingFunction,
-			maximumNumberOfIterations, null);
+				maximumNumberOfIterations, null);
 	}
 
 	/**
