@@ -47,19 +47,20 @@ env:
         - secure: "SNZkMm++fvPbjdreibc4j/XTKy7rOvGvjbvJJLQ01fVDR8ur1FGB5L/CE9tm2Aye75G8br+tJ+gf5cMX8CHL+0VrvuTk5U6flbuM08Pd0pmP64ZncmGfRFKC5qTvt24YR0u3cqxWze8RTkdduz0t8xrEdyCtb94CHs1+RNS+0HA="
         # javadocs deploy
         - secure: "f4wACodae0NCaIZtmg/JvP40G/3dE7O6+ONDMbq8P/9dnT5peRB1q7+KZxggRmFSWTMPdPIDI7YxI/rM5wZ3pUN2eX0BpjfANT58OJdgCNXN3Hr9YOa8UykD2h6b+AHpy4G89MG65m73RvNXngHTCQ8SBIfewzeMAhHdD3Fk0u8="
+        # If set to "true" and the build produces artifacts like log files, they will be uploaded to the specified S3 bucket
+        - UPLOAD_ARTIFACTS=true
+        - secure: "fIqsDR+q962Mq8sqCAggCADd6hnv6NVowbLVi6kyg7KDvnH6PSP4glXh34dNmalxzYqw5+iYQT9siGqHbg2no1Hx1WQctdlZV1eGz3XuRV/B8zT4UKoRt6YTViyFF8zf+BZEI0tfHsNDcKgOEo0eAG/7nC6pOEKQATDnLy2AQSc="
+        - secure: "f2SuLwiX6CXezNj/XEoDzqZ9YEkIIwThl8k3KgY42WX1GUXlXh1vWylZFLJFYM0rM4ngar60QfVXpZlgQU3f2HR+6wr8lU35Clf6IQSfuo7NW4AQVf6Ir/jFatYk0UxHkcSbYzZyugEc7bw/qYCisn1Jnwyfv+KueRSntLtiWvM="
+        - secure: "CNVbMuY8u5oTbtDw2mk11Wbv/HbROqW4xtqlEvRU22hjgSNmNGtRyDDVoojv2pp2XMu4uEYzz8O+MHjxV7b1vZML24IrkagjGfC3nbqxE3k5hqyE2IMAH635HpBAkOEEaBxAoOhRjYapXE3s03fTk7ZbggsHq1kIFRaaAHUAavU="
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
    - "gem install --no-document travis-artifacts & "
-
-# we have to manually set the forkCount because maven thinks that the travis
-# machine has 32 cores
-#script: "mvn -Dflink.forkCount=2 -B $PROFILE clean install verify"
 
 # We run mvn and monitor its output. If there is no output for the specified number of seconds, we
 # print the stack traces of all running Java processes.
 script: "./tools/travis_mvn_watchdog.sh 300"
 
 # deploy if the first job is successful; should be replaced by an after_all_success if travis finally supports it
-after_success: 
-- "./tools/deploy_to_maven.sh"
+after_success:
+  - "./tools/deploy_to_maven.sh"
