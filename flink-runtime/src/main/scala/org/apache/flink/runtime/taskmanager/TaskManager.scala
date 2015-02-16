@@ -433,7 +433,7 @@ import scala.collection.JavaConverters._
       if (jobConfig.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
         profiler match {
           case Some(profilerActorRef) => profilerActorRef ! MonitorTask(task)
-          case None => log.info("There is no profiling enabled for the task manager.")
+          case None => // no log message here - floods the log
         }
       }
 

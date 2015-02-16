@@ -27,8 +27,6 @@ import java.util.Map;
 import java.util.Set;
 
 import akka.actor.ActorRef;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,9 +55,6 @@ public class InstanceManager {
 	
 	/** Listeners that want to be notified about availability and disappearance of instances */
 	private final List<InstanceListener> instanceListeners = new ArrayList<InstanceListener>();
-
-	/** Duration after which a task manager is considered dead if it did not send a heart-beat message. */
-	private final long heartbeatTimeout;
 	
 	/** The total number of task slots that the system has */
 	private int totalNumberOfAliveTaskSlots;
@@ -72,32 +67,12 @@ public class InstanceManager {
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * Creates an instance manager, using the global configuration value for maximum interval between heartbeats
-	 * where a task manager is still considered alive.
+	 * Creates an new instance manager.
 	 */
 	public InstanceManager() {
-		this(GlobalConfiguration.getLong(
-				ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY,
-				ConfigConstants.DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT));
-	}
-	
-	public InstanceManager(long heartbeatTimeout) {
-		this(heartbeatTimeout, heartbeatTimeout);
-	}
-	
-	public InstanceManager(long heartbeatTimeout, long cleanupInterval) {
-		if (heartbeatTimeout <= 0 || cleanupInterval <= 0) {
-			throw new IllegalArgumentException("Heartbeat timeout and cleanup interval must be positive.");
-		}
-		
 		this.registeredHostsById = new HashMap<InstanceID, Instance>();
 		this.registeredHostsByConnection = new HashMap<ActorRef, Instance>();
 		this.deadHosts = new HashSet<ActorRef>();
-		this.heartbeatTimeout = heartbeatTimeout;
-	}
-	
-	public long getHeartbeatTimeout() {
-		return heartbeatTimeout;
 	}
 
 	public void shutdown() {
@@ -132,14 +107,19 @@ public class InstanceManager {
 
 			if (host == null){
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Received hearbeat from unknown TaskManager with instance ID " + instanceId.toString() + 
-							" Possibly TaskManager was maked as dead (timed-out) earlier. " +
+					LOG.debug("Received heartbeat from unknown TaskManager with instance ID " + instanceId.toString() +
+							" Possibly TaskManager was marked as dead (timed-out) earlier. " +
 							"Reporting back that task manager is no longer known.");
 				}
 				return false;
 			}
 
 			host.reportHeartBeat();
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Received heartbeat from TaskManager " + host);
+			}
+
 			return true;
 		}
 	}
@@ -164,7 +144,7 @@ public class InstanceManager {
 						" which was marked as dead earlier because of a heart-beat timeout.");
 			}
 
-			InstanceID id = null;
+			InstanceID id;
 			do {
 				id = new InstanceID();
 			} while (registeredHostsById.containsKey(id));
@@ -178,8 +158,8 @@ public class InstanceManager {
 			totalNumberOfAliveTaskSlots += numberOfSlots;
 			
 			if (LOG.isInfoEnabled()) {
-				LOG.info(String.format("Registered TaskManager at %s as %s. Current number of registered hosts is %d.",
-						taskManager.path(), id, registeredHostsById.size()));
+				LOG.info(String.format("Registered TaskManager at %s (%s) as %s. Current number of registered hosts is %d.",
+						connectionInfo.getHostname(), taskManager.path(), id, registeredHostsById.size()));
 			}
 
 			host.reportHeartBeat();

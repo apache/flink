@@ -329,7 +329,7 @@ public class Instance {
 	
 	@Override
 	public String toString() {
-		return instanceId + " @ " + (taskManager != null ? taskManager.path() : "ActorRef.noSender") + " - " +
-				numberOfSlots + " slots" + " - " + hashCode();
+		return String.format("%s @ %s - %d slots - URL: %s", instanceId, connectionInfo.getHostname(),
+				numberOfSlots, (taskManager != null ? taskManager.path() : "ActorRef.noSender"));
 	}
 }

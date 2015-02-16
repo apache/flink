@@ -723,9 +723,9 @@ object JobManager {
       ConfigConstants.DEFAULT_EXECUTION_RETRIES_KEY,
       ConfigConstants.DEFAULT_EXECUTION_RETRIES)
 
-    val delayBetweenRetries = 2 * configuration.getLong(
-      ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY,
-      ConfigConstants.DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT)
+    val delayBetweenRetries = 2 * Duration(configuration.getString(
+      ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
+      ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)).toMillis
 
     (archiveCount, profilingEnabled, cleanupInterval, executionRetries, delayBetweenRetries)
   }

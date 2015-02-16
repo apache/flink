@@ -56,12 +56,6 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
 	/**
-	 * The config parameter defining the number of seconds that a task manager heartbeat may be missing before it is
-	 * marked as failed.
-	 */
-	public static final String JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY = "jobmanager.max-heartbeat-delay-before-failure.msecs";
-
-	/**
 	 * The config parameter defining the storage directory to be used by the blob server.
 	 */
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
@@ -134,34 +128,6 @@ public final class ConfigConstants {
 	 * The config parameter defining the number of task slots of a task manager.
 	 */
 	public static final String TASK_MANAGER_NUM_TASK_SLOTS = "taskmanager.numberOfTaskSlots";
-
-	/**
-	 * The number of incoming network IO threads (e.g. incoming connection threads used in NettyConnectionManager
-	 * for the ServerBootstrap.)
-	 */
-	public static final String TASK_MANAGER_NET_NUM_IN_THREADS_KEY = "taskmanager.net.numInThreads";
-
-	/**
-	 * The number of outgoing network IO threads (e.g. outgoing connection threads used in NettyConnectionManager for
-	 * the Bootstrap.)
-	 */
-	public static final String TASK_MANAGER_NET_NUM_OUT_THREADS_KEY = "taskmanager.net.numOutThreads";
-
-	/**
-	 * The low water mark used in NettyConnectionManager for the Bootstrap.
-	 */
-	public static final String TASK_MANAGER_NET_NETTY_LOW_WATER_MARK = "taskmanager.net.nettyLowWaterMark";
-
-	/**
-	 * The high water mark used in NettyConnectionManager for the Bootstrap.
-	 */
-	public static final String TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK = "taskmanager.net.nettyHighWaterMark";
-	
-	/**
-	 * Parameter for the interval in which the TaskManager sends the periodic heart beat messages
-	 * to the JobManager (in msecs).
-	 */
-	public static final String TASK_MANAGER_HEARTBEAT_INTERVAL_KEY = "taskmanager.heartbeat-interval";
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
@@ -471,32 +437,6 @@ public final class ConfigConstants {
 	 * Default size of network stack buffers.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE = 32768;
-
-	/**
-	 * Default number of incoming network IO threads (e.g. number of incoming connection threads used in
-	 * NettyConnectionManager for the ServerBootstrap). If set to -1, a reasonable default depending on the number of
-	 * cores will be picked.
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS = -1;
-
-	/**
-	 * Default number of outgoing network IO threads (e.g. number of outgoing connection threads used in
-	 * NettyConnectionManager for the Bootstrap). If set to -1, a reasonable default depending on the number of cores
-	 * will be picked.
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS = -1;
-
-	/**
-	 * Default low water mark used in NettyConnectionManager for the Bootstrap. If set to -1, NettyConnectionManager
-	 * will use half of the network buffer size as the low water mark.
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK = -1;
-
-	/**
-	 * Default high water mark used in NettyConnectionManager for the Bootstrap. If set to -1, NettyConnectionManager
-	 * will use the network buffer size as the high water mark.
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK = -1;
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
