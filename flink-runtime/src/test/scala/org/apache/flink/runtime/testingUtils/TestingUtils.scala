@@ -35,6 +35,7 @@ import scala.language.postfixOps
  * Convenience functions to test actor based components.
  */
 object TestingUtils {
+
   val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
 
   val TESTING_DURATION = 2 minute
@@ -53,6 +54,8 @@ object TestingUtils {
       |akka.log-config-on-start = off
     """.stripMargin
   }
+
+  def getDefaultTestingActorSystemConfig = testConfig
 
   def startTestingTaskManagerWithConfiguration(hostname: String, jobManagerURL: String,
                                                config: Configuration)

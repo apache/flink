@@ -820,7 +820,7 @@ object TaskManager {
 
     val jobManagerURL = if (localAkkaCommunication) {
       // JobManager and TaskManager are in the same ActorSystem -> Use local Akka URL
-      JobManager.getLocalAkkaURL
+      JobManager.getLocalJobManagerAkkaURL
     } else {
       val jobManagerAddress = configuration.getString(ConfigConstants
           .JOB_MANAGER_IPC_ADDRESS_KEY, null)
@@ -832,7 +832,7 @@ object TaskManager {
           "configuration.")
       }
 
-      JobManager.getRemoteAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
+      JobManager.getRemoteJobManagerAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
     }
 
     val slots = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)

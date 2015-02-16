@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory
 import akka.actor._
 import akka.pattern.ask
 
-import scala.concurrent.Future
+import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
@@ -560,6 +560,11 @@ class JobManager(val configuration: Configuration,
   }
 }
 
+/**
+ * Job Manager companion object. Contains the entry point (main method) to run the JobManager in a
+ * standalone fashion. Also contains various utility methods to start the JobManager and to
+ * look up the JobManager actor reference.
+ */
 object JobManager {
   
   import ExecutionMode._
@@ -573,6 +578,12 @@ object JobManager {
   val ARCHIVE_NAME = "archive"
   val PROFILER_NAME = "profiler"
 
+
+  /**
+   * Entry point (main method) to run the JobManager in a standalone fashion.
+   *
+   * @param args The command line arguments.
+   */
   def main(args: Array[String]): Unit = {
 
     // startup checks and logging
@@ -833,34 +844,140 @@ object JobManager {
     actorSystem.actorOf(props, JOB_MANAGER_NAME)
   }
 
-  def getRemoteAkkaURL(address: String): String = {
+  // --------------------------------------------------------------------------
+  //  Resolving the JobManager endpoint
+  // --------------------------------------------------------------------------
+
+  /**
+   * Builds the akka actor path for the JobManager actor, given the address (host:port)
+   * where the JobManager's actor system runs.
+   *
+   * @param address The address (host:port) of the JobManager's actor system.
+   * @return The akka URL of the JobManager actor.
+   */
+  def getRemoteJobManagerAkkaURL(address: String): String = {
     s"akka.tcp://flink@$address/user/$JOB_MANAGER_NAME"
   }
 
-  def getRemoteAkkaURL(address : InetSocketAddress): String = {
-    getRemoteAkkaURL(address.getHostName + ":" + address.getPort)
+  /**
+   * Builds the akka actor path for the JobManager actor, given the socket address
+   * where the JobManager's actor system runs.
+   *
+   * @param address The address of the JobManager's actor system.
+   * @return The akka URL of the JobManager actor.
+   */
+  def getRemoteJobManagerAkkaURL(address: InetSocketAddress): String = {
+    getRemoteJobManagerAkkaURL(address.getAddress().getHostAddress() + ":" + address.getPort)
   }
 
-  def getLocalAkkaURL: String = {
-    s"akka://flink/user/$JOB_MANAGER_NAME"
+  /**
+   * Builds the akka actor path for the JobManager actor to address the actor within
+   * its own actor system.
+   *
+   * @return The local akka URL of the JobManager actor.
+   */
+  def getLocalJobManagerAkkaURL: String = {
+    "akka://flink/user/" + JOB_MANAGER_NAME
   }
 
-  def getJobManager(address: InetSocketAddress)(implicit system: ActorSystem, timeout:
-  FiniteDuration): Future[ActorRef] = {
-    AkkaUtils.getReference(getRemoteAkkaURL(address))
+  def getJobManagerRemoteReferenceFuture(address: InetSocketAddress,
+                                   system: ActorSystem,
+                                   timeout: FiniteDuration): Future[ActorRef] = {
+
+    AkkaUtils.getReference(getRemoteJobManagerAkkaURL(address), system, timeout)
   }
 
+  /**
+   * Resolves the JobManager actor reference in a blocking fashion.
+   *
+   * @param jobManagerUrl The akka URL of the JobManager.
+   * @param system The local actor system that should perform the lookup.
+   * @param timeout The maximum time to wait until the lookup fails.
+   * @throws java.io.IOException Thrown, if the lookup fails.
+   * @return The ActorRef to the JobManager
+   */
+  @throws(classOf[IOException])
+  def getJobManagerRemoteReference(jobManagerUrl: String,
+                                   system: ActorSystem,
+                                   timeout: FiniteDuration): ActorRef = {
+    try {
+      val future = AkkaUtils.getReference(jobManagerUrl, system, timeout)
+      Await.result(future, timeout)
+    }
+    catch {
+      case e @ (_ : ActorNotFound | _ : TimeoutException) =>
+        throw new IOException(
+          s"JobManager at $jobManagerUrl not reachable. " +
+            s"Please make sure that the JobManager is running and its port is reachable.", e)
+
+      case e: IOException =>
+        throw new IOException("Could not connect to JobManager at " + jobManagerUrl, e)
+    }
+  }
+
+  /**
+   * Resolves the JobManager actor reference in a blocking fashion.
+   *
+   * @param address The socket address of the JobManager's actor system.
+   * @param system The local actor system that should perform the lookup.
+   * @param timeout The maximum time to wait until the lookup fails.
+   * @throws java.io.IOException Thrown, if the lookup fails.
+   * @return The ActorRef to the JobManager
+   */
+  @throws(classOf[IOException])
+  def getJobManagerRemoteReference(address: InetSocketAddress,
+                                   system: ActorSystem,
+                                   timeout: FiniteDuration): ActorRef = {
+
+    val jmAddress = getRemoteJobManagerAkkaURL(address)
+    getJobManagerRemoteReference(jmAddress, system, timeout)
+  }
+
+  /**
+   * Resolves the JobManager actor reference in a blocking fashion.
+   *
+   * @param address The socket address of the JobManager's actor system.
+   * @param system The local actor system that should perform the lookup.
+   * @param config The config describing the maximum time to wait until the lookup fails.
+   * @throws java.io.IOException Thrown, if the lookup fails.
+   * @return The ActorRef to the JobManager
+   */
+  @throws(classOf[IOException])
+  def getJobManagerRemoteReference(address: InetSocketAddress,
+                                   system: ActorSystem,
+                                   config: Configuration): ActorRef = {
+
+    val timeout = AkkaUtils.getLookupTimeout(config)
+    getJobManagerRemoteReference(address, system, timeout)
+  }
+
+
+
+  // --------------------------------------------------------------------------
+  //  Miscellaneous Utils
+  // --------------------------------------------------------------------------
+
+  /**
+   * Checks whether the Java version is lower than Java 7 (Java 1.7) and
+   * prints a warning message in that case.
+   */
   private def checkJavaVersion(): Unit = {
-    if (System.getProperty("java.version").substring(0, 3).toDouble < 1.7) {
-      LOG.warn("Flink has been started with Java 6. " +
-        "Java 6 is not maintained any more by Oracle or the OpenJDK community. " +
-        "Flink may drop support for Java 6 in future releases, due to the " +
-        "unavailability of bug fixes security patches.")
+    try {
+      if (System.getProperty("java.version").substring(0, 3).toDouble < 1.7) {
+        LOG.warn("Flink has been started with Java 6. " +
+          "Java 6 is not maintained any more by Oracle or the OpenJDK community. " +
+          "Flink may drop support for Java 6 in future releases, due to the " +
+          "unavailability of bug fixes security patches.")
+      }
+    }
+    catch {
+      case e: Exception => 
+        LOG.warn("Could not parse java version for startup checks")
+        LOG.debug("Exception when parsing java version", e)
     }
   }
 
   // --------------------------------------------------------------------------
 
   class ParseException(message: String) extends Exception(message) {}
-  
 }

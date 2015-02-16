@@ -21,6 +21,7 @@ package org.apache.flink.client;
 import akka.actor.*;
 import akka.testkit.JavaTestKit;
 import org.apache.commons.cli.CommandLine;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.junit.AfterClass;
@@ -135,7 +136,7 @@ public class CliFrontendListCancelTest {
 		}
 
 		@Override
-		public ActorRef getJobManager(CommandLine line){
+		public ActorRef getJobManager(CommandLine line, Configuration config) {
 			return jobmanager;
 		}
 	}
@@ -149,15 +150,16 @@ public class CliFrontendListCancelTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception {
-			if(message instanceof JobManagerMessages.RequestTotalNumberOfSlots$){
+			if (message instanceof JobManagerMessages.RequestTotalNumberOfSlots$) {
 				getSender().tell(1, getSelf());
-			}else if(message instanceof JobManagerMessages.CancelJob){
+			}
+			else if (message instanceof JobManagerMessages.CancelJob) {
 				JobManagerMessages.CancelJob cancelJob = (JobManagerMessages.CancelJob) message;
 				assertEquals(jobID, cancelJob.jobID());
 				getSender().tell(new Status.Success(new Object()), getSelf());
-			}else if(message instanceof  JobManagerMessages.RequestRunningJobs$){
-				getSender().tell(new JobManagerMessages.RunningJobs(),
-						getSelf());
+			}
+			else if(message instanceof  JobManagerMessages.RequestRunningJobs$) {
+				getSender().tell(new JobManagerMessages.RunningJobs(), getSelf());
 			}
 		}
 	}
