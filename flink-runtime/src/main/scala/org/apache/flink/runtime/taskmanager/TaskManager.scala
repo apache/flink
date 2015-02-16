@@ -711,18 +711,19 @@ object TaskManager {
       LOG.info("Security is enabled. Starting secure TaskManager.")
       SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
         override def run(): Unit = {
-          startActor(hostname, port, configuration)
+          startActor(hostname, port, configuration, TaskManager.TASK_MANAGER_NAME)
         }
       })
     } else {
-      startActor(hostname, port, configuration)
+      startActor(hostname, port, configuration, TaskManager.TASK_MANAGER_NAME)
     }
   }
 
-  def startActor(hostname: String, port: Int, configuration: Configuration) : Unit = {
+  def startActor(hostname: String, port: Int, configuration: Configuration,
+                 taskManagerName: String) : Unit = {
 
     val (taskManagerSystem, _) = startActorSystemAndActor(hostname, port, configuration,
-      localAkkaCommunication = false, localTaskManagerCommunication = false)
+      taskManagerName, localAkkaCommunication = false, localTaskManagerCommunication = false)
 
     taskManagerSystem.awaitTermination()
   }
@@ -780,6 +781,7 @@ object TaskManager {
   }
 
   def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration,
+                               taskManagerName: String,
                                localAkkaCommunication: Boolean,
                                localTaskManagerCommunication: Boolean): (ActorSystem, ActorRef) = {
     implicit val actorSystem = AkkaUtils.createActorSystem(configuration, Some((hostname, port)))
@@ -788,7 +790,7 @@ object TaskManager {
       parseConfiguration(hostname, configuration, localAkkaCommunication,
         localTaskManagerCommunication)
 
-    (actorSystem, startActor(connectionInfo, jobManagerURL, taskManagerConfig,
+    (actorSystem, startActor(taskManagerName, connectionInfo, jobManagerURL, taskManagerConfig,
       networkConfig))
   }
 
@@ -916,19 +918,23 @@ object TaskManager {
     (connectionInfo, jobManagerURL, taskManagerConfig, networkConfig)
   }
 
-  def startActor(connectionInfo: InstanceConnectionInfo, jobManagerURL: String,
+  def startActor(taskManagerName: String,
+                 connectionInfo: InstanceConnectionInfo,
+                 jobManagerURL: String,
                  taskManagerConfig: TaskManagerConfiguration,
                  networkConfig: NetworkEnvironmentConfiguration)
                 (implicit actorSystem: ActorSystem): ActorRef = {
-    startActor(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
-      networkConfig)))
+    startActor(taskManagerName,
+      Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig, networkConfig)))
   }
 
-  def startActor(props: Props)(implicit actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(props, TASK_MANAGER_NAME)
+  def startActor(taskManagerName: String, props: Props)
+                (implicit actorSystem: ActorSystem): ActorRef = {
+    actorSystem.actorOf(props, taskManagerName)
   }
 
-  def startActorWithConfiguration(hostname: String, configuration: Configuration,
+  def startActorWithConfiguration(hostname: String, taskManagerName: String,
+                                  configuration: Configuration,
                                   localAkkaCommunication: Boolean,
                                   localTaskManagerCommunication: Boolean)
                                  (implicit system: ActorSystem) = {
@@ -936,7 +942,8 @@ object TaskManager {
       parseConfiguration(hostname, configuration, localAkkaCommunication,
         localTaskManagerCommunication)
 
-    startActor(connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration)
+    startActor(taskManagerName, connectionInfo, jobManagerURL, taskManagerConfig,
+      networkConnectionConfiguration)
   }
 
   def startProfiler(instancePath: String, reportInterval: Long)(implicit system: ActorSystem):

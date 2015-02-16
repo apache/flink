@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.minicluster
 
 import java.net.InetAddress
+import akka.pattern.Patterns.gracefulStop
 
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
@@ -131,6 +132,16 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
   }
 
   def shutdown(): Unit = {
+    val futures = taskManagerActors map {
+        gracefulStop(_, timeout)
+    }
+
+    val future = gracefulStop(jobManagerActor, timeout)
+
+    implicit val executionContext = AkkaUtils.globalExecutionContext
+
+    Await.ready(Future.sequence(future +: futures), timeout)
+
     if(!singleActorSystem){
       taskManagerActorSystems foreach {
         _.shutdown()

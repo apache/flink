@@ -90,7 +90,14 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
     val localExecution = numTaskManagers == 1
 
+    val taskManagerName = if(singleActorSystem) {
+      TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
+    } else {
+      TaskManager.TASK_MANAGER_NAME
+    }
+
     TaskManager.startActorWithConfiguration(HOSTNAME,
+      taskManagerName,
       config,
       singleActorSystem,
       localExecution)(system)
