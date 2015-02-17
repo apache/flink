@@ -306,7 +306,6 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
-					<reuseForks>false</reuseForks>
 				</configuration>
 			</plugin>
 			
