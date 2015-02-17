@@ -16,20 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.runtime.testingUtils
 
-object Messages {
+object TestingMessages {
 
-  /**
-   * Message to signal the successful reception of another message
-   */
-  case object Acknowledge
-
-  /**
-   * Signals that the JobManager/TaskManager shall disconnect from the sender
-   * (TaskManager/JobManager)
-   * @param reason
-   */
-  case class Disconnect(reason: String)
-
+  case object DisableDisconnect
 }
