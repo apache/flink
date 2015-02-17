@@ -273,6 +273,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			LOG.debug(formatLogString("Start task code."));
 		}
 
+		this.runtimeUdfContext = createRuntimeContext(getEnvironment().getTaskName());
+
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
 		// so that the thread that creates them catches its own errors that may happen in that process.
@@ -408,8 +410,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			throw new Exception("The driver setup for '" + this.getEnvironment().getTaskName() +
 				"' , caused an error: " + t.getMessage(), t);
 		}
-		
-		this.runtimeUdfContext = createRuntimeContext(getEnvironment().getTaskName());
 		
 		// instantiate the UDF
 		try {
