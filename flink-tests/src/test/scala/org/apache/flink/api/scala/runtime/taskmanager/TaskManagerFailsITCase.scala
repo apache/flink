@@ -22,14 +22,16 @@ import akka.actor.Status.{Failure, Success}
 import akka.actor.{ActorSystem, Kill, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.configuration.ConfigConstants
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
-import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
-import org.apache.flink.runtime.messages.JobManagerMessages.{RequestNumberRegisteredTaskManager, SubmitJob}
+import org.apache.flink.runtime.jobmanager.Tasks.{NoOpInvokable, BlockingNoOpInvokable, BlockingReceiver, Sender}
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, RequestNumberRegisteredTaskManager, SubmitJob}
+import org.apache.flink.runtime.messages.TaskManagerMessages.{RegisteredAtJobManager, NotifyWhenRegisteredAtJobManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
 
@@ -64,6 +66,8 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val taskManagers = cluster.getTaskManagers
       val jm = cluster.getJobManager
 
+      jm ! DisableDisconnect
+
       try{
         within(TestingUtils.TESTING_DURATION){
           jm ! RequestNumberRegisteredTaskManager
@@ -82,7 +86,6 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       finally {
         cluster.stop()
       }
-
     }
 
     "handle gracefully failing task manager" in {
@@ -173,5 +176,67 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
         cluster.stop()
       }
     }
+    
+    "go into a clean state in case of a TaskManager failure" in {
+      val num_slots = 20      
+
+      val sender = new AbstractJobVertex("BlockingSender")
+      sender.setParallelism(num_slots)
+      sender.setInvokableClass(classOf[BlockingNoOpInvokable])
+      val jobGraph = new JobGraph("Blocking Testjob", sender)
+
+      val noOp = new AbstractJobVertex("NoOpInvokable")
+      noOp.setParallelism(num_slots)
+      noOp.setInvokableClass(classOf[NoOpInvokable])
+      val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
+
+      val config = new Configuration()
+      config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, num_slots/2)
+      config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2)
+      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
+      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
+      config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
+
+      val cluster = new ForkableFlinkMiniCluster(config, singleActorSystem = false)
+
+      var tm = cluster.getTaskManagers(0)
+      val jm = cluster.getJobManager
+
+      try{
+        within(TestingUtils.TESTING_DURATION){
+          jm ! SubmitJob(jobGraph)
+          expectMsg(Success(jobGraph.getJobID))
+
+          tm ! PoisonPill
+
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
+
+          cluster.restartTaskManager(0)
+
+          tm = cluster.getTaskManagers(0)
+
+          tm ! NotifyWhenRegisteredAtJobManager
+
+          expectMsg(RegisteredAtJobManager)
+
+          jm ! SubmitJob(jobGraph2)
+
+          expectMsgType[Success]
+
+          val result = expectMsgType[JobResultSuccess]
+          result.jobID should equal(jobGraph2.getJobID)
+        }
+      } finally {
+        cluster.stop()
+      }
+    }
   }
+
 }

@@ -18,12 +18,19 @@
 
 package org.apache.flink.api.scala.runtime.jobmanager
 
+import akka.actor.Status.{Success, Failure}
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.client.JobExecutionException
+import org.apache.flink.runtime.jobgraph.{JobGraph, AbstractJobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{NoOpInvokable, BlockingNoOpInvokable}
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
+import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated,
+NotifyWhenJobManagerTerminated}
+import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -39,7 +46,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     TestKit.shutdownActorSystem(system)
   }
 
-  "The TaskManager" should {
+  "A TaskManager" should {
     "detect a lost connection to the JobManager and try to reconnect to it" in {
       val num_slots = 11
 
@@ -79,9 +86,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
         cluster.stop()
       }
     }
-  }
 
-  "The system" should {
     "go into a clean state in case of a JobManager failure" in {
       val num_slots = 20
 
@@ -95,15 +100,15 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       noOp.setInvokableClass(classOf[NoOpInvokable])
       val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
 
-      val cluster = TestingUtils.startTestingClusterDeathWatch(num_slots/2, 2)
+      val cluster = ForkableFlinkMiniCluster.startClusterDeathWatch(num_slots / 2, 2)
 
       var jm = cluster.getJobManager
       val tm = cluster.getTaskManagers(0)
 
-      try{
+      try {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
 
           tm ! NotifyWhenJobManagerTerminated(jm)
 
@@ -118,13 +123,8 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
           cluster.waitForTaskManagersToBeRegistered()
 
           jm ! SubmitJob(jobGraph2)
-          val response = expectMsgType[SubmissionResponse]
 
-          response match {
-            case SubmissionSuccess(jobID) => jobID should equal(jobGraph2.getJobID)
-            case SubmissionFailure(jobID, t) =>
-              fail("Submission of the second job failed.", t)
-          }
+          val failure = expectMsgType[Success]
 
           val result = expectMsgType[JobResultSuccess]
 

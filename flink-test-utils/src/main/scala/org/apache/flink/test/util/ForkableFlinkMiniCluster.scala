@@ -19,12 +19,15 @@
 package org.apache.flink.test.util
 
 import akka.actor.{Props, ActorRef, ActorSystem}
+import akka.pattern.Patterns._
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.{TestingJobManager, TestingMemoryArchivist,
-TestingTaskManager}
+import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingJobManager,
+TestingMemoryArchivist, TestingTaskManager}
+
+import scala.concurrent.Await
 
 /**
  * A forkable mini cluster is a special case of the mini cluster, used for parallel test execution
@@ -106,8 +109,28 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
   }
 
   def restartJobManager(): Unit = {
-    jobManagerActorSystem.stop(jobManagerActor)
+    val stopped = gracefulStop(jobManagerActor, TestingUtils.TESTING_DURATION)
+    Await.result(stopped, TestingUtils.TESTING_DURATION)
+
+    jobManagerActorSystem.shutdown()
+    jobManagerActorSystem.awaitTermination()
+
+    jobManagerActorSystem = startJobManagerActorSystem()
     jobManagerActor = startJobManager(jobManagerActorSystem)
+  }
+
+  def restartTaskManager(index: Int): Unit = {
+    val stopped = gracefulStop(taskManagerActors(index), TestingUtils.TESTING_DURATION)
+    Await.result(stopped, TestingUtils.TESTING_DURATION)
+
+    taskManagerActorSystems(index).shutdown()
+    taskManagerActorSystems(index).awaitTermination()
+
+    val taskManagerActorSystem  = startTaskManagerActorSystem(index)
+    val taskManagerActor = startTaskManager(index)(jobManagerActorSystem)
+
+    taskManagerActors = taskManagerActors.patch(index, Seq(taskManagerActor), 1)
+    taskManagerActorSystems = taskManagerActorSystems.patch(index, Seq(taskManagerActorSystem), 1)
   }
 }
 

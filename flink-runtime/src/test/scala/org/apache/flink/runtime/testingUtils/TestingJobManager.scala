@@ -25,7 +25,9 @@ import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
+import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 
 import scala.collection.convert.WrapAsScala
 import scala.concurrent.Future
@@ -51,6 +53,8 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
   val waitForJobStatus = scala.collection.mutable.HashMap[JobID,
     collection.mutable.HashMap[JobStatus, Set[ActorRef]]]()
+
+  var disconnectDisabled = false
 
   abstract override def receiveWithLogMessages: Receive = {
     receiveTestingMessages orElse super.receiveWithLogMessages
@@ -125,6 +129,7 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
             listener ! TaskManagerTerminated(taskManager)
         }
       }
+
     case RequestWorkingTaskManager(jobID) =>
       currentJobs.get(jobID) match {
         case Some((eg, _)) =>
@@ -169,6 +174,23 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
       if (cleanup) {
         waitForJobStatus.remove(jobID)
+      }
+
+    case DisableDisconnect =>
+      disconnectDisabled = true
+
+    case msg: Disconnect =>
+      if (!disconnectDisabled) {
+        super.receiveWithLogMessages(msg)
+
+        val taskManager = sender
+
+        waitForTaskManagerToBeTerminated.remove(taskManager.path.name) foreach {
+          _ foreach {
+            listener =>
+              listener ! TaskManagerTerminated(taskManager)
+          }
+        }
       }
   }
 
