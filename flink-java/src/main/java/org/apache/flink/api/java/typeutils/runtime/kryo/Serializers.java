@@ -35,7 +35,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.thrift.protocol.TMessage;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
-import scala.reflect.ClassTag;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -153,8 +152,8 @@ public class Serializers {
 		// usually, we are able to handle Avro POJOs with the POJO serializer.
 		// (However only if the GenericData.Array type is registered!)
 
-		ClassTag<SpecificRecordBase> tag = scala.reflect.ClassTag$.MODULE$.apply(avroType);
-		reg.registerTypeWithKryoSerializer(avroType, com.twitter.chill.avro.AvroSerializer.SpecificRecordSerializer(tag));
+	//	ClassTag<SpecificRecordBase> tag = scala.reflect.ClassTag$.MODULE$.apply(avroType);
+	//	reg.registerTypeWithKryoSerializer(avroType, com.twitter.chill.avro.AvroSerializer.SpecificRecordSerializer(tag));
 	}
 
 

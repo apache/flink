@@ -901,7 +901,7 @@ public abstract class ExecutionEnvironment {
 				TypeInformation<?> typeInfo = opInfo.getOutputType();
 				if(typeInfo instanceof GenericTypeInfo) {
 					GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) typeInfo;
-					if(!config.isDisableAutoTypeRegistration()) {
+					if(!config.isAutoTypeRegistrationDisabled()) {
 						Serializers.recursivelyRegisterType(genericTypeInfo.getTypeClass(), config);
 					}
 				}
