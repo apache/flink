@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
@@ -154,7 +155,8 @@ public class WindowIntegrationTest implements Serializable {
 	@SuppressWarnings("serial")
 	private static class CentralSink1 implements SinkFunction<StreamWindow<Integer>> {
 
-		public static List<StreamWindow<Integer>> windows = new ArrayList<StreamWindow<Integer>>();
+		public static List<StreamWindow<Integer>> windows = Collections
+				.synchronizedList(new ArrayList<StreamWindow<Integer>>());
 
 		@Override
 		public void invoke(StreamWindow<Integer> value) throws Exception {
@@ -166,7 +168,8 @@ public class WindowIntegrationTest implements Serializable {
 	@SuppressWarnings("serial")
 	private static class CentralSink2 implements SinkFunction<StreamWindow<Integer>> {
 
-		public static List<StreamWindow<Integer>> windows = new ArrayList<StreamWindow<Integer>>();
+		public static List<StreamWindow<Integer>> windows = Collections
+				.synchronizedList(new ArrayList<StreamWindow<Integer>>());
 
 		@Override
 		public void invoke(StreamWindow<Integer> value) throws Exception {
@@ -178,7 +181,8 @@ public class WindowIntegrationTest implements Serializable {
 	@SuppressWarnings("serial")
 	private static class DistributedSink1 implements SinkFunction<StreamWindow<Integer>> {
 
-		public static List<StreamWindow<Integer>> windows = new ArrayList<StreamWindow<Integer>>();
+		public static List<StreamWindow<Integer>> windows = Collections
+				.synchronizedList(new ArrayList<StreamWindow<Integer>>());
 
 		@Override
 		public void invoke(StreamWindow<Integer> value) throws Exception {
@@ -190,7 +194,8 @@ public class WindowIntegrationTest implements Serializable {
 	@SuppressWarnings("serial")
 	private static class DistributedSink2 implements SinkFunction<StreamWindow<Integer>> {
 
-		public static List<StreamWindow<Integer>> windows = new ArrayList<StreamWindow<Integer>>();
+		public static List<StreamWindow<Integer>> windows = Collections
+				.synchronizedList(new ArrayList<StreamWindow<Integer>>());
 
 		@Override
 		public void invoke(StreamWindow<Integer> value) throws Exception {
