@@ -62,8 +62,7 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
   val actorSystemsTaskManagers = for(i <- 0 until numTaskManagers) yield {
     val actorSystem = if(singleActorSystem) {
       jobManagerActorSystem
-    }
-    else{
+    } else {
       startTaskManagerActorSystem(i)
     }
 

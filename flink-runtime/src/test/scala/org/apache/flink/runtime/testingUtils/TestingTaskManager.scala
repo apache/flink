@@ -119,19 +119,16 @@ trait TestingTaskManager extends ActorLogMessages {
       }
 
     case msg:Disconnect =>
-      super.receiveWithLogMessages(msg)
-
-      val jobManager = sender
-
-      waitForJobManagerToBeTerminated.remove(jobManager.path.name) foreach {
-        _ foreach {
-          _ ! JobManagerTerminated(jobManager)
-        }
-      }
-
-    case msg:Disconnect =>
       if (!disconnectDisabled) {
         super.receiveWithLogMessages(msg)
+
+        val jobManager = sender
+
+        waitForJobManagerToBeTerminated.remove(jobManager.path.name) foreach {
+          _ foreach {
+            _ ! JobManagerTerminated(jobManager)
+          }
+        }
       }
 
     case DisableDisconnect =>

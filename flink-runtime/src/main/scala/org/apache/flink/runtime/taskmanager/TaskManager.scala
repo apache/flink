@@ -152,6 +152,10 @@ import scala.collection.JavaConverters._
   override def postStop(): Unit = {
     log.info("Stopping task manager {}.", self.path)
 
+    currentJobManager foreach {
+      _ ! Disconnect(s"TaskManager ${self.path} is shutting down.")
+    }
+
     cancelAndClearEverything(new Exception("Task Manager is shutting down."))
 
     cleanupTaskManager()
@@ -415,8 +419,8 @@ import scala.collection.JavaConverters._
           new RuntimeEnvironment(jobManager, task, tdd, userCodeClassLoader,
             memoryManager, ioManager, splitProvider, bcVarManager, networkEnvironment.get)
 
-        case None => throw new IllegalStateException("TaskManager has not yet registered at " +
-          "the JobManager.")
+        case None => throw new IllegalStateException("TaskManager has not yet been registered at " +
+          "a JobManager.")
       }
 
       task.setEnvironment(env)

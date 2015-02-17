@@ -368,12 +368,25 @@ class JobManager(val configuration: Configuration,
       taskManager forward SendStackTrace
 
     case Terminated(taskManager) =>
-      log.info("Task manager {} terminated.", taskManager.path)
-      instanceManager.unregisterTaskManager(taskManager)
-      context.unwatch(taskManager)
+      if(instanceManager.isRegistered(taskManager)) {
+        log.info("Task manager {} terminated.", taskManager.path)
+
+        instanceManager.unregisterTaskManager(taskManager)
+        context.unwatch(taskManager)
+      }
 
     case RequestJobManagerStatus =>
       sender ! JobManagerStatusAlive
+
+    case Disconnect(msg) =>
+      val taskManager = sender
+
+      if(instanceManager.isRegistered(taskManager)){
+        log.info("Task manager {} wants to disconnect, because {}.", taskManager.path, msg)
+
+        instanceManager.unregisterTaskManager(taskManager)
+        context.unwatch(taskManager)
+      }
   }
 
   /**
