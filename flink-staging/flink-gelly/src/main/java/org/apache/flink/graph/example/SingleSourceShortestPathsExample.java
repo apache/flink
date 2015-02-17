@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
 import org.apache.flink.graph.library.SingleSourceShortestPaths;
 
 public class SingleSourceShortestPathsExample implements ProgramDescription {
@@ -56,7 +57,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 			singleSourceShortestPaths.print();
 		}
 
-		env.execute();
+		env.execute("Single Source Shortest Paths Example");
 	}
 
 	@Override
@@ -114,7 +115,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 		} else {
 			System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
 					" <input vertices path> <input edges path> <output path> <num iterations>");
-			return null;
+			return SingleSourceShortestPathsData.getDefaultVertexDataSet(env);
 		}
 	}
 
@@ -133,7 +134,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 		} else {
 			System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
 					" <input vertices path> <input edges path> <output path> <num iterations>");
-			return null;
+			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
 		}
 	}
 }
