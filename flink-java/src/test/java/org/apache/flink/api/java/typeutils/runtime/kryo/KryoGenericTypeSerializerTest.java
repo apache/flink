@@ -69,7 +69,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 	@Test
 	public void testJodaTime(){
 		Collection<DateTime> b = new HashSet<DateTime>();
-
+		Serializers.registerJodaTime(ec);
 		b.add(new DateTime(1));
 		b.add(new DateTime(2));
 
@@ -82,10 +82,10 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 		coll.add(49);
 		coll.add(1);
 	}
-
+	ExecutionConfig ec = new ExecutionConfig();
 	@Override
 	protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
-		return new KryoSerializer<T>(type, new ExecutionConfig());
+		return new KryoSerializer<T>(type, ec);
 	}
 	
 	/**

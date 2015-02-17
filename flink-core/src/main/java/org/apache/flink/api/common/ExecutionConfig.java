@@ -44,6 +44,9 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean disableAutoTypeRegistration = false;
 
+	private boolean serializeGenericTypesWithAvro = false;
+
+
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in lists to ensure they are registered in order in all kryo instances.
@@ -163,6 +166,20 @@ public class ExecutionConfig implements Serializable {
 	public boolean isForceKryoEnabled() {
 		return forceKryo;
 	}
+
+	public void enableGenericTypeSerializationWithAvro() {
+		serializeGenericTypesWithAvro = true;
+	}
+
+	public void disableGenericTypeSerializationWithAvro() {
+		serializeGenericTypesWithAvro = true;
+	}
+
+	public boolean serializeGenericTypesWithAvro() {
+		return serializeGenericTypesWithAvro;
+	}
+
+
 
 	/**
 	 * Enables reusing objects that Flink internally uses for deserialization and passing
@@ -365,7 +382,7 @@ public class ExecutionConfig implements Serializable {
 	}
 
 
-	public boolean isDisableAutoTypeRegistration() {
+	public boolean isAutoTypeRegistrationDisabled() {
 		return disableAutoTypeRegistration;
 	}
 
@@ -373,10 +390,9 @@ public class ExecutionConfig implements Serializable {
 	 * Control whether Flink is automatically registering all types in the user programs with
 	 * Kryo.
 	 *
-	 * @param disableAutoTypeRegistration
 	 */
-	public void setDisableAutoTypeRegistration(boolean disableAutoTypeRegistration) {
-		this.disableAutoTypeRegistration = disableAutoTypeRegistration;
+	public void disableAutoTypeRegistration() {
+		this.disableAutoTypeRegistration = false;
 	}
 
 

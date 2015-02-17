@@ -113,13 +113,10 @@ public class WebInfoServer {
 			LOG.info("Setting up web info server, using web-root directory" +
 					webRootDir.toExternalForm()	+ ".");
 
-			LOG.info("Web info server will display information about flink job-manager on "
-				+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
-				+ port
-				+ ".");
 		}
 
 		server = new Server(port);
+
 
 		// ----- the handlers for the servlets -----
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
@@ -189,8 +186,8 @@ public class WebInfoServer {
 	 *         Thrown, if the start fails.
 	 */
 	public void start() throws Exception {
-		LOG.info("Starting web info server for JobManager on port " + this.port);
 		server.start();
+		LOG.info("Started web info server for JobManager on {}:{}",server.getConnectors()[0].getHost(), this.port);
 	}
 
 	/**

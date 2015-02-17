@@ -86,7 +86,7 @@ object ApplicationMaster {
           val dynamicPropertiesEncodedString = env.get(FlinkYarnClient.ENV_DYNAMIC_PROPERTIES)
 
           val (config, system, jobManager, archiver) = startJobManager(currDir, ownHostname,
-                                                      dynamicPropertiesEncodedString, logDirs)
+                                                      dynamicPropertiesEncodedString)
 
           actorSystem = system
           val extActor = system.asInstanceOf[ExtendedActorSystem]
@@ -94,7 +94,9 @@ object ApplicationMaster {
 
           // start the web info server
           LOG.info("Starting Job Manger web frontend.")
+          config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
           webserver = new WebInfoServer(config, jobManager, archiver)
+          webserver.start()
 
           val jobManagerWebPort = webserver.getServer.getConnectors()(0).getLocalPort
 
@@ -181,14 +183,13 @@ object ApplicationMaster {
    * @param currDir
    * @param hostname
    * @param dynamicPropertiesEncodedString
-   * @param logDirs
    *
    * @return (Configuration, JobManager ActorSystem, JobManager ActorRef, Archiver ActorRef)
    */
   def startJobManager(currDir: String,
                       hostname: String,
-                      dynamicPropertiesEncodedString: String,
-                      logDirs: String): (Configuration, ActorSystem, ActorRef, ActorRef) = {
+                      dynamicPropertiesEncodedString: String):
+    (Configuration, ActorSystem, ActorRef, ActorRef) = {
 
     LOG.info("Starting JobManager for YARN")
     val args = Array[String]("--configDir", currDir)

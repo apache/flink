@@ -86,6 +86,7 @@ under the License.
 		<scala.binary.version>2.10</scala.binary.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 		<kryoserialization.version>0.3.2</kryoserialization.version>
+		<protobuf.version>2.5.0</protobuf.version>
 	</properties>
 
 	<dependencies>
@@ -645,6 +646,7 @@ under the License.
 			<properties>
 				<akka.version>2.2.1</akka.version>
 				<kryoserialization.version>0.3.1</kryoserialization.version>
+				<protobuf.version>2.4.1</protobuf.version>
 			</properties>
 			<dependencyManagement>
 				<dependencies>
