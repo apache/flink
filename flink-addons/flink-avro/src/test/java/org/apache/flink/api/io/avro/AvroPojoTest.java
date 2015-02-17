@@ -22,8 +22,12 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.io.avro.generated.User;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.GenericAvroTypeInfo;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -51,7 +55,6 @@ public class AvroPojoTest extends JavaProgramTestBase {
 	}
 
 	private File inFile;
-	private String expected;
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -97,7 +100,7 @@ public class AvroPojoTest extends JavaProgramTestBase {
 		return "";
 	}
 
-	private static int NUM_PROGRAMS = 3;
+	private static int NUM_PROGRAMS = 5;
 
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -146,6 +149,7 @@ public class AvroPojoTest extends JavaProgramTestBase {
 				in = new Path(inFile.getAbsoluteFile().toURI());
 
 				AvroInputFormat<User> users1 = new AvroInputFormat<User>(in, User.class);
+				Assert.assertTrue(users1.getProducedType() instanceof PojoTypeInfo);
 				DataSet<User> usersDS1 = env.createInput(users1)
 						// null map type because the order changes in different JVMs (hard to test)
 						.map(new MapFunction<User, User>() {
@@ -163,7 +167,65 @@ public class AvroPojoTest extends JavaProgramTestBase {
 
 				return "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], \"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", \"type_map\": null, \"type_fixed\": null, \"type_union\": null}\n" +
 						"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, \"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", \"type_map\": null, \"type_fixed\": null, \"type_union\": null}\n";
+			case 4:
+				/**
+				 * Test GenericTypeInfo with Avro serialization.
+				 */
+				env = ExecutionEnvironment.getExecutionEnvironment();
+				GenericTypeInfo.USE_AVRO_SERIALIZER = true;
+				in = new Path(inFile.getAbsoluteFile().toURI());
 
+				AvroInputFormat<User> users2 = new AvroInputFormat<User>(in, User.class);
+				DataSet<User> usersDS2 = env.createInput(users2, new GenericTypeInfo<User>(User.class));
+
+				DataSet<Tuple2<String, Integer>> res2 = usersDS2.groupBy(new KeySelector<User, String>() {
+					@Override
+					public String getKey(User value) throws Exception {
+						return String.valueOf(value.getName());
+					}
+				}).reduceGroup(new GroupReduceFunction<User, Tuple2<String, Integer>>() {
+					@Override
+					public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
+						for (User u : values) {
+							out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
+						}
+					}
+				});
+
+				res2.writeAsText(resultPath);
+				env.execute("Avro Key selection");
+
+
+				return "(Alyssa,1)\n(Charlie,1)\n";
+			case 5:
+				/**
+				 * Test GenericAvroTypeInfo with Avro serialization.
+				 */
+				env = ExecutionEnvironment.getExecutionEnvironment();
+				in = new Path(inFile.getAbsoluteFile().toURI());
+
+				AvroInputFormat<User> users3 = new AvroInputFormat<User>(in, User.class);
+				DataSet<User> usersDS3 = env.createInput(users3, new GenericAvroTypeInfo<User>(User.class));
+
+				DataSet<Tuple2<String, Integer>> res3 = usersDS3.groupBy(new KeySelector<User, String>() {
+					@Override
+					public String getKey(User value) throws Exception {
+						return String.valueOf(value.getName());
+					}
+				}).reduceGroup(new GroupReduceFunction<User, Tuple2<String, Integer>>() {
+					@Override
+					public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
+						for (User u : values) {
+							out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
+						}
+					}
+				});
+
+				res3.writeAsText(resultPath);
+				env.execute("Avro Key selection");
+
+
+				return "(Alyssa,1)\n(Charlie,1)\n";
 			default:
 				throw new RuntimeException("Unknown test");
 		}
@@ -176,7 +238,7 @@ public class AvroPojoTest extends JavaProgramTestBase {
 	}
 
 	@Parameterized.Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+	public static Collection<Object[]> getConfigurations() throws IOException {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 

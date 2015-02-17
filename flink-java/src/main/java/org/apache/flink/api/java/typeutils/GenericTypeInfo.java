@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
 import org.apache.flink.api.java.typeutils.runtime.KryoSerializer;
 
@@ -29,9 +30,13 @@ import org.apache.flink.api.java.typeutils.runtime.KryoSerializer;
 public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
 	private final Class<T> typeClass;
+	public static boolean USE_AVRO_SERIALIZER = false;
+
+	private boolean useAvroSerializer;
 
 	public GenericTypeInfo(Class<T> typeClass) {
 		this.typeClass = typeClass;
+		this.useAvroSerializer = USE_AVRO_SERIALIZER;
 	}
 	
 	@Override
@@ -66,7 +71,11 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 
 	@Override
 	public TypeSerializer<T> createSerializer() {
-		return new KryoSerializer<T>(this.typeClass);
+		if(useAvroSerializer) {
+			return new AvroSerializer<T>(this.typeClass);
+		} else {
+			return new KryoSerializer<T>(this.typeClass);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
