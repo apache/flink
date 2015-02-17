@@ -22,7 +22,7 @@ import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestNumberRegisteredTaskManager
+import org.apache.flink.runtime.jobmanager.Tasks.{NoOpInvokable, BlockingNoOpInvokable}
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
 import org.junit.runner.RunWith
@@ -55,6 +55,9 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val tm = cluster.getTaskManagers(0)
       val jm = cluster.getJobManager
 
+      // disable disconnect message to test death watch
+      tm ! DisableDisconnect
+
       try{
         jm ! RequestNumberRegisteredTaskManager
         expectMsg(1)
@@ -72,7 +75,62 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
         cluster.getJobManager ! RequestNumberRegisteredTaskManager
 
         expectMsg(1)
-      }finally{
+      } finally {
+        cluster.stop()
+      }
+    }
+  }
+
+  "The system" should {
+    "go into a clean state in case of a JobManager failure" in {
+      val num_slots = 20
+
+      val sender = new AbstractJobVertex("BlockingSender")
+      sender.setParallelism(num_slots)
+      sender.setInvokableClass(classOf[BlockingNoOpInvokable])
+      val jobGraph = new JobGraph("Blocking Testjob", sender)
+
+      val noOp = new AbstractJobVertex("NoOpInvokable")
+      noOp.setParallelism(num_slots)
+      noOp.setInvokableClass(classOf[NoOpInvokable])
+      val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
+
+      val cluster = TestingUtils.startTestingClusterDeathWatch(num_slots/2, 2)
+
+      var jm = cluster.getJobManager
+      val tm = cluster.getTaskManagers(0)
+
+      try{
+        within(TestingUtils.TESTING_DURATION) {
+          jm ! SubmitJob(jobGraph)
+          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+
+          tm ! NotifyWhenJobManagerTerminated(jm)
+
+          jm ! PoisonPill
+
+          expectMsgClass(classOf[JobManagerTerminated])
+
+          cluster.restartJobManager()
+
+          jm = cluster.getJobManager
+
+          cluster.waitForTaskManagersToBeRegistered()
+
+          jm ! SubmitJob(jobGraph2)
+          val response = expectMsgType[SubmissionResponse]
+
+          response match {
+            case SubmissionSuccess(jobID) => jobID should equal(jobGraph2.getJobID)
+            case SubmissionFailure(jobID, t) =>
+              fail("Submission of the second job failed.", t)
+          }
+
+          val result = expectMsgType[JobResultSuccess]
+
+          result.jobID should equal(jobGraph2.getJobID)
+        }
+      } finally {
         cluster.stop()
       }
     }

@@ -19,11 +19,14 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.pattern.Patterns.gracefulStop
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
+
+import scala.concurrent.Await
 
 /**
  * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
@@ -71,4 +74,11 @@ FlinkMiniCluster(userConfiguration, singleActorSystem) {
       networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + "_" +
       (index + 1))
   }
+    val stopped = gracefulStop(jobManagerActor, TestingUtils.TESTING_DURATION)
+    Await.result(stopped, TestingUtils.TESTING_DURATION)
+
+    jobManagerActorSystem.shutdown()
+    jobManagerActorSystem.awaitTermination()
+
+    jobManagerActorSystem = startJobManagerActorSystem()
 }

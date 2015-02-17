@@ -46,7 +46,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
-import org.apache.flink.runtime.messages.Messages.Acknowledge
+import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
 import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
 RefuseRegistration, AcknowledgeRegistration, RegisterTaskManager}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
@@ -106,6 +106,7 @@ import scala.collection.JavaConverters._
 
   var registrationDelay = 50 milliseconds
   var registrationDuration = 0 seconds
+  var registrationAttempts: Int = 0
 
   TaskManager.checkTempDirs(tmpDirPaths)
   val ioManager = new IOManagerAsync(tmpDirPaths)
@@ -131,11 +132,9 @@ import scala.collection.JavaConverters._
     log.info(TaskManager.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean))
   }
 
-  var libraryCacheManager: LibraryCacheManager = null
+  var libraryCacheManager: Option[LibraryCacheManager] = None
   var networkEnvironment: Option[NetworkEnvironment] = None
-  var registrationAttempts: Int = 0
-  var registered: Boolean = false
-  var currentJobManager = ActorRef.noSender
+  var currentJobManager: Option[ActorRef] = None
   var profilerListener: Option[ActorRef] = None
   var instanceID: InstanceID = null
   var heartbeatScheduler: Option[Cancellable] = None
@@ -155,18 +154,7 @@ import scala.collection.JavaConverters._
 
     cancelAndClearEverything(new Exception("Task Manager is shutting down."))
 
-    heartbeatScheduler foreach {
-      _.cancel()
-    }
-
-    networkEnvironment foreach {
-      ne =>
-        try {
-          ne.shutdown()
-        } catch {
-          case t: Throwable => log.error(t, "ChannelManager did not shutdown properly.")
-        }
-    }
+    cleanupTaskManager()
 
     ioManager.shutdown()
     memoryManager.shutdown()
@@ -177,38 +165,25 @@ import scala.collection.JavaConverters._
       case t: Throwable => log.error(t, "FileCache did not shutdown properly.")
     }
 
-    if (libraryCacheManager != null) {
-      try {
-        libraryCacheManager.shutdown()
-      }
-      catch {
-        case t: Throwable => log.error(t, "LibraryCacheManager did not shutdown properly.")
-      }
-    }
-
     if(log.isDebugEnabled){
       log.debug("Task manager {} is completely stopped.", self.path)
     }
   }
 
   private def tryJobManagerRegistration(): Unit = {
-    registrationDuration = 0 seconds
-
-    registered = false
-    currentJobManager = ActorRef.noSender
-
     context.system.scheduler.scheduleOnce(registrationDelay, self, RegisterAtJobManager)
   }
 
   override def receiveWithLogMessages: Receive = {
     case RegisterAtJobManager =>
-      if(!registered) {
+      if(currentJobManager.isEmpty) {
         registrationDuration += registrationDelay
         // double delay for exponential backoff
         registrationDelay *= 2
+        registrationAttempts += 1
 
         if (registrationDuration > maxRegistrationDuration) {
-          log.warning("TaskManager could not register at JobManager {} after {}.",
+          log.error("TaskManager could not register at JobManager {} after {}.",
             jobManagerAkkaURL,
             maxRegistrationDuration)
 
@@ -225,15 +200,15 @@ import scala.collection.JavaConverters._
       }
 
     case AcknowledgeRegistration(id, blobPort, profilerListener) =>
-      if(!registered) {
+      if(currentJobManager.isEmpty) {
         finishRegistration(sender, id, blobPort, profilerListener)
       } else {
         log.info("The TaskManager {} is already registered at the JobManager {}, but received " +
-          "another AcknowledgeRegistration message.", self.path, currentJobManager.path)
+          "another AcknowledgeRegistration message.", self.path, sender.path)
       }
 
     case AlreadyRegistered(id, blobPort, profilerListener) =>
-      if(!registered) {
+      if(currentJobManager.isEmpty) {
         log.warning("The TaskManager {} seems to be already registered at the JobManager {} even" +
           "though it has not yet finished the registration process.", self.path, sender.path)
 
@@ -245,7 +220,7 @@ import scala.collection.JavaConverters._
       }
 
     case RefuseRegistration(reason) =>
-      if(!registered) {
+      if(currentJobManager.isEmpty) {
         log.error("The registration of task manager {} was refused by the job manager {} " +
           "because {}.", self.path, jobManagerAkkaURL, reason)
 
@@ -288,31 +263,35 @@ import scala.collection.JavaConverters._
       unregisterTask(executionID)
 
     case updateMsg:UpdateTaskExecutionState =>
-      val futureResponse = (currentJobManager ? updateMsg)(timeout)
+      currentJobManager foreach {
+        jobManager => {
+          val futureResponse = (jobManager ? updateMsg)(timeout)
 
-      val jobID = updateMsg.taskExecutionState.getJobID
-      val executionID = updateMsg.taskExecutionState.getID
-      val executionState = updateMsg.taskExecutionState.getExecutionState
+          val jobID = updateMsg.taskExecutionState.getJobID
+          val executionID = updateMsg.taskExecutionState.getID
+          val executionState = updateMsg.taskExecutionState.getExecutionState
 
-      futureResponse.mapTo[Boolean].onComplete{
-        case Success(result) =>
-          if(!result){
-            self ! FailTask(executionID,
-              new IllegalStateException("Task has been disposed on JobManager."))
+          futureResponse.mapTo[Boolean].onComplete {
+            case Success(result) =>
+              if (!result) {
+                self ! FailTask(executionID,
+                  new IllegalStateException("Task has been disposed on JobManager."))
+              }
+
+              if (!result || executionState == ExecutionState.FINISHED || executionState ==
+                ExecutionState.CANCELED || executionState == ExecutionState.FAILED) {
+                self ! UnregisterTask(executionID)
+              }
+            case Failure(t) =>
+              log.error(t, "Execution state change notification failed for task {}" +
+                s"of job {}.", executionID, jobID)
+              self ! UnregisterTask(executionID)
           }
-
-          if (!result || executionState == ExecutionState.FINISHED || executionState ==
-            ExecutionState.CANCELED || executionState == ExecutionState.FAILED) {
-            self ! UnregisterTask(executionID)
-          }
-        case Failure(t) =>
-          log.warning(s"Execution state change notification failed for task $executionID " +
-            s"of job $jobID. Cause ${t.getMessage}.")
-          self ! UnregisterTask(executionID)
+        }
       }
 
     case SendHeartbeat =>
-      currentJobManager ! Heartbeat(instanceID)
+      currentJobManager foreach { _ ! Heartbeat(instanceID) }
 
     case LogMemoryUsage =>
       logMemoryStats()
@@ -327,7 +306,7 @@ import scala.collection.JavaConverters._
       sender ! StackTrace(instanceID, stackTraceStr)
 
     case NotifyWhenRegisteredAtJobManager =>
-      if (registered) {
+      if (currentJobManager.isDefined) {
         sender ! RegisteredAtJobManager
       } else {
         waitForRegistration += sender
@@ -347,9 +326,19 @@ import scala.collection.JavaConverters._
 
     case Terminated(jobManager) =>
       log.info("Job manager {} is no longer reachable. Cancelling all tasks and trying to " +
-        "reregister.", jobManager.path)
+        "reregister.", jobManagerAkkaURL)
 
       cancelAndClearEverything(new Throwable("Lost connection to JobManager"))
+
+      cleanupTaskManager()
+
+      tryJobManagerRegistration()
+
+    case Disconnect(msg) =>
+      log.info("Job manager {} wants {} to disconnect. Reason {}.", jobManagerAkkaURL,
+        self.path, msg)
+
+      cancelAndClearEverything(new Throwable("Job manager wants me to disconnect."))
 
       cleanupTaskManager()
 
@@ -386,19 +375,24 @@ import scala.collection.JavaConverters._
     var task: Task = null
 
     try {
-      if (log.isDebugEnabled) {
-        startRegisteringTask = System.currentTimeMillis()
-      }
-      libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
-      // triggers the download of all missing jar files from the job manager
-      libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
+      val userCodeClassLoader = libraryCacheManager match {
+        case Some(manager) =>
+          if (log.isDebugEnabled) {
+            startRegisteringTask = System.currentTimeMillis()
+          }
 
-      if (log.isDebugEnabled) {
-        log.debug("Register task {} took {}s", executionID,
-          (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
-      }
+          manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
+          // triggers the download of all missing jar files from the job manager
+          manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
 
-      val userCodeClassLoader = libraryCacheManager.getClassLoader(jobID)
+          if (log.isDebugEnabled) {
+            log.debug("Register task {} took {}s", executionID,
+              (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
+          }
+
+          manager.getClassLoader(jobID)
+        case None => throw new IllegalStateException("There is no valid library cache manager.")
+      }
 
       if (userCodeClassLoader == null) {
         throw new RuntimeException("No user code Classloader available.")
@@ -413,11 +407,17 @@ import scala.collection.JavaConverters._
         case None =>
       }
 
-      val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID,
-        executionID, userCodeClassLoader, timeout)
+      val env = currentJobManager match {
+        case Some(jobManager) =>
+          val splitProvider = new TaskInputSplitProvider(jobManager, jobID, vertexID,
+            executionID, userCodeClassLoader, timeout)
 
-      val env = new RuntimeEnvironment(currentJobManager, task, tdd, userCodeClassLoader,
-        memoryManager, ioManager, splitProvider, bcVarManager, networkEnvironment.get)
+          new RuntimeEnvironment(jobManager, task, tdd, userCodeClassLoader,
+            memoryManager, ioManager, splitProvider, bcVarManager, networkEnvironment.get)
+
+        case None => throw new IllegalStateException("TaskManager has not yet registered at " +
+          "the JobManager.")
+      }
 
       task.setEnvironment(env)
 
@@ -465,7 +465,7 @@ import scala.collection.JavaConverters._
             removeAllTaskResources(task)
           }
 
-          libraryCacheManager.unregisterTask(jobID, executionID)
+          libraryCacheManager foreach { _.unregisterTask(jobID, executionID) }
         } catch {
           case t: Throwable => log.error(t, "Error during cleanup of task deployment.")
         }
@@ -475,23 +475,31 @@ import scala.collection.JavaConverters._
   }
 
   private def cleanupTaskManager(): Unit = {
-    context.unwatch(currentJobManager)
+    currentJobManager foreach {
+      context.unwatch(_)
+    }
 
     networkEnvironment foreach {
-      _.shutdown()
+      ne =>
+        try {
+          ne.shutdown()
+        } catch {
+          case t: Throwable => log.error(t, "ChannelManager did not shutdown properly.")
+        }
     }
 
     networkEnvironment = None
 
-    if(libraryCacheManager != null){
-      try {
-        libraryCacheManager.shutdown()
-      } catch {
-        case t: Throwable => log.error(t, "Could not shut down the library cache manager.")
-      }
+    libraryCacheManager foreach {
+      manager =>
+        try {
+          manager.shutdown()
+        } catch {
+          case t: Throwable => log.error(t, "Could not shut down the library cache manager.")
+        }
     }
 
-    libraryCacheManager = null
+    libraryCacheManager = None
 
     heartbeatScheduler foreach {
       _.cancel()
@@ -507,9 +515,10 @@ import scala.collection.JavaConverters._
     }
 
     profilerListener = None
-    currentJobManager = ActorRef.noSender
+    currentJobManager = None
     instanceID = null
-    registered = false
+    registrationAttempts = 0
+    registrationDuration = 0 seconds
   }
 
   private def updateTask(executionId: ExecutionAttemptID,
@@ -567,15 +576,15 @@ import scala.collection.JavaConverters._
 
   private def setupTaskManager(jobManager: ActorRef, id: InstanceID, blobPort: Int,
                                 profilerListener: Option[ActorRef]): Unit = {
-    registered = true
-    currentJobManager = jobManager
+
+    currentJobManager = Some(jobManager)
     this.profilerListener = profilerListener
     instanceID = id
 
     // watch job manager to detect when it dies
-    context.watch(currentJobManager)
+    context.watch(jobManager)
 
-    setupNetworkEnvironment()
+    setupNetworkEnvironment(jobManager)
     setupLibraryCacheManager(blobPort)
 
     // schedule regular heartbeat message for oneself
@@ -590,7 +599,7 @@ import scala.collection.JavaConverters._
     }
   }
 
-  private def setupNetworkEnvironment(): Unit = {
+  private def setupNetworkEnvironment(jobManager: ActorRef): Unit = {
     //shutdown existing network environment
     networkEnvironment foreach {
       ne =>
@@ -602,7 +611,7 @@ import scala.collection.JavaConverters._
     }
 
     try {
-      networkEnvironment = Some(new NetworkEnvironment(self, currentJobManager, timeout,
+      networkEnvironment = Some(new NetworkEnvironment(self, jobManager, timeout,
         networkConfig))
     } catch {
       case ioe: IOException =>
@@ -613,27 +622,29 @@ import scala.collection.JavaConverters._
 
   private def setupLibraryCacheManager(blobPort: Int): Unit = {
     // shutdown existing library cache manager first
-    if (libraryCacheManager != null) {
-      try {
-        libraryCacheManager.shutdown()
+    libraryCacheManager foreach {
+      manager => {
+        try{
+          manager.shutdown()
+        } catch {
+          case t: Throwable => log.error(t, "Could not properly shut down LibraryCacheManager.")
+        }
       }
-      catch {
-        case t: Throwable => log.error(t, "Could not properly shut down LibraryCacheManager.")
-      }
-      libraryCacheManager = null
     }
 
     // Check if a blob server is specified
     if (blobPort > 0) {
-      val address = new InetSocketAddress(currentJobManager.path.address.host.getOrElse
-        ("localhost"), blobPort)
+
+      val address = new InetSocketAddress(
+        currentJobManager.flatMap(_.path.address.host).getOrElse("localhost"),
+        blobPort)
 
       log.info("Determined BLOB server address to be {}.", address)
 
-      libraryCacheManager = new BlobLibraryCacheManager(
-                                     new BlobCache(address, configuration), cleanupInterval)
+      libraryCacheManager = Some(new BlobLibraryCacheManager(
+                                     new BlobCache(address, configuration), cleanupInterval))
     } else {
-      libraryCacheManager = new FallbackLibraryCacheManager
+      libraryCacheManager = Some(new FallbackLibraryCacheManager)
     }
   }
 
@@ -646,18 +657,17 @@ import scala.collection.JavaConverters._
 
       for (t <- runningTasks.values) {
         t.failExternally(cause)
-        runningTasks.remove(t.getExecutionId)
+        unregisterTask(t.getExecutionId)
       }
     }
   }
 
   private def unregisterTask(executionID: ExecutionAttemptID): Unit = {
-    log.info("Unregister task with execution ID {}.", executionID)
-
     runningTasks.remove(executionID) match {
       case Some(task) =>
+        log.info("Unregister task with execution ID {}.", executionID)
         removeAllTaskResources(task)
-        libraryCacheManager.unregisterTask(task.getJobID, executionID)
+        libraryCacheManager foreach { _.unregisterTask(task.getJobID, executionID) }
       case None =>
         if (log.isDebugEnabled) {
           log.debug("Cannot find task with ID {} to unregister.", executionID)

@@ -227,7 +227,15 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			}
 		}
 		catch (Throwable t) {
-			LOG.error("Error during running invokable: " + t.getMessage(), t);
+			String msg;
+
+			if(t.getMessage() != null){
+				msg = "Error during running invokable: " + t.getMessage();
+			} else {
+				msg = "Error during running invokable.";
+			}
+
+			LOG.error(msg, t);
 
 			if (!owner.isCanceledOrFailed()) {
 				// Perform clean up when the task failed and has been not canceled by the user

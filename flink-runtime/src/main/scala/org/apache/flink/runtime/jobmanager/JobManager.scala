@@ -31,7 +31,7 @@ import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGra
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
-import org.apache.flink.runtime.messages.Messages.Acknowledge
+import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -112,6 +112,11 @@ class JobManager(val configuration: Configuration,
   override def postStop(): Unit = {
     log.info(s"Stopping job manager ${self.path}.")
 
+    // disconnect the registered task managers
+    instanceManager.getAllRegisteredInstances.asScala.foreach {
+      _.getTaskManager ! Disconnect("JobManager is shutting down")
+    }
+
     archive ! PoisonPill
     profiler.foreach( ref => ref ! PoisonPill )
 
@@ -159,7 +164,6 @@ class JobManager(val configuration: Configuration,
           profiler)
       }
 
-
     case RequestNumberRegisteredTaskManager =>
       sender ! instanceManager.getNumberOfRegisteredTaskManagers
 
@@ -194,8 +198,10 @@ class JobManager(val configuration: Configuration,
           case Some((executionGraph, _)) =>
             val originalSender = sender
             Future {
-              originalSender ! executionGraph.updateState(taskExecutionState)
+              val result = executionGraph.updateState(taskExecutionState)
+              originalSender ! result
             }
+            sender ! true
           case None => log.error("Cannot find execution graph for ID {} to change state to {}.",
             taskExecutionState.getJobID, taskExecutionState.getExecutionState)
             sender ! false
