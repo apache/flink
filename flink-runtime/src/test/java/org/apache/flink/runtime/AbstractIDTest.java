@@ -22,9 +22,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.apache.flink.runtime.jobgraph.JobID;
 import org.junit.Test;
 
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+
+import java.nio.ByteBuffer;
 
 /**
  * This class contains tests for the {@link org.apache.flink.runtime.AbstractID} class.
@@ -42,6 +45,45 @@ public class AbstractIDTest {
 			assertEquals(origID.hashCode(), copyID.hashCode());
 			assertEquals(origID, copyID);
 
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testConvertToBytes() {
+		try {
+			AbstractID origID = new AbstractID();
+
+			AbstractID copy1 = new AbstractID(origID);
+			AbstractID copy2 = new AbstractID(origID.getBytes());
+			AbstractID copy3 = new AbstractID(origID.getLowerPart(), origID.getUpperPart());
+
+			assertEquals(origID, copy1);
+			assertEquals(origID, copy2);
+			assertEquals(origID, copy3);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testConvertToByteBuffer() {
+		try {
+			JobID origID = new JobID();
+
+			byte[] bytes = origID.getBytes();
+			ByteBuffer buffer = ByteBuffer.wrap(bytes);
+
+			JobID copy1 = JobID.fromByteBuffer(buffer);
+			JobID copy2 = JobID.fromByteArray(bytes);
+
+			assertEquals(origID, copy1);
+			assertEquals(origID, copy2);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -24,7 +24,6 @@ import static org.junit.Assert.fail;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +32,6 @@ import java.security.MessageDigest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.util.StringUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -43,14 +41,10 @@ import org.junit.Test;
  */
 public class BlobClientTest {
 
-	/**
-	 * The buffer size used during the tests in bytes.
-	 */
+	/** The buffer size used during the tests in bytes. */
 	private static final int TEST_BUFFER_SIZE = 17 * 1000;
 
-	/**
-	 * The instance of the BLOB server used during the tests.
-	 */
+	/** The instance of the BLOB server used during the tests. */
 	private static BlobServer BLOB_SERVER;
 
 	/**
@@ -60,10 +54,11 @@ public class BlobClientTest {
 	public static void startServer() {
 		try {
 			BLOB_SERVER = new BlobServer(new Configuration());
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
 		}
-
+		catch (IOException e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 
 	/**
@@ -82,13 +77,10 @@ public class BlobClientTest {
 	 * @return a test buffer filled with a specific byte pattern
 	 */
 	private static byte[] createTestBuffer() {
-
 		final byte[] buf = new byte[TEST_BUFFER_SIZE];
-
 		for (int i = 0; i < buf.length; ++i) {
 			buf[i] = (byte) (i % 128);
 		}
-
 		return buf;
 	}
 
@@ -102,7 +94,7 @@ public class BlobClientTest {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while writing to the test file
 	 */
-	private static BlobKey prepareTestFile(final File file) throws IOException {
+	private static BlobKey prepareTestFile(File file) throws IOException {
 
 		MessageDigest md = BlobUtils.createMessageDigest();
 
@@ -203,44 +195,44 @@ public class BlobClientTest {
 	@Test
 	public void testContentAddressableBuffer() {
 
-		final byte[] testBuffer = createTestBuffer();
-		final MessageDigest md = BlobUtils.createMessageDigest();
-		md.update(testBuffer);
-		final BlobKey origKey = new BlobKey(md.digest());
+		BlobClient client = null;
 
 		try {
+			byte[] testBuffer = createTestBuffer();
+			MessageDigest md = BlobUtils.createMessageDigest();
+			md.update(testBuffer);
+			BlobKey origKey = new BlobKey(md.digest());
 
-			BlobClient client = null;
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
+			client = new BlobClient(serverAddress);
+
+			// Store the data
+			BlobKey receivedKey = client.put(testBuffer);
+			assertEquals(origKey, receivedKey);
+
+			// Retrieve the data
+			InputStream is = client.get(receivedKey);
+			validateGet(is, testBuffer);
+
+			// Check reaction to invalid keys
 			try {
-
-				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getServerPort());
-				client = new BlobClient(serverAddress);
-
-				// Store the data
-				final BlobKey receivedKey = client.put(testBuffer);
-				assertEquals(origKey, receivedKey);
-
-				// Retrieve the data
-				final InputStream is = client.get(receivedKey);
-				validateGet(is, testBuffer);
-
-				// Check reaction to invalid keys
-				try {
-					client.get(new BlobKey());
-				} catch (FileNotFoundException fnfe) {
-					return;
-				}
-
-				fail("Expected FileNotFoundException did not occur");
-
-			} finally {
-				if (client != null) {
-					client.close();
-				}
+				client.get(new BlobKey());
+				fail("Expected IOException did not occur");
 			}
-
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
+			catch (IOException fnfe) {
+				// expected
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			if (client != null) {
+				try {
+					client.close();
+				} catch (Throwable t) {}
+			}
 		}
 	}
 
@@ -250,42 +242,45 @@ public class BlobClientTest {
 	@Test
 	public void testContentAddressableStream() {
 
+		BlobClient client = null;
+		InputStream is = null;
+
 		try {
-
-			final File testFile = File.createTempFile("testfile", ".dat");
+			File testFile = File.createTempFile("testfile", ".dat");
 			testFile.deleteOnExit();
-			final BlobKey origKey = prepareTestFile(testFile);
 
-			BlobClient client = null;
-			InputStream is = null;
-			try {
+			BlobKey origKey = prepareTestFile(testFile);
 
-				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getServerPort());
-				client = new BlobClient(serverAddress);
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
+			client = new BlobClient(serverAddress);
 
-				// Store the data
-				is = new FileInputStream(testFile);
-				final BlobKey receivedKey = client.put(is);
-				assertEquals(origKey, receivedKey);
+			// Store the data
+			is = new FileInputStream(testFile);
+			BlobKey receivedKey = client.put(is);
+			assertEquals(origKey, receivedKey);
 
-				is.close();
-				is = null;
+			is.close();
+			is = null;
 
-				// Retrieve the data
-				is = client.get(receivedKey);
-				validateGet(is, testFile);
-
-			} finally {
-				if (is != null) {
+			// Retrieve the data
+			is = client.get(receivedKey);
+			validateGet(is, testFile);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			if (is != null) {
+				try {
 					is.close();
-				}
-				if (client != null) {
-					client.close();
-				}
+				} catch (Throwable t) {}
 			}
-
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
+			if (client != null) {
+				try {
+					client.close();
+				} catch (Throwable t) {}
+			}
 		}
 	}
 
@@ -300,11 +295,9 @@ public class BlobClientTest {
 		final String key = "testkey";
 
 		try {
-
 			BlobClient client = null;
 			try {
-
-				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getServerPort());
+				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
 				client = new BlobClient(serverAddress);
 
 				// Store the data
@@ -320,20 +313,21 @@ public class BlobClientTest {
 				// Check if the BLOB is still available
 				try {
 					client.get(jobID, key);
-				} catch (FileNotFoundException fnfe) {
-					return;
+					fail("Expected IOException did not occur");
 				}
-
-				fail("Expected FileNotFoundException did not occur");
-
-			} finally {
+				catch (IOException e) {
+					// expected
+				}
+			}
+			finally {
 				if (client != null) {
 					client.close();
 				}
 			}
-
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 
@@ -355,7 +349,7 @@ public class BlobClientTest {
 			InputStream is = null;
 			try {
 
-				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getServerPort());
+				final InetSocketAddress serverAddress = new InetSocketAddress("localhost", BLOB_SERVER.getPort());
 				client = new BlobClient(serverAddress);
 
 				// Store the data
@@ -369,7 +363,8 @@ public class BlobClientTest {
 				is = client.get(jobID, key);
 				validateGet(is, testFile);
 
-			} finally {
+			}
+			finally {
 				if (is != null) {
 					is.close();
 				}
@@ -378,8 +373,10 @@ public class BlobClientTest {
 				}
 			}
 
-		} catch (IOException ioe) {
-			fail(StringUtils.stringifyException(ioe));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 }

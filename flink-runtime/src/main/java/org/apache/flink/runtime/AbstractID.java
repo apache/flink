@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Random;
 
 import org.apache.flink.core.io.IOReadableWritable;
@@ -103,48 +101,39 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 * Gets the lower 64 bits of the ID.
+	 *
+	 * @return The lower 64 bits of the ID.
+	 */
 	public long getLowerPart() {
 		return lowerPart;
 	}
-	
+
+	/**
+	 * Gets the upper 64 bits of the ID.
+	 *
+	 * @return The upper 64 bits of the ID.
+	 */
 	public long getUpperPart() {
 		return upperPart;
 	}
 
+	/**
+	 * Gets the bytes underlying this ID.
+	 *
+	 * @return The bytes underlying this ID.
+	 */
+	public byte[] getBytes() {
+		byte[] bytes = new byte[SIZE];
+		longToByteArray(lowerPart, bytes, 0);
+		longToByteArray(upperPart, bytes, SIZE_OF_LONG);
+		return bytes;
+	}
+
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Converts the given byte array to a long.
-	 *
-	 * @param ba the byte array to be converted
-	 * @param offset the offset indicating at which byte inside the array the conversion shall begin
-	 * @return the long variable
-	 */
-	private static long byteArrayToLong(byte[] ba, int offset) {
-		long l = 0;
-
-		for (int i = 0; i < SIZE_OF_LONG; ++i) {
-			l |= (ba[offset + SIZE_OF_LONG - 1 - i] & 0xffL) << (i << 3);
-		}
-
-		return l;
-	}
-
-	/**
-	 * Converts a long to a byte array.
-	 *
-	 * @param l the long variable to be converted
-	 * @param ba the byte array to store the result the of the conversion
-	 * @param offset offset indicating at what position inside the byte array the result of the conversion shall be stored
-	 */
-	private static void longToByteArray(final long l, final byte[] ba, final int offset) {
-		for (int i = 0; i < SIZE_OF_LONG; ++i) {
-			final int shift = i << 3; // i * 8
-			ba[offset + SIZE_OF_LONG - 1 - i] = (byte) ((l & (0xffL << shift)) >>> shift);
-		}
-	}
-	
+	//  Serialization
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -159,16 +148,13 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 		out.writeLong(this.upperPart);
 	}
 
-	public void write(ByteBuffer buffer) {
-		buffer.putLong(this.lowerPart);
-		buffer.putLong(this.upperPart);
-	}
-
 	public void writeTo(ByteBuf buf) {
 		buf.writeLong(this.lowerPart);
 		buf.writeLong(this.upperPart);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Standard Utilities
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
@@ -202,5 +188,40 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 		int diff1 = (this.upperPart < o.upperPart) ? -1 : ((this.upperPart == o.upperPart) ? 0 : 1);
 		int diff2 = (this.lowerPart < o.lowerPart) ? -1 : ((this.lowerPart == o.lowerPart) ? 0 : 1);
 		return diff1 == 0 ? diff2 : diff1;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Conversion Utilities
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Converts the given byte array to a long.
+	 *
+	 * @param ba the byte array to be converted
+	 * @param offset the offset indicating at which byte inside the array the conversion shall begin
+	 * @return the long variable
+	 */
+	private static long byteArrayToLong(byte[] ba, int offset) {
+		long l = 0;
+
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
+			l |= (ba[offset + SIZE_OF_LONG - 1 - i] & 0xffL) << (i << 3);
+		}
+
+		return l;
+	}
+
+	/**
+	 * Converts a long to a byte array.
+	 *
+	 * @param l the long variable to be converted
+	 * @param ba the byte array to store the result the of the conversion
+	 * @param offset offset indicating at what position inside the byte array the result of the conversion shall be stored
+	 */
+	private static void longToByteArray(long l, byte[] ba, int offset) {
+		for (int i = 0; i < SIZE_OF_LONG; ++i) {
+			final int shift = i << 3; // i * 8
+			ba[offset + SIZE_OF_LONG - 1 - i] = (byte) ((l & (0xffL << shift)) >>> shift);
+		}
 	}
 }

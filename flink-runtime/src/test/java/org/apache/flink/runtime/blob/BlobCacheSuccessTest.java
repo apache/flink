@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -37,7 +36,7 @@ import org.junit.Test;
 /**
  * This class contains unit tests for the {@link BlobCache}.
  */
-public class BlobCacheTest {
+public class BlobCacheSuccessTest {
 
 	@Test
 	public void testBlobCache() {
@@ -52,7 +51,7 @@ public class BlobCacheTest {
 
 			// Start the BLOB server
 			blobServer = new BlobServer(new Configuration());
-			final InetSocketAddress serverAddress = new InetSocketAddress(blobServer.getServerPort());
+			final InetSocketAddress serverAddress = new InetSocketAddress(blobServer.getPort());
 
 			// Upload BLOBs
 			BlobClient blobClient = null;
@@ -103,12 +102,13 @@ public class BlobCacheTest {
 				} catch (URISyntaxException e) {
 					fail(e.getMessage());
 				}
-
 			}
-
-		} catch (IOException ioe) {
-			fail(ioe.getMessage());
-		} finally {
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
 			if (blobServer != null) {
 				blobServer.shutdown();
 			}

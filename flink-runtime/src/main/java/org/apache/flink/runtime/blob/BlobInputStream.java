@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 
+import static org.apache.flink.runtime.blob.BlobUtils.readLength;
+
 /**
  * The BLOB input stream is a special implementation of an {@link InputStream} to read the results of a GET operation
  * from the BLOB server.
@@ -63,15 +65,13 @@ final class BlobInputStream extends InputStream {
 	 *        the underlying input stream to read from
 	 * @param blobKey
 	 *        the expected BLOB key for content-addressable BLOBs, <code>null</code> for non-content-addressable BLOBs.
-	 * @param buf
-	 *        auxiliary buffer to read the meta data from the BLOB server
 	 * @throws IOException
 	 *         throws if an I/O error occurs while reading the BLOB data from the BLOB server
 	 */
-	BlobInputStream(final InputStream wrappedInputStream, final BlobKey blobKey, final byte[] buf) throws IOException {
+	BlobInputStream(final InputStream wrappedInputStream, final BlobKey blobKey) throws IOException {
 		this.wrappedInputStream = wrappedInputStream;
 		this.blobKey = blobKey;
-		this.bytesToReceive = BlobServer.readLength(buf, wrappedInputStream);
+		this.bytesToReceive = readLength(wrappedInputStream);
 		if (this.bytesToReceive < 0) {
 			throw new FileNotFoundException();
 		}
@@ -157,7 +157,7 @@ final class BlobInputStream extends InputStream {
 
 	@Override
 	public int available() throws IOException {
-		return 0;
+		return this.bytesToReceive - this.bytesReceived;
 	}
 
 	@Override
