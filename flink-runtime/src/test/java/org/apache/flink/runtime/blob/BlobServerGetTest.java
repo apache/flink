@@ -123,7 +123,8 @@ public class BlobServerGetTest {
 			try {
 				byte[] remainder = new byte[data.length - 2*receiveBuffer.length];
 				BlobUtils.readFully(is, remainder, 0, remainder.length, null);
-				fail();
+				// we tolerate that this succeeds, as the receiver socket may have buffered
+				// everything already
 			}
 			catch (IOException e) {
 				// expected
