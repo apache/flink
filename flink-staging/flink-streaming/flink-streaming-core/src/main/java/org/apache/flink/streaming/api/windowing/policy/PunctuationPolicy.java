@@ -113,4 +113,26 @@ public class PunctuationPolicy<IN, DATA> implements CloneableTriggerPolicy<IN>,
 	public PunctuationPolicy<IN, DATA> clone() {
 		return new PunctuationPolicy<IN, DATA>(punctuation, extractor);
 	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof PunctuationPolicy)) {
+			return false;
+		} else {
+			try {
+				@SuppressWarnings("unchecked")
+				PunctuationPolicy<IN, DATA> otherPolicy = (PunctuationPolicy<IN, DATA>) other;
+				if (extractor != null) {
+					return extractor.getClass() == otherPolicy.extractor.getClass()
+							&& punctuation.equals(otherPolicy.punctuation);
+				} else {
+					return punctuation.equals(otherPolicy.punctuation)
+							&& otherPolicy.extractor == null;
+				}
+
+			} catch (Exception e) {
+				return false;
+			}
+		}
+	}
 }

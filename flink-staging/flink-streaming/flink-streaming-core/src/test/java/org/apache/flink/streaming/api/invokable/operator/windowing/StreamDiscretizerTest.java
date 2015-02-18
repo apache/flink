@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
@@ -75,11 +76,15 @@ public class StreamDiscretizerTest {
 
 		EvictionPolicy<Integer> eviction = new TimeEvictionPolicy<Integer>(4L,
 				new TimestampWrapper<Integer>(myTimeStamp, 1));
+		
+		
 
-		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction,
-				new BasicWindowBuffer<Integer>());
+		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction);
+		WindowBufferInvokable<Integer> buffer = new WindowBufferInvokable<Integer>(new BasicWindowBuffer<Integer>());
 
-		List<StreamWindow<Integer>> result = MockContext.createAndExecute(discretizer, inputs);
+		List<WindowEvent<Integer>> bufferEvents = MockContext.createAndExecute(discretizer, inputs);
+		List<StreamWindow<Integer>> result = MockContext.createAndExecute(buffer, bufferEvents);
+		
 		assertEquals(expected, result);
 	}
 
@@ -102,10 +107,11 @@ public class StreamDiscretizerTest {
 
 		EvictionPolicy<Integer> eviction = new TumblingEvictionPolicy<Integer>();
 
-		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction,
-				new BasicWindowBuffer<Integer>());
+		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction);
+		WindowBufferInvokable<Integer> buffer = new WindowBufferInvokable<Integer>(new BasicWindowBuffer<Integer>());
 
-		List<StreamWindow<Integer>> result = MockContext.createAndExecute(discretizer, inputs);
+		List<WindowEvent<Integer>> bufferEvents = MockContext.createAndExecute(discretizer, inputs);
+		List<StreamWindow<Integer>> result = MockContext.createAndExecute(buffer, bufferEvents);
 		assertEquals(expected, result);
 	}
 }

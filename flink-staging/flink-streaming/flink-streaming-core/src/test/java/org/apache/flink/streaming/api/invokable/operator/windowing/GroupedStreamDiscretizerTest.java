@@ -27,6 +27,7 @@ import java.util.Set;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
@@ -84,9 +85,15 @@ public class GroupedStreamDiscretizerTest {
 		CloneableEvictionPolicy<Integer> eviction = new TumblingEvictionPolicy<Integer>();
 
 		GroupedStreamDiscretizer<Integer> discretizer = new GroupedStreamDiscretizer<Integer>(
-				keySelector, trigger, eviction, new BasicWindowBuffer<Integer>());
+				keySelector, trigger, eviction);
 
-		List<StreamWindow<Integer>> result = MockContext.createAndExecute(discretizer, inputs);
+		WindowBufferInvokable<Integer> buffer = new GroupedWindowBufferInvokable<Integer>(
+				new BasicWindowBuffer<Integer>(), keySelector);
+
+		List<WindowEvent<Integer>> bufferEvents = MockContext.createAndExecute(discretizer,
+				inputs);
+		List<StreamWindow<Integer>> result = MockContext.createAndExecute(buffer, bufferEvents);
+
 		assertEquals(expected, new HashSet<StreamWindow<Integer>>(result));
 
 	}

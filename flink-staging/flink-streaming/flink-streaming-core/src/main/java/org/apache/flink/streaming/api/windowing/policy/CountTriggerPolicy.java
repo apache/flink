@@ -34,6 +34,7 @@ public class CountTriggerPolicy<IN> implements CloneableTriggerPolicy<IN> {
 
 	private int counter;
 	private int max;
+	private int startValue;
 
 	/**
 	 * This constructor will set up a count based trigger, which triggers after
@@ -64,6 +65,7 @@ public class CountTriggerPolicy<IN> implements CloneableTriggerPolicy<IN> {
 	public CountTriggerPolicy(int max, int startValue) {
 		this.max = max;
 		this.counter = startValue;
+		this.startValue = startValue;
 	}
 
 	@Override
@@ -83,5 +85,20 @@ public class CountTriggerPolicy<IN> implements CloneableTriggerPolicy<IN> {
 	@Override
 	public CountTriggerPolicy<IN> clone() {
 		return new CountTriggerPolicy<IN>(max, counter);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof CountTriggerPolicy)) {
+			return false;
+		} else {
+			try {
+				@SuppressWarnings("unchecked")
+				CountTriggerPolicy<IN> otherPolicy = (CountTriggerPolicy<IN>) other;
+				return max == otherPolicy.max && startValue == otherPolicy.startValue;
+			} catch (ClassCastException e) {
+				return false;
+			}
+		}
 	}
 }

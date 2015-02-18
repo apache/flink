@@ -197,4 +197,20 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		return new TimeTriggerPolicy<DATA>(granularity, timestampWrapper, delay);
 	}
 
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof TimeTriggerPolicy)) {
+			return false;
+		} else {
+			try {
+				@SuppressWarnings("unchecked")
+				TimeTriggerPolicy<DATA> otherPolicy = (TimeTriggerPolicy<DATA>) other;
+				return startTime == otherPolicy.startTime && granularity == otherPolicy.granularity
+						&& timestampWrapper.equals(otherPolicy.timestampWrapper);
+			} catch (ClassCastException e) {
+				return false;
+			}
+		}
+	}
+
 }

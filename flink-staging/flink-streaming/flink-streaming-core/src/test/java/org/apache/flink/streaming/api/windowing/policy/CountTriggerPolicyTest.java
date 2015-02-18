@@ -17,7 +17,9 @@
 
 package org.apache.flink.streaming.api.windowing.policy;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
@@ -38,8 +40,8 @@ public class CountTriggerPolicyTest {
 		// Test count of different sizes (0..9)
 		for (int i = 0; i < 10; i++) {
 			TriggerPolicy triggerPolicy = Count.of(i).toTrigger();
-			counter=0;
-			
+			counter = 0;
+
 			// Test first i steps (should not trigger)
 			for (int j = 0; j < i; j++) {
 				counter++;
@@ -90,5 +92,18 @@ public class CountTriggerPolicyTest {
 						triggerPolicy.notifyTrigger(tuples.get(0)));
 			}
 		}
+	}
+
+	@Test
+	public void equalityTest() {
+		assertEquals(new CountTriggerPolicy<Integer>(5, 5), new CountTriggerPolicy<Integer>(5, 5));
+
+		assertEquals(new CountTriggerPolicy<Integer>(5, 5), new CountTriggerPolicy<Integer>(5, 5));
+		assertEquals(new CountTriggerPolicy<Integer>(5), new CountTriggerPolicy<Integer>(5));
+
+		assertNotEquals(new CountTriggerPolicy<Integer>(4, 5),
+				new CountTriggerPolicy<Integer>(5, 5));
+		assertNotEquals(new CountTriggerPolicy<Integer>(5, 5),
+				new CountTriggerPolicy<Integer>(5, 4));
 	}
 }

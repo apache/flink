@@ -21,9 +21,9 @@ package org.apache.flink.streaming.api.windowing;
 import java.io.IOException;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -32,11 +32,10 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 	private static final long serialVersionUID = 1L;
 
 	private final TypeSerializer<T> typeSerializer;
-	TypeSerializer<Integer> intSerializer;
+	TypeSerializer<Integer> intSerializer = IntSerializer.INSTANCE;
 
 	public StreamWindowSerializer(TypeInformation<T> typeInfo, ExecutionConfig conf) {
 		this.typeSerializer = typeInfo.createSerializer(conf);
-		this.intSerializer = BasicTypeInfo.INT_TYPE_INFO.createSerializer(conf);
 	}
 
 	public TypeSerializer<T> getObjectSerializer() {
@@ -124,7 +123,7 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		// Needs to be implemented
+		serialize(deserialize(source), target);
 	}
 
 	@Override

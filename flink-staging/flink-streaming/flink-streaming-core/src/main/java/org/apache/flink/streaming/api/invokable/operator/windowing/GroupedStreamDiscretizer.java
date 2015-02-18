@@ -22,7 +22,6 @@ import java.util.Map;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
@@ -35,7 +34,7 @@ import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
  * transformed in the next stages. </p> To allow pre-aggregations supply an
  * appropriate {@link WindowBuffer}
  */
-public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>> {
+public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 
 	private static final long serialVersionUID = -3469545957144404137L;
 
@@ -43,15 +42,13 @@ public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWind
 	protected Configuration parameters;
 	protected CloneableTriggerPolicy<IN> triggerPolicy;
 	protected CloneableEvictionPolicy<IN> evictionPolicy;
-	protected WindowBuffer<IN> windowBuffer;
 
 	protected Map<Object, StreamDiscretizer<IN>> groupedDiscretizers;
 
 	public GroupedStreamDiscretizer(KeySelector<IN, ?> keySelector,
-			CloneableTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy,
-			WindowBuffer<IN> windowBuffer) {
+			CloneableTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy) {
 
-		super(null);
+		super(triggerPolicy, evictionPolicy);
 
 		this.keySelector = keySelector;
 
@@ -59,8 +56,6 @@ public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWind
 		this.evictionPolicy = evictionPolicy;
 
 		this.groupedDiscretizers = new HashMap<Object, StreamDiscretizer<IN>>();
-		this.windowBuffer = windowBuffer;
-
 	}
 
 	@Override
@@ -103,12 +98,31 @@ public class GroupedStreamDiscretizer<IN> extends StreamInvokable<IN, StreamWind
 	protected StreamDiscretizer<IN> makeNewGroup(Object key) throws Exception {
 
 		StreamDiscretizer<IN> groupDiscretizer = new StreamDiscretizer<IN>(triggerPolicy.clone(),
-				evictionPolicy.clone(), windowBuffer.clone());
+				evictionPolicy.clone());
 
 		groupDiscretizer.collector = taskContext.getOutputCollector();
 		groupDiscretizer.open(this.parameters);
 
 		return groupDiscretizer;
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof GroupedStreamDiscretizer)) {
+			return false;
+		} else {
+			try {
+				@SuppressWarnings("unchecked")
+				GroupedStreamDiscretizer<IN> otherDiscretizer = (GroupedStreamDiscretizer<IN>) other;
+
+				return triggerPolicy.equals(otherDiscretizer.triggerPolicy)
+						&& evictionPolicy.equals(otherDiscretizer.evictionPolicy)
+						&& keySelector.equals(otherDiscretizer.keySelector);
+
+			} catch (ClassCastException e) {
+				return false;
+			}
+		}
 	}
 
 }

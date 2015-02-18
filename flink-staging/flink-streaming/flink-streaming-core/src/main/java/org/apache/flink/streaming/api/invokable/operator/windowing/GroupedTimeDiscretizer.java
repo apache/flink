@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.invokable.operator.windowing;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
-import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
 /**
  * A specialized {@link GroupedStreamDiscretizer} to be used with time only
@@ -34,10 +33,8 @@ public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 	private Thread policyThread;
 
 	public GroupedTimeDiscretizer(KeySelector<IN, ?> keySelector,
-			TimeTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy,
-			WindowBuffer<IN> windowBuffer) {
-
-		super(keySelector, triggerPolicy, evictionPolicy, windowBuffer);
+			TimeTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy) {
+		super(keySelector, triggerPolicy, evictionPolicy);
 		this.timeTriggerPolicy = triggerPolicy;
 	}
 
@@ -45,7 +42,7 @@ public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 	protected StreamDiscretizer<IN> makeNewGroup(Object key) throws Exception {
 
 		StreamDiscretizer<IN> groupDiscretizer = new StreamDiscretizer<IN>(triggerPolicy.clone(),
-				evictionPolicy.clone(), windowBuffer.clone());
+				evictionPolicy.clone());
 
 		groupDiscretizer.collector = taskContext.getOutputCollector();
 		// We omit the groupDiscretizer.open(...) call here to avoid starting

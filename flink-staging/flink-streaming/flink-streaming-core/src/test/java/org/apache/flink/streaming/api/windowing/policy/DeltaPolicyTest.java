@@ -34,15 +34,13 @@ public class DeltaPolicyTest {
 	public void testDelta() {
 		DeltaPolicy deltaPolicy = new DeltaPolicy(new DeltaFunction<Tuple2<Integer, Integer>>() {
 			@Override
-			public double getDelta(Tuple2<Integer, Integer> oldDataPoint, Tuple2<Integer, Integer> newDataPoint) {
+			public double getDelta(Tuple2<Integer, Integer> oldDataPoint,
+					Tuple2<Integer, Integer> newDataPoint) {
 				return (double) newDataPoint.f0 - oldDataPoint.f0;
 			}
 		}, new Tuple2(0, 0), 2);
 
-		List<Tuple2> tuples = Arrays.asList(
-				new Tuple2(1, 0),
-				new Tuple2(2, 0),
-				new Tuple2(3, 0),
+		List<Tuple2> tuples = Arrays.asList(new Tuple2(1, 0), new Tuple2(2, 0), new Tuple2(3, 0),
 				new Tuple2(6, 0));
 
 		assertFalse(deltaPolicy.notifyTrigger(tuples.get(0)));
@@ -58,5 +56,30 @@ public class DeltaPolicyTest {
 		assertEquals(2, deltaPolicy.notifyEviction(tuples.get(3), true, 2));
 	}
 
+	@Test
+	public void testEquality() {
 
+		DeltaFunction<Tuple2<Integer, Integer>> df = new DeltaFunction<Tuple2<Integer, Integer>>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public double getDelta(Tuple2<Integer, Integer> oldDataPoint,
+					Tuple2<Integer, Integer> newDataPoint) {
+				return (double) newDataPoint.f0 - oldDataPoint.f0;
+			}
+		};
+
+		assertEquals(new DeltaPolicy<Tuple2<Integer, Integer>>(df, new Tuple2<Integer, Integer>(0,
+				0), 2), new DeltaPolicy<Tuple2<Integer, Integer>>(df, new Tuple2<Integer, Integer>(
+				0, 0), 2));
+
+		assertNotEquals(new DeltaPolicy<Tuple2<Integer, Integer>>(df, new Tuple2<Integer, Integer>(
+				0, 1), 2), new DeltaPolicy<Tuple2<Integer, Integer>>(df,
+				new Tuple2<Integer, Integer>(0, 0), 2));
+		
+		assertNotEquals(new DeltaPolicy<Tuple2<Integer, Integer>>(df, new Tuple2<Integer, Integer>(0,
+				0), 2), new DeltaPolicy<Tuple2<Integer, Integer>>(df, new Tuple2<Integer, Integer>(
+				0, 0), 3));
+
+	}
 }

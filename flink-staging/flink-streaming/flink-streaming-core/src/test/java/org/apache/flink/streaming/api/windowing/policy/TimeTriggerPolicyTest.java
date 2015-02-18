@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.windowing.policy;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -72,6 +73,44 @@ public class TimeTriggerPolicyTest {
 			}
 		}
 
+	}
+
+	@Test
+	public void equalsTest() {
+
+		@SuppressWarnings("serial")
+		Timestamp<Integer> timeStamp = new Timestamp<Integer>() {
+
+			@Override
+			public long getTimestamp(Integer value) {
+				return value;
+			}
+
+		};
+
+		@SuppressWarnings("serial")
+		Timestamp<Integer> timeStamp2 = new Timestamp<Integer>() {
+
+			@Override
+			public long getTimestamp(Integer value) {
+				return value;
+			}
+
+		};
+
+		assertEquals(
+				new TimeTriggerPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp, 0)),
+				new TimeTriggerPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp, 0)));
+
+		assertNotEquals(new TimeTriggerPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp,
+				0)),
+				new TimeTriggerPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp2, 0)));
+
+		assertNotEquals(new TimeTriggerPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp,
+				0)), new TimeTriggerPolicy<Integer>(2, new TimestampWrapper<Integer>(timeStamp, 0)));
+
+		assertNotEquals(new TimeTriggerPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp,
+				0)), new TimeTriggerPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp, 3)));
 	}
 
 	@Test

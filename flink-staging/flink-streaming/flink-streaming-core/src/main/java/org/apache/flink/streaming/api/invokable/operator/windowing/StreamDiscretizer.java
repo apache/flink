@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.policy.ActiveEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerCallback;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerPolicy;
@@ -32,7 +33,7 @@ import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
  * {@link StreamWindow} that will be further transformed in the next stages.
  * </p> To allow pre-aggregations supply an appropriate {@link WindowBuffer}
  */
-public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>> {
+public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> {
 
 	/**
 	 * Auto-generated serial version UID
@@ -44,12 +45,11 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 	private boolean isActiveTrigger;
 	private boolean isActiveEviction;
 	private Thread activePolicyThread;
-	public int emptyCount = 0;
+	private int bufferSize = 0;
 
-	protected WindowBuffer<IN> bufferHandler;
+	protected WindowEvent<IN> windowEvent = new WindowEvent<IN>();
 
-	public StreamDiscretizer(TriggerPolicy<IN> triggerPolicy, EvictionPolicy<IN> evictionPolicy,
-			WindowBuffer<IN> bufferHandler) {
+	public StreamDiscretizer(TriggerPolicy<IN> triggerPolicy, EvictionPolicy<IN> evictionPolicy) {
 		super(null);
 
 		this.triggerPolicy = triggerPolicy;
@@ -57,8 +57,14 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 
 		this.isActiveTrigger = triggerPolicy instanceof ActiveTriggerPolicy;
 		this.isActiveEviction = evictionPolicy instanceof ActiveEvictionPolicy;
+	}
 
-		this.bufferHandler = bufferHandler;
+	public TriggerPolicy<IN> getTrigger() {
+		return triggerPolicy;
+	}
+
+	public EvictionPolicy<IN> getEviction() {
+		return evictionPolicy;
 	}
 
 	@Override
@@ -105,7 +111,8 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 
 		evict(input, isTriggered);
 
-		bufferHandler.store(input);
+		collector.collect(windowEvent.setElement(input));
+		bufferSize++;
 
 	}
 
@@ -132,11 +139,7 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 	 * if not empty
 	 */
 	protected void emitWindow() {
-		if (bufferHandler.emitWindow(collector)) {
-			emptyCount = 0;
-		} else {
-			emptyCount++;
-		}
+		collector.collect(windowEvent.setTrigger());
 	}
 
 	private void activeEvict(Object input) {
@@ -144,16 +147,24 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 
 		if (isActiveEviction) {
 			ActiveEvictionPolicy<IN> ep = (ActiveEvictionPolicy<IN>) evictionPolicy;
-			numToEvict = ep.notifyEvictionWithFakeElement(input, bufferHandler.size());
+			numToEvict = ep.notifyEvictionWithFakeElement(input, bufferSize);
 		}
 
-		bufferHandler.evict(numToEvict);
+		if (numToEvict > 0) {
+			collector.collect(windowEvent.setEviction(numToEvict));
+			bufferSize -= numToEvict;
+			bufferSize = bufferSize >= 0 ? bufferSize : 0;
+		}
 	}
 
 	private void evict(IN input, boolean isTriggered) {
-		int numToEvict = evictionPolicy.notifyEviction(input, isTriggered, bufferHandler.size());
+		int numToEvict = evictionPolicy.notifyEviction(input, isTriggered, bufferSize);
 
-		bufferHandler.evict(numToEvict);
+		if (numToEvict > 0) {
+			collector.collect(windowEvent.setEviction(numToEvict));
+			bufferSize -= numToEvict;
+			bufferSize = bufferSize >= 0 ? bufferSize : 0;
+		}
 	}
 
 	@Override
@@ -171,11 +182,6 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 		}
 	}
 
-	@Override
-	public String toString() {
-		return bufferHandler.toString();
-	}
-
 	/**
 	 * This class allows the active trigger thread to call back and push fake
 	 * elements at any time.
@@ -189,4 +195,22 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, StreamWindow<IN>>
 
 	}
 
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof StreamDiscretizer)
+				|| (other instanceof GroupedStreamDiscretizer)) {
+			return false;
+		} else {
+			try {
+				@SuppressWarnings("unchecked")
+				StreamDiscretizer<IN> otherDiscretizer = (StreamDiscretizer<IN>) other;
+
+				return triggerPolicy.equals(otherDiscretizer.triggerPolicy)
+						&& evictionPolicy.equals(otherDiscretizer.evictionPolicy);
+
+			} catch (ClassCastException e) {
+				return false;
+			}
+		}
+	}
 }

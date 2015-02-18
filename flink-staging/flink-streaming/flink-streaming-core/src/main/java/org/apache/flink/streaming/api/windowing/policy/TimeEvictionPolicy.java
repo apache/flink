@@ -134,4 +134,20 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 		return new TimeEvictionPolicy<DATA>(granularity, timestampWrapper);
 	}
 
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof TimeEvictionPolicy)) {
+			return false;
+		} else {
+			try {
+				@SuppressWarnings("unchecked")
+				TimeEvictionPolicy<DATA> otherPolicy = (TimeEvictionPolicy<DATA>) other;
+				return granularity == otherPolicy.granularity
+						&& timestampWrapper.equals(otherPolicy.timestampWrapper);
+			} catch (ClassCastException e) {
+				return false;
+			}
+		}
+	}
+
 }

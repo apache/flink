@@ -22,10 +22,12 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.function.RichWindowMapFunction;
 import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
@@ -35,9 +37,12 @@ import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedStreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedTimeDiscretizer;
+import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedWindowBufferInvokable;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
+import org.apache.flink.streaming.api.invokable.operator.windowing.WindowBufferInvokable;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.StreamWindowTypeInfo;
+import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
@@ -316,14 +321,23 @@ public class WindowedDataStream<OUT> {
 	private DiscretizedStream<OUT> discretize(WindowTransformation transformation,
 			WindowBuffer<OUT> windowBuffer) {
 
-		StreamInvokable<OUT, StreamWindow<OUT>> discretizer = getDiscretizer(transformation,
-				windowBuffer, getTrigger(), getEviction(), discretizerKey);
+		StreamInvokable<OUT, WindowEvent<OUT>> discretizer = getDiscretizer(getTrigger(),
+				getEviction(), discretizerKey);
+
+		StreamInvokable<WindowEvent<OUT>, StreamWindow<OUT>> bufferInvokable = getBufferInvokable(
+				windowBuffer, discretizerKey);
+
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		TypeInformation<WindowEvent<OUT>> bufferEventType = new TupleTypeInfo(WindowEvent.class,
+				getType(), BasicTypeInfo.INT_TYPE_INFO);
 
 		int parallelism = getDiscretizerParallelism();
 
-		return new DiscretizedStream<OUT>(dataStream.transform("Stream Discretizer",
-				new StreamWindowTypeInfo<OUT>(getType()), discretizer).setParallelism(parallelism),
-				groupByKey, transformation);
+		return new DiscretizedStream<OUT>(dataStream
+				.transform("Stream Discretizer", bufferEventType, discretizer)
+				.setParallelism(parallelism)
+				.transform("WindowBuffer", new StreamWindowTypeInfo<OUT>(getType()),
+						bufferInvokable).setParallelism(parallelism), groupByKey, transformation);
 
 	}
 
@@ -332,24 +346,31 @@ public class WindowedDataStream<OUT> {
 				.getDegreeOfParallelism() : 1;
 	}
 
-	private StreamInvokable<OUT, StreamWindow<OUT>> getDiscretizer(
-			WindowTransformation transformation, WindowBuffer<OUT> windowBuffer,
-			TriggerPolicy<OUT> trigger, EvictionPolicy<OUT> eviction,
-			KeySelector<OUT, ?> discretizerKey) {
+	private StreamInvokable<OUT, WindowEvent<OUT>> getDiscretizer(TriggerPolicy<OUT> trigger,
+			EvictionPolicy<OUT> eviction, KeySelector<OUT, ?> discretizerKey) {
 
 		if (discretizerKey == null) {
-			return new StreamDiscretizer<OUT>(trigger, eviction, windowBuffer);
+			return new StreamDiscretizer<OUT>(trigger, eviction);
 		} else if (trigger instanceof TimeTriggerPolicy
 				&& ((TimeTriggerPolicy<OUT>) trigger).timestampWrapper.isDefaultTimestamp()) {
 			return new GroupedTimeDiscretizer<OUT>(discretizerKey,
-					(TimeTriggerPolicy<OUT>) trigger, (CloneableEvictionPolicy<OUT>) eviction,
-					windowBuffer);
-		} else {
-			return new GroupedStreamDiscretizer<OUT>(discretizerKey,
-					(CloneableTriggerPolicy<OUT>) trigger, (CloneableEvictionPolicy<OUT>) eviction,
-					windowBuffer);
+					(TimeTriggerPolicy<OUT>) trigger, (CloneableEvictionPolicy<OUT>) eviction);
 		}
 
+		else {
+			return new GroupedStreamDiscretizer<OUT>(discretizerKey,
+					(CloneableTriggerPolicy<OUT>) trigger, (CloneableEvictionPolicy<OUT>) eviction);
+		}
+
+	}
+
+	private StreamInvokable<WindowEvent<OUT>, StreamWindow<OUT>> getBufferInvokable(
+			WindowBuffer<OUT> windowBuffer, KeySelector<OUT, ?> discretizerKey) {
+		if (discretizerKey == null) {
+			return new WindowBufferInvokable<OUT>(windowBuffer);
+		} else {
+			return new GroupedWindowBufferInvokable<OUT>(windowBuffer, discretizerKey);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
