@@ -21,27 +21,32 @@ package org.apache.flink.runtime.blob;
 import java.io.IOException;
 import java.net.URL;
 
+/**
+ * A simple store and retrieve binary large objects (BLOBs).
+ */
 public interface BlobService {
+
 	/**
 	 * This method returns the URL of the file associated with the provided blob key.
 	 *
-	 * @param requiredBlob blob key associated with the requested file
-	 * @return URL of the file
+	 * @param key blob key associated with the requested file
+	 * @return The URL to the file.
 	 * @throws IOException
 	 */
-	URL getURL(final BlobKey requiredBlob) throws IOException;
+	URL getURL(BlobKey key) throws IOException;
+
 
 	/**
 	 * This method deletes the file associated with the provided blob key.
 	 *
-	 * @param blobKey associated with the file to be deleted
+	 * @param key associated with the file to be deleted
 	 * @throws IOException
 	 */
-	void delete(final BlobKey blobKey) throws IOException;
+	void delete(BlobKey key) throws IOException;
 
 	/**
-	 * Returns the port of the blob service
-	 * @return the port of the blob service
+	 * Returns the port of the blob service.
+	 * @return the port of the blob service.
 	 */
 	int getPort();
 
