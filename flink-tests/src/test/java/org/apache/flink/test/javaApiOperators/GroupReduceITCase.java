@@ -565,6 +565,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<Integer,CrazyNested, POJO>> ds = CollectionDataSets.getTupleContainingPojos(env);
+
 		DataSet<Integer> reduceDs = ds.groupBy("f0", "f1.*") // nested full tuple selection
 				.reduceGroup(new GroupReducer4());
 
@@ -917,6 +918,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		env.setDegreeOfParallelism(1);
 
 		DataSet<CollectionDataSets.PojoWithMultiplePojos> ds = CollectionDataSets.getPojoWithMultiplePojos(env);
+
 		// f0.f0 is first integer
 		DataSet<String> reduceDs = ds.groupBy("p2.a2")
 				.reduceGroup(new GroupReducer6());
@@ -983,6 +985,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		env.setDegreeOfParallelism(1);
 
 		DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithCollection(env);
+
 		// f0.f0 is first integer
 		DataSet<String> reduceDs = ds.groupBy("bigInt")
 				.reduceGroup(new GroupReducer8());

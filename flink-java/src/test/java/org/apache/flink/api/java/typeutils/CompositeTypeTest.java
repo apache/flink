@@ -31,6 +31,7 @@ public class CompositeTypeTest {
 	private final TupleTypeInfo<?> tupleTypeInfo = new TupleTypeInfo<Tuple4<Integer, Integer, Integer, Integer>>(
 			BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 
+
 	private final TupleTypeInfo<Tuple3<Integer, String, Long>> inNestedTuple1 = new TupleTypeInfo<Tuple3<Integer, String, Long>>(
 			BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
 
@@ -59,7 +60,6 @@ public class CompositeTypeTest {
 
 	@Test
 	public void testGetFlatFields() {
-
 		assertEquals(0, tupleTypeInfo.getFlatFields("0").get(0).getPosition());
 		assertEquals(1, tupleTypeInfo.getFlatFields("1").get(0).getPosition());
 		assertEquals(2, tupleTypeInfo.getFlatFields("2").get(0).getPosition());

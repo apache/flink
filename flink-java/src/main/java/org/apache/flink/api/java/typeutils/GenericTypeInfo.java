@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
+
 public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
 	private static final long serialVersionUID = -7959114120287706504L;
@@ -107,4 +108,7 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 	public String toString() {
 		return "GenericType<" + typeClass.getCanonicalName() + ">";
 	}
+
+
+
 }

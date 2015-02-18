@@ -38,6 +38,7 @@ import org.joda.time.Interval;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -75,6 +76,9 @@ public class Serializers {
 
 		Field[] fields = type.getDeclaredFields();
 		for(Field field : fields) {
+			if(Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
+				continue;
+			}
 			Type fieldType = field.getGenericType();
 			if(fieldType instanceof ParameterizedType) { // field has generics
 				ParameterizedType parameterizedFieldType = (ParameterizedType) fieldType;

@@ -18,10 +18,13 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.List;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -112,4 +115,49 @@ public class Utils {
 		}
 	}
 
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Debugging utility to understand the hierarchy of serializers created by the Java API.
+	 * Tested in GroupReduceITCase.testGroupByGenericType()
+	 */
+	public static <T> String getSerializerTree(TypeInformation<T> ti) {
+		return getSerializerTree(ti, 0);
+	}
+
+	private static <T> String getSerializerTree(TypeInformation<T> ti, int indent) {
+		String ret = "";
+		if(ti instanceof CompositeType) {
+			ret += StringUtils.repeat(' ', indent) + ti.getClass().getSimpleName()+"\n";
+			CompositeType<T> cti = (CompositeType<T>) ti;
+			String[] fieldNames = cti.getFieldNames();
+			for(int i = 0; i < cti.getArity(); i++) {
+				TypeInformation fieldType = cti.getTypeAt(i);
+				ret += StringUtils.repeat(' ', indent + 2) + fieldNames[i]+":"+getSerializerTree(fieldType, indent);
+			}
+		} else {
+			if(ti instanceof GenericTypeInfo) {
+				ret += StringUtils.repeat(' ', indent) + "GenericTypeInfo ("+ti.getTypeClass().getSimpleName()+")\n";
+				ret += getGenericTypeTree(ti.getTypeClass(), indent + 4);
+			} else {
+				ret += StringUtils.repeat(' ', indent) + ti.toString()+"\n";
+			}
+		}
+		return ret;
+	}
+
+	private static String getGenericTypeTree(Class type, int indent) {
+		String ret = "";
+		for(Field field : type.getDeclaredFields()) {
+			if(Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers())) {
+				continue;
+			}
+			ret += StringUtils.repeat(' ', indent) + field.getName() + ":" + field.getType().getName() + (field.getType().isEnum() ? " (is enum)" : "") + "\n";
+			if(!field.getType().isPrimitive()) {
+				ret += getGenericTypeTree(field.getType(), indent + 4);
+			}
+		}
+		return ret;
+	}
 }
