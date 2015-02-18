@@ -470,7 +470,7 @@ class TupleGenerator {
 			appendTupleTypeGenerics(sb, numFields);
 			sb.append(">> inputFormat = new CsvInputFormat<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(path);\n");
+			sb.append(">>(path, types);\n");
 
 			// configure input format
 			sb.append("\t\tconfigureInputFormat(inputFormat, ");

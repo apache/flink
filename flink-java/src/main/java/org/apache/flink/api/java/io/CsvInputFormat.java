@@ -19,15 +19,12 @@
 package org.apache.flink.api.java.io;
 
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
-import java.util.Map;
-import java.util.TreeMap;
-
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.io.GenericCsvInputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
@@ -35,11 +32,12 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.Arrays;
 
 
-public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT> {
+public class CsvInputFormat<OUT> extends GenericCsvInputFormat<OUT> {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -49,106 +47,90 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 	private static final Logger LOG = LoggerFactory.getLogger(CsvInputFormat.class);
 	
 	public static final String DEFAULT_LINE_DELIMITER = "\n";
-	
+
 	public static final String DEFAULT_FIELD_DELIMITER = ",";
 
-
 	private transient Object[] parsedValues;
-	
-	private byte[] commentPrefix = null;
-	
-	// To speed up readRecord processing. Used to find windows line endings.
-	// It is set when open so that readRecord does not have to evaluate it
-	private boolean lineDelimiterIsLinebreak = false;
-	
-	private transient int commentCount;
 
-	private transient int invalidLineCount;
+	private Class<OUT> pojoTypeClass = null;
+	private String[] pojoFieldsName = null;
+	private transient Field[] pojoFields = null;
+	private transient PojoTypeInfo<OUT> pojoTypeInfo = null;
+
+	public CsvInputFormat(Path filePath, TypeInformation<OUT> typeInformation) {
+		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, typeInformation);
+	}
 	
-	
-	public CsvInputFormat(Path filePath) {
+	public CsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, TypeInformation<OUT> typeInformation) {
 		super(filePath);
-	}	
-	
-	public CsvInputFormat(Path filePath, Class<?> ... types) {
-		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, types);
-	}	
-	
-	public CsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, Class<?>... types) {
-		super(filePath);
+
+		Preconditions.checkArgument(typeInformation instanceof CompositeType);
+		CompositeType<OUT> compositeType = (CompositeType<OUT>) typeInformation;
 
 		setDelimiter(lineDelimiter);
 		setFieldDelimiter(fieldDelimiter);
 
-		setFieldTypes(types);
-	}
-	
-	
-	public byte[] getCommentPrefix() {
-		return commentPrefix;
-	}
-	
-	public void setCommentPrefix(byte[] commentPrefix) {
-		this.commentPrefix = commentPrefix;
-	}
-	
-	public void setCommentPrefix(char commentPrefix) {
-		setCommentPrefix(String.valueOf(commentPrefix));
-	}
-	
-	public void setCommentPrefix(String commentPrefix) {
-		setCommentPrefix(commentPrefix, Charsets.UTF_8);
-	}
-	
-	public void setCommentPrefix(String commentPrefix, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
-		if (charsetName == null) {
-			throw new IllegalArgumentException("Charset name must not be null");
+		Class<?>[] classes = new Class<?>[typeInformation.getArity()];
+		for (int i = 0, arity = typeInformation.getArity(); i < arity; i++) {
+			classes[i] = compositeType.getTypeAt(i).getTypeClass();
 		}
-		
-		if (commentPrefix != null) {
-			Charset charset = Charset.forName(charsetName);
-			setCommentPrefix(commentPrefix, charset);
-		} else {
-			this.commentPrefix = null;
+		setFieldTypes(classes);
+
+		if (typeInformation instanceof PojoTypeInfo) {
+			pojoTypeInfo = (PojoTypeInfo<OUT>) typeInformation;
+			pojoTypeClass = typeInformation.getTypeClass();
+			pojoFieldsName = compositeType.getFieldNames();
+			setOrderOfPOJOFields(pojoFieldsName);
 		}
 	}
-	
-	public void setCommentPrefix(String commentPrefix, Charset charset) {
-		if (charset == null) {
-			throw new IllegalArgumentException("Charset must not be null");
+
+	public void setOrderOfPOJOFields(String[] fieldsOrder) {
+		Preconditions.checkNotNull(pojoTypeClass, "Field order can only be specified if output type is a POJO.");
+		Preconditions.checkNotNull(fieldsOrder);
+
+		int includedCount = 0;
+		for (boolean isIncluded : fieldIncluded) {
+			if (isIncluded) {
+				includedCount++;
+			}
 		}
-		if (commentPrefix != null) {
-			this.commentPrefix = commentPrefix.getBytes(charset);
-		} else {
-			this.commentPrefix = null;
+
+		Preconditions.checkArgument(includedCount == fieldsOrder.length, includedCount +
+			" CSV fields and " + fieldsOrder.length + " POJO fields selected. The number of selected CSV and POJO fields must be equal.");
+
+		for (String field : fieldsOrder) {
+			Preconditions.checkNotNull(field, "The field name cannot be null.");
+			Preconditions.checkArgument(pojoTypeInfo.getFieldIndex(field) != -1,
+				"Field \""+ field + "\" is not a member of POJO class " + pojoTypeClass.getName());
 		}
+
+		pojoFieldsName = Arrays.copyOfRange(fieldsOrder, 0, fieldsOrder.length);
 	}
-	
-	
-	public void setFieldTypes(Class<?> ... fieldTypes) {
+
+	public void setFieldTypes(Class<?>... fieldTypes) {
 		if (fieldTypes == null || fieldTypes.length == 0) {
 			throw new IllegalArgumentException("Field types must not be null or empty.");
 		}
-		
+
 		setFieldTypesGeneric(fieldTypes);
 	}
 
 	public void setFields(int[] sourceFieldIndices, Class<?>[] fieldTypes) {
 		Preconditions.checkNotNull(sourceFieldIndices);
 		Preconditions.checkNotNull(fieldTypes);
-		
+
 		checkForMonotonousOrder(sourceFieldIndices, fieldTypes);
-		
+
 		setFieldsGeneric(sourceFieldIndices, fieldTypes);
 	}
-	
+
 	public void setFields(boolean[] sourceFieldMask, Class<?>[] fieldTypes) {
 		Preconditions.checkNotNull(sourceFieldMask);
 		Preconditions.checkNotNull(fieldTypes);
-		
+
 		setFieldsGeneric(sourceFieldMask, fieldTypes);
 	}
-	
+
 	public Class<?>[] getFieldTypes() {
 		return super.getGenericFieldTypes();
 	}
@@ -176,25 +158,22 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 		if (this.getDelimiter().length == 1 && this.getDelimiter()[0] == '\n' ) {
 			this.lineDelimiterIsLinebreak = true;
 		}
+
+		// for POJO type
+		if (pojoTypeClass != null) {
+			pojoFields = new Field[pojoFieldsName.length];
+			for (int i = 0; i < pojoFieldsName.length; i++) {
+				try {
+					pojoFields[i] = pojoTypeClass.getDeclaredField(pojoFieldsName[i]);
+					pojoFields[i].setAccessible(true);
+				} catch (NoSuchFieldException e) {
+					throw new RuntimeException("There is no field called \"" + pojoFieldsName[i] + "\" in " + pojoTypeClass.getName(), e);
+				}
+			}
+		}
 		
 		this.commentCount = 0;
 		this.invalidLineCount = 0;
-	}
-	
-	@Override
-	public void close() throws IOException {
-		if (this.invalidLineCount > 0) {
-			if (LOG.isWarnEnabled()) {
-					LOG.warn("In file \""+ this.filePath + "\" (split start: " + this.splitStart + ") " + this.invalidLineCount +" invalid line(s) were skipped.");
-			}
-		}
-		
-		if (this.commentCount > 0) {
-			if (LOG.isInfoEnabled()) {
-				LOG.info("In file \""+ this.filePath + "\" (split start: " + this.splitStart + ") " + this.commentCount +" comment line(s) were skipped.");
-			}
-		}
-		super.close();
 	}
 	
 	@Override
@@ -203,10 +182,10 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 		do {
 			returnRecord = super.nextRecord(record);
 		} while (returnRecord == null && !reachedEnd());
-		
+
 		return returnRecord;
 	}
-
+	
 	@Override
 	public OUT readRecord(OUT reuse, byte[] bytes, int offset, int numBytes) throws IOException {
 		/*
@@ -234,9 +213,21 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 		}
 		
 		if (parseRecord(parsedValues, bytes, offset, numBytes)) {
-			// valid parse, map values into pact record
-			for (int i = 0; i < parsedValues.length; i++) {
-				reuse.setField(parsedValues[i], i);
+			if (pojoTypeClass == null) {
+				// result type is tuple
+				Tuple result = (Tuple) reuse;
+				for (int i = 0; i < parsedValues.length; i++) {
+					result.setField(parsedValues[i], i);
+				}
+			} else {
+				// result type is POJO
+				for (int i = 0; i < parsedValues.length; i++) {
+					try {
+						pojoFields[i].set(reuse, parsedValues[i]);
+					} catch (IllegalAccessException e) {
+						throw new RuntimeException("Parsed value could not be set in POJO field \"" + pojoFieldsName[i] + "\"", e);
+					}
+				}
 			}
 			return reuse;
 		} else {
@@ -251,59 +242,4 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 		return "CSV Input (" + StringUtils.showControlCharacters(String.valueOf(getFieldDelimiter())) + ") " + getFilePath();
 	}
 	
-	// --------------------------------------------------------------------------------------------
-	
-	@SuppressWarnings("unused")
-	private static void checkAndCoSort(int[] positions, Class<?>[] types) {
-		if (positions.length != types.length) {
-			throw new IllegalArgumentException("The positions and types must be of the same length");
-		}
-		
-		TreeMap<Integer, Class<?>> map = new TreeMap<Integer, Class<?>>();
-		
-		for (int i = 0; i < positions.length; i++) {
-			if (positions[i] < 0) {
-				throw new IllegalArgumentException("The field " + " (" + positions[i] + ") is invalid.");
-			}
-			if (types[i] == null) {
-				throw new IllegalArgumentException("The type " + i + " is invalid (null)");
-			}
-			
-			if (map.containsKey(positions[i])) {
-				throw new IllegalArgumentException("The position " + positions[i] + " occurs multiple times.");
-			}
-			
-			map.put(positions[i], types[i]);
-		}
-		
-		int i = 0;
-		for (Map.Entry<Integer, Class<?>> entry : map.entrySet()) {
-			positions[i] = entry.getKey();
-			types[i] = entry.getValue();
-			i++;
-		}
-	}
-	
-	private static void checkForMonotonousOrder(int[] positions, Class<?>[] types) {
-		if (positions.length != types.length) {
-			throw new IllegalArgumentException("The positions and types must be of the same length");
-		}
-		
-		int lastPos = -1;
-		
-		for (int i = 0; i < positions.length; i++) {
-			if (positions[i] < 0) {
-				throw new IllegalArgumentException("The field " + " (" + positions[i] + ") is invalid.");
-			}
-			if (types[i] == null) {
-				throw new IllegalArgumentException("The type " + i + " is invalid (null)");
-			}
-			
-			if (positions[i] <= lastPos) {
-				throw new IllegalArgumentException("The positions must be strictly increasing (no permutations are supported).");
-			}
-			
-			lastPos = positions[i];
-		}
-	}
 }
