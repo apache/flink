@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
 import org.apache.flink.api.java.hadoop.mapreduce.wrapper.HadoopInputSplit;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.WritableTypeInfo;
@@ -50,14 +51,15 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A InputFormat to read from HCatalog tables.
  * The InputFormat supports projection (selection and order of fields) and partition filters.
  *
- * Data can be returned as {@link org.apache.hive.hcatalog.data.HCatRecord} or Flink {@link org.apache.flink.api.java.tuple.Tuple}.
- * Flink Tuples are only supported for primitive type fields
- * (no STRUCT, ARRAY, or MAP data types) and have a size limitation.
+ * Data can be returned as {@link org.apache.hive.hcatalog.data.HCatRecord} or Flink-native tuple.
+ *
+ * Note: Flink tuples might only support a limited number of fields (depending on the API).
  *
  * @param <T>
  */
@@ -82,7 +84,7 @@ public abstract class HCatInputFormatBase<T> implements InputFormat<T, HadoopInp
 	/**
 	 * Creates a HCatInputFormat for the given database and table.
 	 * By default, the InputFormat returns {@link org.apache.hive.hcatalog.data.HCatRecord}.
-	 * The return type of the InputFormat can be changed to Flink {@link org.apache.flink.api.java.tuple.Tuple} by calling
+	 * The return type of the InputFormat can be changed to Flink-native tuples by calling
 	 * {@link HCatInputFormatBase#asFlinkTuples()}.
 	 *
 	 * @param database The name of the database to read from.
@@ -97,7 +99,7 @@ public abstract class HCatInputFormatBase<T> implements InputFormat<T, HadoopInp
 	 * Creates a HCatInputFormat for the given database, table, and
 	 * {@link org.apache.hadoop.conf.Configuration}.
 	 * By default, the InputFormat returns {@link org.apache.hive.hcatalog.data.HCatRecord}.
-	 * The return type of the InputFormat can be changed to Flink {@link org.apache.flink.api.java.tuple.Tuple} by calling
+	 * The return type of the InputFormat can be changed to Flink-native tuples by calling
 	 * {@link HCatInputFormatBase#asFlinkTuples()}.
 	 *
 	 * @param database The name of the database to read from.
@@ -159,15 +161,10 @@ public abstract class HCatInputFormatBase<T> implements InputFormat<T, HadoopInp
 	}
 
 	/**
-	 * Specifies that the InputFormat returns Flink {@link org.apache.flink.api.java.tuple.Tuple}
-	 * instead of {@link org.apache.hive.hcatalog.data.HCatRecord}.
-	 * At the moment, the following restrictions apply for returning Flink tuples:
+	 * Specifies that the InputFormat returns Flink tuples instead of
+	 * {@link org.apache.hive.hcatalog.data.HCatRecord}.
 	 *
-	 * <ul>
-	 *     <li>Only primitive type fields can be returned in Flink Tuples
-	 *          (no STRUCT, MAP, ARRAY data types).</li>
-	 *     <li>Only a limited number of fields can be returned as Flink Tuple.</li>
-	 * </ul>
+	 * Note: Flink tuples might only support a limited number of fields (depending on the API).
 	 *
 	 * @return This InputFormat.
 	 * @throws org.apache.hive.hcatalog.common.HCatException
@@ -222,11 +219,11 @@ public abstract class HCatInputFormatBase<T> implements InputFormat<T, HadoopInp
 			case BINARY:
 				return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
 			case ARRAY:
-				throw new UnsupportedOperationException("ARRAY type is not supported in Flink tuples, yet.");
+				return new GenericTypeInfo(List.class);
 			case MAP:
-				throw new UnsupportedOperationException("MAP type is not supported in Flink tuples, yet.");
+				return new GenericTypeInfo(Map.class);
 			case STRUCT:
-				throw new UnsupportedOperationException("STRUCT type not supported in Flink tuples, yet.");
+				return new GenericTypeInfo(List.class);
 			default:
 				throw new IllegalArgumentException("Unknown data type \""+fieldSchema.getType()+"\" encountered.");
 		}

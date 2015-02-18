@@ -28,10 +28,8 @@ import org.apache.hive.hcatalog.data.schema.HCatFieldSchema
  * A InputFormat to read from HCatalog tables.
  * The InputFormat supports projection (selection and order of fields) and partition filters.
  *
- * Data can be returned as {@link HCatRecord} or
- * Flink {@link org.apache.flink.api.java.tuple.Tuple}.
- * Flink Tuples are only supported for up to 22 fields of primitive types
- * (no STRUCT, ARRAY, or MAP data types).
+ * Data can be returned as {@link HCatRecord} or Scala tuples.
+ * Scala tuples support only up to 22 fields.
  *
  */
 class HCatInputFormat[T](
@@ -121,6 +119,27 @@ class HCatInputFormat[T](
             }
             else {
               vals(i) = o.asInstanceOf[Array[Byte]]
+            }
+          case HCatFieldSchema.Type.ARRAY =>
+            if (o.isInstanceOf[String]) {
+              throw new RuntimeException("Cannot handle partition keys of type ARRAY.")
+            }
+            else {
+              vals(i) = o.asInstanceOf[List[Object]]
+            }
+          case HCatFieldSchema.Type.MAP =>
+            if (o.isInstanceOf[String]) {
+              throw new RuntimeException("Cannot handle partition keys of type MAP.")
+            }
+            else {
+              vals(i) = o.asInstanceOf[Map[Object, Object]]
+            }
+          case HCatFieldSchema.Type.STRUCT =>
+            if (o.isInstanceOf[String]) {
+              throw new RuntimeException("Cannot handle partition keys of type STRUCT.")
+            }
+            else {
+              vals(i) = o.asInstanceOf[List[Object]]
             }
           case _ =>
             throw new RuntimeException("Invalid type " + this.outputSchema.get(i).getType +
