@@ -55,7 +55,7 @@ public class PageRankExample implements ProgramDescription {
 						});
 
 		DataSet<Vertex<Long, Double>> pageRanks = networkWithWeights.run(
-				new PageRank<Long>(numPages, DAMPENING_FACTOR, maxIterations))
+				new PageRank<Long>(DAMPENING_FACTOR, maxIterations))
 				.getVertices();
 
 		pageRanks.print();

@@ -31,12 +31,10 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
 public class PageRank<K extends Comparable<K> & Serializable> implements
 		GraphAlgorithm<K, Double, Double> {
 
-	private long numVertices;
 	private double beta;
 	private int maxIterations;
 
-	public PageRank(long numVertices, double beta, int maxIterations) {
-		this.numVertices = numVertices;
+	public PageRank(double beta, int maxIterations) {
 		this.beta = beta;
 		this.maxIterations = maxIterations;
 	}
@@ -44,8 +42,8 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	@Override
 	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) {
 		VertexCentricIteration<K, Double, Double, Double> iteration = network.createVertexCentricIteration(
-				new VertexRankUpdater<K>(numVertices, beta), new RankMessenger<K>(), maxIterations);
-
+				new VertexRankUpdater<K>(beta), new RankMessenger<K>(), maxIterations);
+		iteration.addBroadcastSetForUpdateFunction("numberOfVertices", network.numberOfVertices());
 		return network.runVertexCentricIteration(iteration);
 	}
 
@@ -57,12 +55,17 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	public static final class VertexRankUpdater<K extends Comparable<K> & Serializable>
 			extends VertexUpdateFunction<K, Double, Double> {
 
-		private final long numVertices;
+		
 		private final double beta;
-
-		public VertexRankUpdater(long numVertices, double beta) {
-			this.numVertices = numVertices;
+		private int numVertices;
+		
+		public VertexRankUpdater(double beta) {
 			this.beta = beta;
+		}
+		
+		@Override
+		public void preSuperstep(){
+			numVertices = (Integer) getBroadcastSet("numberOfVertices").iterator().next();
 		}
 
 		@Override
