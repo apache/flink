@@ -73,6 +73,8 @@ public abstract class StreamExecutionEnvironment {
 
 	protected StreamGraph streamGraph;
 
+	private static StreamExecutionEnvironmentFactory executionEnvironmentFactory;
+
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
@@ -681,6 +683,11 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public String getExecutionPlan() {
 		return getStreamGraph().getStreamingPlanAsJSON();
+	}
+
+
+	protected static void initializeFromFactory(StreamExecutionEnvironmentFactory eef) {
+		currentEnvironment = eef.createExecutionEnvironment();
 	}
 
 }

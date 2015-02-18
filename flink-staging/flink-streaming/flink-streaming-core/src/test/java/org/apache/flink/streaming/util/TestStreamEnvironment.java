@@ -19,12 +19,14 @@
 package org.apache.flink.streaming.util;
 
 import akka.actor.ActorRef;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
@@ -32,11 +34,19 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	private static final String CANNOT_EXECUTE_EMPTY_JOB = "Cannot execute empty job";
 
 	private long memorySize;
+	protected JobExecutionResult latestResult;
+	private ForkableFlinkMiniCluster executor;
+	private boolean internalExecutor;
 
 	public TestStreamEnvironment(int degreeOfParallelism, long memorySize){
-		this.setDegreeOfParallelism(degreeOfParallelism);
-
+		setDegreeOfParallelism(degreeOfParallelism);
 		this.memorySize = memorySize;
+		internalExecutor = true;
+	}
+
+	public TestStreamEnvironment(ForkableFlinkMiniCluster executor, int dop){
+		this.executor = executor;
+		setDefaultLocalParallelism(dop);
 	}
 
 	@Override
@@ -48,25 +58,40 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	public void execute(String jobName) throws Exception {
 		JobGraph jobGraph = streamGraph.getJobGraph(jobName);
 
-		Configuration configuration = jobGraph.getJobConfiguration();
+		if (internalExecutor) {
+			Configuration configuration = jobGraph.getJobConfiguration();
 
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
-				getDegreeOfParallelism());
-		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
+			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+					getDegreeOfParallelism());
+			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
 
-		ForkableFlinkMiniCluster cluster = new ForkableFlinkMiniCluster(configuration);
-
+			executor = new ForkableFlinkMiniCluster(configuration);
+		}
 		try {
-			ActorRef client = cluster.getJobClient();
-			JobClient.submitJobAndWait(jobGraph, false, client, cluster.timeout());
-		} catch(JobExecutionException e){
-			if(e.getMessage().contains("GraphConversionException")){
+			ActorRef client = executor.getJobClient();
+			latestResult = JobClient.submitJobAndWait(jobGraph, false, client, executor.timeout());
+		} catch(JobExecutionException e) {
+			if (e.getMessage().contains("GraphConversionException")) {
 				throw new Exception(CANNOT_EXECUTE_EMPTY_JOB, e);
 			} else {
 				throw e;
 			}
-		} finally{
-			cluster.stop();
+		} finally {
+			if (internalExecutor){
+				executor.shutdown();
+			}
 		}
 	}
+
+	protected void setAsContext() {
+		StreamExecutionEnvironmentFactory factory = new StreamExecutionEnvironmentFactory() {
+			@Override
+			public StreamExecutionEnvironment createExecutionEnvironment() {
+				return TestStreamEnvironment.this;
+			}
+		};
+
+		initializeFromFactory(factory);
+	}
+
 }
