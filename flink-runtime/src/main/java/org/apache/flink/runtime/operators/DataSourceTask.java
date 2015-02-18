@@ -107,14 +107,14 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
 					getJobConfiguration(),
 					ExecutionConfig.CONFIG_KEY,
-					this.getClass().getClassLoader());
+					getUserCodeClassLoader());
 			if (c != null) {
 				executionConfig = c;
 			}
 		} catch (IOException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: ", e);
 		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: ", e);
 		}
 
 		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();

@@ -42,7 +42,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	// --------------------------------------------------------------------------------------------
 	// General information about the type and the serializer
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Gets whether the type is an immutable type.
 	 * 

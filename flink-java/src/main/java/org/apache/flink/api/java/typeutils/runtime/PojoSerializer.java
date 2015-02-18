@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -79,7 +78,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		this.numFields = fieldSerializers.length;
 		this.executionConfig = executionConfig;
 
-		Set<Class<?>> registeredPojoTypes = executionConfig.getRegisteredPojoTypes();
+		List<Class<?>> registeredPojoTypes = executionConfig.getRegisteredPojoTypes();
 
 		for (int i = 0; i < numFields; i++) {
 			this.fields[i].setAccessible(true);

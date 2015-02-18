@@ -41,7 +41,8 @@ under the License.
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
@@ -52,6 +53,14 @@ under the License.
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
 			<!-- version is derived from base module -->
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
 		</dependency>
 		
 		<dependency>
@@ -116,7 +125,24 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
+			<!-- Generate Test class from avro schema -->
+			<plugin>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro-maven-plugin</artifactId>
+				<version>1.7.7</version>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>schema</goal>
+						</goals>
+						<configuration>
+							<testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
+							<testOutputDirectory>${project.basedir}/src/test/java/</testOutputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 		
 		<pluginManagement>

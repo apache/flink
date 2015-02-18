@@ -86,6 +86,7 @@ under the License.
 		<scala.binary.version>2.10</scala.binary.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 		<kryoserialization.version>0.3.2</kryoserialization.version>
+		<protobuf.version>2.5.0</protobuf.version>
 	</properties>
 
 	<dependencies>
@@ -645,6 +646,7 @@ under the License.
 			<properties>
 				<akka.version>2.2.1</akka.version>
 				<kryoserialization.version>0.3.1</kryoserialization.version>
+				<protobuf.version>2.4.1</protobuf.version>
 			</properties>
 			<dependencyManagement>
 				<dependencies>
@@ -904,9 +906,9 @@ under the License.
 
 			<!-- test coverage reports -->
 			<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>cobertura-maven-plugin</artifactId>
-					<version>2.6</version>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>cobertura-maven-plugin</artifactId>
+				<version>2.6</version>
 				<configuration>
 					<formats>
 						<format>html</format>
@@ -955,6 +957,9 @@ under the License.
 								<relocation>
 									<pattern>com.google</pattern>
 									<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+									<excludes>
+										<exclude>com.google.protobuf.**</exclude>
+									</excludes>
 								</relocation>
 							</relocations>
 						</configuration>
@@ -1027,8 +1032,9 @@ under the License.
 						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/timeline.js</exclude>
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
-						<exclude>flink-staging/flink-avro/src/test/resources/avro/user.avsc</exclude>
+						<exclude>flink-staging/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>flink-staging/flink-avro/src/test/resources/testdata.avro</exclude>
+						<exclude>flink-staging/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->

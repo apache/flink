@@ -179,9 +179,9 @@ public abstract class StreamExecutionEnvironment {
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
 
+
 	/**
-	 * Registers the given Serializer as a default serializer for the given type at the
-	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
+	 * Adds a new Kryo default serializer to the Runtime.
 	 *
 	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
 	 * because it may be distributed to the worker nodes by java serialization.
@@ -189,19 +189,41 @@ public abstract class StreamExecutionEnvironment {
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
 	 */
-	public void registerKryoSerializer(Class<?> type, Serializer<?> serializer) {
-		config.registerKryoSerializer(type, serializer);
+	public void addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer) {
+		config.addDefaultKryoSerializer(type, serializer);
 	}
 
 	/**
-	 * Registers the given Serializer via its class as a serializer for the given type at the
-	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
+	 * Adds a new Kryo default serializer to the Runtime.
 	 *
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializerClass The class of the serializer to use.
 	 */
-	public void registerKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-		config.registerKryoSerializer(type, serializerClass);
+	public void addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		config.addDefaultKryoSerializer(type, serializerClass);
+	}
+
+	/**
+	 * Registers the given type with a Kryo Serializer.
+	 *
+	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
+	 * because it may be distributed to the worker nodes by java serialization.
+	 *
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializer The serializer to use.
+	 */
+	public void registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer) {
+		config.registerTypeWithKryoSerializer(type, serializer);
+	}
+
+	/**
+	 * Registers the given Serializer via its class as a serializer for the given type at the KryoSerializer
+	 *
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializerClass The class of the serializer to use.
+	 */
+	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		config.registerTypeWithKryoSerializer(type, serializerClass);
 	}
 
 	/**

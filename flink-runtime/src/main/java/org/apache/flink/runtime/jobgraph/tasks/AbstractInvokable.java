@@ -137,7 +137,7 @@ public abstract class AbstractInvokable {
 			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
 					getJobConfiguration(),
 					ExecutionConfig.CONFIG_KEY,
-					this.getClass().getClassLoader());
+					getUserCodeClassLoader());
 
 			if (executionConfig == null) {
 				LOG.warn("Environment did not contain an ExecutionConfig - using a default config.");

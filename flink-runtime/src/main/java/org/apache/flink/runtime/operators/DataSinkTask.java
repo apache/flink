@@ -113,7 +113,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
 					getJobConfiguration(),
 					ExecutionConfig.CONFIG_KEY,
-					this.getClass().getClassLoader());
+					getUserCodeClassLoader());
 			if (c != null) {
 				executionConfig = c;
 			}

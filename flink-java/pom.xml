@@ -33,6 +33,9 @@ under the License.
 	<name>flink-java</name>
 
 	<packaging>jar</packaging>
+	<properties>
+		<chill.version>0.5.2</chill.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -60,7 +63,58 @@ under the License.
 		<dependency>
 			<groupId>com.twitter</groupId>
 			<artifactId>chill_2.10</artifactId>
-			<version>0.5.1</version>
+			<version>${chill.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-avro_2.10</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-protobuf</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+		<!-- We need protobuf for chill-protobuf -->
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<version>${protobuf.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-thrift</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+		<!-- libthrift is required by chill-thrift -->
+		<dependency>
+			<groupId>org.apache.thrift</groupId>
+			<artifactId>libthrift</artifactId>
+			<version>0.6.1</version>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>de.javakaffee</groupId>
+			<artifactId>kryo-serializers</artifactId>
+			<version>0.27</version>
+		</dependency>
+
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
 		</dependency>
 
 		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
@@ -78,16 +132,9 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-		
-		<dependency>
-			<groupId>joda-time</groupId>
-			<artifactId>joda-time</artifactId>
-			<scope>test</scope>
-		</dependency>
-		
 	</dependencies>
 
-	<!-- Because flink-scala uses it in tests -->
+	<!-- Because flink-scala and flink-avro uses it in tests -->
 	<build>
 		<plugins>
 			<plugin>

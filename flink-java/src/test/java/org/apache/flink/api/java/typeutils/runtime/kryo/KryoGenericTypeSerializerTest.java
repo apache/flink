@@ -16,11 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils.runtime;
+package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.ComparatorTestBase;
+import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest;
+import org.apache.flink.api.java.typeutils.runtime.TestDataOutputSerializer;
+import org.joda.time.DateTime;
 import org.junit.Test;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -62,16 +66,26 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 		runTests(c);
 	}
 
+	@Test
+	public void testJodaTime(){
+		Collection<DateTime> b = new HashSet<DateTime>();
+		Serializers.registerJodaTime(ec);
+		b.add(new DateTime(1));
+		b.add(new DateTime(2));
+
+		runTests(b);
+	}
+
 	private void fillCollection(Collection<Integer> coll){
 		coll.add(42);
 		coll.add(1337);
 		coll.add(49);
 		coll.add(1);
 	}
-
+	ExecutionConfig ec = new ExecutionConfig();
 	@Override
 	protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
-		return new KryoSerializer<T>(type, new ExecutionConfig());
+		return new KryoSerializer<T>(type, ec);
 	}
 	
 	/**
@@ -129,7 +143,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 				serializer.serialize(i, target);
 			}
 
-			TestInputView source = new TestInputView(target.copyByteBuffer());
+			ComparatorTestBase.TestInputView source = new ComparatorTestBase.TestInputView(target.copyByteBuffer());
 
 			for(int i = 0; i < numElements; i++){
 				int value = serializer.deserialize(source);
