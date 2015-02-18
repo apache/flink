@@ -34,41 +34,50 @@ public class IOManagerTest {
 
 	@Test
 	public void channelEnumerator() {
-		File tempPath = new File(System.getProperty("java.io.tmpdir"));
-		
-		String[] tempDirs = new String[] {
-			new File(tempPath, "a").getAbsolutePath(),
-			new File(tempPath, "b").getAbsolutePath(),
-			new File(tempPath, "c").getAbsolutePath(),
-			new File(tempPath, "d").getAbsolutePath(),
-			new File(tempPath, "e").getAbsolutePath(),
-		};
-		
-		int[] counters = new int[tempDirs.length];
-		
-		
-		FileIOChannel.Enumerator enumerator = new TestIOManager(tempDirs).createChannelEnumerator();
+		IOManager ioMan = null;
 
-		for (int i = 0; i < 3 * tempDirs.length; i++) {
-			FileIOChannel.ID id = enumerator.next();
-			
-			File path = new File(id.getPath());
-			
-			assertTrue("Channel IDs must name an absolute path.", path.isAbsolute());
-			
-			assertFalse("Channel IDs must name a file, not a directory.", path.isDirectory());
-			
-			assertTrue("Path is not in the temp directory.", tempPath.equals(path.getParentFile().getParentFile()));
-			
-			for (int k = 0; k < tempDirs.length; k++) {
-				if (path.getParent().equals(tempDirs[k])) {
-					counters[k]++;
+		try {
+			File tempPath = new File(System.getProperty("java.io.tmpdir"));
+
+			String[] tempDirs = new String[]{
+					new File(tempPath, "a").getAbsolutePath(),
+					new File(tempPath, "b").getAbsolutePath(),
+					new File(tempPath, "c").getAbsolutePath(),
+					new File(tempPath, "d").getAbsolutePath(),
+					new File(tempPath, "e").getAbsolutePath(),
+			};
+
+			int[] counters = new int[tempDirs.length];
+
+			ioMan = new TestIOManager(tempDirs);
+			FileIOChannel.Enumerator enumerator = ioMan.createChannelEnumerator();
+
+			for (int i = 0; i < 3 * tempDirs.length; i++) {
+				FileIOChannel.ID id = enumerator.next();
+
+				File path = id.getPathFile();
+
+				assertTrue("Channel IDs must name an absolute path.", path.isAbsolute());
+				assertFalse("Channel IDs must name a file, not a directory.", path.isDirectory());
+
+				assertTrue("Path is not in the temp directory.",
+						tempPath.equals(path.getParentFile().getParentFile().getParentFile()));
+
+				for (int k = 0; k < tempDirs.length; k++) {
+					if (path.getParentFile().getParent().equals(tempDirs[k])) {
+						counters[k]++;
+					}
 				}
 			}
+
+			for (int k = 0; k < tempDirs.length; k++) {
+				assertEquals(3, counters[k]);
+			}
 		}
-		
-		for (int k = 0; k < tempDirs.length; k++) {
-			assertEquals(3, counters[k]);
+		finally {
+			if (ioMan != null) {
+				ioMan.shutdown();
+			}
 		}
 	}
 	
@@ -78,14 +87,6 @@ public class IOManagerTest {
 
 		protected TestIOManager(String[] paths) {
 			super(paths);
-		}
-
-		@Override
-		public void shutdown() {}
-
-		@Override
-		public boolean isProperlyShutDown() {
-			return false;
 		}
 
 		@Override
