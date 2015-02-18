@@ -49,9 +49,9 @@ env:
         - secure: "f4wACodae0NCaIZtmg/JvP40G/3dE7O6+ONDMbq8P/9dnT5peRB1q7+KZxggRmFSWTMPdPIDI7YxI/rM5wZ3pUN2eX0BpjfANT58OJdgCNXN3Hr9YOa8UykD2h6b+AHpy4G89MG65m73RvNXngHTCQ8SBIfewzeMAhHdD3Fk0u8="
         # If set to "true" and the build produces artifacts like log files, they will be uploaded to the specified S3 bucket
         - UPLOAD_ARTIFACTS=true
-        - secure: "fIqsDR+q962Mq8sqCAggCADd6hnv6NVowbLVi6kyg7KDvnH6PSP4glXh34dNmalxzYqw5+iYQT9siGqHbg2no1Hx1WQctdlZV1eGz3XuRV/B8zT4UKoRt6YTViyFF8zf+BZEI0tfHsNDcKgOEo0eAG/7nC6pOEKQATDnLy2AQSc="
-        - secure: "f2SuLwiX6CXezNj/XEoDzqZ9YEkIIwThl8k3KgY42WX1GUXlXh1vWylZFLJFYM0rM4ngar60QfVXpZlgQU3f2HR+6wr8lU35Clf6IQSfuo7NW4AQVf6Ir/jFatYk0UxHkcSbYzZyugEc7bw/qYCisn1Jnwyfv+KueRSntLtiWvM="
-        - secure: "CNVbMuY8u5oTbtDw2mk11Wbv/HbROqW4xtqlEvRU22hjgSNmNGtRyDDVoojv2pp2XMu4uEYzz8O+MHjxV7b1vZML24IrkagjGfC3nbqxE3k5hqyE2IMAH635HpBAkOEEaBxAoOhRjYapXE3s03fTk7ZbggsHq1kIFRaaAHUAavU="
+        - secure: "MQDMeFQwC6BdrbynkdAr1P4lzaTH7ZCDDS1jHlb9pZxImDtWSEaEn/sYqELACw/l0flwraYioqDdGmdUfNFuCNG1nnFYX8Gpjmay2GlQOegr5cm/6aBy8HfeW1vYS2tdRBLvGeqvHDA7Ufw6hpQpFu3CqJH2ihnmu6v/MW0QVXw="
+        - secure: "cfTKGKLYAdyc7nyCp64uhVgf66nzY4dqPrjfFUGpw7/lCVDDurZoZGJPNkBv5gLdjAEwFUkSyaJoWmL/ixc+YKP1LH9m7BEqku4KbAYCw7kWwCOKPFbGeolmSOCLhvmysFR2+EPBFmnvWQGeVKAvG2xMxmhE/WN92OL0TiW8Kpc="
+        - secure: "KKV6pQP1csR3seQrt8y75cDKpPWzet1J8ZnrrxnX3kz3oKA1pMiflP8PcywAgVMjNK963pmEaMVDFGJFHe2M4EwaaK1lt+0153SZfktN0tg/aotAQy7XHLY7HMCvPYLfKVK1nGYtmt7LGEssFIXb4oynrszuOF59QmsbvRvf2Zc="
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
