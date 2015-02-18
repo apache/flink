@@ -1368,7 +1368,7 @@ object TaskManager {
           val cause = t.getCause()
           if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
             val address = taskManagerHostname + ":" + actorSystemPort
-            throw new Exception("Unable to bind TaskManager actor system to address " +
+            throw new IOException("Unable to bind TaskManager actor system to address " +
               address + " - " + cause.getMessage(), t)
           }
         }
@@ -1532,22 +1532,28 @@ object TaskManager {
     }
 
     // now start the memory manager
-    val memoryManager = new DefaultMemoryManager(memorySize,
-                                                 taskManagerConfig.numberOfSlots,
-                                                 netConfig.networkBufferSize)
+    val memoryManager = try {
+      new DefaultMemoryManager(memorySize,
+                               taskManagerConfig.numberOfSlots,
+                               netConfig.networkBufferSize)
+    } catch {
+      case e: OutOfMemoryError => throw new Exception(
+        "OutOfMemory error (" + e.getMessage + ") while allocating the TaskManager memory (" +
+          memorySize + " bytes).", e)
+    }
 
     // start the I/O manager last, it will create some temp directories.
     val ioManager: IOManager = new IOManagerAsync(taskManagerConfig.tmpDirPaths)
 
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = Props(taskManagerClass,
-                        taskManagerConfig,
-                        connectionInfo,
-                        jobManagerAkkaUrl,
-                        memoryManager,
-                        ioManager,
-                        network,
-                        taskManagerConfig.numberOfSlots)
+      taskManagerConfig,
+      connectionInfo,
+      jobManagerAkkaUrl,
+      memoryManager,
+      ioManager,
+      network,
+      taskManagerConfig.numberOfSlots)
 
     taskManagerActorName match {
       case Some(actorName) => actorSystem.actorOf(tmProps, actorName)

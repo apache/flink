@@ -44,6 +44,9 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
@@ -53,7 +56,7 @@ import static org.junit.Assert.*;
  * when connecting to the JobManager, and when the JobManager
  * is unreachable.
  */
-public class RegistrationTest {
+public class TaskManagerRegistrationTest {
 
 	private static final Option<String> NONE_STRING = Option.empty();
 
@@ -68,7 +71,7 @@ public class RegistrationTest {
 		config.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
 		config.getDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 2.0);
 
-		actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
+		actorSystem = AkkaUtils.createLocalActorSystem(config);
 	}
 
 	@AfterClass
@@ -328,6 +331,67 @@ public class RegistrationTest {
 				fail(e.getMessage());
 			}
 		}};
+	}
+
+
+	@Test
+	public void testStartupWhenNetworkStackFailsToInitialize() {
+
+		ServerSocket blocker = null;
+		try {
+			blocker = new ServerSocket(0, 50, InetAddress.getByName("localhost"));
+
+			final Configuration cfg = new Configuration();
+			cfg.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, blocker.getLocalPort());
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 1);
+
+			new JavaTestKit(actorSystem) {{
+				try {
+					// a simple JobManager
+					final ActorRef jobManager = startJobManager();
+
+					// start a task manager with a configuration that provides a blocked port
+					final ActorRef taskManager = TaskManager.startTaskManagerComponentsAndActor(
+							cfg, actorSystem, "localhost",
+							NONE_STRING, // no actor name -> random
+							new Some<String>(jobManager.path().toString()), // job manager path
+							false, // init network stack !!!
+							TaskManager.class);
+
+					watch(taskManager);
+
+					expectTerminated(new FiniteDuration(20, TimeUnit.SECONDS), taskManager);
+
+					stopActor(taskManager);
+					stopActor(jobManager);
+				}
+				catch (Exception e) {
+					e.printStackTrace();
+					fail(e.getMessage());
+				}
+			}};
+		}
+		catch (Exception e) {
+			// does not work, skip test
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			if (blocker != null) {
+				try {
+					blocker.close();
+				}
+				catch (IOException e) {
+					// ignore, best effort
+				}
+			}
+		}
+	}
+
+	@Test
+	public void testStartupWhenBlobDirectoriesAreNotWritable() {
+
 	}
 
 	// --------------------------------------------------------------------------------------------
