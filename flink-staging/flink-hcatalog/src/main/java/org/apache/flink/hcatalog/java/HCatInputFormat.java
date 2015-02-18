@@ -30,8 +30,7 @@ import org.apache.hive.hcatalog.data.HCatRecord;
  * The InputFormat supports projection (selection and order of fields) and partition filters.
  *
  * Data can be returned as {@link HCatRecord} or Flink {@link org.apache.flink.api.java.tuple.Tuple}.
- * Flink Tuples are only supported for up to 25 fields of primitive types
- * (no STRUCT, ARRAY, or MAP data types).
+ * Flink tuples support only up to 25 fields.
  *
  * @param <T>
  */
@@ -124,6 +123,27 @@ public class HCatInputFormat<T> extends HCatInputFormatBase<T> {
 				case BINARY:
 					if(o instanceof String) {
 						throw new RuntimeException("Cannot handle partition keys of type BINARY.");
+					} else {
+						tuple.setField(o, i);
+					}
+					break;
+				case ARRAY:
+					if(o instanceof String) {
+						throw new RuntimeException("Cannot handle partition keys of type ARRAY.");
+					} else {
+						tuple.setField(o, i);
+					}
+					break;
+				case MAP:
+					if(o instanceof String) {
+						throw new RuntimeException("Cannot handle partition keys of type MAP.");
+					} else {
+						tuple.setField(o, i);
+					}
+					break;
+				case STRUCT:
+					if(o instanceof String) {
+						throw new RuntimeException("Cannot handle partition keys of type STRUCT.");
 					} else {
 						tuple.setField(o, i);
 					}
