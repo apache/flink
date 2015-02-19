@@ -154,40 +154,65 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
   }
 
   def setMemory(config: Configuration): Unit = {
-    var memorySize: Long = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag
-    val bufferMem: Long = ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS *
-      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE
-    val numTaskManager = config.getInteger(ConfigConstants
-      .LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
-    val taskManagerNumSlots: Int = ConfigConstants.DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS
-    memorySize = memorySize - (bufferMem * numTaskManager)
-    memorySize = (memorySize * ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION).toLong
-    memorySize >>>= 20
-    memorySize /= numTaskManager
-    config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize)
+    // set this only if no memory was preconfigured
+    if (config.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1) == -1) {
+
+      val bufferMem: Long =
+            config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+                           ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) *
+            config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
+                           ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
+
+      val numTaskManager = config.getInteger(
+        ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
+
+      val memoryFraction = config.getFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
+                                           ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
+
+      // full memory size
+      var memorySize: Long = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag
+
+      // compute the memory size per task manager. we assume equally much memory for
+      // each TaskManagers and each JobManager
+      memorySize /= numTaskManager + 1 // the +1 is the job manager
+
+      // for each TaskManager, subtract the memory needed for memory buffers
+      memorySize -= bufferMem;
+      memorySize = (memorySize * memoryFraction).toLong
+      memorySize >>>= 20  // bytes to megabytes
+      config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize)
+    }
   }
 
   def getDefaultConfig: Configuration = {
-    val config: Configuration = new Configuration
+    val config: Configuration = new Configuration()
+
     config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
-    config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants
-      .DEFAULT_JOB_MANAGER_IPC_PORT)
-    config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, ConfigConstants
-      .DEFAULT_TASK_MANAGER_IPC_PORT)
-    config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, ConfigConstants
-      .DEFAULT_TASK_MANAGER_DATA_PORT)
-    config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, ConfigConstants
-      .DEFAULT_TASK_MANAGER_MEMORY_LAZY_ALLOCATION)
-    config.setInteger(ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY, ConfigConstants
-      .DEFAULT_JOBCLIENT_POLLING_INTERVAL)
-    config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, ConfigConstants
-      .DEFAULT_FILESYSTEM_OVERWRITE)
+
+    config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+    config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
+
+    config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
+
+    config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_LAZY_ALLOCATION)
+
+    config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY,
+      ConfigConstants.DEFAULT_FILESYSTEM_OVERWRITE)
+
     config.setBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY,
       ConfigConstants.DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY)
+
     config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1)
+
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
-    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, ConfigConstants
-      .DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS)
+
+    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS)
 
     // Reduce number of threads for local execution
     config.setInteger(NettyConfig.NUM_THREADS_CLIENT, 1)

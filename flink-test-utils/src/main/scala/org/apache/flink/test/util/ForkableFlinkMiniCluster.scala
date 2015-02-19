@@ -24,6 +24,15 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingTaskManager
 
+/**
+ * A forkable mini cluster is a special case of the mini cluster, used for parallel test execution
+ * on build servers. If multiple tests run in parallel, the cluster picks up the fork number and
+ * uses it to avoid port conflicts.
+ *
+ * @param userConfiguration Configuration object with the user provided configuration values
+ * @param singleActorSystem true, if all actors (JobManager and TaskManager) shall be run in the
+ *                          same [[ActorSystem]], otherwise false.
+ */
 class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean)
   extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem) {
 
