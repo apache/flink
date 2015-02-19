@@ -20,6 +20,7 @@ package org.apache.flink.api.scala.runtime.jobmanager
 
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestNumberRegisteredTaskManager
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
@@ -42,7 +43,14 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     "detect a lost connection to the JobManager and try to reconnect to it" in {
       val num_slots = 11
 
-      val cluster = ForkableFlinkMiniCluster.startClusterDeathWatch(num_slots, 1)
+      val config = new Configuration()
+      config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, num_slots)
+      config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
+      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
+      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
+      config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
+
+      val cluster = new ForkableFlinkMiniCluster(config, singleActorSystem = false)
 
       val tm = cluster.getTaskManagers(0)
       val jm = cluster.getJobManager

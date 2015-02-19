@@ -20,6 +20,9 @@ package org.apache.flink.api.scala.runtime.taskmanager
 
 import akka.actor.{ActorSystem, Kill, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
+
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
@@ -27,6 +30,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultFailed, Re
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -46,7 +50,14 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     "detect a failing task manager" in {
       val num_slots = 11
 
-      val cluster = ForkableFlinkMiniCluster.startClusterDeathWatch(num_slots, 2)
+      val config = new Configuration()
+      config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, num_slots)
+      config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2)
+      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
+      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
+      config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
+
+      val cluster = new ForkableFlinkMiniCluster(config, singleActorSystem = false)
 
       val taskManagers = cluster.getTaskManagers
       val jm = cluster.getJobManager
@@ -65,7 +76,8 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
           jm ! RequestNumberRegisteredTaskManager
           expectMsg(1)
         }
-      }finally{
+      }
+      finally {
         cluster.stop()
       }
 
@@ -144,5 +156,4 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       }
     }
   }
-
 }
