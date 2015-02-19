@@ -375,6 +375,29 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a new DataStream that contains the strings received infinitely
 	 * from socket. Received strings are decoded by the system's default
 	 * character set.
+	 *
+	 * @param hostname
+	 *            The host name which a server socket bind.
+	 * @param port
+	 *            The port number which a server socket bind. A port number of 0
+	 *            means that the port number is automatically allocated.
+	 * @param delimiter
+	 *            A character which split received strings into records.
+	 * @param maxRetry
+	 *            The maximal retry number when the socket is down. Reconnection is
+	 *            tried in every 5 seconds. A number of 0 means that the reader
+	 *            is immediately terminated.
+	 * @return A DataStream, containing the strings received from socket.
+	 */
+	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, int maxRetry) {
+		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry), null,
+			"Socket Stream");
+	}
+
+	/**
+	 * Creates a new DataStream that contains the strings received infinitely
+	 * from socket. Received strings are decoded by the system's default
+	 * character set. The reader is terminated immediately when socket is down.
 	 * 
 	 * @param hostname
 	 *            The host name which a server socket bind.
@@ -386,14 +409,14 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A DataStream, containing the strings received from socket.
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
-		return addSource(new SocketTextStreamFunction(hostname, port, delimiter), null,
-				"Socket Stream");
+		return socketTextStream(hostname, port, delimiter, 0);
 	}
 
 	/**
 	 * Creates a new DataStream that contains the strings received infinitely
 	 * from socket. Received strings are decoded by the system's default
-	 * character set, uses '\n' as delimiter.
+	 * character set, uses '\n' as delimiter. The reader is terminated immediately
+	 * when socket is down.
 	 * 
 	 * @param hostname
 	 *            The host name which a server socket bind.
