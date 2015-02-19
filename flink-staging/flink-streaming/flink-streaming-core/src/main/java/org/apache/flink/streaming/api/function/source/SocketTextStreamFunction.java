@@ -19,25 +19,37 @@ package org.apache.flink.streaming.api.function.source;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SocketTextStreamFunction extends RichSourceFunction<String> {
+
+	protected static final Logger LOG = LoggerFactory.getLogger(SocketTextStreamFunction.class);
+
 	private static final long serialVersionUID = 1L;
 	
 	private String hostname;
 	private int port;
 	private char delimiter;
+	private int maxRetry;
 	private Socket socket;
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
 
 	public SocketTextStreamFunction(String hostname, int port, char delimiter) {
+		this(hostname, port, delimiter, 0);
+	}
+
+	public SocketTextStreamFunction(String hostname, int port, char delimiter, int maxRetry) {
 		this.hostname = hostname;
 		this.port = port;
 		this.delimiter = delimiter;
+		this.maxRetry = maxRetry;
 	}
 
 	@Override
@@ -50,9 +62,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	
 	@Override
 	public void invoke(Collector<String> collector) throws Exception {
-		while (!socket.isClosed() && socket.isConnected()) {
-			streamFromSocket(collector, socket);
-		}
+		streamFromSocket(collector, socket);
 	}
 
 	public void streamFromSocket(Collector<String> collector, Socket socket) throws Exception {
@@ -61,8 +71,30 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 
 		while (true) {
 			int data = reader.read();
-			if (!socket.isConnected() || socket.isClosed() || data == -1) {
-				break;
+			if (data == -1) {
+				socket.close();
+				int retry = 0;
+				boolean success = false;
+				while (retry < maxRetry && !success) {
+					retry++;
+					LOG.warn("Lost connection to server socket. Retrying in 5 seconds...");
+					try {
+						socket = new Socket();
+						socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
+						success = true;
+					} catch (ConnectException ce) {
+						Thread.sleep(5000);
+					}
+				}
+
+				if (success) {
+					LOG.info("Server socket is reconnected.");
+				} else {
+					LOG.error("Could not reconnect to server socket.");
+					break;
+				}
+				reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+				continue;
 			}
 
 			if (data == delimiter) {
