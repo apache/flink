@@ -45,13 +45,9 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.JobTimeoutException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -342,24 +338,12 @@ public class Client {
 				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client, timeout);
 			}
 			else {
-				SubmissionResponse response = JobClient.submitJobDetached(jobGraph, client, timeout);
-				if (response instanceof SubmissionFailure) {
-					SubmissionFailure failure = (SubmissionFailure) response;
-					throw new ProgramInvocationException(
-							"Failed to submit the job to the JobManager.", failure.cause());
-				}
+				JobClient.submitJobDetached(jobGraph, client, timeout);
 			}
 		} catch (JobExecutionException e) {
 			throw new ProgramInvocationException("The program execution failed.", e);
-		} catch (JobTimeoutException e) {
-			throw new ProgramInvocationException("Lost connection to the JobManager.", e);
-		} catch (JobCancellationException e) {
-			throw new ProgramInvocationException("The program has been canceled.", e);
-		} catch (ProgramInvocationException e) {
-			// forward exception resulting from submission failure
-			throw e;
 		} catch (Exception e) {
-			throw new ProgramInvocationException("Exception occurred during job execution.", e);
+			throw new ProgramInvocationException("Unexpected exception while program execution.", e);
 		}
 		finally {
 			actorSystem.shutdown();

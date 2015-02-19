@@ -406,7 +406,7 @@ public class ExecutionGraph implements Serializable {
 					}
 				} else {
 					// set the state of the job to failed
-					transitionState(current, JobStatus.FAILED, t);
+					transitionState(JobStatus.FAILING, JobStatus.FAILED, t);
 				}
 				
 				return;

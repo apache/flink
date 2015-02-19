@@ -55,8 +55,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.None;
-import scala.None$;
 import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;

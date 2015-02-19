@@ -179,10 +179,6 @@ object JobManagerMessages {
    */
   case class RequestFinalJobStatus(jobID: JobID)
 
-  sealed trait JobResult{
-    def jobID: JobID
-  }
-
   /**
    * Denotes a successful job execution.
    *
@@ -191,39 +187,7 @@ object JobManagerMessages {
    * @param accumulatorResults
    */
   case class JobResultSuccess(jobID: JobID, runtime: Long, accumulatorResults: java.util.Map[String,
-    AnyRef]) extends JobResult {}
-
-  /**
-   * Denotes a cancellation of the job.
-   * @param jobID
-   * @param t
-   */
-  case class JobResultCanceled(jobID: JobID, t: Throwable) extends JobResult
-
-  /**
-   * Denotes a failed job execution.
-   * @param jobID
-   * @param t
-   */
-  case class JobResultFailed(jobID: JobID, t: Throwable) extends JobResult
-
-  sealed trait SubmissionResponse{
-    def jobID: JobID
-  }
-
-  /**
-   * Denotes a successful job submission.
-   * @param jobID
-   */
-  case class SubmissionSuccess(jobID: JobID) extends SubmissionResponse
-
-  /**
-   * Denotes a failed job submission. The cause of the failure is denoted by [[cause]].
-   *
-   * @param jobID
-   * @param cause of the submission failure
-   */
-  case class SubmissionFailure(jobID: JobID, cause: Throwable) extends SubmissionResponse
+    AnyRef]) {}
 
   sealed trait CancellationResponse{
     def jobID: JobID

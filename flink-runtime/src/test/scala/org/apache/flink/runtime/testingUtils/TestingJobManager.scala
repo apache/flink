@@ -114,6 +114,7 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
     case NotifyWhenTaskManagerTerminated(taskManager) =>
       val waiting = waitForTaskManagerToBeTerminated.getOrElse(taskManager.path.name, Set())
       waitForTaskManagerToBeTerminated += taskManager.path.name -> (waiting + sender)
+
     case msg@Terminated(taskManager) =>
       super.receiveWithLogMessages(msg)
 
