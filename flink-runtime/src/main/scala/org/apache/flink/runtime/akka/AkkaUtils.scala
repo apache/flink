@@ -18,18 +18,15 @@
 
 package org.apache.flink.runtime.akka
 
-import java.io.IOException
 import java.net.InetAddress
 import java.util.concurrent.{TimeUnit, Callable}
 
-import akka.actor.Actor.Receive
 import akka.actor._
-import akka.pattern.{Patterns, ask => akkaAsk}
-import akka.remote.{RemotingLifecycleEvent, AssociationEvent}
+import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.slf4j.LoggerFactory
-import scala.concurrent.{ExecutionContext, Future, Await}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
