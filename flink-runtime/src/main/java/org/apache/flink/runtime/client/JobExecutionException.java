@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.client;
 
+import org.apache.flink.runtime.jobgraph.JobID;
+
 /**
  * This exception is thrown by the {@link JobClient} if a job has been aborted as a result of an
  * error which occurred during the execution.
@@ -26,13 +28,33 @@ public class JobExecutionException extends Exception {
 
 	private static final long serialVersionUID = 2818087325120827525L;
 
+	private JobID jobID;
+
 	/**
 	 * Constructs a new job execution exception.
 	 * 
 	 * @param msg The cause for the execution exception.
 	 * @param cause The cause of the exception
 	 */
-	public JobExecutionException(String msg, Throwable cause) {
+	public JobExecutionException(final JobID jobID, final String msg, final Throwable cause) {
 		super(msg, cause);
+
+		this.jobID = jobID;
+	}
+
+	public JobExecutionException(final JobID jobID, final String msg) {
+		super(msg);
+
+		this.jobID = jobID;
+	}
+
+	public JobExecutionException(final JobID jobID, final Throwable cause) {
+		super(cause);
+
+		this.jobID = jobID;
+	}
+
+	public JobID getJobID() {
+		return jobID;
 	}
 }

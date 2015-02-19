@@ -20,9 +20,11 @@ package org.apache.flink.runtime.jobmanager
 
 import Tasks._
 import akka.actor.ActorSystem
+import akka.actor.Status.{Success, Failure}
 import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
+import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph, ScheduleMode}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
@@ -70,9 +72,14 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         within(1 second) {
           jm ! SubmitJob(jobGraph)
 
-          expectMsg(SubmissionFailure(jobGraph.getJobID, new NoResourceAvailableException(1,1,0)))
+          val failure = expectMsgType[Failure]
 
-          expectMsg(JobResultFailed(jobGraph.getJobID, new NoResourceAvailableException(1,1,0)))
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+              new NoResourceAvailableException(1,1,0) should equal(e.getCause)
+            case e => fail(s"Received wrong exception of type $e.")
+          }
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
@@ -103,7 +110,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
 
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
           val result = expectMsgType[JobResultSuccess]
 
           result.jobID should equal(jobGraph.getJobID)
@@ -133,7 +140,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
 
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
@@ -168,7 +175,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
 
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
@@ -203,7 +210,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
 
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
@@ -240,8 +247,15 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
 
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
-          expectMsgType[JobResultFailed]
+          expectMsg(Success(jobGraph.getJobID))
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
@@ -276,7 +290,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       try {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
         }
@@ -321,7 +335,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
 
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
 
@@ -359,8 +373,16 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
-          expectMsgType[JobResultFailed]
+          expectMsg(Success(jobGraph.getJobID))
+
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
@@ -399,8 +421,15 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
-          expectMsgType[JobResultFailed]
+          expectMsg(Success(jobGraph.getJobID))
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
@@ -431,8 +460,15 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       try {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
-          expectMsgType[JobResultFailed]
+          expectMsg(Success(jobGraph.getJobID))
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
@@ -466,8 +502,15 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(num_tasks)
 
           jm ! SubmitJob(jobGraph)
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
-          expectMsgType[JobResultFailed]
+          expectMsg(Success(jobGraph.getJobID))
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
@@ -506,8 +549,15 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(num_tasks)
 
           jm ! SubmitJob(jobGraph)
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
-          expectMsgType[JobResultFailed]
+          expectMsg(Success(jobGraph.getJobID))
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
@@ -539,7 +589,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         within(TestingUtils.TESTING_DURATION){
           jm ! SubmitJob(jobGraph)
 
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
         }
 

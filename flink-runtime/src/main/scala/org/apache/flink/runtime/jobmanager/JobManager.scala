@@ -21,10 +21,12 @@ package org.apache.flink.runtime.jobmanager
 import java.io.{IOException, File}
 import java.net.InetSocketAddress
 
-import akka.actor.Status.Failure
+import akka.actor.Status.{Success, Failure}
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
+import org.apache.flink.runtime.client.{JobSubmissionException, JobExecutionException,
+JobCancellationException}
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
@@ -254,31 +256,32 @@ class JobManager(val configuration: Configuration,
 
       sender ! NextInputSplit(serializedInputSplit)
 
-    case JobStatusChanged(jobID, newJobStatus, timeStamp, optionalMessage) =>
+    case JobStatusChanged(jobID, newJobStatus, timeStamp, error) =>
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
           log.info("Status of job {} ({}) changed to {} {}.",
             jobID, executionGraph.getJobName, newJobStatus,
-            if(optionalMessage == null) "" else optionalMessage.getMessage)
+            if(error == null) "" else error.getMessage)
 
           if(newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
 
-            // is the client waiting for the job result?
-            if(!jobInfo.detached) {
-              newJobStatus match {
-                case JobStatus.FINISHED =>
-                  val accumulatorResults = accumulatorManager.getJobAccumulatorResults(jobID)
-                  jobInfo.client ! JobResultSuccess(jobID, jobInfo.duration, accumulatorResults)
-                case JobStatus.CANCELED =>
-                  jobInfo.client ! JobResultCanceled(jobID, optionalMessage)
-                case JobStatus.FAILED =>
-                  jobInfo.client ! JobResultFailed(jobID, optionalMessage)
-                case x =>
-                  val exception = new IllegalStateException(s"$x is not a terminal state.")
-                  jobInfo.client ! JobResultFailed(jobID, exception)
-                  throw exception
-              }
+          // is the client waiting for the job result?
+            newJobStatus match {
+              case JobStatus.FINISHED if !jobInfo.detached =>
+                val accumulatorResults = accumulatorManager.getJobAccumulatorResults(jobID)
+                jobInfo.client ! JobResultSuccess(jobID, jobInfo.duration, accumulatorResults)
+              case JobStatus.CANCELED =>
+                jobInfo.client ! Failure(new JobCancellationException(jobID,
+                  "Job was cancelled.", error))
+              case JobStatus.FAILED =>
+                jobInfo.client ! Failure(new JobExecutionException(jobID,
+                  "Job execution failed.", error))
+              case x =>
+                val exception = new JobExecutionException(jobID, s"$x is not a " +
+                  "terminal state.")
+                jobInfo.client ! Failure(exception)
+                throw exception
             }
 
             removeJob(jobID)
@@ -381,14 +384,12 @@ class JobManager(val configuration: Configuration,
   private def submitJob(jobGraph: JobGraph, listenToEvents: Boolean, detached: Boolean): Unit = {
     try {
       if (jobGraph == null) {
-        sender ! akka.actor.Status.Failure(new IllegalArgumentException("JobGraph must not be" +
-          " null."))
+        sender ! Failure(new JobSubmissionException(null, "JobGraph must not be null."))
       } else {
         log.info(s"Received job ${jobGraph.getJobID} (${jobGraph.getName}).")
 
         if (jobGraph.getNumberOfVertices == 0) {
-          sender ! SubmissionFailure(jobGraph.getJobID, new IllegalArgumentException("Job is " +
-            "empty."))
+          sender ! Failure(new JobSubmissionException(jobGraph.getJobID ,"Job is empty."))
         } else {
           // Create the user code class loader
           libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
@@ -415,10 +416,8 @@ class JobManager(val configuration: Configuration,
           }
 
           if (log.isDebugEnabled) {
-            log.debug(s"Running master initialization of job ${jobGraph.getJobID} (${
-              jobGraph
-                .getName
-            }}).")
+            log.debug(s"Running master initialization of job ${jobGraph.getJobID} " +
+              s"(${jobGraph.getName}).")
           }
 
           for (vertex <- jobGraph.getVertices.asScala) {
@@ -464,32 +463,31 @@ class JobManager(val configuration: Configuration,
 
           executionGraph.scheduleForExecution(scheduler)
 
-          sender ! SubmissionSuccess(jobGraph.getJobID)
+          sender ! Success(jobGraph.getJobID)
         }
       }
     } catch {
       case t: Throwable =>
-        log.error(t, "Job submission failed.")
+        log.error(t, "Job submission of job {} failed.", jobGraph.getJobID)
 
         currentJobs.get(jobGraph.getJobID) match {
           case Some((executionGraph, jobInfo)) =>
             /*
-             * Register self to be notified about job status changes in case that it did not happen
-             * before. That way the proper cleanup of the job is triggered in the JobStatusChanged
-             * handler.
-             */
+           * Register self to be notified about job status changes in case that it did not happen
+           * before. That way the proper cleanup of the job is triggered in the JobStatusChanged
+           * handler.
+           */
             if (!executionGraph.containsJobStatusListener(self)) {
               executionGraph.registerJobStatusListener(self)
             }
 
+            // let the execution graph fail, which will send a failure to the job client
             executionGraph.fail(t)
-
           case None =>
             libraryCacheManager.unregisterJob(jobGraph.getJobID)
             currentJobs.remove(jobGraph.getJobID)
+            sender ! Failure(t)
         }
-
-        sender ! SubmissionFailure(jobGraph.getJobID, t)
     }
   }
 
