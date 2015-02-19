@@ -48,7 +48,6 @@ env:
         # javadocs deploy
         - secure: "f4wACodae0NCaIZtmg/JvP40G/3dE7O6+ONDMbq8P/9dnT5peRB1q7+KZxggRmFSWTMPdPIDI7YxI/rM5wZ3pUN2eX0BpjfANT58OJdgCNXN3Hr9YOa8UykD2h6b+AHpy4G89MG65m73RvNXngHTCQ8SBIfewzeMAhHdD3Fk0u8="
         # If set to "true" and the build produces artifacts like log files, they will be uploaded to the specified S3 bucket
-        - UPLOAD_ARTIFACTS=true
         - secure: "MQDMeFQwC6BdrbynkdAr1P4lzaTH7ZCDDS1jHlb9pZxImDtWSEaEn/sYqELACw/l0flwraYioqDdGmdUfNFuCNG1nnFYX8Gpjmay2GlQOegr5cm/6aBy8HfeW1vYS2tdRBLvGeqvHDA7Ufw6hpQpFu3CqJH2ihnmu6v/MW0QVXw="
         - secure: "cfTKGKLYAdyc7nyCp64uhVgf66nzY4dqPrjfFUGpw7/lCVDDurZoZGJPNkBv5gLdjAEwFUkSyaJoWmL/ixc+YKP1LH9m7BEqku4KbAYCw7kWwCOKPFbGeolmSOCLhvmysFR2+EPBFmnvWQGeVKAvG2xMxmhE/WN92OL0TiW8Kpc="
         - secure: "KKV6pQP1csR3seQrt8y75cDKpPWzet1J8ZnrrxnX3kz3oKA1pMiflP8PcywAgVMjNK963pmEaMVDFGJFHe2M4EwaaK1lt+0153SZfktN0tg/aotAQy7XHLY7HMCvPYLfKVK1nGYtmt7LGEssFIXb4oynrszuOF59QmsbvRvf2Zc="
