@@ -41,13 +41,15 @@ MAX_NO_OUTPUT=${1:-300}
 # Number of seconds to sleep before checking the output again
 SLEEP_TIME=20
 
-# Maven command to run. We set the forkCount manually, because otherwise Maven assumes that the
-# Travis machine has way more cores. File loggers should use the specified log.dir property.
-MVN="mvn -Dflink.forkCount=2 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} clean install verify"
+LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
+
+# Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
+# on the Travis VMs.
+MVN="mvn -Dflink.forkCount=2 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES clean install verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
-MVN_OUT="${ARTIFACTS_DIR}/watchdog.mvn.out"
+MVN_OUT="${ARTIFACTS_DIR}/mvn.out"
 
 TRACE_OUT="${ARTIFACTS_DIR}/jps-traces.out"
 
@@ -65,24 +67,18 @@ UPLOAD_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
 
 upload_artifacts_s3() {
 	if [ $UPLOAD_ARTIFACTS = "true" ]; then
-		# Only upload artifacts != watchdog files
-		num_artifacts=`find $ARTIFACTS_DIR -maxdepth 1 -type f | grep -v "watchdog*" | wc -l`
-
 		echo "UPLOADING produced build artifacts."
 
 		ls $ARTIFACTS_DIR
 
-		# Check > 1, because we also produce a build_info file per build
-		if [ "$num_artifacts" -gt 1 ]; then
-			# Install artifacts tool
-			curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
+		# Install artifacts tool
+		curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
 
-			PATH=$HOME/bin:$PATH
+		PATH=$HOME/bin:$PATH
 
-			# Upload everything in $ARTIFACTS_DIR. Use relative path, otherwise the upload tool
-			# re-creates the whole directory structure from root.
-			artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH tools/artifacts/
-		fi
+		# Upload everything in $ARTIFACTS_DIR. Use relative path, otherwise the upload tool
+		# re-creates the whole directory structure from root.
+		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH tools/artifacts/
 	fi
 }
 
@@ -174,4 +170,5 @@ rm $MVN_EXIT
 
 upload_artifacts_s3
 
+# Exit code for Travis build success/failure
 exit $EXIT_CODE
