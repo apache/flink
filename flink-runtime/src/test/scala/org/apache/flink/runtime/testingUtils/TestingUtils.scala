@@ -105,20 +105,6 @@ object TestingUtils {
     new TestingCluster(config)
   }
 
-  def startTestingClusterDeathWatch(numSlots: Int, numTMs: Int,
-                                            timeout: String = DEFAULT_AKKA_ASK_TIMEOUT):
-  TestingCluster = {
-    val config = new Configuration()
-    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
-    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTMs)
-    config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, timeout)
-    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "200 ms")
-    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "50 ms")
-    config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 1)
-
-    new TestingCluster(config, singleActorSystem = false)
-  }
-
   def setGlobalExecutionContext(): Unit = {
     AkkaUtils.globalExecutionContext = ExecutionContext.global
   }
