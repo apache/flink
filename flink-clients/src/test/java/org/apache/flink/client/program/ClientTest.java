@@ -20,6 +20,7 @@ package org.apache.flink.client.program;
 
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import akka.actor.Status;
 import akka.actor.UntypedActor;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.NetUtils;
 import org.junit.After;
 
@@ -174,7 +174,7 @@ public class ClientTest {
 				// bam!
 			}
 			catch (Exception e) {
-				fail("wrong exception");
+				fail("wrong exception " + e);
 			}
 
 			verify(this.compilerMock, times(1)).compile(any(Plan.class));
@@ -225,7 +225,7 @@ public class ClientTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception {
-			getSender().tell(new JobManagerMessages.SubmissionSuccess(new JobID()), getSelf());
+			getSender().tell(new Status.Success(new JobID()), getSelf());
 		}
 	}
 
@@ -233,7 +233,7 @@ public class ClientTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception {
-			getSender().tell(new JobManagerMessages.SubmissionFailure(new JobID(), new Exception("test")), getSelf());
+			getSender().tell(new Status.Failure(new Exception("test")), getSelf());
 		}
 	}
 }
