@@ -67,18 +67,22 @@ UPLOAD_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
 
 upload_artifacts_s3() {
 	if [ $UPLOAD_ARTIFACTS = "true" ]; then
-		echo "UPLOADING produced build artifacts."
+		echo "PRODUCED build artifacts."
 
 		ls $ARTIFACTS_DIR
 
-		# Install artifacts tool
-		curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
+		if [ -n "$UPLOAD_BUCKET" ] && [ -n "$UPLOAD_ACCESS_KEY" ] && [ -n "$UPLOAD_SECRET_KEY" ]; then
+			echo "UPLOADING build artifacts."
 
-		PATH=$HOME/bin:$PATH
+			# Install artifacts tool
+			curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
 
-		# Upload everything in $ARTIFACTS_DIR. Use relative path, otherwise the upload tool
-		# re-creates the whole directory structure from root.
-		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH tools/artifacts/
+			PATH=$HOME/bin:$PATH
+
+			# Upload everything in $ARTIFACTS_DIR. Use relative path, otherwise the upload tool
+			# re-creates the whole directory structure from root.
+			artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH tools/artifacts/
+		fi
 	fi
 }
 
