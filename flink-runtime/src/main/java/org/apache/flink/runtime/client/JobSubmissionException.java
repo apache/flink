@@ -21,13 +21,17 @@ package org.apache.flink.runtime.client;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 /**
- * An exception which is thrown by the JobClient if the job manager is no longer reachable.
+ * This exception denotes an error while submitting a job to the JobManager
  */
-public class JobTimeoutException extends JobExecutionException {
+public class JobSubmissionException extends JobExecutionException {
 
-	private static final long serialVersionUID = 2818087325120827529L;
+	private static final long serialVersionUID = 2818087325120827526L;
 
-	public JobTimeoutException(final JobID jobID, final String msg, final Throwable cause) {
+	public JobSubmissionException(final JobID jobID, final String msg, final Throwable cause) {
 		super(jobID, msg, cause);
+	}
+
+	public JobSubmissionException(final JobID jobID, final String msg) {
+		super(jobID, msg);
 	}
 }

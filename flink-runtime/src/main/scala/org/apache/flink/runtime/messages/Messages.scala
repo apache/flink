@@ -20,6 +20,16 @@ package org.apache.flink.runtime.messages
 
 object Messages {
 
+  /**
+   * Message to signal the successful reception of another message
+   */
   case object Acknowledge
+
+  /**
+   * Signals that the JobManager/TaskManager shall disconnect from the sender
+   * (TaskManager/JobManager)
+   * @param reason
+   */
+  case class Disconnect(reason: String)
 
 }

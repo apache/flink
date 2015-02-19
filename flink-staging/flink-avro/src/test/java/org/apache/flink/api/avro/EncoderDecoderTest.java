@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.flink.api.io.avro.generated.Colors;

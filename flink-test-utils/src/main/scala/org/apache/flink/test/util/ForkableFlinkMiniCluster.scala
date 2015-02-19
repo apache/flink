@@ -18,11 +18,16 @@
 
 package org.apache.flink.test.util
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{Props, ActorRef, ActorSystem}
+import akka.pattern.Patterns._
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.TestingTaskManager
+import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingJobManager,
+TestingMemoryArchivist, TestingTaskManager}
+
+import scala.concurrent.Await
 
 class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean)
   extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem) {
@@ -53,6 +58,22 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
     super.generateConfiguration(config)
   }
 
+  override def startJobManager(actorSystem: ActorSystem): ActorRef = {
+
+    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _,
+    executionRetries, delayBetweenRetries,
+    timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
+
+    val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
+    val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
+
+    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
+      libraryCacheManager, archive, accumulatorManager, None, executionRetries,
+      delayBetweenRetries, timeout) with TestingJobManager)
+
+    actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
+  }
+
   override def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef = {
     val config = configuration.clone()
 
@@ -76,5 +97,59 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerAkkaURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + index)
+  }
+
+  def restartJobManager(): Unit = {
+    val stopped = gracefulStop(jobManagerActor, TestingUtils.TESTING_DURATION)
+    Await.result(stopped, TestingUtils.TESTING_DURATION)
+
+    jobManagerActorSystem.shutdown()
+    jobManagerActorSystem.awaitTermination()
+
+    jobManagerActorSystem = startJobManagerActorSystem()
+    jobManagerActor = startJobManager(jobManagerActorSystem)
+  }
+
+  def restartTaskManager(index: Int): Unit = {
+    val stopped = gracefulStop(taskManagerActors(index), TestingUtils.TESTING_DURATION)
+    Await.result(stopped, TestingUtils.TESTING_DURATION)
+
+    taskManagerActorSystems(index).shutdown()
+    taskManagerActorSystems(index).awaitTermination()
+
+    val taskManagerActorSystem  = startTaskManagerActorSystem(index)
+    val taskManagerActor = startTaskManager(index)(jobManagerActorSystem)
+
+    taskManagerActors = taskManagerActors.patch(index, Seq(taskManagerActor), 1)
+    taskManagerActorSystems = taskManagerActorSystems.patch(index, Seq(taskManagerActorSystem), 1)
+  }
+}
+
+object ForkableFlinkMiniCluster {
+
+  import org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT
+
+  def startClusterDeathWatch(numSlots: Int, numTaskManagers: Int,
+                                    timeout: String = DEFAULT_AKKA_ASK_TIMEOUT):
+  ForkableFlinkMiniCluster = {
+    val config = new Configuration()
+    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
+    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers)
+    config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, timeout)
+    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
+    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
+    config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
+
+    new ForkableFlinkMiniCluster(config, singleActorSystem = false)
+  }
+
+  def startCluster(numSlots: Int, numTaskManagers: Int, timeout: String = DEFAULT_AKKA_ASK_TIMEOUT):
+  ForkableFlinkMiniCluster = {
+    val config = new Configuration()
+    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
+    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers)
+    config.setInteger(ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY, 1000)
+    config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, timeout)
+    new ForkableFlinkMiniCluster(config)
   }
 }

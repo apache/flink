@@ -21,14 +21,14 @@ package org.apache.flink.runtime.client
 import java.io.IOException
 import java.net.{InetAddress, InetSocketAddress}
 
-import akka.actor.Status.Failure
+import akka.actor.Status.{Success, Failure}
 import akka.actor._
 import akka.pattern.{Patterns, ask}
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobgraph.JobGraph
+import org.apache.flink.runtime.jobgraph.{JobID, JobGraph}
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.messages.JobClientMessages.{SubmitJobDetached, SubmitJobAndWait}
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -82,22 +82,14 @@ Actor with ActorLogMessages with ActorLogging {
 class JobClientListener(jobSubmitter: ActorRef) extends Actor with ActorLogMessages with
 ActorLogging {
   override def receiveWithLogMessages: Receive = {
-    case SubmissionFailure(jobID, t) =>
-      System.out.println(s"Submission of job with ID $jobID was unsuccessful, " +
-        s"because ${t.getMessage}.")
+    case failure: Failure =>
+      jobSubmitter ! failure
+      self ! PoisonPill
 
-    case SubmissionSuccess(_) =>
+    case Success(_) =>
 
     case JobResultSuccess(_, duration, accumulatorResults) =>
       jobSubmitter ! new JobExecutionResult(duration, accumulatorResults)
-      self ! PoisonPill
-
-    case JobResultCanceled(_, t) =>
-      jobSubmitter ! Failure(new JobCancellationException("The job has been cancelled.", t))
-      self ! PoisonPill
-
-    case JobResultFailed(_, t) =>
-      jobSubmitter ! Failure(new JobExecutionException("The job execution failed.", t))
       self ! PoisonPill
 
     case msg =>
@@ -211,7 +203,7 @@ object JobClient {
    *                                                               execution fails.
    * @return The job execution result
    */
-  @throws(classOf[Exception])
+  @throws(classOf[JobExecutionException])
   def submitJobAndWait(jobGraph: JobGraph, listenToStatusEvents: Boolean, jobClient: ActorRef)
                       (implicit timeout: FiniteDuration): JobExecutionResult = {
 
@@ -233,7 +225,8 @@ object JobClient {
             Await.result(jmStatus, timeout)
           } catch {
             case t: Throwable =>
-              throw new JobTimeoutException("Lost connection to job manager.", t)
+              throw new JobTimeoutException(jobGraph.getJobID, "Lost connection to " +
+                "job manager.", t)
           }
       }
     }
@@ -244,26 +237,25 @@ object JobClient {
   /**
    * Submits a job in detached mode. The method sends the corresponding [[JobGraph]] to the
    * JobClient specified by jobClient. The JobClient does not start a [[JobClientListener]] and
-   * simply returns the [[SubmissionResponse]] of the [[JobManager]]. The SubmissionResponse is
-   * then returned by this method.
+   * simply returns a possible failure on the [[JobManager]].
    *
    * @param jobGraph Flink job
    * @param jobClient ActorRef to the JobClient
    * @param timeout Tiemout for futures
    * @return The submission response
    */
-  @throws(classOf[Exception])
+  @throws(classOf[JobExecutionException])
   def submitJobDetached(jobGraph: JobGraph, jobClient: ActorRef)(implicit timeout: FiniteDuration):
-  SubmissionResponse = {
+  Unit = {
+
     val response = (jobClient ? SubmitJobDetached(jobGraph))(timeout)
 
     try {
-      Await.result(response.mapTo[SubmissionResponse], timeout)
+      Await.result(response, timeout)
     } catch {
       case timeout: TimeoutException =>
-        throw new JobTimeoutException("Timeout while waiting for the submission result.", timeout);
-      case t: Throwable =>
-        throw new JobExecutionException("Exception while waiting for the submission result.", t)
+        throw new JobTimeoutException(jobGraph.getJobID,
+          "Timeout while waiting for the submission result.", timeout);
     }
   }
 

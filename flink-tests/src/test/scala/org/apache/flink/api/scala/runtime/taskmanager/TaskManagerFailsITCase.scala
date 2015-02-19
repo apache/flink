@@ -16,16 +16,23 @@
 * limitations under the License.
 */
 
-package org.apache.flink.runtime.jobmanager
+package org.apache.flink.api.scala.runtime.taskmanager
 
-import akka.actor.{Kill, ActorSystem, PoisonPill}
+import akka.actor.Status.{Failure, Success}
+import akka.actor.{ActorSystem, Kill, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
-import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
-import org.apache.flink.runtime.messages.JobManagerMessages.{RequestNumberRegisteredTaskManager,
-JobResultFailed, SubmissionSuccess, SubmitJob}
+import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender, NoOpInvokable,
+BlockingNoOpInvokable}
+import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.messages.TaskManagerMessages.{RegisteredAtJobManager,
+NotifyWhenRegisteredAtJobManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.test.util.ForkableFlinkMiniCluster
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -34,7 +41,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 class TaskManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
 with WordSpecLike with Matchers with BeforeAndAfterAll {
 
-  def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
+  def this() = this(ActorSystem("TestingActorSystem", AkkaUtils.getDefaultAkkaConfig))
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -45,12 +52,14 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     "detect a failing task manager" in {
       val num_slots = 11
 
-      val cluster = TestingUtils.startTestingClusterDeathWatch(num_slots, 2)
+      val cluster = ForkableFlinkMiniCluster.startClusterDeathWatch(num_slots, 2)
 
       val taskManagers = cluster.getTaskManagers
       val jm = cluster.getJobManager
 
-      try{
+      jm ! DisableDisconnect
+
+      try {
         within(TestingUtils.TESTING_DURATION){
           jm ! RequestNumberRegisteredTaskManager
           expectMsg(2)
@@ -64,10 +73,9 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
           jm ! RequestNumberRegisteredTaskManager
           expectMsg(1)
         }
-      }finally{
+      } finally {
         cluster.stop()
       }
-
     }
 
     "handle gracefully failing task manager" in {
@@ -83,14 +91,14 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
       val jobID = jobGraph.getJobID
 
-      val cluster = TestingUtils.startTestingCluster(num_tasks, 2)
+      val cluster = ForkableFlinkMiniCluster.startCluster(num_tasks, 2)
 
       val jm = cluster.getJobManager
 
       try {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
 
           jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
 
@@ -101,9 +109,17 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
           val tm = expectMsgType[WorkingTaskManager].taskManager
           // kill one task manager
           tm ! PoisonPill
-          expectMsgType[JobResultFailed]
+
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
         }
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -121,7 +137,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
       val jobID = jobGraph.getJobID
 
-      val cluster = TestingUtils.startTestingCluster(num_tasks, 2)
+      val cluster = ForkableFlinkMiniCluster.startCluster(num_tasks, 2)
 
       val taskManagers = cluster.getTaskManagers
       val jm = cluster.getJobManager
@@ -129,16 +145,78 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       try {
         within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(SubmissionSuccess(jobGraph.getJobID))
+          expectMsg(Success(jobGraph.getJobID))
 
           jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
           expectMsg(AllVerticesRunning(jobID))
 
           // kill one task manager
           taskManagers(0) ! Kill
-          expectMsgType[JobResultFailed]
+
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
         }
-      }finally{
+      } finally {
+        cluster.stop()
+      }
+    }
+    
+    "go into a clean state in case of a TaskManager failure" in {
+      val num_slots = 20      
+
+      val sender = new AbstractJobVertex("BlockingSender")
+      sender.setParallelism(num_slots)
+      sender.setInvokableClass(classOf[BlockingNoOpInvokable])
+      val jobGraph = new JobGraph("Blocking Testjob", sender)
+
+      val noOp = new AbstractJobVertex("NoOpInvokable")
+      noOp.setParallelism(num_slots)
+      noOp.setInvokableClass(classOf[NoOpInvokable])
+      val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
+
+      val cluster = ForkableFlinkMiniCluster.startClusterDeathWatch(num_slots/2, 2)
+
+      var tm = cluster.getTaskManagers(0)
+      val jm = cluster.getJobManager
+
+      try{
+        within(TestingUtils.TESTING_DURATION){
+          jm ! SubmitJob(jobGraph)
+          expectMsg(Success(jobGraph.getJobID))
+
+          tm ! PoisonPill
+
+          val failure = expectMsgType[Failure]
+
+          failure.cause match {
+            case e: JobExecutionException =>
+              jobGraph.getJobID should equal(e.getJobID)
+
+            case e => fail(s"Received wrong exception $e.")
+          }
+
+          cluster.restartTaskManager(0)
+
+          tm = cluster.getTaskManagers(0)
+
+          tm ! NotifyWhenRegisteredAtJobManager
+
+          expectMsg(RegisteredAtJobManager)
+
+          jm ! SubmitJob(jobGraph2)
+
+          expectMsgType[Success]
+
+          val result = expectMsgType[JobResultSuccess]
+          result.jobID should equal(jobGraph2.getJobID)
+        }
+      } finally {
         cluster.stop()
       }
     }

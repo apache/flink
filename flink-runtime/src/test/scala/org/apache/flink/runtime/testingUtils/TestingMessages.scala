@@ -16,18 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.client;
+package org.apache.flink.runtime.testingUtils
 
-import org.apache.flink.runtime.jobgraph.JobID;
+object TestingMessages {
 
-/**
- * An exception which is thrown by the JobClient if the job manager is no longer reachable.
- */
-public class JobTimeoutException extends JobExecutionException {
-
-	private static final long serialVersionUID = 2818087325120827529L;
-
-	public JobTimeoutException(final JobID jobID, final String msg, final Throwable cause) {
-		super(jobID, msg, cause);
-	}
+  case object DisableDisconnect
 }

@@ -48,9 +48,9 @@ FlinkMiniCluster(userConfiguration, singleActorSystem) {
 
   override def startJobManager(actorSystem: ActorSystem): ActorRef = {
 
-    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _ ,
-        executionRetries, delayBetweenRetries,
-        timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
+    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _,
+    executionRetries, delayBetweenRetries,
+    timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
 
     val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
     val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
@@ -70,10 +70,5 @@ FlinkMiniCluster(userConfiguration, singleActorSystem) {
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + "_" +
       (index + 1))
-  }
-
-  def restartJobManager(): Unit = {
-    jobManagerActorSystem.stop(jobManagerActor)
-    jobManagerActor = startJobManager(jobManagerActorSystem)
   }
 }
