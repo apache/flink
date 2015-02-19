@@ -128,4 +128,9 @@ public class DeltaPolicy<DATA> implements CloneableTriggerPolicy<DATA>,
 			}
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "DeltaPolicy(" + threshold + ", " + deltaFuntion.getClass().getSimpleName() + ")";
+	}
 }

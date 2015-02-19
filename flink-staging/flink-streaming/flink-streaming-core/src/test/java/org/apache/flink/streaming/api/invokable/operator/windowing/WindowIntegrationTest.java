@@ -32,6 +32,8 @@ import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.helper.Count;
+import org.apache.flink.streaming.api.windowing.helper.Time;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -97,11 +99,28 @@ public class WindowIntegrationTest implements Serializable {
 		source.window(Count.of(4)).groupBy(new ModKey(2)).mapWindow(new IdentityWindowMap())
 				.flatten().addSink(new CentralSink2());
 
-		source.groupBy(new ModKey(3)).window(Count.of(2)).sum(0).getDiscretizedStream()
+		KeySelector<Integer, ?> key = new ModKey(2);
+		Timestamp<Integer> ts = new Timestamp<Integer>() {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public long getTimestamp(Integer value) {
+				return value;
+			}
+		};
+
+		source.groupBy(key).window(Time.of(4, ts, 1)).sum(0).getDiscretizedStream()
 				.addSink(new DistributedSink1());
 
 		source.groupBy(new ModKey(3)).window(Count.of(2)).groupBy(new ModKey(2))
 				.mapWindow(new IdentityWindowMap()).flatten().addSink(new DistributedSink2());
+
+		source.window(Count.of(2)).every(Count.of(3)).min(0).getDiscretizedStream()
+				.addSink(new CentralSink3());
+
+		source.groupBy(key).window(Time.of(4, ts, 1)).max(0).getDiscretizedStream()
+				.addSink(new DistributedSink3());
 
 		env.execute();
 
@@ -123,14 +142,13 @@ public class WindowIntegrationTest implements Serializable {
 
 		validateOutput(expected2, CentralSink2.windows);
 
-		// groupby mod 3 sum ( Tumbling Count of 2)
+		// groupby mod 2 sum ( Tumbling Time of 4)
 		List<StreamWindow<Integer>> expected3 = new ArrayList<StreamWindow<Integer>>();
 		expected3.add(StreamWindow.fromElements(4));
 		expected3.add(StreamWindow.fromElements(5));
-		expected3.add(StreamWindow.fromElements(16));
+		expected3.add(StreamWindow.fromElements(22));
+		expected3.add(StreamWindow.fromElements(8));
 		expected3.add(StreamWindow.fromElements(10));
-		expected3.add(StreamWindow.fromElements(11));
-		expected3.add(StreamWindow.fromElements(3));
 
 		validateOutput(expected3, DistributedSink1.windows);
 
@@ -145,6 +163,22 @@ public class WindowIntegrationTest implements Serializable {
 		expected4.add(StreamWindow.fromElements(3));
 
 		validateOutput(expected4, DistributedSink2.windows);
+
+		// min ( Count of 2 slide 3 )
+		List<StreamWindow<Integer>> expected5 = new ArrayList<StreamWindow<Integer>>();
+		expected5.add(StreamWindow.fromElements(2));
+		expected5.add(StreamWindow.fromElements(4));
+		expected5.add(StreamWindow.fromElements(11));
+
+		validateOutput(expected5, CentralSink3.windows);
+
+		// groupby mod 2 max ( Tumbling Time of 4)
+		List<StreamWindow<Integer>> expected6 = new ArrayList<StreamWindow<Integer>>();
+		expected6.add(StreamWindow.fromElements(3));
+		expected6.add(StreamWindow.fromElements(5));
+		expected6.add(StreamWindow.fromElements(11));
+		expected6.add(StreamWindow.fromElements(4));
+		expected6.add(StreamWindow.fromElements(10));
 
 	}
 
@@ -179,6 +213,19 @@ public class WindowIntegrationTest implements Serializable {
 	}
 
 	@SuppressWarnings("serial")
+	private static class CentralSink3 implements SinkFunction<StreamWindow<Integer>> {
+
+		public static List<StreamWindow<Integer>> windows = Collections
+				.synchronizedList(new ArrayList<StreamWindow<Integer>>());
+
+		@Override
+		public void invoke(StreamWindow<Integer> value) throws Exception {
+			windows.add(value);
+		}
+
+	}
+
+	@SuppressWarnings("serial")
 	private static class DistributedSink1 implements SinkFunction<StreamWindow<Integer>> {
 
 		public static List<StreamWindow<Integer>> windows = Collections
@@ -193,6 +240,19 @@ public class WindowIntegrationTest implements Serializable {
 
 	@SuppressWarnings("serial")
 	private static class DistributedSink2 implements SinkFunction<StreamWindow<Integer>> {
+
+		public static List<StreamWindow<Integer>> windows = Collections
+				.synchronizedList(new ArrayList<StreamWindow<Integer>>());
+
+		@Override
+		public void invoke(StreamWindow<Integer> value) throws Exception {
+			windows.add(value);
+		}
+
+	}
+
+	@SuppressWarnings("serial")
+	private static class DistributedSink3 implements SinkFunction<StreamWindow<Integer>> {
 
 		public static List<StreamWindow<Integer>> windows = Collections
 				.synchronizedList(new ArrayList<StreamWindow<Integer>>());

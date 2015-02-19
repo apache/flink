@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -256,9 +257,10 @@ public class StreamGraph extends StreamingPlan {
 
 		addVertex(vertexName, CoStreamVertex.class, taskInvokableObject, operatorName, parallelism);
 
-		addTypeSerializers(vertexName, new StreamRecordSerializer<IN1>(in1TypeInfo, executionConfig),
-				new StreamRecordSerializer<IN2>(in2TypeInfo, executionConfig), new StreamRecordSerializer<OUT>(
-						outTypeInfo, executionConfig), null);
+		addTypeSerializers(vertexName,
+				new StreamRecordSerializer<IN1>(in1TypeInfo, executionConfig),
+				new StreamRecordSerializer<IN2>(in2TypeInfo, executionConfig),
+				new StreamRecordSerializer<OUT>(outTypeInfo, executionConfig), null);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CO-TASK: {}", vertexName);
@@ -317,6 +319,17 @@ public class StreamGraph extends StreamingPlan {
 		inEdgeLists.get(downStreamVertexName).add(upStreamVertexName);
 		outputPartitioners.get(upStreamVertexName).add(partitionerObject);
 		selectedNames.get(upStreamVertexName).add(outputNames);
+	}
+
+	public void removeEdge(String upStream, String downStream) {
+		int inputIndex = getInEdges(downStream).indexOf(upStream);
+		inEdgeLists.get(downStream).remove(inputIndex);
+
+		int outputIndex = getOutEdges(upStream).indexOf(downStream);
+		outEdgeLists.get(upStream).remove(outputIndex);
+		outEdgeTypes.get(upStream).remove(outputIndex);
+		selectedNames.get(upStream).remove(outputIndex);
+		outputPartitioners.get(upStream).remove(outputIndex);
 	}
 
 	private void addTypeSerializers(String vertexName, StreamRecordSerializer<?> in1,
@@ -404,7 +417,8 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <OUT> void setOutType(String id, TypeInformation<OUT> outType) {
-		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType, executionConfig);
+		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType,
+				executionConfig);
 		typeSerializersOut1.put(id, serializer);
 	}
 
@@ -478,6 +492,10 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setChaining(boolean chaining) {
 		this.chaining = chaining;
+	}
+
+	public Set<Entry<String, StreamInvokable<?, ?>>> getInvokables() {
+		return invokableObjects.entrySet();
 	}
 
 	public Collection<String> getSources() {

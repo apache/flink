@@ -213,4 +213,10 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> 
 			}
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "Discretizer(Trigger: " + triggerPolicy.toString() + ", Eviction: " + evictionPolicy.toString()
+				+ ")";
+	}
 }

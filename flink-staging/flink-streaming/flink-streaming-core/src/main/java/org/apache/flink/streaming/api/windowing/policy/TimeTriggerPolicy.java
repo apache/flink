@@ -213,4 +213,10 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		}
 	}
 
+	@Override
+	public String toString() {
+		return "TimePolicy(" + granularity + ", " + timestampWrapper.getClass().getSimpleName()
+				+ ")";
+	}
+
 }

@@ -101,4 +101,9 @@ public class CountTriggerPolicy<IN> implements CloneableTriggerPolicy<IN> {
 			}
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "CountPolicy(" + max + ")";
+	}
 }

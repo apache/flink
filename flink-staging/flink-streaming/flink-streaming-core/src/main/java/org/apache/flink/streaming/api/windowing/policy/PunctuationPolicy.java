@@ -135,4 +135,10 @@ public class PunctuationPolicy<IN, DATA> implements CloneableTriggerPolicy<IN>,
 			}
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "PunctuationPolicy(" + punctuation + extractor != null ? ", "
+				+ extractor.getClass().getSimpleName() : "" + ")";
+	}
 }

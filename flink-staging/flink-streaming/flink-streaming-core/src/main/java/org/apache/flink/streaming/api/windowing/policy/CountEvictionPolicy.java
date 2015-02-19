@@ -135,4 +135,9 @@ public class CountEvictionPolicy<IN> implements CloneableEvictionPolicy<IN> {
 			}
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "CountPolicy(" + maxElements + ")";
+	}
 }

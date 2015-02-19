@@ -73,7 +73,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 				WindowTransformation.REDUCEWINDOW, "Window Reduce", getType(),
 				new WindowReducer<OUT>(reduceFunction)).merge();
 
-		if (!isGrouped()) {
+		if (!isGrouped() && out.discretizedStream.invokable instanceof WindowMerger) {
 			return out.transform(WindowTransformation.REDUCEWINDOW, "Window Reduce", out.getType(),
 					new WindowReducer<OUT>(discretizedStream.clean(reduceFunction)));
 		} else {
@@ -122,7 +122,9 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 			out.groupByKey = null;
 
 			return out;
-		} else if (transformation == WindowTransformation.MAPWINDOW) {
+		} else if (transformation != WindowTransformation.MAPWINDOW
+				&& parallelism != discretizedStream.getExecutionEnvironment()
+						.getDegreeOfParallelism()) {
 			return transform(transformation, "Window partitioner", getType(),
 					new WindowPartitioner<OUT>(parallelism)).setParallelism(parallelism);
 		} else {
@@ -137,8 +139,14 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	private DiscretizedStream<OUT> merge() {
 		TypeInformation<StreamWindow<OUT>> type = discretizedStream.getType();
 
-		return wrap(discretizedStream.groupBy(new WindowKey<OUT>()).transform("Window Merger",
-				type, new WindowMerger<OUT>()));
+		// Only merge partitioned streams
+		if (discretizedStream.invokable instanceof WindowPartitioner) {
+			return wrap(discretizedStream.groupBy(new WindowKey<OUT>()).transform("Window Merger",
+					type, new WindowMerger<OUT>()));
+		} else {
+			return this;
+		}
+
 	}
 
 	@SuppressWarnings("rawtypes")

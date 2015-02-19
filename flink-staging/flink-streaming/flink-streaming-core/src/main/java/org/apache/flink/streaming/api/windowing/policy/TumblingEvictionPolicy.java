@@ -96,4 +96,9 @@ public class TumblingEvictionPolicy<DATA> implements CloneableEvictionPolicy<DAT
 			return true;
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "TumblingPolicy";
+	}
 }

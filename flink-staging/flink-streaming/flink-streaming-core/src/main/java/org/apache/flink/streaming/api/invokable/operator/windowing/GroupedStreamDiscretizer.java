@@ -125,4 +125,9 @@ public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 		}
 	}
 
+	@Override
+	public String toString() {
+		return "GroupedDiscretizer(Key: " + keySelector.getClass().getSimpleName() + ", Trigger: "
+				+ triggerPolicy.toString() + ", Eviction: " + evictionPolicy.toString() + ")";
+	}
 }
