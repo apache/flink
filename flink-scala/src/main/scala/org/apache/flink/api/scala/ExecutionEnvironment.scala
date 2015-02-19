@@ -26,7 +26,7 @@ import org.apache.flink.api.java.io._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
-import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase}
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, ValueTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala.hadoop.mapred
 import org.apache.flink.api.scala.hadoop.mapreduce
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
@@ -46,6 +46,7 @@ import org.apache.hadoop.fs.{Path => HadoopPath}
 
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 import scala.reflect.ClassTag
 
@@ -243,8 +244,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * @param lenient Whether the parser should silently ignore malformed lines.
    * @param includedFields The fields in the file that should be read. Per default all fields
    *                       are read.
+   * @param pojoFields The fields of the POJO which are mapped to CSV fields.
    */
-  def readCsvFile[T <: Product : ClassTag : TypeInformation](
+  def readCsvFile[T : ClassTag : TypeInformation](
       filePath: String,
       lineDelimiter: String = "\n",
       fieldDelimiter: String = ",",
@@ -252,9 +254,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       ignoreFirstLine: Boolean = false,
       ignoreComments: String = null,
       lenient: Boolean = false,
-      includedFields: Array[Int] = null): DataSet[T] = {
+      includedFields: Array[Int] = null,
+      pojoFields: Array[String] = null): DataSet[T] = {
 
-    val typeInfo = implicitly[TypeInformation[T]].asInstanceOf[TupleTypeInfoBase[T]]
+    val typeInfo = implicitly[TypeInformation[T]]
 
     val inputFormat = new ScalaCsvInputFormat[T](new Path(filePath), typeInfo)
     inputFormat.setDelimiter(lineDelimiter)
@@ -267,16 +270,40 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       inputFormat.enableQuotedStringParsing(quoteCharacter);
     }
 
-    val classes: Array[Class[_]] = new Array[Class[_]](typeInfo.getArity)
-    for (i <- 0 until typeInfo.getArity) {
-      classes(i) = typeInfo.getTypeAt(i).getTypeClass
+    val classesBuf: ArrayBuffer[Class[_]] = new ArrayBuffer[Class[_]]
+    typeInfo match {
+      case info: TupleTypeInfoBase[T] =>
+        for (i <- 0 until info.getArity) {
+          classesBuf += info.getTypeAt(i).getTypeClass()
+        }
+      case info: PojoTypeInfo[T] =>
+        if (pojoFields == null) {
+          throw new IllegalArgumentException(
+            "POJO fields must be specified (not null) if output type is a POJO.")
+        } else {
+          for (i <- 0 until pojoFields.length) {
+            val pos = info.getFieldIndex(pojoFields(i))
+            if (pos < 0) {
+              throw new IllegalArgumentException(
+                "Field \"" + pojoFields(i) + "\" not part of POJO type " +
+                  info.getTypeClass.getCanonicalName);
+            }
+            classesBuf += info.getPojoFieldAt(pos).`type`.getTypeClass
+          }
+        }
+      case _ => throw new IllegalArgumentException("Type information is not valid.")
     }
+
     if (includedFields != null) {
-      Validate.isTrue(typeInfo.getArity == includedFields.length, "Number of tuple fields and" +
+      Validate.isTrue(classesBuf.size == includedFields.length, "Number of tuple fields and" +
         " included fields must match.")
-      inputFormat.setFields(includedFields, classes)
+      inputFormat.setFields(includedFields, classesBuf.toArray)
     } else {
-      inputFormat.setFieldTypes(classes)
+      inputFormat.setFieldTypes(classesBuf.toArray)
+    }
+
+    if (pojoFields != null) {
+      inputFormat.setOrderOfPOJOFields(pojoFields)
     }
 
     wrap(new DataSource[T](javaEnv, inputFormat, typeInfo, getCallLocationName()))
