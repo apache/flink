@@ -54,12 +54,14 @@ MVN_OUT="${ARTIFACTS_DIR}/mvn.out"
 TRACE_OUT="${ARTIFACTS_DIR}/jps-traces.out"
 
 # E.g. travis-artifacts/apache/flink/1595/1595.1
-UPLOAD_TARGET_PATH="travis-artifacts/${TRAVIS_REPO_SLUG}/${TRAVIS_BUILD_NUMBER}/${TRAVIS_JOB_NUMBER}"
+UPLOAD_TARGET_PATH="travis-artifacts/${TRAVIS_REPO_SLUG}/${TRAVIS_BUILD_NUMBER}/"
 # These variables are stored as secure variables in '.travis.yml', which are generated per repo via
 # the travis command line tool.
 UPLOAD_BUCKET=$ARTIFACTS_AWS_BUCKET
 UPLOAD_ACCESS_KEY=$ARTIFACTS_AWS_ACCESS_KEY
 UPLOAD_SECRET_KEY=$ARTIFACTS_AWS_SECRET_KEY
+
+ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
 
 # =============================================================================
 # FUNCTIONS
@@ -71,16 +73,21 @@ upload_artifacts_s3() {
 	ls $ARTIFACTS_DIR
 
 	if [ -n "$UPLOAD_BUCKET" ] && [ -n "$UPLOAD_ACCESS_KEY" ] && [ -n "$UPLOAD_SECRET_KEY" ]; then
-		echo "UPLOADING build artifacts."
+		echo "COMPRESSING build artifacts."
+
+		cd $ARTIFACTS_DIR
+		tar -zcvf $ARTIFACTS_FILE *
 
 		# Install artifacts tool
 		curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
 
 		PATH=$HOME/bin:$PATH
 
+		echo "UPLOADING build artifacts."
+
 		# Upload everything in $ARTIFACTS_DIR. Use relative path, otherwise the upload tool
 		# re-creates the whole directory structure from root.
-		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH tools/artifacts/
+		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH $ARTIFACTS_FILE
 	fi
 }
 
