@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager
+package org.apache.flink.api.scala.runtime.jobmanager
 
-import akka.actor.{PoisonPill, ActorSystem}
+import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestNumberRegisteredTaskManager
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated,
-NotifyWhenJobManagerTerminated}
-import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
+import org.apache.flink.test.util.ForkableFlinkMiniCluster
 import org.junit.runner.RunWith
-import org.scalatest.{WordSpecLike, Matchers, BeforeAndAfterAll}
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 @RunWith(classOf[JUnitRunner])
 class JobManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
 with WordSpecLike with Matchers with BeforeAndAfterAll {
 
-  def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
+  def this() = this(ActorSystem("TestingActorSystem", AkkaUtils.getDefaultAkkaConfig))
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -42,7 +42,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     "detect a lost connection to the JobManager and try to reconnect to it" in {
       val num_slots = 11
 
-      val cluster = TestingUtils.startTestingClusterDeathWatch(num_slots, 1)
+      val cluster = ForkableFlinkMiniCluster.startClusterDeathWatch(num_slots, 1)
 
       val tm = cluster.getTaskManagers(0)
       val jm = cluster.getJobManager
