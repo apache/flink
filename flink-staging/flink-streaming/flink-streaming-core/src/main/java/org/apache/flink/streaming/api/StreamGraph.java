@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -86,6 +87,7 @@ public class StreamGraph extends StreamingPlan {
 	private Map<String, Long> iterationTimeouts;
 	private Map<String, Map<String, OperatorState<?>>> operatorStates;
 	private Map<String, InputFormat<String, ?>> inputFormatLists;
+	private List<Map<String, ?>> containingMaps;
 
 	private Set<String> sources;
 
@@ -103,28 +105,50 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public void initGraph() {
+		containingMaps = new ArrayList<Map<String, ?>>();
+
 		operatorParallelisms = new HashMap<String, Integer>();
+		containingMaps.add(operatorParallelisms);
 		bufferTimeouts = new HashMap<String, Long>();
+		containingMaps.add(bufferTimeouts);
 		outEdgeLists = new HashMap<String, List<String>>();
+		containingMaps.add(outEdgeLists);
 		outEdgeTypes = new HashMap<String, List<Integer>>();
+		containingMaps.add(outEdgeTypes);
 		selectedNames = new HashMap<String, List<List<String>>>();
+		containingMaps.add(selectedNames);
 		inEdgeLists = new HashMap<String, List<String>>();
+		containingMaps.add(inEdgeLists);
 		outputPartitioners = new HashMap<String, List<StreamPartitioner<?>>>();
+		containingMaps.add(outputPartitioners);
 		operatorNames = new HashMap<String, String>();
+		containingMaps.add(operatorNames);
 		invokableObjects = new HashMap<String, StreamInvokable<?, ?>>();
+		containingMaps.add(invokableObjects);
 		typeSerializersIn1 = new HashMap<String, StreamRecordSerializer<?>>();
+		containingMaps.add(typeSerializersIn1);
 		typeSerializersIn2 = new HashMap<String, StreamRecordSerializer<?>>();
+		containingMaps.add(typeSerializersIn2);
 		typeSerializersOut1 = new HashMap<String, StreamRecordSerializer<?>>();
+		containingMaps.add(typeSerializersOut1);
 		typeSerializersOut2 = new HashMap<String, StreamRecordSerializer<?>>();
+		containingMaps.add(typeSerializersOut1);
 		outputSelectors = new HashMap<String, List<OutputSelector<?>>>();
+		containingMaps.add(outputSelectors);
 		jobVertexClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
+		containingMaps.add(jobVertexClasses);
 		iterationIds = new HashMap<String, Integer>();
+		containingMaps.add(jobVertexClasses);
 		iterationIDtoHeadName = new HashMap<Integer, String>();
 		iterationIDtoTailName = new HashMap<Integer, String>();
 		iterationTailCount = new HashMap<String, Integer>();
+		containingMaps.add(iterationTailCount);
 		iterationTimeouts = new HashMap<String, Long>();
+		containingMaps.add(iterationTailCount);
 		operatorStates = new HashMap<String, Map<String, OperatorState<?>>>();
+		containingMaps.add(operatorStates);
 		inputFormatLists = new HashMap<String, InputFormat<String, ?>>();
+		containingMaps.add(operatorStates);
 		sources = new HashSet<String>();
 	}
 
@@ -332,6 +356,24 @@ public class StreamGraph extends StreamingPlan {
 		outputPartitioners.get(upStream).remove(outputIndex);
 	}
 
+	public void removeVertex(String toRemove) {
+		List<String> outEdges = new ArrayList<String>(getOutEdges(toRemove));
+		List<String> inEdges = new ArrayList<String>(getInEdges(toRemove));
+
+		for (String output : outEdges) {
+			removeEdge(toRemove, output);
+		}
+
+		for (String input : inEdges) {
+			removeEdge(input, toRemove);
+		}
+
+		for (Map<String, ?> map : containingMaps) {
+			map.remove(toRemove);
+		}
+
+	}
+
 	private void addTypeSerializers(String vertexName, StreamRecordSerializer<?> in1,
 			StreamRecordSerializer<?> in2, StreamRecordSerializer<?> out1,
 			StreamRecordSerializer<?> out2) {
@@ -481,9 +523,12 @@ public class StreamGraph extends StreamingPlan {
 	public JobGraph getJobGraph(String jobGraphName) {
 
 		this.jobName = jobGraphName;
-		StreamingJobGraphGenerator optimizer = new StreamingJobGraphGenerator(this);
 
-		return optimizer.createJobGraph(jobGraphName);
+		WindowingOptimzier.optimizeGraph(this);
+
+		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this);
+
+		return jobgraphGenerator.createJobGraph(jobGraphName);
 	}
 
 	public void setJobName(String jobName) {
@@ -569,17 +614,25 @@ public class StreamGraph extends StreamingPlan {
 	@Override
 	public String getStreamingPlanAsJSON() {
 
+		WindowingOptimzier.optimizeGraph(this);
+
 		try {
 			JSONObject json = new JSONObject();
 			JSONArray nodes = new JSONArray();
 
 			json.put("nodes", nodes);
-
+			List<Integer> operatorIDs = new ArrayList<Integer>();
 			for (String id : operatorNames.keySet()) {
+				operatorIDs.add(Integer.valueOf(id));
+			}
+			Collections.sort(operatorIDs);
+
+			for (Integer idInt : operatorIDs) {
 				JSONObject node = new JSONObject();
 				nodes.put(node);
 
-				node.put("id", Integer.valueOf(id));
+				String id = idInt.toString();
+				node.put("id", idInt);
 				node.put("type", getOperatorName(id));
 
 				if (sources.contains(id)) {
@@ -588,8 +641,13 @@ public class StreamGraph extends StreamingPlan {
 					node.put("pact", "Data Stream");
 				}
 
-				node.put("contents", getOperatorName(id) + " at "
-						+ getInvokable(id).getUserFunction().getClass().getSimpleName());
+				if (getInvokable(id) != null && getInvokable(id).getUserFunction() != null) {
+					node.put("contents", getOperatorName(id) + " at "
+							+ getInvokable(id).getUserFunction().getClass().getSimpleName());
+				} else {
+					node.put("contents", getOperatorName(id));
+				}
+
 				node.put("parallelism", getParallelism(id));
 
 				int numIn = getInEdges(id).size();

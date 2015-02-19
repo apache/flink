@@ -23,8 +23,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -38,7 +36,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy;
-import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationHead;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationTail;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
@@ -80,83 +77,11 @@ public class StreamingJobGraphGenerator {
 
 		init();
 
-		applyWindowOptimizations();
-
 		setChaining();
 
 		setSlotSharing();
 
 		return jobGraph;
-	}
-
-	private void applyWindowOptimizations() {
-		Set<Entry<String, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
-		List<Tuple2<String, StreamDiscretizer<?>>> discretizers = new ArrayList<Tuple2<String, StreamDiscretizer<?>>>();
-
-		// Get the discretizers
-		for (Entry<String, StreamInvokable<?, ?>> entry : invokables) {
-			if (entry.getValue() instanceof StreamDiscretizer) {
-				discretizers.add(new Tuple2<String, StreamDiscretizer<?>>(entry.getKey(),
-						(StreamDiscretizer<?>) entry.getValue()));
-			}
-		}
-
-		// Share common discrtizers
-		setDiscretizerReuse(discretizers);
-
-	}
-
-	private void setDiscretizerReuse(List<Tuple2<String, StreamDiscretizer<?>>> discretizers) {
-		List<Tuple2<StreamDiscretizer<?>, List<String>>> matchingDiscretizers = new ArrayList<Tuple2<StreamDiscretizer<?>, List<String>>>();
-
-		for (Tuple2<String, StreamDiscretizer<?>> discretizer : discretizers) {
-			boolean inMatching = false;
-			for (Tuple2<StreamDiscretizer<?>, List<String>> matching : matchingDiscretizers) {
-				Set<String> discretizerInEdges = new HashSet<String>(
-						streamGraph.getInEdges(discretizer.f0));
-				Set<String> matchingInEdges = new HashSet<String>(
-						streamGraph.getInEdges(matching.f1.get(0)));
-
-				if (discretizer.f1.equals(matching.f0)
-						&& discretizerInEdges.equals(matchingInEdges)) {
-					matching.f1.add(discretizer.f0);
-					inMatching = true;
-					break;
-				}
-			}
-			if (!inMatching) {
-				List<String> matchingNames = new ArrayList<String>();
-				matchingNames.add(discretizer.f0);
-				matchingDiscretizers.add(new Tuple2<StreamDiscretizer<?>, List<String>>(
-						discretizer.f1, matchingNames));
-			}
-		}
-
-		for (Tuple2<StreamDiscretizer<?>, List<String>> matching : matchingDiscretizers) {
-			List<String> matchList = matching.f1;
-			if (matchList.size() > 1) {
-				String first = matchList.get(0);
-				for (int i = 1; i < matchList.size(); i++) {
-					replaceDiscretizer(matchList.get(i), first);
-				}
-			}
-		}
-	}
-
-	private void replaceDiscretizer(String toReplace, String replaceWith) {
-		// Convert to array to create a copy
-		List<String> outEdges = new ArrayList<String>(streamGraph.getOutEdges(toReplace));
-
-		int numOutputs = outEdges.size();
-
-		// Reconnect outputs
-		for (int i = 0; i < numOutputs; i++) {
-			String outName = outEdges.get(i);
-
-			streamGraph.setEdge(replaceWith, outName,
-					streamGraph.getOutPartitioner(toReplace, outName), 0, new ArrayList<String>());
-			streamGraph.removeEdge(toReplace, outName);
-		}
 	}
 
 	private void setChaining() {
