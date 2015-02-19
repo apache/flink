@@ -52,16 +52,9 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
   "The JobManager" should {
 
     "detect a failing task manager" in {
+
       val num_slots = 11
-
-      val config = new Configuration()
-      config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, num_slots)
-      config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2)
-      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
-      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
-      config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
-
-      val cluster = new ForkableFlinkMiniCluster(config, singleActorSystem = false)
+      val cluster = startDeathwatchCluster(num_slots, 2)
 
       val taskManagers = cluster.getTaskManagers
       val jm = cluster.getJobManager
@@ -89,6 +82,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     }
 
     "handle gracefully failing task manager" in {
+
       val num_tasks = 31
       val sender = new AbstractJobVertex("Sender")
       val receiver = new AbstractJobVertex("Receiver")
@@ -190,14 +184,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       noOp.setInvokableClass(classOf[NoOpInvokable])
       val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
 
-      val config = new Configuration()
-      config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, num_slots/2)
-      config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2)
-      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
-      config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
-      config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
-
-      val cluster = new ForkableFlinkMiniCluster(config, singleActorSystem = false)
+      val cluster = startDeathwatchCluster(num_slots/2, 2)
 
       var tm = cluster.getTaskManagers(0)
       val jm = cluster.getJobManager
@@ -239,4 +226,14 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     }
   }
 
+  def startDeathwatchCluster(numSlots: Int, numTaskmanagers: Int): ForkableFlinkMiniCluster = {
+    val config = new Configuration()
+    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
+    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskmanagers)
+    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
+    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
+    config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
+
+    new ForkableFlinkMiniCluster(config, singleActorSystem = false)
+  }
 }
