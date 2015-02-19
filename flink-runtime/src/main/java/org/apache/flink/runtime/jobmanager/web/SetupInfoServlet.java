@@ -157,6 +157,10 @@ public class SetupInfoServlet extends HttpServlet {
 					objInner.put("freeMemory", instance.getResources().getSizeOfJvmHeap() >>> 20);
 					objInner.put("managedMemory", instance.getResources().getSizeOfManagedMemory() >>> 20);
 					objInner.put("instanceID", instance.getId());
+					byte[] report = instance.getLastMetricsReport();
+					if(report != null) {
+						objInner.put("metrics", new JSONObject(new String(report, "utf-8")));
+					}
 					array.put(objInner);
 				} catch (JSONException e) {
 					LOG.warn("Json object creation failed", e);
