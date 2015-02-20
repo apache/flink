@@ -110,6 +110,10 @@ public abstract class AbstractReader implements ReaderBase {
 			throw new IOException("Error while handling event of type " + eventType + ": " + t.getMessage(), t);
 		}
 	}
+	
+	public void publish(TaskEvent event){
+		taskEventHandler.publish(event);
+	}
 
 	// ------------------------------------------------------------------------
 	// Iterations

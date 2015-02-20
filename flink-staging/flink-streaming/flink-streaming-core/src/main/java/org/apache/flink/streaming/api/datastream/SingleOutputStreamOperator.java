@@ -112,7 +112,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *            The state to be registered for this name.
 	 * @return The data stream with state registered.
 	 */
-	protected SingleOutputStreamOperator<OUT, O> registerState(String name, OperatorState<?> state) {
+	public SingleOutputStreamOperator<OUT, O> registerState(String name, OperatorState<?> state) {
 		streamGraph.addOperatorState(getId(), name, state);
 		return this;
 	}
@@ -128,7 +128,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *            The map containing the states that will be registered.
 	 * @return The data stream with states registered.
 	 */
-	protected SingleOutputStreamOperator<OUT, O> registerState(Map<String, OperatorState<?>> states) {
+	public SingleOutputStreamOperator<OUT, O> registerState(Map<String, OperatorState<?>> states) {
 		for (Entry<String, OperatorState<?>> entry : states.entrySet()) {
 			streamGraph.addOperatorState(getId(), entry.getKey(), entry.getValue());
 		}

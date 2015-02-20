@@ -188,7 +188,9 @@ public class StreamingJobGraphGenerator {
 		builtVertices.add(vertexID);
 		jobGraph.addVertex(vertex);
 
-		return new StreamConfig(vertex.getConfiguration());
+		StreamConfig retConfig = new StreamConfig(vertex.getConfiguration());
+		retConfig.setOperatorName(chainedNames.get(vertexID));
+		return retConfig;
 	}
 
 	private void setVertexConfig(Integer vertexID, StreamConfig config,

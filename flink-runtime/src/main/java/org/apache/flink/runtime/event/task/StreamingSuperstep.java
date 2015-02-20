@@ -16,22 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.io;
+package org.apache.flink.runtime.event.task;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import java.io.IOException;
 
-public class IndexedMutableReader<T extends IOReadableWritable> extends MutableRecordReader<T> {
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
-	InputGate reader;
+public class StreamingSuperstep extends TaskEvent {
 
-	public IndexedMutableReader(InputGate reader) {
-		super(reader);
-		this.reader = reader;
+	protected long id;
+
+	public StreamingSuperstep() {
+
 	}
 
-	public int getNumberOfInputChannels() {
-		return reader.getNumberOfInputChannels();
+	public StreamingSuperstep(long id) {
+		this.id = id;
+	}
+
+	@Override
+	public void write(DataOutputView out) throws IOException {
+		out.writeLong(id);
+	}
+
+	@Override
+	public void read(DataInputView in) throws IOException {
+		id = in.readLong();
+	}
+
+	public long getId() {
+		return id;
 	}
 }

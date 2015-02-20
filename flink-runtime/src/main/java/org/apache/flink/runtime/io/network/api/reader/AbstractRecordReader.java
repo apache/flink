@@ -18,24 +18,37 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Set;
+
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.event.task.AbstractEvent;
+import org.apache.flink.runtime.event.task.StreamingSuperstep;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.serialization.SpillingAdaptiveSpanningRecordDeserializer;
-
-import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A record-oriented reader.
  * <p>
- * This abstract base class is used by both the mutable and immutable record readers.
- *
- * @param <T> The type of the record that can be read with this record reader.
+ * This abstract base class is used by both the mutable and immutable record
+ * readers.
+ * 
+ * @param <T>
+ *            The type of the record that can be read with this record reader.
  */
-abstract class AbstractRecordReader<T extends IOReadableWritable> extends AbstractReader implements ReaderBase {
+abstract class AbstractRecordReader<T extends IOReadableWritable> extends AbstractReader implements
+		ReaderBase {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractRecordReader.class);
 
 	private final RecordDeserializer<T>[] recordDeserializers;
 
@@ -43,11 +56,15 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 
 	private boolean isFinished;
 
+	private final BarrierBuffer barrierBuffer;
+
 	protected AbstractRecordReader(InputGate inputGate) {
 		super(inputGate);
+		barrierBuffer = new BarrierBuffer(inputGate, this);
 
 		// Initialize one deserializer per input channel
-		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
+		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate
+				.getNumberOfInputChannels()];
 		for (int i = 0; i < recordDeserializers.length; i++) {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<T>();
 		}
@@ -72,22 +89,27 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				}
 			}
 
-			final BufferOrEvent bufferOrEvent = inputGate.getNextBufferOrEvent();
+			final BufferOrEvent bufferOrEvent = barrierBuffer.getNextNonBlocked();
 
 			if (bufferOrEvent.isBuffer()) {
 				currentRecordDeserializer = recordDeserializers[bufferOrEvent.getChannelIndex()];
 				currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
-			}
-			else if (handleEvent(bufferOrEvent.getEvent())) {
-				if (inputGate.isFinished()) {
-					isFinished = true;
+			} else {
+				// Event received
+				final AbstractEvent event = bufferOrEvent.getEvent();
 
-					return false;
+				if (event instanceof StreamingSuperstep) {
+					barrierBuffer.processSuperstep(bufferOrEvent);
+				} else {
+					if (handleEvent(event)) {
+						if (inputGate.isFinished()) {
+							isFinished = true;
+							return false;
+						} else if (hasReachedEndOfSuperstep()) {
+							return false;
+						} // else: More data is coming...
+					}
 				}
-				else if (hasReachedEndOfSuperstep()) {
-
-					return false;
-				} // else: More data is coming...
 			}
 		}
 	}
