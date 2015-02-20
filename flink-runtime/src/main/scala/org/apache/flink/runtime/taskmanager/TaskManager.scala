@@ -43,7 +43,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobgraph.tasks.BarrierTransceiver
+import org.apache.flink.runtime.jobmanager.{BarrierReq,JobManager}
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
@@ -348,6 +349,20 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
       log.info("Fail intermediate result partitions associated with execution {}.", executionID)
       networkEnvironment foreach {
         _.getPartitionManager.failIntermediateResultPartitions(executionID)
+      }
+
+    case BarrierReq(attemptID, checkpointID) =>
+      log.debug("[FT-TaskManager] Barrier request received for attempt {}", attemptID)
+      runningTasks.get(attemptID) match {
+        case Some(i) =>
+          if (i.getExecutionState == ExecutionState.RUNNING) {
+            i.getEnvironment.getInvokable match {
+              case barrierTransceiver: BarrierTransceiver =>
+                barrierTransceiver.broadcastBarrier(checkpointID)
+              case _ => log.error("[FT-TaskManager] Received a barrier for the wrong vertex")
+            }
+          }
+        case None => log.error("[FT-TaskManager] Received a barrier for an unknown vertex")
       }
   }
 
