@@ -176,7 +176,6 @@ If the TaskManagers do not show up after a minute, you should investigate the is
 The documentation above describes how to start a Flink cluster within a Hadoop YARN environment.
 It is also possible to launch Flink within YARN only for executing a single job.
 
-To deploy a job to a per-job YARN cluster, set the master name to `yarn-cluster`.
 Please note that the client then expects the `-yn` value to be set (number of TaskManagers).
 
 ***Example:***
