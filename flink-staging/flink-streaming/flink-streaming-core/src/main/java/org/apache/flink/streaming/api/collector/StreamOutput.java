@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.collector;
 
 import java.io.IOException;
 
+import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -87,4 +88,7 @@ public class StreamOutput<OUT> implements Collector<OUT> {
 		output.clearBuffers();
 	}
 
+	public void broadcastEvent(TaskEvent barrier) throws IOException, InterruptedException {
+		output.broadcastEvent(barrier);
+	}
 }
