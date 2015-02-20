@@ -19,6 +19,8 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.configuration.Configuration;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -60,11 +62,11 @@ public abstract class PlanExecutor {
 	 * 
 	 * @return A local executor.
 	 */
-	public static PlanExecutor createLocalExecutor() {
+	public static PlanExecutor createLocalExecutor(Configuration configuration) {
 		Class<? extends PlanExecutor> leClass = loadExecutorClass(LOCAL_EXECUTOR_CLASS);
 		
 		try {
-			return leClass.newInstance();
+			return leClass.getConstructor(Configuration.class).newInstance(configuration);
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("An error occurred while loading the local executor (" + LOCAL_EXECUTOR_CLASS + ").", t);

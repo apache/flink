@@ -53,6 +53,8 @@ public class LocalExecutor extends PlanExecutor {
 	
 	private LocalFlinkMiniCluster flink;
 
+	private Configuration configuration;
+
 	// ---------------------------------- config options ------------------------------------------
 	
 
@@ -68,6 +70,11 @@ public class LocalExecutor extends PlanExecutor {
 		if (!ExecutionEnvironment.localExecutionIsAllowed()) {
 			throw new InvalidProgramException("The LocalEnvironment cannot be used when submitting a program through a client.");
 		}
+	}
+
+	public LocalExecutor(Configuration conf) {
+		super();
+		this.configuration = conf;
 	}
 
 
@@ -103,6 +110,9 @@ public class LocalExecutor extends PlanExecutor {
 				
 				// create the embedded runtime
 				Configuration configuration = getConfiguration(this);
+				if(this.configuration != null) {
+					configuration.addAll(this.configuration);
+				}
 				// start it up
 				this.flink = new LocalFlinkMiniCluster(configuration, true);
 			} else {
