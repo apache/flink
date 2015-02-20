@@ -15,19 +15,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.util;
+package org.apache.flink.streaming.connectors.kafka.config;
 
-import java.io.Serializable;
+import org.apache.flink.streaming.connectors.util.SerializationSchema;
 
-public interface SerializationSchema<T, R> extends Serializable {
+import kafka.serializer.Encoder;
+import kafka.utils.VerifiableProperties;
 
-	/**
-	 * Serializes the incoming element to a specified type.
-	 * 
-	 * @param element
-	 *            The incoming element to be serialized
-	 * @return The serialized element.
-	 */
-	public R serialize(T element);
+/**
+ * Wraps an arbitrary SerializationScheme to use as a Kafka Encoder.
+ *
+ * @param <T>
+ * 		Type to serialize
+ */
+public class EncoderWrapper<T> extends KafkaConfigWrapper<SerializationSchema<T, byte[]>> implements Encoder<T> {
+
+	public EncoderWrapper(SerializationSchema<T, byte[]> wrapped) {
+		super(wrapped);
+	}
+
+	public EncoderWrapper(VerifiableProperties properties) {
+		super(properties);
+	}
+
+	@Override
+	public byte[] toBytes(T element) {
+		return wrapped.serialize(element);
+	}
 
 }

@@ -15,19 +15,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.util;
+package org.apache.flink.streaming.connectors.kafka.partitioner;
 
-import java.io.Serializable;
+/**
+ * Kafka partitioner that distributes the data equally by cycling through the output
+ * channels.
+ *
+ * @param <T>
+ *     Type to partition.
+ */
+public class KafkaDistributePartitioner<T> implements KafkaPartitioner<T> {
 
-public interface SerializationSchema<T, R> extends Serializable {
+	int currentPartition;
 
-	/**
-	 * Serializes the incoming element to a specified type.
-	 * 
-	 * @param element
-	 *            The incoming element to be serialized
-	 * @return The serialized element.
-	 */
-	public R serialize(T element);
+	public KafkaDistributePartitioner() {
+		currentPartition = 0;
+	}
+
+	@Override
+	public int partition(T value, int numberOfPartitions) {
+		return currentPartition++ % numberOfPartitions;
+	}
 
 }

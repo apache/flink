@@ -19,39 +19,43 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.connectors.util.SimpleStringSchema;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.connectors.kafka.api.KafkaSource;
+import org.apache.flink.streaming.connectors.util.JavaDefaultStringSchema;
 
-public class KafkaTopology {
+public class KafkaConsumerExample {
 
-	public static final class MySource implements SourceFunction<String> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(Collector<String> collector) throws Exception {
-			for (int i = 0; i < 10; i++) {
-				collector.collect(new String(Integer.toString(i)));
-			}
-			collector.collect(new String("q"));
-
-		}
-	}
+	private static String host;
+	private static int port;
+	private static String topic;
 
 	public static void main(String[] args) throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		if (!parseParameters(args)) {
+			return;
+		}
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment().setDegreeOfParallelism(4);
 
 		@SuppressWarnings("unused")
 		DataStream<String> stream1 = env
 				.addSource(
-						new KafkaSource<String>("localhost:2181", "group", "test",
-								new SimpleStringSchema())).print();
-
-		@SuppressWarnings("unused")
-		DataStream<String> stream2 = env.addSource(new MySource()).addSink(
-				new KafkaSink<String, String>("test", "localhost:9092", new SimpleStringSchema()));
+						new KafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()))
+				.setParallelism(3)
+				.print().setParallelism(3);
 
 		env.execute();
 	}
+
+	private static boolean parseParameters(String[] args) {
+		if (args.length == 3) {
+			host = args[0];
+			port = Integer.parseInt(args[1]);
+			topic = args[2];
+			return true;
+		} else {
+			System.err.println("Usage: KafkaConsumerExample <host> <port> <topic>");
+			return false;
+		}
+	}
+
 }
