@@ -208,7 +208,6 @@ public final class BufferReader implements BufferReaderBase {
 
 				inputChannels.put(partitionId, newChannel);
 
-
 				newChannel.requestIntermediateResultPartition(queueToRequest);
 
 				for (TaskEvent event : pendingEvents) {

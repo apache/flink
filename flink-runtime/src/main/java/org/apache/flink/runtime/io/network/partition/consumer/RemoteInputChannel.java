@@ -215,8 +215,8 @@ public class RemoteInputChannel extends InputChannel {
 		IOException error = ioError.get();
 
 		if (error != null) {
-			throw new IOException(String.format("%s at remote input channel of task '%s': %s].",
-					error.getClass().getName(), reader.getTaskNameWithSubtasks(), error.getMessage()));
+			throw new IOException(String.format("%s at remote input channel of task '%s'.",
+					error.getClass().getName(), reader.getTaskNameWithSubtasks()), error);
 		}
 	}
 

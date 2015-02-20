@@ -563,7 +563,7 @@ public final class ConfigConstants {
 
 	public static int DEFAULT_AKKA_DISPATCHER_THROUGHPUT = 15;
 
-	public static boolean DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS = true;
+	public static boolean DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS = false;
 
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 

@@ -385,7 +385,6 @@ import scala.collection.JavaConverters._
             startRegisteringTask = System.currentTimeMillis()
           }
 
-          manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
           // triggers the download of all missing jar files from the job manager
           manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
 

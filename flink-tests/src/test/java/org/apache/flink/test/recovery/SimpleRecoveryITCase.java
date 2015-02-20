@@ -81,6 +81,7 @@ public class SimpleRecoveryITCase {
 				env.setNumberOfExecutionRetries(0);
 
 				env.generateSequence(1, 10)
+						.rebalance()
 						.map(new FailOnceMapper<Long>())
 						.reduce(new ReduceFunction<Long>() {
 							@Override
@@ -108,6 +109,7 @@ public class SimpleRecoveryITCase {
 				env.setNumberOfExecutionRetries(0);
 
 				env.generateSequence(1, 10)
+						.rebalance()
 						.map(new FailOnceMapper<Long>())
 						.reduce(new ReduceFunction<Long>() {
 							@Override
@@ -156,6 +158,7 @@ public class SimpleRecoveryITCase {
 			env.setNumberOfExecutionRetries(1);
 
 			env.generateSequence(1, 10)
+					.rebalance()
 					.map(new FailOnceMapper<Long>())
 					.reduce(new ReduceFunction<Long>() {
 						@Override
@@ -202,6 +205,7 @@ public class SimpleRecoveryITCase {
 			env.setNumberOfExecutionRetries(3);
 
 			env.generateSequence(1, 10)
+					.rebalance()
 					.map(new FailOnceMapper<Long>())
 					.reduce(new ReduceFunction<Long>() {
 						@Override

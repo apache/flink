@@ -157,4 +157,11 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 
 		return partitions;
 	}
+
+	@Override
+	public String toString() {
+		return String.format("PartitionInfo(PartitionID: %s, ProducerID: %s, " +
+				"ProducerLocation: %s, ProducerAddress: %s)", partitionId, producerExecutionId,
+				producerLocation, producerAddress);
+	}
 }

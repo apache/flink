@@ -186,6 +186,9 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	}
 
 	public void releaseAllResources() throws IOException {
+		if(LOG.isDebugEnabled()) {
+			LOG.debug("Release all resources of {}.", this);
+		}
 		synchronized (queues) {
 			if (!isReleased) {
 				try {
@@ -228,11 +231,6 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	}
 
 	// ------------------------------------------------------------------------
-
-	@Override
-	public String toString() {
-		return "Intermediate result partition " + partitionId + " [num queues: " + queues.length + ", " + (isFinished ? "finished" : "not finished") + "]";
-	}
 
 	private void checkInProducePhase() {
 		checkState(!isReleased, "Partition has already been discarded.");
@@ -308,5 +306,12 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 		}
 
 		return new IntermediateResultPartition(environment, partitionIndex, jobId, executionId, partitionId, partitionType, partitionQueues, networkEnvironment);
+	}
+
+	@Override
+	public String toString() {
+		return String.format("IntermediateResultPartition(JobID: %s, ExecutionID: %s, " +
+				"PartitionID: %s, PartitionType: %s, [num queues: %d, (isFinished: %b)",
+				jobId, producerExecutionId, partitionId, partitionType, queues.length, isFinished);
 	}
 }
