@@ -15,19 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.util;
+package org.apache.flink.streaming.connectors.kafka.partitioner;
 
 import java.io.Serializable;
 
-public interface SerializationSchema<T, R> extends Serializable {
+public interface KafkaPartitioner<T> extends Serializable {
 
-	/**
-	 * Serializes the incoming element to a specified type.
-	 * 
-	 * @param element
-	 *            The incoming element to be serialized
-	 * @return The serialized element.
-	 */
-	public R serialize(T element);
+	public int partition(T value, int numberOfPartitions);
 
 }

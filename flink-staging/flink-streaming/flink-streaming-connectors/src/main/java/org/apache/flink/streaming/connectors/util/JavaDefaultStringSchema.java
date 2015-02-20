@@ -17,17 +17,25 @@
 
 package org.apache.flink.streaming.connectors.util;
 
-import java.io.Serializable;
+import org.apache.commons.lang3.SerializationUtils;
 
-public interface SerializationSchema<T, R> extends Serializable {
+public class JavaDefaultStringSchema implements DeserializationSchema<String>, SerializationSchema<String, byte[]> {
 
-	/**
-	 * Serializes the incoming element to a specified type.
-	 * 
-	 * @param element
-	 *            The incoming element to be serialized
-	 * @return The serialized element.
-	 */
-	public R serialize(T element);
+	private static final long serialVersionUID = 1L;
+
+	@Override
+	public boolean isEndOfStream(String nextElement) {
+		return nextElement.equals("q");
+	}
+
+	@Override
+	public byte[] serialize(String element) {
+		return SerializationUtils.serialize(element);
+	}
+
+	@Override
+	public String deserialize(byte[] message) {
+		return SerializationUtils.deserialize(message);
+	}
 
 }

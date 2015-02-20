@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.util;
+package org.apache.flink.streaming.connectors.kafka.partitioner;
 
-import java.io.Serializable;
+public class KafkaConstantPartitioner<T> implements KafkaPartitioner<T> {
 
-public interface SerializationSchema<T, R> extends Serializable {
+	private int partition;
 
-	/**
-	 * Serializes the incoming element to a specified type.
-	 * 
-	 * @param element
-	 *            The incoming element to be serialized
-	 * @return The serialized element.
-	 */
-	public R serialize(T element);
+	public KafkaConstantPartitioner(int partition) {
+		this.partition = partition;
+	}
+
+	@Override
+	public int partition(T value, int numberOfPartitions) {
+		return partition;
+	}
 
 }
