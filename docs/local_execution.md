@@ -77,6 +77,14 @@ public static void main(String[] args) throws Exception {
 
 The `JobExecutionResult` object, which is returned after the execution finished, contains the program runtime and the accumulator results.
 
+The `LocalEnvironment` allows also to pass custom configuration values to Flink.
+
+~~~java
+Configuration conf = new Configuration();
+conf.setFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, 0.5f);
+final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
+~~~
+
 *Note:* The local execution environments do not start any web frontend to monitor the execution.
 
 ## Collection Environment

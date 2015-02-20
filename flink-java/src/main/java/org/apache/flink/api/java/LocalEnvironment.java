@@ -22,6 +22,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * An {@link ExecutionEnvironment} that runs the program locally, multi-threaded, in the JVM where the
@@ -32,6 +33,7 @@ import org.apache.flink.api.common.PlanExecutor;
  * machine.
  */
 public class LocalEnvironment extends ExecutionEnvironment {
+	private Configuration configuration;
 	/**
 	 * Creates a new local environment.
 	 */
@@ -47,7 +49,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor();
+		PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
 		return executor.executePlan(p);
 	}
 	
@@ -55,7 +57,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	public String getExecutionPlan() throws Exception {
 		Plan p = createProgramPlan(null, false);
 		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor();
+		PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
 		return executor.getOptimizerPlanAsJSON(p);
 	}
 	// --------------------------------------------------------------------------------------------
@@ -64,5 +66,9 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	public String toString() {
 		return "Local Environment (parallelism = " + (getParallelism() == -1 ? "default" : getParallelism())
 				+ ") : " + getIdString();
+	}
+
+	public void setConfiguration(Configuration customConfiguration) {
+		this.configuration = customConfiguration;
 	}
 }

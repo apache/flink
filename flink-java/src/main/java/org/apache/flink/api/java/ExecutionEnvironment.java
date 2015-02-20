@@ -63,6 +63,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
@@ -1056,6 +1057,20 @@ public abstract class ExecutionEnvironment {
 	public static LocalEnvironment createLocalEnvironment(int parallelism) {
 		LocalEnvironment lee = new LocalEnvironment();
 		lee.setParallelism(parallelism);
+		return lee;
+	}
+
+	/**
+	 * Creates a {@link LocalEnvironment}. The local execution environment will run the program in a
+	 * multi-threaded fashion in the same JVM as the environment was created in. It will use the
+	 * parallelism specified in the parameter.
+	 *
+	 * @param customConfiguration Pass a custom configuration to the LocalEnvironment.
+	 * @return A local execution environment with the specified parallelism.
+	 */
+	public static LocalEnvironment createLocalEnvironment(Configuration customConfiguration) {
+		LocalEnvironment lee = new LocalEnvironment();
+		lee.setConfiguration(customConfiguration);
 		return lee;
 	}
 	

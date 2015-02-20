@@ -53,6 +53,8 @@ public class LocalExecutor extends PlanExecutor {
 	
 	private LocalFlinkMiniCluster flink;
 
+	private Configuration configuration;
+
 	// ---------------------------------- config options ------------------------------------------
 	
 
@@ -68,6 +70,11 @@ public class LocalExecutor extends PlanExecutor {
 		if (!ExecutionEnvironment.localExecutionIsAllowed()) {
 			throw new InvalidProgramException("The LocalEnvironment cannot be used when submitting a program through a client.");
 		}
+	}
+
+	public LocalExecutor(Configuration conf) {
+		this();
+		this.configuration = conf;
 	}
 
 
@@ -90,7 +97,7 @@ public class LocalExecutor extends PlanExecutor {
 	
 	// --------------------------------------------------------------------------------------------
 
-	public static Configuration getConfiguration(LocalExecutor le) {
+	public static Configuration createConfiguration(LocalExecutor le) {
 		Configuration configuration = new Configuration();
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, le.getTaskManagerNumSlots());
 		configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, le.isDefaultOverwriteFiles());
@@ -102,7 +109,10 @@ public class LocalExecutor extends PlanExecutor {
 			if (this.flink == null) {
 				
 				// create the embedded runtime
-				Configuration configuration = getConfiguration(this);
+				Configuration configuration = createConfiguration(this);
+				if(this.configuration != null) {
+					configuration.addAll(this.configuration);
+				}
 				// start it up
 				this.flink = new LocalFlinkMiniCluster(configuration, true);
 			} else {
@@ -135,6 +145,7 @@ public class LocalExecutor extends PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
+	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		if (plan == null) {
 			throw new IllegalArgumentException("The plan may not be null.");
@@ -190,8 +201,9 @@ public class LocalExecutor extends PlanExecutor {
 	 * @return JSON dump of the optimized plan.
 	 * @throws Exception
 	 */
+	@Override
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		Optimizer pc = new Optimizer(new DataStatistics(), getConfiguration(this));
+		Optimizer pc = new Optimizer(new DataStatistics(), createConfiguration(this));
 		OptimizedPlan op = pc.compile(plan);
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 	

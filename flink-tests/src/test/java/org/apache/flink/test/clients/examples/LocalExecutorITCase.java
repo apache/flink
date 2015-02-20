@@ -61,6 +61,5 @@ public class LocalExecutorITCase {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
-		
 	}
 }
