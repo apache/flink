@@ -41,11 +41,15 @@ public class IntermediateResultPartitionManager implements IntermediateResultPar
 
 	private static final Logger LOG = LoggerFactory.getLogger(IntermediateResultPartitionManager.class);
 
-	public final Table<ExecutionAttemptID, IntermediateResultPartitionID, IntermediateResultPartition> partitions = HashBasedTable.create();
+	private final Table<ExecutionAttemptID, IntermediateResultPartitionID,
+			IntermediateResultPartition> partitions = HashBasedTable.create();
 
 	private boolean isShutdown;
 
 	public void registerIntermediateResultPartition(IntermediateResultPartition partition) throws IOException {
+		if(LOG.isDebugEnabled()){
+			LOG.debug("Register intermediate result partition {}.", partition);
+		}
 		synchronized (partitions) {
 			if (isShutdown) {
 				throw new IOException("Intermediate result partition manager has already been shut down.");

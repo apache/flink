@@ -30,7 +30,6 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -38,7 +37,6 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 
-@Ignore("Not working properly")
 public class SimpleRecoveryITCase {
 
 
@@ -81,6 +79,7 @@ public class SimpleRecoveryITCase {
 				env.setNumberOfExecutionRetries(0);
 
 				env.generateSequence(1, 10)
+						.rebalance()
 						.map(new FailingMapper1<Long>())
 						.reduce(new ReduceFunction<Long>() {
 							@Override
@@ -109,6 +108,7 @@ public class SimpleRecoveryITCase {
 				env.setNumberOfExecutionRetries(0);
 
 				env.generateSequence(1, 10)
+						.rebalance()
 						.map(new FailingMapper1<Long>())
 						.reduce(new ReduceFunction<Long>() {
 							@Override
@@ -154,6 +154,7 @@ public class SimpleRecoveryITCase {
 			env.setNumberOfExecutionRetries(1);
 
 			env.generateSequence(1, 10)
+					.rebalance()
 					.map(new FailingMapper2<Long>())
 					.reduce(new ReduceFunction<Long>() {
 						@Override
@@ -197,6 +198,7 @@ public class SimpleRecoveryITCase {
 			env.setNumberOfExecutionRetries(3);
 
 			env.generateSequence(1, 10)
+					.rebalance()
 					.map(new FailingMapper3<Long>())
 					.reduce(new ReduceFunction<Long>() {
 						@Override
