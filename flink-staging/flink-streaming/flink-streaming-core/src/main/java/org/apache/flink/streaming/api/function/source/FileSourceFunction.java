@@ -29,7 +29,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
 import org.apache.flink.util.Collector;
 
-public class FileSourceFunction extends RichSourceFunction<String> {
+public class FileSourceFunction extends RichParallelSourceFunction<String> {
 	private static final long serialVersionUID = 1L;
 
 	private InputSplitProvider provider;

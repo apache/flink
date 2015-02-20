@@ -93,7 +93,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	public <R> DiscretizedStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction,
 			TypeInformation<R> returnType) {
 		DiscretizedStream<R> out = partition(transformation).transform(
-				WindowTransformation.REDUCEWINDOW, "Window Reduce", returnType,
+				WindowTransformation.REDUCEWINDOW, "Window Map", returnType,
 				new WindowMapper<OUT, R>(discretizedStream.clean(windowMapFunction)));
 
 		if (isGrouped()) {

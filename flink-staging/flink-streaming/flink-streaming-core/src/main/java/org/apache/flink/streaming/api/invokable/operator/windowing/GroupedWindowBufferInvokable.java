@@ -49,15 +49,17 @@ public class GroupedWindowBufferInvokable<T> extends WindowBufferInvokable<T> {
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		Object key = keySelector.getKey(nextObject.getElement());
-		WindowBuffer<T> currentWindow = windowMap.get(key);
+		if (nextObject.getElement() != null) {
+			Object key = keySelector.getKey(nextObject.getElement());
+			WindowBuffer<T> currentWindow = windowMap.get(key);
 
-		if (currentWindow == null) {
-			currentWindow = buffer.clone();
-			windowMap.put(key, currentWindow);
+			if (currentWindow == null) {
+				currentWindow = buffer.clone();
+				windowMap.put(key, currentWindow);
+			}
+
+			handleWindowEvent(nextObject, currentWindow);
 		}
-
-		handleWindowEvent(nextObject, currentWindow);
 	}
 
 	@Override
