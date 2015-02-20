@@ -51,7 +51,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
   "A TaskManager" should {
     "detect a lost connection to the JobManager and try to reconnect to it" in {
 
-      val num_slots = 11
+      val num_slots = 13
       val cluster = startDeathwatchCluster(num_slots, 1)
 
       val tm = cluster.getTaskManagers(0)
@@ -83,7 +83,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     }
 
     "go into a clean state in case of a JobManager failure" in {
-      val num_slots = 20
+      val num_slots = 36
 
       val sender = new AbstractJobVertex("BlockingSender")
       sender.setParallelism(num_slots)
