@@ -30,13 +30,13 @@ import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscret
 public class WindowingOptimzier {
 
 	public static void optimizeGraph(StreamGraph streamGraph) {
-		Set<Entry<String, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
-		List<Tuple2<String, StreamDiscretizer<?>>> discretizers = new ArrayList<Tuple2<String, StreamDiscretizer<?>>>();
+		Set<Entry<Integer, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
+		List<Tuple2<Integer, StreamDiscretizer<?>>> discretizers = new ArrayList<Tuple2<Integer, StreamDiscretizer<?>>>();
 
 		// Get the discretizers
-		for (Entry<String, StreamInvokable<?, ?>> entry : invokables) {
+		for (Entry<Integer, StreamInvokable<?, ?>> entry : invokables) {
 			if (entry.getValue() instanceof StreamDiscretizer) {
-				discretizers.add(new Tuple2<String, StreamDiscretizer<?>>(entry.getKey(),
+				discretizers.add(new Tuple2<Integer, StreamDiscretizer<?>>(entry.getKey(),
 						(StreamDiscretizer<?>) entry.getValue()));
 			}
 		}
@@ -46,15 +46,15 @@ public class WindowingOptimzier {
 	}
 
 	private static void setDiscretizerReuse(StreamGraph streamGraph,
-			List<Tuple2<String, StreamDiscretizer<?>>> discretizers) {
-		List<Tuple2<StreamDiscretizer<?>, List<String>>> matchingDiscretizers = new ArrayList<Tuple2<StreamDiscretizer<?>, List<String>>>();
+			List<Tuple2<Integer, StreamDiscretizer<?>>> discretizers) {
+		List<Tuple2<StreamDiscretizer<?>, List<Integer>>> matchingDiscretizers = new ArrayList<Tuple2<StreamDiscretizer<?>, List<Integer>>>();
 
-		for (Tuple2<String, StreamDiscretizer<?>> discretizer : discretizers) {
+		for (Tuple2<Integer, StreamDiscretizer<?>> discretizer : discretizers) {
 			boolean inMatching = false;
-			for (Tuple2<StreamDiscretizer<?>, List<String>> matching : matchingDiscretizers) {
-				Set<String> discretizerInEdges = new HashSet<String>(
+			for (Tuple2<StreamDiscretizer<?>, List<Integer>> matching : matchingDiscretizers) {
+				Set<Integer> discretizerInEdges = new HashSet<Integer>(
 						streamGraph.getInEdges(discretizer.f0));
-				Set<String> matchingInEdges = new HashSet<String>(
+				Set<Integer> matchingInEdges = new HashSet<Integer>(
 						streamGraph.getInEdges(matching.f1.get(0)));
 
 				if (discretizer.f1.equals(matching.f0)
@@ -65,17 +65,17 @@ public class WindowingOptimzier {
 				}
 			}
 			if (!inMatching) {
-				List<String> matchingNames = new ArrayList<String>();
+				List<Integer> matchingNames = new ArrayList<Integer>();
 				matchingNames.add(discretizer.f0);
-				matchingDiscretizers.add(new Tuple2<StreamDiscretizer<?>, List<String>>(
+				matchingDiscretizers.add(new Tuple2<StreamDiscretizer<?>, List<Integer>>(
 						discretizer.f1, matchingNames));
 			}
 		}
 
-		for (Tuple2<StreamDiscretizer<?>, List<String>> matching : matchingDiscretizers) {
-			List<String> matchList = matching.f1;
+		for (Tuple2<StreamDiscretizer<?>, List<Integer>> matching : matchingDiscretizers) {
+			List<Integer> matchList = matching.f1;
 			if (matchList.size() > 1) {
-				String first = matchList.get(0);
+				Integer first = matchList.get(0);
 				for (int i = 1; i < matchList.size(); i++) {
 					replaceDiscretizer(streamGraph, matchList.get(i), first);
 				}
@@ -83,26 +83,26 @@ public class WindowingOptimzier {
 		}
 	}
 
-	private static void replaceDiscretizer(StreamGraph streamGraph, String toReplace,
-			String replaceWith) {
+	private static void replaceDiscretizer(StreamGraph streamGraph, Integer toReplace,
+			Integer replaceWith) {
 		// Convert to array to create a copy
-		List<String> outEdges = new ArrayList<String>(streamGraph.getOutEdges(toReplace));
+		List<Integer> outEdges = new ArrayList<Integer>(streamGraph.getOutEdges(toReplace));
 
 		int numOutputs = outEdges.size();
 
 		// Reconnect outputs
 		for (int i = 0; i < numOutputs; i++) {
-			String outName = outEdges.get(i);
+			Integer output = outEdges.get(i);
 
-			streamGraph.setEdge(replaceWith, outName,
-					streamGraph.getOutPartitioner(toReplace, outName), 0, new ArrayList<String>());
-			streamGraph.removeEdge(toReplace, outName);
+			streamGraph.setEdge(replaceWith, output,
+					streamGraph.getOutPartitioner(toReplace, output), 0, new ArrayList<String>());
+			streamGraph.removeEdge(toReplace, output);
 		}
 
-		List<String> inEdges = new ArrayList<String>(streamGraph.getInEdges(toReplace));
+		List<Integer> inEdges = new ArrayList<Integer>(streamGraph.getInEdges(toReplace));
 		// Remove inputs
-		for (String inName : inEdges) {
-			streamGraph.removeEdge(inName, toReplace);
+		for (Integer input : inEdges) {
+			streamGraph.removeEdge(input, toReplace);
 		}
 
 		streamGraph.removeVertex(toReplace);

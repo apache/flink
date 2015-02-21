@@ -268,10 +268,12 @@ public class WindowedDataStream<OUT> {
 		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation, getTrigger(),
 				getEviction(), discretizerKey);
 
+		DiscretizedStream<OUT> discretized = discretize(transformation, windowBuffer);
+
 		if (windowBuffer instanceof CompletePreAggregator) {
-			return discretize(transformation, windowBuffer);
+			return discretized;
 		} else {
-			return discretize(transformation, windowBuffer).reduceWindow(reduceFunction);
+			return discretized.reduceWindow(reduceFunction);
 		}
 	}
 
@@ -337,7 +339,8 @@ public class WindowedDataStream<OUT> {
 				.transform("Stream Discretizer", bufferEventType, discretizer)
 				.setParallelism(parallelism)
 				.transform("WindowBuffer", new StreamWindowTypeInfo<OUT>(getType()),
-						bufferInvokable).setParallelism(parallelism), groupByKey, transformation);
+						bufferInvokable).setParallelism(parallelism), groupByKey, transformation,
+				false);
 
 	}
 

@@ -95,7 +95,7 @@ public class DataStream<OUT> {
 
 	protected static Integer counter = 0;
 	protected final StreamExecutionEnvironment environment;
-	protected final String id;
+	protected final Integer id;
 	protected final String type;
 	protected int degreeOfParallelism;
 	protected List<String> userDefinedNames;
@@ -124,7 +124,7 @@ public class DataStream<OUT> {
 		}
 
 		counter++;
-		this.id = counter.toString();
+		this.id = counter;
 		this.type = operatorType;
 		this.environment = environment;
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
@@ -166,7 +166,7 @@ public class DataStream<OUT> {
 	 * 
 	 * @return ID of the DataStream
 	 */
-	public String getId() {
+	public Integer getId() {
 		return id;
 	}
 
@@ -1167,7 +1167,7 @@ public class DataStream<OUT> {
 	 * @param typeNumber
 	 *            Number of the type (used at co-functions)
 	 */
-	protected <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
+	protected <X> void connectGraph(DataStream<X> inputStream, Integer outputID, int typeNumber) {
 		for (DataStream<X> stream : inputStream.mergedStreams) {
 			streamGraph.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
 					inputStream.userDefinedNames);
@@ -1260,9 +1260,9 @@ public class DataStream<OUT> {
 		}
 	}
 
-	private void validateMerge(String id) {
+	private void validateMerge(Integer id) {
 		for (DataStream<OUT> ds : this.mergedStreams) {
-			if (ds.getId().equals(id)) {
+			if (ds.getId() == id) {
 				throw new RuntimeException("A DataStream cannot be merged with itself");
 			}
 		}

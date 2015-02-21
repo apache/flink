@@ -51,9 +51,9 @@ public class OutputHandler<OUT> {
 
 	public List<ChainableInvokable<?, ?>> chainedInvokables;
 
-	private Map<String, StreamOutput<?>> outputMap;
-	private Map<String, StreamConfig> chainedConfigs;
-	private List<Tuple2<String, String>> outEdgesInOrder;
+	private Map<Integer, StreamOutput<?>> outputMap;
+	private Map<Integer, StreamConfig> chainedConfigs;
+	private List<Tuple2<Integer, Integer>> outEdgesInOrder;
 
 	public OutputHandler(StreamVertex<?, OUT> vertex) {
 
@@ -61,19 +61,19 @@ public class OutputHandler<OUT> {
 		this.vertex = vertex;
 		this.configuration = new StreamConfig(vertex.getTaskConfiguration());
 		this.chainedInvokables = new ArrayList<ChainableInvokable<?, ?>>();
-		this.outputMap = new HashMap<String, StreamOutput<?>>();
+		this.outputMap = new HashMap<Integer, StreamOutput<?>>();
 		this.cl = vertex.getUserCodeClassLoader();
 
 		// We read the chained configs, and the order of record writer
 		// registrations by outputname
 		this.chainedConfigs = configuration.getTransitiveChainedTaskConfigs(cl);
-		this.chainedConfigs.put(configuration.getTaskName(), configuration);
+		this.chainedConfigs.put(configuration.getVertexID(), configuration);
 
 		this.outEdgesInOrder = configuration.getOutEdgesInOrder(cl);
 
 		// We iterate through all the out edges from this job vertex and create
 		// a stream output
-		for (Tuple2<String, String> outEdge : outEdgesInOrder) {
+		for (Tuple2<Integer, Integer> outEdge : outEdgesInOrder) {
 			StreamOutput<?> streamOutput = createStreamOutput(outEdge.f1,
 					chainedConfigs.get(outEdge.f0), outEdgesInOrder.indexOf(outEdge));
 			outputMap.put(outEdge.f1, streamOutput);
@@ -111,7 +111,7 @@ public class OutputHandler<OUT> {
 				chainedTaskConfig.getOutputSelectors(cl)) : new CollectorWrapper<OUT>();
 
 		// Create collectors for the network outputs
-		for (String output : chainedTaskConfig.getOutputs(cl)) {
+		for (Integer output : chainedTaskConfig.getOutputs(cl)) {
 
 			Collector<?> outCollector = outputMap.get(output);
 
@@ -124,7 +124,7 @@ public class OutputHandler<OUT> {
 		}
 
 		// Create collectors for the chained outputs
-		for (String output : chainedTaskConfig.getChainedOutputs(cl)) {
+		for (Integer output : chainedTaskConfig.getChainedOutputs(cl)) {
 			Collector<?> outCollector = createChainedCollector(chainedConfigs.get(output));
 			if (isDirectEmit) {
 				((DirectedCollectorWrapper<OUT>) wrapper).addCollector(outCollector,
@@ -157,7 +157,7 @@ public class OutputHandler<OUT> {
 	}
 
 	/**
-	 * We create the StreamOutput for the specific output given by the name, and
+	 * We create the StreamOutput for the specific output given by the id, and
 	 * the configuration of its source task
 	 * 
 	 * @param outputVertex
@@ -166,7 +166,7 @@ public class OutputHandler<OUT> {
 	 *            The config of upStream task
 	 * @return
 	 */
-	private <T> StreamOutput<T> createStreamOutput(String outputVertex, StreamConfig configuration,
+	private <T> StreamOutput<T> createStreamOutput(Integer outputVertex, StreamConfig configuration,
 			int outputIndex) {
 
 		StreamRecordSerializer<T> outSerializer = configuration
