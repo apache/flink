@@ -164,7 +164,7 @@ public interface FileIOChannel {
 
 		public ID next() {
 			int threadNum = counter % paths.length;
-			String filename = String.format(" %s.%06d.channel", namePrefix, (counter++));
+			String filename = String.format("%s.%06d.channel", namePrefix, (counter++));
 			return new ID(new File(paths[threadNum], filename), threadNum);
 		}
 	}
