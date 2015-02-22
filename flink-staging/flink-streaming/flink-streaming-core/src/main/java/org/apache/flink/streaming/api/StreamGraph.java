@@ -616,60 +616,7 @@ public class StreamGraph extends StreamingPlan {
 		WindowingOptimzier.optimizeGraph(this);
 
 		try {
-			JSONObject json = new JSONObject();
-			JSONArray nodes = new JSONArray();
-
-			json.put("nodes", nodes);
-			List<Integer> operatorIDs = new ArrayList<Integer>(operatorNames.keySet());
-			Collections.sort(operatorIDs);
-
-			for (Integer id : operatorIDs) {
-				JSONObject node = new JSONObject();
-				nodes.put(node);
-
-				node.put("id", id);
-				node.put("type", getOperatorName(id));
-
-				if (sources.contains(id)) {
-					node.put("pact", "Data Source");
-				} else {
-					node.put("pact", "Data Stream");
-				}
-
-				if (getInvokable(id) != null && getInvokable(id).getUserFunction() != null) {
-					node.put("contents", getOperatorName(id) + " at "
-							+ getInvokable(id).getUserFunction().getClass().getSimpleName());
-				} else {
-					node.put("contents", getOperatorName(id));
-				}
-
-				node.put("parallelism", getParallelism(id));
-
-				int numIn = getInEdges(id).size();
-				if (numIn > 0) {
-
-					JSONArray inputs = new JSONArray();
-					node.put("predecessors", inputs);
-
-					for (int i = 0; i < numIn; i++) {
-
-						Integer inID = getInEdges(id).get(i);
-
-						JSONObject input = new JSONObject();
-						inputs.put(input);
-
-						input.put("id", inID);
-						input.put("ship_strategy", getOutPartitioner(inID, id).getStrategy());
-						if (i == 0) {
-							input.put("side", "first");
-						} else if (i == 1) {
-							input.put("side", "second");
-						}
-					}
-				}
-
-			}
-			return json.toString();
+			return new JSONGenerator().getJSON();
 		} catch (JSONException e) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("JSON plan creation failed: {}", e);
@@ -693,4 +640,136 @@ public class StreamGraph extends StreamingPlan {
 			}
 		}
 	}
+
+	private class JSONGenerator {
+
+		public static final String STEPS = "step_function";
+		public static final String ID = "id";
+		public static final String SIDE = "side";
+		public static final String SHIP_STRATEGY = "ship_strategy";
+		public static final String PREDECESSORS = "predecessors";
+		public static final String TYPE = "type";
+		public static final String PACT = "pact";
+		public static final String CONTENTS = "contents";
+		public static final String PARALLELISM = "parallelism";
+
+		public String getJSON() throws JSONException {
+			JSONObject json = new JSONObject();
+			JSONArray nodes = new JSONArray();
+			json.put("nodes", nodes);
+			List<Integer> operatorIDs = new ArrayList<Integer>(operatorNames.keySet());
+			Collections.sort(operatorIDs);
+			visit(nodes, operatorIDs, new HashMap<Integer, Integer>());
+			return json.toString();
+		}
+
+		private void visit(JSONArray jsonArray, List<Integer> toVisit,
+			Map<Integer, Integer> edgeRemapings) throws JSONException {
+
+			Integer vertexID = toVisit.get(0);
+			if (getSources().contains(vertexID) || Collections.disjoint(getInEdges(vertexID), toVisit)) {
+
+				JSONObject node = new JSONObject();
+				decorateNode(vertexID, node);
+
+				if (!getSources().contains(vertexID)) {
+					JSONArray inputs = new JSONArray();
+					node.put(PREDECESSORS, inputs);
+
+					for (int inputID : getInEdges(vertexID)) {
+						Integer mappedID = (edgeRemapings.keySet().contains(inputID)) ?
+								edgeRemapings.get(inputID) : inputID;
+						decorateEdge(inputs, vertexID, mappedID, inputID);
+					}
+				}
+				jsonArray.put(node);
+				toVisit.remove(vertexID);
+			} else {
+				Integer iterationHead = -1;
+				for (int operator : getInEdges(vertexID)) {
+					if (iterationIds.keySet().contains(operator)) {
+						iterationHead = operator;
+					}
+				}
+
+				JSONObject obj = new JSONObject();
+				JSONArray iterationSteps = new JSONArray();
+				obj.put(STEPS, iterationSteps);
+				obj.put(ID, iterationHead);
+				obj.put(PACT, "IterativeDataStream");
+				obj.put(PARALLELISM, getParallelism(iterationHead));
+				obj.put(CONTENTS,"Stream Iteration");
+				JSONArray iterationInputs = new JSONArray();
+				obj.put(PREDECESSORS, iterationInputs);
+				toVisit.remove(iterationHead);
+				visitIteration(iterationSteps, toVisit, iterationHead, edgeRemapings, iterationInputs);
+				jsonArray.put(obj);
+			}
+
+			if (!toVisit.isEmpty())
+			{
+				visit(jsonArray, toVisit, edgeRemapings);
+			}
+		}
+
+		private void visitIteration(JSONArray jsonArray, List<Integer> toVisit, int headId,
+			Map<Integer, Integer> edgeRemapings, JSONArray iterationInEdges) throws JSONException {
+
+			Integer vertexID = toVisit.get(0);
+			toVisit.remove(vertexID);
+
+			//Ignoring head and tail to avoid redundancy
+			if (!iterationIds.containsKey(vertexID)) {
+				JSONObject obj = new JSONObject();
+				jsonArray.put(obj);
+				decorateNode(vertexID, obj);
+				JSONArray inEdges = new JSONArray();
+				obj.put(PREDECESSORS, inEdges);
+
+				for (int inputID : getInEdges(vertexID)) {
+					if (edgeRemapings.keySet().contains(inputID)) {
+						decorateEdge(inEdges, vertexID, inputID, inputID);
+					} else if (!iterationIds.containsKey(inputID)) {
+						decorateEdge(iterationInEdges, vertexID, inputID, inputID);
+					}
+				}
+
+				edgeRemapings.put(vertexID, headId);
+				visitIteration(jsonArray, toVisit, headId, edgeRemapings, iterationInEdges);
+			}
+
+		}
+
+		private void decorateEdge(JSONArray inputArray, int vertexID, int mappedInputID, int inputID) 
+				throws JSONException {
+			JSONObject input = new JSONObject();
+			inputArray.put(input);
+			input.put(ID, mappedInputID);
+			input.put(SHIP_STRATEGY, getOutPartitioner(inputID, vertexID).getStrategy());
+			input.put(SIDE, (inputArray.length() == 0) ? "first" : "second");
+		}
+
+		private void decorateNode(Integer vertexID, JSONObject node) throws JSONException {
+			node.put(ID, vertexID);
+			node.put(TYPE, getOperatorName(vertexID));
+
+			if (sources.contains(vertexID)) {
+				node.put(PACT, "Data Source");
+			} else {
+				node.put(PACT, "Data Stream");
+			}
+
+			if (getInvokable(vertexID) != null && getInvokable(vertexID).getUserFunction() != null) {
+				node.put(CONTENTS, getOperatorName(vertexID) + " at "
+						+ getInvokable(vertexID).getUserFunction().getClass().getSimpleName());
+			} else {
+				node.put(CONTENTS, getOperatorName(vertexID));
+			}
+
+			node.put(PARALLELISM, getParallelism(vertexID));
+		}
+
+
+	}
+
 }
