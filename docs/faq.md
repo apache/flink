@@ -117,6 +117,9 @@ def myFunction[T: TypeInformation](input: DataSet[T]): DataSet[Seq[T]] = {
 }
 ~~~
 
+See [Type Extraction and Serialization](internal_types_serialization.html) for
+an in-depth discussion of how Flink handles types.
+
 ### I get an error message saying that not enough buffers are available. How do I fix this?
 
 If you run Flink in a massively parallel setting (100+ parallel threads),
