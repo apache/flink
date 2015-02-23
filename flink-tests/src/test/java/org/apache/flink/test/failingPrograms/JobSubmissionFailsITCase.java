@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @RunWith(Parameterized.class)
@@ -153,11 +154,13 @@ public class JobSubmissionFailsITCase {
 						try {
 							submitJob(jobGraph, jobClient);
 							fail("Expected JobSubmissionException.");
-						} catch (JobSubmissionException e) {
-							assertEquals("Job is empty.", e.getMessage());
-						} catch (Throwable t) {
-							fail("Caught wrong exception of type " + t.getClass() + ".");
+						}
+						catch (JobSubmissionException e) {
+							assertTrue(e.getMessage() != null && e.getMessage().contains("empty"));
+						}
+						catch (Throwable t) {
 							t.printStackTrace();
+							fail("Caught wrong exception of type " + t.getClass() + ".");
 						}
 
 						try {

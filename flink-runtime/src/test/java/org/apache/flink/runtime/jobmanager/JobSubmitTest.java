@@ -29,7 +29,6 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -45,9 +44,13 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests that the JobManager handles Jobs correctly that fail in
+ * the initialization during the submit phase.
+ */
 public class JobSubmitTest {
 
-	private static final long TIMEOUT = 50000;
+	private static final long TIMEOUT = 5000;
 
 	private static ActorSystem jobManagerSystem;
 	private static ActorRef jobManager;
@@ -117,6 +120,10 @@ public class JobSubmitTest {
 		}
 	}
 
+	/**
+	 * Verifies a correct error message when vertices with master initialization
+	 * (input formats / output formats) fail.
+	 */
 	@Test
 	public void testFailureWhenInitializeOnMasterFails() {
 		try {
@@ -130,7 +137,6 @@ public class JobSubmitTest {
 				}
 			};
 
-			TaskConfig config = new TaskConfig(jobVertex.getConfiguration());
 			jobVertex.setInvokableClass(Tasks.NoOpInvokable.class);
 			JobGraph jg = new JobGraph("test job", jobVertex);
 

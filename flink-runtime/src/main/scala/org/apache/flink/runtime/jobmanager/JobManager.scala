@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
+import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -424,7 +425,8 @@ class JobManager(val configuration: Configuration,
 
         val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
         if (userCodeLoader == null) {
-          throw new JobSubmissionException(jobId, "The user code class loader could not be initialized.")
+          throw new JobSubmissionException(jobId,
+            "The user code class loader could not be initialized.")
         }
 
         if (jobGraph.getNumberOfVertices == 0) {
@@ -522,7 +524,14 @@ class JobManager(val configuration: Configuration,
         executionGraph.scheduleForExecution(scheduler)
       }
       catch {
-        case t: Throwable => executionGraph.fail(t);
+        case t: Throwable => try {
+          executionGraph.fail(t)
+        }
+        catch {
+          case tt: Throwable => {
+            log.error(tt, "Error while marking ExecutionGraph as failed.")
+          }
+        }
       }
     }
   }
@@ -574,7 +583,8 @@ object JobManager {
 
   val LOG = LoggerFactory.getLogger(classOf[JobManager])
 
-  val FAILURE_RETURN_CODE = 1
+  val STARTUP_FAILURE_RETURN_CODE = 1
+  val RUNTIME_FAILURE_RETURN_CODE = 2
 
   val JOB_MANAGER_NAME = "jobmanager"
   val EVENT_COLLECTOR_NAME = "eventcollector"
@@ -595,16 +605,26 @@ object JobManager {
 
     val (configuration: Configuration,
          executionMode: ExecutionMode,
-         listeningAddress:  Option[(String, Int)]) =
+         listeningHost: String, listeningPort: Int) =
     try {
       parseArgs(args)
     }
     catch {
       case t: Throwable => {
         LOG.error(t.getMessage(), t)
-        System.exit(FAILURE_RETURN_CODE)
+        System.exit(STARTUP_FAILURE_RETURN_CODE)
         null
       }
+    }
+
+    // we may want to check that the JobManager hostname is in the config
+    // if it is not in there, the actor system will bind to the loopback interface's
+    // address and will not be reachable from anyone remote
+    if (listeningHost == null) {
+      val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY +
+        "' is missing (hostname or address to bind JobManager to)."
+      LOG.error(message)
+      System.exit(STARTUP_FAILURE_RETURN_CODE)
     }
 
     try {
@@ -612,17 +632,17 @@ object JobManager {
         LOG.info("Security is enabled. Starting secure JobManager.")
         SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
           override def run(): Unit = {
-            runJobManager(configuration, executionMode, listeningAddress)
+            runJobManager(configuration, executionMode, listeningHost, listeningPort)
           }
         })
       } else {
-        runJobManager(configuration, executionMode, listeningAddress)
+        runJobManager(configuration, executionMode, listeningHost, listeningPort)
       }
     }
     catch {
       case t: Throwable => {
         LOG.error("Failed to start JobManager.", t)
-        System.exit(FAILURE_RETURN_CODE)
+        System.exit(STARTUP_FAILURE_RETURN_CODE)
       }
     }
   }
@@ -630,26 +650,23 @@ object JobManager {
 
   def runJobManager(configuration: Configuration,
                     executionMode: ExecutionMode,
-                    listeningAddress: Option[(String, Int)]) : Unit = {
+                    listeningAddress: String,
+                    listeningPort: Int) : Unit = {
 
     LOG.info("Starting JobManager")
     LOG.debug("Starting JobManager actor system")
 
     val jobManagerSystem = try {
-      AkkaUtils.createActorSystem(configuration, listeningAddress)
+      AkkaUtils.createActorSystem(configuration, Some((listeningAddress, listeningPort)))
     }
     catch {
       case t: Throwable => {
         if (t.isInstanceOf[org.jboss.netty.channel.ChannelException]) {
           val cause = t.getCause()
           if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
-            val address = listeningAddress match {
-              case Some((host, port)) => host + ":" + port
-              case None => "unknown"
-            }
-
-            throw new Exception("Unable to create JobManager at address " + address + ": "
-              + cause.getMessage(), t)
+            val address = listeningAddress + ":" + listeningPort
+            throw new Exception("Unable to create JobManager at address " + address +
+              " - " + cause.getMessage(), t)
           }
         }
         throw new Exception("Could not create JobManager actor system", t)
@@ -661,6 +678,11 @@ object JobManager {
 
       // bring up the job manager actor
       val (jobManager, archiver) = startJobManagerActors(configuration, jobManagerSystem)
+
+      // start a process reaper that watches the JobManager
+      jobManagerSystem.actorOf(
+        Props(classOf[ProcessReaper], jobManager, LOG, RUNTIME_FAILURE_RETURN_CODE),
+        "JobManager_Process_Reaper")
 
       // bring up a local task manager, if needed
       if(executionMode.equals(LOCAL)){
@@ -696,9 +718,9 @@ object JobManager {
    * line arguments.
    *
    * @param args command line arguments
-   * @return triple of configuration, execution mode and an optional listening address
+   * @return Quadruple of configuration, execution mode and an optional listening address
    */
-  def parseArgs(args: Array[String]): (Configuration, ExecutionMode, Option[(String, Int)]) = {
+  def parseArgs(args: Array[String]): (Configuration, ExecutionMode, String, Int) = {
     val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("jobmanager") {
       head("flink jobmanager")
       opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text ("Specify " +
@@ -728,10 +750,7 @@ object JobManager {
         val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
           ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-        // Listening address on which the actor system listens for remote messages
-        val listeningAddress = Some((hostname, port))
-
-        (configuration, config.executionMode, listeningAddress)
+        (configuration, config.executionMode, hostname, port)
     } getOrElse {
       throw new Exception("Wrong arguments. Usage: " + parser.usage)
     }

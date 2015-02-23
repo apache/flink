@@ -28,15 +28,20 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.net.NetUtils;
 import org.junit.Test;
 
-import scala.Some;
-import scala.Tuple2;
-
+/**
+ * Tests that verify the startup behavior of the JobManager in failure
+ * situations, when the JobManager cannot be started.
+ */
 public class JobManagerStartupTest {
 
+	/**
+	 * Verifies that the JobManager fails fast (and with expressive error message)
+	 * when the port to listen is already in use.
+	 */
 	@Test
 	public void testStartupWithPortInUse() {
 		
-		ServerSocket portOccupier = null;
+		ServerSocket portOccupier;
 		final int portNum;
 		
 		try {
@@ -49,8 +54,7 @@ public class JobManagerStartupTest {
 		}
 		
 		try {
-			Tuple2<String, Object> connection = new Tuple2<String, Object>("localhost", portNum);
-			JobManager.runJobManager(new Configuration(), ExecutionMode.CLUSTER(), new Some<Tuple2<String, Object>>(connection));
+			JobManager.runJobManager(new Configuration(), ExecutionMode.CLUSTER(), "localhost", portNum);
 			fail("this should throw an exception");
 		}
 		catch (Exception e) {
@@ -68,6 +72,10 @@ public class JobManagerStartupTest {
 		}
 	}
 
+	/**
+	 * Verifies that the JobManager fails fast (and with expressive error message)
+	 * when one of its components (here the BLOB server) fails to start properly.
+	 */
 	@Test
 	public void testJobManagerStartupFails() {
 		final int portNum;
@@ -78,12 +86,11 @@ public class JobManagerStartupTest {
 			// skip test if we cannot find a free port
 			return;
 		}
-		Tuple2<String, Object> connection = new Tuple2<String, Object>("localhost", portNum);
 		Configuration failConfig = new Configuration();
 		failConfig.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, "/does-not-exist-no-sir");
 
 		try {
-			JobManager.runJobManager(failConfig, ExecutionMode.CLUSTER(), new Some<Tuple2<String, Object>>(connection));
+			JobManager.runJobManager(failConfig, ExecutionMode.CLUSTER(), "localhost", portNum);
 			fail("this should fail with an exception");
 		}
 		catch (Exception e) {

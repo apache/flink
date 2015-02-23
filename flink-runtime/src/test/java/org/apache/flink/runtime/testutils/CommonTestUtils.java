@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.testutils;
 
 import static org.junit.Assert.fail;
@@ -29,9 +28,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
@@ -40,52 +39,6 @@ import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
  * This class contains auxiliary methods for unit tests.
  */
 public class CommonTestUtils {
-
-	/**
-	 * Constructs a random filename. The filename is a string of 16 hex characters followed by a <code>.dat</code>
-	 * prefix.
-	 * 
-	 * @return the random filename
-	 */
-	public static String getRandomFilename() {
-
-		final char[] alphabeth = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-
-		String filename = "";
-		for (int i = 0; i < 16; i++) {
-			filename += alphabeth[(int) (Math.random() * alphabeth.length)];
-		}
-
-		return filename + ".dat";
-	}
-
-	/**
-	 * Constructs a random directory name. The directory is a string of 16 hex characters
-	 * prefix.
-	 * 
-	 * @return the random directory name
-	 */
-	public static String getRandomDirectoryName() {
-
-		final char[] alphabeth = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-
-		String filename = "";
-		for (int i = 0; i < 16; i++) {
-			filename += alphabeth[(int) (Math.random() * alphabeth.length)];
-		}
-
-		return filename;
-	}
-
-	/**
-	 * Reads the path to the directory for temporary files from the configuration and returns it.
-	 * 
-	 * @return the path to the directory for temporary files
-	 */
-	public static String getTempDir() {
-		return GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator)[0];
-	}
 
 	/**
 	 * Creates a copy of the given {@link IOReadableWritable} object by an in-memory serialization and subsequent
@@ -162,8 +115,13 @@ public class CommonTestUtils {
 		
 		return copy;
 	}
-	
-	
+
+	/**
+	 * Sleeps for a given set of milliseconds, uninterruptibly. If interrupt is called,
+	 * the sleep will continue nonetheless.
+	 *
+	 * @param msecs The number of milliseconds to sleep.
+	 */
 	public static void sleepUninterruptibly(long msecs) {
 		
 		long now = System.currentTimeMillis();
@@ -177,6 +135,73 @@ public class CommonTestUtils {
 			catch (InterruptedException e) {}
 			
 			now = System.currentTimeMillis();
+		}
+	}
+
+	/**
+	 * Gets the classpath with which the current JVM was started.
+	 *
+	 * @return The classpath with which the current JVM was started.
+	 */
+	public static String getCurrentClasspath() {
+		RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
+		return bean.getClassPath();
+	}
+
+	/**
+	 * Tries to get the java executable command with which the current JVM was started.
+	 * Returns null, if the command could not be found.
+	 *
+	 * @return The java executable command.
+	 */
+	public static String getJavaCommandPath() {
+		File javaHome = new File(System.getProperty("java.home"));
+
+		String path1 = new File(javaHome, "java").getAbsolutePath();
+		String path2 = new File(new File(javaHome, "bin"), "java").getAbsolutePath();
+
+		try {
+			ProcessBuilder bld = new ProcessBuilder(path1, "-version");
+			Process process = bld.start();
+			if (process.waitFor() == 0) {
+				return path1;
+			}
+		}
+		catch (Throwable t) {
+			// ignore and try the second path
+		}
+
+		try {
+			ProcessBuilder bld = new ProcessBuilder(path2, "-version");
+			Process process = bld.start();
+			if (process.waitFor() == 0) {
+				return path2;
+			}
+		}
+		catch (Throwable tt) {
+			// no luck
+		}
+		return null;
+	}
+
+	/**
+	 * Checks whether a process is still alive. Utility method for JVM versions before 1.8,
+	 * where no direct method to check that is available.
+	 *
+	 * @param process The process to check.
+	 * @return True, if the process is alive, false otherwise.
+	 */
+	public static boolean isProcessAlive(Process process) {
+		if (process == null) {
+			return false;
+
+		}
+		try {
+			process.exitValue();
+			return false;
+		}
+		catch(IllegalThreadStateException e) {
+			return true;
 		}
 	}
 }

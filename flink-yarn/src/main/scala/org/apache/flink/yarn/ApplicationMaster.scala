@@ -195,7 +195,7 @@ object ApplicationMaster {
     val args = Array[String]("--configDir", currDir)
 
     LOG.info(s"Config path: $currDir.")
-    val (configuration, _, _) = JobManager.parseArgs(args)
+    val (configuration, _, _, _) = JobManager.parseArgs(args)
 
     // add dynamic properties to JobManager configuration.
     val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)
