@@ -107,6 +107,16 @@ the source of the error. Solutions are to
 It means that the implicit value for the type information could not be provided.
 Make sure that you have an `import org.apache.flink.api.scala._` statement in your code.
 
+If you are using flink operations inside functions or classes that take
+generic parameters a TypeInformation must be available for that parameter.
+This can be achieved by using a context bound:
+
+~~~scala
+def myFunction[T: TypeInformation](input: DataSet[T]): DataSet[Seq[T]] = {
+  input.reduceGroup( i => i.toSeq )
+}
+~~~
+
 ### I get an error message saying that not enough buffers are available. How do I fix this?
 
 If you run Flink in a massively parallel setting (100+ parallel threads),
