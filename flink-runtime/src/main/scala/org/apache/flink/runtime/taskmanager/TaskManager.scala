@@ -173,7 +173,7 @@ import scala.collection.JavaConverters._
       log.debug("Task manager {} is completely stopped.", self.path)
     }
   }
-
+  
   private def tryJobManagerRegistration(): Unit = {
     context.system.scheduler.scheduleOnce(registrationDelay, self, RegisterAtJobManager)
   }

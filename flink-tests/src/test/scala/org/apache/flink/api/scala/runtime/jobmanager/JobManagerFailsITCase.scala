@@ -32,10 +32,12 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobMana
 NotifyWhenJobManagerTerminated}
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
+import org.junit.Ignore
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
+@Ignore("Contains a bug with Akka 2.2.1")
 @RunWith(classOf[JUnitRunner])
 class JobManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
 with WordSpecLike with Matchers with BeforeAndAfterAll {
