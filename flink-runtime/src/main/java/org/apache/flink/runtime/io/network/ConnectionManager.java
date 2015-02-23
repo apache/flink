@@ -36,6 +36,12 @@ public interface ConnectionManager {
 	 */
 	PartitionRequestClient createPartitionRequestClient(RemoteAddress remoteAddress) throws IOException;
 
+	/**
+	 * Closes opened ChannelConnections in case of a resource release
+	 * @param remoteAddress
+	 */
+	void closeOpenChannelConnections(RemoteAddress remoteAddress);
+
 	int getNumberOfActiveConnections();
 
 	void shutdown() throws IOException;

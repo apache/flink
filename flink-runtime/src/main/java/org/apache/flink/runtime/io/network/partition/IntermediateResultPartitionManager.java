@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -47,10 +48,11 @@ public class IntermediateResultPartitionManager implements IntermediateResultPar
 	private boolean isShutdown;
 
 	public void registerIntermediateResultPartition(IntermediateResultPartition partition) throws IOException {
-		if(LOG.isDebugEnabled()){
-			LOG.debug("Register intermediate result partition {}.", partition);
-		}
 		synchronized (partitions) {
+			if(LOG.isDebugEnabled()){
+				LOG.debug("Register intermediate result partition {}.", partition);
+			}
+
 			if (isShutdown) {
 				throw new IOException("Intermediate result partition manager has already been shut down.");
 			}
@@ -123,6 +125,12 @@ public class IntermediateResultPartitionManager implements IntermediateResultPar
 
 			if (partition == null) {
 				if (!partitions.containsRow(producerExecutionId)) {
+					if(LOG.isDebugEnabled()) {
+						LOG.debug("Could not find producer execution ID {}. Registered producer" +
+								" execution IDs {}.", producerExecutionId,
+								Arrays.toString(partitions.rowKeySet().toArray()));
+					}
+
 					throw new IllegalQueueIteratorRequestException("Unknown producer execution ID " + producerExecutionId + ".");
 				}
 

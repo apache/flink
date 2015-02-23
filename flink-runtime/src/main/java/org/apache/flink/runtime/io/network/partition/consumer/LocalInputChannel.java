@@ -73,7 +73,8 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 	public void requestIntermediateResultPartition(int queueIndex) throws IOException {
 		if (queueIterator == null) {
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Requesting queue {} from LOCAL partition {}.", partitionId, queueIndex);
+				LOG.debug("Requesting LOCAL queue {} from partition {} produced by {}.", queueIndex, partitionId,
+						producerExecutionId);
 			}
 
 			queueIterator = partitionManager.getIntermediateResultPartitionIterator(

@@ -385,7 +385,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
           manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
 
           if (log.isDebugEnabled) {
-            log.debug("Register task {} took {}s", executionID,
+            log.debug("Register task {} at library cache manager took {}s", executionID,
               (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
           }
 
@@ -422,6 +422,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       // register the task with the network stack and profiles
       networkEnvironment match {
+        log.debug("Register task {} on {}.", task, connectionInfo)
         case Some(ne) => ne.registerTask(task)
         case None => throw new RuntimeException(
           "Network environment has not been properly instantiated.")
@@ -534,10 +535,11 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
                     reader.updateInputChannel(partitionInfo)
                   } catch {
                     case t: Throwable =>
-                      log.error(t, "Task update failure. Trying to cancel task.")
+                      log.error(t, "Could not update task {}. Trying to cancel task.",
+                       task.getTaskName)
 
                       try {
-                        task.cancelExecution()
+                        task.markFailed(t)
                       } catch {
                         case t: Throwable =>
                           log.error(t, "Failed canceling task with execution ID {} after task" +

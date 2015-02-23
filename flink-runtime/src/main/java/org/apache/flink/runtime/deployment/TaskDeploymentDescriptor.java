@@ -201,4 +201,27 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	public List<BlobKey> getRequiredJarFiles() {
 		return requiredJarFiles;
 	}
+
+	@Override
+	public String toString() {
+		final StringBuilder pddBuilder = new StringBuilder("");
+		final StringBuilder pcddBuilder = new StringBuilder("");
+
+		for(PartitionDeploymentDescriptor pdd: producedPartitions) {
+			pddBuilder.append(pdd);
+		}
+
+		for(PartitionConsumerDeploymentDescriptor pcdd: consumedPartitions) {
+			pcddBuilder.append(pcdd);
+		}
+
+		final String strProducedPartitions = pddBuilder.toString();
+		final String strConsumedPartitions = pcddBuilder.toString();
+
+		return String.format("TaskDeploymentDescriptor(JobID: %s, JobVertexID: %s, " +
+				"ExecutionID: %s, Task name: %s, (%d/%d), Invokable: %s, " +
+				"Produced partitions: %s, Consumed partitions: %s", jobID, vertexID, executionId,
+				taskName, indexInSubtaskGroup, numberOfSubtasks, invokableClassName,
+				strProducedPartitions, strConsumedPartitions);
+	}
 }

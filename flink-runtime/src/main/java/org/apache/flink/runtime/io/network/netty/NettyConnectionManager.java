@@ -54,6 +54,11 @@ public class NettyConnectionManager implements ConnectionManager {
 	}
 
 	@Override
+	public void closeOpenChannelConnections(RemoteAddress remoteAddress) {
+		partitionRequestClientFactory.closeOpenChannelConnections(remoteAddress);
+	}
+
+	@Override
 	public int getNumberOfActiveConnections() {
 		return partitionRequestClientFactory.getNumberOfActiveClients();
 	}
