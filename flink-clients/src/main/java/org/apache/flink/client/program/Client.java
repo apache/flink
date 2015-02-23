@@ -329,8 +329,9 @@ public class Client {
 
 		try {
 			JobClient.uploadJarFiles(jobGraph, hostname, client, timeout);
-		} catch (IOException e) {
-			throw new ProgramInvocationException("Could not upload the programs JAR files to the JobManager.", e);
+		}
+		catch (IOException e) {
+			throw new ProgramInvocationException("Could not upload the program's JAR files to the JobManager.", e);
 		}
 
 		try{
@@ -340,10 +341,12 @@ public class Client {
 			else {
 				JobClient.submitJobDetached(jobGraph, client, timeout);
 			}
-		} catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed.", e);
-		} catch (Exception e) {
-			throw new ProgramInvocationException("Unexpected exception while program execution.", e);
+		}
+		catch (JobExecutionException e) {
+			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
+		}
+		catch (Exception e) {
+			throw new ProgramInvocationException("Exception during program execution.", e);
 		}
 		finally {
 			actorSystem.shutdown();

@@ -25,23 +25,19 @@ import org.apache.flink.runtime.jobgraph.{JobGraph, JobID, JobStatus, JobVertexI
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 /**
- * The job manager specific messages
+ * The job manager specific actor messages
  */
 object JobManagerMessages {
+
   /**
    * Submits a job to the job manager. If [[registerForEvents]] is true,
-   * then the sender will be registered as listener for the state change messages. If [[detached]]
-   * is set to true, then the sender will detach from the job execution. Consequently,
-   * he will not receive the job execution result [[JobResult]]. The submission result will be sent
-   * back to the
-   * sender as a [[SubmissionResponse]] message.
+   * then the sender will be registered as listener for the state change messages.
+   * The submission result will be sent back to the sender as a success message.
    *
    * @param jobGraph
    * @param registerForEvents if true, then register for state change events
-   * @param detached if true, then detach from the job execution
    */
-  case class SubmitJob(jobGraph: JobGraph, registerForEvents: Boolean = false,
-                       detached: Boolean = false)
+  case class SubmitJob(jobGraph: JobGraph, registerForEvents: Boolean = false)
 
   /**
    * Cancels a job with the given [[jobID]] at the JobManager. The result of the cancellation is
@@ -171,23 +167,14 @@ object JobManagerMessages {
   case object RequestBlobManagerPort
 
   /**
-   * Requests the final job status of the job with [[jobID]]. If the job has not been terminated
-   * then the result is sent back upon termination of the job. The result is a
-   * [[JobStatusResponse]] message.
-   *
-   * @param jobID
-   */
-  case class RequestFinalJobStatus(jobID: JobID)
-
-  /**
    * Denotes a successful job execution.
    *
    * @param jobID
    * @param runtime
    * @param accumulatorResults
    */
-  case class JobResultSuccess(jobID: JobID, runtime: Long, accumulatorResults: java.util.Map[String,
-    AnyRef]) {}
+  case class JobResultSuccess(jobID: JobID, runtime: Long,
+                              accumulatorResults: java.util.Map[String, AnyRef]) {}
 
   sealed trait CancellationResponse{
     def jobID: JobID

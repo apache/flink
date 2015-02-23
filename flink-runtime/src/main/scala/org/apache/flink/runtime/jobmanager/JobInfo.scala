@@ -31,7 +31,6 @@ import akka.actor.ActorRef
  */
 class JobInfo(val client: ActorRef, val start: Long){
   var end: Long = -1
-  var detached: Boolean = false
 
   def duration: Long = {
     if(end != -1){

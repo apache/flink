@@ -47,14 +47,14 @@ Actor with ActorLogMessages with ActorLogging {
 
   override def receiveWithLogMessages: Receive = {
     case SubmitJobDetached(jobGraph) =>
-      jobManager forward SubmitJob(jobGraph, registerForEvents = false, detached = true)
+      jobManager forward SubmitJob(jobGraph, registerForEvents = false)
 
     case cancelJob: CancelJob =>
       jobManager forward cancelJob
 
     case SubmitJobAndWait(jobGraph, listen) =>
       val listener = context.actorOf(Props(classOf[JobClientListener], sender))
-      jobManager.tell(SubmitJob(jobGraph, registerForEvents = listen, detached = false), listener)
+      jobManager.tell(SubmitJob(jobGraph, registerForEvents = listen), listener)
 
     case RequestBlobManagerPort =>
       jobManager forward RequestBlobManagerPort

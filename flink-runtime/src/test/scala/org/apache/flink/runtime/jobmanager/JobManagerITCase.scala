@@ -32,7 +32,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import scheduler.{NoResourceAvailableException, SlotSharingGroup}
+import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -52,6 +52,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
   }
 
   "The JobManager actor" must {
+
     "handle jobs when not enough slots" in {
       val vertex = new AbstractJobVertex("Test Vertex")
       vertex.setParallelism(2)
@@ -69,12 +70,18 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
         availableSlots should equal(1)
 
-        within(1 second) {
+        within(2 second) {
           jm ! SubmitJob(jobGraph)
 
-          val failure = expectMsgType[Failure]
+          val success = expectMsgType[Success]
 
-          failure.cause match {
+          jobGraph.getJobID should equal(success.status)
+        }
+
+        within(2 second) {
+          val response = expectMsgType[Failure]
+          val exception = response.cause
+          exception match {
             case e: JobExecutionException =>
               jobGraph.getJobID should equal(e.getJobID)
               new NoResourceAvailableException(1,1,0) should equal(e.getCause)
@@ -84,7 +91,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
         expectMsg(true)
-      } finally {
+      }
+      finally {
         cluster.stop()
       }
     }

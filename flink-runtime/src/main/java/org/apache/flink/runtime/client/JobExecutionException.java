@@ -21,8 +21,9 @@ package org.apache.flink.runtime.client;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 /**
- * This exception is thrown by the {@link JobClient} if a job has been aborted as a result of an
- * error which occurred during the execution.
+ * This exception is the base exception for all exceptions that denote any failure during
+ * teh execution of a job. The JobExecutionException and its subclasses are thrown by
+ * the {@link JobClient}.
  */
 public class JobExecutionException extends Exception {
 

@@ -25,8 +25,7 @@ import akka.actor.Status.{Success, Failure}
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
-import org.apache.flink.runtime.client.{JobSubmissionException, JobExecutionException,
-JobCancellationException}
+import org.apache.flink.runtime.client.{JobSubmissionException, JobExecutionException, JobCancellationException}
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
@@ -36,7 +35,7 @@ import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
-import org.apache.flink.runtime.{JobException, ActorLogMessages}
+import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
@@ -139,6 +138,7 @@ class JobManager(val configuration: Configuration,
   }
 
   override def receiveWithLogMessages: Receive = {
+
     case RegisterTaskManager(connectionInfo, hardwareInformation, numberOfSlots) =>
       val taskManager = sender
 
@@ -170,8 +170,8 @@ class JobManager(val configuration: Configuration,
     case RequestTotalNumberOfSlots =>
       sender ! instanceManager.getTotalNumberOfSlots
 
-    case SubmitJob(jobGraph, listen, d) =>
-      submitJob(jobGraph, listenToEvents = listen, detached = d)
+    case SubmitJob(jobGraph, listen) =>
+      submitJob(jobGraph, listenToEvents = listen)
 
     case CancelJob(jobID) =>
       log.info("Trying to cancel job with ID {}.", jobID)
@@ -274,7 +274,7 @@ class JobManager(val configuration: Configuration,
 
           // is the client waiting for the job result?
             newJobStatus match {
-              case JobStatus.FINISHED if !jobInfo.detached =>
+              case JobStatus.FINISHED =>
                 val accumulatorResults = accumulatorManager.getJobAccumulatorResults(jobID)
                 jobInfo.client ! JobResultSuccess(jobID, jobInfo.duration, accumulatorResults)
               case JobStatus.CANCELED =>
@@ -397,116 +397,133 @@ class JobManager(val configuration: Configuration,
    * @param jobGraph representing the Flink job
    * @param listenToEvents true if the sender wants to listen to job status and execution state
    *                       change notifications. false if not.
-   * @param detached true if the job runs in detached mode, meaning that the sender does not wait
-   *                 for the result of the job. false otherwise.
    */
-  private def submitJob(jobGraph: JobGraph, listenToEvents: Boolean, detached: Boolean): Unit = {
-    try {
-      if (jobGraph == null) {
-        sender ! Failure(new JobSubmissionException(null, "JobGraph must not be null."))
-      } else {
-        log.info(s"Received job ${jobGraph.getJobID} (${jobGraph.getName}).")
+  private def submitJob(jobGraph: JobGraph, listenToEvents: Boolean): Unit = {
+    if (jobGraph == null) {
+      sender ! Failure(new JobSubmissionException(null, "JobGraph must not be null."))
+    }
+    else {
+      val jobId = jobGraph.getJobID
+      val jobName = jobGraph.getName
+      var executionGraph: ExecutionGraph = null
+
+      log.info(s"Received job ${jobId} (${jobName}).")
+
+      try {
+        // Important: We need to make sure that the library registration is the first action,
+        // because this makes sure that the uploaded jar files are removed in case of
+        // unsuccessful
+        try {
+          libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
+        }
+        catch {
+          case t: Throwable =>
+            throw new JobSubmissionException(jobId,
+            "Cannot set up the user code libraries: " + t.getMessage, t)
+        }
+
+        val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
+        if (userCodeLoader == null) {
+          throw new JobSubmissionException(jobId, "The user code class loader could not be initialized.")
+        }
 
         if (jobGraph.getNumberOfVertices == 0) {
-          sender ! Failure(new JobSubmissionException(jobGraph.getJobID ,"Job is empty."))
+          throw new JobSubmissionException(jobId, "The given job is empty")
+        }
+
+        // see if there already exists an ExecutionGraph for the corresponding job ID
+        executionGraph = currentJobs.getOrElseUpdate(jobGraph.getJobID,
+          (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
+            jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader),
+            JobInfo(sender, System.currentTimeMillis())))._1
+
+        // configure the execution graph
+        val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {
+          jobGraph.getNumberOfExecutionRetries
         } else {
-          // Create the user code class loader
-          libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
+          defaultExecutionRetries
+        }
+        executionGraph.setNumberOfRetriesLeft(jobNumberRetries)
+        executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
+        executionGraph.setScheduleMode(jobGraph.getScheduleMode)
+        executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
 
-          val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
+        // initialize the vertices that have a master initialization hook
+        // file output formats create directories here, input formats create splits
+        if (log.isDebugEnabled) {
+          log.debug(s"Running initialization on master for job ${jobId} (${jobName}).")
+        }
 
-          // see if there already exists an ExecutionGraph for the corresponding job ID
-          val (executionGraph, jobInfo) = currentJobs.getOrElseUpdate(jobGraph.getJobID,
-            (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
-              jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader),
-              JobInfo(sender, System.currentTimeMillis())))
-
-          val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {
-            jobGraph.getNumberOfExecutionRetries
-          } else {
-            defaultExecutionRetries
+        for (vertex <- jobGraph.getVertices.asScala) {
+          val executableClass = vertex.getInvokableClassName
+          if (executableClass == null || executableClass.length == 0) {
+            throw new JobSubmissionException(jobId,
+              s"The vertex ${vertex.getID} (${vertex.getName}) has no invokable class.")
           }
-
-          executionGraph.setNumberOfRetriesLeft(jobNumberRetries)
-          executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
-
-          if (userCodeLoader == null) {
-            throw new JobException("The user code class loader could not be initialized.")
-          }
-
-          if (log.isDebugEnabled) {
-            log.debug(s"Running master initialization of job ${jobGraph.getJobID} " +
-              s"(${jobGraph.getName}).")
-          }
-
-          for (vertex <- jobGraph.getVertices.asScala) {
-            val executableClass = vertex.getInvokableClassName
-            if (executableClass == null || executableClass.length == 0) {
-              throw new JobException(s"The vertex ${vertex.getID} (${vertex.getName}) has no " +
-                s"invokable class.")
-            }
-
+          try {
             vertex.initializeOnMaster(userCodeLoader)
           }
-
-          // topological sorting of the job vertices
-          val sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources
-
-          if (log.isDebugEnabled) {
-            log.debug(s"Adding ${sortedTopology.size()} vertices from job graph " +
-              s"${jobGraph.getJobID} (${jobGraph.getName}).")
+          catch {
+            case t: Throwable => throw new JobExecutionException(jobId,
+              "Cannot initialize task '" + vertex.getName + "': " + t.getMessage, t)
           }
-
-          executionGraph.attachJobGraph(sortedTopology)
-
-          if (log.isDebugEnabled) {
-            log.debug(s"Successfully created execution graph from job graph " +
-              s"${jobGraph.getJobID} (${jobGraph.getName}).")
-          }
-
-          executionGraph.setScheduleMode(jobGraph.getScheduleMode)
-          executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
-
-          // get notified about job status changes
-          executionGraph.registerJobStatusListener(self)
-
-          if (listenToEvents) {
-            // the sender wants to be notified about state changes
-            executionGraph.registerExecutionListener(sender)
-            executionGraph.registerJobStatusListener(sender)
-          }
-
-          jobInfo.detached = detached
-
-          log.info(s"Scheduling job ${jobGraph.getName}.")
-
-          executionGraph.scheduleForExecution(scheduler)
-
-          sender ! Success(jobGraph.getJobID)
         }
+
+        // topologically sort the job vertices and attach the graph to the existing one
+        val sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources()
+        if (log.isDebugEnabled) {
+          log.debug(s"Adding ${sortedTopology.size()} vertices from " +
+            s"job graph ${jobId} (${jobName}).")
+        }
+        executionGraph.attachJobGraph(sortedTopology)
+
+        if (log.isDebugEnabled) {
+          log.debug(s"Successfully created execution graph from job graph ${jobId} (${jobName}).")
+        }
+
+        // get notified about job status changes
+        executionGraph.registerJobStatusListener(self)
+
+        if (listenToEvents) {
+          // the sender wants to be notified about state changes
+          executionGraph.registerExecutionListener(sender)
+          executionGraph.registerJobStatusListener(sender)
+        }
+
+        // done with submitting the job
+        sender ! Success(jobGraph.getJobID)
       }
-    } catch {
-      case t: Throwable =>
-        log.error(t, "Job submission of job {} failed.", jobGraph.getJobID)
+      catch {
+        case t: Throwable =>
+          log.error(s"Failed to submit job ${jobId} (${jobName})", t)
 
-        currentJobs.get(jobGraph.getJobID) match {
-          case Some((executionGraph, jobInfo)) =>
-            /*
-           * Register self to be notified about job status changes in case that it did not happen
-           * before. That way the proper cleanup of the job is triggered in the JobStatusChanged
-           * handler.
-           */
-            if (!executionGraph.containsJobStatusListener(self)) {
-              executionGraph.registerJobStatusListener(self)
-            }
+          libraryCacheManager.unregisterJob(jobId)
+          currentJobs.remove(jobId)
 
-            // let the execution graph fail, which will send a failure to the job client
+          if (executionGraph != null) {
             executionGraph.fail(t)
-          case None =>
-            libraryCacheManager.unregisterJob(jobGraph.getJobID)
-            currentJobs.remove(jobGraph.getJobID)
-            sender ! Failure(t)
-        }
+          }
+
+          val rt: Throwable = if (t.isInstanceOf[JobExecutionException]) {
+            t
+          } else {
+            new JobExecutionException(jobId, s"Failed to submit job ${jobId} (${jobName})", t)
+          }
+
+          sender ! Failure(rt)
+          return
+      }
+
+      // NOTE: Scheduling the job for execution is a separate action from the job submission.
+      // The success of submitting the job must be independent from the success of scheduling
+      // the job.
+      try {
+        log.info(s"Scheduling job ${executionGraph.getJobName}.")
+        executionGraph.scheduleForExecution(scheduler)
+      }
+      catch {
+        case t: Throwable => executionGraph.fail(t);
+      }
     }
   }
 
@@ -813,8 +830,8 @@ object JobManager {
    * Starts the JobManager and job archiver based on the given configuration, in the
    * given actor system.
    *
-   * @param configuration
-   * @param actorSystem
+   * @param configuration The configuration for the JobManager
+   * @param actorSystem Teh actor system running the JobManager
    * @return A tuple of references (JobManager Ref, Archiver Ref)
    */
   def startJobManagerActors(configuration: Configuration,

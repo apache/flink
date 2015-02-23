@@ -272,7 +272,7 @@ public class Execution implements Serializable {
 			throw new NullPointerException();
 		}
 		if (!slot.isAlive()) {
-			throw new JobException("Traget slot for deployment is not alive.");
+			throw new JobException("Target slot for deployment is not alive.");
 		}
 
 		// make sure exactly one deployment call happens from the correct state

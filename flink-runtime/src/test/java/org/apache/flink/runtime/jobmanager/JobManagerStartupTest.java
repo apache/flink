@@ -90,5 +90,4 @@ public class JobManagerStartupTest {
 			// expected
 		}
 	}
-
 }

@@ -364,6 +364,22 @@ public class JobGraph implements Serializable {
 	}
 
 	/**
+	 * Adds the BLOB referenced by the key to the JobGraph's dependencies.
+	 *
+	 * @param key
+	 *        path of the JAR file required to run the job on a task manager
+	 */
+	public void addBlob(BlobKey key) {
+		if (key == null) {
+			throw new IllegalArgumentException();
+		}
+
+		if (!userJarBlobKeys.contains(key)) {
+			userJarBlobKeys.add(key);
+		}
+	}
+
+	/**
 	 * Checks whether the JobGraph has user code JAR files attached.
 	 *
 	 * @return True, if the JobGraph has user code JAR files attached, false otherwise.

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +54,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 
 	private static Logger LOG = LoggerFactory.getLogger(BlobLibraryCacheManager.class);
 	
-	private static ExecutionAttemptID JOB_ATTEMPT_ID = new ExecutionAttemptID();
+	private static ExecutionAttemptID JOB_ATTEMPT_ID = new ExecutionAttemptID(-1, -1);
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -71,7 +72,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	
 	// --------------------------------------------------------------------------------------------
 
-	public BlobLibraryCacheManager(BlobService blobService, long cleanupInterval){
+	public BlobLibraryCacheManager(BlobService blobService, long cleanupInterval) {
 		this.blobService = blobService;
 
 		// Initializing the clean up task
@@ -99,11 +100,31 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 			LibraryCacheEntry entry = cacheEntries.get(jobId);
 			
 			if (entry == null) {
-				URL[] urls = new URL[requiredJarFiles.size()];
+				// create a new entry in the library cache
+				BlobKey[] keys = requiredJarFiles.toArray(new BlobKey[requiredJarFiles.size()]);
+				URL[] urls = new URL[keys.length];
 
 				int count = 0;
-				for (BlobKey blobKey : requiredJarFiles) {
-					urls[count++] = registerReferenceToBlobKeyAndGetURL(blobKey);
+				try {
+					for (; count < keys.length; count++) {
+						BlobKey blobKey = keys[count];
+						urls[count] = registerReferenceToBlobKeyAndGetURL(blobKey);
+					}
+				}
+				catch (Throwable t) {
+					// undo the reference count increases
+					try {
+						for (int i = 0; i < count; i++) {
+							unregisterReferenceToBlobKey(keys[i]);
+						}
+					}
+					catch (Throwable tt) {
+						LOG.error("Error while updating library reference counters.", tt);
+					}
+
+					// rethrow or wrap
+					ExceptionUtils.tryRethrowIOException(t);
+					throw new IOException("Library cache could not register the user code libraries.", t);
 				}
 				
 				URLClassLoader classLoader = new URLClassLoader(urls);
@@ -205,19 +226,24 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	}
 	
 	int getNumberOfCachedLibraries() {
-		synchronized (lockObject) {
-			return blobKeyReferenceCounters.size();
-		}
+		return blobKeyReferenceCounters.size();
 	}
 	
 	private URL registerReferenceToBlobKeyAndGetURL(BlobKey key) throws IOException {
-		
-		Integer references = blobKeyReferenceCounters.get(key);
-		int newReferences = references == null ? 1 : references.intValue() + 1;
-		
-		blobKeyReferenceCounters.put(key, newReferences);
+		// it is important that we fetch the URL before increasing the counter.
+		// in case the URL cannot be created (failed to fetch the BLOB), we have no stale counter
+		try {
+			URL url = blobService.getURL(key);
 
-		return blobService.getURL(key);
+			Integer references = blobKeyReferenceCounters.get(key);
+			int newReferences = references == null ? 1 : references.intValue() + 1;
+			blobKeyReferenceCounters.put(key, newReferences);
+
+			return url;
+		}
+		catch (IOException e) {
+			throw new IOException("Cannot access jar file stored under " + key, e);
+		}
 	}
 	
 	private void unregisterReferenceToBlobKey(BlobKey key) {
@@ -226,8 +252,14 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 			int newReferences = Math.max(references.intValue() - 1, 0);
 			blobKeyReferenceCounters.put(key, newReferences);
 		}
+		else {
+			// make sure we have an entry in any case, that the cleanup timer removes any
+			// present libraries
+			blobKeyReferenceCounters.put(key, 0);
+		}
 	}
-	
+
+
 	// --------------------------------------------------------------------------------------------
 	
 	private static class LibraryCacheEntry {
