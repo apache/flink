@@ -479,6 +479,20 @@ public final class BufferReader implements BufferReaderBase {
 
 			final PartitionLocation producerLocation = partition.getProducerLocation();
 
+			if (LOG.isDebugEnabled()) {
+				switch(producerLocation) {
+					case LOCAL:
+						LOG.debug("Create LocalInputChannel for {}.", partition);
+						break;
+					case REMOTE:
+						LOG.debug("Create RemoteInputChannel for {}.", partition);
+						break;
+					case UNKNOWN:
+						LOG.debug("Create UnknownInputChannel for {}.", partition);
+						break;
+				}
+			}
+
 			switch (producerLocation) {
 				case LOCAL:
 					inputChannels[channelIndex] = new LocalInputChannel(channelIndex, producerExecutionId, partitionId, reader);

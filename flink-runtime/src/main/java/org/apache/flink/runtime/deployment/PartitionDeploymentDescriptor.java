@@ -113,4 +113,10 @@ public class PartitionDeploymentDescriptor implements IOReadableWritable, Serial
 
 		return new PartitionDeploymentDescriptor(partition.getIntermediateResult().getId(), partitionId, partition.getIntermediateResult().getResultType(), numberOfQueues);
 	}
+
+	@Override
+	public String toString() {
+		return String.format("PartitionDeploymentDescriptor(ResultID: %s, partitionID: %s, " +
+				"Partition type: %s)", resultId, partitionId, partitionType);
+	}
 }

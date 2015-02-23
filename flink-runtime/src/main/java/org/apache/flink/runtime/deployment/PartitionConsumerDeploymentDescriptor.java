@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * A partition consumer deployment descriptor combines information of all partitions, which are
@@ -90,5 +91,12 @@ public class PartitionConsumerDeploymentDescriptor implements IOReadableWritable
 		}
 
 		this.queueIndex = in.readInt();
+	}
+
+	@Override
+	public String toString() {
+		return String.format("PartitionConsumerDeploymentDescriptor(ResultID: %s, " +
+				"Queue index: %d, Partitions: %s)", resultId, queueIndex,
+				Arrays.toString(partitions));
 	}
 }

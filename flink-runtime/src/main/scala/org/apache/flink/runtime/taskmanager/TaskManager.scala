@@ -94,7 +94,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   import context._
   import taskManagerConfig.{timeout => tmTimeout, _}
 
-import scala.collection.JavaConverters._
+  import scala.collection.JavaConverters._
 
   implicit val timeout = tmTimeout
 
@@ -389,7 +389,7 @@ import scala.collection.JavaConverters._
           manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
 
           if (log.isDebugEnabled) {
-            log.debug("Register task {} took {}s", executionID,
+            log.debug("Register task {} at library cache manager took {}s", executionID,
               (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
           }
 
@@ -426,7 +426,11 @@ import scala.collection.JavaConverters._
 
       // register the task with the network stack and profiles
       networkEnvironment match {
-        case Some(ne) => ne.registerTask(task)
+        case Some(ne) =>
+          if (log.isDebugEnabled) {
+            log.debug("Register task {} on {}.", task, connectionInfo)
+          }
+          ne.registerTask(task)
         case None => throw new RuntimeException(
           "Network environment has not been properly instantiated.")
       }

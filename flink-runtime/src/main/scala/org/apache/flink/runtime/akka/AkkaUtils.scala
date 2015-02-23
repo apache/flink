@@ -146,7 +146,7 @@ object AkkaUtils {
         | serialize-messages = off
         |
         | loglevel = $logLevel
-        | stdout-loglevel = WARNING
+        | stdout-loglevel = OFF
         |
         | log-dead-letters = $logLifecycleEvents
         | log-dead-letters-during-shutdown = $logLifecycleEvents

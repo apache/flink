@@ -186,10 +186,11 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	}
 
 	public void releaseAllResources() throws IOException {
-		if(LOG.isDebugEnabled()) {
-			LOG.debug("Release all resources of {}.", this);
-		}
 		synchronized (queues) {
+			if(LOG.isDebugEnabled()) {
+				LOG.debug("Release all resources of {}.", this);
+			}
+
 			if (!isReleased) {
 				try {
 					for (IntermediateResultPartitionQueue queue : queues) {

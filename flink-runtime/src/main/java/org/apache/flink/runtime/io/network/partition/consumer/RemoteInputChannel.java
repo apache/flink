@@ -64,7 +64,6 @@ public class RemoteInputChannel extends InputChannel {
 			IntermediateResultPartitionID partitionId,
 			BufferReader reader,
 			RemoteAddress producerAddress) {
-
 		super(channelIndex, producerExecutionId, partitionId, reader);
 
 		/**
@@ -83,7 +82,8 @@ public class RemoteInputChannel extends InputChannel {
 	public void requestIntermediateResultPartition(int queueIndex) throws IOException {
 		if (partitionRequestClient == null) {
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Requesting queue {} from REMOTE partition {}.", partitionId, queueIndex);
+				LOG.debug("Requesting REMOTE queue {} from partition {} produced by {}.", queueIndex, partitionId,
+						producerExecutionId);
 			}
 
 			partitionRequestClient = reader.getConnectionManager().createPartitionRequestClient(producerAddress);
@@ -149,13 +149,15 @@ public class RemoteInputChannel extends InputChannel {
 
 			if (partitionRequestClient != null) {
 				partitionRequestClient.close(this);
+			} else {
+				reader.getConnectionManager().closeOpenChannelConnections(producerAddress);
 			}
 		}
 	}
 
 	@Override
 	public String toString() {
-		return "REMOTE " + id + " " + super.toString();
+		return "REMOTE " + id + " " + producerAddress + " " + super.toString();
 	}
 
 	// ------------------------------------------------------------------------

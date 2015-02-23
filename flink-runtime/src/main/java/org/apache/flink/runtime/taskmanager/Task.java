@@ -144,11 +144,20 @@ public class Task {
 	}
 
 	public String getTaskName() {
-		return taskName;
+		if (LOG.isDebugEnabled()) {
+			return taskName + " (" + executionId + ")";
+		} else {
+			return taskName;
+		}
 	}
 
 	public String getTaskNameWithSubtasks() {
-		return this.taskName + " (" + (this.subtaskIndex + 1) + "/" + this.numberOfSubtasks + ")";
+		if (LOG.isDebugEnabled()) {
+			return this.taskName + " (" + (this.subtaskIndex + 1) + "/" + this.numberOfSubtasks +
+					") (" + executionId + ")";
+		} else {
+			return this.taskName + " (" + (this.subtaskIndex + 1) + "/" + this.numberOfSubtasks + ")";
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------
@@ -332,7 +341,8 @@ public class Task {
 
 	protected void notifyExecutionStateChange(ExecutionState executionState,
 											Throwable optionalError) {
-		LOG.info("Update execution state to " + executionState);
+		LOG.info("Update execution state of {} ({}) to {}.", this.getTaskName(),
+				this.getExecutionId(), executionState);
 		taskManager.tell(new JobManagerMessages.UpdateTaskExecutionState(
 				new TaskExecutionState(jobId, executionId, executionState, optionalError)),
 				ActorRef.noSender());
