@@ -111,6 +111,7 @@ public class Execution implements Serializable {
 
 	private final FiniteDuration timeout;
 
+	private ConcurrentLinkedQueue<PartialPartitionInfo> partialPartitionInfos;
 
 	private volatile ExecutionState state = CREATED;
 	
@@ -134,6 +135,8 @@ public class Execution implements Serializable {
 		markTimestamp(ExecutionState.CREATED, startTimestamp);
 
 		this.timeout = timeout;
+
+		this.partialPartitionInfos = new ConcurrentLinkedQueue<PartialPartitionInfo>();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -188,6 +191,9 @@ public class Execution implements Serializable {
 			throw new IllegalStateException("Cannot archive Execution while the assigned resource is still running.");
 		}
 		assignedResource = null;
+
+		partialPartitionInfos.clear();
+		partialPartitionInfos = null;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -595,10 +601,11 @@ public class Execution implements Serializable {
 		}
 	}
 
-	void sendPartitionInfos() {
-		ConcurrentLinkedQueue<PartialPartitionInfo> partialPartitionInfos =
-				vertex.getPartialPartitionInfos();
+	void cachePartitionInfo(PartialPartitionInfo partitionInfo) {
+		partialPartitionInfos.add(partitionInfo);
+	}
 
+	void sendPartitionInfos() {
 		// check if the ExecutionVertex has already been archived and thus cleared the
 		// partial partition infos queue
 		if(partialPartitionInfos != null && !partialPartitionInfos.isEmpty()) {
