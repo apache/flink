@@ -603,6 +603,7 @@ under the License.
 						<exclude>flink-staging/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>flink-staging/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-staging/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
+						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
