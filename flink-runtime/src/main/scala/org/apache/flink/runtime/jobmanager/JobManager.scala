@@ -645,7 +645,9 @@ object JobManager {
             runJobManager(configuration, executionMode, listeningHost, listeningPort)
           }
         })
-      } else {
+      }
+      else {
+        LOG.info("Security is not enabled. Starting non-authenticated JobManager.")
         runJobManager(configuration, executionMode, listeningHost, listeningPort)
       }
     }
@@ -679,10 +681,15 @@ object JobManager {
     LOG.info("Starting JobManager")
 
     // Bring up the job manager actor system first, bind it to the given address.
-    LOG.debug("Starting JobManager actor system")
+    LOG.info("Starting JobManager actor system at {}:{}", listeningAddress, listeningPort)
 
     val jobManagerSystem = try {
-      AkkaUtils.createActorSystem(configuration, Some((listeningAddress, listeningPort)))
+      val akkaConfig = AkkaUtils.getAkkaConfig(configuration,
+                                               Some((listeningAddress, listeningPort)))
+      if (LOG.isDebugEnabled) {
+        LOG.debug("Using akka configuration\n " + akkaConfig)
+      }
+      AkkaUtils.createActorSystem(akkaConfig)
     }
     catch {
       case t: Throwable => {
@@ -700,11 +707,12 @@ object JobManager {
 
     try {
       // bring up the job manager actor
-      LOG.debug("Starting JobManager actor")
+      LOG.info("Starting JobManager actor")
       val (jobManager, archiver) = startJobManagerActors(configuration, jobManagerSystem)
 
       // start a process reaper that watches the JobManager. If the JobManager actor dies,
       // the process reaper will kill the JVM process (to ensure easy failure detection)
+      LOG.debug("Starting JobManager process reaper")
       jobManagerSystem.actorOf(
         Props(classOf[ProcessReaper], jobManager, LOG, RUNTIME_FAILURE_RETURN_CODE),
         "JobManager_Process_Reaper")
@@ -763,8 +771,8 @@ object JobManager {
 
     parser.parse(args, JobManagerCLIConfiguration()) map {
       config =>
+        LOG.info("Loading configuration from " + config.configDir)
         GlobalConfiguration.loadConfiguration(config.configDir)
-
         val configuration = GlobalConfiguration.getConfiguration
 
         if (config.configDir != null && new File(config.configDir).isDirectory) {

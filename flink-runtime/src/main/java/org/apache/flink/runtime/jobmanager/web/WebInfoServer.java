@@ -99,7 +99,7 @@ public class WebInfoServer {
 		URL webRootDir = this.getClass().getClassLoader().getResource(WEB_ROOT_DIR);
 
 		if(webRootDir == null) {
-			throw new FileNotFoundException("Cannot start jobmanager web info server. The " +
+			throw new FileNotFoundException("Cannot start JobManager web info server. The " +
 					"resource " + WEB_ROOT_DIR + " is not included in the jar.");
 		}
 
@@ -110,7 +110,7 @@ public class WebInfoServer {
 		}
 
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Setting up web info server, using web-root directory" +
+			LOG.info("Setting up web info server, using web-root directory " +
 					webRootDir.toExternalForm()	+ ".");
 
 		}

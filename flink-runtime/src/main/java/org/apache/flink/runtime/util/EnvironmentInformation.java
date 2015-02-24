@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.util.List;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -176,6 +177,22 @@ public class EnvironmentInformation {
 	}
 
 	/**
+	 * Gets the system parameters and environment parameters that were passed to the JVM on startup.
+	 *
+	 * @return The options passed to the JVM on startup.
+	 */
+	public static String[] getJvmStartupOptionsArray() {
+		try {
+			RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
+			List<String> options = bean.getInputArguments();
+			return options.toArray(new String[options.size()]);
+		}
+		catch (Throwable t) {
+			return new String[0];
+		}
+	}
+
+	/**
 	 * Gets the directory for temporary files, as returned by the JVM system property "java.io.tmpdir".
 	 *
 	 * @return The directory for temporary files.
@@ -199,7 +216,7 @@ public class EnvironmentInformation {
 			String user = getUserRunning();
 			
 			String jvmVersion = getJvmVersion();
-			String options = getJvmStartupOptions();
+			String[] options = getJvmStartupOptionsArray();
 			
 			String javaHome = System.getenv("JAVA_HOME");
 			
@@ -210,7 +227,17 @@ public class EnvironmentInformation {
 					+ "Rev:" + rev.commitId + ", " + "Date:" + rev.commitDate + ")");
 			log.info(" Current user: " + user);
 			log.info(" JVM: " + jvmVersion);
-			log.info(" Startup Options: " + options);
+
+			if (options.length == 0) {
+				log.info(" Startup Options: (none)");
+			}
+			else {
+				log.info(" Startup Options:");
+				for (String s: options) {
+					log.info("    " + s);
+				}
+			}
+
 			log.info(" Maximum heap size: " + maxHeapMegabytes + " MiBytes");
 			log.info(" JAVA_HOME: " + (javaHome == null ? "not set" : javaHome));
 			log.info("--------------------------------------------------------------------------------");

@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client;
 
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.client.web.WebInterfaceServer;
@@ -29,7 +29,6 @@ import org.apache.flink.configuration.GlobalConfiguration;
 /**
  * Main entry point for the web frontend. Creates a web server according to the configuration
  * in the given directory.
- * 
  */
 public class WebFrontend {
 	/**
@@ -38,28 +37,24 @@ public class WebFrontend {
 	private static final Logger LOG = LoggerFactory.getLogger(WebFrontend.class);
 
 	/**
-	 * Main method. accepts a single parameter, which is the config directory.
+	 * Main method. Accepts a single command line parameter, which is the config directory.
 	 * 
-	 * @param args
-	 *        The parameters to the entry point.
+	 * @param args The command line parameters.
 	 */
 	public static void main(String[] args) {
+
+		EnvironmentInformation.logEnvironmentInfo(LOG, "Web Client");
+		EnvironmentInformation.checkJavaVersion();
+
+		// check the arguments
+		if (args.length < 2 || !args[0].equals("--configDir")) {
+			LOG.error("Wrong command line arguments. Usage: WebFrontend --configDir <directory>");
+			System.exit(1);
+		}
+
 		try {
-			// get the config directory first
-			String configDir = null;
-
-			if (args.length >= 2 && args[0].equals("--configDir")) {
-				configDir = args[1];
-			}
-
-			if (configDir == null) {
-				System.err
-					.println("Error: Configuration directory must be specified.\nWebFrontend --configDir <directory>\n");
-				System.exit(1);
-				return;
-			}
-
 			// load the global configuration
+			String configDir = args[1];
 			GlobalConfiguration.loadConfiguration(configDir);
 			Configuration config = GlobalConfiguration.getConfiguration();
 			
@@ -68,15 +63,17 @@ public class WebFrontend {
 
 			// get the listening port
 			int port = config.getInteger(ConfigConstants.WEB_FRONTEND_PORT_KEY,
-				ConfigConstants.DEFAULT_WEBCLIENT_PORT);
+										ConfigConstants.DEFAULT_WEBCLIENT_PORT);
 
 			// start the server
 			WebInterfaceServer server = new WebInterfaceServer(config, port);
 			LOG.info("Starting web frontend server on port " + port + '.');
 			server.start();
 			server.join();
-		} catch (Throwable t) {
-			LOG.error("Unexpected exception: " + t.getMessage(), t);
+		}
+		catch (Throwable t) {
+			LOG.error("Exception while starting the web server: " + t.getMessage(), t);
+			System.exit(2);
 		}
 	}
 }

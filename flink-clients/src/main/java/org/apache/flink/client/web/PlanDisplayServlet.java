@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client.web;
 
 import java.io.IOException;
@@ -27,11 +26,11 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+/**
+ * Simple servlet that displays the visualization of a data flow plan.
+ */
 public class PlanDisplayServlet extends GUIServletStub {
-	
-	/**
-	 * Serial UID for serialization interoperability.
-	 */
+
 	private static final long serialVersionUID = 3610115341264927614L;
 	
 	
@@ -83,7 +82,6 @@ public class PlanDisplayServlet extends GUIServletStub {
 				URI request = new URI(req.getRequestURL().toString());
 				URI vizURI = new URI(request.getScheme(), null, request.getHost(), runtimeVisualizationPort, null, null, null);
 				this.runtimeVisURL = vizURI.toString();
-				System.out.println(this.runtimeVisURL);
 			} catch (URISyntaxException e) {
 				; // ignore and simply do not forward
 			}

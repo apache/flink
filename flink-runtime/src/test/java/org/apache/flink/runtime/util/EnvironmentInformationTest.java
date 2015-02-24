@@ -47,6 +47,7 @@ public class EnvironmentInformationTest {
 	public void testEnvironmentMethods() {
 		try {
 			assertNotNull(EnvironmentInformation.getJvmStartupOptions());
+			assertNotNull(EnvironmentInformation.getJvmStartupOptionsArray());
 			assertNotNull(EnvironmentInformation.getJvmVersion());
 			assertNotNull(EnvironmentInformation.getRevisionInformation());
 			assertNotNull(EnvironmentInformation.getVersion());

@@ -806,6 +806,7 @@ object TaskManager {
 
     // load the configuration
     try {
+      LOG.info("Loading configuration from " + cliConfig.configDir)
       GlobalConfiguration.loadConfiguration(cliConfig.configDir)
       GlobalConfiguration.getConfiguration()
     }
@@ -906,7 +907,12 @@ object TaskManager {
     LOG.info("Starting TaskManager actor system")
 
     val taskManagerSystem = try {
-      AkkaUtils.createActorSystem(configuration, Some((taskManagerHostname, actorSystemPort)))
+      val akkaConfig = AkkaUtils.getAkkaConfig(configuration,
+                                               Some((taskManagerHostname, actorSystemPort)))
+      if (LOG.isDebugEnabled) {
+        LOG.debug("Using akka configuration\n " + akkaConfig)
+      }
+      AkkaUtils.createActorSystem(akkaConfig)
     }
     catch {
       case t: Throwable => {
