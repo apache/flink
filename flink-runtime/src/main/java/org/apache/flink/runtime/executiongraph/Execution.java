@@ -802,6 +802,11 @@ public class Execution implements Serializable {
 		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
 			markTimestamp(targetState);
 
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("{} ({}) switched from {} to {}.",this.getVertex().getTaskName(),
+						getAttemptId(),  currentState, targetState);
+			}
+
 			// make sure that the state transition completes normally.
 			// potential errors (in listeners may not affect the main logic)
 			try {

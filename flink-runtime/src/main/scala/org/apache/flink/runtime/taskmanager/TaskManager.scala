@@ -542,14 +542,15 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
                     reader.updateInputChannel(partitionInfo)
                   } catch {
                     case t: Throwable =>
-                      log.error(t, "Task update failure. Trying to cancel task.")
+                      log.error(t, "Could not update task {}. Trying to cancel task.",
+                        task.getTaskName)
 
                       try {
-                        task.cancelExecution()
+                        task.markFailed(t)
                       } catch {
                         case t: Throwable =>
                           log.error(t, "Failed canceling task with execution ID {} after task" +
-                            "update failure..", executionId)
+                            "update failure.", executionId)
                       }
                   }
                 }
