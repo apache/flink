@@ -20,12 +20,13 @@ package org.apache.flink.yarn.appMaster;
 
 import java.io.IOException;
 import java.security.PrivilegedAction;
-import java.util.Arrays;
 import java.util.Map;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import org.apache.flink.yarn.YarnUtils;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.yarn.YarnTaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.yarn.FlinkYarnClient;
@@ -33,36 +34,64 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
-import scala.Tuple2;
 
+/**
+ * The entry point for running a TaskManager in a YARN container. The YARN container will invoke
+ * this class' main method.
+ */
 public class YarnTaskManagerRunner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnTaskManagerRunner.class);
 
+
 	public static void main(final String[] args) throws IOException {
-		Map<String, String> envs = System.getenv();
+
+		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN TaskManager");
+		EnvironmentInformation.checkJavaVersion();
+
+		// try to parse the command line arguments
+		final Configuration configuration;
+		try {
+			configuration = TaskManager.parseArgsAndLoadConfig(args);
+		}
+		catch (Throwable t) {
+			LOG.error(t.getMessage(), t);
+			System.exit(TaskManager.STARTUP_FAILURE_RETURN_CODE());
+			return;
+		}
+
+		// read the environment variables for YARN
+		final Map<String, String> envs = System.getenv();
 		final String yarnClientUsername = envs.get(FlinkYarnClient.ENV_CLIENT_USERNAME);
 		final String localDirs = envs.get(Environment.LOCAL_DIRS.key());
 
 		// configure local directory
-		final String[] newArgs = Arrays.copyOf(args, args.length + 2);
-		newArgs[newArgs.length-2] = "--tempDir";
-		newArgs[newArgs.length-1] = localDirs;
-		LOG.info("Setting log path "+localDirs);
-		LOG.info("YARN daemon runs as '"+UserGroupInformation.getCurrentUser().getShortUserName()+"' setting"
-				+ " user to execute Flink TaskManager to '"+yarnClientUsername+"'");
+		String flinkTempDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null);
+		if (flinkTempDirs == null) {
+			LOG.info("Setting directories for temporary file " + localDirs);
+			configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, localDirs);
+		}
+		else {
+			LOG.info("Overriding YARN's temporary file directories with those " +
+					"specified in the Flink config: " + flinkTempDirs);
+		}
+
+		LOG.info("YARN daemon runs as '" + UserGroupInformation.getCurrentUser().getShortUserName()
+				+"' setting user to execute Flink TaskManager to '"+yarnClientUsername+"'");
+
 		UserGroupInformation ugi = UserGroupInformation.createRemoteUser(yarnClientUsername);
-		for(Token<? extends TokenIdentifier> toks : UserGroupInformation.getCurrentUser().getTokens()) {
+		for (Token<? extends TokenIdentifier> toks : UserGroupInformation.getCurrentUser().getTokens()) {
 			ugi.addToken(toks);
 		}
 		ugi.doAs(new PrivilegedAction<Object>() {
 			@Override
 			public Object run() {
 				try {
-					Tuple2<ActorSystem, ActorRef> tuple = YarnUtils.startActorSystemAndTaskManager(newArgs);
-					tuple._1().awaitTermination();
-				} catch (Exception e) {
-					LOG.error("Error while running the TaskManager", e);
+					TaskManager.runTaskManager(configuration, YarnTaskManager.class);
+				}
+				catch (Throwable t) {
+					LOG.error("Error while starting the TaskManager", t);
+					System.exit(TaskManager.STARTUP_FAILURE_RETURN_CODE());
 				}
 				return null;
 			}

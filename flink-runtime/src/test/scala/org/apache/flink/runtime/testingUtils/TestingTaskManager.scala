@@ -19,14 +19,13 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{Terminated, ActorRef}
-import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
+import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask
-import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.taskmanager.{NetworkEnvironmentConfiguration, TaskManagerConfiguration, TaskManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
-import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
 
@@ -34,10 +33,14 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /**
- * Mixin for the [[TaskManager]] to support testing messages
+ * Subclass of the [[TaskManager]] to support testing messages
  */
-trait TestingTaskManager extends ActorLogMessages {
-  that: TaskManager =>
+class TestingTaskManager(connectionInfo: InstanceConnectionInfo,
+                         jobManagerAkkaURL: String,
+                         taskManagerConfig: TaskManagerConfiguration,
+                         networkConfig: NetworkEnvironmentConfiguration)
+  extends TaskManager(connectionInfo, jobManagerAkkaURL, taskManagerConfig, networkConfig) {
+
 
   val waitForRemoval = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val waitForJobRemoval = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
@@ -45,12 +48,16 @@ trait TestingTaskManager extends ActorLogMessages {
 
   var disconnectDisabled = false
 
-  abstract override def receiveWithLogMessages = {
+
+  override def receiveWithLogMessages = {
     receiveTestMessages orElse super.receiveWithLogMessages
   }
 
+  /**
+   * Handler for testing related messages
+   */
   def receiveTestMessages: Receive = {
-    
+
     case RequestRunningTasks =>
       sender ! ResponseRunningTasks(runningTasks.toMap)
       
@@ -134,6 +141,4 @@ trait TestingTaskManager extends ActorLogMessages {
     case DisableDisconnect =>
       disconnectDisabled = true
   }
-
-
 }

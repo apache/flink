@@ -43,8 +43,8 @@ import scala.concurrent.duration.FiniteDuration
  * @param instancePath Akka URL to [[TaskManager]] instance
  * @param reportInterval Interval of profiling action
  */
-class TaskManagerProfiler(val instancePath: String, val reportInterval: Int) extends Actor with
-ActorLogMessages with ActorLogging {
+class TaskManagerProfiler(val instancePath: String, val reportInterval: Int)
+   extends Actor with ActorLogMessages with ActorLogging {
 
   import context.dispatcher
 

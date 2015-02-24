@@ -47,23 +47,23 @@ import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
-import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered,
-RefuseRegistration, AcknowledgeRegistration, RegisterTaskManager}
+import org.apache.flink.runtime.messages.RegistrationMessages.{AlreadyRegistered, RefuseRegistration, AcknowledgeRegistration, RegisterTaskManager}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
-import org.apache.flink.runtime.messages.TaskManagerProfilerMessages
-.{UnregisterProfilingListener, UnmonitorTask, MonitorTask, RegisterProfilingListener}
+import org.apache.flink.runtime.messages.TaskManagerProfilerMessages.{UnregisterProfilingListener, UnmonitorTask, MonitorTask, RegisterProfilingListener}
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
-import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.flink.runtime.util.{MathUtils, EnvironmentInformation}
 import org.apache.flink.util.ExceptionUtils
 import org.slf4j.LoggerFactory
 
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import scala.collection.JavaConverters._
+
 import scala.language.postfixOps
 
 /**
@@ -87,7 +87,8 @@ import scala.language.postfixOps
  *
  * - ...
  */
-class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkkaURL: String,
+class TaskManager(val connectionInfo: InstanceConnectionInfo,
+                  val jobManagerAkkaURL: String,
                   val taskManagerConfig: TaskManagerConfiguration,
                   val networkConfig: NetworkEnvironmentConfiguration)
   extends Actor with ActorLogMessages with ActorLogging {
@@ -95,7 +96,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   import context._
   import taskManagerConfig.{timeout => tmTimeout, _}
 
-import scala.collection.JavaConverters._
+
 
   implicit val timeout = tmTimeout
 
@@ -109,7 +110,6 @@ import scala.collection.JavaConverters._
   var registrationDuration = 0 seconds
   var registrationAttempts: Int = 0
 
-  TaskManager.checkTempDirs(tmpDirPaths)
   val ioManager = new IOManagerAsync(tmpDirPaths)
   val memoryManager = new DefaultMemoryManager(memorySize, numberOfSlots, pageSize)
   val bcVarManager = new BroadcastVariableManager()
@@ -123,7 +123,7 @@ import scala.collection.JavaConverters._
   val profiler = profilingInterval match {
     case Some(interval) =>
       log.info("Profiling of jobs is enabled.")
-      Some(TaskManager.startProfiler(self.path.toSerializationFormat, interval))
+      Some(TaskManager.startProfiler(self.path.toSerializationFormat, interval, context.system))
     case None =>
       log.info("Profiling of jobs is disabled.")
       None
@@ -140,11 +140,6 @@ import scala.collection.JavaConverters._
   var instanceID: InstanceID = null
   var heartbeatScheduler: Option[Cancellable] = None
 
-  memoryLogggingIntervalMs.foreach {
-    interval =>
-      val d = FiniteDuration(interval, TimeUnit.MILLISECONDS)
-      context.system.scheduler.schedule(d, d, self, LogMemoryUsage)
-  }
 
   override def preStart(): Unit = {
     tryJobManagerRegistration()
@@ -717,7 +712,7 @@ import scala.collection.JavaConverters._
 
 /**
  * TaskManager companion object. Contains TaskManager executable entry point, command
- * line parsing, and constants.
+ * line parsing, constants, and setup methods for the TaskManager.
  */
 object TaskManager {
 
@@ -734,259 +729,289 @@ object TaskManager {
   val MAX_REGISTRATION_ATTEMPTS = 10
   val HEARTBEAT_INTERVAL = 5000 millisecond
 
-  def main(args: Array[String]): Unit = {
-    EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager")
-    val (hostname, port, configuration) = parseArgs(args)
 
-    if(SecurityUtils.isSecurityEnabled) {
-      LOG.info("Security is enabled. Starting secure TaskManager.")
-      SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
-        override def run(): Unit = {
-          startActor(hostname, port, configuration, TaskManager.TASK_MANAGER_NAME)
-        }
-      })
-    } else {
-      startActor(hostname, port, configuration, TaskManager.TASK_MANAGER_NAME)
+  // --------------------------------------------------------------------------
+  //  TaskManager standalone entry point
+  // --------------------------------------------------------------------------
+
+  /**
+   * Entry point (main method) to run the TaskManager in a standalone fashion.
+   *
+   * @param args The command line arguments.
+   */
+  def main(args: Array[String]): Unit = {
+    // startup checks and logging
+    EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager")
+    EnvironmentInformation.checkJavaVersion()
+
+    // try to parse the command line arguments
+    val configuration = try {
+      parseArgsAndLoadConfig(args)
+    }
+    catch {
+      case t: Throwable => {
+        LOG.error(t.getMessage(), t)
+        System.exit(STARTUP_FAILURE_RETURN_CODE)
+        null
+      }
+    }
+
+    // run the TaskManager (is requested in an authentication enabled context)
+    try {
+      if (SecurityUtils.isSecurityEnabled) {
+        LOG.info("Security is enabled. Starting secure TaskManager.")
+        SecurityUtils.runSecured(new FlinkSecuredRunner[Unit] {
+          override def run(): Unit = {
+            runTaskManager(configuration, classOf[TaskManager])
+          }
+        })
+      }
+      else {
+        LOG.info("Security is not enabled. Starting non-authenticated TaskManager.")
+        runTaskManager(configuration, classOf[TaskManager])
+      }
+    }
+    catch {
+      case t: Throwable => {
+        LOG.error("Failed to run TaskManager.", t)
+        System.exit(STARTUP_FAILURE_RETURN_CODE)
+      }
     }
   }
 
-  def startActor(hostname: String, port: Int, configuration: Configuration,
-                 taskManagerName: String) : Unit = {
-
-    val (taskManagerSystem, taskManager) = startActorSystemAndActor(hostname, port, configuration,
-      taskManagerName, localAkkaCommunication = false, localTaskManagerCommunication = false)
-
-    // start a process reaper that watches the JobManager. If the JobManager actor dies,
-    // the process reaper will kill the JVM process (to ensure easy failure detection)
-    taskManagerSystem.actorOf(
-      Props(classOf[ProcessReaper], taskManager, LOG, RUNTIME_FAILURE_RETURN_CODE),
-      "TaskManager_Process_Reaper")
-
-    // block until everything is done
-    taskManagerSystem.awaitTermination()
-  }
-
   /**
-   * Parse the command line arguments of the [[TaskManager]]. The method loads the configuration,
-   * extracts the hostname and port on which the actor system shall listen.
+   * Parse the command line arguments of the [[TaskManager]] and loads the configuration.
    *
    * @param args Command line arguments
-   * @return Tuple of (hostname, port, configuration)
+   * @return The parsed configuration.
    */
-  def parseArgs(args: Array[String]): (String, Int, Configuration) = {
+  @throws(classOf[Exception])
+  def parseArgsAndLoadConfig(args: Array[String]): Configuration = {
+
+    // set up the command line parser
     val parser = new scopt.OptionParser[TaskManagerCLIConfiguration]("taskmanager") {
       head("flink task manager")
       opt[String]("configDir") action { (x, c) =>
         c.copy(configDir = x)
       } text "Specify configuration directory."
-
-      opt[String]("tempDir") optional() action { (x, c) =>
-        c.copy(tmpDir = x)
-      } text "Specify temporary directory."
     }
 
+    // parse the CLI arguments
+    val cliConfig = parser.parse(args, TaskManagerCLIConfiguration()).getOrElse {
+      throw new Exception(
+        s"Invalid command line agruments: ${args.mkString(" ")}. Usage: ${parser.usage}")
+    }
 
-    parser.parse(args, TaskManagerCLIConfiguration()) map {
-      config =>
-        GlobalConfiguration.loadConfiguration(config.configDir)
-
-        val configuration = GlobalConfiguration.getConfiguration
-
-        if (config.tmpDir != null && GlobalConfiguration.getString(ConfigConstants
-          .TASK_MANAGER_TMP_DIR_KEY,
-          null) == null) {
-          configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, config.tmpDir)
-        }
-
-        val jobManagerHostname = configuration.getString(
-          ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-
-        val jobManagerPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-          ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
-
-        val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort)
-
-        val port = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0)
-        // try to find out the TaskManager's own hostname by connecting to jobManagerAddress
-        val hostname = NetUtils.resolveAddress(jobManagerAddress).getHostName
-
-        (hostname, port, configuration)
-    } getOrElse {
-      LOG.error(s"TaskManager parseArgs called with ${args.mkString(" ")}.")
-      LOG.error("CLI parsing failed. Usage: " + parser.usage)
-      sys.exit(STARTUP_FAILURE_RETURN_CODE)
+    // load the configuration
+    try {
+      GlobalConfiguration.loadConfiguration(cliConfig.configDir)
+      GlobalConfiguration.getConfiguration()
+    }
+    catch {
+      case e: Exception => throw new Exception("Could not load configuration", e)
     }
   }
 
-  def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration,
-                               taskManagerName: String,
-                               localAkkaCommunication: Boolean,
-                               localTaskManagerCommunication: Boolean): (ActorSystem, ActorRef) = {
-    implicit val actorSystem = AkkaUtils.createActorSystem(configuration, Some((hostname, port)))
+  // --------------------------------------------------------------------------
+  //  Starting and running the TaskManager
+  // --------------------------------------------------------------------------
 
-    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConfig) =
-      parseConfiguration(hostname, configuration, localAkkaCommunication,
-        localTaskManagerCommunication)
+  /**
+   * Starts and runs the TaskManager. Brings up an actor system for the TaskManager and its
+   * actors, starts the TaskManager's services (library cache, shuffle network stack, ...),
+   * and starts the TaskManager itself.
 
-    (actorSystem, startActor(taskManagerName, connectionInfo, jobManagerURL, taskManagerConfig,
-      networkConfig))
+   * @param configuration The configuration for the TaskManager.
+   * @param taskManagerClass The actor class to instantiate. Allows to use TaskManager subclasses
+   *                         for example for YARN.
+   */
+  @throws(classOf[Exception])
+  def runTaskManager(configuration: Configuration,
+                     taskManagerClass: Class[_ <: TaskManager]) : Unit = {
+
+    val (jobManagerHostname, jobManagerPort) = getAndCheckJobManagerAddress(configuration)
+
+    // try to find out the hostname of the interface from which the TaskManager
+    // can connect to the JobManager. This involves a reverse name lookup
+    LOG.info("Trying to determine network interface and address/hostname to use")
+    val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort)
+    val taskManagerHostname = try {
+      NetUtils.resolveAddress(jobManagerAddress).getHostName()
+    }
+    catch {
+      case t: Throwable => throw new Exception("TaskManager cannot find a network interface " +
+        "that can communicate with the JobManager (" + jobManagerAddress + ")", t)
+    }
+
+    LOG.info("TaskManager will use hostname/address '{}' for communication.", taskManagerHostname)
+
+    // if no task manager port has been configured, use 0 (system will pick any free port)
+    val actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0)
+    if (actorSystemPort < 0) {
+      throw new Exception("Invalid value for '" + ConfigConstants.TASK_MANAGER_IPC_PORT_KEY  +
+        "' (port for the TaskManager actor system) : " + actorSystemPort +
+        " - Leave config parameter empty or use 0 to let the system choose a port automatically.")
+    }
+
+    runTaskManager(taskManagerHostname, actorSystemPort, configuration, classOf[TaskManager])
   }
 
   /**
-   * Extracts from the configuration the TaskManager's settings. Returns the TaskManager's
-   * connection information, the JobManager's Akka URL, the task manager configuration and the
-   * network connection configuration.
+   * Starts and runs the TaskManager. Brings up an actor system for the TaskManager and its
+   * actors, starts the TaskManager's services (library cache, shuffle network stack, ...),
+   * and starts the TaskManager itself.
    *
-   * @param hostname Hostname of the instance on which the TaskManager runs
-   * @param configuration Configuration instance containing the user provided configuration values
-   * @param localAkkaCommunication true if the TaskManager runs in the same [[ActorSystem]] as the
-   *                               JobManager, otherwise false
-   * @param localTaskManagerCommunication true if all TaskManager run in the same JVM, otherwise
-   *                                      false
-   * @return Tuple of (TaskManager's connection information, JobManager's Akka URL, TaskManager's
-   *         configuration, network connection configuration)
+   * This method will also spawn a process reaper for the TaskManager (kill the process if
+   * the actor fails) and optionally start the JVM memory logging thread.
+   *
+   * @param taskManagerHostname The hostname/address of the interface where the actor system
+   *                         will communicate.
+   * @param actorSystemPort The port at which the actor system will communicate.
+   * @param configuration The configuration for the TaskManager.
    */
-  def parseConfiguration(hostname: String, configuration: Configuration,
-                         localAkkaCommunication: Boolean,
-                         localTaskManagerCommunication: Boolean):
-  (InstanceConnectionInfo, String, TaskManagerConfiguration, NetworkEnvironmentConfiguration) = {
-    val dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT) match {
-      case 0 => NetUtils.getAvailablePort
-      case x => x
+  @throws(classOf[Exception])
+  def runTaskManager(taskManagerHostname: String,
+                     actorSystemPort: Int,
+                     configuration: Configuration) : Unit = {
+
+    runTaskManager(taskManagerHostname, actorSystemPort, configuration, classOf[TaskManager])
+  }
+
+  /**
+   * Starts and runs the TaskManager. Brings up an actor system for the TaskManager and its
+   * actors, starts the TaskManager's services (library cache, shuffle network stack, ...),
+   * and starts the TaskManager itself.
+   *
+   * This method will also spawn a process reaper for the TaskManager (kill the process if
+   * the actor fails) and optionally start the JVM memory logging thread.
+   *
+   * @param taskManagerHostname The hostname/address of the interface where the actor system
+   *                         will communicate.
+   * @param actorSystemPort The port at which the actor system will communicate.
+   * @param configuration The configuration for the TaskManager.
+   * @param taskManagerClass The actor class to instantiate. Allows the use of TaskManager
+   *                         subclasses for example for YARN.
+   */
+  @throws(classOf[Exception])
+  def runTaskManager(taskManagerHostname: String,
+                     actorSystemPort: Int,
+                     configuration: Configuration,
+                     taskManagerClass: Class[_ <: TaskManager]) : Unit = {
+
+    LOG.info("Starting TaskManager")
+
+    // Bring up the TaskManager actor system first, bind it to the given address.
+    LOG.info("Starting TaskManager actor system")
+
+    val taskManagerSystem = try {
+      AkkaUtils.createActorSystem(configuration, Some((taskManagerHostname, actorSystemPort)))
+    }
+    catch {
+      case t: Throwable => {
+        if (t.isInstanceOf[org.jboss.netty.channel.ChannelException]) {
+          val cause = t.getCause()
+          if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
+            val address = taskManagerHostname + ":" + actorSystemPort
+            throw new Exception("Unable to bind TaskManager actor system to address " +
+              address + " - " + cause.getMessage(), t)
+          }
+        }
+        throw new Exception("Could not create TaskManager actor system", t)
+      }
     }
 
-    val connectionInfo = new InstanceConnectionInfo(InetAddress.getByName(hostname), dataport)
+    // start all the TaskManager services (network stack,  library cache, ...)
+    // and the TaskManager actor
+    try {
+      LOG.info("Starting TaskManager actor")
+      val taskManager = startTaskManagerActor(configuration, taskManagerSystem, taskManagerHostname,
+        TASK_MANAGER_NAME, false, false, taskManagerClass)
 
-    val jobManagerURL = if (localAkkaCommunication) {
-      // JobManager and TaskManager are in the same ActorSystem -> Use local Akka URL
-      JobManager.getLocalJobManagerAkkaURL
-    }
-    else {
-      val jobManagerAddress = configuration.getString(
-        ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+      // start a process reaper that watches the JobManager. If the JobManager actor dies,
+      // the process reaper will kill the JVM process (to ensure easy failure detection)
+      LOG.debug("Starting TaskManager process reaper")
+      taskManagerSystem.actorOf(
+        Props(classOf[ProcessReaper], taskManager, LOG, RUNTIME_FAILURE_RETURN_CODE),
+        "TaskManager_Process_Reaper")
 
-      val jobManagerRPCPort = configuration.getInteger(
-        ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-        ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+      // if desired, start the logging daemon that periodically logs the
+      // memory usage information
+      if (LOG.isInfoEnabled && configuration.getBoolean(
+        ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
+        ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD)) {
+        LOG.info("Starting periodic memory usage logger")
 
-      if (jobManagerAddress == null) {
-        throw new RuntimeException(
-          "JobManager address has not been specified in the configuration.")
+        val interval = configuration.getLong(
+          ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
+          ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
+
+        val logger = new Thread("Memory Usage Logger") {
+          override def run(): Unit = {
+            try {
+              val memoryMXBean = ManagementFactory.getMemoryMXBean
+              val gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans.asScala
+
+              while (!taskManagerSystem.isTerminated) {
+                Thread.sleep(interval)
+                LOG.info(getMemoryUsageStatsAsString(memoryMXBean))
+                LOG.info(TaskManager.getGarbageCollectorStatsAsString(gcMXBeans))
+              }
+            }
+            catch {
+              case t: Throwable => LOG.error("Memory usage logging thread died", t)
+            }
+          }
+        }
+        logger.setDaemon(true)
+        logger.start()
       }
 
-      val hostPort = new InetSocketAddress(InetAddress.getByName(jobManagerAddress),
-                                           jobManagerRPCPort)
-      JobManager.getRemoteJobManagerAkkaURL(hostPort)
+      // block until everything is done
+      taskManagerSystem.awaitTermination()
     }
-
-    val slots = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
-
-    val numberOfSlots = if (slots > 0) slots else 1
-
-    val pageSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
-
-    val tmpDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator)
-
-    val numNetworkBuffers = configuration.getInteger(
-      ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS)
-
-    val nettyConfig = localTaskManagerCommunication match {
-      case true => None
-      case false => Some(new NettyConfig(
-        connectionInfo.address(), connectionInfo.dataPort(), pageSize, configuration))
+    catch {
+      case t: Throwable => {
+        LOG.error("Error while starting up taskManager", t)
+        try {
+          taskManagerSystem.shutdown()
+        } catch {
+          case tt: Throwable => LOG.warn("Could not cleanly shut down actor system", tt)
+        }
+        throw t
+      }
     }
-
-    val networkConfig = NetworkEnvironmentConfiguration(numNetworkBuffers, pageSize, nettyConfig)
-
-    val networkBufferMem = if (localTaskManagerCommunication) 0 else numNetworkBuffers * pageSize
-
-    val configuredMemory: Long = configuration.getInteger(
-      ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1
-    )
-
-    val memorySize = if (configuredMemory > 0) {
-      configuredMemory << 20
-    } else {
-      val fraction = configuration.getFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
-        ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
-
-      LOG.info("Using {} of the free heap space for managed memory.", fraction)
-
-      ((EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag - networkBufferMem) * fraction)
-        .toLong
-    }
-
-    val memoryLoggingIntervalMs = configuration.getBoolean(
-      ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
-      ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD
-    ) match {
-      case true => Some(
-        configuration.getLong(ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
-          ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
-      )
-      case false => None
-    }
-
-    val profilingInterval = configuration.getBoolean(
-      ProfilingUtils.ENABLE_PROFILING_KEY, false
-    ) match {
-      case true => Some(configuration.getInteger(ProfilingUtils.TASKMANAGER_REPORTINTERVAL_KEY,
-        ProfilingUtils.DEFAULT_TASKMANAGER_REPORTINTERVAL).toLong)
-      case false => None
-    }
-
-    val cleanupInterval = configuration.getLong(
-      ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
-      ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
-
-    val timeout = AkkaUtils.getTimeout(configuration)
-
-    val maxRegistrationDuration = Duration(configuration.getString(
-      ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION,
-      ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION))
-
-    val taskManagerConfig = TaskManagerConfiguration(numberOfSlots, memorySize, pageSize,
-      tmpDirs, cleanupInterval, memoryLoggingIntervalMs, profilingInterval, timeout,
-      maxRegistrationDuration, configuration)
-
-    (connectionInfo, jobManagerURL, taskManagerConfig, networkConfig)
   }
 
-  def startActor(taskManagerName: String,
-                 connectionInfo: InstanceConnectionInfo,
-                 jobManagerURL: String,
-                 taskManagerConfig: TaskManagerConfiguration,
-                 networkConfig: NetworkEnvironmentConfiguration)
-                (implicit actorSystem: ActorSystem): ActorRef = {
-    startActor(taskManagerName,
-      Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig, networkConfig)))
+  @throws(classOf[Exception])
+  def startTaskManagerActor(configuration: Configuration,
+                            actorSystem: ActorSystem,
+                            taskManagerHostname: String,
+                            taskManagerActorName: String,
+                            localAkkaCommunication: Boolean,
+                            localTaskManagerCommunication: Boolean,
+                            taskManagerClass: Class[_ <: TaskManager]): ActorRef = {
+
+    val (tmConfig, netConfig, connectionInfo, jmAkkaURL) =  parseTaskManagerConfiguration(
+      configuration, taskManagerHostname, localAkkaCommunication, localTaskManagerCommunication)
+
+    val tmProps = Props(taskManagerClass, connectionInfo, jmAkkaURL, tmConfig, netConfig)
+    actorSystem.actorOf(tmProps, taskManagerActorName)
   }
 
-  def startActor(taskManagerName: String, props: Props)
-                (implicit actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(props, taskManagerName)
-  }
+  /**
+   * Starts the profiler actor.
+   *
+   * @param instanceActorPath The actor path of the taskManager that is profiled.
+   * @param reportInterval The interval in which the profiler runs.
+   * @param actorSystem The actor system for the profiler actor
+   * @return The profiler actor ref.
+   */
+  private def startProfiler(instanceActorPath: String,
+                            reportInterval: Long,
+                            actorSystem: ActorSystem): ActorRef = {
 
-  def startActorWithConfiguration(hostname: String, taskManagerName: String,
-                                  configuration: Configuration,
-                                  localAkkaCommunication: Boolean,
-                                  localTaskManagerCommunication: Boolean)
-                                 (implicit system: ActorSystem) = {
-    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration) =
-      parseConfiguration(hostname, configuration, localAkkaCommunication,
-        localTaskManagerCommunication)
-
-    startActor(taskManagerName, connectionInfo, jobManagerURL, taskManagerConfig,
-      networkConnectionConfiguration)
-  }
-
-  def startProfiler(instancePath: String, reportInterval: Long)(implicit system: ActorSystem):
-  ActorRef = {
-    system.actorOf(Props(classOf[TaskManagerProfiler], instancePath, reportInterval), PROFILER_NAME)
+    val profilerProps = Props(classOf[TaskManagerProfiler], instanceActorPath, reportInterval)
+    actorSystem.actorOf(profilerProps, PROFILER_NAME)
   }
 
   // --------------------------------------------------------------------------
@@ -1025,6 +1050,202 @@ object TaskManager {
   //  Miscellaneous Utilities
   // --------------------------------------------------------------------------
 
+  /**
+   * Utility method to extract TaskManager config parameters from the configuration and to
+   * sanity check them.
+   *
+   * @param configuration The configuration.
+   * @param taskManagerHostname The host name under which the TaskManager communicates.
+   * @param localAkkaCommunication True, if the TaskManager runs in the same actor
+   *                               system as its JobManager.
+   * @param localTaskManagerCommunication True, to skip initializing the network stack.
+   *                                      Use only when only one task manager is used.
+   * @return A tuple (TaskManagerConfiguration, network configuration,
+   *                  InstanceConnectionInfo, JobManager actor Akka URL).
+   */
+  @throws(classOf[Exception])
+  def parseTaskManagerConfiguration(configuration: Configuration,
+                                    taskManagerHostname: String,
+                                    localAkkaCommunication: Boolean,
+                                    localTaskManagerCommunication: Boolean):
+  (TaskManagerConfiguration, NetworkEnvironmentConfiguration, InstanceConnectionInfo, String) = {
+
+    // ------- read values from the config and check them ---------
+    //                      (a lot of them)
+
+    // ----> hosts / ports for communication and data exchange
+
+    val dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT) match {
+      case 0 => NetUtils.getAvailablePort()
+      case x => x
+    }
+
+    checkConfigParameter(dataport > 0, dataport, ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+      "Leave config parameter empty or use 0 to let the system choose a port automatically.")
+
+    val taskManagerAddress = InetAddress.getByName(taskManagerHostname)
+    val connectionInfo = new InstanceConnectionInfo(taskManagerAddress, dataport)
+
+    val jobManagerActorURL = if (localAkkaCommunication) {
+      // JobManager and TaskManager are in the same ActorSystem -> Use local Akka URL
+      JobManager.getLocalJobManagerAkkaURL
+    }
+    else {
+      // both run in different actor system
+      val (jobManagerHostname, jobManagerPort) = getAndCheckJobManagerAddress(configuration)
+      val hostPort = new InetSocketAddress(jobManagerHostname, jobManagerPort)
+      JobManager.getRemoteJobManagerAkkaURL(hostPort)
+    }
+
+    // ----> memory / network stack (shuffles/broadcasts), task slots, temp directories
+
+    // we need this because many configs have been written with a "-1" entry
+    val slots = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1) match {
+      case -1 => 1
+      case x => x
+    }
+
+    val pageSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
+    val numNetworkBuffers = configuration.getInteger(
+      ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS)
+
+    val configuredMemory = configuration.getLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L)
+
+    checkConfigParameter(slots >= 1, slots, ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+      "Number of task slots must be at least one.")
+
+    checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
+      ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY)
+
+    checkConfigParameter(pageSize >= DefaultMemoryManager.MIN_PAGE_SIZE, pageSize,
+      ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
+      "Minimum buffer size is " + DefaultMemoryManager.MIN_PAGE_SIZE)
+
+    checkConfigParameter(MathUtils.isPowerOf2(pageSize), pageSize,
+      ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
+      "Buffer size must be a power of 2.")
+
+    checkConfigParameter(configuredMemory == -1 || configuredMemory > 0, configuredMemory,
+      ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY,
+      "MemoryManager needs at least one MB of memory. " +
+        "Leave this config parameter empty to let the system automatically " +
+        "pick a fraction of the available memory.")
+
+    val tmpDirs = configuration.getString(
+      ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH)
+      .split(",|" + File.pathSeparator)
+
+    checkTempDirs(tmpDirs)
+
+    val nettyConfig = if (localTaskManagerCommunication) {
+      None
+    } else {
+      Some(new NettyConfig(
+        connectionInfo.address(), connectionInfo.dataPort(), pageSize, configuration))
+    }
+
+    val networkConfig = NetworkEnvironmentConfiguration(numNetworkBuffers, pageSize, nettyConfig)
+
+    val networkBufferMem = numNetworkBuffers * pageSize
+
+    val memorySize = if (configuredMemory > 0) {
+      LOG.info("Using {} MB for Flink managed memory.", configuredMemory)
+      configuredMemory << 20 // megabytes to bytes
+    }
+    else {
+      val fraction = configuration.getFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
+        ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
+      checkConfigParameter(fraction > 0.0f, fraction,
+        ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
+        "MemoryManager fraction of the free memory must be positive.")
+
+      val relativeMemSize = ((EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag() -
+        networkBufferMem) * fraction).toLong
+
+      LOG.info("Using {} of the currently free heap space for Flink managed memory ({} MB).",
+        fraction, relativeMemSize >> 20)
+
+      relativeMemSize
+    }
+
+    // ----> timeouts, library caching, profiling
+
+    val timeout = try {
+      AkkaUtils.getTimeout(configuration)
+    }
+    catch {
+      case e: Exception => throw new Exception(
+        s"Invalid format for '${ConfigConstants.AKKA_ASK_TIMEOUT}'. " +
+          s"Use formats like '50 s' or '1 min' to specify the timeout.")
+    }
+    LOG.info("Messages between TaskManager and JobManager have a max timeout of " + timeout)
+
+    val profilingInterval =
+      if (configuration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false)) {
+        Some(configuration.getLong(ProfilingUtils.TASKMANAGER_REPORTINTERVAL_KEY,
+          ProfilingUtils.DEFAULT_TASKMANAGER_REPORTINTERVAL))
+      } else {
+        None
+      }
+
+    val cleanupInterval = configuration.getLong(
+      ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
+      ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
+
+
+
+    val maxRegistrationDuration = Duration(configuration.getString(
+      ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION,
+      ConfigConstants.DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION))
+
+    val taskManagerConfig = TaskManagerConfiguration(slots, memorySize, pageSize,
+      tmpDirs, cleanupInterval, profilingInterval, timeout, maxRegistrationDuration,
+      configuration)
+
+    (taskManagerConfig, networkConfig, connectionInfo, jobManagerActorURL)
+  }
+
+  /**
+   * Gets the hostname and port of the JobManager from the configuration. Also checks that
+   * the hostname is not null and the port non-negative.
+   *
+   * @param configuration The configuration to read the config values from.
+   * @return A 2-tuple (hostname, port).
+   */
+  private def getAndCheckJobManagerAddress(configuration: Configuration) : (String, Int) = {
+
+    val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
+
+    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
+    if (hostname == null) {
+      throw new Exception("Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY +
+        "' is missing (hostname/address of JobManager to connect to).")
+    }
+
+    if (port <= 0) {
+      throw new Exception("Invalid value for '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
+        "' (port of the JobManager actor system) : " + port)
+    }
+
+    (hostname, port)
+  }
+
+  private def checkConfigParameter(condition: Boolean,
+                                   parameter: Any,
+                                   name: String,
+                                   errorMessage: String = ""): Unit = {
+    if (!condition) {
+      throw new Exception(
+        s"Invalid configuration value for '${name}' : ${parameter} - ${errorMessage}")
+    }
+  }
+
   private def checkTempDirs(tmpDirs: Array[String]): Unit = {
     tmpDirs.zipWithIndex.foreach {
       case (dir: String, _) =>
@@ -1052,7 +1273,6 @@ object TaskManager {
             f"usable $usableSpaceGb GB ($usablePercentage%.2f%% usable)")
         }
       case (_, id) => throw new Exception(s"Temporary file directory #$id is null.")
-
     }
   }
 

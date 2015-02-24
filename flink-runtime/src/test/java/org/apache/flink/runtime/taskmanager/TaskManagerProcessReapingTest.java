@@ -55,8 +55,6 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.isProcessAlive;
  */
 public class TaskManagerProcessReapingTest {
 
-	private static final String TASK_MANAGER_ACTOR_NAME = "TEST_TM";
-
 	@Test
 	public void testReapProcessOnFailure() {
 		Process taskManagerProcess = null;
@@ -108,7 +106,7 @@ public class TaskManagerProcessReapingTest {
 			// grab the reference to the TaskManager. try multiple times, until the process
 			// is started and the TaskManager is up
 			String taskManagerActorName = String.format("akka.tcp://flink@%s:%d/user/%s",
-					"127.0.0.1", taskManagerPort, TASK_MANAGER_ACTOR_NAME);
+					"127.0.0.1", taskManagerPort, TaskManager.TASK_MANAGER_NAME());
 
 			ActorRef taskManagerRef = null;
 			for (int i = 0; i < 20; i++) {
@@ -191,7 +189,7 @@ public class TaskManagerProcessReapingTest {
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 100);
 
-				TaskManager.startActor("localhost", taskManagerPort, cfg, TASK_MANAGER_ACTOR_NAME);
+				TaskManager.runTaskManager("localhost", taskManagerPort, cfg);
 
 				// wait forever
 				Object lock = new Object();

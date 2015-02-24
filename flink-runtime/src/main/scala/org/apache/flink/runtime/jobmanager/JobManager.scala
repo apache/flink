@@ -609,7 +609,7 @@ object JobManager {
 
     // startup checks and logging
     EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager")
-    checkJavaVersion()
+    EnvironmentInformation.checkJavaVersion()
 
     // parsing the command line arguments
     val (configuration: Configuration,
@@ -651,7 +651,7 @@ object JobManager {
     }
     catch {
       case t: Throwable => {
-        LOG.error("Failed to start JobManager.", t)
+        LOG.error("Failed to run JobManager.", t)
         System.exit(STARTUP_FAILURE_RETURN_CODE)
       }
     }
@@ -711,10 +711,10 @@ object JobManager {
 
       // bring up a local task manager, if needed
       if (executionMode.equals(LOCAL)) {
-        LOG.info("Starting embedded TaskManager for JobManager's LOCAL mode execution")
+        LOG.info("Starting embedded TaskManager for JobManager's LOCAL execution mode")
 
-        TaskManager.startActorWithConfiguration("", TaskManager.TASK_MANAGER_NAME, configuration,
-          localAkkaCommunication = false, localTaskManagerCommunication = true)(jobManagerSystem)
+        TaskManager.startTaskManagerActor(configuration, jobManagerSystem, listeningAddress,
+          TaskManager.TASK_MANAGER_NAME, true, true, classOf[TaskManager])
       }
 
       // start the job manager web frontend
@@ -746,10 +746,10 @@ object JobManager {
    * @return Quadruple of configuration, execution mode and an optional listening address
    */
   def parseArgs(args: Array[String]): (Configuration, ExecutionMode, String, Int) = {
-    val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("jobmanager") {
-      head("flink jobmanager")
+    val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("JobManager") {
+      head("Flink JobManager")
       opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text ("Specify " +
-        "configuration directory.")
+        "the configuration directory.")
       opt[String]("executionMode") optional() action { (arg, c) =>
         if(arg.equals("local")){
           c.copy(executionMode = LOCAL)
@@ -757,7 +757,7 @@ object JobManager {
           c.copy(executionMode = CLUSTER)
         }
       } text {
-        "Specify execution mode of job manager"
+        "Specify the execution mode of the JobManager (CLUSTER / LOCAL)"
       }
     }
 
@@ -777,7 +777,7 @@ object JobManager {
 
         (configuration, config.executionMode, hostname, port)
     } getOrElse {
-      throw new Exception("Wrong arguments. Usage: " + parser.usage)
+      throw new Exception("Invalid command line arguments. Usage: " + parser.usage)
     }
   }
 
@@ -986,34 +986,4 @@ object JobManager {
     val timeout = AkkaUtils.getLookupTimeout(config)
     getJobManagerRemoteReference(address, system, timeout)
   }
-
-
-
-  // --------------------------------------------------------------------------
-  //  Miscellaneous Utils
-  // --------------------------------------------------------------------------
-
-  /**
-   * Checks whether the Java version is lower than Java 7 (Java 1.7) and
-   * prints a warning message in that case.
-   */
-  private def checkJavaVersion(): Unit = {
-    try {
-      if (System.getProperty("java.version").substring(0, 3).toDouble < 1.7) {
-        LOG.warn("Flink has been started with Java 6. " +
-          "Java 6 is not maintained any more by Oracle or the OpenJDK community. " +
-          "Flink may drop support for Java 6 in future releases, due to the " +
-          "unavailability of bug fixes security patches.")
-      }
-    }
-    catch {
-      case e: Exception => 
-        LOG.warn("Could not parse java version for startup checks")
-        LOG.debug("Exception when parsing java version", e)
-    }
-  }
-
-  // --------------------------------------------------------------------------
-
-  class ParseException(message: String) extends Exception(message) {}
 }

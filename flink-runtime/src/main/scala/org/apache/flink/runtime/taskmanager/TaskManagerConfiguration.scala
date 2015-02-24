@@ -22,9 +22,10 @@ import org.apache.flink.configuration.Configuration
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-case class TaskManagerConfiguration(numberOfSlots: Int, memorySize: Long, pageSize: Int,
-                                    tmpDirPaths: Array[String], cleanupInterval: Long,
-                                    memoryLogggingIntervalMs: Option[Long],
+case class TaskManagerConfiguration(numberOfSlots: Int,
+                                    memorySize: Long, pageSize: Int,
+                                    tmpDirPaths: Array[String],
+                                    cleanupInterval: Long,
                                     profilingInterval: Option[Long],
                                     timeout: FiniteDuration,
                                     maxRegistrationDuration: Duration,

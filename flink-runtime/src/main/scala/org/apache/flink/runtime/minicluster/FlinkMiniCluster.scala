@@ -41,58 +41,67 @@ import scala.concurrent.{Future, Await}
  * @param singleActorSystem true if all actors (JobManager and TaskManager) shall be run in the same
  *                          [[ActorSystem]], otherwise false
  */
-abstract class FlinkMiniCluster(userConfiguration: Configuration,
+abstract class FlinkMiniCluster(val userConfiguration: Configuration,
                                 val singleActorSystem: Boolean) {
-  import FlinkMiniCluster._
+
+  protected val LOG = LoggerFactory.getLogger(classOf[FlinkMiniCluster])
+
+  // --------------------------------------------------------------------------
+  //                           Construction
+  // --------------------------------------------------------------------------
 
   // NOTE: THIS MUST BE getByName("localhost"), which is 127.0.0.1 and
   // not getLocalHost(), which may be 127.0.1.1
   val HOSTNAME = InetAddress.getByName("localhost").getHostAddress()
 
-  implicit val timeout = AkkaUtils.getTimeout(userConfiguration)
+  val timeout = AkkaUtils.getTimeout(userConfiguration)
 
   val configuration = generateConfiguration(userConfiguration)
 
   var jobManagerActorSystem = startJobManagerActorSystem()
   var jobManagerActor = startJobManager(jobManagerActorSystem)
 
-  val numTaskManagers = configuration.getInteger(ConfigConstants
-    .LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
+  val numTaskManagers = configuration.getInteger(
+     ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
 
-  val actorSystemsTaskManagers = for(i <- 0 until numTaskManagers) yield {
-    val actorSystem = if(singleActorSystem) {
-      jobManagerActorSystem
-    } else {
-      startTaskManagerActorSystem(i)
-    }
+  var (taskManagerActorSystems, taskManagerActors) =
+    (for(i <- 0 until numTaskManagers) yield {
+      val actorSystem = if(singleActorSystem) {
+        jobManagerActorSystem
+      } else {
+        startTaskManagerActorSystem(i)
+      }
 
-    (actorSystem, startTaskManager(i)(actorSystem))
-  }
-
-  var (taskManagerActorSystems, taskManagerActors) = actorSystemsTaskManagers.unzip
+      (actorSystem, startTaskManager(i, actorSystem))
+    }).unzip
 
   waitForTaskManagersToBeRegistered()
+
+
+  // --------------------------------------------------------------------------
+  //                           Construction
+  // --------------------------------------------------------------------------
 
   def generateConfiguration(userConfiguration: Configuration): Configuration
 
   def startJobManager(system: ActorSystem): ActorRef
 
-  def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef
+  def startTaskManager(index: Int, system: ActorSystem): ActorRef
 
   def getJobManagerAkkaConfig: Config = {
-    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
-
-    if(singleActorSystem){
+    if (singleActorSystem) {
       AkkaUtils.getAkkaConfig(configuration, None)
-    }else{
+    }
+    else {
+      val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+        ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+
       AkkaUtils.getAkkaConfig(configuration, Some((HOSTNAME, port)))
     }
   }
 
   def startJobManagerActorSystem(): ActorSystem = {
     val config = getJobManagerAkkaConfig
-
     AkkaUtils.createActorSystem(config)
   }
 
@@ -169,8 +178,4 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration,
 
     Await.ready(Future.sequence(futures), timeout)
   }
-}
-
-object FlinkMiniCluster{
-  val LOG = LoggerFactory.getLogger(classOf[FlinkMiniCluster])
 }

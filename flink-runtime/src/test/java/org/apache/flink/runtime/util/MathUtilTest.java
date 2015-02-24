@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.runtime.util.MathUtils;
 import org.junit.Test;
 
-public class MathUtilTest
-{
+public class MathUtilTest {
+
 	@Test
-	public void testLog2Computation()
-	{
+	public void testLog2Computation() {
 		assertEquals(0, MathUtils.log2floor(1));
 		assertEquals(1, MathUtils.log2floor(2));
 		assertEquals(1, MathUtils.log2floor(3));
@@ -52,8 +51,7 @@ public class MathUtilTest
 	}
 	
 	@Test
-	public void testRoundDownToPowerOf2()
-	{
+	public void testRoundDownToPowerOf2() {
 		assertEquals(0, MathUtils.roundDownToPowerOf2(0));
 		assertEquals(1, MathUtils.roundDownToPowerOf2(1));
 		assertEquals(2, MathUtils.roundDownToPowerOf2(2));
@@ -79,5 +77,25 @@ public class MathUtilTest
 		assertEquals(33554432, MathUtils.roundDownToPowerOf2(63463463));
 		assertEquals(1073741824, MathUtils.roundDownToPowerOf2(1852987883));
 		assertEquals(1073741824, MathUtils.roundDownToPowerOf2(Integer.MAX_VALUE));
+	}
+
+	@Test
+	public void testPowerOfTwo() {
+		assertTrue(MathUtils.isPowerOf2(1));
+		assertTrue(MathUtils.isPowerOf2(2));
+		assertTrue(MathUtils.isPowerOf2(4));
+		assertTrue(MathUtils.isPowerOf2(8));
+		assertTrue(MathUtils.isPowerOf2(32768));
+		assertTrue(MathUtils.isPowerOf2(65536));
+		assertTrue(MathUtils.isPowerOf2(1 << 30));
+		assertTrue(MathUtils.isPowerOf2(1L + Integer.MAX_VALUE));
+		assertTrue(MathUtils.isPowerOf2(1L << 41));
+		assertTrue(MathUtils.isPowerOf2(1L << 62));
+
+		assertFalse(MathUtils.isPowerOf2(3));
+		assertFalse(MathUtils.isPowerOf2(5));
+		assertFalse(MathUtils.isPowerOf2(567923));
+		assertFalse(MathUtils.isPowerOf2(Integer.MAX_VALUE));
+		assertFalse(MathUtils.isPowerOf2(Long.MAX_VALUE));
 	}
 }

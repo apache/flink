@@ -539,7 +539,7 @@ public class TaskManagerTest {
 	public static ActorRef createTaskManager(ActorRef jm) {
 		Configuration cfg = new Configuration();
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
-		GlobalConfiguration.includeConfiguration(cfg);
+
 		String jobManagerURL = jm.path().toString();
 
 		ActorRef taskManager = TestingUtils.startTestingTaskManagerWithConfiguration("localhost",
@@ -551,7 +551,8 @@ public class TaskManagerTest {
 		try {
 			FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);
 			Await.ready(response, d);
-		}catch(Exception e){
+		}
+		catch(Exception e) {
 			throw new RuntimeException("Exception while waiting for the task manager registration.", e);
 		}
 

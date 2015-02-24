@@ -40,10 +40,9 @@ import org.slf4j.LoggerFactory
  *                          [[ActorSystem]], otherwise false
  */
 class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean = true)
-  extends FlinkMiniCluster(userConfiguration, singleActorSystem){
-  import LocalFlinkMiniCluster._
+  extends FlinkMiniCluster(userConfiguration, singleActorSystem) {
 
-  val jobClientActorSystem = if(singleActorSystem){
+  val jobClientActorSystem = if (singleActorSystem) {
     jobManagerActorSystem
   } else {
     // create an actor system listening on a random port
@@ -52,25 +51,24 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
   var jobClient: Option[ActorRef] = None
 
+
+
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val config = getDefaultConfig
 
     config.addAll(userConfiguration)
-
     setMemory(config)
-
     initializeIOFormatClasses(config)
 
     config
   }
 
   override def startJobManager(system: ActorSystem): ActorRef = {
-    val config = configuration.clone()
-    val (jobManager, _) = JobManager.startJobManagerActors(config, system)
+    val (jobManager, _) = JobManager.startJobManagerActors(configuration, system)
     jobManager
   }
 
-  override def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef = {
+  override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
     val config = configuration.clone()
 
     val rpcPort = config.getInteger(
@@ -81,26 +79,23 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
       ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
 
-    if(rpcPort > 0){
+    if (rpcPort > 0) {
       config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort + index)
     }
-    if(dataPort > 0){
+    if (dataPort > 0) {
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)
     }
 
     val localExecution = numTaskManagers == 1
 
-    val taskManagerName = if(singleActorSystem) {
+    val taskManagerActorName = if (singleActorSystem) {
       TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
     } else {
       TaskManager.TASK_MANAGER_NAME
     }
 
-    TaskManager.startActorWithConfiguration(HOSTNAME,
-      taskManagerName,
-      config,
-      singleActorSystem,
-      localExecution)(system)
+    TaskManager.startTaskManagerActor(config, system, HOSTNAME, taskManagerActorName,
+                                      singleActorSystem, localExecution, classOf[TaskManager])
   }
 
   def getJobClient(): ActorRef ={
@@ -177,7 +172,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
       memorySize /= numTaskManager + 1 // the +1 is the job manager
 
       // for each TaskManager, subtract the memory needed for memory buffers
-      memorySize -= bufferMem;
+      memorySize -= bufferMem
       memorySize = (memorySize * memoryFraction).toLong
       memorySize >>>= 20  // bytes to megabytes
       config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize)
@@ -189,30 +184,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
     config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
 
-    config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
-
-    config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
-
-    config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
-
-    config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_LAZY_ALLOCATION)
-
-    config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY,
-      ConfigConstants.DEFAULT_FILESYSTEM_OVERWRITE)
-
-    config.setBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY,
-      ConfigConstants.DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY)
-
-    config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1)
-
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
-
-    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS)
 
     // Reduce number of threads for local execution
     config.setInteger(NettyConfig.NUM_THREADS_CLIENT, 1)
@@ -220,8 +192,4 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
 
     config
   }
-}
-
-object LocalFlinkMiniCluster{
-  val LOG = LoggerFactory.getLogger(classOf[LocalFlinkMiniCluster])
 }

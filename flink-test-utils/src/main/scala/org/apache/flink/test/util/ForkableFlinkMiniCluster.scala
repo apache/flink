@@ -48,13 +48,14 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
 
     val forkNumber = try {
       Integer.parseInt(forNumberString)
-    }catch{
+    }
+    catch {
       case e: NumberFormatException => -1
     }
 
     val config = userConfiguration.clone()
 
-    if(forkNumber != -1){
+    if (forkNumber != -1) {
       val jobManagerRPC = 1024 + forkNumber*300
       val taskManagerRPC = 1024 + forkNumber*300 + 100
       val taskManagerData = 1024 + forkNumber*300 + 200
@@ -83,29 +84,27 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
     actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
   }
 
-  override def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef = {
+  override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
     val config = configuration.clone()
 
-    val rpcPort = config.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, ConfigConstants
-      .DEFAULT_TASK_MANAGER_IPC_PORT)
-    val dataPort = config.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, ConfigConstants
-      .DEFAULT_TASK_MANAGER_DATA_PORT)
+    val rpcPort = config.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
+                                    ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
 
-    if(rpcPort > 0){
+    val dataPort = config.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+                                     ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
+
+    if (rpcPort > 0) {
       config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort + index)
     }
-
-    if(dataPort > 0){
+    if (dataPort > 0) {
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)
     }
 
     val localExecution = numTaskManagers == 1
 
-    val (connectionInfo, jobManagerAkkaURL, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration(HOSTNAME, config, singleActorSystem, localExecution)
-
-    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerAkkaURL, taskManagerConfig,
-      networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + index)
+    TaskManager.startTaskManagerActor(config, system, HOSTNAME,
+        TaskManager.TASK_MANAGER_NAME + index, singleActorSystem, localExecution,
+         classOf[TestingTaskManager])
   }
 
   def restartJobManager(): Unit = {
@@ -127,7 +126,7 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
     taskManagerActorSystems(index).awaitTermination()
 
     val taskManagerActorSystem  = startTaskManagerActorSystem(index)
-    val taskManagerActor = startTaskManager(index)(jobManagerActorSystem)
+    val taskManagerActor = startTaskManager(index, taskManagerActorSystem)
 
     taskManagerActors = taskManagerActors.patch(index, Seq(taskManagerActor), 1)
     taskManagerActorSystems = taskManagerActorSystems.patch(index, Seq(taskManagerActorSystem), 1)
@@ -141,6 +140,7 @@ object ForkableFlinkMiniCluster {
   def startCluster(numSlots: Int,
                    numTaskManagers: Int,
                    timeout: String = DEFAULT_AKKA_ASK_TIMEOUT): ForkableFlinkMiniCluster = {
+
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers)

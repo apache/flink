@@ -107,7 +107,7 @@ public class NetUtils {
 							break;
 							
 						default:
-							throw new RuntimeException("Unkown address detection strategy: " + strategy);
+							throw new RuntimeException("Unknown address detection strategy: " + strategy);
 					}
 				}
 			}

@@ -18,14 +18,24 @@
 
 package org.apache.flink.yarn
 
+import akka.actor.{ActorLogging, Actor}
 import org.apache.flink.runtime.ActorLogMessages
-import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.instance.InstanceConnectionInfo
+import org.apache.flink.runtime.taskmanager.{NetworkEnvironmentConfiguration, TaskManagerConfiguration, TaskManager}
 import org.apache.flink.yarn.Messages.StopYarnSession
 
-trait YarnTaskManager extends ActorLogMessages {
-  that: TaskManager =>
+/**
+ * An extension of the TaskManager that listens for additional YARN related
+ * messages.
+ */
+class YarnTaskManager(connectionInfo: InstanceConnectionInfo, jobManagerAkkaURL: String,
+                  taskManagerConfig: TaskManagerConfiguration,
+                  networkConfig: NetworkEnvironmentConfiguration)
 
-  abstract override def receiveWithLogMessages: Receive = {
+  extends TaskManager(connectionInfo, jobManagerAkkaURL, taskManagerConfig, networkConfig) {
+
+
+  override def receiveWithLogMessages: Receive = {
     receiveYarnMessages orElse super.receiveWithLogMessages
   }
 

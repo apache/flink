@@ -57,17 +57,7 @@ object TestingUtils {
 
   def getDefaultTestingActorSystemConfig = testConfig
 
-  def startTestingTaskManagerWithConfiguration(hostname: String, jobManagerURL: String,
-                                               config: Configuration)
-                                              (implicit system: ActorSystem) = {
-    val (connectionInfo, _, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration(hostname, config,
-        localAkkaCommunication = true, localTaskManagerCommunication = false)
-    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
-      networkConnectionConfig) with TestingTaskManager))
-  }
-
-  def startTestingJobManager(implicit system: ActorSystem): ActorRef = {
+  def startTestingJobManager(system: ActorSystem): ActorRef = {
     val config = new Configuration()
 
     val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _ ,
@@ -84,15 +74,29 @@ object TestingUtils {
     system.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
   }
 
-  def startTestingTaskManager(jobManager: ActorRef)(implicit system: ActorSystem): ActorRef = {
+  def startTestingTaskManagerWithConfiguration(hostname: String,
+                                               jobManagerURL: String,
+                                               config: Configuration,
+                                               system: ActorSystem) = {
+
+    val (tmConfig, netConfig, connectionInfo, _) =
+      TaskManager.parseTaskManagerConfiguration(config, hostname, true, false)
+
+    val tmProps = Props(classOf[TestingTaskManager], connectionInfo,
+                        jobManagerURL, tmConfig, netConfig)
+    system.actorOf(tmProps)
+  }
+
+  def startTestingTaskManager(jobManager: ActorRef, system: ActorSystem): ActorRef = {
+
     val jmURL = jobManager.path.toString
     val config = new Configuration()
-    val (connectionInfo, _, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration("localhost", config,
-        localAkkaCommunication = true, localTaskManagerCommunication = true)
 
-    system.actorOf(Props(new TaskManager(connectionInfo, jmURL, taskManagerConfig,
-      networkConnectionConfig) with TestingTaskManager))
+    val (tmConfig, netConfig, connectionInfo, _) =
+      TaskManager.parseTaskManagerConfiguration(config,  "localhost", true, true)
+
+    val tmProps = Props(classOf[TestingTaskManager], connectionInfo, jmURL, tmConfig, netConfig)
+    system.actorOf(tmProps)
   }
 
   def startTestingCluster(numSlots: Int, numTMs: Int = 1,

@@ -45,7 +45,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
   "The JobManager" should {
     "notify already registered TaskManagers" in {
 
-      val jm = TestingUtils.startTestingJobManager
+      val jm = TestingUtils.startTestingJobManager(_system)
 
       val connectionInfo = new InstanceConnectionInfo(InetAddress.getLocalHost,1)
       val hardwareDescription = HardwareDescription.extractFromSystem(10)
@@ -67,7 +67,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
   "The TaskManager" should {
     "shutdown if its registration is refused by the JobManager" in {
 
-      val tm = TestingUtils.startTestingTaskManager(self)
+      val tm = TestingUtils.startTestingTaskManager(self, _system)
 
       watch(tm)
 
@@ -83,7 +83,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "ignore RefuseRegistration messages after it has been successfully registered" in {
 
-      val tm = TestingUtils.startTestingTaskManager(self)
+      val tm = TestingUtils.startTestingTaskManager(self, _system)
 
       try {
         ignoreMsg{
@@ -112,8 +112,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val config = new Configuration()
       config.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, "1 second")
 
-      val tm = TestingUtils.startTestingTaskManagerWithConfiguration("LOCALHOST",
-        self.path.toString, config)
+      val tm = TestingUtils.startTestingTaskManagerWithConfiguration("localhost",
+        self.path.toString, config, _system)
 
       watch(tm)
 
