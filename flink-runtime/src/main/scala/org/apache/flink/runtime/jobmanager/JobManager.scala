@@ -94,17 +94,18 @@ class JobManager(val configuration: Configuration,
                  val profiler: Option[ActorRef],
                  val defaultExecutionRetries: Int,
                  val delayBetweenRetries: Long,
-                 implicit val timeout: FiniteDuration)
+                 val timeout: FiniteDuration)
   extends Actor with ActorLogMessages with ActorLogging {
 
-  import context._
+  /** Reference to the log, for debugging */
+  protected val LOG = JobManager.LOG
 
-  val LOG = JobManager.LOG
+  /** List of current jobs running jobs */
+  protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
 
-  // List of current jobs running
-  val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
-
-
+  /**
+   * Run when the job manager is started. Simply logs an informational message.
+   */
   override def preStart(): Unit = {
     LOG.info(s"Starting JobManager at ${self.path}.")
   }
@@ -138,6 +139,11 @@ class JobManager(val configuration: Configuration,
     }
   }
 
+  /**
+   * Central work method of the JobManager actor. Receives messages and reacts to them.
+   *
+   * @return
+   */
   override def receiveWithLogMessages: Receive = {
 
     case RegisterTaskManager(connectionInfo, hardwareInformation, numberOfSlots) =>
@@ -182,7 +188,7 @@ class JobManager(val configuration: Configuration,
           // execute the cancellation asynchronously
           Future {
             executionGraph.cancel()
-          }
+          }(context.dispatcher)
 
           sender ! CancellationSuccess(jobID)
         case None =>
@@ -198,10 +204,12 @@ class JobManager(val configuration: Configuration,
         currentJobs.get(taskExecutionState.getJobID) match {
           case Some((executionGraph, _)) =>
             val originalSender = sender
+
             Future {
               val result = executionGraph.updateState(taskExecutionState)
               originalSender ! result
-            }
+            }(context.dispatcher)
+
             sender ! true
           case None => log.error("Cannot find execution graph for ID {} to change state to {}.",
             taskExecutionState.getJobID, taskExecutionState.getExecutionState)
@@ -603,6 +611,7 @@ object JobManager {
     EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager")
     checkJavaVersion()
 
+    // parsing the command line arguments
     val (configuration: Configuration,
          executionMode: ExecutionMode,
          listeningHost: String, listeningPort: Int) =
@@ -617,16 +626,17 @@ object JobManager {
       }
     }
 
-    // we may want to check that the JobManager hostname is in the config
+    // we want to check that the JobManager hostname is in the config
     // if it is not in there, the actor system will bind to the loopback interface's
     // address and will not be reachable from anyone remote
     if (listeningHost == null) {
       val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY +
-        "' is missing (hostname or address to bind JobManager to)."
+        "' is missing (hostname/address to bind JobManager to)."
       LOG.error(message)
       System.exit(STARTUP_FAILURE_RETURN_CODE)
     }
 
+    // run the job manager
     try {
       if (SecurityUtils.isSecurityEnabled) {
         LOG.info("Security is enabled. Starting secure JobManager.")
@@ -647,13 +657,28 @@ object JobManager {
     }
   }
 
-
+  /**
+   * Starts and runs the JobManager with all its components. First, this method starts a
+   * dedicated actor system for the JobManager. Second, its starts all components of the
+   * JobManager (including library cache, instance manager, scheduler). Finally, it starts
+   * the JobManager actor itself.
+   *
+   * This method blocks indefinitely (or until the JobManager's actor system is shut down).
+   *
+   * @param configuration The configuration object for the JobManager.
+   * @param executionMode The execution mode in which to run. Execution mode LOCAL will spawn an
+   *                      an additional TaskManager in the same process.
+   * @param listeningAddress The hostname where the JobManager should listen for messages.
+   * @param listeningPort The port where the JobManager should listen for messages.
+   */
   def runJobManager(configuration: Configuration,
                     executionMode: ExecutionMode,
                     listeningAddress: String,
                     listeningPort: Int) : Unit = {
 
     LOG.info("Starting JobManager")
+
+    // Bring up the job manager actor system first, bind it to the given address.
     LOG.debug("Starting JobManager actor system")
 
     val jobManagerSystem = try {
@@ -674,18 +699,18 @@ object JobManager {
     }
 
     try {
-      LOG.debug("Starting JobManager actor")
-
       // bring up the job manager actor
+      LOG.debug("Starting JobManager actor")
       val (jobManager, archiver) = startJobManagerActors(configuration, jobManagerSystem)
 
-      // start a process reaper that watches the JobManager
+      // start a process reaper that watches the JobManager. If the JobManager actor dies,
+      // the process reaper will kill the JVM process (to ensure easy failure detection)
       jobManagerSystem.actorOf(
         Props(classOf[ProcessReaper], jobManager, LOG, RUNTIME_FAILURE_RETURN_CODE),
         "JobManager_Process_Reaper")
 
       // bring up a local task manager, if needed
-      if(executionMode.equals(LOCAL)){
+      if (executionMode.equals(LOCAL)) {
         LOG.info("Starting embedded TaskManager for JobManager's LOCAL mode execution")
 
         TaskManager.startActorWithConfiguration("", TaskManager.TASK_MANAGER_NAME, configuration,
@@ -757,15 +782,22 @@ object JobManager {
   }
 
   /**
-   * Extracts the job manager configuration values from a configuration instance.
+   * Create the job manager components as (instanceManager, scheduler, libraryCacheManager,
+   *              archiverProps, accumulatorManager, profiler, defaultExecutionRetries,
+   *              delayBetweenRetries, timeout)
    *
-   * @param configuration Object with the user provided configuration values
-   * @return Tuple of (number of archived jobs, profiling enabled, cleanup interval of the library
-   *         cache manager, default number of execution retries, delay between retries)
+   * @param configuration The configuration from which to parse the config values.
+   * @return The members for a default JobManager.
    */
-  def parseConfiguration(configuration: Configuration): (Int, Boolean, Long, Int, Long) = {
+  def createJobManagerComponents(configuration: Configuration) :
+    (InstanceManager, FlinkScheduler, BlobLibraryCacheManager,
+      Props, AccumulatorManager, Option[Props], Int, Long, FiniteDuration, Int) = {
+
+    val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
+
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
+
     val profilingEnabled = configuration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, false)
 
     val cleanupInterval = configuration.getLong(
@@ -779,26 +811,6 @@ object JobManager {
     val delayBetweenRetries = 2 * Duration(configuration.getString(
       ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
       ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)).toMillis
-
-    (archiveCount, profilingEnabled, cleanupInterval, executionRetries, delayBetweenRetries)
-  }
-
-  /**
-   * Create the job manager members as (instanceManager, scheduler, libraryCacheManager,
-   *              archiverProps, accumulatorManager, profiler, defaultExecutionRetries,
-   *              delayBetweenRetries, timeout)
-   *
-   * @param configuration The configuration from which to parse the config values.
-   * @return The members for a default JobManager.
-   */
-  def createJobManagerComponents(configuration: Configuration) :
-    (InstanceManager, FlinkScheduler, BlobLibraryCacheManager,
-      Props, AccumulatorManager, Option[Props], Int, Long, FiniteDuration, Int) = {
-
-    val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
-
-    val (archiveCount, profilingEnabled, cleanupInterval, executionRetries, delayBetweenRetries) =
-      parseConfiguration(configuration)
 
     val archiveProps: Props = Props(classOf[MemoryArchivist], archiveCount)
 

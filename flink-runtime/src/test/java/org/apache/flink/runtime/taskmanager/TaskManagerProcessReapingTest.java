@@ -16,22 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
-
-import static org.junit.Assert.*;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.isProcessAlive;
+package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
+
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+
+import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.junit.Test;
 
-import org.apache.flink.configuration.Configuration;
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
@@ -40,18 +39,28 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
-import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.isProcessAlive;
 
 /**
  * Tests that the JobManager process properly exits when the JobManager actor dies.
  */
-public class JobManagerProcessReapingTest {
+public class TaskManagerProcessReapingTest {
+
+	private static final String TASK_MANAGER_ACTOR_NAME = "TEST_TM";
 
 	@Test
 	public void testReapProcessOnFailure() {
-		Process jmProcess = null;
-		ActorSystem localSystem = null;
+		Process taskManagerProcess = null;
+		ActorSystem jmActorSystem = null;
 
 		final StringWriter processOutput = new StringWriter();
 
@@ -61,7 +70,7 @@ public class JobManagerProcessReapingTest {
 			// check that we run this test only if the java command
 			// is available on this machine
 			if (javaCommand == null) {
-				System.out.println("---- Skipping JobManagerProcessReapingTest : Could not find java executable ----");
+				System.out.println("---- Skipping TaskManagerProcessReapingTest : Could not find java executable ----");
 				return;
 			}
 
@@ -70,67 +79,72 @@ public class JobManagerProcessReapingTest {
 			tempLogFile.deleteOnExit();
 			CommonTestUtils.printLog4jDebugConfig(tempLogFile);
 
-			int jobManagerPort = NetUtils.getAvailablePort();
+			final int jobManagerPort = NetUtils.getAvailablePort();
 
-			// start a JobManger process
+			// start a JobManager
+			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", jobManagerPort);
+			jmActorSystem = AkkaUtils.createActorSystem(
+					new Configuration(), new Some<Tuple2<String, Object>>(localAddress));
+
+			JobManager.startJobManagerActors(new Configuration(), jmActorSystem);
+
+			final int taskManagerPort = NetUtils.getAvailablePort();
+
+			// start the task manager process
 			String[] command = new String[] {
 					javaCommand,
 					"-Dlog.level=DEBUG",
 					"-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath(),
 					"-Xms256m", "-Xmx256m",
 					"-classpath", getCurrentClasspath(),
-					JobManagerTestEntryPoint.class.getName(),
-					String.valueOf(jobManagerPort)
+					TaskManagerTestEntryPoint.class.getName(),
+					String.valueOf(jobManagerPort), String.valueOf(taskManagerPort)
 			};
 
-			// spawn the process and collect its output
 			ProcessBuilder bld = new ProcessBuilder(command);
-			jmProcess = bld.start();
-			new PipeForwarder(jmProcess.getErrorStream(), processOutput);
+			taskManagerProcess = bld.start();
+			new PipeForwarder(taskManagerProcess.getErrorStream(), processOutput);
 
-			// start another actor system so we can send something to the JobManager
-			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", 0);
-			localSystem = AkkaUtils.createActorSystem(
-					new Configuration(), new Some<Tuple2<String, Object>>(localAddress));
+			// grab the reference to the TaskManager. try multiple times, until the process
+			// is started and the TaskManager is up
+			String taskManagerActorName = String.format("akka.tcp://flink@%s:%d/user/%s",
+					"127.0.0.1", taskManagerPort, TASK_MANAGER_ACTOR_NAME);
 
-			// grab the reference to the JobManager. try multiple times, until the process
-			// is started and the JobManager is up
-			ActorRef jobManagerRef = null;
+			ActorRef taskManagerRef = null;
 			for (int i = 0; i < 20; i++) {
 				try {
-					jobManagerRef = JobManager.getJobManagerRemoteReference(
-							new InetSocketAddress("localhost", jobManagerPort),
-							localSystem, new FiniteDuration(5, TimeUnit.SECONDS));
+					taskManagerRef = TaskManager.getTaskManagerRemoteReference(
+							taskManagerActorName, jmActorSystem, new FiniteDuration(5, TimeUnit.SECONDS));
 					break;
 				}
 				catch (Throwable t) {
-					// job manager probably not ready yet
+					// TaskManager probably not ready yet
 				}
 				Thread.sleep(500);
 			}
 
-			assertTrue("JobManager process died", isProcessAlive(jmProcess));
-			assertTrue("JobManager process did not launch the JobManager properly", jobManagerRef != null);
+			assertTrue("TaskManager process died", isProcessAlive(taskManagerProcess));
+			assertTrue("TaskManager process did not launch the TaskManager properly", taskManagerRef != null);
 
-			// kill the JobManager actor
-			jobManagerRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
+			// kill the TaskManager actor
+			taskManagerRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
 
 			// wait for max 5 seconds for the process to terminate
 			{
 				long now = System.currentTimeMillis();
 				long deadline = now + 5000;
 
-				while (now < deadline && isProcessAlive(jmProcess)) {
+				while (now < deadline && isProcessAlive(taskManagerProcess)) {
 					Thread.sleep(100);
 					now = System.currentTimeMillis();
 				}
 			}
 
-			assertFalse("JobManager process did not terminate upon actor death", isProcessAlive(jmProcess));
+			assertFalse("TaskManager process did not terminate upon actor death", isProcessAlive(taskManagerProcess));
 
-			int returnCode = jmProcess.exitValue();
-			assertEquals("JobManager died, but not because of the process reaper",
-					JobManager.RUNTIME_FAILURE_RETURN_CODE(), returnCode);
+			int returnCode = taskManagerProcess.exitValue();
+			assertEquals("TaskManager died, but not because of the process reaper",
+					TaskManager.RUNTIME_FAILURE_RETURN_CODE(), returnCode);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -143,11 +157,11 @@ public class JobManagerProcessReapingTest {
 			throw e;
 		}
 		finally {
-			if (jmProcess != null) {
-				jmProcess.destroy();
+			if (taskManagerProcess != null) {
+				taskManagerProcess.destroy();
 			}
-			if (localSystem != null) {
-				localSystem.shutdown();
+			if (jmActorSystem != null) {
+				jmActorSystem.shutdown();
 			}
 		}
 	}
@@ -164,13 +178,26 @@ public class JobManagerProcessReapingTest {
 
 	// --------------------------------------------------------------------------------------------
 
-	public static class JobManagerTestEntryPoint {
+	public static class TaskManagerTestEntryPoint {
 
 		public static void main(String[] args) {
 			try {
-				int port = Integer.parseInt(args[0]);
-				JobManager.runJobManager(new Configuration(), ExecutionMode.CLUSTER(), "localhost", port);
-				System.exit(0);
+				int jobManagerPort = Integer.parseInt(args[0]);
+				int taskManagerPort = Integer.parseInt(args[1]);
+
+				Configuration cfg = new Configuration();
+				cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+				cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
+				cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
+				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 100);
+
+				TaskManager.startActor("localhost", taskManagerPort, cfg, TASK_MANAGER_ACTOR_NAME);
+
+				// wait forever
+				Object lock = new Object();
+				synchronized (lock) {
+					lock.wait();
+				}
 			}
 			catch (Throwable t) {
 				System.exit(1);

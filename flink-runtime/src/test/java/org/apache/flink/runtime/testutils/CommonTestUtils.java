@@ -20,14 +20,18 @@ package org.apache.flink.runtime.testutils;
 
 import static org.junit.Assert.fail;
 
+import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 
@@ -202,6 +206,26 @@ public class CommonTestUtils {
 		}
 		catch(IllegalThreadStateException e) {
 			return true;
+		}
+	}
+
+	public static void printLog4jDebugConfig(File file) throws IOException {
+		FileWriter fw = new FileWriter(file);
+		try {
+			PrintWriter writer = new PrintWriter(fw);
+
+			writer.println("log4j.rootLogger=DEBUG, console");
+			writer.println("log4j.appender.console=org.apache.log4j.ConsoleAppender");
+			writer.println("log4j.appender.console.target = System.err");
+			writer.println("log4j.appender.console.layout=org.apache.log4j.PatternLayout");
+			writer.println("log4j.appender.console.layout.ConversionPattern=%-4r [%t] %-5p %c %x - %m%n");
+			writer.println("log4j.logger.org.eclipse.jetty.util.log=OFF");
+
+			writer.flush();
+			writer.close();
+		}
+		finally {
+			fw.close();
 		}
 	}
 }

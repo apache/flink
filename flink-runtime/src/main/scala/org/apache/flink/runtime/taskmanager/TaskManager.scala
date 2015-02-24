@@ -53,6 +53,7 @@ import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskManagerProfilerMessages
 .{UnregisterProfilingListener, UnmonitorTask, MonitorTask, RegisterProfilingListener}
 import org.apache.flink.runtime.net.NetUtils
+import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
@@ -60,7 +61,7 @@ import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.util.ExceptionUtils
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.Future
+import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 import scala.language.postfixOps
@@ -721,7 +722,9 @@ import scala.collection.JavaConverters._
 object TaskManager {
 
   val LOG = LoggerFactory.getLogger(classOf[TaskManager])
-  val FAILURE_RETURN_CODE = -1
+
+  val STARTUP_FAILURE_RETURN_CODE = 1
+  val RUNTIME_FAILURE_RETURN_CODE = 2
 
   val TASK_MANAGER_NAME = "taskmanager"
   val PROFILER_NAME = "profiler"
@@ -750,9 +753,16 @@ object TaskManager {
   def startActor(hostname: String, port: Int, configuration: Configuration,
                  taskManagerName: String) : Unit = {
 
-    val (taskManagerSystem, _) = startActorSystemAndActor(hostname, port, configuration,
+    val (taskManagerSystem, taskManager) = startActorSystemAndActor(hostname, port, configuration,
       taskManagerName, localAkkaCommunication = false, localTaskManagerCommunication = false)
 
+    // start a process reaper that watches the JobManager. If the JobManager actor dies,
+    // the process reaper will kill the JVM process (to ensure easy failure detection)
+    taskManagerSystem.actorOf(
+      Props(classOf[ProcessReaper], taskManager, LOG, RUNTIME_FAILURE_RETURN_CODE),
+      "TaskManager_Process_Reaper")
+
+    // block until everything is done
     taskManagerSystem.awaitTermination()
   }
 
@@ -804,7 +814,7 @@ object TaskManager {
     } getOrElse {
       LOG.error(s"TaskManager parseArgs called with ${args.mkString(" ")}.")
       LOG.error("CLI parsing failed. Usage: " + parser.usage)
-      sys.exit(FAILURE_RETURN_CODE)
+      sys.exit(STARTUP_FAILURE_RETURN_CODE)
     }
   }
 
@@ -979,7 +989,43 @@ object TaskManager {
     system.actorOf(Props(classOf[TaskManagerProfiler], instancePath, reportInterval), PROFILER_NAME)
   }
 
-  def checkTempDirs(tmpDirs: Array[String]): Unit = {
+  // --------------------------------------------------------------------------
+  //  Resolving the TaskManager actor
+  // --------------------------------------------------------------------------
+
+  /**
+   * Resolves the TaskManager actor reference in a blocking fashion.
+   *
+   * @param taskManagerUrl The akka URL of the JobManager.
+   * @param system The local actor system that should perform the lookup.
+   * @param timeout The maximum time to wait until the lookup fails.
+   * @throws java.io.IOException Thrown, if the lookup fails.
+   * @return The ActorRef to the TaskManager
+   */
+  @throws(classOf[IOException])
+  def getTaskManagerRemoteReference(taskManagerUrl: String,
+                                   system: ActorSystem,
+                                   timeout: FiniteDuration): ActorRef = {
+    try {
+      val future = AkkaUtils.getReference(taskManagerUrl, system, timeout)
+      Await.result(future, timeout)
+    }
+    catch {
+      case e @ (_ : ActorNotFound | _ : TimeoutException) =>
+        throw new IOException(
+          s"TaskManager at $taskManagerUrl not reachable. " +
+            s"Please make sure that the TaskManager is running and its port is reachable.", e)
+
+      case e: IOException =>
+        throw new IOException("Could not connect to TaskManager at " + taskManagerUrl, e)
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  //  Miscellaneous Utilities
+  // --------------------------------------------------------------------------
+
+  private def checkTempDirs(tmpDirs: Array[String]): Unit = {
     tmpDirs.zipWithIndex.foreach {
       case (dir: String, _) =>
         val file = new File(dir)
@@ -1010,6 +1056,12 @@ object TaskManager {
     }
   }
 
+  /**
+   * Gets the memory footprint of the JVM in a string representation.
+   *
+   * @param memoryMXBean The memory management bean used to access the memory statistics.
+   * @return A string describing how much heap memory and direct memory are allocated and used.
+   */
   private def getMemoryUsageStatsAsString(memoryMXBean: MemoryMXBean): String = {
     val heap = memoryMXBean.getHeapMemoryUsage
     val nonHeap = memoryMXBean.getNonHeapMemoryUsage
@@ -1026,6 +1078,12 @@ object TaskManager {
       s"NON HEAP: $nonHeapUsed/$nonHeapCommitted/$nonHeapMax MB (used/committed/max)]"
   }
 
+  /**
+   * Gets the garbage collection statistics from the JVM.
+   *
+   * @param gcMXBeans The collection of garbage collector beans.
+   * @return A string denoting the number of times and total elapsed time in garbage collection.
+   */
   private def getGarbageCollectorStatsAsString(gcMXBeans: Iterable[GarbageCollectorMXBean])
   : String = {
     val beans = gcMXBeans map {
