@@ -28,29 +28,14 @@ under the License.
 	<includeBaseDirectory>true</includeBaseDirectory>
 	<baseDirectory>flink-${project.version}</baseDirectory>
 
-	<!-- copy all jar files and their dependencies -->
-	<dependencySets>
-		<dependencySet>
-			<outputDirectory>lib</outputDirectory>
-			<unpack>false</unpack>
-			<useTransitiveDependencies>true</useTransitiveDependencies>
-			<useProjectArtifact>false</useProjectArtifact>
-			<useProjectAttachments>false</useProjectAttachments>
-			<useTransitiveFiltering>true</useTransitiveFiltering>
-			
-			<excludes>
-				<exclude>org.apache.flink:flink-java-examples</exclude>
-				<exclude>org.apache.flink:flink-scala-examples</exclude>
-				<exclude>org.apache.flink:flink-streaming-examples</exclude>
-				<!--
-				<exclude>**/*javadoc*</exclude>
-				<exclude>**/*sources*</exclude>
-				-->
-			</excludes>
-		</dependencySet>
-	</dependencySets>
-
 	<files>
+		<!-- copy fat jar -->
+		<file>
+			<source>target/flink-dist-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<file>
 			<source>src/main/resources/flink-conf.yaml</source>
 			<outputDirectory>conf</outputDirectory>
@@ -65,15 +50,17 @@ under the License.
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
-
+		<fileSet>
+			<!-- copy yarn start scripts -->
+			<directory>src/main/flink-bin/yarn-bin</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
 		<fileSet>
 			<!-- copy default configuration -->
 			<directory>src/main/flink-bin/conf</directory>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
-			<excludes>
-				<exclude>log4j-yarn-session.properties</exclude>
-			</excludes>
 		</fileSet>
 
 		<fileSet>

@@ -53,6 +53,12 @@ under the License.
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>${shading-artifact.name}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -69,6 +75,12 @@ under the License.
 			<artifactId>flink-hadoop-compatibility</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-include-yarn</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		
 		<dependency>
@@ -80,6 +92,23 @@ under the License.
 				<exclusion>
 					<groupId>org.mortbay.jetty</groupId>
 					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<!-- The hadoop dependencies are handled through flink-shaded-hadoop -->
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-auth</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-mapreduce-client-core</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -97,13 +126,6 @@ under the License.
 			<properties>
 				<hbase.version>${hbase.hadoop1.version}</hbase.version>
 			</properties>
-			<dependencies>
-				<!-- Force hadoop-common dependency -->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-core</artifactId>
-				</dependency>
-			</dependencies>
 		</profile>
 		
 		<profile>
@@ -117,15 +139,8 @@ under the License.
 			<properties>
 				<hbase.version>${hbase.hadoop2.version}</hbase.version>
 			</properties>
-			<dependencies>
-				<!-- Force hadoop-common dependency -->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-				</dependency>
-			</dependencies>
 		</profile>
-		
+
 		<profile>
 			<id>cdh5.1.3</id>
 			<properties>
@@ -145,19 +160,6 @@ under the License.
 					</dependency>
 				</dependencies>
 			</dependencyManagement>
-			<dependencies>
-				<!-- Force hadoop-common dependency -->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-					<version>${hadoop.version}</version>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-mapreduce-client-core</artifactId>
-					<version>${hadoop.version}</version>
-				</dependency>
-			</dependencies>
 		</profile>
 
 	</profiles>

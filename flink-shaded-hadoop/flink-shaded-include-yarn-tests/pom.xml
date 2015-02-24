@@ -24,61 +24,55 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-parent</artifactId>
+		<artifactId>flink-shaded-hadoop</artifactId>
 		<version>0.9-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-core</artifactId>
-	<name>flink-core</name>
+	<artifactId>flink-shaded-include-yarn-tests</artifactId>
+	<name>flink-shaded-include-yarn-tests</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>${shading-artifact.name}</artifactId>
-			<version>${project.version}</version>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<version>${hadoop.version}</version>
 		</dependency>
-		
+		<!-- NOTE: We do not exclude hadoop's dependencies so that the tests start properly (in particular jetty) -->
 		<dependency>
-			<groupId>commons-collections</groupId>
-			<artifactId>commons-collections</artifactId>
-			<!-- managed version -->
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-yarn-server-tests</artifactId>
+			<version>${hadoop.version}</version>
+		</dependency>
+
+		<!-- Add test-jar as well -->
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-yarn-server-tests</artifactId>
+			<version>${hadoop.version}</version>
+			<type>test-jar</type>
 		</dependency>
 
 		<dependency>
-			<groupId>com.esotericsoftware.kryo</groupId>
-			<artifactId>kryo</artifactId>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-minicluster</artifactId>
+			<version>${hadoop.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>com.twitter</groupId>
-			<artifactId>chill_2.10</artifactId>
-			<version>${chill.version}</version>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-minicluster</artifactId>
+			<version>${hadoop.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-yarn-server-resourcemanager</artifactId>
+			<version>${hadoop.version}</version>
 		</dependency>
+
 	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 
 </project>

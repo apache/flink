@@ -29,11 +29,11 @@ public class UtilsTest {
 	@Test
 	public void testUberjarLocator() {
 		File dir = YarnTestBase.findFile(".", new YarnTestBase.RootDirFilenameFilter());
+		Assert.assertTrue(dir.getName().endsWith(".jar"));
 		Assert.assertNotNull(dir);
 		dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
 		Assert.assertTrue(dir.exists());
 		Assert.assertTrue(dir.isDirectory());
-		Assert.assertTrue(dir.toString().contains("flink-dist"));
 		List<String> files = Arrays.asList(dir.list());
 		Assert.assertTrue(files.contains("lib"));
 		Assert.assertTrue(files.contains("bin"));

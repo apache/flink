@@ -33,14 +33,17 @@ under the License.
 	<name>flink-java</name>
 
 	<packaging>jar</packaging>
-	<properties>
-		<chill.version>0.5.2</chill.version>
-	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>${shading-artifact.name}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		
@@ -58,6 +61,7 @@ under the License.
 		<dependency>
 			<groupId>org.ow2.asm</groupId>
 			<artifactId>asm</artifactId>
+			<version>${asm.version}</version>
 		</dependency>
 		
 		<dependency>
@@ -117,12 +121,10 @@ under the License.
 			<artifactId>joda-time</artifactId>
 		</dependency>
 
-		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
-			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
@@ -150,61 +152,4 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
-	<!-- See main pom.xml for explanation of profiles -->
-	<profiles>
-		<profile>
-			<id>hadoop-1</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
-				</property>
-			</activation>
-			<dependencies>
-				<!-- "Old" Hadoop = MapReduce v1 -->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-core</artifactId>
-					<!--<exclusions>-->
-						<!--<exclusion>-->
-							<!--<groupId>*</groupId>-->
-							<!--<artifactId>*</artifactId>-->
-						<!--</exclusion>-->
-					<!--</exclusions>-->
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hadoop-2</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-					<!--<exclusions>-->
-						<!--<exclusion>-->
-							<!--<groupId>*</groupId>-->
-							<!--<artifactId>*</artifactId>-->
-						<!--</exclusion>-->
-					<!--</exclusions>-->
-				</dependency>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-mapreduce-client-core</artifactId>
-					<!--<exclusions>-->
-						<!--<exclusion>-->
-							<!--<groupId>*</groupId>-->
-							<!--<artifactId>*</artifactId>-->
-						<!--</exclusion>-->
-					<!--</exclusions>-->
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
 </project>

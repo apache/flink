@@ -117,9 +117,17 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
-				
+				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
-
+					<!-- Default Execution -->
+					<execution>
+						<id>default</id>
+						<phase>package</phase>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+					
 					<!-- Iteration -->
 					<execution>
 						<id>Iteration</id>
@@ -457,18 +465,6 @@ under the License.
 					<outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
 					<outputEncoding>UTF-8</outputEncoding>
 				</configuration>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 		
