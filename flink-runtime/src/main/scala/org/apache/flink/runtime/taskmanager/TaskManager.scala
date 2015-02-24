@@ -422,8 +422,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       // register the task with the network stack and profiles
       networkEnvironment match {
-        log.debug("Register task {} on {}.", task, connectionInfo)
-        case Some(ne) => ne.registerTask(task)
+        case Some(ne) =>
+          log.debug("Register task {} on {}.", task, connectionInfo)
+          ne.registerTask(task)
         case None => throw new RuntimeException(
           "Network environment has not been properly instantiated.")
       }
@@ -543,7 +544,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
                       } catch {
                         case t: Throwable =>
                           log.error(t, "Failed canceling task with execution ID {} after task" +
-                            "update failure..", executionId)
+                            "update failure.", executionId)
                       }
                   }
                 }

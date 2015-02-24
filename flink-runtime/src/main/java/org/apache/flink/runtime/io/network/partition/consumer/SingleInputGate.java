@@ -379,14 +379,24 @@ public class SingleInputGate implements InputGate {
 			final PartitionInfo.PartitionLocation producerLocation = partition.getProducerLocation();
 			switch (producerLocation) {
 				case LOCAL:
+					LOG.debug("Create LocalInputChannel for {}.", partition);
+
 					inputChannels[channelIndex] = new LocalInputChannel(reader, channelIndex, producerExecutionId, partitionId, networkEnvironment.getPartitionManager(), networkEnvironment.getTaskEventDispatcher());
+
 					break;
 				case REMOTE:
+					LOG.debug("Create RemoteInputChannel for {}.", partition);
+
 					final RemoteAddress producerAddress = checkNotNull(partition.getProducerAddress(), "Missing producer address for remote intermediate result partition.");
+
 					inputChannels[channelIndex] = new RemoteInputChannel(reader, channelIndex, producerExecutionId, partitionId, producerAddress, networkEnvironment.getConnectionManager());
+
 					break;
 				case UNKNOWN:
+					LOG.debug("Create UnknownInputChannel for {}.", partition);
+
 					inputChannels[channelIndex] = new UnknownInputChannel(reader, channelIndex, producerExecutionId, partitionId, networkEnvironment.getPartitionManager(), networkEnvironment.getTaskEventDispatcher(), networkEnvironment.getConnectionManager());
+
 					break;
 			}
 			reader.setInputChannel(partitionId, inputChannels[channelIndex]);

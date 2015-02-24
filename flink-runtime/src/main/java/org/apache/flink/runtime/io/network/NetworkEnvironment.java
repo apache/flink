@@ -179,10 +179,8 @@ public class NetworkEnvironment {
 	}
 
 	public void unregisterTask(Task task) {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Unregistering task {} ({}) from network environment (state: {}).",
+		LOG.debug("Unregistering task {} ({}) from network environment (state: {}).",
 					task.getTaskNameWithSubtasks(), task.getExecutionState());
-		}
 
 		final ExecutionAttemptID executionId = task.getExecutionId();
 

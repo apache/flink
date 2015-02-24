@@ -365,11 +365,9 @@ public class ExecutionVertex implements Serializable {
 	// --------------------------------------------------------------------------------------------
 
 	public void resetForNewExecution() {
-		
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Resetting execution vertex {} for new execution.", getSimpleName());
-		}
-		
+
+		LOG.debug("Resetting execution vertex {} for new execution.", getSimpleName());
+
 		synchronized (priorExecutions) {
 			Execution execution = currentExecution;
 			ExecutionState state = execution.getState();

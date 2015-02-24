@@ -150,9 +150,7 @@ public class PartitionInfo implements IOReadableWritable, Serializable {
 		PartitionInfo partitionInfo = new PartitionInfo(partitionId, producerExecutionId,
 				producerLocation, producerAddress);
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Create partition info {}.", partitionInfo);
-		}
+		LOG.debug("Create partition info {}.", partitionInfo);
 
 		return partitionInfo;
 	}

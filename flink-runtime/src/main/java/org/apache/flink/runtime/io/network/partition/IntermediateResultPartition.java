@@ -187,9 +187,7 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 
 	public void releaseAllResources() throws IOException {
 		synchronized (queues) {
-			if(LOG.isDebugEnabled()) {
-				LOG.debug("Release all resources of {}.", this);
-			}
+			LOG.debug("Release all resources of {}.", this);
 
 			if (!isReleased) {
 				try {
@@ -233,12 +231,6 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	}
 
 	// ------------------------------------------------------------------------
-
-	@Override
-	public String toString() {
-		return "Intermediate result partition " + partitionId + " [num queues: " + queues.length + ", "
-				+ (isFinished ? "finished" : "not finished") + "]";
-	}
 
 	private void checkInProducePhase() {
 		checkState(!isReleased, "Partition has already been discarded.");

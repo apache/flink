@@ -87,9 +87,7 @@ public class RemoteInputChannel extends InputChannel {
 	@Override
 	public void requestIntermediateResultPartition(int queueIndex) throws IOException {
 		if (partitionRequestClient == null) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Requesting queue {} from REMOTE partition {}.", partitionId, queueIndex);
-			}
+			LOG.debug("Requesting REMOTE queue {} from partition {} produced by {}.", queueIndex, partitionId, producerExecutionId);
 
 			partitionRequestClient = connectionManager.createPartitionRequestClient(producerAddress);
 
@@ -154,13 +152,15 @@ public class RemoteInputChannel extends InputChannel {
 
 			if (partitionRequestClient != null) {
 				partitionRequestClient.close(this);
+			} else {
+				connectionManager.closeOpenChannelConnections(producerAddress);
 			}
 		}
 	}
 
 	@Override
 	public String toString() {
-		return "REMOTE " + id + " " + super.toString();
+		return "REMOTE " + id + " " + producerAddress + " " + super.toString();
 	}
 
 	// ------------------------------------------------------------------------
