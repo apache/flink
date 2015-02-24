@@ -834,19 +834,27 @@ object TaskManager {
 
     val (jobManagerHostname, jobManagerPort) = getAndCheckJobManagerAddress(configuration)
 
-    // try to find out the hostname of the interface from which the TaskManager
-    // can connect to the JobManager. This involves a reverse name lookup
-    LOG.info("Trying to determine network interface and address/hostname to use")
-    val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort)
-    val taskManagerHostname = try {
-      NetUtils.resolveAddress(jobManagerAddress).getHostName()
-    }
-    catch {
-      case t: Throwable => throw new Exception("TaskManager cannot find a network interface " +
-        "that can communicate with the JobManager (" + jobManagerAddress + ")", t)
-    }
+    var taskManagerHostname = configuration.getString(
+                                       ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null)
 
-    LOG.info("TaskManager will use hostname/address '{}' for communication.", taskManagerHostname)
+    if (taskManagerHostname != null) {
+      LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
+    }
+    else {
+      // try to find out the hostname of the interface from which the TaskManager
+      // can connect to the JobManager. This involves a reverse name lookup
+      LOG.info("Trying to select the network interface and address/hostname to use")
+      val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort)
+      taskManagerHostname = try {
+        NetUtils.resolveAddress(jobManagerAddress).getHostName()
+      }
+      catch {
+        case t: Throwable => throw new Exception("TaskManager cannot find a network interface " +
+          "that can communicate with the JobManager (" + jobManagerAddress + ")", t)
+      }
+
+      LOG.info("TaskManager will use hostname/address '{}' for communication.", taskManagerHostname)
+    }
 
     // if no task manager port has been configured, use 0 (system will pick any free port)
     val actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0)

@@ -81,6 +81,11 @@ public final class ConfigConstants {
 	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager.cleanup.interval";
 
 	/**
+	 * The config parameter defining the task manager's hostname.
+	 */
+	public static final String TASK_MANAGER_HOSTNAME_KEY = "taskmanager.hostname";
+
+	/**
 	 * The config parameter defining the task manager's IPC port from the configuration.
 	 */
 	public static final String TASK_MANAGER_IPC_PORT_KEY = "taskmanager.rpc.port";
