@@ -184,7 +184,7 @@ public abstract class YarnTestBase {
 	public static class RootDirFilenameFilter implements FilenameFilter {
 		@Override
 		public boolean accept(File dir, String name) {
-			return name.endsWith("yarn-uberjar.jar") && dir.toString().contains("/lib");
+			return name.startsWith("flink-dist") && name.endsWith(".jar") && dir.toString().contains("/lib");
 		}
 	}
 	public static class ContainsName implements FilenameFilter {
@@ -239,7 +239,7 @@ public abstract class YarnTestBase {
 				try {
 					scanner = new Scanner(f);
 				} catch (FileNotFoundException e) {
-					Assert.fail("Unable to locate file: "+e.getMessage()+" file: "+f.getAbsolutePath());
+					LOG.warn("Unable to locate file: "+e.getMessage()+" file: "+f.getAbsolutePath());
 				}
 				while (scanner.hasNextLine()) {
 					final String lineFromFile = scanner.nextLine();
@@ -265,12 +265,8 @@ public abstract class YarnTestBase {
 		}
 	}
 
-	public static void main(String[] args) {
-		ensureNoExceptionsInLogFiles();
-	}
-
 	public static void startYARNWithConfig(Configuration conf) {
-		flinkUberjar = findFile(".", new RootDirFilenameFilter());
+		flinkUberjar = findFile("..", new RootDirFilenameFilter());
 		Assert.assertNotNull(flinkUberjar);
 		String flinkDistRootDir = flinkUberjar.getParentFile().getParent();
 

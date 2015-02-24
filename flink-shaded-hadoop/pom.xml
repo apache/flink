@@ -29,29 +29,42 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-shaded</artifactId>
-	<name>flink-shaded</name>
+	<artifactId>flink-shaded-hadoop</artifactId>
+	<name>flink-shaded-hadoop</name>
 
-	<packaging>jar</packaging>
+	<packaging>pom</packaging>
 
-	<dependencies>
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-			<scope>compile</scope>
-		</dependency>
-	</dependencies>
+	<modules>
+		<module>${shading-artifact.name}</module>
+	</modules>
+
+	<profiles>
+		<profile>
+			<id>include-yarn</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>!hadoop.profile</name>
+				</property>
+			</activation>
+			<modules>
+				<module>flink-shaded-include-yarn-tests</module>
+			</modules>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
-			<!-- Relocate the entire Google Guava dependency into a different namespace -->
+			<!-- Relocate the Hadoop's Guava dependency into a different namespace and
+			put Hadoop into a fat-jar.
+			-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<version>2.3</version>
 				<executions>
 					<execution>
+						<id>shade-hadoop</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
@@ -60,18 +73,33 @@ under the License.
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
-							<artifactSet>
-								<includes>
-									<include>com.google.guava:guava</include>
-								</includes>
-							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.slf4j:*</artifact>
+									<excludes>
+										<exclude>org/slf4j/impl/StaticLoggerBinder*</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<transformers>
+								<!-- The service transformer is needed to merge META-INF/services files -->
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+							</transformers>
 							<relocations>
 								<relocation>
 									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.com.google</shadedPattern>
 									<excludes>
-										<exclude>com.google.protobuf.**</exclude>
+										<exclude>com.google.inject.**</exclude>
 									</excludes>
+								</relocation>
+								<relocation>
+									<pattern>org.objectweb.asm</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.objectweb.asm</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.jboss.netty</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.jboss.netty</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -238,6 +239,15 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 	@Override
 	public void setShipFiles(List<File> shipFiles) {
+		File shipFile;
+		for(Iterator<File> it = shipFiles.iterator(); it.hasNext(); ) {
+			shipFile = it.next();
+			// remove uberjar from ship list (by default everything in the lib/ folder is added to
+			// the list of files to ship, but we handle the uberjar separately.
+			if(shipFile.getName().startsWith("flink-dist-") && shipFile.getName().endsWith("jar")) {
+				it.remove();
+			}
+		}
 		this.shipFiles.addAll(shipFiles);
 	}
 

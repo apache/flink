@@ -37,18 +37,6 @@ under the License.
 		<!-- BINARIES -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded</artifactId>
-			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -123,22 +111,6 @@ under the License.
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
 		<profile>
-			<id>hadoop-1</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
-				</property>
-			</activation>
-			<properties>
-				<hadoop.version>${hadoop-one.version}</hadoop.version>
-			</properties>
-			<dependencies>
-				<!-- No extra dependencies: flink-hbase is currently not compatible with Hadoop v1 -->
-			</dependencies>
-		</profile>
-
-		<profile>
 			<id>include-yarn</id>
 			<activation>
 				<property>
@@ -153,80 +125,6 @@ under the License.
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
-			<build>
-				<plugins>
-					<plugin>
-						<!--Build uber jar-->
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-shade-plugin</artifactId>
-						<version>2.3</version>
-						<executions>
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>shade</goal>
-								</goals>
-								<configuration combine.self="override">
-									<shadedArtifactAttached>false</shadedArtifactAttached>
-									<finalName>${project.artifactId}-${project.version}-yarn-uberjar</finalName>
-									<artifactSet>
-										<excludes>
-											<exclude>org.apache.flink:flink-java-examples</exclude>
-											<exclude>org.apache.flink:flink-scala-examples</exclude>
-											<exclude>org.apache.flink:flink-streaming-examples</exclude>
-										</excludes>
-									</artifactSet>
-									<filters>
-										<filter>
-											<artifact>org.apache.flink:flink-clients</artifact>
-											<excludes>
-												<exclude>
-													web-docs/**
-												</exclude>
-											</excludes>
-										</filter>
-									</filters>
-									<transformers>
-										<transformer
-												implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-											<resource>reference.conf</resource>
-										</transformer>
-										<!-- The service transformer is needed to merge META-INF/services files -->
-										<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-										<transformer
-												implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-											<manifestEntries>
-												<Main-Class>org.apache.flink.client.FlinkYarnSessionCli</Main-Class>
-											</manifestEntries>
-										</transformer>
-									</transformers>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-					<plugin>
-						<artifactId>maven-assembly-plugin</artifactId>
-						<version>2.4</version><!--$NO-MVN-MAN-VER$-->
-						<executions>
-							<!-- yarn bin directory -->
-							<execution>
-								<id>yarn-bin</id>
-								<phase>package</phase>
-								<goals>
-									<goal>single</goal>
-								</goals>
-								<configuration>
-									<descriptors>
-										<descriptor>src/main/assemblies/yarn.xml</descriptor>
-									</descriptors>
-									<finalName>flink-${project.version}-bin</finalName>
-									<appendAssemblyId>false</appendAssemblyId>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
 		</profile>
 
 		<profile>
@@ -361,6 +259,40 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<!--Build uber jar-->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>2.3</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration combine.self="override">
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<finalName>${project.artifactId}-${project.version}</finalName>
+							<artifactSet>
+								<excludes>
+									<exclude>org.apache.flink:flink-java-examples</exclude>
+									<exclude>org.apache.flink:flink-scala-examples</exclude>
+									<exclude>org.apache.flink:flink-streaming-examples</exclude>
+								</excludes>
+							</artifactSet>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+									<resource>reference.conf</resource>
+								</transformer>
+								<!-- The service transformer is needed to merge META-INF/services files -->
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+							</transformers>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<executions>
