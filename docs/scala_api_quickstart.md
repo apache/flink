@@ -78,7 +78,7 @@ The IntelliJ IDE also supports Maven and offers a plugin for Scala development.
 
 ## Build Project
 
-If you want to __build your project__, go to your project directory and issue the`mvn clean package` command. You will __find a jar__ that runs on every Flink cluster in __target/your-artifact-id-1.0-SNAPSHOT.jar__. There is also a fat-jar,  __target/your-artifact-id-1.0-SNAPSHOT-flink-fat-jar.jar__. This
+If you want to __build your project__, go to your project directory and issue the `mvn clean package -Pbuild-jar` command. You will __find a jar__ that runs on every Flink cluster in __target/your-artifact-id-1.0-SNAPSHOT.jar__. There is also a fat-jar,  __target/your-artifact-id-1.0-SNAPSHOT-flink-fat-jar.jar__. This
 also contains all dependencies that get added to the maven project.
 
 ## Next Steps
