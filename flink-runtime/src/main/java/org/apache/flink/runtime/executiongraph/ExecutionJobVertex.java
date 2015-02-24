@@ -132,7 +132,7 @@ public class ExecutionJobVertex implements Serializable {
 		// sanity check for the double referencing between intermediate result partitions and execution vertices
 		for (IntermediateResult ir : this.producedDataSets) {
 			if (ir.getNumberOfAssignedPartitions() != parallelism) {
-				throw new RuntimeException("The intermediate result's partitions were not correctly assiged.");
+				throw new RuntimeException("The intermediate result's partitions were not correctly assigned.");
 			}
 		}
 		
