@@ -422,6 +422,10 @@ public class ExecutionGraph implements Serializable {
 
 	private boolean transitionState(JobStatus current, JobStatus newState, Throwable error) {
 		if (STATE_UPDATER.compareAndSet(this, current, newState)) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("{} switched from {} to {}.", this.getJobName(), current, newState);
+			}
+
 			stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
 			notifyJobStatusChange(newState, error);
 			return true;
