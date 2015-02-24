@@ -47,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.google.common.base.Preconditions.checkElementIndex;
@@ -75,8 +74,6 @@ public class ExecutionVertex implements Serializable {
 	
 	private ExecutionEdge[][] inputEdges;
 
-	private ConcurrentLinkedQueue<PartialPartitionInfo> partialPartitionInfos;
-	
 	private final int subTaskIndex;
 	
 	private final List<Execution> priorExecutions;
@@ -113,8 +110,6 @@ public class ExecutionVertex implements Serializable {
 		}
 
 		this.inputEdges = new ExecutionEdge[jobVertex.getJobVertex().getInputs().size()][];
-
-		this.partialPartitionInfos = new ConcurrentLinkedQueue<PartialPartitionInfo>();
 
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 
@@ -204,10 +199,6 @@ public class ExecutionVertex implements Serializable {
 		return this.jobVertex.getGraph();
 	}
 
-	public ConcurrentLinkedQueue<PartialPartitionInfo> getPartialPartitionInfos() {
-		return partialPartitionInfos;
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	//  Graph building
 	// --------------------------------------------------------------------------------------------
@@ -451,12 +442,10 @@ public class ExecutionVertex implements Serializable {
 		this.resultPartitions = null;
 		this.inputEdges = null;
 		this.locationConstraintInstances = null;
-		this.partialPartitionInfos.clear();
-		this.partialPartitionInfos = null;
 	}
 
 	public void cachePartitionInfo(PartialPartitionInfo partitionInfo){
-		this.partialPartitionInfos.add(partitionInfo);
+		getCurrentExecutionAttempt().cachePartitionInfo(partitionInfo);
 	}
 
 	void sendPartitionInfos() {
