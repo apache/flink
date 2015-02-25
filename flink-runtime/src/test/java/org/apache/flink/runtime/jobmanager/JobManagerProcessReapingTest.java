@@ -96,7 +96,8 @@ public class JobManagerProcessReapingTest {
 			// grab the reference to the JobManager. try multiple times, until the process
 			// is started and the JobManager is up
 			ActorRef jobManagerRef = null;
-			for (int i = 0; i < 20; i++) {
+			Throwable lastError = null;
+			for (int i = 0; i < 40; i++) {
 				try {
 					jobManagerRef = JobManager.getJobManagerRemoteReference(
 							new InetSocketAddress("localhost", jobManagerPort),
@@ -105,12 +106,20 @@ public class JobManagerProcessReapingTest {
 				}
 				catch (Throwable t) {
 					// job manager probably not ready yet
+					lastError = t;
 				}
 				Thread.sleep(500);
 			}
 
 			assertTrue("JobManager process died", isProcessAlive(jmProcess));
-			assertTrue("JobManager process did not launch the JobManager properly", jobManagerRef != null);
+
+			if (jobManagerRef == null) {
+				if (lastError != null) {
+					lastError.printStackTrace();
+				}
+				fail("JobManager process did not launch the JobManager properly. Failed to look up JobManager actor at"
+						+ " localhost:" + jobManagerPort);
+			}
 
 			// kill the JobManager actor
 			jobManagerRef.tell(PoisonPill.getInstance(), ActorRef.noSender());

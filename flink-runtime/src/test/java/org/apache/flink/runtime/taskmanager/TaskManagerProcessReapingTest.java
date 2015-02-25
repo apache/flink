@@ -109,7 +109,8 @@ public class TaskManagerProcessReapingTest {
 					"127.0.0.1", taskManagerPort, TaskManager.TASK_MANAGER_NAME());
 
 			ActorRef taskManagerRef = null;
-			for (int i = 0; i < 20; i++) {
+			Throwable lastError = null;
+			for (int i = 0; i < 40; i++) {
 				try {
 					taskManagerRef = TaskManager.getTaskManagerRemoteReference(
 							taskManagerActorName, jmActorSystem, new FiniteDuration(5, TimeUnit.SECONDS));
@@ -117,12 +118,20 @@ public class TaskManagerProcessReapingTest {
 				}
 				catch (Throwable t) {
 					// TaskManager probably not ready yet
+					lastError = t;
 				}
 				Thread.sleep(500);
 			}
 
 			assertTrue("TaskManager process died", isProcessAlive(taskManagerProcess));
-			assertTrue("TaskManager process did not launch the TaskManager properly", taskManagerRef != null);
+
+			if (taskManagerRef == null) {
+				if (lastError != null) {
+					lastError.printStackTrace();
+				}
+				fail("TaskManager process did not launch the TaskManager properly. Failed to look up "
+						+ taskManagerActorName);
+			}
 
 			// kill the TaskManager actor
 			taskManagerRef.tell(PoisonPill.getInstance(), ActorRef.noSender());
