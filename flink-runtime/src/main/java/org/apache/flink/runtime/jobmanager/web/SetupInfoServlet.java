@@ -35,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import akka.actor.ActorRef;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.instance.Instance;
 
@@ -102,7 +103,7 @@ public class SetupInfoServlet extends HttpServlet {
 		for (String k : list) {
 			try {
 
-				obj.put(k, configuration.getString(k, ""));
+				obj.put(k, getValue(k));
 			} catch (JSONException e) {
 				LOG.warn("Json object creation failed", e);
 			}
@@ -212,4 +213,77 @@ public class SetupInfoServlet extends HttpServlet {
 		return o1.getInstanceConnectionInfo().compareTo(o2.getInstanceConnectionInfo());
 		}
 	};
+
+	private Object getValue(String key) {
+		if (key.equals(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+		}
+		if (key.equals(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		}
+		if (key.equals(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT);
+		}
+		if (key.equals(ConfigConstants.WEB_FRONTEND_PORT_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_WEBCLIENT_PORT);
+		}
+		if (key.equals(ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_JOBCLIENT_POLLING_INTERVAL);
+		}
+		if (key.equals(ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY)) {
+			return configuration.getLong(key, ConfigConstants.DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT);
+		}
+		if (key.equals(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT);
+		}
+		if (key.equals(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
+		}
+		if (key.equals(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS)) {
+			return configuration.getInteger(key, 1);
+		}
+		if (key.equals(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
+		}
+		if (key.equals(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS);
+		}
+		if (key.equals(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY)) {
+			return configuration.getInteger(key, -1);
+		}
+		if (key.equals(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY)) {
+			return configuration.getFloat(key, ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
+		}
+		if (key.equals(ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD)) {
+			return configuration.getBoolean(key, ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD);
+		}
+		if (key.equals(ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)) {
+			return configuration.getLong(key, ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS);
+		}
+		if (key.equals(ConfigConstants.DEFAULT_SPILLING_MAX_FAN_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
+		}
+		if (key.equals(ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD_KEY)) {
+			return configuration.getFloat(key, ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD);
+		}
+		if (key.equals(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY)) {
+			return configuration.getBoolean(key, ConfigConstants.DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY);
+		}
+		if (key.equals(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY)) {
+			return configuration.getBoolean(key, ConfigConstants.DEFAULT_FILESYSTEM_OVERWRITE);
+		}
+		if (key.equals(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
+		}
+		if (key.equals(ConfigConstants.DELIMITED_FORMAT_MAX_LINE_SAMPLES_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_LINE_SAMPLES);
+		}
+		if (key.equals(ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_DELIMITED_FORMAT_MIN_LINE_SAMPLES);
+		}
+		if (key.equals(ConfigConstants.DELIMITED_FORMAT_MAX_SAMPLE_LENGTH_KEY)) {
+			return configuration.getInteger(key, ConfigConstants.DEFAULT_DELIMITED_FORMAT_MAX_SAMPLE_LEN);
+		}
+		return configuration.getString(key, "");
+	}
 }
