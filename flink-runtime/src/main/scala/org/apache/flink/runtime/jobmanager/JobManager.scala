@@ -756,8 +756,8 @@ object JobManager {
   def parseArgs(args: Array[String]): (Configuration, ExecutionMode, String, Int) = {
     val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("JobManager") {
       head("Flink JobManager")
-      opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text ("Specify " +
-        "the configuration directory.")
+      opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text (
+        "The configuration directory.")
       opt[String]("executionMode") optional() action { (arg, c) =>
         if(arg.equals("local")){
           c.copy(executionMode = LOCAL)
@@ -765,7 +765,7 @@ object JobManager {
           c.copy(executionMode = CLUSTER)
         }
       } text {
-        "Specify the execution mode of the JobManager (CLUSTER / LOCAL)"
+        "The execution mode of the JobManager (CLUSTER / LOCAL)"
       }
     }
 
@@ -785,7 +785,7 @@ object JobManager {
 
         (configuration, config.executionMode, hostname, port)
     } getOrElse {
-      throw new Exception("Invalid command line arguments. Usage: " + parser.usage)
+      throw new Exception("Invalid command line arguments: " + parser.usage)
     }
   }
 

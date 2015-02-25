@@ -102,7 +102,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
   log.info("Starting task manager at {}.", self.path)
   log.info("Creating {} task slot(s).", numberOfSlots)
-  log.info("TaskManager connection information {}.", connectionInfo)
+  log.info("TaskManager connection information: {}", connectionInfo)
 
   val HEARTBEAT_INTERVAL = 5000 millisecond
 
@@ -843,10 +843,14 @@ object TaskManager {
     else {
       // try to find out the hostname of the interface from which the TaskManager
       // can connect to the JobManager. This involves a reverse name lookup
-      LOG.info("Trying to select the network interface and address/hostname to use")
+      LOG.info("Trying to select the network interface and address to use " +
+        "by connecting to the configured JobManager")
+
       val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort)
       taskManagerHostname = try {
-        NetUtils.resolveAddress(jobManagerAddress).getHostName()
+        // try to get the address for up to two minutes and start
+        // logging only after ten seconds
+        NetUtils.findConnectingAddress(jobManagerAddress, 120000, 10000).getHostName()
       }
       catch {
         case t: Throwable => throw new Exception("TaskManager cannot find a network interface " +
