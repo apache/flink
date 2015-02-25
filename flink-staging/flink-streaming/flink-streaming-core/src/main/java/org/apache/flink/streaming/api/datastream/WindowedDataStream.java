@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -212,7 +213,7 @@ public class WindowedDataStream<OUT> {
 	}
 
 	private WindowedDataStream<OUT> groupBy(Keys<OUT> keys) {
-		return groupBy(dataStream.clean(KeySelectorUtil.getSelectorForKeys(keys, getType(),
+		return groupBy(clean(KeySelectorUtil.getSelectorForKeys(keys, getType(),
 				getExecutionConfig())));
 	}
 
@@ -385,11 +386,11 @@ public class WindowedDataStream<OUT> {
 				&& eviction instanceof TumblingEvictionPolicy) {
 			if (groupByKey == null) {
 				return new TumblingPreReducer<OUT>(
-						dataStream.clean((ReduceFunction<OUT>) transformation.UDF), getType()
+						clean((ReduceFunction<OUT>) transformation.UDF), getType()
 								.createSerializer(getExecutionConfig()));
 			} else {
 				return new TumblingGroupedPreReducer<OUT>(
-						dataStream.clean((ReduceFunction<OUT>) transformation.UDF), groupByKey,
+						clean((ReduceFunction<OUT>) transformation.UDF), groupByKey,
 						getType().createSerializer(getExecutionConfig()));
 			}
 		}
@@ -643,6 +644,14 @@ public class WindowedDataStream<OUT> {
 			return userEvicter;
 		}
 
+	}
+
+	public <F> F clean(F f) {
+		if (getExecutionConfig().isClosureCleanerEnabled()) {
+			ClosureCleaner.clean(f, true);
+		}
+		ClosureCleaner.ensureSerializable(f);
+		return f;
 	}
 
 	protected boolean isGrouped() {
