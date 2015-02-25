@@ -321,6 +321,13 @@ public abstract class FileSystem {
 	public abstract Path getWorkingDirectory();
 
 	/**
+	 * Returns the path of the user's home directory in this file system.
+	 *
+	 * @return the path of the user's home directory in this file system.
+	 */
+	public abstract Path getHomeDirectory();
+
+	/**
 	 * Returns a URI whose scheme and authority identify this file system.
 	 * 
 	 * @return a URI whose scheme and authority identify this file system

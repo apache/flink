@@ -124,6 +124,10 @@ public final class MapRFileSystem extends FileSystem {
 		return new Path(this.fs.getWorkingDirectory().toUri());
 	}
 
+	public Path getHomeDirectory() {
+		return new Path(this.fs.getHomeDirectory().toUri());
+	}
+
 	@Override
 	public URI getUri() {
 
