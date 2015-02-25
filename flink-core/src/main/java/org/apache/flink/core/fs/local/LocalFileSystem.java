@@ -120,6 +120,10 @@ public class LocalFileSystem extends FileSystem {
 		return workingDir;
 	}
 
+	@Override
+	public Path getHomeDirectory() {
+		return new Path(System.getProperty("user.home"));
+	}
 
 	@Override
 	public void initialize(final URI name) throws IOException {	}
