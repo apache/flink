@@ -23,6 +23,11 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 
 import java.util.List;
+import org.apache.flink.api.common.accumulators.ListAccumulator;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Collector;
+
 
 public class Utils {
 
@@ -60,4 +65,51 @@ public class Utils {
 			}
 		}
 	}
+
+	public static class CountHelper<T> extends RichFlatMapFunction<T, Long> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final String id;
+		private long counter;
+
+		public CountHelper(String id) {
+			this.id = id;
+			this.counter = 0L;
+		}
+
+		@Override
+		public void flatMap(T value, Collector<Long> out) throws Exception {
+			counter++;
+		}
+
+		@Override
+		public void close() throws Exception {
+			getRuntimeContext().getLongCounter(id).add(counter);
+		}
+	}
+
+	public static class CollectHelper<T> extends RichFlatMapFunction<T, T> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final String id;
+		private final ListAccumulator<T> accumulator;
+
+		public CollectHelper(String id) {
+			this.id = id;
+			this.accumulator = new ListAccumulator<T>();
+		}
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			getRuntimeContext().addAccumulator(id, accumulator);
+		}
+
+		@Override
+		public void flatMap(T value, Collector<T> out) throws Exception {
+			accumulator.add(value);
+		}
+	}
+
 }

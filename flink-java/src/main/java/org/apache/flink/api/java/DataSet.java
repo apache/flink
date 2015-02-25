@@ -18,8 +18,11 @@
 
 package org.apache.flink.api.java;
 
+import java.util.List;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -36,11 +39,13 @@ import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.FormattingMapper;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
 import org.apache.flink.api.java.io.CsvOutputFormat;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
@@ -54,7 +59,6 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
 import org.apache.flink.api.java.operators.ProjectOperator;
-import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
@@ -78,6 +82,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.AbstractID;
 
 import com.google.common.base.Preconditions;
 
@@ -371,7 +376,45 @@ public abstract class DataSet<T> {
 	public AggregateOperator<T> min(int field) {
 		return aggregate(Aggregations.MIN, field);
 	}
-	
+
+	/**
+	 * Convenience method to get the count (number of elements) of a DataSet
+	 *
+	 * @return A long integer that represents the number of elements in the set
+	 *
+	 * @see org.apache.flink.api.java.Utils.CountHelper
+	 */
+	public long count() throws Exception {
+
+		final String id = new AbstractID().toString();
+
+		flatMap(new Utils.CountHelper<T>(id)).output(
+				new DiscardingOutputFormat<Long>());
+
+		JobExecutionResult res = getExecutionEnvironment().execute();
+		return res.<Long> getAccumulatorResult(id);
+	}
+
+
+	 /* Convenience method to get the elements of a DataSet as a List
+	 * As DataSet can contain a lot of data, this method should be used with caution.
+	 *
+	 * @return A List containing the elements of the DataSet
+	 *
+	 * @see org.apache.flink.api.java.Utils.CollectHelper
+	 */
+	public List<T> collect() throws Exception {
+
+		final String id = new AbstractID().toString();
+
+		this.flatMap(new Utils.CollectHelper<T>(id)).output(
+				new DiscardingOutputFormat<T>());
+
+		JobExecutionResult res = this.getExecutionEnvironment().execute();
+
+		return (List<T>) res.getAccumulatorResult(id);
+	}
+
 	/**
 	 * Applies a Reduce transformation on a non-grouped {@link DataSet}.<br/>
 	 * The transformation consecutively calls a {@link org.apache.flink.api.common.functions.RichReduceFunction}

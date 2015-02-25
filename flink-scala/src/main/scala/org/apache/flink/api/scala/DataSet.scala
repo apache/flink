@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala
 
+import java.lang
 import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.aggregators.Aggregator
@@ -24,21 +25,23 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
+import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
-import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
+import org.apache.flink.api.java.io.{DiscardingOutputFormat, PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
-import org.apache.flink.api.java.{DataSet => JavaDataSet, SortPartitionOperator}
+import org.apache.flink.api.java.{DataSet => JavaDataSet, SortPartitionOperator, Utils}
 import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.util.Collector
+import org.apache.flink.util.{AbstractID, Collector}
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
+
 
 /**
  * The DataSet, the basic abstraction of Flink. This represents a collection of elements of a
@@ -506,6 +509,37 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def min(field: String) = {
     aggregate(Aggregations.MIN, field)
+  }
+
+  /**
+   * Convenience method to get the count (number of elements) of a DataSet
+   *
+   * @return A long integer that represents the number of elements in the set
+   *
+   * @see org.apache.flink.api.java.Utils.CountHelper
+   */
+  @throws(classOf[Exception])
+  def count: Long = {
+    val id = new AbstractID().toString
+    javaSet.flatMap(new CountHelper[T](id)).output(new DiscardingOutputFormat[lang.Long])
+    val res = getExecutionEnvironment.execute()
+    res.getAccumulatorResult[Long](id)
+  }
+
+  /**
+   * Convenience method to get the elements of a DataSet as a List
+   * As DataSet can contain a lot of data, this method should be used with caution.
+   *
+   * @return A List containing the elements of the DataSet
+   *
+   * @see org.apache.flink.api.java.Utils.CollectHelper
+   */
+  @throws(classOf[Exception])
+  def collect: List[T] = {
+    val id = new AbstractID().toString
+    javaSet.flatMap(new Utils.CollectHelper[T](id)).output(new DiscardingOutputFormat[T])
+    val res = getExecutionEnvironment.execute()
+    res.getAccumulatorResult(id).asInstanceOf[List[T]]
   }
 
   /**
