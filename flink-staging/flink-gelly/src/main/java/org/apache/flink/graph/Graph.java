@@ -19,10 +19,11 @@
 package org.apache.flink.graph;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.List;
+import java.util.Arrays;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -633,7 +634,14 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			for (Edge<K, EV> edge : outEdges) {
 				count++;
 			}
-			out.collect(new Tuple2<K, Long>(vertex.iterator().next().f0, count));
+
+			Iterator<Vertex<K, VV>> vertexIterator = vertex.iterator();
+
+			if(vertexIterator.hasNext()) {
+				out.collect(new Tuple2<K, Long>(vertexIterator.next().f0, count));
+			} else {
+				throw new NoSuchElementException("The edge src/trg id could not be found within the vertexIds");
+			}
 		}
 	}
 
