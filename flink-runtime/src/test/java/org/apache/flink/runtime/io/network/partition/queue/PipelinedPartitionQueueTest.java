@@ -23,10 +23,10 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator.AlreadySubscribedException;
 import org.apache.flink.runtime.io.network.util.MockConsumer;
 import org.apache.flink.runtime.io.network.util.MockNotificationListener;
 import org.apache.flink.runtime.io.network.util.MockProducer;
-import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator.AlreadySubscribedException;
 import org.apache.flink.runtime.util.event.NotificationListener;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,7 +36,6 @@ import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -195,8 +194,8 @@ public class PipelinedPartitionQueueTest {
 
 			boolean success = false;
 			try {
-				success = producerSuccess.get(30, TimeUnit.SECONDS);
-				success &= consumerSuccess.get(30, TimeUnit.SECONDS);
+				success = producerSuccess.get();
+				success &= consumerSuccess.get();
 			}
 			catch (Throwable t) {
 				t.printStackTrace();
