@@ -58,25 +58,23 @@ public class TestGraphUtils {
 		List<Edge<Long, Long>> edges =  getLongLongEdges();
 
 		edges.remove(0);
-		edges.add(new Edge<Long, Long>(13L, 3L, 13L));
+		edges.add(new Edge<Long, Long>(3L, 13L, 13L));
 
 		return env.fromCollection(edges);
 	}
 
 	public static final DataSet<Edge<Long, Long>> getLongLongEdgeInvalidSrcTrgData(
 			ExecutionEnvironment env) {
-		List<Edge<Long, Long>> edges =  getLongLongEdges();
-
+		List<Edge<Long, Long>> edges = getLongLongEdges();
 		edges.remove(0);
 		edges.remove(1);
 		edges.remove(2);
 		edges.add(new Edge<Long, Long>(13L, 3L, 13L));
 		edges.add(new Edge<Long, Long>(1L, 12L, 12L));
 		edges.add(new Edge<Long, Long>(13L, 33L, 13L));
-
 		return env.fromCollection(edges);
 	}
-	
+
 	public static final DataSet<Edge<String, Long>> getStringLongEdgeData(
 			ExecutionEnvironment env) {
 		List<Edge<String, Long>> edges = new ArrayList<Edge<String, Long>>();
@@ -87,7 +85,6 @@ public class TestGraphUtils {
 		edges.add(new Edge<String, Long>("3", "5", 35L));
 		edges.add(new Edge<String, Long>("4", "5", 45L));
 		edges.add(new Edge<String, Long>("5", "1", 51L));
-		
 		return env.fromCollection(edges);
 	}
 
