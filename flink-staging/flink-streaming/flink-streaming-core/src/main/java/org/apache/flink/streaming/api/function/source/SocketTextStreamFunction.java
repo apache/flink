@@ -37,19 +37,18 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	private String hostname;
 	private int port;
 	private char delimiter;
-	private int maxRetry;
+	private long maxRetry;
+	private boolean retryForever;
 	private Socket socket;
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
+	private static final int CONNECTION_RETRY_SLEEP = 1000;
 
-	public SocketTextStreamFunction(String hostname, int port, char delimiter) {
-		this(hostname, port, delimiter, 0);
-	}
-
-	public SocketTextStreamFunction(String hostname, int port, char delimiter, int maxRetry) {
+	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxRetry) {
 		this.hostname = hostname;
 		this.port = port;
 		this.delimiter = delimiter;
 		this.maxRetry = maxRetry;
+		this.retryForever = maxRetry < 0;
 	}
 
 	@Override
@@ -73,17 +72,19 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 			int data = reader.read();
 			if (data == -1) {
 				socket.close();
-				int retry = 0;
+				long retry = 0;
 				boolean success = false;
 				while (retry < maxRetry && !success) {
-					retry++;
-					LOG.warn("Lost connection to server socket. Retrying in 5 seconds...");
+					if (!retryForever) {
+						retry++;
+					}
+					LOG.warn("Lost connection to server socket. Retrying in " + (CONNECTION_RETRY_SLEEP / 1000) + " seconds...");
 					try {
 						socket = new Socket();
 						socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
 						success = true;
 					} catch (ConnectException ce) {
-						Thread.sleep(5000);
+						Thread.sleep(CONNECTION_RETRY_SLEEP);
 					}
 				}
 

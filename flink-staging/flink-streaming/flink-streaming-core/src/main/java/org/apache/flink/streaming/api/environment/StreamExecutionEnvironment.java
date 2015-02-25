@@ -374,7 +374,12 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Creates a new DataStream that contains the strings received infinitely
 	 * from socket. Received strings are decoded by the system's default
-	 * character set.
+	 * character set. On the termination of the socket server connection retries
+	 * can be initiated.
+	 *
+	 *  <p>Let us note that the socket itself does not report on abort and
+	 * as a consequence retries are only initiated when the socket was gracefully
+	 * terminated.</p>
 	 *
 	 * @param hostname
 	 *            The host name which a server socket bind.
@@ -384,12 +389,14 @@ public abstract class StreamExecutionEnvironment {
 	 * @param delimiter
 	 *            A character which split received strings into records.
 	 * @param maxRetry
-	 *            The maximal retry number when the socket is down. Reconnection is
-	 *            tried in every 5 seconds. A number of 0 means that the reader
-	 *            is immediately terminated.
+	 *            The maximal retry interval in seconds while the program waits for
+	 *            a socket that is temporarily down. Reconnection is initiated every
+	 *            second. A number of 0 means that the reader is immediately
+	 *            terminated, while a negative value ensures retrying forever.
 	 * @return A DataStream, containing the strings received from socket.
+	 *
 	 */
-	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, int maxRetry) {
+	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, long maxRetry) {
 		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry), null,
 			"Socket Stream");
 	}
