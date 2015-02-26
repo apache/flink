@@ -66,11 +66,11 @@ public class StreamGraph extends StreamingPlan {
 	// Graph attributes
 	private Map<Integer, Integer> operatorParallelisms;
 	private Map<Integer, Long> bufferTimeouts;
-	private Map<Integer, List<Integer>> outEdgeLists;
-	private Map<Integer, List<Integer>> outEdgeTypes;
-	private Map<Integer, List<List<String>>> selectedNames;
-	private Map<Integer, List<Integer>> inEdgeLists;
-	private Map<Integer, List<StreamPartitioner<?>>> outputPartitioners;
+
+	private StreamEdgeList edges;
+
+	private Map<Integer, List<OutputSelector<?>>> outputSelectors;
+
 	private Map<Integer, String> operatorNames;
 	private Map<Integer, StreamInvokable<?, ?>> invokableObjects;
 	private Map<Integer, StreamRecordSerializer<?>> typeSerializersIn1;
@@ -78,7 +78,6 @@ public class StreamGraph extends StreamingPlan {
 	private Map<Integer, StreamRecordSerializer<?>> typeSerializersOut1;
 	private Map<Integer, StreamRecordSerializer<?>> typeSerializersOut2;
 	private Map<Integer, Class<? extends AbstractInvokable>> jobVertexClasses;
-	private Map<Integer, List<OutputSelector<?>>> outputSelectors;
 	private Map<Integer, Integer> iterationIds;
 	private Map<Integer, Integer> iterationIDtoHeadID;
 	private Map<Integer, Integer> iterationIDtoTailID;
@@ -112,17 +111,9 @@ public class StreamGraph extends StreamingPlan {
 		operatorParallelisms = new HashMap<Integer, Integer>();
 		containingMaps.add(operatorParallelisms);
 		bufferTimeouts = new HashMap<Integer, Long>();
-		containingMaps.add(bufferTimeouts);
-		outEdgeLists = new HashMap<Integer, List<Integer>>();
-		containingMaps.add(outEdgeLists);
-		outEdgeTypes = new HashMap<Integer, List<Integer>>();
-		containingMaps.add(outEdgeTypes);
-		selectedNames = new HashMap<Integer, List<List<String>>>();
-		containingMaps.add(selectedNames);
-		inEdgeLists = new HashMap<Integer, List<Integer>>();
-		containingMaps.add(inEdgeLists);
-		outputPartitioners = new HashMap<Integer, List<StreamPartitioner<?>>>();
-		containingMaps.add(outputPartitioners);
+
+		edges = new StreamEdgeList();
+
 		operatorNames = new HashMap<Integer, String>();
 		containingMaps.add(operatorNames);
 		invokableObjects = new HashMap<Integer, StreamInvokable<?, ?>>();
@@ -221,9 +212,10 @@ public class StreamGraph extends StreamingPlan {
 
 		setSerializersFrom(iterationHead, vertexID);
 
-		setEdge(vertexID, iterationHead,
-				outputPartitioners.get(inEdgeLists.get(iterationHead).get(0)).get(0), 0,
-				new ArrayList<String>());
+		int outpartitionerIndexToCopy = edges.getInEdgeIndices(iterationHead).get(0);
+		StreamPartitioner<?> outputPartitioner = edges.getOutEdges(outpartitionerIndexToCopy).get(0).getPartitioner();
+
+		setEdge(vertexID, iterationHead, outputPartitioner, 0, new ArrayList<String>());
 
 		iterationTimeouts.put(iterationIDtoHeadID.get(iterationID), waitTime);
 
@@ -290,7 +282,7 @@ public class StreamGraph extends StreamingPlan {
 
 	/**
 	 * Sets vertex parameters in the JobGraph
-	 * 
+	 *
 	 * @param vertexID
 	 *            Name of the vertex
 	 * @param vertexClass
@@ -307,12 +299,10 @@ public class StreamGraph extends StreamingPlan {
 		setParallelism(vertexID, parallelism);
 		invokableObjects.put(vertexID, invokableObject);
 		operatorNames.put(vertexID, operatorName);
-		outEdgeLists.put(vertexID, new ArrayList<Integer>());
-		outEdgeTypes.put(vertexID, new ArrayList<Integer>());
-		selectedNames.put(vertexID, new ArrayList<List<String>>());
+
+		edges.addVertex(vertexID);
 		outputSelectors.put(vertexID, new ArrayList<OutputSelector<?>>());
-		inEdgeLists.put(vertexID, new ArrayList<Integer>());
-		outputPartitioners.put(vertexID, new ArrayList<StreamPartitioner<?>>());
+
 		iterationTailCount.put(vertexID, 0);
 	}
 
@@ -333,40 +323,21 @@ public class StreamGraph extends StreamingPlan {
 	 */
 	public void setEdge(Integer upStreamVertexID, Integer downStreamVertexID,
 			StreamPartitioner<?> partitionerObject, int typeNumber, List<String> outputNames) {
-		outEdgeLists.get(upStreamVertexID).add(downStreamVertexID);
-		outEdgeTypes.get(upStreamVertexID).add(typeNumber);
-		inEdgeLists.get(downStreamVertexID).add(upStreamVertexID);
-		outputPartitioners.get(upStreamVertexID).add(partitionerObject);
-		selectedNames.get(upStreamVertexID).add(outputNames);
+
+		StreamEdge edge = new StreamEdge(upStreamVertexID, downStreamVertexID, typeNumber, outputNames, partitionerObject);
+		edges.addEdge(edge);
 	}
 
 	public void removeEdge(Integer upStream, Integer downStream) {
-		int inputIndex = getInEdges(downStream).indexOf(upStream);
-		inEdgeLists.get(downStream).remove(inputIndex);
-
-		int outputIndex = getOutEdges(upStream).indexOf(downStream);
-		outEdgeLists.get(upStream).remove(outputIndex);
-		outEdgeTypes.get(upStream).remove(outputIndex);
-		selectedNames.get(upStream).remove(outputIndex);
-		outputPartitioners.get(upStream).remove(outputIndex);
+		edges.removeEdge(upStream, downStream);
 	}
 
 	public void removeVertex(Integer toRemove) {
-		List<Integer> outEdges = new ArrayList<Integer>(getOutEdges(toRemove));
-		List<Integer> inEdges = new ArrayList<Integer>(getInEdges(toRemove));
-
-		for (Integer output : outEdges) {
-			removeEdge(toRemove, output);
-		}
-
-		for (Integer input : inEdges) {
-			removeEdge(input, toRemove);
-		}
+		edges.removeVertex(toRemove);
 
 		for (Map<Integer, ?> map : containingMaps) {
 			map.remove(toRemove);
 		}
-
 	}
 
 	private void addTypeSerializers(Integer vertexID, StreamRecordSerializer<?> in1,
@@ -418,11 +389,11 @@ public class StreamGraph extends StreamingPlan {
 	/**
 	 * Sets a user defined {@link OutputSelector} for the given operator. Used
 	 * for directed emits.
-	 * 
+	 *
 	 * @param vertexID
-	 *            Name of the vertex for which the output selector will be set
+	 * 		Name of the vertex for which the output selector will be set
 	 * @param outputSelector
-	 *            The user defined output selector.
+	 * 		The user defined output selector.
 	 */
 	public <T> void setOutputSelector(Integer vertexID, OutputSelector<T> outputSelector) {
 		outputSelectors.get(vertexID).add(outputSelector);
@@ -470,11 +441,11 @@ public class StreamGraph extends StreamingPlan {
 	/**
 	 * Sets TypeSerializerWrapper from one vertex to another, used with some
 	 * sinks.
-	 * 
+	 *
 	 * @param from
-	 *            from
+	 * 		from
 	 * @param to
-	 *            to
+	 * 		to
 	 */
 	public void setSerializersFrom(Integer from, Integer to) {
 		operatorNames.put(to, operatorNames.get(from));
@@ -495,9 +466,9 @@ public class StreamGraph extends StreamingPlan {
 	/**
 	 * Gets the assembled {@link JobGraph} and adds a user specified name for
 	 * it.
-	 * 
+	 *
 	 * @param jobGraphName
-	 *            name of the jobGraph
+	 * 		name of the jobGraph
 	 */
 	public JobGraph getJobGraph(String jobGraphName) {
 
@@ -526,28 +497,24 @@ public class StreamGraph extends StreamingPlan {
 		return sources;
 	}
 
-	public List<Integer> getOutEdges(Integer vertexID) {
-		return outEdgeLists.get(vertexID);
+	public StreamEdge getEdge(Integer sourceId, Integer targetId) {
+		return edges.getEdge(sourceId, targetId);
 	}
 
-	public List<Integer> getInEdges(Integer vertexID) {
-		return inEdgeLists.get(vertexID);
+	public List<StreamEdge> getOutEdges(Integer vertexID) {
+		return edges.getOutEdges(vertexID);
 	}
 
-	public List<Integer> getOutEdgeTypes(Integer vertexID) {
-
-		return outEdgeTypes.get(vertexID);
+	public List<StreamEdge> getInEdges(Integer vertexID) {
+		return edges.getInEdges(vertexID);
 	}
 
-	public StreamPartitioner<?> getOutPartitioner(Integer upStreamVertex, Integer downStreamVertex) {
-		return outputPartitioners.get(upStreamVertex).get(
-				outEdgeLists.get(upStreamVertex).indexOf(downStreamVertex));
+	public List<Integer> getOutEdgeIndices(Integer vertexID) {
+		return edges.getOutEdgeIndices(vertexID);
 	}
 
-	public List<String> getSelectedNames(Integer upStreamVertex, Integer downStreamVertex) {
-
-		return selectedNames.get(upStreamVertex).get(
-				outEdgeLists.get(upStreamVertex).indexOf(downStreamVertex));
+	public List<Integer> getInEdgeIndices(Integer vertexID) {
+		return edges.getInEdgeIndices(vertexID);
 	}
 
 	public Collection<Integer> getIterationIDs() {
@@ -668,7 +635,9 @@ public class StreamGraph extends StreamingPlan {
 					JSONArray inputs = new JSONArray();
 					node.put(PREDECESSORS, inputs);
 
-					for (int inputID : getInEdges(vertexID)) {
+					for (StreamEdge inEdge : getInEdges(vertexID)) {
+						int inputID = inEdge.getSourceVertex();
+
 						Integer mappedID = (edgeRemapings.keySet().contains(inputID)) ?
 								edgeRemapings.get(inputID) : inputID;
 						decorateEdge(inputs, vertexID, mappedID, inputID);
@@ -678,7 +647,9 @@ public class StreamGraph extends StreamingPlan {
 				toVisit.remove(vertexID);
 			} else {
 				Integer iterationHead = -1;
-				for (int operator : getInEdges(vertexID)) {
+				for (StreamEdge inEdge : getInEdges(vertexID)) {
+					int operator = inEdge.getSourceVertex();
+
 					if (iterationIds.keySet().contains(operator)) {
 						iterationHead = operator;
 					}
@@ -718,7 +689,9 @@ public class StreamGraph extends StreamingPlan {
 				JSONArray inEdges = new JSONArray();
 				obj.put(PREDECESSORS, inEdges);
 
-				for (int inputID : getInEdges(vertexID)) {
+				for (StreamEdge inEdge : getInEdges(vertexID)) {
+					int inputID = inEdge.getSourceVertex();
+
 					if (edgeRemapings.keySet().contains(inputID)) {
 						decorateEdge(inEdges, vertexID, inputID, inputID);
 					} else if (!iterationIds.containsKey(inputID)) {
@@ -737,7 +710,7 @@ public class StreamGraph extends StreamingPlan {
 			JSONObject input = new JSONObject();
 			inputArray.put(input);
 			input.put(ID, mappedInputID);
-			input.put(SHIP_STRATEGY, getOutPartitioner(inputID, vertexID).getStrategy());
+			input.put(SHIP_STRATEGY, edges.getEdge(inputID, vertexID).getPartitioner().getStrategy());
 			input.put(SIDE, (inputArray.length() == 0) ? "first" : "second");
 		}
 
