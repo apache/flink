@@ -55,7 +55,7 @@ public class StreamEdge {
 		return selectedNames;
 	}
 
-	public StreamPartitioner<?> getOutputPartitioner() {
+	public StreamPartitioner<?> getPartitioner() {
 		return outputPartitioner;
 	}
 

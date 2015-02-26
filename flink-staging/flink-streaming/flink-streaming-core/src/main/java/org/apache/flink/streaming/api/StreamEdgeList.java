@@ -90,23 +90,59 @@ public class StreamEdgeList {
 		}
 	}
 
-	public List<StreamEdge> getOutEdges(int i) {
-		List<StreamEdge> outEdges = outEdgeLists.get(i);
+	public StreamEdge getEdge(int sourceId, int targetId) {
+		Iterator<StreamEdge> outIterator = outEdgeLists.get(sourceId).iterator();
+		while (outIterator.hasNext()) {
+			StreamEdge edge = outIterator.next();
+
+			if (edge.getTargetVertex() == targetId) {
+				return edge;
+			}
+		}
+
+		throw new RuntimeException("No such edge in stream graph: " + sourceId + " -> " + targetId);
+	}
+
+	public List<StreamEdge> getOutEdges(int vertexId) {
+		List<StreamEdge> outEdges = outEdgeLists.get(vertexId);
 
 		if (outEdges == null) {
-			throw new RuntimeException("No such vertex in stream graph: " + i);
+			throw new RuntimeException("No such vertex in stream graph: " + vertexId);
 		}
 
 		return outEdges;
 	}
 
-	public List<StreamEdge> getInEdges(int i) {
-		List<StreamEdge> inEdges = inEdgeLists.get(i);
+	public List<StreamEdge> getInEdges(int vertexId) {
+		List<StreamEdge> inEdges = inEdgeLists.get(vertexId);
 
 		if (inEdges == null) {
-			throw new RuntimeException("No such vertex in stream graph: " + i);
+			throw new RuntimeException("No such vertex in stream graph: " + vertexId);
 		}
 
 		return inEdges;
+	}
+
+	public List<Integer> getOutEdgeIndices(int vertexId) {
+		List<StreamEdge> outEdges = getOutEdges(vertexId);
+		List<Integer> outEdgeIndices = new ArrayList<Integer>();
+
+		for (StreamEdge edge : outEdges) {
+			outEdgeIndices.add(edge.getTargetVertex());
+		}
+
+		return outEdgeIndices;
+	}
+
+	public List<Integer> getInEdgeIndices(int vertexId) {
+		List<StreamEdge> inEdges = getInEdges(vertexId);
+
+		List<Integer> inEdgeIndices = new ArrayList<Integer>();
+
+		for (StreamEdge edge : inEdges) {
+			inEdgeIndices.add(edge.getSourceVertex());
+		}
+
+		return inEdgeIndices;
 	}
 }
