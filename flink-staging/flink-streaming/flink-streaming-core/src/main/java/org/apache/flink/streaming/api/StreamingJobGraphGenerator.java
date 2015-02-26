@@ -104,11 +104,12 @@ public class StreamingJobGraphGenerator {
 			List<Integer> chainableOutputs = new ArrayList<Integer>();
 			List<Integer> nonChainableOutputs = new ArrayList<Integer>();
 
-			for (Integer outName : streamGraph.getOutEdges(current)) {
-				if (isChainable(current, outName)) {
-					chainableOutputs.add(outName);
+			for (StreamEdge outEdge : streamGraph.getOutEdges(current)) {
+				Integer outID = outEdge.getTargetVertex();
+				if (isChainable(current, outID)) {
+					chainableOutputs.add(outID);
 				} else {
-					nonChainableOutputs.add(outName);
+					nonChainableOutputs.add(outID);
 				}
 			}
 
@@ -230,7 +231,7 @@ public class StreamingJobGraphGenerator {
 		allOutputs.addAll(nonChainableOutputs);
 
 		for (Integer output : allOutputs) {
-			config.setSelectedNames(output, streamGraph.getSelectedNames(vertexID, output));
+			config.setSelectedNames(output, streamGraph.getEdge(vertexID, output).getSelectedNames());
 		}
 
 		vertexConfigs.put(vertexID, config);
@@ -251,14 +252,13 @@ public class StreamingJobGraphGenerator {
 				headVertex.getConfiguration()) : chainedConfigs.get(headOfChain).get(
 				upStreamvertexID);
 
-		List<Integer> outEdgeIndexList = streamGraph.getOutEdgeTypes(upStreamvertexID);
+//		List<Integer> outEdgeIndexList = streamGraph.getOutEdgeTypes(upStreamvertexID);
 		int numOfInputs = downStreamConfig.getNumberOfInputs();
 
-		downStreamConfig.setInputIndex(numOfInputs++, outEdgeIndexList.get(outputIndex));
+		downStreamConfig.setInputIndex(numOfInputs++, streamGraph.getEdge(upStreamvertexID, downStreamvertexID).getTypeNumber());
 		downStreamConfig.setNumberOfInputs(numOfInputs);
 
-		StreamPartitioner<?> partitioner = streamGraph.getOutPartitioner(upStreamvertexID,
-				downStreamvertexID);
+		StreamPartitioner<?> partitioner = streamGraph.getEdge(upStreamvertexID, downStreamvertexID).getPartitioner();
 
 		upStreamConfig.setPartitioner(downStreamvertexID, partitioner);
 
@@ -284,7 +284,7 @@ public class StreamingJobGraphGenerator {
 				&& outInvokable.getChainingStrategy() == ChainingStrategy.ALWAYS
 				&& (headInvokable.getChainingStrategy() == ChainingStrategy.HEAD || headInvokable
 						.getChainingStrategy() == ChainingStrategy.ALWAYS)
-				&& streamGraph.getOutPartitioner(vertexID, outName).getStrategy() == PartitioningStrategy.FORWARD
+				&& streamGraph.getEdge(vertexID, outName).getPartitioner().getStrategy() == PartitioningStrategy.FORWARD
 				&& streamGraph.getParallelism(vertexID) == streamGraph.getParallelism(outName)
 				&& streamGraph.chaining;
 	}
