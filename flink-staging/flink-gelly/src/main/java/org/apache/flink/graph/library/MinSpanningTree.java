@@ -38,6 +38,37 @@ import org.apache.flink.util.Collector;
 
 import java.util.Iterator;
 
+/**
+ * Given an undirected, weighed graph, the minumum spanning tree is a subgraph
+ * that connects all the vertices together forming paths of minimum weight.
+ *
+ * <p>
+ *     The basic algorithm works as follows:
+ *     <ul>
+ *         <li> select the minimum weight edge for each vertex
+ *         <li> add the selected edges to the minimum spanning tree
+ *         <li> collapse the vertices with the same root into a single vertex
+ *         <li> reiterate until there is only one vertex left
+ *     </ul>
+ * </p>
+ *
+ * <p>
+ *    Input files are plain text files and must be formatted as follows:
+ *    <ul>
+ *        <li> Vertices are represented by their vertexIds and are separated by newlines
+ *        For example: <code>1\n2\n3\n</code> defines a data set of three vertices
+ *        <li> Edges are represented by triples of srcVertexId, srcEdgeId, weight which are
+ *        separated by commas. Edges themselves are separated by newlines.
+ *        For example: <code>1,2,13.0\n1,3,6.0\n</code> defines two edges 1-2 and 1-3 having
+ *        weights 13 and 6 respectively.
+ *    </ul>
+ * </p>
+ *
+ * Usage <code>MinSpanningTree &lt;vertex path&gt; &lt;edge path&gt; &lt;result path&gt;
+ * &lt;number of iterations&gt;</code><br>
+ *     If no parameters are provided, the program is ran with default data from
+ *     {@link org.apache.flink.graph.example.utils.MinSpanningTreeData}
+ */
 @SuppressWarnings("serial")
 public class MinSpanningTree implements GraphAlgorithm<Long, String, Double> {
 

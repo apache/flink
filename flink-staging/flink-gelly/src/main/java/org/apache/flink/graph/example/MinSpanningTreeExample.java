@@ -30,6 +30,14 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple3;
 
+/**
+ * This example shows how to use the {@link org.apache.flink.graph.library.MinSpanningTree}
+ * library method:
+ * <ul>
+ *     <li> with the vertex and the edge data sets given as parameters
+ *     <li> with default data
+ * </ul>
+ */
 public class MinSpanningTreeExample implements ProgramDescription {
 
 	public static void main(String[] args) throws Exception {

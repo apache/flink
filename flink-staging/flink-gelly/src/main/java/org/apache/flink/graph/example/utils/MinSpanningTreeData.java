@@ -26,6 +26,10 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Provides the default data sets used for the Minimum Spanning Tree example program.
+ * If no parameters are given to the program, the default data sets are used.
+ */
 public class MinSpanningTreeData {
 
 	public static final int NUM_VERTICES = 12;
