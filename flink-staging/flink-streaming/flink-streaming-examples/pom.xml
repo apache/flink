@@ -64,7 +64,7 @@ under the License.
 			<artifactId>flink-streaming-core</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
-			<classifier>tests</classifier>
+			<type>test-jar</type>
 		</dependency>
 
 		<dependency>
