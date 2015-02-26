@@ -211,7 +211,7 @@ graph.subgraph(
     <img alt="Filter Transformations" width="80%" src="img/gelly-filter.png"/>
 </p>
 
-* <strong>Join</strong>: Gelly provides specialized methods for joining the vertex and edge datasets with other input datasets. `joinWithVertices` joins the vertices with a `Tuple2` input data set. The join is performed using the vertex ID and the first field of the `Tuple2` input as the join keys. The method returns a new `Graph` where the vertex values have been updated according to the provided a user-defined map function.
+* <strong>Join</strong>: Gelly provides specialized methods for joining the vertex and edge datasets with other input datasets. `joinWithVertices` joins the vertices with a `Tuple2` input data set. The join is performed using the vertex ID and the first field of the `Tuple2` input as the join keys. The method returns a new `Graph` where the vertex values have been updated according to a provided user-defined map function.
 Similarly, an input dataset can be joined with the edges, using one of three methods. `joinWithEdges` expects an input `DataSet` of `Tuple3` and joins on the composite key of both source and target vertex IDs. `joinWithEdgesOnSource` expects a `DataSet` of `Tuple2` and joins on the source key of the edges and the first attribute of the input dataset and `joinWithEdgesOnTarget` expects a `DataSet` of `Tuple2` and joins on the target key of the edges and the first attribute of the input dataset. All three methods apply a map function on the edge and the input data set values.
 Note that if the input dataset contains a key multiple times, all Gelly join methods will only consider the first value encountered.
 
@@ -312,15 +312,15 @@ DataSet<Tuple2<Long, Long>> verticesWithSum = graph.reduceOnNeighbors(
 				new SumValues(), EdgeDirection.IN);
 
 // user-defined function to sum the neighbor values
-static final class SumValues implements NeighborsFunction<Long, Long, Long, Tuple2<Long, Long>> {
+static final class SumValues implements NeighborsFunction<Long, Long, Double, Tuple2<Long, Long>> {
 		
-	public Tuple2<Long, Long> iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Long>, 
+	public Tuple2<Long, Long> iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Double>, 
 		Vertex<Long, Long>>> neighbors) {
 		
 		long sum = 0;
 		long vertexId = -1;
 
-		for (Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
+		for (Tuple3<Long, Edge<Long, Double>, Vertex<Long, Long>> neighbor : neighbors) {
 			vertexId = neighbor.f0;
 			sum += neighbor.f2.getValue();
 		}
@@ -333,7 +333,7 @@ static final class SumValues implements NeighborsFunction<Long, Long, Long, Tupl
     <img alt="reduseOnNeighbors Example" width="70%" src="img/gelly-reduceOnNeighbors.png"/>
 </p>
 
-When the aggregation computation does not require access to the vertex value, it is advised to use the more efficient `EdgesFunction` and `NeighborsFunction` for the user-defined functions. When access to the vertex value is required, one should use `EdgesFunctionWithVertexValue` and `NeighborsFunctionWithVertexValue` instead. 
+When the aggregation computation does not require access to the vertex value (for which the aggregation is performed), it is advised to use the more efficient `EdgesFunction` and `NeighborsFunction` for the user-defined functions. When access to the vertex value is required, one should use `EdgesFunctionWithVertexValue` and `NeighborsFunctionWithVertexValue` instead. 
 
 [Back to top](#top)
 
@@ -374,7 +374,7 @@ public static final class MinDistanceMessenger {...}
 Graph Validation
 -----------
 
-Gelly provides a simple utility for performing validation checks on input graphs. Depending on the application context, a graph may or may not be valid according to cerating criteria. For example, a user might need to validate whether their graph contains duplicate edges or whether its structure is bipartite. In order to validate a graph, one can define a custom `GraphValidator` and implement its `validate()` method. `InvalidVertexIdsValidator` is Gelly's pre-defined validator. It checks that the edge set contains valid vertex IDs, i.e. that all edge IDs
+Gelly provides a simple utility for performing validation checks on input graphs. Depending on the application context, a graph may or may not be valid according to certain criteria. For example, a user might need to validate whether their graph contains duplicate edges or whether its structure is bipartite. In order to validate a graph, one can define a custom `GraphValidator` and implement its `validate()` method. `InvalidVertexIdsValidator` is Gelly's pre-defined validator. It checks that the edge set contains valid vertex IDs, i.e. that all edge IDs
 also exist in the vertex IDs set.
 
 {% highlight java %}
@@ -410,7 +410,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 Graph<Long, Long, NullValue> graph = ...
 
-// run Label Propagation for 30 iterations to detect communitites on the input graph
+// run Label Propagation for 30 iterations to detect communities on the input graph
 DataSet<Vertex<Long, Long>> verticesWithCommunity = graph.run(
 				new LabelPropagation<Long>(30)).getVertices();
 
