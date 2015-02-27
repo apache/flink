@@ -17,11 +17,12 @@
 
 package org.apache.flink.streaming.api;
 
+import java.io.Serializable;
 import java.util.List;
 
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 
-public class StreamEdge {
+public class StreamEdge implements Serializable {
 
 	final private int sourceVertex;
 	final private int targetVertex;
