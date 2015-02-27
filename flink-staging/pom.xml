@@ -43,6 +43,7 @@ under the License.
 		<module>flink-gelly</module>
 		<module>flink-hcatalog</module>
 		<module>flink-expressions</module>
+		<module>flink-ml</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->
