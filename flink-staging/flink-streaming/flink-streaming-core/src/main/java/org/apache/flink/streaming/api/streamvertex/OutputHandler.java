@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
+import org.apache.flink.streaming.api.StreamEdge;
 import org.apache.flink.streaming.api.collector.CollectorWrapper;
 import org.apache.flink.streaming.api.collector.DirectedCollectorWrapper;
 import org.apache.flink.streaming.api.collector.StreamOutput;
@@ -117,7 +118,8 @@ public class OutputHandler<OUT> {
 				chainedTaskConfig.getOutputSelectors(cl)) : new CollectorWrapper<OUT>();
 
 		// Create collectors for the network outputs
-		for (Integer output : chainedTaskConfig.getOutputs(cl)) {
+		for (StreamEdge outputEdge : chainedTaskConfig.getNonChainedOutputs(cl)) {
+			Integer output = outputEdge.getTargetVertex();
 
 			Collector<?> outCollector = outputMap.get(output);
 
@@ -130,7 +132,9 @@ public class OutputHandler<OUT> {
 		}
 
 		// Create collectors for the chained outputs
-		for (Integer output : chainedTaskConfig.getChainedOutputs(cl)) {
+		for (StreamEdge outputEdge : chainedTaskConfig.getChainedOutputs(cl)) {
+			Integer output = outputEdge.getTargetVertex();
+
 			Collector<?> outCollector = createChainedCollector(chainedConfigs.get(output));
 			if (isDirectEmit) {
 				((DirectedCollectorWrapper<OUT>) wrapper).addCollector(outCollector,
