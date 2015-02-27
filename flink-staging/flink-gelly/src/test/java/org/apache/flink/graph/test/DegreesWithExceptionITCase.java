@@ -20,6 +20,7 @@ package org.apache.flink.graph.test;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Graph;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.NoSuchElementException;
@@ -40,8 +41,8 @@ public class DegreesWithExceptionITCase {
 			graph.outDegrees().print();
 			env.execute();
 		} catch (Exception e) {
-			assert e.getCause().getMessage().equals("The edge src/trg id could not be found within the vertexIds");
-			assert e.getCause() instanceof NoSuchElementException;
+			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
+			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
 		}
 	}
 
@@ -59,8 +60,8 @@ public class DegreesWithExceptionITCase {
 			graph.inDegrees().print();
 			env.execute();
 		} catch (Exception e) {
-			assert e.getCause().getMessage().equals("The edge src/trg id could not be found within the vertexIds");
-			assert e.getCause() instanceof NoSuchElementException;
+			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
+			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
 		}
 	}
 
@@ -78,8 +79,8 @@ public class DegreesWithExceptionITCase {
 			graph.getDegrees().print();
 			env.execute();
 		} catch (Exception e) {
-			assert e.getCause().getMessage().equals("The edge src/trg id could not be found within the vertexIds");
-			assert e.getCause() instanceof NoSuchElementException;
+			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
+			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
 		}
 	}
 
@@ -97,8 +98,8 @@ public class DegreesWithExceptionITCase {
 			graph.getDegrees().print();
 			env.execute();
 		} catch (Exception e) {
-			assert e.getCause().getMessage().equals("The edge src/trg id could not be found within the vertexIds");
-			assert e.getCause() instanceof NoSuchElementException;
+			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
+			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
 		}
 	}
 
@@ -116,8 +117,8 @@ public class DegreesWithExceptionITCase {
 			graph.getDegrees().print();
 			env.execute();
 		} catch (Exception e) {
-			assert e.getCause().getMessage().equals("The edge src/trg id could not be found within the vertexIds");
-			assert e.getCause() instanceof NoSuchElementException;
+			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
+			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
 		}
 	}
 }
