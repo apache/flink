@@ -74,7 +74,6 @@ under the License.
 		<shading-artifact.name>error</shading-artifact.name>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
 		<hadoop-two.version>2.2.0</hadoop-two.version>
-		<scala.version>2.10.4</scala.version>
 		<!-- Need to use a user property here because the surefire/failsafe
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
@@ -83,9 +82,7 @@ under the License.
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>18.0</guava.version>
-		<scala.version>2.10.4</scala.version>
 		<akka.version>2.3.7</akka.version>
-		<scala.binary.version>2.10</scala.binary.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 		<kryoserialization.version>0.3.2</kryoserialization.version>
 		<protobuf.version>2.5.0</protobuf.version>
@@ -274,45 +271,45 @@ under the License.
 
 			<dependency>
 				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-actor_2.10</artifactId>
+				<artifactId>akka-actor_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-remote_2.10</artifactId>
+				<artifactId>akka-remote_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-slf4j_2.10</artifactId>
+				<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-camel_2.10</artifactId>
+				<artifactId>akka-camel_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-testkit_2.10</artifactId>
+				<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 				<scope>test</scope>
 			</dependency>
 
 			<dependency>
 				<groupId>org.scalatest</groupId>
-				<artifactId>scalatest_2.10</artifactId>
+				<artifactId>scalatest_${scala.binary.version}</artifactId>
 				<version>2.2.2</version>
 				<scope>test</scope>
 			</dependency>
 
 			<dependency>
 				<groupId>com.github.scopt</groupId>
-				<artifactId>scopt_2.10</artifactId>
+				<artifactId>scopt_${scala.binary.version}</artifactId>
 				<version>3.2.0</version>
 				<exclusions>
 					<exclusion>
@@ -325,6 +322,32 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
+		<profile>
+			<id>scala-2.10</id>
+			<activation>
+				<property>
+					<!-- this is the default scala profile -->
+					<name>!scala-2.11</name>
+				</property>
+			</activation>
+			<properties>
+				<scala.version>2.10.4</scala.version>
+				<scala.binary.version>2.10</scala.binary.version>
+			</properties>
+		</profile>
+		<profile>
+			<id>scala-2.11</id>
+			<activation>
+				<property>
+					<name>scala-2.11</name>
+				</property>
+			</activation>
+			<properties>
+				<scala.version>2.11.4</scala.version>
+				<scala.binary.version>2.11</scala.binary.version>
+			</properties>
+		</profile>
+
 		<profile>
 			<id>hadoop-1</id>
 			<activation>

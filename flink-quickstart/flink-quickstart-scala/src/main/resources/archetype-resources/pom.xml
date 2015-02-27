@@ -129,10 +129,10 @@ under the License.
 									<exclude>org.scala-lang:scala-library</exclude>
 									<exclude>com.amazonaws:aws-java-sdk</exclude>
 									<exclude>io.netty:netty-all</exclude>
-									<exclude>com.typesafe.akka:akka-actor_2.10</exclude>
-									<exclude>com.typesafe.akka:akka-remote_2.10</exclude>
+									<exclude>com.typesafe.akka:akka-actor_${scala.binary.version}</exclude>
+									<exclude>com.typesafe.akka:akka-remote_${scala.binary.version}</exclude>
 									<exclude>io.netty:netty</exclude>
-									<exclude>com.typesafe.akka:akka-slf4j_2.10</exclude>
+									<exclude>com.typesafe.akka:akka-slf4j_${scala.binary.version}</exclude>
 									<exclude>org.eclipse.jetty:jetty-server</exclude>
 									<exclude>org.eclipse.jetty:jetty-continuation</exclude>
 									<exclude>org.eclipse.jetty:jetty-http</exclude>
@@ -152,12 +152,12 @@ under the License.
 									<exclude>com.esotericsoftware.kryo:kryo</exclude>
 									<exclude>com.esotericsoftware.minlog:minlog</exclude>
 									<exclude>org.objenesis:objenesis</exclude>
-									<exclude>com.twitter:chill_2.10</exclude>
+									<exclude>com.twitter:chill_${scala.binary.version}</exclude>
 									<exclude>com.twitter:chill-java</exclude>
-									<exclude>com.twitter:chill-avro_2.10</exclude>
-									<exclude>com.twitter:chill-bijection_2.10</exclude>
-									<exclude>com.twitter:bijection-core_2.10</exclude>
-									<exclude>com.twitter:bijection-avro_2.10</exclude>
+									<exclude>com.twitter:chill-avro_${scala.binary.version}</exclude>
+									<exclude>com.twitter:chill-bijection_${scala.binary.version}</exclude>
+									<exclude>com.twitter:bijection-core_${scala.binary.version}</exclude>
+									<exclude>com.twitter:bijection-avro_${scala.binary.version}</exclude>
 									<exclude>com.twitter:chill-protobuf</exclude>
 									<exclude>com.google.protobuf:protobuf-java</exclude>
 									<exclude>com.twitter:chill-thrift</exclude>
@@ -183,7 +183,7 @@ under the License.
 									<exclude>stax:stax-api</exclude>
 									<exclude>com.typesafe:config</exclude>
 									<exclude>org.uncommons.maths:uncommons-maths</exclude>
-									<exclude>com.github.scopt:scopt_2.10</exclude>
+									<exclude>com.github.scopt:scopt_${scala.binary.version}</exclude>
 									<exclude>org.mortbay.jetty:servlet-api</exclude>
 									<exclude>commons-io:commons-io</exclude>
 									<exclude>commons-cli:commons-cli</exclude>
