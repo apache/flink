@@ -241,7 +241,7 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
         case _ =>
           c.abort(c.enclosingPosition, "Could not extract user defined function, got: " + show(fun))
       }
-      val uncheckedUdfBody = c.resetAllAttrs(udfBody)
+      val uncheckedUdfBody = c.resetLocalAttrs(udfBody)
       (paramName, uncheckedUdfBody)
     }
     
@@ -252,7 +252,7 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
         case _ =>
           c.abort(c.enclosingPosition, "Could not extract user defined function, got: " + show(fun))
       }
-      val uncheckedUdfBody = c.resetAllAttrs(udfBody)
+      val uncheckedUdfBody = c.resetLocalAttrs(udfBody)
       (param1Name, param2Name, uncheckedUdfBody)
     }
     

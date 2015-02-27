@@ -74,12 +74,6 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.scalamacros</groupId>
-			<artifactId>quasiquotes_${scala.binary.version}</artifactId>
-			<version>${scala.macros.version}</version>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
