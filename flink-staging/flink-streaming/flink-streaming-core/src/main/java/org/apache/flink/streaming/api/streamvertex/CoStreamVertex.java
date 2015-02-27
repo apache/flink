@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.streamvertex;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.streaming.api.StreamEdge;
+import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
@@ -29,6 +31,7 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 
@@ -78,8 +81,10 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
 		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
 
+		List<StreamEdge> inEdges = configuration.getInEdges(userClassLoader);
+
 		for (int i = 0; i < numberOfInputs; i++) {
-			int inputType = configuration.getInputIndex(i);
+			int inputType = inEdges.get(i).getTypeNumber();
 			InputGate reader = getEnvironment().getInputGate(i);
 			switch (inputType) {
 			case 1:

@@ -60,7 +60,11 @@ public class StreamConfig implements Serializable {
 	private static final String TYPE_SERIALIZER_OUT_2 = "typeSerializer_out_2";
 	private static final String ITERATON_WAIT = "iterationWait";
 	private static final String OUTPUTS = "outvertexIDs";
+	private static final String NONCHAINED_OUTPUTS = "NONCHAINED_OUTPUTS";
+	private static final String CHAINED_OUTPUT_EDGES = "CHAINED_OUTPUTS";
 	private static final String EDGES_IN_ORDER = "rwOrder";
+	private static final String OUT_STREAM_EDGES = "out stream edges";
+	private static final String IN_STREAM_EDGES = "out stream edges";
 
 	// DEFAULT VALUES
 
@@ -281,16 +285,57 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(NUMBER_OF_OUTPUTS, 0);
 	}
 
-	public void setOutputs(List<Integer> outputvertexIDs) {
-		config.setBytes(OUTPUTS, SerializationUtils.serialize((Serializable) outputvertexIDs));
+	public void setNonChainedOutputs(List<StreamEdge> outputvertexIDs) {
+		config.setBytes(NONCHAINED_OUTPUTS, SerializationUtils.serialize((Serializable) outputvertexIDs));
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<Integer> getOutputs(ClassLoader cl) {
+	public List<StreamEdge> getNonChainedOutputs(ClassLoader cl) {
 		try {
-			return (List<Integer>) InstantiationUtil.readObjectFromConfig(this.config, OUTPUTS, cl);
+			return (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(this.config, NONCHAINED_OUTPUTS, cl);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate outputs.");
+		}
+	}
+
+	public void setChainedOutputs(List<StreamEdge> chainedOutputs) {
+		config.setBytes(CHAINED_OUTPUTS,
+				SerializationUtils.serialize((Serializable) chainedOutputs));
+	}
+
+	@SuppressWarnings("unchecked")
+	public List<StreamEdge> getChainedOutputs(ClassLoader cl) {
+		try {
+			return (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(this.config,
+					CHAINED_OUTPUTS, cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not instantiate chained outputs.");
+		}
+	}
+
+	public void setOutEdges(List<StreamEdge> outEdges) {
+		config.setBytes(OUT_STREAM_EDGES, SerializationUtils.serialize((Serializable) outEdges));
+	}
+
+	public List<StreamEdge> getOutEdges(ClassLoader cl) {
+		try {
+			return (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(
+					this.config, OUT_STREAM_EDGES, cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not instantiate outputs.");
+		}
+	}
+
+	public void setInEdges(List<StreamEdge> inEdges) {
+		config.setBytes(IN_STREAM_EDGES, SerializationUtils.serialize((Serializable) inEdges));
+	}
+
+	public List<StreamEdge> getInEdges(ClassLoader cl) {
+		try {
+			return (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(
+					this.config, IN_STREAM_EDGES, cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not instantiate inputs.");
 		}
 	}
 
@@ -327,21 +372,6 @@ public class StreamConfig implements Serializable {
 
 	public int getInputIndex(int inputNumber) {
 		return config.getInteger(INPUT_TYPE + inputNumber, 0);
-	}
-
-	public void setChainedOutputs(List<Integer> chainedOutputs) {
-		config.setBytes(CHAINED_OUTPUTS,
-				SerializationUtils.serialize((Serializable) chainedOutputs));
-	}
-
-	@SuppressWarnings("unchecked")
-	public List<Integer> getChainedOutputs(ClassLoader cl) {
-		try {
-			return (List<Integer>) InstantiationUtil.readObjectFromConfig(this.config,
-					CHAINED_OUTPUTS, cl);
-		} catch (Exception e) {
-			throw new RuntimeException("Could not instantiate chained outputs.");
-		}
 	}
 
 	public void setTransitiveChainedTaskConfigs(Map<Integer, StreamConfig> chainedTaskConfigs) {
@@ -382,9 +412,10 @@ public class StreamConfig implements Serializable {
 		builder.append("\nTask name: " + getVertexID());
 		builder.append("\nNumber of non-chained inputs: " + getNumberOfInputs());
 		builder.append("\nNumber of non-chained outputs: " + getNumberOfOutputs());
-		builder.append("\nOutput names: " + getOutputs(cl));
+		builder.append("\nOutput names: " + getNonChainedOutputs(cl));
 		builder.append("\nPartitioning:");
-		for (Integer outputname : getOutputs(cl)) {
+		for (StreamEdge output : getNonChainedOutputs(cl)) {
+			int outputname = output.getTargetVertex();
 			builder.append("\n\t" + outputname + ": " + getPartitioner(cl, outputname));
 		}
 

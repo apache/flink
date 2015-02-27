@@ -101,25 +101,24 @@ public class StreamingJobGraphGenerator {
 		if (!builtVertices.contains(startNode)) {
 
 			List<Tuple2<Integer, Integer>> transitiveOutEdges = new ArrayList<Tuple2<Integer, Integer>>();
-			List<Integer> chainableOutputs = new ArrayList<Integer>();
-			List<Integer> nonChainableOutputs = new ArrayList<Integer>();
+			List<StreamEdge> chainableOutputs = new ArrayList<StreamEdge>();
+			List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
 			for (StreamEdge outEdge : streamGraph.getOutEdges(current)) {
-				Integer outID = outEdge.getTargetVertex();
-				if (isChainable(current, outID)) {
-					chainableOutputs.add(outID);
+				if (isChainable(outEdge)) {
+					chainableOutputs.add(outEdge);
 				} else {
-					nonChainableOutputs.add(outID);
+					nonChainableOutputs.add(outEdge);
 				}
 			}
 
-			for (Integer chainable : chainableOutputs) {
-				transitiveOutEdges.addAll(createChain(startNode, chainable));
+			for (StreamEdge chainable : chainableOutputs) {
+				transitiveOutEdges.addAll(createChain(startNode, chainable.getTargetVertex()));
 			}
 
-			for (Integer nonChainable : nonChainableOutputs) {
-				transitiveOutEdges.add(new Tuple2<Integer, Integer>(current, nonChainable));
-				createChain(nonChainable, nonChainable);
+			for (StreamEdge nonChainable : nonChainableOutputs) {
+				transitiveOutEdges.add(new Tuple2<Integer, Integer>(current, nonChainable.getTargetVertex()));
+				createChain(nonChainable.getTargetVertex(), nonChainable.getTargetVertex());
 			}
 
 			chainedNames.put(current, createChainedName(current, chainableOutputs));
@@ -133,6 +132,8 @@ public class StreamingJobGraphGenerator {
 
 				config.setChainStart();
 				config.setOutEdgesInOrder(transitiveOutEdges);
+				config.setOutEdges(streamGraph.getOutEdges(current));
+				config.setInEdges(streamGraph.getInEdges(current));
 
 				for (Tuple2<Integer, Integer> edge : transitiveOutEdges) {
 					connect(startNode, edge);
@@ -157,12 +158,12 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
-	private String createChainedName(Integer vertexID, List<Integer> chainedOutputs) {
+	private String createChainedName(Integer vertexID, List<StreamEdge> chainedOutputs) {
 		String operatorName = streamGraph.getOperatorName(vertexID);
 		if (chainedOutputs.size() > 1) {
 			List<String> outputChainedNames = new ArrayList<String>();
-			for (Integer chainable : chainedOutputs) {
-				outputChainedNames.add(chainedNames.get(chainable));
+			for (StreamEdge chainable : chainedOutputs) {
+				outputChainedNames.add(chainedNames.get(chainable.getTargetVertex()));
 			}
 			return operatorName + " -> (" + StringUtils.join(outputChainedNames, ", ") + ")";
 		} else if (chainedOutputs.size() == 1) {
@@ -201,7 +202,7 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private void setVertexConfig(Integer vertexID, StreamConfig config,
-			List<Integer> chainableOutputs, List<Integer> nonChainableOutputs) {
+			List<StreamEdge> chainableOutputs, List<StreamEdge> nonChainableOutputs) {
 
 		config.setVertexID(vertexID);
 		config.setBufferTimeout(streamGraph.getBufferTimeout(vertexID));
@@ -215,7 +216,7 @@ public class StreamingJobGraphGenerator {
 		config.setOutputSelectors(streamGraph.getOutputSelector(vertexID));
 
 		config.setNumberOfOutputs(nonChainableOutputs.size());
-		config.setOutputs(nonChainableOutputs);
+		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 		config.setStateMonitoring(streamGraph.isMonitoringEnabled());
 
@@ -227,11 +228,11 @@ public class StreamingJobGraphGenerator {
 			config.setIterationWaitTime(streamGraph.getIterationTimeout(vertexID));
 		}
 
-		List<Integer> allOutputs = new ArrayList<Integer>(chainableOutputs);
+		List<StreamEdge> allOutputs = new ArrayList<StreamEdge>(chainableOutputs);
 		allOutputs.addAll(nonChainableOutputs);
 
-		for (Integer output : allOutputs) {
-			config.setSelectedNames(output, streamGraph.getEdge(vertexID, output).getSelectedNames());
+		for (StreamEdge output : allOutputs) {
+			config.setSelectedNames(output.getTargetVertex(), streamGraph.getEdge(vertexID, output.getTargetVertex()).getSelectedNames());
 		}
 
 		vertexConfigs.put(vertexID, config);
@@ -274,7 +275,9 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
-	private boolean isChainable(Integer vertexID, Integer outName) {
+	private boolean isChainable(StreamEdge edge) {
+		int vertexID = edge.getSourceVertex();
+		int outName = edge.getTargetVertex();
 
 		StreamInvokable<?, ?> headInvokable = streamGraph.getInvokable(vertexID);
 		StreamInvokable<?, ?> outInvokable = streamGraph.getInvokable(outName);
