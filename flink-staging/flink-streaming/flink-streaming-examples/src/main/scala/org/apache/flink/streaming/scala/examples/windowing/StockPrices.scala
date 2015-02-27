@@ -184,7 +184,7 @@ object StockPrices {
   }
 
   def generateStock(symbol: String)(sigma: Int)(out: Collector[StockPrice]) = {
-    var price = 1000.
+    var price = 1000.0
     while (true) {
       price = price + Random.nextGaussian * sigma
       out.collect(StockPrice(symbol, price))

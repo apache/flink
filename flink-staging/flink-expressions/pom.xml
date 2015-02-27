@@ -74,12 +74,6 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.scalamacros</groupId>
-			<artifactId>quasiquotes_${scala.binary.version}</artifactId>
-			<version>${scala.macros.version}</version>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
@@ -229,5 +223,24 @@ under the License.
 
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>scala-2.10</id>
+			<activation>
+				<property>
+					<!-- this is the default scala profile -->
+					<name>!scala-2.11</name>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>org.scalamacros</groupId>
+					<artifactId>quasiquotes_${scala.binary.version}</artifactId>
+					<version>${scala.macros.version}</version>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 </project>
