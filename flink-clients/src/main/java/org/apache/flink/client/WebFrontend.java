@@ -43,7 +43,7 @@ public class WebFrontend {
 	 */
 	public static void main(String[] args) {
 
-		EnvironmentInformation.logEnvironmentInfo(LOG, "Web Client");
+		EnvironmentInformation.logEnvironmentInfo(LOG, "Web Client", args);
 		EnvironmentInformation.checkJavaVersion();
 
 		// check the arguments

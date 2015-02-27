@@ -608,7 +608,7 @@ object JobManager {
   def main(args: Array[String]): Unit = {
 
     // startup checks and logging
-    EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager")
+    EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager", args)
     EnvironmentInformation.checkJavaVersion()
 
     // parsing the command line arguments
@@ -759,10 +759,12 @@ object JobManager {
       opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text (
         "The configuration directory.")
       opt[String]("executionMode") optional() action { (arg, c) =>
-        if(arg.equals("local")){
+        if (arg.equalsIgnoreCase("local")){
           c.copy(executionMode = LOCAL)
-        }else{
+        } else if (arg.equalsIgnoreCase("cluster")) {
           c.copy(executionMode = CLUSTER)
+        } else {
+          throw new Exception("Unknown execution mode: " + arg)
         }
       } text {
         "The execution mode of the JobManager (CLUSTER / LOCAL)"

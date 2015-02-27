@@ -743,7 +743,7 @@ object TaskManager {
    */
   def main(args: Array[String]): Unit = {
     // startup checks and logging
-    EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager")
+    EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager", args)
     EnvironmentInformation.checkJavaVersion()
 
     // try to parse the command line arguments

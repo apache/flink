@@ -208,7 +208,7 @@ public class EnvironmentInformation {
 	 * @param log The logger to log the information to.
 	 * @param componentName The component name to mention in the log.
 	 */
-	public static void logEnvironmentInfo(Logger log, String componentName) {
+	public static void logEnvironmentInfo(Logger log, String componentName, String[] commandLineArgs) {
 		if (log.isInfoEnabled()) {
 			RevisionInformation rev = getRevisionInformation();
 			String version = getVersion();
@@ -227,19 +227,29 @@ public class EnvironmentInformation {
 					+ "Rev:" + rev.commitId + ", " + "Date:" + rev.commitDate + ")");
 			log.info(" Current user: " + user);
 			log.info(" JVM: " + jvmVersion);
+			log.info(" Maximum heap size: " + maxHeapMegabytes + " MiBytes");
+			log.info(" JAVA_HOME: " + (javaHome == null ? "(not set)" : javaHome));
 
 			if (options.length == 0) {
-				log.info(" Startup Options: (none)");
+				log.info(" JVM Options: (none)");
 			}
 			else {
-				log.info(" Startup Options:");
+				log.info(" JVM Options:");
 				for (String s: options) {
 					log.info("    " + s);
 				}
 			}
 
-			log.info(" Maximum heap size: " + maxHeapMegabytes + " MiBytes");
-			log.info(" JAVA_HOME: " + (javaHome == null ? "not set" : javaHome));
+			if (commandLineArgs == null || commandLineArgs.length == 0) {
+				log.info(" Program Arguments: (none)");
+			}
+			else {
+				log.info(" Program Arguments:");
+				for (String s: commandLineArgs) {
+					log.info("    " + s);
+				}
+			}
+
 			log.info("--------------------------------------------------------------------------------");
 		}
 	}
