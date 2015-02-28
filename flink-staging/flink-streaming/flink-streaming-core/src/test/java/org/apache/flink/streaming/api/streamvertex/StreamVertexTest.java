@@ -21,9 +21,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -87,7 +89,6 @@ public class StreamVertexTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(SOURCE_PARALELISM);
 
-
 		try {
 			env.fromCollection(null);
 			fail();
@@ -133,14 +134,13 @@ public class StreamVertexTest {
 		}
 	}
 
-	static HashSet<String> resultSet;
-
 	private static class SetSink implements SinkFunction<String> {
 		private static final long serialVersionUID = 1L;
+		public static Set<String> result = Collections.synchronizedSet(new HashSet<String>());
 
 		@Override
 		public void invoke(String value) {
-			resultSet.add(value);
+			result.add(value);
 		}
 	}
 
@@ -153,19 +153,19 @@ public class StreamVertexTest {
 
 		fromStringElements.connect(generatedSequence).map(new CoMap()).addSink(new SetSink());
 
-		resultSet = new HashSet<String>();
 		env.execute();
 
 		HashSet<String> expectedSet = new HashSet<String>(Arrays.asList("aa", "bb", "cc", "0", "1",
 				"2", "3"));
-		assertEquals(expectedSet, resultSet);
+		assertEquals(expectedSet, SetSink.result);
 	}
 
 	@Test
 	public void runStream() throws Exception {
 		StreamExecutionEnvironment env = new TestStreamEnvironment(SOURCE_PARALELISM, MEMORYSIZE);
 
-		env.addSource(new MySource()).setParallelism(SOURCE_PARALELISM).map(new MyTask()).addSink(new MySink());
+		env.addSource(new MySource()).setParallelism(SOURCE_PARALELISM).map(new MyTask())
+				.addSink(new MySink());
 
 		env.execute();
 		assertEquals(10, data.keySet().size());

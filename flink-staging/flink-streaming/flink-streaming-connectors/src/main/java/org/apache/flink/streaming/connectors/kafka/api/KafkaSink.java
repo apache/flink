@@ -19,18 +19,17 @@ package org.apache.flink.streaming.connectors.kafka.api;
 
 import java.util.Properties;
 
+import kafka.javaapi.producer.Producer;
+import kafka.producer.KeyedMessage;
+import kafka.producer.ProducerConfig;
+import kafka.serializer.DefaultEncoder;
+
 import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kafka.config.EncoderWrapper;
 import org.apache.flink.streaming.connectors.kafka.config.PartitionerWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaDistributePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.connectors.util.SerializationSchema;
-
-import kafka.javaapi.producer.Producer;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
-import kafka.serializer.DefaultEncoder;
-import kafka.utils.VerifiableProperties;
 
 /**
  * Sink that emits its inputs to a Kafka topic.
@@ -105,7 +104,6 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 		partitionerWrapper.write(props);
 
 		ProducerConfig config = new ProducerConfig(props);
-		VerifiableProperties props1 = config.props();
 
 		producer = new Producer<IN, byte[]>(config);
 		initDone = true;

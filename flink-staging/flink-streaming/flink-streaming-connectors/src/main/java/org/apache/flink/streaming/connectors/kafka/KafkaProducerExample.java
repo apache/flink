@@ -38,7 +38,7 @@ public class KafkaProducerExample {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment().setDegreeOfParallelism(4);
 
-		@SuppressWarnings("unused")
+		@SuppressWarnings({ "unused", "serial" })
 		DataStream<String> stream1 = env.addSource(new SourceFunction<String>() {
 			@Override
 			public void invoke(Collector<String> collector) throws Exception {

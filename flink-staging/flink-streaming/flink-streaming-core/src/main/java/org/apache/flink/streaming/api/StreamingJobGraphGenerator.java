@@ -239,7 +239,7 @@ public class StreamingJobGraphGenerator {
 		AbstractJobVertex downStreamVertex = streamVertices.get(downStreamvertexID);
 
 		StreamConfig downStreamConfig = new StreamConfig(downStreamVertex.getConfiguration());
-		StreamConfig upStreamConfig = headOfChain == upStreamvertexID ? new StreamConfig(
+		StreamConfig upStreamConfig = headOfChain.equals(upStreamvertexID) ? new StreamConfig(
 				headVertex.getConfiguration()) : chainedConfigs.get(headOfChain).get(
 				upStreamvertexID);
 

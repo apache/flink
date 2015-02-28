@@ -27,6 +27,8 @@ import org.junit.Test;
 public class StringSerializerTest {
 
 	private static class MyClass implements Serializable {
+
+		private static final long serialVersionUID = 1L;
 		private int a;
 		private String b;
 
@@ -37,11 +39,15 @@ public class StringSerializerTest {
 
 		@Override
 		public boolean equals(Object o) {
-			try {
-				MyClass other = (MyClass) o;
-				return a == other.a && b.equals(other.b);
-			} catch (ClassCastException e) {
+			if (o == null) {
 				return false;
+			} else {
+				try {
+					MyClass other = (MyClass) o;
+					return a == other.a && b.equals(other.b);
+				} catch (ClassCastException e) {
+					return false;
+				}
 			}
 		}
 	}

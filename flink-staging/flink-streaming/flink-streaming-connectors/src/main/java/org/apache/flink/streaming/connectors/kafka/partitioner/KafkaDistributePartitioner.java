@@ -26,6 +26,7 @@ package org.apache.flink.streaming.connectors.kafka.partitioner;
  */
 public class KafkaDistributePartitioner<T> implements KafkaPartitioner<T> {
 
+	private static final long serialVersionUID = 1L;
 	int currentPartition;
 
 	public KafkaDistributePartitioner() {

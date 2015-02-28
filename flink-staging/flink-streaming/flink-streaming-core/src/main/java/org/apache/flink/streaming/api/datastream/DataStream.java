@@ -1262,7 +1262,7 @@ public class DataStream<OUT> {
 
 	private void validateMerge(Integer id) {
 		for (DataStream<OUT> ds : this.mergedStreams) {
-			if (ds.getId() == id) {
+			if (ds.getId().equals(id)) {
 				throw new RuntimeException("A DataStream cannot be merged with itself");
 			}
 		}

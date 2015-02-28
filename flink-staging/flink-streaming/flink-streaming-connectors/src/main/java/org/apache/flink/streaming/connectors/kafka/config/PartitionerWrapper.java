@@ -38,6 +38,7 @@ public class PartitionerWrapper<T> extends KafkaConfigWrapper<KafkaPartitioner<T
 		super(properties);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public int partition(Object key, int numPartitions) {
 		return wrapped.partition((T) key, numPartitions);

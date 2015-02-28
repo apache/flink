@@ -22,23 +22,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.connectors.ConnectorSource;
-import org.apache.flink.streaming.connectors.util.DeserializationSchema;
-import org.apache.flink.util.Collector;
-
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.connectors.ConnectorSource;
+import org.apache.flink.streaming.connectors.util.DeserializationSchema;
+import org.apache.flink.util.Collector;
+
 /**
  * Source that listens to a Kafka topic.
- *
+ * 
  * @param <OUT>
- * 		Type of the messages on the topic.
+ *            Type of the messages on the topic.
  */
 public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
@@ -50,25 +50,20 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	private transient ConsumerConnector consumer;
 	private transient ConsumerIterator<byte[], byte[]> consumerIterator;
 
-	private int partitionIndex;
-	private int numberOfInstances;
-
 	private long zookeeperSyncTimeMillis;
 	private static final long ZOOKEEPER_DEFAULT_SYNC_TIME = 200;
 
-	private OUT outTuple;
-
 	/**
 	 * Creates a KafkaSource that consumes a topic.
-	 *
+	 * 
 	 * @param zookeeperHost
-	 * 		Address of the Zookeeper host (with port number).
+	 *            Address of the Zookeeper host (with port number).
 	 * @param topicId
-	 * 		ID of the Kafka topic.
+	 *            ID of the Kafka topic.
 	 * @param deserializationSchema
-	 * 		User defined deserialization schema.
+	 *            User defined deserialization schema.
 	 * @param zookeeperSyncTimeMillis
-	 * 		Synchronization time with zookeeper.
+	 *            Synchronization time with zookeeper.
 	 */
 	public KafkaSource(String zookeeperHost, String topicId,
 			DeserializationSchema<OUT> deserializationSchema, long zookeeperSyncTimeMillis) {
@@ -96,10 +91,9 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 		props.put("auto.commit.interval.ms", "1000");
 
 		consumer = Consumer.createJavaConsumerConnector(new ConsumerConfig(props));
-		partitionIndex = getRuntimeContext().getIndexOfThisSubtask();
-		numberOfInstances = getRuntimeContext().getNumberOfParallelSubtasks();
 
-		Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(Collections.singletonMap(topicId, 1));
+		Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer
+				.createMessageStreams(Collections.singletonMap(topicId, 1));
 		List<KafkaStream<byte[], byte[]>> streams = consumerMap.get(topicId);
 		KafkaStream<byte[], byte[]> stream = streams.get(0);
 
@@ -108,9 +102,9 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	/**
 	 * Called to forward the data from the source to the {@link DataStream}.
-	 *
+	 * 
 	 * @param collector
-	 * 		The Collector for sending data to the dataStream
+	 *            The Collector for sending data to the dataStream
 	 */
 	@Override
 	public void invoke(Collector<OUT> collector) throws Exception {

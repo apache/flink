@@ -73,8 +73,6 @@ public abstract class StreamExecutionEnvironment {
 
 	protected StreamGraph streamGraph;
 
-	private static StreamExecutionEnvironmentFactory executionEnvironmentFactory;
-
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
 	// --------------------------------------------------------------------------------------------
