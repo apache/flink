@@ -26,10 +26,60 @@ import java.util.Set;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
+import org.apache.flink.streaming.api.invokable.operator.windowing.WindowFlattener;
+import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMerger;
+import org.apache.flink.streaming.partitioner.DistributePartitioner;
 
-public class WindowingOptimzier {
+public class WindowingOptimizer {
 
 	public static void optimizeGraph(StreamGraph streamGraph) {
+
+		// Share common discrtizers
+		setDiscretizerReuse(streamGraph);
+
+		// Remove unnecessary merges before flatten operators
+		removeMergeBeforeFlatten(streamGraph);
+	}
+
+	@SuppressWarnings("rawtypes")
+	private static void removeMergeBeforeFlatten(StreamGraph streamGraph) {
+		Set<Entry<Integer, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
+		List<Integer> flatteners = new ArrayList<Integer>();
+
+		for (Entry<Integer, StreamInvokable<?, ?>> entry : invokables) {
+			if (entry.getValue() instanceof WindowFlattener) {
+				flatteners.add(entry.getKey());
+			}
+		}
+
+		for (Integer flattener : flatteners) {
+			// Flatteners should have exactly one input
+			Integer input = streamGraph.getInEdges(flattener).get(0);
+
+			// Check whether the flatten is applied after a merge
+			if (streamGraph.getInvokable(input) instanceof WindowMerger) {
+
+				// Mergers should have exactly one input
+				Integer mergeInput = streamGraph.getInEdges(input).get(0);
+				streamGraph.setEdge(mergeInput, flattener, new DistributePartitioner(true), 0,
+						new ArrayList<String>());
+
+				// If the merger is only connected to the flattener we delete it
+				// completely, otherwise we only remove the edge
+				if (streamGraph.getOutEdges(input).size() > 1) {
+					streamGraph.removeEdge(input, flattener);
+				} else {
+					streamGraph.removeVertex(input);
+				}
+
+				streamGraph.setParallelism(flattener, streamGraph.getParallelism(mergeInput));
+			}
+		}
+
+	}
+
+	private static void setDiscretizerReuse(StreamGraph streamGraph) {
+
 		Set<Entry<Integer, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
 		List<Tuple2<Integer, StreamDiscretizer<?>>> discretizers = new ArrayList<Tuple2<Integer, StreamDiscretizer<?>>>();
 
@@ -41,12 +91,6 @@ public class WindowingOptimzier {
 			}
 		}
 
-		// Share common discrtizers
-		setDiscretizerReuse(streamGraph, discretizers);
-	}
-
-	private static void setDiscretizerReuse(StreamGraph streamGraph,
-			List<Tuple2<Integer, StreamDiscretizer<?>>> discretizers) {
 		List<Tuple2<StreamDiscretizer<?>, List<Integer>>> matchingDiscretizers = new ArrayList<Tuple2<StreamDiscretizer<?>, List<Integer>>>();
 
 		for (Tuple2<Integer, StreamDiscretizer<?>> discretizer : discretizers) {
