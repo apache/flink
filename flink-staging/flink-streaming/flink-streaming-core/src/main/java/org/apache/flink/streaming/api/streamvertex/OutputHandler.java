@@ -30,8 +30,8 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.StreamEdge;
 import org.apache.flink.streaming.api.collector.CollectorWrapper;
-import org.apache.flink.streaming.api.collector.DirectedCollectorWrapper;
 import org.apache.flink.streaming.api.collector.StreamOutput;
+import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -100,22 +100,22 @@ public class OutputHandler<OUT> {
 	 * This method builds up a nested collector which encapsulates all the
 	 * chained operators and their network output. The result of this recursive
 	 * call will be passed as collector to the first invokable in the chain.
-	 * 
+	 *
 	 * @param chainedTaskConfig
-	 *            The configuration of the starting operator of the chain, we
-	 *            use this paramater to recursively build the whole chain
+	 * 		The configuration of the starting operator of the chain, we
+	 * 		use this paramater to recursively build the whole chain
 	 * @return Returns the collector for the chain starting from the given
-	 *         config
+	 * config
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	private Collector<OUT> createChainedCollector(StreamConfig chainedTaskConfig) {
 
-		boolean isDirectEmit = chainedTaskConfig.isDirectedEmit();
 
 		// We create a wrapper that will encapsulate the chained operators and
 		// network outputs
-		CollectorWrapper<OUT> wrapper = isDirectEmit ? new DirectedCollectorWrapper(
-				chainedTaskConfig.getOutputSelectors(cl)) : new CollectorWrapper<OUT>();
+
+		OutputSelectorWrapper<OUT> outputSelectorWrapper = chainedTaskConfig.getOutputSelectorWrapper(cl);
+		CollectorWrapper<OUT> wrapper = new CollectorWrapper<OUT>(outputSelectorWrapper);
 
 		// Create collectors for the network outputs
 		for (StreamEdge outputEdge : chainedTaskConfig.getNonChainedOutputs(cl)) {
@@ -123,12 +123,7 @@ public class OutputHandler<OUT> {
 
 			Collector<?> outCollector = outputMap.get(output);
 
-			if (isDirectEmit) {
-				((DirectedCollectorWrapper<OUT>) wrapper).addCollector(outCollector,
-						chainedTaskConfig.getSelectedNames(output));
-			} else {
-				wrapper.addCollector(outCollector);
-			}
+			wrapper.addCollector(outCollector, outputEdge);
 		}
 
 		// Create collectors for the chained outputs
@@ -136,12 +131,8 @@ public class OutputHandler<OUT> {
 			Integer output = outputEdge.getTargetVertex();
 
 			Collector<?> outCollector = createChainedCollector(chainedConfigs.get(output));
-			if (isDirectEmit) {
-				((DirectedCollectorWrapper<OUT>) wrapper).addCollector(outCollector,
-						chainedTaskConfig.getSelectedNames(output));
-			} else {
-				wrapper.addCollector(outCollector);
-			}
+
+			wrapper.addCollector(outCollector, outputEdge);
 		}
 
 		if (chainedTaskConfig.isChainStart()) {
@@ -169,11 +160,11 @@ public class OutputHandler<OUT> {
 	/**
 	 * We create the StreamOutput for the specific output given by the id, and
 	 * the configuration of its source task
-	 * 
+	 *
 	 * @param outputVertex
-	 *            Name of the output to which the streamoutput will be set up
+	 * 		Name of the output to which the streamoutput will be set up
 	 * @param configuration
-	 *            The config of upStream task
+	 * 		The config of upStream task
 	 * @return
 	 */
 	private <T> StreamOutput<T> createStreamOutput(Integer outputVertex,

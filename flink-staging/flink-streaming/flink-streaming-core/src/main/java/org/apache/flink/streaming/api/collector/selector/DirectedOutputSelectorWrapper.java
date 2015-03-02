@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.collector;
+package org.apache.flink.streaming.api.collector.selector;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -25,49 +24,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.streaming.api.StreamEdge;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A StreamCollector that uses user defined output names and a user defined
- * output selector to make directed emits.
- * 
- * @param <OUT>
- *            Type of the Tuple collected.
- */
-public class DirectedCollectorWrapper<OUT> extends CollectorWrapper<OUT> {
+public class DirectedOutputSelectorWrapper<OUT> implements OutputSelectorWrapper<OUT> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DirectedCollectorWrapper.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DirectedOutputSelectorWrapper.class);
 
-	List<OutputSelector<OUT>> outputSelectors;
+	private List<OutputSelector<OUT>> outputSelectors;
 
-	protected Map<String, List<Collector<OUT>>> outputMap;
+	private Map<String, List<Collector<OUT>>> outputMap;
+	private Set<Collector<OUT>> selectAllOutputs;
+//	private Set<Collector<OUT>> emitted;
 
-	private List<Collector<OUT>> selectAllOutputs;
-	private Set<Collector<OUT>> emitted;
-
-	/**
-	 * Creates a new DirectedStreamCollector
-	 * 
-	 * @param outputSelector
-	 *            User defined {@link OutputSelector}
-	 */
-	public DirectedCollectorWrapper(List<OutputSelector<OUT>> outputSelectors) {
+	public DirectedOutputSelectorWrapper(List<OutputSelector<OUT>> outputSelectors) {
 		this.outputSelectors = outputSelectors;
-		this.emitted = new HashSet<Collector<OUT>>();
-		this.selectAllOutputs = new LinkedList<Collector<OUT>>();
+//		this.emitted = new HashSet<Collector<OUT>>();
+		this.selectAllOutputs = new HashSet<Collector<OUT>>(); //new LinkedList<Collector<OUT>>();
 		this.outputMap = new HashMap<String, List<Collector<OUT>>>();
-
 	}
 
 	@Override
-	public void addCollector(Collector<?> output) {
-		addCollector(output, new ArrayList<String>());
-	}
-
-	@SuppressWarnings("unchecked")
-	public void addCollector(Collector<?> output, List<String> selectedNames) {
+	public void addCollector(Collector<?> output, StreamEdge edge) {
+		List<String> selectedNames = edge.getSelectedNames();
 
 		if (selectedNames.isEmpty()) {
 			selectAllOutputs.add((Collector<OUT>) output);
@@ -82,50 +63,33 @@ public class DirectedCollectorWrapper<OUT> extends CollectorWrapper<OUT> {
 						outputMap.get(selectedName).add((Collector<OUT>) output);
 					}
 				}
-
 			}
 		}
 	}
 
 	@Override
-	public void collect(OUT record) {
-		emitted.clear();
-
-		for (Collector<OUT> output : selectAllOutputs) {
-			output.collect(record);
-			emitted.add(output);
-		}
+	public Iterable<Collector<OUT>> getSelectedOutputs(OUT record) {
+		Set<Collector<OUT>> selectedOutputs = new HashSet<Collector<OUT>>(selectAllOutputs);
 
 		for (OutputSelector<OUT> outputSelector : outputSelectors) {
 			Iterable<String> outputNames = outputSelector.select(record);
 
 			for (String outputName : outputNames) {
 				List<Collector<OUT>> outputList = outputMap.get(outputName);
-				if (outputList == null) {
+
+				try {
+					selectedOutputs.addAll(outputList);
+				} catch (NullPointerException e) {
 					if (LOG.isErrorEnabled()) {
 						String format = String.format(
 								"Cannot emit because no output is selected with the name: %s",
 								outputName);
 						LOG.error(format);
-
 					}
-				} else {
-					for (Collector<OUT> output : outputList) {
-						if (!emitted.contains(output)) {
-							output.collect(record);
-							emitted.add(output);
-						}
-					}
-
 				}
-
 			}
 		}
 
-	}
-
-	@Override
-	public void close() {
-
+		return selectedOutputs;
 	}
 }
