@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
@@ -62,23 +61,14 @@ public class FlatMapOperatorBase<IN, OUT, FT extends FlatMapFunction<IN, OUT>> e
 
 		ArrayList<OUT> result = new ArrayList<OUT>(input.size());
 
-		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
-		
-		if (objectReuseDisabled) {
-			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
-			
-			CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);
-			
-			for (IN element : input) {
-				IN inCopy = inSerializer.copy(element);
-				function.flatMap(inCopy, resultCollector);
-			}
-		} else {
-			ListCollector<OUT> resultCollector = new ListCollector<OUT>(result);
-			for (IN element : input) {
-				function.flatMap(element, resultCollector);
-			}
+		TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
+		TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
+
+		CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);
+
+		for (IN element : input) {
+			IN inCopy = inSerializer.copy(element);
+			function.flatMap(inCopy, resultCollector);
 		}
 
 		FunctionUtils.closeFunction(function);

@@ -91,32 +91,21 @@ public class CrossOperatorBase<IN1, IN2, OUT, FT extends CrossFunction<IN1, IN2,
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
 
-		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
-		
 		ArrayList<OUT> result = new ArrayList<OUT>(inputData1.size() * inputData2.size());
 		
-		if (objectReuseDisabled) {
-			TypeSerializer<IN1> inSerializer1 = getOperatorInfo().getFirstInputType().createSerializer(executionConfig);
-			TypeSerializer<IN2> inSerializer2 = getOperatorInfo().getSecondInputType().createSerializer(executionConfig);
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
-			
-			for (IN1 element1 : inputData1) {
-				for (IN2 element2 : inputData2) {
-					IN1 copy1 = inSerializer1.copy(element1);
-					IN2 copy2 = inSerializer2.copy(element2);
-					OUT o = function.cross(copy1, copy2);
-					result.add(outSerializer.copy(o));
-				}
+		TypeSerializer<IN1> inSerializer1 = getOperatorInfo().getFirstInputType().createSerializer(executionConfig);
+		TypeSerializer<IN2> inSerializer2 = getOperatorInfo().getSecondInputType().createSerializer(executionConfig);
+		TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
+
+		for (IN1 element1 : inputData1) {
+			for (IN2 element2 : inputData2) {
+				IN1 copy1 = inSerializer1.copy(element1);
+				IN2 copy2 = inSerializer2.copy(element2);
+				OUT o = function.cross(copy1, copy2);
+				result.add(outSerializer.copy(o));
 			}
 		}
-		else {
-			for (IN1 element1 : inputData1) {
-				for (IN2 element2 : inputData2) {
-					result.add(function.cross(element1, element2));
-				}
-			}
-		}
-		
+
 		FunctionUtils.closeFunction(function);
 		return result;
 	}
