@@ -167,11 +167,6 @@ public final class ConfigConstants {
 	 * A value of 0 indicates infinite waiting.
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
-	
-	/**
-	 * The parameter defining the polling interval (in seconds) for the JobClient.
-	 */
-	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.interval";
 
 	// ------------------------ YARN Configuration ------------------------
 
@@ -384,12 +379,6 @@ public final class ConfigConstants {
 	 * The default network port to connect to for communication with the job manager.
 	 */
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
-	
-	/**
-	 * Default number of seconds after which a task manager is marked as failed.
-	 */
-	// 30 seconds (its enough to get to mars, should be enough to detect failure)
-	public static final int DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT = 30*1000;
 
 	/**
 	 * Default number of retries for failed BLOB fetches.
@@ -427,11 +416,6 @@ public final class ConfigConstants {
 	 * The default fraction of the free memory allocated by the task manager's memory manager.
 	 */
 	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;
-	
-	/**
-	 * The default setting for the memory manager lazy allocation feature.
-	 */
-	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_LAZY_ALLOCATION = false;
 
 	/**
 	 * Default number of buffers used in the network stack.
@@ -454,19 +438,9 @@ public final class ConfigConstants {
 	public static final long DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = 5000L;
 
 	/**
-	 * The default number of task slots per task manager
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS = -1;
-
-	/**
 	 * The default task manager's maximum registration duration
 	 */
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
-	
-	/**
-	 * The default value for the JobClient's polling interval. 2 Seconds.
-	 */
-	public static final int DEFAULT_JOBCLIENT_POLLING_INTERVAL = 2;
 	
 	/**
 	 * The default value for the maximum spilling fan in/out.
@@ -518,6 +492,8 @@ public final class ConfigConstants {
 	// ------------------------- JobManager Web Frontend ----------------------
 	
 	/**
+	 * The config key for the port of the JobManager web frontend.
+	 * Setting this value to {@code -1} disables the web frontend.
 	 */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
 
