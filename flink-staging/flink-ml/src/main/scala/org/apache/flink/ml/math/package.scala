@@ -16,30 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ml.math
+package org.apache.flink.ml
 
 /**
- * Base trait for a matrix representation
+ * Convenience to handle Flink's [[org.apache.flink.ml.math.Matrix]] and [[Vector]] abstraction.
  */
-trait Matrix {
+package object math {
+  implicit class RichDenseMatrix(matrix: DenseMatrix) extends Iterable[Double] {
+    override def iterator: Iterator[Double] = matrix.values.iterator
+  }
 
-  /**
-   * Number of rows
-   * @return
-   */
-  def numRows: Int
-
-  /**
-   * Number of columns
-   * @return
-   */
-  def numCols: Int
-
-  /**
-   * Element wise access function
-   * @param row row index
-   * @param col column index
-   * @return matrix entry at (row, col)
-   */
-  def apply(row: Int, col: Int): Double
+  implicit class RichDenseVector(vector: DenseVector) extends Iterable[Double] {
+    override def iterator: Iterator[Double] = vector.values.iterator
+  }
 }

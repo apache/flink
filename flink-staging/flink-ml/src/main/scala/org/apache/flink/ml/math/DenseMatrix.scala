@@ -19,12 +19,14 @@
 package org.apache.flink.ml.math
 
 /**
+ * Dense matrix implementation of [[Matrix]]. Stores data in column major order in a continuous
+ * double array.
  *
- * @param numRows
- * @param numCols
- * @param values
+ * @param numRows Number of rows
+ * @param numCols Number of columns
+ * @param values Array of matrix elements in column major order
  */
-class DenseMatrix(val numRows: Int,
+case class DenseMatrix(val numRows: Int,
                   val numCols: Int,
                   val values: Array[Double]) extends Matrix {
 
@@ -33,6 +35,7 @@ class DenseMatrix(val numRows: Int,
 
   /**
    * Element wise access function
+   *
    * @param row row index
    * @param col column index
    * @return matrix entry at (row, col)
@@ -41,21 +44,18 @@ class DenseMatrix(val numRows: Int,
     require(0 <= row && row < numRows, s"Row $row is out of bounds [0, $numRows).")
     require(0 <= col && col < numCols, s"Col $col is out of bounds [0, $numCols).")
 
-    val index = col*numRows + row
+    val index = col * numRows + row
 
     values(index)
   }
 
-  override def iterator: Iterator[Double] = {
-    values.iterator
+  override def toString: String = {
+    s"DenseMatrix($numRows, $numCols, ${values.mkString(", ")})"
   }
+
 }
 
 object DenseMatrix {
-
-  def apply(numRows: Int, numCols: Int, values: Array[Double]): DenseMatrix = {
-    new DenseMatrix(numRows, numCols, values)
-  }
 
   def apply(numRows: Int, numCols: Int, values: Array[Int]): DenseMatrix = {
     new DenseMatrix(numRows, numCols, values.map(_.toDouble))
