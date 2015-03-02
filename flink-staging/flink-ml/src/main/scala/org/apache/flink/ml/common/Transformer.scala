@@ -16,30 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ml.math
+package org.apache.flink.ml.common
+
+import org.apache.flink.api.scala.DataSet
 
 /**
- * Base trait for a matrix representation
+ * A transformer represents
+ *
+ * @tparam IN Type of incoming elements
+ * @tparam OUT Type of outgoing elements
  */
-trait Matrix {
+trait Transformer[IN, OUT] {
+  def chain[CHAINED](transformer: Transformer[OUT, CHAINED]): ChainedTransformer[IN, OUT, CHAINED] = {
+    new ChainedTransformer[IN, OUT, CHAINED](this, transformer)
+  }
 
-  /**
-   * Number of rows
-   * @return
-   */
-  def numRows: Int
+  def chain[CHAINED](learner: Learner[OUT, CHAINED]): ChainedLearner[IN, OUT, CHAINED] = {
+    new ChainedLearner[IN, OUT, CHAINED](this, learner)
+  }
 
-  /**
-   * Number of columns
-   * @return
-   */
-  def numCols: Int
-
-  /**
-   * Element wise access function
-   * @param row row index
-   * @param col column index
-   * @return matrix entry at (row, col)
-   */
-  def apply(row: Int, col: Int): Double
+  def transform(input: DataSet[IN], parameters: ParameterMap = ParameterMap.Empty): DataSet[OUT]
 }

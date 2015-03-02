@@ -16,30 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ml.math
+package org.apache.flink.ml.common
 
-/**
- * Base trait for a matrix representation
- */
-trait Matrix {
+import org.apache.flink.api.scala.DataSet
 
-  /**
-   * Number of rows
-   * @return
-   */
-  def numRows: Int
+class ChainedTransformer[IN, TEMP, OUT](val head: Transformer[IN, TEMP],
+                                        val tail: Transformer[TEMP, OUT])
+  extends Transformer[IN, OUT] {
 
-  /**
-   * Number of columns
-   * @return
-   */
-  def numCols: Int
-
-  /**
-   * Element wise access function
-   * @param row row index
-   * @param col column index
-   * @return matrix entry at (row, col)
-   */
-  def apply(row: Int, col: Int): Double
+  override def transform(input: DataSet[IN], parameters: ParameterMap): DataSet[OUT] = {
+    val tempResult = head.transform(input, parameters)
+    tail.transform(tempResult)
+  }
 }

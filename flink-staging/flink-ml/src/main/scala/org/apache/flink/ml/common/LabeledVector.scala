@@ -16,30 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ml.math
+package org.apache.flink.ml.common
 
-/**
- * Base trait for a matrix representation
- */
-trait Matrix {
+import org.apache.flink.ml.math.Vector
 
-  /**
-   * Number of rows
-   * @return
-   */
-  def numRows: Int
-
-  /**
-   * Number of columns
-   * @return
-   */
-  def numCols: Int
-
-  /**
-   * Element wise access function
-   * @param row row index
-   * @param col column index
-   * @return matrix entry at (row, col)
-   */
-  def apply(row: Int, col: Int): Double
-}
+case class LabeledVector(vector: Vector, label: Double) {}
