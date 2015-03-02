@@ -65,8 +65,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case NothingType() => NothingDesciptor(id, tpe)
 
-          case TraversableType(elemTpe) => analyzeTraversable(id, tpe, elemTpe)
-
           case EitherType(leftTpe, rightTpe) => analyzeEither(id, tpe, leftTpe, rightTpe)
 
           case TryType(elemTpe) => analyzeTry(id, tpe, elemTpe)
@@ -74,6 +72,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           case OptionType(elemTpe) => analyzeOption(id, tpe, elemTpe)
 
           case CaseClassType() => analyzeCaseClass(id, tpe)
+
+          case TraversableType(elemTpe) => analyzeTraversable(id, tpe, elemTpe)
 
           case ValueType() => ValueDescriptor(id, tpe)
 
