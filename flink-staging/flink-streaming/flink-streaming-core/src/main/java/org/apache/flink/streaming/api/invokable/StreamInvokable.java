@@ -128,6 +128,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 				LOG.error("Calling user function failed due to: {}",
 						StringUtils.stringifyException(e));
 			}
+			throw new RuntimeException(e);
 		}
 	}
 

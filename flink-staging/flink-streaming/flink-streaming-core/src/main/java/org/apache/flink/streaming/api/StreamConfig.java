@@ -187,7 +187,7 @@ public class StreamConfig implements Serializable {
 
 	public void setOutputSelectors(List<OutputSelector<?>> outputSelector) {
 		try {
-			if (outputSelector != null) {
+			if (outputSelector != null && !outputSelector.isEmpty()) {
 				setDirectedEmit(true);
 				config.setBytes(OUTPUT_SELECTOR,
 						SerializationUtils.serialize((Serializable) outputSelector));
