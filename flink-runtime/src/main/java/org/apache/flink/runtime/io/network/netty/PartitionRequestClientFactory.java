@@ -48,7 +48,7 @@ class PartitionRequestClientFactory {
 	 * Atomically establishes a TCP connection to the given remote address and
 	 * creates a {@link PartitionRequestClient} instance for this connection.
 	 */
-	PartitionRequestClient createPartitionRequestClient(RemoteAddress remoteAddress) throws IOException {
+	PartitionRequestClient createPartitionRequestClient(RemoteAddress remoteAddress) throws IOException, InterruptedException {
 		Object entry;
 		PartitionRequestClient client = null;
 
@@ -182,15 +182,10 @@ class PartitionRequestClientFactory {
 
 		private volatile Throwable error;
 
-		private PartitionRequestClient waitForChannel() throws IOException {
+		private PartitionRequestClient waitForChannel() throws IOException, InterruptedException {
 			synchronized (connectLock) {
 				while (error == null && partitionRequestClient == null) {
-					try {
-						connectLock.wait(2000);
-					}
-					catch (InterruptedException e) {
-						throw new RuntimeException("Wait for channel connection interrupted.");
-					}
+					connectLock.wait(2000);
 				}
 			}
 

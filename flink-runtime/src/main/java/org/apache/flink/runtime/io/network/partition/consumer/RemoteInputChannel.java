@@ -85,7 +85,7 @@ public class RemoteInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void requestIntermediateResultPartition(int queueIndex) throws IOException {
+	public void requestIntermediateResultPartition(int queueIndex) throws IOException, InterruptedException {
 		if (partitionRequestClient == null) {
 			LOG.debug("Requesting REMOTE queue {} from partition {} produced by {}.", queueIndex, partitionId, producerExecutionId);
 

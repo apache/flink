@@ -29,7 +29,7 @@ public interface InputGate {
 
 	public boolean isFinished();
 
-	public void requestPartitions() throws IOException;
+	public void requestPartitions() throws IOException, InterruptedException;
 
 	public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException;
 

@@ -192,7 +192,7 @@ public class SingleInputGate implements InputGate {
 		}
 	}
 
-	public void updateInputChannel(PartitionInfo partitionInfo) throws IOException {
+	public void updateInputChannel(PartitionInfo partitionInfo) throws IOException, InterruptedException {
 		synchronized (requestLock) {
 			if (releasedResourcesFlag) {
 				// There was a race with a task failure/cancel
@@ -273,7 +273,7 @@ public class SingleInputGate implements InputGate {
 	}
 
 	@Override
-	public void requestPartitions() throws IOException {
+	public void requestPartitions() throws IOException, InterruptedException {
 		if (!requestedPartitionsFlag) {
 			// Sanity check
 			if (numberOfInputChannels != inputChannels.size()) {

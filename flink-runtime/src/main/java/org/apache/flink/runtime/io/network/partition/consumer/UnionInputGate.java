@@ -120,7 +120,7 @@ public class UnionInputGate implements InputGate {
 	}
 
 	@Override
-	public void requestPartitions() throws IOException {
+	public void requestPartitions() throws IOException, InterruptedException {
 		if (!requestedPartitionsFlag) {
 			for (InputGate inputGate : inputGates) {
 				inputGate.requestPartitions();

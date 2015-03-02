@@ -78,7 +78,7 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 		bufferReader2.registerListener(this);
 	}
 
-	public void requestPartitionsOnce() throws IOException {
+	public void requestPartitionsOnce() throws IOException, InterruptedException {
 		if (!hasRequestedPartitions) {
 			bufferReader1.requestPartitions();
 			bufferReader2.requestPartitions();
