@@ -27,7 +27,7 @@ import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
@@ -49,7 +49,8 @@ public class StreamConfig implements Serializable {
 	private static final String VERTEX_NAME = "vertexID";
 	private static final String OPERATOR_NAME = "operatorName";
 	private static final String ITERATION_ID = "iteration-id";
-	private static final String OUTPUT_SELECTOR = "outputSelector";
+//	private static final String OUTPUT_SELECTOR = "outputSelector";
+	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
 	private static final String DIRECTED_EMIT = "directedEmit";
 	private static final String SERIALIZEDUDF = "serializedudf";
 	private static final String USER_FUNCTION = "userfunction";
@@ -67,7 +68,6 @@ public class StreamConfig implements Serializable {
 	private static final String IN_STREAM_EDGES = "out stream edges";
 
 	// DEFAULT VALUES
-
 	private static final long DEFAULT_TIMEOUT = 100;
 	public static final String STATE_MONITORING = "STATE_MONITORING";
 
@@ -189,33 +189,21 @@ public class StreamConfig implements Serializable {
 		}
 	}
 
-	public void setDirectedEmit(boolean directedEmit) {
-		config.setBoolean(DIRECTED_EMIT, directedEmit);
-	}
-
-	public boolean isDirectedEmit() {
-		return config.getBoolean(DIRECTED_EMIT, false);
-	}
-
-	public void setOutputSelectors(List<OutputSelector<?>> outputSelector) {
+	public void setOutputSelectorWrapper(OutputSelectorWrapper<?> outputSelectorWrapper) {
 		try {
-			if (outputSelector != null && !outputSelector.isEmpty()) {
-				setDirectedEmit(true);
-				config.setBytes(OUTPUT_SELECTOR,
-						SerializationUtils.serialize((Serializable) outputSelector));
-			}
+			config.setBytes(OUTPUT_SELECTOR_WRAPPER, SerializationUtils.serialize(outputSelectorWrapper));
 		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize OutputSelector");
+			throw new RuntimeException("Cannot serialize OutputSelectorWrapper");
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> List<OutputSelector<T>> getOutputSelectors(ClassLoader cl) {
+	public <T> OutputSelectorWrapper<T> getOutputSelectorWrapper(ClassLoader cl) {
 		try {
-			return (List<OutputSelector<T>>) InstantiationUtil.readObjectFromConfig(this.config,
-					OUTPUT_SELECTOR, cl);
+			return (OutputSelectorWrapper<T>) InstantiationUtil.readObjectFromConfig(this.config,
+					OUTPUT_SELECTOR_WRAPPER, cl);
 		} catch (Exception e) {
-			throw new StreamVertexException("Cannot deserialize and instantiate OutputSelector", e);
+			throw new StreamVertexException("Cannot deserialize and instantiate OutputSelectorWrapper", e);
 		}
 	}
 
