@@ -333,6 +333,9 @@
 					<generateGitPropertiesFile>true</generateGitPropertiesFile>
 					<skipPoms>false</skipPoms>
 					<generateGitPropertiesFilename>src/main/stratosphere-bin/.version.properties</generateGitPropertiesFilename>
+                                            <gitDescribe>
+                                              <skip>true</skip>
+                                            </gitDescribe>
 				</configuration>
 			</plugin>
 		</plugins>
