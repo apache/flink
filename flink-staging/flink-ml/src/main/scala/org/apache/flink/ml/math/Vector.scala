@@ -21,7 +21,7 @@ package org.apache.flink.ml.math
 /**
  * Base trait for Vectors
  */
-trait Vector extends Iterable[Double] {
+trait Vector {
 
   /**
    * Number of elements in a vector

@@ -22,31 +22,32 @@ package org.apache.flink.ml.math
  * Dense vector implementation of [[Vector]]. The data is represented in a continuous array of
  * doubles.
  *
- * @param elements Array of doubles to store the vector elements
+ * @param values Array of doubles to store the vector elements
  */
-class DenseVector(elements: Array[Double]) extends Vector {
+case class DenseVector(val values: Array[Double]) extends Vector {
+
   /**
    * Number of elements in a vector
    * @return
    */
   override def size: Int = {
-    elements.length
+    values.length
   }
 
   /**
    * Element wise access function
    *
    * @param index index of the accessed element
-   * @return element with index
+   * @return element at the given index
    */
   override def apply(index: Int): Double = {
-    require(0 <= index && index < elements.length, s"Index $index is out of bounds " +
-      s"[0, ${elements.length})")
-    elements(index)
+    require(0 <= index && index < values.length, s"Index $index is out of bounds " +
+      s"[0, ${values.length})")
+    values(index)
   }
 
-  override def iterator: Iterator[Double] = {
-    elements.iterator
+  override def toString: String = {
+    s"DenseVector(${values.mkString(", ")})"
   }
 }
 
@@ -54,10 +55,6 @@ object DenseVector {
 
   def apply(values: Double*): DenseVector = {
     new DenseVector(values.toArray)
-  }
-
-  def apply(values: Array[Double]): DenseVector = {
-    new DenseVector(values)
   }
 
   def apply(values: Array[Int]): DenseVector = {
