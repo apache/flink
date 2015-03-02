@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.codegen
 
 import scala.collection._
+import scala.collection.generic.CanBuildFrom
 import scala.reflect.macros.Context
 import scala.util.DynamicVariable
 
@@ -288,7 +289,22 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           traversable match {
             case TypeRef(_, _, elemTpe :: Nil) =>
-              Some(elemTpe.asSeenFrom(tpe, tpe.typeSymbol))
+
+              // determine whether we can find an implicit for the CanBuildFrom because
+              // TypeInformationGen requires this. This catches the case where a user
+              // has a custom class that implements Iterable[], for example.
+              val cbfTpe = TypeRef(
+                typeOf[CanBuildFrom[_, _, _]],
+                typeOf[CanBuildFrom[_, _, _]].typeSymbol,
+                tpe :: elemTpe :: tpe :: Nil)
+
+              val cbf = c.inferImplicitValue(cbfTpe, silent = true)
+
+              if (cbf == EmptyTree) {
+                None
+              } else {
+                Some(elemTpe.asSeenFrom(tpe, tpe.typeSymbol))
+              }
             case _ => None
           }
 
