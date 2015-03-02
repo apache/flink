@@ -143,7 +143,7 @@ Note that **1**, **2**, and **4** can be arbitrary data flows.
 Delta Iterate Operator
 ----------------------
 
-The **delta iterate operator** covers the case of **incremental iterations**. Incremental iterations **selectively modify elements** of their **solution solution** and evolve the solution rather than fully recompute it.
+The **delta iterate operator** covers the case of **incremental iterations**. Incremental iterations **selectively modify elements** of their **solution** and evolve the solution rather than fully recompute it.
 
 Where applicable, this leads to **more efficient algorithms**, because not every element in the solution set changes in each iteration. This allows to **focus on the hot parts** of the solution and leave the **cold parts untouched**. Frequently, the majority of the solution cools down comparatively fast and the later iterations operate only on a small subset of the data.
 
@@ -180,7 +180,7 @@ setFinalState(solution);
 
 ### Example: Propagate Minimum in Graph
 
-In the following example, every vertex has an **ID** and a **coloring**. Each vertex will propagete its vertex ID to neighboring vertices. The **goal** is to *assign the minimum ID to every vertex in a subgraph*. If a received ID is smaller then the current one, it changes to the color of the vertex with the received ID. One application of this can be found in *community analysis* or *connected components* computation.
+In the following example, every vertex has an **ID** and a **coloring**. Each vertex will propagate its vertex ID to neighboring vertices. The **goal** is to *assign the minimum ID to every vertex in a subgraph*. If a received ID is smaller then the current one, it changes to the color of the vertex with the received ID. One application of this can be found in *community analysis* or *connected components* computation.
 
 <p class="text-center">
     <img alt="Delta Iterate Operator Example" width="100%" src="img/iterations_delta_iterate_operator_example.png" />
