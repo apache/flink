@@ -15,34 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.collector;
+package org.apache.flink.streaming.api.collector.selector;
+
+import java.io.Serializable;
 
 import org.apache.flink.streaming.api.StreamEdge;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.util.Collector;
 
-public class CollectorWrapper<OUT> implements Collector<OUT> {
+public interface OutputSelectorWrapper<OUT> extends Serializable {
 
-	private OutputSelectorWrapper<OUT> outputSelectorWrapper;
+	public void addCollector(Collector<?> output, StreamEdge edge);
 
-	public CollectorWrapper(OutputSelectorWrapper<OUT> outputSelectorWrapper) {
-		this.outputSelectorWrapper = outputSelectorWrapper;
-	}
-
-	@SuppressWarnings("unchecked")
-	public void addCollector(Collector<?> output, StreamEdge edge) {
-		outputSelectorWrapper.addCollector(output, edge);
-	}
-
-	@Override
-	public void collect(OUT record) {
-		for (Collector<OUT> output : outputSelectorWrapper.getSelectedOutputs(record)) {
-			output.collect(record);
-		}
-	}
-
-	@Override
-	public void close() {
-	}
+	public Iterable<Collector<OUT>> getSelectedOutputs(OUT record);
 
 }

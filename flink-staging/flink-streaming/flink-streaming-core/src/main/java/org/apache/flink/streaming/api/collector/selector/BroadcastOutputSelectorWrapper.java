@@ -15,34 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.collector;
+package org.apache.flink.streaming.api.collector.selector;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.flink.streaming.api.StreamEdge;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.util.Collector;
 
-public class CollectorWrapper<OUT> implements Collector<OUT> {
+public class BroadcastOutputSelectorWrapper<OUT> implements OutputSelectorWrapper<OUT> {
 
-	private OutputSelectorWrapper<OUT> outputSelectorWrapper;
+	private List<Collector<OUT>> outputs;
 
-	public CollectorWrapper(OutputSelectorWrapper<OUT> outputSelectorWrapper) {
-		this.outputSelectorWrapper = outputSelectorWrapper;
+	public BroadcastOutputSelectorWrapper() {
+		outputs = new ArrayList<Collector<OUT>>();
 	}
 
-	@SuppressWarnings("unchecked")
+	@Override
 	public void addCollector(Collector<?> output, StreamEdge edge) {
-		outputSelectorWrapper.addCollector(output, edge);
+		outputs.add((Collector<OUT>) output);
 	}
 
 	@Override
-	public void collect(OUT record) {
-		for (Collector<OUT> output : outputSelectorWrapper.getSelectedOutputs(record)) {
-			output.collect(record);
-		}
+	public Iterable<Collector<OUT>> getSelectedOutputs(OUT record) {
+		return outputs;
 	}
-
-	@Override
-	public void close() {
-	}
-
 }

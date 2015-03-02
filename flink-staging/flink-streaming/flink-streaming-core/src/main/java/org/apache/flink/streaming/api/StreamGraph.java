@@ -37,7 +37,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapperFactory;
+import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -537,8 +539,8 @@ public class StreamGraph extends StreamingPlan {
 		return inputFormatLists.get(vertexID);
 	}
 
-	public List<OutputSelector<?>> getOutputSelector(Integer vertexID) {
-		return outputSelectors.get(vertexID);
+	public OutputSelectorWrapper<?> getOutputSelectorWrapper(Integer vertexID) {
+		return OutputSelectorWrapperFactory.create(outputSelectors.get(vertexID));
 	}
 
 	public Integer getIterationID(Integer vertexID) {
