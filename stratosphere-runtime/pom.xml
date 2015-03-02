@@ -114,6 +114,9 @@
 					<skipPoms>false</skipPoms>
 					<failOnNoGitDirectory>false</failOnNoGitDirectory>
 					<generateGitPropertiesFilename>src/main/resources/.version.properties</generateGitPropertiesFilename>
+                                        <gitDescribe>
+                                          <skip>true</skip>
+                                        </gitDescribe>
 				</configuration>
 			</plugin>
 			<!-- Add version to jar http://stackoverflow.com/questions/2712970/how-to-get-maven-artifact-version-at-runtime
