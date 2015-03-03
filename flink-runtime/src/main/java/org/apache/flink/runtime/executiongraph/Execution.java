@@ -57,6 +57,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -205,7 +206,9 @@ public class Execution implements Serializable {
 	 *       to be scheduled immediately and no resource is available. If the task is accepted by the schedule, any
 	 *       error sets the vertex state to failed and triggers the recovery logic.
 	 * 
-	 * @param scheduler
+	 * @param scheduler The scheduler to use to schedule this execution attempt.
+	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
+	 *               immediately deploy it.
 	 * 
 	 * @throws IllegalStateException Thrown, if the vertex is not in CREATED state, which is the only state that permits scheduling.
 	 * @throws NoResourceAvailableException Thrown is no queued scheduling is allowed and no resources are currently available.
@@ -329,14 +332,19 @@ public class Execution implements Serializable {
 				@Override
 				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if (failure != null) {
-						markFailed(failure);
+						if (failure instanceof TimeoutException) {
+							markFailed(new Exception("Cannot deploy task - TaskManager not responding.", failure));
+						}
+						else {
+							markFailed(failure);
+						}
 					}
 					else {
 						if (success == null) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot + ": TaskOperationResult was null"));
 						}
 
-						if(success instanceof TaskOperationResult) {
+						if (success instanceof TaskOperationResult) {
 							TaskOperationResult result = (TaskOperationResult) success;
 
 							if (!result.executionID().equals(attemptId)) {
@@ -349,7 +357,7 @@ public class Execution implements Serializable {
 										getVertexWithAttempt() + " to slot " + slot + ": " + result
 										.description()));
 							}
-						}else {
+						} else {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot +
 									": Response was not of type TaskOperationResult"));
 						}
