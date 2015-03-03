@@ -54,7 +54,7 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 		PojoTypeInfo pti =  (PojoTypeInfo) ti;
 		List<PojoField> newFields = new ArrayList<PojoField>(pti.getTotalFields());
 
-		for(int i = 0; i < pti.getTotalFields(); i++) {
+		for(int i = 0; i < pti.getArity(); i++) {
 			PojoField f = pti.getPojoFieldAt(i);
 			TypeInformation newType = f.type;
 			// check if type is a CharSequence
