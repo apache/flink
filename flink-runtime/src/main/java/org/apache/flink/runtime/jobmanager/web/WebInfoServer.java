@@ -42,7 +42,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import scala.concurrent.duration.FiniteDuration;
 
-
 /**
  * This class sets up a web-server that contains a web frontend to display information about running jobs.
  * It instantiates and configures an embedded jetty server.
@@ -67,14 +66,16 @@ public class WebInfoServer {
 	/**
 	 * Port for info server
 	 */
-	private int port;
+	private final int port;
 
 	/**
 	 * Creates a new web info server. The server runs the servlets that implement the logic
 	 * to list all present information concerning the job manager
 	 *
-	 * @param config
-	 *        The configuration for the flink job manager.
+	 * @param config The Flink configuration.
+	 * @param jobmanager The ActorRef to the JobManager actor
+	 * @param archive The ActorRef to the archive for old jobs
+	 *
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
@@ -86,10 +87,13 @@ public class WebInfoServer {
 			throw new NullPointerException();
 		}
 
-		final FiniteDuration timeout = AkkaUtils.getTimeout(config);
-		
 		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		if (this.port <= 0) {
+			throw new IllegalArgumentException("Invalid port for the webserver: " + this.port);
+		}
+
+		final FiniteDuration timeout = AkkaUtils.getTimeout(config);
 
 		// get base path of Flink installation
 		final String basePath = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");
@@ -116,7 +120,6 @@ public class WebInfoServer {
 		}
 
 		server = new Server(port);
-
 
 		// ----- the handlers for the servlets -----
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
@@ -197,8 +200,7 @@ public class WebInfoServer {
 		server.stop();
 	}
 
-	public Server getServer() {
-		return server;
+	public int getServerPort() {
+		return this.port;
 	}
-
 }

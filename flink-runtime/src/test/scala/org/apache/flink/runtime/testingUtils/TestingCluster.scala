@@ -41,6 +41,7 @@ class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolea
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
     cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, NetUtils.getAvailablePort())
     cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10)
+    cfg.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
     cfg.addAll(userConfig)
     cfg

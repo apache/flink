@@ -29,7 +29,7 @@ jobmanager.heap.mb: 256
 
 taskmanager.heap.mb: 512
 
-taskmanager.numberOfTaskSlots: -1
+taskmanager.numberOfTaskSlots: 1
 
 parallelization.degree.default: 1
 
@@ -37,7 +37,13 @@ parallelization.degree.default: 1
 # Web Frontend
 #==============================================================================
 
+# The port under which the web-based runtime monitor listens.
+# A value of -1 deactivates the web server.
+
 jobmanager.web.port: 8081
+
+# The port uder which the standalone web client
+# (for job upload and submit) listens.
 
 webclient.port: 8080
 

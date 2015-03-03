@@ -65,6 +65,8 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerData)
     }
 
+    config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
+
     super.generateConfiguration(config)
   }
 

@@ -234,7 +234,7 @@ public final class ConfigConstants {
 	// ------------------------- JobManager Web Frontend ----------------------
 	
 	/**
-	 * The port for the pact web-frontend server.
+	 * The port for the runtime monitor web-frontend server.
 	 */
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
 

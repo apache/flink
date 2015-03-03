@@ -726,9 +726,11 @@ object JobManager {
       }
 
       // start the job manager web frontend
-      LOG.info("Starting JobManger web frontend")
-      val webServer = new WebInfoServer(configuration, jobManager, archiver)
-      webServer.start()
+      if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) != -1) {
+        LOG.info("Starting JobManger web frontend")
+        val webServer = new WebInfoServer(configuration, jobManager, archiver)
+        webServer.start()
+      }
     }
     catch {
       case t: Throwable => {

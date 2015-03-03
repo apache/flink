@@ -93,12 +93,14 @@ object ApplicationMaster {
           val jobManagerPort = extActor.provider.getDefaultAddress.port.get
 
           // start the web info server
-          LOG.info("Starting Job Manger web frontend.")
-          config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
-          webserver = new WebInfoServer(config, jobManager, archiver)
-          webserver.start()
+          if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) != -1) {
+            LOG.info("Starting Job Manger web frontend.")
+            config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
+            webserver = new WebInfoServer(config, jobManager, archiver)
+            webserver.start()
+          }
 
-          val jobManagerWebPort = webserver.getServer.getConnectors()(0).getLocalPort
+          val jobManagerWebPort = if (webserver == null) -1 else webserver.getServerPort
 
           // generate configuration file for TaskManagers
           generateConfigurationFile(s"$currDir/$MODIFIED_CONF_FILE", currDir, ownHostname,
