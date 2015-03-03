@@ -75,6 +75,9 @@ public enum DriverStrategy {
 
 	// co-grouping inputs
 	CO_GROUP(CoGroupDriver.class, null, PIPELINED, PIPELINED, 2),
+	// python-cogroup
+	CO_GROUP_RAW(CoGroupRawDriver.class, null, PIPELINED, PIPELINED, 0),
+	
 	
 	// the first input is build side, the second side is probe side of a hybrid hash table
 	HYBRIDHASH_BUILD_FIRST(MatchDriver.class, null, FULL_DAM, MATERIALIZING, 2),

@@ -69,6 +69,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.flink.api.common.operators.base.CoGroupRawOperatorBase;
+import org.apache.flink.optimizer.dag.CoGroupRawNode;
 
 /**
  * This traversal creates the optimizer DAG from a program.
@@ -163,6 +165,9 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 		}
 		else if (c instanceof CoGroupOperatorBase) {
 			n = new CoGroupNode((CoGroupOperatorBase<?, ?, ?, ?>) c);
+		}
+		else if (c instanceof CoGroupRawOperatorBase) {
+			n = new CoGroupRawNode((CoGroupRawOperatorBase<?, ?, ?, ?>) c);
 		}
 		else if (c instanceof CrossOperatorBase) {
 			n = new CrossNode((CrossOperatorBase<?, ?, ?, ?>) c);
