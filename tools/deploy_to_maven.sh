@@ -27,9 +27,7 @@
 # 4. deploy snapshot and s3 (hadoop2 - 2.2.0)
 # 5. Nothing (hadoop2 - 2.5.1)
 
-# Changes (since travis changed the id assignment)
-# switched 2. with 3.
-# switched 5. with 6.
+
 
 echo "install lifecylce mapping fake plugin"
 git clone https://github.com/mfriedenhagen/dummy-lifecycle-mapping-plugin.git
@@ -47,8 +45,10 @@ function getVersion() {
 	fi
 	flink_home="`dirname \"$here\"`"
 	cd $flink_home
-	echo `mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version|grep -Ev '(^\[|Download\w+:)'`
+	echo `mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^([0-9]+.[0-9]+(.[0-9]+)?(-[a-zA-Z0-9]+)?)$'`
 }
+
+pwd
 
 # this will take a while
 CURRENT_FLINK_VERSION=`getVersion`
@@ -59,6 +59,7 @@ else
 fi
 
 echo "detected current version as: '$CURRENT_FLINK_VERSION' ; hadoop1: $CURRENT_FLINK_VERSION_HADOOP1 "
+
 
 # Check if push/commit is eligible for pushing
 echo "Job: $TRAVIS_JOB_NUMBER ; isPR: $TRAVIS_PULL_REQUEST"
