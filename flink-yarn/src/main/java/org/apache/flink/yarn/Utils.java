@@ -52,7 +52,7 @@ public class Utils {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
-	private static final int DEFAULT_HEAP_LIMIT_CAP = 500;
+	private static final int DEFAULT_HEAP_LIMIT_CAP = 700;
 	private static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.8f;
 
 	/**

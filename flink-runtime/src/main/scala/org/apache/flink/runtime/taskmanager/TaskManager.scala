@@ -868,7 +868,7 @@ object TaskManager {
         " - Leave config parameter empty or use 0 to let the system choose a port automatically.")
     }
 
-    runTaskManager(taskManagerHostname, actorSystemPort, configuration, classOf[TaskManager])
+    runTaskManager(taskManagerHostname, actorSystemPort, configuration, taskManagerClass)
   }
 
   /**
