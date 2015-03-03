@@ -355,6 +355,63 @@ class GroupedDataSet[T: ClassTag](
   }
 
   /**
+   * Partial variant of the reduceGroup transformation which operates only on the individual
+   * partitions. This may lead to partially reduced results.
+   * Creates a new [[DataSet]] by passing for each group (elements with the same key) the list
+   * of elements to the group reduce function. The function must output one element. The
+   * concatenation of those will form the resulting [[DataSet]].
+   */
+  def reduceGroupPartially[R: TypeInformation: ClassTag](
+                                                 fun: (Iterator[T]) => R): DataSet[R] = {
+    Validate.notNull(fun, "Group reduce function must not be null.")
+    val reducer = new GroupReduceFunction[T, R] {
+      val cleanFun = set.clean(fun)
+      def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
+        out.collect(cleanFun(in.iterator().asScala))
+      }
+    }
+    wrap(
+      new GroupReducePartialOperator[T, R](maybeCreateSortedGrouping(),
+        implicitly[TypeInformation[R]], reducer, getCallLocationName()))
+  }
+
+  /**
+   * Partial variant of the reduceGroup transformation which operates only on the individual
+   * partitions. This may lead to partially reduced results.
+   * Creates a new [[DataSet]] by passing for each group (elements with the same key) the list
+   * of elements to the group reduce function. The function can output zero or more elements using
+   * the [[Collector]]. The concatenation of the emitted values will form the resulting [[DataSet]].
+   */
+  def reduceGroupPartially[R: TypeInformation: ClassTag](
+                                          fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
+    Validate.notNull(fun, "Group reduce function must not be null.")
+    val reducer = new GroupReduceFunction[T, R] {
+      val cleanFun = set.clean(fun)
+      def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
+        cleanFun(in.iterator().asScala, out)
+      }
+    }
+    wrap(
+      new GroupReducePartialOperator[T, R](maybeCreateSortedGrouping(),
+        implicitly[TypeInformation[R]], reducer, getCallLocationName()))
+  }
+
+  /**
+   * Partial variant of the reduceGroup transformation which operates only on the individual
+   * partitions. This may lead to partially reduced results.
+   * Creates a new [[DataSet]] by passing for each group (elements with the same key) the list
+   * of elements to the [[GroupReduceFunction]]. The function can output zero or more elements. The
+   * concatenation of the emitted values will form the resulting [[DataSet]].
+   */
+  def reduceGroupPartially[R: TypeInformation: ClassTag](
+      reducer: GroupReduceFunction[T, R]): DataSet[R] = {
+    Validate.notNull(reducer, "GroupReduce function must not be null.")
+    wrap(
+      new GroupReducePartialOperator[T, R](maybeCreateSortedGrouping(),
+        implicitly[TypeInformation[R]], reducer, getCallLocationName()))
+  }
+
+  /**
    * Creates a new DataSet containing the first `n` elements of each group of this DataSet.
    */
   def first(n: Int): DataSet[T] = {

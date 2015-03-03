@@ -58,15 +58,16 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
-import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.GroupReducePartialOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.PartitionOperator;
+import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
 import org.apache.flink.api.java.operators.ReduceOperator;
 import org.apache.flink.api.java.operators.SortedGrouping;
@@ -457,6 +458,23 @@ public abstract class DataSet<T> {
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, getType(), callLocation, true);
 		return new GroupReduceOperator<T, R>(this, resultType, clean(reducer), callLocation);
 	}
+
+	/**
+	 * Applies a partial GroupReduce transformation on a non-grouped {@link DataSet}.
+	 * In contrast to the reduceGroup transformation, the GroupReduce function is only called on each partition. Thus,
+	 * partial solutions are likely to occur.
+	 * @param reducer The ReduceFunction that is applied on the DataSet.
+	 * @return A GroupReducePartial operator which represents the partially reduced DataSet
+	 */
+	public <R> GroupReducePartialOperator<T, R> reduceGroupPartially(GroupReduceFunction<T, R> reducer) {
+		if (reducer == null) {
+			throw new NullPointerException("GroupReduce function must not be null.");
+		}
+
+		String callLocation = Utils.getCallLocationName();
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, getType(), callLocation, true);
+		return new GroupReducePartialOperator<T, R>(this, resultType, clean(reducer), callLocation);
+	} 
 
 	/**
 	 * Selects an element with minimum value.

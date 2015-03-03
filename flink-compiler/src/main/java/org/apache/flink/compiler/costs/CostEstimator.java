@@ -186,7 +186,13 @@ public abstract class CostEstimator {
 			
 		case SORTED_GROUP_COMBINE:
 			// partial grouping is always local and main memory resident. we should add a relative cpu cost at some point
-		
+
+		case ALL_GROUP_REDUCE_PARTIAL:
+			// partial all group reduce
+
+		case GROUP_REDUCE_PARTIAL:
+			// partial grouping is always local and main memory resident. we should add a relative cpu cost at some point
+			
 		case UNION:
 			// pipelined local union is for free
 			

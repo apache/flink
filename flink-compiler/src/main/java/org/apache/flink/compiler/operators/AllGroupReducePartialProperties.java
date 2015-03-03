@@ -18,12 +18,6 @@
 
 package org.apache.flink.compiler.operators;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
-import org.apache.flink.api.common.operators.util.FieldSet;
-import org.apache.flink.compiler.dag.GroupReduceNode;
 import org.apache.flink.compiler.dag.SingleInputNode;
 import org.apache.flink.compiler.dataproperties.GlobalProperties;
 import org.apache.flink.compiler.dataproperties.LocalProperties;
@@ -34,31 +28,19 @@ import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-public final class PartialGroupProperties extends OperatorDescriptorSingle {
-	
-	public PartialGroupProperties(FieldSet keys) {
-		super(keys);
-	}
-	
+import java.util.Collections;
+import java.util.List;
+
+public final class AllGroupReducePartialProperties extends OperatorDescriptorSingle {
+
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.SORTED_GROUP_COMBINE;
+		return DriverStrategy.ALL_GROUP_REDUCE_PARTIAL;
 	}
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		// create in input node for combine with same DOP as input node
-		GroupReduceNode combinerNode = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) node.getPactContract());
-		combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
-
-		SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine("+node.getPactContract().getName()+")", in,
-				DriverStrategy.SORTED_GROUP_COMBINE);
-		// sorting key info
-		combiner.setDriverKeyInfo(in.getLocalStrategyKeys(), in.getLocalStrategySortOrder(), 0);
-		// set grouping comparator key info
-		combiner.setDriverKeyInfo(this.keyList, 1);
-		
-		return combiner;
+		return new SingleInputPlanNode(node, "GroupReducePartial ("+node.getPactContract().getName()+")", in, DriverStrategy.ALL_GROUP_REDUCE_PARTIAL);
 	}
 
 	@Override
@@ -68,11 +50,10 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle {
 
 	@Override
 	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
-		RequestedLocalProperties props = new RequestedLocalProperties();
-		props.setGroupedFields(this.keys);
-		return Collections.singletonList(props);
+		return Collections.singletonList(new RequestedLocalProperties());
 	}
-	
+
+
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
@@ -83,7 +64,8 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle {
 		gProps.clearUniqueFieldCombinations();
 		return gProps;
 	}
-	
+
+
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {
 		return lProps.clearUniqueFieldSets();

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.operators.chaining.ChainedCollectorMapDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedFlatMapDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedMapDriver;
+import org.apache.flink.runtime.operators.chaining.GroupReducePartialChainedDriver;
 import org.apache.flink.runtime.operators.chaining.SynchronousChainedCombineDriver;
 
 /**
@@ -66,6 +67,12 @@ public enum DriverStrategy {
 	SORTED_GROUP_REDUCE(GroupReduceDriver.class, null, PIPELINED, 1),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
 	SORTED_GROUP_COMBINE(GroupReduceCombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, 2),
+
+	/*** partial group reduce that act like combiners with a custom output type ***/
+	// partial group reduce on all inputs within a partition (without grouping)
+	ALL_GROUP_REDUCE_PARTIAL(AllGroupReducePartialDriver.class, null, PIPELINED, 0),
+	// partial group reduce applied on all grouped values within a partition
+	GROUP_REDUCE_PARTIAL(GroupReducePartialDriver.class, GroupReducePartialChainedDriver.class, MATERIALIZING, 2),
 
 	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key
 	MERGE(MatchDriver.class, null, MATERIALIZING, MATERIALIZING, 2),

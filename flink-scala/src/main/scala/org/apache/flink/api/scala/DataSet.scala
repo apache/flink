@@ -627,6 +627,63 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
+   * Creates a new [[DataSet]] by passing all elements in this DataSet to the group reduce function.
+   * The function can output zero or more elements using the [[Collector]]. The concatenation of the
+   * emitted values will form the resulting [[DataSet]].
+   */
+  def reduceGroupPartially[R: TypeInformation: ClassTag](
+      reducer: GroupReduceFunction[T, R]): DataSet[R] = {
+    if (reducer == null) {
+      throw new NullPointerException("GroupReduce function must not be null.")
+    }
+    wrap(new GroupReducePartialOperator[T, R](javaSet,
+      implicitly[TypeInformation[R]],
+      reducer,
+      getCallLocationName()))
+  }
+
+  /**
+   * Creates a new [[DataSet]] by passing all elements in this DataSet to the group reduce function.
+   * The function can output zero or more elements using the [[Collector]]. The concatenation of the
+   * emitted values will form the resulting [[DataSet]].
+   */
+  def reduceGroupPartially[R: TypeInformation: ClassTag](
+      fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
+    if (fun == null) {
+      throw new NullPointerException("GroupReduce function must not be null.")
+    }
+    val reducer = new GroupReduceFunction[T, R] {
+      val cleanFun = clean(fun)
+      def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
+        cleanFun(in.iterator().asScala, out)
+      }
+    }
+    wrap(new GroupReducePartialOperator[T, R](javaSet,
+      implicitly[TypeInformation[R]],
+      reducer,
+      getCallLocationName()))
+  }
+
+  /**
+   * Creates a new [[DataSet]] by passing all elements in this DataSet to the group reduce function.
+   */
+  def reduceGroupPartially[R: TypeInformation: ClassTag](fun: (Iterator[T]) => R): DataSet[R] = {
+    if (fun == null) {
+      throw new NullPointerException("GroupReduce function must not be null.")
+    }
+    val reducer = new GroupReduceFunction[T, R] {
+      val cleanFun = clean(fun)
+      def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
+        out.collect(cleanFun(in.iterator().asScala))
+      }
+    }
+    wrap(new GroupReducePartialOperator[T, R](javaSet,
+      implicitly[TypeInformation[R]],
+      reducer,
+      getCallLocationName()))
+  }
+
+  /**
    * Creates a new DataSet containing the first `n` elements of this DataSet.
    */
   def first(n: Int): DataSet[T] = {

@@ -33,7 +33,7 @@ import org.apache.flink.util.MutableObjectIterator;
 /**
  * A runtime task is the task that is executed by the flink engine inside a task vertex.
  * It typically has a {@link PactDriver}, and optionally multiple chained drivers. In addition, it
- * deals with the runtime setup and teardown and the control-flow logic. The later appears especially
+ * deals with the runtime setup and teardown and the control-flow logic. The latter appears especially
  * in the case of iterations.
  *
  * @param <S> The UDF type.

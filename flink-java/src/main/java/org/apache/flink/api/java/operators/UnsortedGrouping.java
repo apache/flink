@@ -159,7 +159,23 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 
 		return new GroupReduceOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName());
 	}
-	
+
+	/**
+	 * Applies a partial GroupReduce transformation on a grouped {@link DataSet}.
+	 * In contrast to the reduceGroup transformation, the GroupReduce function is only called on each partition. Thus,
+	 * partial solutions are likely to occur.
+	 * @param reducer The ReduceFunction that is applied on the DataSet.
+	 * @return A GroupReducePartial operator which represents the partially reduced DataSet
+	 */
+	public <R> GroupReducePartialOperator<T, R> reduceGroupPartially(GroupReduceFunction<T, R> reducer) {
+		if (reducer == null) {
+			throw new NullPointerException("GroupReduce function must not be null.");
+		}
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getDataSet().getType());
+
+		return new GroupReducePartialOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName());
+	}
+
 	/**
 	 * Returns a new set containing the first n elements in this grouped {@link DataSet}.<br/>
 	 * @param n The desired number of elements for each group.
