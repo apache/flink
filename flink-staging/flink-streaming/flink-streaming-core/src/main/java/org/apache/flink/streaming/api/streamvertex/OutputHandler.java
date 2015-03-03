@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.collector.CollectorWrapper;
 import org.apache.flink.streaming.api.collector.DirectedCollectorWrapper;
 import org.apache.flink.streaming.api.collector.StreamOutput;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.StreamRecordWriter;
@@ -166,8 +165,8 @@ public class OutputHandler<OUT> {
 	 *            The config of upStream task
 	 * @return
 	 */
-	private <T> StreamOutput<T> createStreamOutput(Integer outputVertex, StreamConfig configuration,
-			int outputIndex) {
+	private <T> StreamOutput<T> createStreamOutput(Integer outputVertex,
+			StreamConfig configuration, int outputIndex) {
 
 		StreamRecordSerializer<T> outSerializer = configuration
 				.getTypeSerializerOut1(vertex.userClassLoader);
@@ -218,25 +217,9 @@ public class OutputHandler<OUT> {
 		}
 	}
 
-	public void invokeUserFunction(String componentTypeName, StreamInvokable<?, OUT> userInvokable)
-			throws IOException, InterruptedException {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} {} invoked with instance id {}", componentTypeName, vertex.getName(),
-					vertex.getInstanceID());
+	public void clearWriters() {
+		for (StreamOutput<?> output : outputMap.values()) {
+			output.clearBuffers();
 		}
-
-		try {
-			vertex.invokeUserFunction(userInvokable);
-		} catch (Exception e) {
-			flushOutputs();
-			throw new RuntimeException(e);
-		}
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} {} invoke finished instance id {}", componentTypeName, vertex.getName(),
-					vertex.getInstanceID());
-		}
-
-		flushOutputs();
 	}
 }

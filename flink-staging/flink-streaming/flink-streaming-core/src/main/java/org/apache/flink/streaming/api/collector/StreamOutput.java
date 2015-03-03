@@ -83,4 +83,8 @@ public class StreamOutput<OUT> implements Collector<OUT> {
 		}
 	}
 
+	public void clearBuffers() {
+		output.clearBuffers();
+	}
+
 }
