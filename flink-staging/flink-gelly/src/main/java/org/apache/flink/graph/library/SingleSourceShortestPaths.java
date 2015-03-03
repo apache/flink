@@ -45,11 +45,12 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 	@Override
 	public Graph<K, Double, Double> run(Graph<K, Double, Double> input) {
 
-		VertexCentricIteration<K, Double, Double, Double> iteration = input.mapVertices(
-				new InitVerticesMapper<K>(srcVertexId)).createVertexCentricIteration(new VertexDistanceUpdater<K>(),
-				new MinDistanceMessenger<K>(), maxIterations);
+		Graph<K, Double, Double> mappedInput = input.mapVertices(new InitVerticesMapper<K>(srcVertexId));
 
-		return input.runVertexCentricIteration(iteration);
+		VertexCentricIteration<K, Double, Double, Double> iteration = mappedInput.createVertexCentricIteration(
+				new VertexDistanceUpdater<K>(), new MinDistanceMessenger<K>(), maxIterations);
+
+		return mappedInput.runVertexCentricIteration(iteration);
 	}
 
 	public static final class InitVerticesMapper<K extends Comparable<K> & Serializable>
