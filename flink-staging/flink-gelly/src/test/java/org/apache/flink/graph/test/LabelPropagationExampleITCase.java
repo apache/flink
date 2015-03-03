@@ -42,38 +42,12 @@ public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
     private String resultPath;
     private String expectedResult;
 
-	private String verticesPath;
-	private String edgesPath;
-
     @Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
 	public void before() throws Exception{
 		resultPath = tempFolder.newFile().toURI().toString();
-
-		final String vertices = "1 1\n" +
-				"2 2\n" +
-				"3 3\n" +
-				"4 4\n" +
-				"5 5\n";
-
-		final String edges = "1 2\n" +
-				"1 3\n" +
-				"2 3\n" +
-				"3 4\n" +
-				"3 5\n" +
-				"4 5\n" +
-				"5 1\n";
-
-		File verticesFile = tempFolder.newFile();
-		Files.write(vertices, verticesFile, Charsets.UTF_8);
-
-		File edgesFile = tempFolder.newFile();
-		Files.write(edges, edgesFile, Charsets.UTF_8);
-
-		verticesPath = verticesFile.toURI().toString();
-		edgesPath = edgesFile.toURI().toString();
 	}
 
 	@After
@@ -82,16 +56,121 @@ public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testLabelPropagation() throws Exception {
+	public void testSingleIteration() throws Exception {
 		/*
-		 * Test the label propagation example
+		 * Test one iteration of label propagation example with a simple graph
 		 */
-		LabelPropagationExample.main(new String[] {verticesPath, edgesPath, resultPath, "5", "16"});
 
-		expectedResult = "1,5\n" +
-			"2,5\n" +
-			"3,5\n" +
-			"4,5\n" +
-			"5,5\n";
+		final String vertices = "1 10\n" +
+				"2 10\n" +
+				"3 30\n" +
+				"4 40\n" +
+				"5 40\n" +
+				"6 40\n" +
+				"7 70\n";
+
+		final String edges = "1 3\n" +
+				"2 3\n" +
+				"4 7\n" +
+				"5 7\n" +
+				"6 7\n" +
+				"7 3\n";
+
+		String verticesPath = createTempFile(vertices);
+		String edgesPath = createTempFile(edges);
+
+		LabelPropagationExample.main(new String[] {verticesPath, edgesPath, resultPath, "7", "1"});
+
+		expectedResult = "1,10\n" +
+			"2,10\n" +
+			"3,10\n" +
+			"4,40\n" +
+			"5,40\n" +
+			"6,40\n" +
+			"7,40\n";
+	}
+
+	@Test
+	public void testTieBreaker() throws Exception {
+		/*
+		 * Test the label propagation example where a tie must be broken
+		 */
+
+		final String vertices = "1 10\n" +
+				"2 10\n" +
+				"3 10\n" +
+				"4 10\n" +
+				"5 0\n" +
+				"6 20\n" +
+				"7 20\n" +
+				"8 20\n" +
+				"9 20\n";
+
+		final String edges = "1 5\n" +
+				"2 5\n" +
+				"3 5\n" +
+				"4 5\n" +
+				"6 5\n" +
+				"7 5\n" +
+				"8 5\n" +
+				"9 5\n";
+
+		String verticesPath = createTempFile(vertices);
+		String edgesPath = createTempFile(edges);
+
+		LabelPropagationExample.main(new String[] {verticesPath, edgesPath, resultPath, "9", "1"});
+
+		expectedResult = "1,10\n" +
+				"2,10\n" +
+				"3,10\n" +
+				"4,10\n" +
+				"5,20\n" +
+				"6,20\n" +
+				"7,20\n" +
+				"8,20\n" +
+				"9,20\n";
+	}
+
+	@Test
+	public void testTermination() throws Exception {
+		/*
+		 * Test the label propagation example where the algorithm terminates on the first iteration
+		 */
+
+		final String vertices = "1 10\n" +
+				"2 10\n" +
+				"3 10\n" +
+				"4 40\n" +
+				"5 40\n" +
+				"6 40\n";
+
+		final String edges = "1 2\n" +
+				"2 3\n" +
+				"3 1\n" +
+				"4 5\n" +
+				"5 6\n" +
+				"6 4\n";
+
+		String verticesPath = createTempFile(vertices);
+		String edgesPath = createTempFile(edges);
+
+		LabelPropagationExample.main(new String[]{verticesPath, edgesPath, resultPath, "6", "2"});
+
+		expectedResult = "1,10\n" +
+				"2,10\n" +
+				"3,10\n" +
+				"4,40\n" +
+				"5,40\n" +
+				"6,40\n";
+	}
+
+	// -------------------------------------------------------------------------
+	//  Util methods
+	// -------------------------------------------------------------------------
+
+	private String createTempFile(final String rows) throws Exception {
+		File tempFile = tempFolder.newFile();
+		Files.write(rows, tempFile, Charsets.UTF_8);
+		return tempFile.toURI().toString();
 	}
 }
