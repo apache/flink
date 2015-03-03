@@ -715,7 +715,8 @@ under the License.
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-staging/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-staging/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/*.java</exclude>
-						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
+						<exclude>flink-staging/flink-language-binding/flink-python/src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_csv</exclude>
+						<exclude>flink-staging/flink-language-binding/flink-python/src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_text</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
                         <exclude>flink-contrib/docker-flink/flink/conf/slaves</exclude>
@@ -734,6 +735,8 @@ under the License.
 						<exclude>build-target/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
+						<!-- PyCharm -->
+						<exclude>**/.idea/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

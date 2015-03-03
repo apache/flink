@@ -61,6 +61,13 @@ val intSums = intPairs.map { pair => pair._1 + pair._2 }
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ intSums = intPairs.map(lambda x: sum(x), INT)
+~~~
+
+</div>
 </div>
 
 ### FlatMap
@@ -95,6 +102,13 @@ DataSet<String> words = textLines.flatMap(new Tokenizer());
 ~~~scala
 val textLines: DataSet[String] = // [...]
 val words = textLines.flatMap { _.split(" ") }
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ words = lines.flat_map(lambda x,c: [line.split() for line in x], STRING)
 ~~~
 
 </div>
@@ -139,6 +153,13 @@ val counts = texLines.mapPartition { in => Some(in.size) }
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ counts = lines.map_partition(lambda x,c: [sum(1 for _ in x)], INT)
+~~~
+
+</div>
 </div>
 
 ### Filter
@@ -173,12 +194,19 @@ val naturalNumbers = intNumbers.filter { _ > 0 }
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ naturalNumbers = intNumbers.filter(lambda x: x > 0)
+~~~
+
+</div>
 </div>
 
 **IMPORTANT:** The system assumes that the function does not modify the elements on which the predicate is applied. Violating this assumption
 can lead to incorrect results.
 
-### Project (Tuple DataSets only) (Java API Only)
+### Project (Tuple DataSets only) (Java/Python API Only)
 
 The Project transformation removes or moves Tuple fields of a Tuple DataSet.
 The `project(int...)` method selects Tuple fields that should be retained by their index and defines their order in the output Tuple.
@@ -186,6 +214,9 @@ The `project(int...)` method selects Tuple fields that should be retained by the
 Projections do not require the definition of a user function.
 
 The following code shows different ways to apply a Project transformation on a DataSet:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 ~~~java
 DataSet<Tuple3<Integer, Double, String>> in = // [...]
@@ -219,6 +250,23 @@ be used for grouping can be done in many ways:
 - Case Class fields (Case Classes only)
 
 Please look at the reduce examples to see how the grouping keys are specified.
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+out = in.project(2,0);
+~~~
+
+### Transformations on Grouped DataSet
+
+The reduce operations can operate on grouped data sets. Specifying the key to
+be used for grouping can be done using one or more field position keys (Tuple DataSet only).
+
+Please look at the reduce examples to see how the grouping keys are specified.
+
+</div>
+</div>
 
 ### Reduce on Grouped DataSet
 
@@ -281,6 +329,12 @@ val wordCounts = words.groupBy { _.word } reduce {
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+</div>
 </div>
 
 #### Reduce on DataSet Grouped by Field Position Keys (Tuple DataSets only)
@@ -320,6 +374,13 @@ case class MyClass(val a: String, b: Int, c: Double)
 val tuples = DataSet[MyClass] = // [...]
 // group on the first and second field
 val reducedTuples = tuples.groupBy("a", "b").reduce { ... }
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ reducedTuples = tuples.group_by(0, 1).reduce( ... )
 ~~~
 
 </div>
@@ -387,6 +448,22 @@ Works analogous to grouping by Case Class fields in *Reduce* transformations.
 
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ class DistinctReduce(GroupReduceFunction):
+   def reduce(self, iterator, collector):
+     dic = dict()
+     for value in iterator:
+       dic[value[1]] = 1
+     for key in dic.keys():
+       collector.collect(key)
+
+ output = data.group_by(0).reduce_group(DistinctReduce(), STRING)
+~~~
+
+
+</div>
 </div>
 
 #### GroupReduce on DataSet Grouped by KeySelector Function
@@ -449,6 +526,22 @@ val output = input.groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
     }
 
 ~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ class DistinctReduce(GroupReduceFunction):
+   def reduce(self, iterator, collector):
+     dic = dict()
+     for value in iterator:
+       dic[value[1]] = 1
+     for key in dic.keys():
+       collector.collect(key)
+
+ output = data.group_by(0).sort_group(1, Order.ASCENDING).reduce_group(DistinctReduce(), STRING)
+~~~
+
 
 </div>
 </div>
@@ -534,6 +627,24 @@ class MyCombinableGroupReducer
     this.reduce(in, out)
   }
 }
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ class GroupReduce(GroupReduceFunction):
+   def reduce(self, iterator, collector):
+     key, int_sum, float_sum = iterator.next()
+     for value in iterator:
+       int_sum += value[1]
+       float_sum += value[2]
+     collector.collect((key, int_sum, float_sum))
+   # in some cases combine() calls can simply be forwarded to reduce().
+   def combine(self, iterator, collector):
+     return self.reduce(iterator, collector)
+
+data.reduce_group(GroupReduce(), (STRING, INT, FLOAT), combinable=True)
 ~~~
 
 </div>
@@ -664,6 +775,13 @@ val output = input.groupBy(1).aggregate(SUM, 0).and(MIN, 2)
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
 </div>
 
 To apply multiple aggregations on a DataSet it is necessary to use the `.and()` function after the first aggregate, that means `.aggregate(SUM, 0).and(MIN, 2)` produces the sum of field 0 and the minimum of field 2 of the original DataSet.
@@ -704,6 +822,14 @@ val sum = intNumbers.reduce (_ + _)
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ intNumbers = env.from_elements(1,2,3)
+ sum = intNumbers.reduce(lambda x,y: x + y)
+~~~
+
+</div>
 </div>
 
 Reducing a full DataSet using the Reduce transformation implies that the final Reduce operation cannot be done in parallel. However, a reduce function is automatically combinable such that a Reduce transformation does not limit scalability for most use cases.
@@ -730,6 +856,13 @@ DataSet<Double> output = input.reduceGroup(new MyGroupReducer());
 ~~~scala
 val input: DataSet[Int] = // [...]
 val output = input.reduceGroup(new MyGroupReducer())
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ output = data.reduce_group(MyGroupReducer(), ... )
 ~~~
 
 </div>
@@ -779,6 +912,13 @@ val output = input.aggregate(SUM, 0).and(MIN, 2)
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
+~~~
+
+</div>
 </div>
 
 **Note:** Extending the set of supported aggregation functions is on our roadmap.
@@ -822,6 +962,13 @@ DataSet<Tuple2<User, Store>>
 val input1: DataSet[(Int, String)] = // [...]
 val input2: DataSet[(Double, Int)] = // [...]
 val result = input1.join(input2).where(0).equalTo(1)
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ result = input1.join(input2).where(0).equal_to(1)
 ~~~
 
 </div>
@@ -887,6 +1034,20 @@ val weightedRatings = ratings.join(weights).where("category").equalTo(0) {
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ class PointWeighter(JoinFunction):
+   def join(self, rating, weight):
+     return (rating[0], rating[1] * weight[1]) 
+       if value1[3]:
+
+ weightedRatings = 
+   ratings.join(weights).where(0).equal_to(0). \
+   with(new PointWeighter(), (STRING, FLOAT));
+~~~
+
+</div>
 </div>
 
 #### Join with Flat-Join Function
@@ -915,7 +1076,7 @@ DataSet<Tuple2<String, Double>>
             ratings.join(weights) // [...]
 ~~~
 
-#### Join with Projection (Java Only)
+#### Join with Projection (Java/Python Only)
 
 A Join transformation can construct result tuples using a projection as shown here:
 
@@ -951,6 +1112,21 @@ val weightedRatings = ratings.join(weights).where("category").equalTo(0) {
 }
 
 ~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+#### Join with Projection (Java/Python Only)
+
+A Join transformation can construct result tuples using a projection as shown here:
+
+~~~python
+ result = input1.join(input2).where(0).equal_to(0) \ 
+  .project_first(0,2).project_second(1).project_first(1);
+~~~
+
+`project_first(int...)` and `project_second(int...)` select the fields of the first and second joined input that should be assembled into an output Tuple. The order of indexes defines the order of fields in the output tuple.
+The join projection works also for non-Tuple DataSets. In this case, `project_first()` or `project_second()` must be called without arguments to add a joined element to the output Tuple.
 
 </div>
 </div>
@@ -997,6 +1173,19 @@ val result1 = input1.joinWithHuge(input2).where(0).equalTo(0)
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+
+ #hint that the second DataSet is very small
+ result1 = input1.join_with_tiny(input2).where(0).equal_to(0)
+
+ #hint that the second DataSet is very large
+ result1 = input1.join_with_huge(input2).where(0).equal_to(0)
+
+~~~
+
+</div>
 </div>
 
 #### Join Algorithm Hints
@@ -1027,6 +1216,13 @@ val input2: DataSet[AnotherType] = // [...]
 // hint that the second DataSet is very small
 val result1 = input1.join(input2, BROADCAST_HASH_FIRST).where("id").equalTo("key")
 
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
 ~~~
 
 </div>
@@ -1136,6 +1332,27 @@ val distances = coords1.cross(coords2) {
 
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ class Euclid(CrossFunction):
+   def cross(self, c1, c2):
+     return (c1[0], c2[0], sqrt(pow(c1[1] - c2.[1], 2) + pow(c1[2] - c2[2], 2)))
+
+ distances = coords1.cross(coords2).using(Euclid(), (INT,INT,FLOAT))
+~~~
+
+#### Cross with Projection
+
+A Cross transformation can also construct result tuples using a projection as shown here:
+
+~~~python
+result = input1.cross(input2).projectFirst(1,0).projectSecond(0,1);
+~~~
+
+The field selection in a Cross projection works the same way as in the projection of Join results.
+
+</div>
 </div>
 
 #### Cross with DataSet Size Hint
@@ -1176,6 +1393,18 @@ val result1 = input1.crossWithTiny(input2)
 
 // hint that the second DataSet is very large
 val result1 = input1.crossWithHuge(input2)
+
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ #hint that the second DataSet is very small
+ result1 = input1.cross_with_tiny(input2)
+
+ #hint that the second DataSet is very large
+ result1 = input1.cross_with_huge(input2)
 
 ~~~
 
@@ -1254,6 +1483,25 @@ val output = iVals.coGroup(dVals).where(0).equalTo(0) {
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ class CoGroup(CoGroupFunction):
+   def co_group(self, ivals, dvals, collector):
+     ints = dict()
+     # add all Integer values in group to set
+     for value in ivals:
+       ints[value[1]] = 1
+     # multiply each Double value with each unique Integer values of group
+     for value in dvals:
+       for i in ints.keys():
+         collector.collect(value[1] * i)
+
+
+ output = ivals.co_group(dvals).where(0).equal_to(0).using(CoGroup(), DOUBLE)
+~~~
+
+</div>
 </div>
 
 
@@ -1283,6 +1531,13 @@ val unioned = vals1.union(vals2).union(vals3)
 ~~~
 
 </div>
+<div data-lang="python" markdown="1">
+
+~~~python
+ unioned = vals1.union(vals2).union(vals3)
+~~~
+
+</div>
 </div>
 
 ### Rebalance
@@ -1305,6 +1560,13 @@ DataSet<Tuple2<String, String>> out = in.rebalance()
 val in: DataSet[String] = // [...]
 // rebalance DataSet and apply a Map transformation.
 val out = in.rebalance().map { ... }
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
 ~~~
 
 </div>
@@ -1333,6 +1595,13 @@ DataSet<Tuple2<String, String>> out = in.partitionByHash(0)
 val in: DataSet[(String, Int)] = // [...]
 // hash-partition DataSet by String value and apply a MapPartition transformation.
 val out = in.partitionByHash(0).mapPartition { ... }
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
 ~~~
 
 </div>
@@ -1408,6 +1677,13 @@ val out2 = in.groupBy(0).first(2)
 
 // Return the first three elements of each String group ordered by the Integer field
 val out3 = in.groupBy(0).sortGroup(1, Order.ASCENDING).first(3)
+~~~
+
+</div>
+<div data-lang="python" markdown="1">
+
+~~~python
+Not supported.
 ~~~
 
 </div>

@@ -35,5 +35,6 @@ under the License.
 
 	<modules>
 		<module>flink-language-binding-generic</module>
+		<module>flink-python</module>
 	</modules>
 </project>

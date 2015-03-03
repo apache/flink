@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -17,23 +16,16 @@
 # limitations under the License.
 ################################################################################
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
 
-# get flink config
-. "$bin"/config.sh
-
-if [ "$FLINK_IDENT_STRING" = "" ]; then
-        FLINK_IDENT_STRING="$USER"
-fi
-
-CC_CLASSPATH=`constructFlinkClassPath`
-
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-flink-client-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
-
-export FLINK_ROOT_DIR
-export FLINK_CONF_DIR
-
-# Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
-$JAVA_RUN $JVM_ARGS "$log_setting" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.client.CliFrontend $*
+class Types(object):
+    TYPE_TUPLE = b'\x0B'
+    TYPE_BOOLEAN = b'\x0A'
+    TYPE_BYTE = b'\x09'
+    TYPE_SHORT = b'\x08'
+    TYPE_INTEGER = b'\x07'
+    TYPE_LONG = b'\x06'
+    TYPE_DOUBLE = b'\x04'
+    TYPE_FLOAT = b'\x05'
+    TYPE_STRING = b'\x02'
+    TYPE_NULL = b'\x00'
+    TYPE_BYTES = b'\x01'

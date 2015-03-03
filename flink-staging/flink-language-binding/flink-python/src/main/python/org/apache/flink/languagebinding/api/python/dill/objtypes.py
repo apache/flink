@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -17,23 +16,30 @@
 # limitations under the License.
 ################################################################################
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+#!/usr/bin/env python
+#
+# Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
+# Copyright (c) 2008-2014 California Institute of Technology.
+# License: 3-clause BSD.  The full license text is available at:
+#  - http://trac.mystic.cacr.caltech.edu/project/pathos/browser/dill/LICENSE
+"""
+all Python Standard Library object types (currently: CH 1-15 @ 2.7)
+and some other common object types (i.e. numpy.ndarray)
 
-# get flink config
-. "$bin"/config.sh
+to load more objects and types, use dill.load_types()
+"""
 
-if [ "$FLINK_IDENT_STRING" = "" ]; then
-        FLINK_IDENT_STRING="$USER"
-fi
+from __future__ import absolute_import
 
-CC_CLASSPATH=`constructFlinkClassPath`
+# non-local import of dill.objects
+from dill import objects
+for _type in objects.keys():
+    exec("%s = type(objects['%s'])" % (_type,_type))
+    
+del objects
+try:
+    del _type
+except NameError:
+    pass
 
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-flink-client-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
-
-export FLINK_ROOT_DIR
-export FLINK_CONF_DIR
-
-# Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
-$JAVA_RUN $JVM_ARGS "$log_setting" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.client.CliFrontend $*
+del absolute_import

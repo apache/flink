@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-################################################################################
+# ###############################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
 #  distributed with this work for additional information
@@ -16,24 +15,30 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from flink.functions import Function
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
 
-# get flink config
-. "$bin"/config.sh
+class FlatMapFunction(Function.Function):
+    def __init__(self):
+        super(FlatMapFunction, self).__init__()
 
-if [ "$FLINK_IDENT_STRING" = "" ]; then
-        FLINK_IDENT_STRING="$USER"
-fi
+    def _run(self):
+        collector = self._collector
+        function = self.flat_map
+        iterator = self._iterator
+        for value in iterator:
+            result = function(value, collector)
+            if result is not None:
+                for res in result:
+                    collector.collect(res)
+        collector._close()
 
-CC_CLASSPATH=`constructFlinkClassPath`
+    def collect(self, value):
+        collector = self._collector
+        result = self.flat_map(value, collector)
+        if result is not None:
+            for res in result:
+                collector.collect(res)
 
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-flink-client-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
-
-export FLINK_ROOT_DIR
-export FLINK_CONF_DIR
-
-# Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
-$JAVA_RUN $JVM_ARGS "$log_setting" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.client.CliFrontend $*
+    def flat_map(self, value, collector):
+        pass

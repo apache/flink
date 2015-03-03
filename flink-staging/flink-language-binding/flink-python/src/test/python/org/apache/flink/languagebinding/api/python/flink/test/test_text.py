@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,24 +15,16 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from flink.plan.Environment import get_environment
+from flink.plan.Constants import WriteMode
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+if __name__ == "__main__":
+    env = get_environment()
 
-# get flink config
-. "$bin"/config.sh
+    d1 = env.read_text("src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_text")
 
-if [ "$FLINK_IDENT_STRING" = "" ]; then
-        FLINK_IDENT_STRING="$USER"
-fi
+    d1.write_text("/tmp/flink/result", WriteMode.OVERWRITE)
 
-CC_CLASSPATH=`constructFlinkClassPath`
+    env.set_degree_of_parallelism(1)
 
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-flink-client-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
-
-export FLINK_ROOT_DIR
-export FLINK_CONF_DIR
-
-# Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
-$JAVA_RUN $JVM_ARGS "$log_setting" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.client.CliFrontend $*
+    env.execute(local=True)
