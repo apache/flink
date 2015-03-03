@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSource;
+import org.apache.flink.streaming.connectors.kafka.api.simple.SimpleKafkaSource;
 import org.apache.flink.streaming.connectors.util.JavaDefaultStringSchema;
 
 public class KafkaConsumerExample {
@@ -39,7 +40,8 @@ public class KafkaConsumerExample {
 		@SuppressWarnings("unused")
 		DataStream<String> stream1 = env
 				.addSource(
-						new KafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()))
+//						new KafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()))
+						new SimpleKafkaSource<String>(topic, host, port, new JavaDefaultStringSchema()))
 				.setParallelism(3)
 				.print().setParallelism(3);
 
