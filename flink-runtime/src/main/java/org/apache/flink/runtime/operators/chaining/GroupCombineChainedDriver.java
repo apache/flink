@@ -18,11 +18,8 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -43,20 +40,23 @@ import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.List;
+
 /**
- * The chained variant of the combine driver which is also implemented in GroupReduceCombineDriver. In contrast to the
- * GroupReduceCombineDriver, this driver's purpose is only to combine the values received in the chain. It is used by
- * the GroupReduce and the CombineGroup transformation.
+ * Chained variant of the GroupCombineDriver
+ * 
+ * Acts like a combiner with a custom output type OUT.
  *
- * @see org.apache.flink.runtime.operators.GroupReduceCombineDriver
- * @param <IN> The data type consumed by the combiner.
- * @param <OUT> The data type produced by the combiner.
+ * Sorting and reducing of the elements is performed invididually for each partition without data exchange. This may
+ * lead to a partial group reduce.
+ *  
+ * @param <IN> The data type consumed
+ * @param <OUT> The data type produced
  */
+public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
-public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
-
-	private static final Logger LOG = LoggerFactory.getLogger(SynchronousChainedCombineDriver.class);
-
+	private static final Logger LOG = LoggerFactory.getLogger(GroupCombineChainedDriver.class);
 
 	/**
 	 * Fix length records with a length below this threshold will be in-place sorted, if possible.
@@ -67,7 +67,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 
 	private InMemorySorter<IN> sorter;
 
-	private FlatCombineFunction<IN, OUT> combiner;
+	private GroupReduceFunction<IN, OUT> reducer;
 
 	private TypeSerializer<IN> serializer;
 
@@ -90,9 +90,9 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 		this.parent = parent;
 
 		@SuppressWarnings("unchecked")
-		final FlatCombineFunction<IN, OUT> combiner =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, FlatCombineFunction.class);
-		this.combiner = combiner;
+		final GroupReduceFunction<IN, OUT> combiner =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GroupReduceFunction.class);
+		this.reducer = combiner;
 		FunctionUtils.setFunctionRuntimeContext(combiner, getUdfRuntimeContext());
 	}
 
@@ -100,7 +100,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 	public void openTask() throws Exception {
 		// open the stub first
 		final Configuration stubConfig = this.config.getStubParameters();
-		RegularPactTask.openUserCode(this.combiner, stubConfig);
+		RegularPactTask.openUserCode(this.reducer, stubConfig);
 
 		// ----------------- Set up the asynchronous sorter -------------------------
 
@@ -139,7 +139,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 			return;
 		}
 
-		RegularPactTask.closeUserCode(this.combiner);
+		RegularPactTask.closeUserCode(this.reducer);
 	}
 
 	@Override
@@ -151,7 +151,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 	// --------------------------------------------------------------------------------------------
 
 	public Function getStub() {
-		return this.combiner;
+		return this.reducer;
 	}
 
 	public String getTaskName() {
@@ -171,7 +171,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 
 		// do the actual sorting
 		try {
-			sortAndCombine();
+			sortAndReduce();
 		} catch (Exception e) {
 			throw new ExceptionInChainedStubException(this.taskName, e);
 		}
@@ -191,7 +191,7 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 	@Override
 	public void close() {
 		try {
-			sortAndCombine();
+			sortAndReduce();
 		} catch (Exception e) {
 			throw new ExceptionInChainedStubException(this.taskName, e);
 		}
@@ -199,39 +199,39 @@ public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, 
 		this.outputCollector.close();
 	}
 
-	private void sortAndCombine() throws Exception {
+	private void sortAndReduce() throws Exception {
 		final InMemorySorter<IN> sorter = this.sorter;
 
 		if (objectReuseEnabled) {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
-				// run the combiner
+				// run the reducer
 				final ReusingKeyGroupedIterator<IN> keyIter = new ReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.serializer, this.groupingComparator);
 
 
 				// cache references on the stack
-				final FlatCombineFunction<IN, OUT> stub = this.combiner;
+				final GroupReduceFunction<IN, OUT> stub = this.reducer;
 				final Collector<OUT> output = this.outputCollector;
 
 				// run stub implementation
 				while (this.running && keyIter.nextKey()) {
-					stub.combine(keyIter.getValues(), output);
+					stub.reduce(keyIter.getValues(), output);
 				}
 			}
 		} else {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
-				// run the combiner
+				// run the reducer
 				final NonReusingKeyGroupedIterator<IN> keyIter = new NonReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.groupingComparator);
 
 
 				// cache references on the stack
-				final FlatCombineFunction<IN, OUT> stub = this.combiner;
+				final GroupReduceFunction<IN, OUT> stub = this.reducer;
 				final Collector<OUT> output = this.outputCollector;
 
 				// run stub implementation
 				while (this.running && keyIter.nextKey()) {
-					stub.combine(keyIter.getValues(), output);
+					stub.reduce(keyIter.getValues(), output);
 				}
 			}
 		}
