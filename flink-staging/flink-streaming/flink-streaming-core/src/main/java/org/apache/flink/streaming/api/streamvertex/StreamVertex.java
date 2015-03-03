@@ -30,8 +30,13 @@ import org.apache.flink.streaming.io.IndexedReaderIterator;
 import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTaskContext<OUT> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(StreamVertex.class);
 
 	private static int numTasks;
 
@@ -73,24 +78,6 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 		this.context = createRuntimeContext(getEnvironment().getTaskName(), this.states);
 	}
 
-	protected <T> void invokeUserFunction(StreamInvokable<?, T> userInvokable) throws Exception {
-		userInvokable.setRuntimeContext(context);
-		userInvokable.open(getTaskConfiguration());
-
-		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
-			invokable.setRuntimeContext(context);
-			invokable.open(getTaskConfiguration());
-		}
-
-		userInvokable.invoke();
-		userInvokable.close();
-
-		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
-			invokable.close();
-		}
-
-	}
-
 	public void setInputsOutputs() {
 		inputHandler = new InputHandler<IN>(this);
 		outputHandler = new OutputHandler<OUT>(this);
@@ -118,7 +105,52 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	@Override
 	public void invoke() throws Exception {
-		outputHandler.invokeUserFunction("TASK", userInvokable);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Task {} invoked with instance id {}", getName(), getInstanceID());
+		}
+
+		try {
+			userInvokable.setRuntimeContext(context);
+			userInvokable.open(getTaskConfiguration());
+
+			for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+				invokable.setRuntimeContext(context);
+				invokable.open(getTaskConfiguration());
+			}
+
+			userInvokable.invoke();
+
+			userInvokable.close();
+
+			for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+				invokable.close();
+			}
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Task {} invoke finished instance id {}", getName(), getInstanceID());
+			}
+
+		} catch (Exception e) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("StreamInvokable failed due to: {}", StringUtils.stringifyException(e));
+			}
+			throw e;
+		} finally {
+			// Cleanup
+			outputHandler.flushOutputs();
+			clearBuffers();
+		}
+
+	}
+
+	protected void clearBuffers() {
+		if (outputHandler != null) {
+			outputHandler.clearWriters();
+		}
+		if (inputHandler != null) {
+			inputHandler.clearReaders();
+		}
 	}
 
 	@Override

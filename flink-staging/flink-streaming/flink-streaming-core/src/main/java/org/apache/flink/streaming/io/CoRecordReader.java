@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
@@ -36,7 +37,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  * types to read records effectively.
  */
 @SuppressWarnings("rawtypes")
-public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> extends AbstractReader implements EventListener<InputGate> {
+public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> extends
+		AbstractReader implements EventListener<InputGate> {
 
 	private final InputGate bufferReader1;
 
@@ -63,8 +65,10 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 		this.bufferReader1 = bufferReader1;
 		this.bufferReader2 = bufferReader2;
 
-		this.reader1RecordDeserializers = new AdaptiveSpanningRecordDeserializer[bufferReader1.getNumberOfInputChannels()];
-		this.reader2RecordDeserializers = new AdaptiveSpanningRecordDeserializer[bufferReader2.getNumberOfInputChannels()];
+		this.reader1RecordDeserializers = new AdaptiveSpanningRecordDeserializer[bufferReader1
+				.getNumberOfInputChannels()];
+		this.reader2RecordDeserializers = new AdaptiveSpanningRecordDeserializer[bufferReader2
+				.getNumberOfInputChannels()];
 
 		for (int i = 0; i < reader1RecordDeserializers.length; i++) {
 			reader1RecordDeserializers[i] = new AdaptiveSpanningRecordDeserializer<T1>();
@@ -104,7 +108,8 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 			if (currentReaderIndex == 1) {
 				while (true) {
 					if (reader1currentRecordDeserializer != null) {
-						RecordDeserializer.DeserializationResult result = reader1currentRecordDeserializer.getNextRecord(target1);
+						RecordDeserializer.DeserializationResult result = reader1currentRecordDeserializer
+								.getNextRecord(target1);
 
 						if (result.isBufferConsumed()) {
 							reader1currentRecordDeserializer.getCurrentBuffer().recycle();
@@ -116,27 +121,26 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 						if (result.isFullRecord()) {
 							return 1;
 						}
-					}
-					else {
+					} else {
 
 						final BufferOrEvent boe = bufferReader1.getNextBufferOrEvent();
 
 						if (boe.isBuffer()) {
-							reader1currentRecordDeserializer = reader1RecordDeserializers[boe.getChannelIndex()];
+							reader1currentRecordDeserializer = reader1RecordDeserializers[boe
+									.getChannelIndex()];
 							reader1currentRecordDeserializer.setNextBuffer(boe.getBuffer());
-						}
-						else if (handleEvent(boe.getEvent())) {
+						} else if (handleEvent(boe.getEvent())) {
 							currentReaderIndex = 0;
 
 							break;
 						}
 					}
 				}
-			}
-			else if (currentReaderIndex == 2) {
+			} else if (currentReaderIndex == 2) {
 				while (true) {
 					if (reader2currentRecordDeserializer != null) {
-						RecordDeserializer.DeserializationResult result = reader2currentRecordDeserializer.getNextRecord(target2);
+						RecordDeserializer.DeserializationResult result = reader2currentRecordDeserializer
+								.getNextRecord(target2);
 
 						if (result.isBufferConsumed()) {
 							reader2currentRecordDeserializer.getCurrentBuffer().recycle();
@@ -148,23 +152,21 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 						if (result.isFullRecord()) {
 							return 2;
 						}
-					}
-					else {
+					} else {
 						final BufferOrEvent boe = bufferReader2.getNextBufferOrEvent();
 
 						if (boe.isBuffer()) {
-							reader2currentRecordDeserializer = reader2RecordDeserializers[boe.getChannelIndex()];
+							reader2currentRecordDeserializer = reader2RecordDeserializers[boe
+									.getChannelIndex()];
 							reader2currentRecordDeserializer.setNextBuffer(boe.getBuffer());
-						}
-						else if (handleEvent(boe.getEvent())) {
+						} else if (handleEvent(boe.getEvent())) {
 							currentReaderIndex = 0;
 
 							break;
 						}
 					}
 				}
-			}
-			else {
+			} else {
 				throw new IllegalStateException("Bug: unexpected current reader index.");
 			}
 		}
@@ -182,9 +184,23 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 	public void onEvent(InputGate bufferReader) {
 		if (bufferReader == bufferReader1) {
 			availableRecordReaders.add(1);
-		}
-		else if (bufferReader == bufferReader2) {
+		} else if (bufferReader == bufferReader2) {
 			availableRecordReaders.add(2);
+		}
+	}
+
+	public void clearBuffers() {
+		for (RecordDeserializer<?> deserializer : reader1RecordDeserializers) {
+			Buffer buffer = deserializer.getCurrentBuffer();
+			if (buffer != null && !buffer.isRecycled()) {
+				buffer.recycle();
+			}
+		}
+		for (RecordDeserializer<?> deserializer : reader2RecordDeserializers) {
+			Buffer buffer = deserializer.getCurrentBuffer();
+			if (buffer != null && !buffer.isRecycled()) {
+				buffer.recycle();
+			}
 		}
 	}
 }

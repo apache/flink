@@ -90,4 +90,10 @@ public class InputHandler<IN> {
 	public IndexedReaderIterator<StreamRecord<IN>> getInputIter() {
 		return inputIter;
 	}
+
+	public void clearReaders() {
+		if (inputs != null) {
+			inputs.clearBuffers();
+		}
+	}
 }

@@ -59,13 +59,23 @@ public class StreamIterationTail<IN> extends StreamVertex<IN, IN> {
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SINK {} invoked", getName());
+			LOG.debug("Iteration sink {} invoked", getName());
 		}
 
-		forwardRecords();
+		try {
+			forwardRecords();
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("SINK {} invoke finished", getName());
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Iteration sink {} invoke finished", getName());
+			}
+		} catch (Exception e) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Iteration sink failed due to: {}", StringUtils.stringifyException(e));
+			}
+			throw e;
+		} finally {
+			// Cleanup
+			clearBuffers();
 		}
 	}
 
@@ -75,12 +85,11 @@ public class StreamIterationTail<IN> extends StreamVertex<IN, IN> {
 			if (!pushToQueue(reuse)) {
 				break;
 			}
-			// TODO: Fix object reuse for iteration
 			reuse = inputHandler.getInputSerializer().createInstance();
 		}
 	}
 
-	private boolean pushToQueue(StreamRecord<IN> record) {
+	private boolean pushToQueue(StreamRecord<IN> record) throws InterruptedException {
 		try {
 			if (shouldWait) {
 				return dataChannel.offer(record, iterationWaitTime, TimeUnit.MILLISECONDS);
@@ -92,6 +101,7 @@ public class StreamIterationTail<IN> extends StreamVertex<IN, IN> {
 			if (LOG.isErrorEnabled()) {
 				LOG.error("Pushing back record at iteration %s failed due to: {}", iterationId,
 						StringUtils.stringifyException(e));
+				throw e;
 			}
 			return false;
 		}
