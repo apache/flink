@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -49,6 +50,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 
 /**
@@ -63,6 +65,8 @@ public abstract class YarnTestBase {
 
 	private final static PrintStream originalStdout = System.out;
 	private final static PrintStream originalStderr = System.err;
+
+	private final static String TEST_CLUSTER_NAME = "flink-yarn-tests";
 
 
 	// Temp directory which is deleted after the unit test.
@@ -216,6 +220,54 @@ public abstract class YarnTestBase {
 		return yarnSiteXML;
 	}
 
+	/**
+	 * This method checks the written TaskManager and JobManager log files
+	 * for exceptions.
+	 */
+	public static void ensureNoExceptionsInLogFiles() {
+		File cwd = new File("target/"+TEST_CLUSTER_NAME);
+		Assert.assertTrue("Expecting directory "+cwd.getAbsolutePath()+" to exist", cwd.exists());
+		Assert.assertTrue("Expecting directory "+cwd.getAbsolutePath()+" to be a directory", cwd.isDirectory());
+		System.out.println("cwd = "+cwd.getAbsolutePath());
+		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
+			@Override
+			public boolean accept(File dir, String name) {
+				File f = new File(dir.getAbsolutePath()+ "/" + name);
+				// scan each file for 'Exception'.
+				Scanner scanner =  null;
+				try {
+					scanner = new Scanner(f);
+				} catch (FileNotFoundException e) {
+					Assert.fail("Unable to locate file: "+e.getMessage()+" file: "+f.getAbsolutePath());
+				}
+				while (scanner.hasNextLine()) {
+					final String lineFromFile = scanner.nextLine();
+					if(lineFromFile.contains("Exception")) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+		if(foundFile != null) {
+			Scanner scanner =  null;
+			try {
+				scanner = new Scanner(foundFile);
+			} catch (FileNotFoundException e) {
+				Assert.fail("Unable to locate file: "+e.getMessage()+" file: "+foundFile.getAbsolutePath());
+			}
+			LOG.warn("Found a file with an exception. Printing contents:");
+			while (scanner.hasNextLine()) {
+				LOG.warn("LINE: "+scanner.nextLine());
+			}
+			Assert.fail("Found a file "+foundFile+" with an exception");
+		}
+	}
+
+	public static void main(String[] args) {
+		ensureNoExceptionsInLogFiles();
+	}
+
 	public static void startYARNWithConfig(Configuration conf) {
 		flinkUberjar = findFile(".", new RootDirFilenameFilter());
 		Assert.assertNotNull(flinkUberjar);
@@ -228,7 +280,7 @@ public abstract class YarnTestBase {
 		try {
 			LOG.info("Starting up MiniYARN cluster");
 			if (yarnCluster == null) {
-				yarnCluster = new MiniYARNCluster(YarnTestBase.class.getName(), 2, 1, 1);
+				yarnCluster = new MiniYARNCluster(TEST_CLUSTER_NAME, 2, 1, 1);
 
 				yarnCluster.init(conf);
 				yarnCluster.start();
