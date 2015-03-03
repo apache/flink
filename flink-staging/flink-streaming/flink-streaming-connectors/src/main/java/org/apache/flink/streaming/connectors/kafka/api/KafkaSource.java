@@ -52,6 +52,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	private long zookeeperSyncTimeMillis;
 	private static final long ZOOKEEPER_DEFAULT_SYNC_TIME = 200;
+	private static final String DEFAULT_GROUP_ID = "flink-group";
 
 	private volatile boolean isRunning = false;
 
@@ -67,13 +68,18 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	 * @param zookeeperSyncTimeMillis
 	 *            Synchronization time with zookeeper.
 	 */
-	public KafkaSource(String zookeeperHost, String topicId,
+	public KafkaSource(String zookeeperHost, String topicId, String groupId,
 			DeserializationSchema<OUT> deserializationSchema, long zookeeperSyncTimeMillis) {
 		super(deserializationSchema);
 		this.zookeeperHost = zookeeperHost;
-		this.groupId = "flink-group";
+		this.groupId = groupId;
 		this.topicId = topicId;
 		this.zookeeperSyncTimeMillis = zookeeperSyncTimeMillis;
+	}
+
+	public KafkaSource(String zookeeperHost, String topicId,
+					   DeserializationSchema<OUT> deserializationSchema, long zookeeperSyncTimeMillis){
+		this(zookeeperHost, topicId, DEFAULT_GROUP_ID, deserializationSchema, ZOOKEEPER_DEFAULT_SYNC_TIME);
 	}
 
 	public KafkaSource(String zookeeperHost, String topicId,
