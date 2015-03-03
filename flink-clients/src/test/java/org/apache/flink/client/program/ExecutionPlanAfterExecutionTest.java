@@ -23,12 +23,19 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.client.CliFrontendTestUtils;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
 public class ExecutionPlanAfterExecutionTest implements java.io.Serializable {
+
+	@BeforeClass
+	public static void suppressOutput() {
+		CliFrontendTestUtils.pipeSystemOutToNull();
+	}
 
 	@Test
 	public void testExecuteAfterGetExecutionPlan() {

@@ -25,7 +25,7 @@ import akka.actor.Status.{Success, Failure}
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
-import org.apache.flink.runtime.client.{JobSubmissionException, JobExecutionException, JobCancellationException}
+import org.apache.flink.runtime.client.{JobStatusMessage, JobSubmissionException, JobExecutionException, JobCancellationException}
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
@@ -349,6 +349,19 @@ class JobManager(val configuration: Configuration,
       }
 
       sender ! RunningJobs(executionGraphs)
+
+    case RequestRunningJobsStatus =>
+      try {
+        val jobs = currentJobs map {
+          case (_, (eg, _)) => new JobStatusMessage(eg.getJobID, eg.getJobName,
+                                            eg.getState, eg.getStatusTimestamp(JobStatus.CREATED))
+        }
+
+        sender ! RunningJobsStatus(jobs)
+      }
+      catch {
+        case t: Throwable => LOG.error("Exception while responding to RequestRunningJobsStatus", t)
+      }
 
     case RequestJob(jobID) =>
       currentJobs.get(jobID) match {
@@ -758,9 +771,9 @@ object JobManager {
   def parseArgs(args: Array[String]): (Configuration, ExecutionMode, String, Int) = {
     val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("JobManager") {
       head("Flink JobManager")
-      opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text (
-        "The configuration directory.")
-      opt[String]("executionMode") optional() action { (arg, c) =>
+      opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text {
+        "The configuration directory." }
+      opt[String]("executionMode") action { (arg, c) =>
         if (arg.equalsIgnoreCase("local")){
           c.copy(executionMode = LOCAL)
         } else if (arg.equalsIgnoreCase("cluster")) {
@@ -775,6 +788,14 @@ object JobManager {
 
     parser.parse(args, JobManagerCLIConfiguration()) map {
       config =>
+
+        if (config.configDir == null) {
+          throw new Exception("Missing parameter '--configDir'")
+        }
+        if (config.executionMode == null) {
+          throw new Exception("Missing parameter '--executionMode'")
+        }
+
         LOG.info("Loading configuration from " + config.configDir)
         GlobalConfiguration.loadConfiguration(config.configDir)
         val configuration = GlobalConfiguration.getConfiguration

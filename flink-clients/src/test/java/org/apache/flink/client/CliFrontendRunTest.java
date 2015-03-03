@@ -42,7 +42,7 @@ public class CliFrontendRunTest {
 			// test unrecognized option
 			{
 				String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
-				TestingCliFrontend testFrontend = new TestingCliFrontend();
+				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 				int retCode = testFrontend.run(parameters);
 				assertTrue(retCode != 0);
 			}
@@ -64,31 +64,31 @@ public class CliFrontendRunTest {
 			// test configure parallelism with non integer value
 			{
 				String[] parameters = {"-v", "-p", "text",  getTestJarPath()};
-				TestingCliFrontend testFrontend = new TestingCliFrontend();
+				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 				assertTrue(0 != testFrontend.run(parameters));
 			}
 			
 			// test configure parallelism with overflow integer value
 			{
 				String[] parameters = {"-v", "-p", "475871387138",  getTestJarPath()};
-				TestingCliFrontend testFrontend = new TestingCliFrontend();
+				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 				assertTrue(0 != testFrontend.run(parameters));
 			}
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
-			fail("Program caused an exception: " + e.getMessage());
+			fail(e.getMessage());
 		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class RunTestingCliFrontend extends TestingCliFrontend {
+	public static final class RunTestingCliFrontend extends CliFrontend {
 		
 		private final int expectedParallelim;
 		
-		public RunTestingCliFrontend(int expectedParallelim) {
+		public RunTestingCliFrontend(int expectedParallelim) throws Exception {
+			super(CliFrontendTestUtils.getConfigDir());
 			this.expectedParallelim = expectedParallelim;
 		}
 

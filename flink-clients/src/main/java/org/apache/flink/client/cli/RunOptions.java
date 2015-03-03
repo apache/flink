@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.client.cli;
 
-package org.apache.flink.runtime.jobmanager
+import org.apache.commons.cli.CommandLine;
 
-object ExecutionMode extends Enumeration{
-  type ExecutionMode = Value
-  val LOCAL = Value
-  val CLUSTER = Value
+/**
+ * Command line options for the RUN command.
+ */
+public class RunOptions extends ProgramOptions {
+
+	public RunOptions(CommandLine line) throws CliArgsException {
+		super(line);
+	}
 }
-
-case class JobManagerCLIConfiguration(configDir: String = null, 
-          executionMode: ExecutionMode.ExecutionMode = null) {}

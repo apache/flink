@@ -25,7 +25,6 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import akka.remote.AssociationErrorEvent;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
@@ -219,8 +218,7 @@ public class Client {
 	}
 	
 	private JobGraph getJobGraph(FlinkPlan optPlan, List<File> jarFiles) {
-		JobGraph job = null;
-
+		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
 		} else {
@@ -354,21 +352,6 @@ public class Client {
 		}
 
 		return new JobExecutionResult(-1, null);
-	}
-
-	private Throwable getAssociationError(List<AssociationErrorEvent> eventLog) {
-		int len = eventLog.size();
-		if (len > 0) {
-			AssociationErrorEvent e = eventLog.get(len - 1);
-			Throwable cause = e.getCause();
-			if (cause instanceof akka.remote.InvalidAssociation) {
-				return cause.getCause();
-			} else {
-				return cause;
-			}
-		} else {
-			return null;
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------

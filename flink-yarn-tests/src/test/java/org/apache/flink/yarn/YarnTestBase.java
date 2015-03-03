@@ -94,6 +94,7 @@ public abstract class YarnTestBase {
 
 	// This code is taken from: http://stackoverflow.com/a/7201825/568695
 	// it changes the environment variables of this JVM. Use only for testing purposes!
+	@SuppressWarnings("unchecked")
 	private static void setEnv(Map<String, String> newenv) {
 		try {
 			Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
@@ -400,8 +401,12 @@ public abstract class YarnTestBase {
 					returnValue = yCli.run(args);
 					break;
 				case CLI_FRONTEND:
-					CliFrontend cli = new CliFrontend();
-					returnValue = cli.parseParameters(args);
+					try {
+						CliFrontend cli = new CliFrontend();
+						returnValue = cli.parseParameters(args);
+					} catch (Exception e) {
+						throw new RuntimeException(e);
+					}
 					break;
 				default:
 					throw new RuntimeException("Unknown type " + type);

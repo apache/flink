@@ -20,14 +20,15 @@ package org.apache.flink.client;
 
 import akka.actor.*;
 import akka.testkit.JavaTestKit;
-import org.apache.commons.cli.CommandLine;
-import org.apache.flink.configuration.Configuration;
+
+import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.*;
 
 public class CliFrontendListCancelTest {
@@ -36,11 +37,12 @@ public class CliFrontendListCancelTest {
 
 	@BeforeClass
 	public static void setup(){
+		pipeSystemOutToNull();
 		actorSystem = ActorSystem.create("TestingActorSystem");
 	}
 
 	@AfterClass
-	public static void teardown(){
+	public static void teardown() {
 		JavaTestKit.shutdownActorSystem(actorSystem);
 		actorSystem = null;
 	}
@@ -57,15 +59,15 @@ public class CliFrontendListCancelTest {
 			// test unrecognized option
 			{
 				String[] parameters = {"-v", "-l"};
-				CliFrontend testFrontend = new CliFrontendTestUtils.TestingCliFrontend();
+				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 				int retCode = testFrontend.cancel(parameters);
-				assertTrue(retCode == 1);
+				assertTrue(retCode != 0);
 			}
 			
 			// test missing job id
 			{
 				String[] parameters = {};
-				CliFrontend testFrontend = new CliFrontendTestUtils.TestingCliFrontend();
+				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 				int retCode = testFrontend.cancel(parameters);
 				assertTrue(retCode != 0);
 			}
@@ -77,29 +79,41 @@ public class CliFrontendListCancelTest {
 
 				final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, jid));
 				
-				String[] parameters = {jidString};
+				String[] parameters = { jidString };
 				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(jm);
+
 				int retCode = testFrontend.cancel(parameters);
 				assertTrue(retCode == 0);
 			}
+
+			// test cancel properly
+			{
+				JobID jid1 = new JobID();
+				JobID jid2 = new JobID();
+
+				final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, jid1));
+
+				String[] parameters = { jid2.toString() };
+				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(jm);
+
+				assertTrue(testFrontend.cancel(parameters) != 0);
+			}
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail("Program caused an exception: " + e.getMessage());
 		}
 	}
-	
-	
+
 	@Test
 	public void testList() {
 		try {
 			// test unrecognized option
 			{
 				String[] parameters = {"-v", "-k"};
-				CliFrontend testFrontend = new CliFrontendTestUtils.TestingCliFrontend();
+				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 				int retCode = testFrontend.list(parameters);
-				assertTrue(retCode == 1);
+				assertTrue(retCode != 0);
 			}
 			
 			// test list properly
@@ -119,15 +133,19 @@ public class CliFrontendListCancelTest {
 	}
 
 
-	protected static final class InfoListTestCliFrontend extends CliFrontendTestUtils.TestingCliFrontend {
+	protected static final class InfoListTestCliFrontend extends CliFrontend {
+
 		private ActorRef jobmanager;
 
-		public InfoListTestCliFrontend(ActorRef jobmanager){
+
+
+		public InfoListTestCliFrontend(ActorRef jobmanager) throws Exception {
+			super(CliFrontendTestUtils.getConfigDir());
 			this.jobmanager = jobmanager;
 		}
 
 		@Override
-		public ActorRef getJobManager(CommandLine line, Configuration config) {
+		public ActorRef getJobManager(CommandLineOptions options) {
 			return jobmanager;
 		}
 	}
@@ -146,11 +164,16 @@ public class CliFrontendListCancelTest {
 			}
 			else if (message instanceof JobManagerMessages.CancelJob) {
 				JobManagerMessages.CancelJob cancelJob = (JobManagerMessages.CancelJob) message;
-				assertEquals(jobID, cancelJob.jobID());
-				getSender().tell(new Status.Success(new Object()), getSelf());
+
+				if (jobID != null && jobID.equals(cancelJob.jobID())) {
+					getSender().tell(new Status.Success(new Object()), getSelf());
+				}
+				else {
+					getSender().tell(new Status.Failure(new Exception("Wrong or no JobID")), getSelf());
+				}
 			}
-			else if(message instanceof  JobManagerMessages.RequestRunningJobs$) {
-				getSender().tell(new JobManagerMessages.RunningJobs(), getSelf());
+			else if (message instanceof JobManagerMessages.RequestRunningJobsStatus$) {
+				getSender().tell(new JobManagerMessages.RunningJobsStatus(), getSelf());
 			}
 		}
 	}

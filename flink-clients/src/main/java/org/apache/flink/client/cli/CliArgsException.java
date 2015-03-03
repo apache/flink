@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.client.cli;
 
-package org.apache.flink.runtime.jobmanager
+/**
+ * Special exception that is thrown when the command line parsing fails.
+ */
+public class CliArgsException extends Exception {
 
-object ExecutionMode extends Enumeration{
-  type ExecutionMode = Value
-  val LOCAL = Value
-  val CLUSTER = Value
+	private static final long serialVersionUID = 1L;
+
+	public CliArgsException(String message) {
+		super(message);
+	}
 }
-
-case class JobManagerCLIConfiguration(configDir: String = null, 
-          executionMode: ExecutionMode.ExecutionMode = null) {}

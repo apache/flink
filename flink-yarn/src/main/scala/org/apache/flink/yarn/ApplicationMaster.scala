@@ -18,12 +18,12 @@
 
 package org.apache.flink.yarn
 
-import java.io.{PrintWriter, FileWriter, BufferedWriter}
+import java.io.{File, PrintWriter, FileWriter, BufferedWriter}
 import java.security.PrivilegedAction
 
 import akka.actor._
 import org.apache.flink.client.CliFrontend
-import org.apache.flink.configuration.{Configuration, ConfigConstants}
+import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
@@ -194,10 +194,12 @@ object ApplicationMaster {
     (Configuration, ActorSystem, ActorRef, ActorRef) = {
 
     LOG.info("Starting JobManager for YARN")
-    val args = Array[String]("--configDir", currDir)
+    LOG.info("Loading config from: {}", currDir)
 
-    LOG.info(s"Config path: $currDir.")
-    val (configuration, _, _, _) = JobManager.parseArgs(args)
+    GlobalConfiguration.loadConfiguration(currDir)
+    val configuration = GlobalConfiguration.getConfiguration()
+
+    configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, currDir)
 
     // add dynamic properties to JobManager configuration.
     val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)

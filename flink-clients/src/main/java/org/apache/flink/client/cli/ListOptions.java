@@ -15,14 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.client.cli;
 
-package org.apache.flink.runtime.jobmanager
+import org.apache.commons.cli.CommandLine;
 
-object ExecutionMode extends Enumeration{
-  type ExecutionMode = Value
-  val LOCAL = Value
-  val CLUSTER = Value
+import static org.apache.flink.client.cli.CliFrontendParser.RUNNING_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SCHEDULED_OPTION;
+
+/**
+ * Command line options for the LIST command
+ */
+public class ListOptions extends CommandLineOptions {
+
+	private final boolean running;
+	private final boolean scheduled;
+
+	public ListOptions(CommandLine line) {
+		super(line);
+		this.running = line.hasOption(RUNNING_OPTION.getOpt());
+		this.scheduled = line.hasOption(SCHEDULED_OPTION.getOpt());
+	}
+
+	public boolean getRunning() {
+		return running;
+	}
+
+	public boolean getScheduled() {
+		return scheduled;
+	}
 }
-
-case class JobManagerCLIConfiguration(configDir: String = null, 
-          executionMode: ExecutionMode.ExecutionMode = null) {}

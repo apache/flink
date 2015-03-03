@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
+import org.apache.flink.runtime.client.JobStatusMessage
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{InstanceID, Instance}
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobID, JobStatus, JobVertexID}
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
+
+import scala.collection.JavaConverters._
 
 /**
  * The job manager specific actor messages
@@ -202,21 +205,31 @@ object JobManagerMessages {
   /**
    * This message is the response to the [[RequestRunningJobs]] message. It contains all
    * execution graphs of the currently running jobs.
-   *
-   * @param runningJobs
    */
   case class RunningJobs(runningJobs: Iterable[ExecutionGraph]) {
     def this() = this(Seq())
     def asJavaIterable: java.lang.Iterable[ExecutionGraph] = {
-      import scala.collection.JavaConverters._
       runningJobs.asJava
     }
   }
 
   /**
-   * Requests the execution graph of a specific job identified by [[jobID]]. The result is sent
-   * back to the sender as a [[JobResponse]].
-   * @param jobID
+   * Requests the status of all currently running jobs from the job manager.
+   * This message triggers a [[RunningJobsStatus]] response.
+   */
+  case object RequestRunningJobsStatus
+
+  case class RunningJobsStatus(runningJobs: Iterable[JobStatusMessage]) {
+    def this() = this(Seq())
+
+    def getStatusMessages(): java.util.List[JobStatusMessage] = {
+      new java.util.ArrayList[JobStatusMessage](runningJobs.asJavaCollection)
+    }
+  }
+
+  /**
+   * Requests the execution graph of a specific job identified by [[jobID]].
+   * The result is sent back to the sender as a [[JobResponse]].
    */
   case class RequestJob(jobID: JobID)
 
@@ -283,7 +296,7 @@ object JobManagerMessages {
 
   case object JobManagerStatusAlive extends JobManagerStatus
 
-    // --------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   
@@ -302,7 +315,11 @@ object JobManagerMessages {
   def getRequestRunningJobs : AnyRef = {
     RequestRunningJobs
   }
-  
+
+  def getRequestRunningJobsStatus : AnyRef = {
+    RequestRunningJobsStatus
+  }
+
   def getRequestRegisteredTaskManagers : AnyRef = {
     RequestRegisteredTaskManagers
   }
