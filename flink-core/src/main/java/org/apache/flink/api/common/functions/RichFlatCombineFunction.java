@@ -30,12 +30,13 @@ import org.apache.flink.util.Collector;
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
  *
- * @param <T> The data type of the elements to be combined.
+ * @param <IN> The data type of the elements to be combined.
+ * @param <OUT> The resulting data type of the elements to be combined.
  */
-public abstract class RichFlatCombineFunction<T> extends AbstractRichFunction implements FlatCombineFunction<T> {
+public abstract class RichFlatCombineFunction<IN, OUT> extends AbstractRichFunction implements FlatCombineFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public abstract void combine(Iterable<T> values, Collector<T> out) throws Exception;
+	public abstract void combine(Iterable<IN> values, Collector<OUT> out) throws Exception;
 }

@@ -34,6 +34,7 @@ import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -132,6 +133,16 @@ public class TypeExtractor {
 			String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) groupReduceInterface, GroupReduceFunction.class, true, true, inType, functionName, allowMissing);
+	}
+
+	public static <IN, OUT> TypeInformation<OUT> getGroupCombineReturnTypes(FlatCombineFunction<IN, OUT> combineInterface, TypeInformation<IN> inType) {
+		return getGroupCombineReturnTypes(combineInterface, inType, null, false);
+	}
+
+	public static <IN, OUT> TypeInformation<OUT> getGroupCombineReturnTypes(FlatCombineFunction<IN, OUT> combineInterface, TypeInformation<IN> inType,
+																			String functionName, boolean allowMissing)
+	{
+		return getUnaryOperatorReturnType((Function) combineInterface, FlatCombineFunction.class, true, true, inType, functionName, allowMissing);
 	}
 	
 	

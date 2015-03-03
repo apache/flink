@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -159,7 +160,28 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 
 		return new GroupReduceOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName());
 	}
-	
+
+	/**
+	 * Applies a CombineFunction on a grouped {@link DataSet}.
+	 * A CombineFunction is similar to a GroupReduceFunction but does not perform a full data exchange. Instead, the
+	 * CombineFunction calls the combine method once per partition for combining a group of results. This
+	 * operator is suitable for combining values into an intermediate format before doing a proper groupReduce where
+	 * the data is shuffled across the node for further reduction. The GroupReduce operator can also be supplied with
+	 * a combiner by implementing the RichGroupReduce function. The combine method of the RichGroupReduce function
+	 * demands input and output type to be the same. The CombineFunction, on the other side, can have an arbitrary
+	 * output type.
+	 * @param combiner The CombineFunction that is applied on the DataSet.
+	 * @return A GroupCombineOperator which represents the combined DataSet.
+	 */
+	public <R> GroupCombineOperator<T, R> combineGroup(FlatCombineFunction<T, R> combiner) {
+		if (combiner == null) {
+			throw new NullPointerException("GroupReduce function must not be null.");
+		}
+		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner, this.getDataSet().getType());
+
+		return new GroupCombineOperator<T, R>(this, resultType, dataSet.clean(combiner), Utils.getCallLocationName());
+	}
+
 	/**
 	 * Returns a new set containing the first n elements in this grouped {@link DataSet}.<br/>
 	 * @param n The desired number of elements for each group.

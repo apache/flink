@@ -118,7 +118,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			
 			// check that both reduce and combiner have the same strategy
 			assertEquals(DriverStrategy.ALL_GROUP_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.ALL_GROUP_COMBINE, combineNode.getDriverStrategy());
+			assertEquals(DriverStrategy.ALL_GROUP_REDUCE_COMBINE, combineNode.getDriverStrategy());
 			
 			// check DOP
 			assertEquals(8, sourceNode.getDegreeOfParallelism());

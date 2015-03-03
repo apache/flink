@@ -86,7 +86,7 @@ public class ReduceWrappingFunctionTest {
 			target.clear();
 			
 			// test combine
-			((FlatCombineFunction<Record>) reducer).combine(source, collector);
+			((FlatCombineFunction<Record, Record>) reducer).combine(source, collector);
 			assertEquals(2, target.size());
 			assertEquals(new IntValue(42), target.get(0).getField(0, IntValue.class));
 			assertEquals(new LongValue(11), target.get(0).getField(1, LongValue.class));
@@ -138,7 +138,7 @@ public class ReduceWrappingFunctionTest {
 			target.clear();
 			
 			// test combine
-			((FlatCombineFunction<Record>) reducer).combine(source, collector);
+			((FlatCombineFunction<Record, Record>) reducer).combine(source, collector);
 			assertEquals(2, target.size());
 			assertEquals(new IntValue(42), target.get(0).getField(0, IntValue.class));
 			assertEquals(new LongValue(11), target.get(0).getField(1, LongValue.class));
