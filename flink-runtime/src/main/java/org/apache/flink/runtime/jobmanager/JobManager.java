@@ -384,12 +384,13 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 					throw new JobException(String.format("The vertex %s (%s) has no invokable class.", vertex.getID(), vertex.getName()));
 				}
 
-				// master side initialization
-				vertex.initializeOnMaster(userCodeLoader);
-
+				// set the parallelism in case of auto parallelism
 				if (vertex.getParallelism() == ExecutionConfig.PARALLELISM_AUTO_MAX) {
 					vertex.setParallelism(numSlots);
 				}
+
+				// master side initialization
+				vertex.initializeOnMaster(userCodeLoader);
 			}
 
 			// first topologically sort the job vertices to form the basis of creating the execution graph
