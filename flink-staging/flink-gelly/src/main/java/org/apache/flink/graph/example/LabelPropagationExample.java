@@ -85,8 +85,8 @@ public class LabelPropagationExample implements ProgramDescription {
 	private static boolean parseParameters(String[] args) {
 
 		if(args.length > 0) {
-			if(args.length != 5) {
-				System.err.println("Usage: LabelPropagation <vertex path> <edge path> <output path> <num vertices> <num iterations>");
+			if(args.length != 4) {
+				System.err.println("Usage: LabelPropagation <vertex path> <edge path> <output path> <num iterations>");
 				return false;
 			}
 
@@ -94,13 +94,12 @@ public class LabelPropagationExample implements ProgramDescription {
 			vertexInputPath = args[0];
 			edgeInputPath = args[1];
 			outputPath = args[2];
-			numVertices = Integer.parseInt(args[3]);
-			maxIterations = Integer.parseInt(args[4]);
+			maxIterations = Integer.parseInt(args[3]);
 		} else {
 			System.out.println("Executing LabelPropagation example with default parameters and built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: LabelPropagation <vertex path> <edge path> <output path> <num vertices> <num iterations>");
+			System.out.println("  Usage: LabelPropagation <vertex path> <edge path> <output path> <num iterations>");
 		}
 		return true;
 	}

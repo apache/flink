@@ -100,6 +100,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 		return true;
 	}
 
+	@SuppressWarnings("serial")
 	private static DataSet<Vertex<Long, Double>> getVerticesDataSet(ExecutionEnvironment env) {
 		if (fileOutput) {
 			return env.readCsvFile(verticesInputPath)
@@ -119,6 +120,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 		}
 	}
 
+	@SuppressWarnings("serial")
 	private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
 		if (fileOutput) {
 			return env.readCsvFile(edgesInputPath)
@@ -128,7 +130,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 
 						@Override
 						public Edge<Long, Double> map(Tuple3<Long, Long, Double> tuple3) throws Exception {
-							return new Edge(tuple3.f0, tuple3.f1, tuple3.f2);
+							return new Edge<Long, Double>(tuple3.f0, tuple3.f1, tuple3.f2);
 						}
 					});
 		} else {

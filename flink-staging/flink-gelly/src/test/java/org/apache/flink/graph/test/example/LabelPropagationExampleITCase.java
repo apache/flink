@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.test;
+package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
@@ -79,7 +79,7 @@ public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
 		String verticesPath = createTempFile(vertices);
 		String edgesPath = createTempFile(edges);
 
-		LabelPropagationExample.main(new String[] {verticesPath, edgesPath, resultPath, "7", "1"});
+		LabelPropagationExample.main(new String[] {verticesPath, edgesPath, resultPath, "1"});
 
 		expectedResult = "1,10\n" +
 			"2,10\n" +
@@ -118,7 +118,7 @@ public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
 		String verticesPath = createTempFile(vertices);
 		String edgesPath = createTempFile(edges);
 
-		LabelPropagationExample.main(new String[] {verticesPath, edgesPath, resultPath, "9", "1"});
+		LabelPropagationExample.main(new String[] {verticesPath, edgesPath, resultPath, "1"});
 
 		expectedResult = "1,10\n" +
 				"2,10\n" +
@@ -129,39 +129,6 @@ public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
 				"7,20\n" +
 				"8,20\n" +
 				"9,20\n";
-	}
-
-	@Test
-	public void testTermination() throws Exception {
-		/*
-		 * Test the label propagation example where the algorithm terminates on the first iteration
-		 */
-
-		final String vertices = "1 10\n" +
-				"2 10\n" +
-				"3 10\n" +
-				"4 40\n" +
-				"5 40\n" +
-				"6 40\n";
-
-		final String edges = "1 2\n" +
-				"2 3\n" +
-				"3 1\n" +
-				"4 5\n" +
-				"5 6\n" +
-				"6 4\n";
-
-		String verticesPath = createTempFile(vertices);
-		String edgesPath = createTempFile(edges);
-
-		LabelPropagationExample.main(new String[]{verticesPath, edgesPath, resultPath, "6", "2"});
-
-		expectedResult = "1,10\n" +
-				"2,10\n" +
-				"3,10\n" +
-				"4,40\n" +
-				"5,40\n" +
-				"6,40\n";
 	}
 
 	// -------------------------------------------------------------------------

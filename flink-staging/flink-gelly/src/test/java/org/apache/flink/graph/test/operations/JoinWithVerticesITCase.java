@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.test;
+package org.apache.flink.graph.test.operations;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.graph.test.TestGraphUtils.DummyCustomParameterizedType;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.test.util.MultipleProgramsTestBase;

@@ -33,27 +33,47 @@ public class TestGraphUtils {
 
 	public static final DataSet<Vertex<Long, Long>> getLongLongVertexData(
 			ExecutionEnvironment env) {
-		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
-		vertices.add(new Vertex<Long, Long>(1L, 1L));
-		vertices.add(new Vertex<Long, Long>(2L, 2L));
-		vertices.add(new Vertex<Long, Long>(3L, 3L));
-		vertices.add(new Vertex<Long, Long>(4L, 4L));
-		vertices.add(new Vertex<Long, Long>(5L, 5L));
-		
-		return env.fromCollection(vertices);
+
+		return env.fromCollection(getLongLongVertices());
 	}
 	
 	public static final DataSet<Edge<Long, Long>> getLongLongEdgeData(
 			ExecutionEnvironment env) {
-		List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
-		edges.add(new Edge<Long, Long>(1L, 2L, 12L));
-		edges.add(new Edge<Long, Long>(1L, 3L, 13L));
-		edges.add(new Edge<Long, Long>(2L, 3L, 23L));
-		edges.add(new Edge<Long, Long>(3L, 4L, 34L));
-		edges.add(new Edge<Long, Long>(3L, 5L, 35L));
-		edges.add(new Edge<Long, Long>(4L, 5L, 45L));
-		edges.add(new Edge<Long, Long>(5L, 1L, 51L));
-		
+
+		return env.fromCollection(getLongLongEdges());
+	}
+
+	public static final DataSet<Edge<Long, Long>> getLongLongEdgeInvalidSrcData(
+			ExecutionEnvironment env) {
+		List<Edge<Long, Long>> edges = getLongLongEdges();
+
+		edges.remove(1);
+		edges.add(new Edge<Long, Long>(13L, 3L, 13L));
+
+		return env.fromCollection(edges);
+	}
+
+	public static final DataSet<Edge<Long, Long>> getLongLongEdgeInvalidTrgData(
+			ExecutionEnvironment env) {
+		List<Edge<Long, Long>> edges =  getLongLongEdges();
+
+		edges.remove(0);
+		edges.add(new Edge<Long, Long>(13L, 3L, 13L));
+
+		return env.fromCollection(edges);
+	}
+
+	public static final DataSet<Edge<Long, Long>> getLongLongEdgeInvalidSrcTrgData(
+			ExecutionEnvironment env) {
+		List<Edge<Long, Long>> edges =  getLongLongEdges();
+
+		edges.remove(0);
+		edges.remove(1);
+		edges.remove(2);
+		edges.add(new Edge<Long, Long>(13L, 3L, 13L));
+		edges.add(new Edge<Long, Long>(1L, 12L, 12L));
+		edges.add(new Edge<Long, Long>(13L, 33L, 13L));
+
 		return env.fromCollection(edges);
 	}
 	
@@ -193,12 +213,10 @@ public class TestGraphUtils {
 	 */
 	public static final DataSet<Vertex<Long, Long>> getLongLongInvalidVertexData(
 			ExecutionEnvironment env) {
-		List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
+		List<Vertex<Long, Long>> vertices = getLongLongVertices();
+
+		vertices.remove(0);
 		vertices.add(new Vertex<Long, Long>(15L, 1L));
-		vertices.add(new Vertex<Long, Long>(2L, 2L));
-		vertices.add(new Vertex<Long, Long>(3L, 3L));
-		vertices.add(new Vertex<Long, Long>(4L, 4L));
-		vertices.add(new Vertex<Long, Long>(5L, 5L));
 
 		return env.fromCollection(vertices);
 	}

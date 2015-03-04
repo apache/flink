@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.test;
+package org.apache.flink.graph.test.operations;
 
 import java.util.Iterator;
 
@@ -30,6 +30,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.NeighborsFunction;
 import org.apache.flink.graph.NeighborsFunctionWithVertexValue;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
