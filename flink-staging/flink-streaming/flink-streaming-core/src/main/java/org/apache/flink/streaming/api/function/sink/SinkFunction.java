@@ -21,10 +21,25 @@ import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
 
+/**
+ * Interface for implementing user defined sink functionality.
+ *
+ * @param <IN> INput type parameter.
+ */
 public interface SinkFunction<IN> extends Function, Serializable {
 
+	/**
+	 * Function for standard sink behaviour. This function is called for every record.
+	 *
+	 * @param value The input record.
+	 * @throws Exception
+	 */
 	public void invoke(IN value) throws Exception;
 
+	/**
+	 * In case another vertex in topology fails this method is called before terminating
+	 * the sink. Make sure to free up any allocated resources here.
+	 */
 	public void cancel();
 
 }

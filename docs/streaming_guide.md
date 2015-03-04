@@ -168,7 +168,11 @@ Usage: `dataStream.broadcast()`
  * *Global*: All data points end up at the same operator instance. To achieve this use the parallelism setting of the corresponding operator.
 Usage: `operator.setParallelism(1)`
 
-### Sources
+### Connecting to the outside world
+
+The user is expected to connect to the outside world through the source and the sink interfaces. We provide a `cancel()` method where allocated resources can be freed up in case some other parts of the topology failed. The `cancel()` method is called upon termination.
+
+#### Sources
 
 The user can connect to data streams by the different implementations of `SourceFunction` using `StreamExecutionEnvironment.addSource(SourceFunction)`. In contrast with other operators, DataStreamSources have a default operator parallelism of 1.
 
@@ -186,7 +190,7 @@ There are several predefined ones similar to the ones of the batch API and some 
 These can be used to easily test and debug streaming programs.
 There are pre-implemented connectors for a number of the most popular message queue services, please refer to the section on [connectors](#stream-connectors) for more detail.
 
-### Sinks
+#### Sinks
 
 `DataStreamSink` represents the different outputs of a Flink Streaming program. There are several pre-defined implementations available right away:
 
@@ -495,13 +499,13 @@ Most data stream operators support directed outputs (output splitting), meaning 
 
 ~~~java
 SplitDataStream<Integer> split = someDataStream.split(outputSelector);
-DataStream<Integer> even = split.select("even”);
+DataStream<Integer> even = split.select("even");
 DataStream<Integer> odd = split.select("odd");
 ~~~
 
 In the above example the data stream named ‘even’ will only contain elements that are directed to the output named “even”. The user can of course further transform these new stream by for example squaring only the even elements.
 
-Data streams only receive the elements directed to selected output names. The user can also select multiple output names by `splitStream.select(“output1”, “output2”…)`. It is common that a stream listens to all the outputs, so `split.selectAll()` provides this functionality without having to select all names.
+Data streams only receive the elements directed to selected output names. The user can also select multiple output names by `splitStream.select(“output1”, “output2”, …)`. It is common that a stream listens to all the outputs, so `split.selectAll()` provides this functionality without having to select all names.
 
 The outputs of an operator are directed by implementing a selector function (implementing the `OutputSelector` interface):
 
