@@ -114,6 +114,14 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 				// Task already cancelled do nothing
 				return null;
 			}
+		}  catch (IllegalStateException e) {
+			if (isRunning) {
+				throw new RuntimeException("Could not read next record due to: "
+						+ StringUtils.stringifyException(e));
+			} else {
+				// Task already cancelled do nothing
+				return null;
+			}
 		}
 	}
 
