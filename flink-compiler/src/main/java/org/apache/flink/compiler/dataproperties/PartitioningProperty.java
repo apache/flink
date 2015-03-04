@@ -71,7 +71,7 @@ public enum PartitioningProperty {
 	 *         false otherwise.
 	 */
 	public boolean isPartitioned() {
-		return this != FULL_REPLICATION && this != FORCED_REBALANCED;
+		return this != FULL_REPLICATION && this != FORCED_REBALANCED && this != ANY_DISTRIBUTION;
 	}
 	
 	/**

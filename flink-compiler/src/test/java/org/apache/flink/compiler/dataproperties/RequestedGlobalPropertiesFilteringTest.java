@@ -423,7 +423,7 @@ public class RequestedGlobalPropertiesFilteringTest {
 		SemanticPropUtil.getSemanticPropsSingleFromString(sprops, new String[]{"0;1"}, null, null, tupleInfo, tupleInfo);
 
 		RequestedGlobalProperties gprops = new RequestedGlobalProperties();
-		gprops.setHashPartitioned(new FieldList(0,1));
+		gprops.setHashPartitioned(new FieldSet(0,1));
 
 		gprops.filterBySemanticProperties(sprops, 1);
 	}

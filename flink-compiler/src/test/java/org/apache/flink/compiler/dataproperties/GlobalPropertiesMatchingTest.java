@@ -42,30 +42,34 @@ public class GlobalPropertiesMatchingTest {
 				GlobalProperties gp1 = new GlobalProperties();
 				gp1.setAnyPartitioning(new FieldList(2, 6));
 				assertTrue(req.isMetBy(gp1));
-				
+
 				GlobalProperties gp2 = new GlobalProperties();
 				gp2.setAnyPartitioning(new FieldList(6, 2));
 				assertTrue(req.isMetBy(gp2));
-				
+
 				GlobalProperties gp3 = new GlobalProperties();
-				gp3.setAnyPartitioning(new FieldList(6, 1));
+				gp3.setAnyPartitioning(new FieldList(6, 2, 4));
 				assertFalse(req.isMetBy(gp3));
-				
+
 				GlobalProperties gp4 = new GlobalProperties();
-				gp4.setAnyPartitioning(new FieldList(2));
-				assertTrue(req.isMetBy(gp4));
+				gp4.setAnyPartitioning(new FieldList(6, 1));
+				assertFalse(req.isMetBy(gp4));
+
+				GlobalProperties gp5 = new GlobalProperties();
+				gp5.setAnyPartitioning(new FieldList(2));
+				assertTrue(req.isMetBy(gp5));
 			}
-			
+
 			// match hash partitioning
 			{
 				GlobalProperties gp1 = new GlobalProperties();
 				gp1.setHashPartitioned(new FieldList(2, 6));
 				assertTrue(req.isMetBy(gp1));
-				
+
 				GlobalProperties gp2 = new GlobalProperties();
 				gp2.setHashPartitioned(new FieldList(6, 2));
 				assertTrue(req.isMetBy(gp2));
-				
+
 				GlobalProperties gp3 = new GlobalProperties();
 				gp3.setHashPartitioned(new FieldList(6, 1));
 				assertFalse(req.isMetBy(gp3));
@@ -153,6 +157,136 @@ public class GlobalPropertiesMatchingTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testStrictlyMatchingAnyPartitioning() {
+
+		RequestedGlobalProperties req = new RequestedGlobalProperties();
+		req.setAnyPartitioning(new FieldList(6, 2));
+
+		// match any partitioning
+		{
+			GlobalProperties gp1 = new GlobalProperties();
+			gp1.setAnyPartitioning(new FieldList(6, 2));
+			assertTrue(req.isMetBy(gp1));
+
+			GlobalProperties gp2 = new GlobalProperties();
+			gp2.setAnyPartitioning(new FieldList(2, 6));
+			assertFalse(req.isMetBy(gp2));
+
+			GlobalProperties gp3 = new GlobalProperties();
+			gp3.setAnyPartitioning(new FieldList(6, 2, 3));
+			assertFalse(req.isMetBy(gp3));
+
+			GlobalProperties gp4 = new GlobalProperties();
+			gp3.setAnyPartitioning(new FieldList(6, 1));
+			assertFalse(req.isMetBy(gp3));
+
+			GlobalProperties gp5 = new GlobalProperties();
+			gp4.setAnyPartitioning(new FieldList(2));
+			assertFalse(req.isMetBy(gp4));
+		}
+
+		// match hash partitioning
+		{
+			GlobalProperties gp1 = new GlobalProperties();
+			gp1.setHashPartitioned(new FieldList(6, 2));
+			assertTrue(req.isMetBy(gp1));
+
+			GlobalProperties gp2 = new GlobalProperties();
+			gp2.setHashPartitioned(new FieldList(2, 6));
+			assertFalse(req.isMetBy(gp2));
+
+			GlobalProperties gp3 = new GlobalProperties();
+			gp3.setHashPartitioned(new FieldList(6, 1));
+			assertFalse(req.isMetBy(gp3));
+		}
+
+		// match range partitioning
+		{
+			GlobalProperties gp1 = new GlobalProperties();
+			gp1.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(2, null, Order.ASCENDING));
+			assertTrue(req.isMetBy(gp1));
+
+			GlobalProperties gp2 = new GlobalProperties();
+			gp2.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING));
+			assertFalse(req.isMetBy(gp2));
+
+			GlobalProperties gp3 = new GlobalProperties();
+			gp3.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(1, null, Order.ASCENDING));
+			assertFalse(req.isMetBy(gp3));
+
+			GlobalProperties gp4 = new GlobalProperties();
+			gp4.setRangePartitioned(new Ordering(6, null, Order.DESCENDING));
+			assertFalse(req.isMetBy(gp4));
+		}
+
+	}
+
+	@Test
+	public void testStrictlyMatchingHashPartitioning() {
+
+		RequestedGlobalProperties req = new RequestedGlobalProperties();
+		req.setHashPartitioned(new FieldList(6, 2));
+
+		// match any partitioning
+		{
+			GlobalProperties gp1 = new GlobalProperties();
+			gp1.setAnyPartitioning(new FieldList(6, 2));
+			assertFalse(req.isMetBy(gp1));
+
+			GlobalProperties gp2 = new GlobalProperties();
+			gp2.setAnyPartitioning(new FieldList(2, 6));
+			assertFalse(req.isMetBy(gp2));
+
+			GlobalProperties gp3 = new GlobalProperties();
+			gp3.setAnyPartitioning(new FieldList(6, 1));
+			assertFalse(req.isMetBy(gp3));
+
+			GlobalProperties gp4 = new GlobalProperties();
+			gp4.setAnyPartitioning(new FieldList(2));
+			assertFalse(req.isMetBy(gp4));
+		}
+
+		// match hash partitioning
+		{
+			GlobalProperties gp1 = new GlobalProperties();
+			gp1.setHashPartitioned(new FieldList(6, 2));
+			assertTrue(req.isMetBy(gp1));
+
+			GlobalProperties gp2 = new GlobalProperties();
+			gp2.setHashPartitioned(new FieldList(2, 6));
+			assertFalse(req.isMetBy(gp2));
+
+			GlobalProperties gp3 = new GlobalProperties();
+			gp3.setHashPartitioned(new FieldList(6, 1));
+			assertFalse(req.isMetBy(gp3));
+
+			GlobalProperties gp4 = new GlobalProperties();
+			gp4.setHashPartitioned(new FieldList(6, 2, 0));
+			assertFalse(req.isMetBy(gp4));
+		}
+
+		// match range partitioning
+		{
+			GlobalProperties gp1 = new GlobalProperties();
+			gp1.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(2, null, Order.ASCENDING));
+			assertFalse(req.isMetBy(gp1));
+
+			GlobalProperties gp2 = new GlobalProperties();
+			gp2.setRangePartitioned(new Ordering(2, null, Order.DESCENDING).appendOrdering(6, null, Order.ASCENDING));
+			assertFalse(req.isMetBy(gp2));
+
+			GlobalProperties gp3 = new GlobalProperties();
+			gp3.setRangePartitioned(new Ordering(6, null, Order.DESCENDING).appendOrdering(1, null, Order.ASCENDING));
+			assertFalse(req.isMetBy(gp3));
+
+			GlobalProperties gp4 = new GlobalProperties();
+			gp4.setRangePartitioned(new Ordering(6, null, Order.DESCENDING));
+			assertFalse(req.isMetBy(gp4));
+		}
+
 	}
 	
 	// --------------------------------------------------------------------------------------------

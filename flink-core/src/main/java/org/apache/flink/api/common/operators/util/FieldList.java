@@ -117,7 +117,7 @@ public class FieldList extends FieldSet {
 	public FieldList toFieldList() {
 		return this;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
@@ -157,6 +157,19 @@ public class FieldList extends FieldSet {
 			}
 		}
 		return true;
+	}
+
+	public boolean isExactMatch(FieldList list) {
+		if (this.size() != list.size()) {
+			return false;
+		} else {
+			for (int i = 0; i < this.size(); i++) {
+				if (this.get(i) != list.get(i)) {
+					return false;
+				}
+			}
+			return true;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
