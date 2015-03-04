@@ -99,27 +99,31 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 
 	@Override
 	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
+
 		if (this.customPartitioner == null) {
+
+			// we accept compatible partitionings of any type
 			RequestedGlobalProperties partitioned_left_any = new RequestedGlobalProperties();
-			RequestedGlobalProperties partitioned_left_hash = new RequestedGlobalProperties();
-			partitioned_left_any.setAnyPartitioning(this.keys1);
-			partitioned_left_hash.setHashPartitioned(this.keys1);
-			
 			RequestedGlobalProperties partitioned_right_any = new RequestedGlobalProperties();
-			RequestedGlobalProperties partitioned_right_hash = new RequestedGlobalProperties();
+			partitioned_left_any.setAnyPartitioning(this.keys1);
 			partitioned_right_any.setAnyPartitioning(this.keys2);
+
+			// add strict hash partitioning of both inputs on their full key sets
+			RequestedGlobalProperties partitioned_left_hash = new RequestedGlobalProperties();
+			RequestedGlobalProperties partitioned_right_hash = new RequestedGlobalProperties();
+			partitioned_left_hash.setHashPartitioned(this.keys1);
 			partitioned_right_hash.setHashPartitioned(this.keys2);
-			
+
 			return Arrays.asList(new GlobalPropertiesPair(partitioned_left_any, partitioned_right_any),
 					new GlobalPropertiesPair(partitioned_left_hash, partitioned_right_hash));
 		}
 		else {
 			RequestedGlobalProperties partitioned_left = new RequestedGlobalProperties();
 			partitioned_left.setCustomPartitioned(this.keys1, this.customPartitioner);
-			
+
 			RequestedGlobalProperties partitioned_right = new RequestedGlobalProperties();
 			partitioned_right.setCustomPartitioned(this.keys2, this.customPartitioner);
-			
+
 			return Collections.singletonList(new GlobalPropertiesPair(partitioned_left, partitioned_right));
 		}
 	}
@@ -135,10 +139,40 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 	public boolean areCompatible(RequestedGlobalProperties requested1, RequestedGlobalProperties requested2,
 			GlobalProperties produced1, GlobalProperties produced2)
 	{
-		return produced1.getPartitioning() == produced2.getPartitioning() && 
-				(produced1.getCustomPartitioner() == null ? 
-					produced2.getCustomPartitioner() == null :
-					produced1.getCustomPartitioner().equals(produced2.getCustomPartitioner()));
+
+		if(produced1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED &&
+				produced2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
+
+			// both are hash partitioned, check that partitioning fields are equivalently chosen
+			return checkEquivalentFieldPositionsInKeyFields(
+					produced1.getPartitioningFields(), produced2.getPartitioningFields());
+
+		}
+		else if(produced1.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
+				produced2.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED) {
+
+			// both are range partitioned, check that partitioning fields are equivalently chosen
+			return checkEquivalentFieldPositionsInKeyFields(
+					produced1.getPartitioningFields(), produced2.getPartitioningFields());
+
+		}
+		else if(produced1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&
+				produced2.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING) {
+
+			// both use a custom partitioner. Check that both keys are exactly as specified and that both the same partitioner
+			return produced1.getPartitioningFields().isExactMatch(this.keys1) &&
+					produced2.getPartitioningFields().isExactMatch(this.keys2) &&
+					produced1.getCustomPartitioner() != null && produced2.getCustomPartitioner() != null &&
+					produced1.getCustomPartitioner().equals(produced2.getCustomPartitioner());
+
+		}
+		else {
+
+			// no other partitioning valid, incl. ANY_PARTITIONING.
+			//   For co-groups we must ensure that both sides are exactly identically partitioned, ANY is not good enough.
+			return false;
+		}
+
 	}
 	
 	@Override
@@ -150,12 +184,17 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		Ordering prod1 = produced1.getOrdering();
 		Ordering prod2 = produced2.getOrdering();
 		
-		if (prod1 == null || prod2 == null || prod1.getNumberOfFields() < numRelevantFields ||
-				prod2.getNumberOfFields() < prod2.getNumberOfFields())
-		{
+		if (prod1 == null || prod2 == null) {
 			throw new CompilerException("The given properties do not meet this operators requirements.");
 		}
-			
+
+		// check that order of fields is equivalent
+		if (!checkEquivalentFieldPositionsInKeyFields(
+				prod1.getInvolvedIndexes(), prod2.getInvolvedIndexes(), numRelevantFields)) {
+			return false;
+		}
+
+		// check that order directions are equivalent
 		for (int i = 0; i < numRelevantFields; i++) {
 			if (prod1.getOrder(i) != prod2.getOrder(i)) {
 				return false;
@@ -196,4 +235,5 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		LocalProperties comb = LocalProperties.combine(in1, in2);
 		return comb.clearUniqueFieldSets();
 	}
+
 }
