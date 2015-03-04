@@ -76,7 +76,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The abstract base class for all tasks. Encapsulated common behavior and implements the main life-cycle
+ * The base class for all tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
 public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {

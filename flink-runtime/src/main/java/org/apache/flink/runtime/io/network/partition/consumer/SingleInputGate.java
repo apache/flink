@@ -185,8 +185,8 @@ public class SingleInputGate implements InputGate {
 
 	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
 		synchronized (requestLock) {
-			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null && inputChannel.getClass() == UnknownInputChannel.class) {
-
+			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null &&
+					inputChannel.getClass() == UnknownInputChannel.class) {
 				numberOfUninitializedChannels++;
 			}
 		}
@@ -381,21 +381,25 @@ public class SingleInputGate implements InputGate {
 				case LOCAL:
 					LOG.debug("Create LocalInputChannel for {}.", partition);
 
-					inputChannels[channelIndex] = new LocalInputChannel(reader, channelIndex, producerExecutionId, partitionId, networkEnvironment.getPartitionManager(), networkEnvironment.getTaskEventDispatcher());
+					inputChannels[channelIndex] = new LocalInputChannel(reader, channelIndex, producerExecutionId, partitionId,
+							networkEnvironment.getPartitionManager(), networkEnvironment.getTaskEventDispatcher());
 
 					break;
 				case REMOTE:
 					LOG.debug("Create RemoteInputChannel for {}.", partition);
 
-					final RemoteAddress producerAddress = checkNotNull(partition.getProducerAddress(), "Missing producer address for remote intermediate result partition.");
+					final RemoteAddress producerAddress = checkNotNull(partition.getProducerAddress(),
+							"Missing producer address for remote intermediate result partition.");
 
-					inputChannels[channelIndex] = new RemoteInputChannel(reader, channelIndex, producerExecutionId, partitionId, producerAddress, networkEnvironment.getConnectionManager());
+					inputChannels[channelIndex] = new RemoteInputChannel(reader, channelIndex, producerExecutionId, partitionId,
+							producerAddress, networkEnvironment.getConnectionManager());
 
 					break;
 				case UNKNOWN:
 					LOG.debug("Create UnknownInputChannel for {}.", partition);
 
-					inputChannels[channelIndex] = new UnknownInputChannel(reader, channelIndex, producerExecutionId, partitionId, networkEnvironment.getPartitionManager(), networkEnvironment.getTaskEventDispatcher(), networkEnvironment.getConnectionManager());
+					inputChannels[channelIndex] = new UnknownInputChannel(reader, channelIndex, producerExecutionId, partitionId,
+							networkEnvironment.getPartitionManager(), networkEnvironment.getTaskEventDispatcher(), networkEnvironment.getConnectionManager());
 
 					break;
 			}

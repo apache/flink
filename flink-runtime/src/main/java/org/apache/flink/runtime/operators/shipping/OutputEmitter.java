@@ -143,7 +143,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	
 	// --------------------------------------------------------------------------------------------
 
-	private final int[] robin(int numberOfChannels) {
+	private int[] robin(int numberOfChannels) {
 		if (this.channels == null || this.channels.length != 1) {
 			this.channels = new int[1];
 		}
@@ -156,7 +156,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		return this.channels;
 	}
 
-	private final int[] broadcast(int numberOfChannels) {
+	private int[] broadcast(int numberOfChannels) {
 		if (channels == null || channels.length != numberOfChannels) {
 			channels = new int[numberOfChannels];
 			for (int i = 0; i < numberOfChannels; i++) {
@@ -167,7 +167,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		return channels;
 	}
 
-	private final int[] hashPartitionDefault(T record, int numberOfChannels) {
+	private int[] hashPartitionDefault(T record, int numberOfChannels) {
 		if (channels == null || channels.length != 1) {
 			channels = new int[1];
 		}
@@ -189,7 +189,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		return this.channels;
 	}
 
-	private final int murmurHash(int k) {
+	private int murmurHash(int k) {
 		k *= 0xcc9e2d51;
 		k = Integer.rotateLeft(k, 15);
 		k *= 0x1b873593;
@@ -207,11 +207,11 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		return k;
 	}
 
-	private final int[] rangePartition(T record, int numberOfChannels) {
+	private int[] rangePartition(T record, int numberOfChannels) {
 		throw new UnsupportedOperationException();
 	}
 	
-	private final int[] customPartition(T record, int numberOfChannels) {
+	private int[] customPartition(T record, int numberOfChannels) {
 		if (channels == null) {
 			channels = new int[1];
 			extractedKeys = new Object[1];

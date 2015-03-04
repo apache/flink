@@ -94,7 +94,8 @@ public class Buffer {
 		synchronized (recycleLock) {
 			ensureNotRecycled();
 
-			checkArgument(newSize >= 0 && newSize <= memorySegment.size(), "Size of buffer must be >= 0 and <= " + memorySegment.size() + ", but was " + newSize + ".");
+			checkArgument(newSize >= 0 && newSize <= memorySegment.size(), "Size of buffer must be >= 0 and <= " +
+					memorySegment.size() + ", but was " + newSize + ".");
 
 			currentSize = newSize;
 		}
