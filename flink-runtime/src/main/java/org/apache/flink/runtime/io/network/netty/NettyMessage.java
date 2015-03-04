@@ -55,9 +55,9 @@ abstract class NettyMessage {
 	// constructor in order to work with the generic deserializer.
 	// ------------------------------------------------------------------------
 
-	private static final int HEADER_LENGTH = 4 + 4 + 1; // frame length (4), magic number (4), msg ID (1)
+	static final int HEADER_LENGTH = 4 + 4 + 1; // frame length (4), magic number (4), msg ID (1)
 
-	private static final int MAGIC_NUMBER = 0xBADC0FFE;
+	static final int MAGIC_NUMBER = 0xBADC0FFE;
 
 	abstract ByteBuf write(ByteBufAllocator allocator) throws Exception;
 
