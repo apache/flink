@@ -19,57 +19,65 @@ package org.apache.flink.streaming.api.windowing.windowbuffer;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.util.Collector;
 
 /**
  * Non-grouped pre-reducer for tumbling eviction policy.
  */
-public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
+public class SlidingCountPreReducer<T> extends SlidingPreReducer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private ReduceFunction<T> reducer;
+	private int windowSize;
+	private int slideSize;
+	private int start;
 
-	private T reduced;
-	private TypeSerializer<T> serializer;
-
-	public TumblingPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer) {
-		this.reducer = reducer;
-		this.serializer = serializer;
-	}
-
-	public boolean emitWindow(Collector<StreamWindow<T>> collector) {
-		if (reduced != null) {
-			StreamWindow<T> currentWindow = new StreamWindow<T>();
-			currentWindow.add(reduced);
-			collector.collect(currentWindow);
-			reduced = null;
-			return true;
+	public SlidingCountPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer,
+			int windowSize, int slideSize, int start) {
+		super(reducer, serializer);
+		if (windowSize > slideSize) {
+			this.windowSize = windowSize;
+			this.slideSize = slideSize;
+			this.start = start;
 		} else {
-			return false;
+			throw new RuntimeException(
+					"Window size needs to be larger than slide size for the sliding pre-reducer");
 		}
-	}
-
-	public void store(T element) throws Exception {
-		if (reduced == null) {
-			reduced = element;
-		} else {
-			reduced = reducer.reduce(serializer.copy(reduced), element);
-		}
-	}
-
-	public void evict(int n) {
+		index = index - start;
 	}
 
 	@Override
-	public TumblingPreReducer<T> clone() {
-		return new TumblingPreReducer<T>(reducer, serializer);
+	public SlidingCountPreReducer<T> clone() {
+		return new SlidingCountPreReducer<T>(reducer, serializer, windowSize, slideSize, start);
+	}
+
+	@Override
+	public void store(T element) throws Exception {
+		if (index >= 0) {
+			super.store(element);
+		} else {
+			index++;
+		}
 	}
 
 	@Override
 	public String toString() {
-		return reduced.toString();
+		return currentReduced.toString();
+	}
+
+	@Override
+	protected boolean addCurrentToReduce(T next) {
+		if (index <= slideSize) {
+			return true;
+		} else {
+			return index == windowSize;
+		}
+	}
+
+	@Override
+	protected void updateIndexAtEmit() {
+		if (index >= slideSize) {
+			index = index - slideSize;
+		}
 	}
 
 }

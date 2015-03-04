@@ -89,6 +89,8 @@ public class WindowIntegrationTest implements Serializable {
 		inputs.add(11);
 		inputs.add(11);
 
+		KeySelector<Integer, ?> key = new ModKey(2);
+
 		Timestamp<Integer> ts = new Timestamp<Integer>() {
 
 			private static final long serialVersionUID = 1L;
@@ -103,13 +105,11 @@ public class WindowIntegrationTest implements Serializable {
 
 		DataStream<Integer> source = env.fromCollection(inputs);
 
-		source.window(Time.of(2, ts)).every(Time.of(3, ts)).sum(0).getDiscretizedStream()
+		source.window(Time.of(3, ts, 1)).every(Time.of(2, ts, 1)).sum(0).getDiscretizedStream()
 				.addSink(new CentralSink1());
 
 		source.window(Time.of(4, ts, 1)).groupBy(new ModKey(2)).mapWindow(new IdentityWindowMap())
 				.flatten().addSink(new CentralSink2());
-
-		KeySelector<Integer, ?> key = new ModKey(2);
 
 		source.groupBy(key).window(Time.of(4, ts, 1)).sum(0).getDiscretizedStream()
 				.addSink(new DistributedSink1());
@@ -126,12 +126,17 @@ public class WindowIntegrationTest implements Serializable {
 		source.window(Time.of(5, ts, 1)).mapWindow(new IdentityWindowMap()).flatten()
 				.addSink(new DistributedSink4());
 
+		source.window(Time.of(5, ts, 1)).every(Time.of(4, ts, 1)).sum(0).getDiscretizedStream()
+				.addSink(new DistributedSink5());
+
 		env.execute();
 
-		// sum ( Time of 2 slide 3 )
+		// sum ( Time of 3 slide 2 )
 		List<StreamWindow<Integer>> expected1 = new ArrayList<StreamWindow<Integer>>();
 		expected1.add(StreamWindow.fromElements(5));
+		expected1.add(StreamWindow.fromElements(11));
 		expected1.add(StreamWindow.fromElements(9));
+		expected1.add(StreamWindow.fromElements(10));
 		expected1.add(StreamWindow.fromElements(32));
 
 		validateOutput(expected1, CentralSink1.windows);
@@ -192,6 +197,13 @@ public class WindowIntegrationTest implements Serializable {
 		expected7.add(StreamWindow.fromElements(10, 11, 11));
 
 		validateOutput(expected7, DistributedSink4.windows);
+
+		List<StreamWindow<Integer>> expected8 = new ArrayList<StreamWindow<Integer>>();
+		expected8.add(StreamWindow.fromElements(12));
+		expected8.add(StreamWindow.fromElements(9));
+		expected8.add(StreamWindow.fromElements(32));
+
+		validateOutput(expected8, DistributedSink5.windows);
 
 	}
 
@@ -303,6 +315,23 @@ public class WindowIntegrationTest implements Serializable {
 
 	@SuppressWarnings("serial")
 	private static class DistributedSink4 implements SinkFunction<StreamWindow<Integer>> {
+
+		public static List<StreamWindow<Integer>> windows = Collections
+				.synchronizedList(new ArrayList<StreamWindow<Integer>>());
+
+		@Override
+		public void invoke(StreamWindow<Integer> value) throws Exception {
+			windows.add(value);
+		}
+
+		@Override
+		public void cancel() {
+		}
+
+	}
+
+	@SuppressWarnings("serial")
+	private static class DistributedSink5 implements SinkFunction<StreamWindow<Integer>> {
 
 		public static List<StreamWindow<Integer>> windows = Collections
 				.synchronizedList(new ArrayList<StreamWindow<Integer>>());

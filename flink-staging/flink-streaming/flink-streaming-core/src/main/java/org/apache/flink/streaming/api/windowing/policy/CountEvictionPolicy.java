@@ -136,6 +136,14 @@ public class CountEvictionPolicy<IN> implements CloneableEvictionPolicy<IN> {
 		}
 	}
 
+	public int getWindowSize() {
+		return maxElements;
+	}
+
+	public int getStart() {
+		return startValue;
+	}
+
 	@Override
 	public String toString() {
 		return "CountPolicy(" + maxElements + ")";

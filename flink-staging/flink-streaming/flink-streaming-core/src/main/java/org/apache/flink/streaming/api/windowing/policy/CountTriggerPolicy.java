@@ -102,6 +102,10 @@ public class CountTriggerPolicy<IN> implements CloneableTriggerPolicy<IN> {
 		}
 	}
 
+	public int getSlideSize() {
+		return max;
+	}
+
 	@Override
 	public String toString() {
 		return "CountPolicy(" + max + ")";

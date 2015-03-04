@@ -41,8 +41,6 @@ public class BasicWindowBufferTest {
 		wb.store(2);
 		wb.store(10);
 
-		assertEquals(2, wb.size());
-
 		wb.emitWindow(collector);
 
 		assertEquals(1, collected.size());
@@ -50,8 +48,6 @@ public class BasicWindowBufferTest {
 
 		wb.store(4);
 		wb.evict(2);
-
-		assertEquals(1, wb.size());
 
 		wb.emitWindow(collector);
 

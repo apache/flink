@@ -58,16 +58,11 @@ public class TumblingPreReducerTest {
 		wb.store(serializer.copy(inputs.get(0)));
 		wb.store(serializer.copy(inputs.get(1)));
 
-		assertEquals(2, wb.size());
-
 		wb.emitWindow(collector);
 
 		assertEquals(1, collected.size());
 		assertEquals(StreamWindow.fromElements(new Tuple2<Integer, Integer>(3, 1)),
 				collected.get(0));
-
-		// Test automatic eviction
-		assertEquals(0, wb.size());
 
 		wb.store(serializer.copy(inputs.get(0)));
 		wb.store(serializer.copy(inputs.get(1)));
@@ -78,7 +73,6 @@ public class TumblingPreReducerTest {
 
 		wb.store(serializer.copy(inputs.get(3)));
 
-		assertEquals(4, wb.size());
 		wb.emitWindow(collector);
 
 		assertEquals(2, collected.size());

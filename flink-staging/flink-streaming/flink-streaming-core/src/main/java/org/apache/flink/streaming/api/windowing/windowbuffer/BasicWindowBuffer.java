@@ -63,10 +63,6 @@ public class BasicWindowBuffer<T> implements WindowBuffer<T> {
 		}
 	}
 
-	public int size() {
-		return buffer.size();
-	}
-
 	@Override
 	public BasicWindowBuffer<T> clone() {
 		return new BasicWindowBuffer<T>();

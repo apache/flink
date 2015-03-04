@@ -34,8 +34,6 @@ public interface WindowBuffer<T> extends Serializable, Cloneable {
 
 	public boolean emitWindow(Collector<StreamWindow<T>> collector);
 
-	public int size();
-
 	public WindowBuffer<T> clone();
 
 }
