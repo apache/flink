@@ -16,26 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.convenience;
+package org.apache.flink.test.actions;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 
 import static org.junit.Assert.*;
 
-import org.apache.flink.test.iterative.nephele.danglingpagerank.BooleanValue;
 import org.junit.Test;
 
 
 public class CountCollectITCase {
 
     @Test
-    public void testSimple() throws Exception {
+    public void testCountCollectOnSimpleJob() throws Exception {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setDegreeOfParallelism(5);
         
@@ -54,7 +52,7 @@ public class CountCollectITCase {
     }
     
     @Test
-    public void testAdvanced() throws Exception {
+    public void testCountCollectOnAdvancedJob() throws Exception {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setDegreeOfParallelism(5);
         env.getConfig().disableObjectReuse();

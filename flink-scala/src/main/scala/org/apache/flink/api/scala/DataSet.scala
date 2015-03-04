@@ -40,6 +40,7 @@ import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.{AbstractID, Collector}
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 
@@ -535,11 +536,12 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @see org.apache.flink.api.java.Utils.CollectHelper
    */
   @throws(classOf[Exception])
-  def collect: List[T] = {
+  def collect: mutable.Buffer[T] = {
     val id = new AbstractID().toString
     javaSet.flatMap(new Utils.CollectHelper[T](id)).output(new DiscardingOutputFormat[T])
     val res = getExecutionEnvironment.execute()
-    res.getAccumulatorResult(id).asInstanceOf[List[T]]
+
+    res.getAccumulatorResult(id).asInstanceOf[java.util.List[T]].asScala
   }
 
   /**
