@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.MemorySegment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,7 +153,13 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			// Ensure that the number of required buffers can be satisfied.
 			// With dynamic memory management this should become obsolete.
 			if (numTotalRequiredBuffers + numRequiredBuffers > totalNumberOfMemorySegments) {
-				throw new IOException(String.format("Insufficient number of network buffers: required %d, but only %d of %d available.", numRequiredBuffers, totalNumberOfMemorySegments - numTotalRequiredBuffers, totalNumberOfMemorySegments));
+				throw new IOException(String.format("Insufficient number of network buffers: " +
+								"required %d, but only %d available. The total number of network " +
+								"buffers is currently set to %d. You can increase this " +
+								"number by setting the configuration key '" +
+								ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY +  "'.",
+						numRequiredBuffers, totalNumberOfMemorySegments - numTotalRequiredBuffers,
+						totalNumberOfMemorySegments));
 			}
 
 			this.numTotalRequiredBuffers += numRequiredBuffers;
