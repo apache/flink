@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.state;
 
+import org.apache.flink.runtime.state.OperatorState;
+
 /**
  * Base class for representing operator states that can be repartitioned for
  * state state and load balancing.

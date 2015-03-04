@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.state.OperatorState;
 import org.slf4j.Logger;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -88,6 +89,8 @@ public class ExecutionVertex implements Serializable {
 	private volatile List<Instance> locationConstraintInstances;
 	
 	private volatile boolean scheduleLocalOnly;
+	
+	private OperatorState operatorState;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -193,6 +196,14 @@ public class ExecutionVertex implements Serializable {
 	
 	public InstanceConnectionInfo getCurrentAssignedResourceLocation() {
 		return currentExecution.getAssignedResourceLocation();
+	}
+
+	public void setOperatorState(OperatorState operatorState) {
+		this.operatorState = operatorState;
+	}
+
+	public OperatorState getOperatorState() {
+		return operatorState;
 	}
 	
 	public ExecutionGraph getExecutionGraph() {
@@ -379,6 +390,12 @@ public class ExecutionVertex implements Serializable {
 				if (grp != null) {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
+				
+				if(operatorState!=null)
+				{
+					execution.setOperatorState(operatorState);
+				}
+				
 			}
 			else {
 				throw new IllegalStateException("Cannot reset a vertex that is in state " + state);
@@ -506,7 +523,7 @@ public class ExecutionVertex implements Serializable {
 		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, getTaskName(),
 				subTaskIndex, getTotalNumberOfParallelSubtasks(), getExecutionGraph().getJobConfiguration(),
 				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
-				producedPartitions, consumedPartitions, jarFiles, slot.getSlotNumber());
+				producedPartitions, consumedPartitions, jarFiles, slot.getSlotNumber(), operatorState);
 	}
 
 	// --------------------------------------------------------------------------------------------

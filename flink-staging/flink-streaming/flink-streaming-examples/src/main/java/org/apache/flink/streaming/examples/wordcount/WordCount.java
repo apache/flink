@@ -101,6 +101,11 @@ public class WordCount {
 
 			// emit the pairs
 			for (String token : tokens) {
+				//FIXME to be removed. added this for test purposes 
+				if("killme".equals(token))
+				{
+					throw new Exception("byee");
+				}
 				if (token.length() > 0) {
 					out.collect(new Tuple2<String, Integer>(token, 1));
 				}

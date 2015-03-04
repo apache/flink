@@ -43,7 +43,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
-import org.apache.flink.runtime.jobgraph.tasks.BarrierTransceiver
+import org.apache.flink.runtime.jobgraph.tasks.{OperatorStateCarrier,BarrierTransceiver}
 import org.apache.flink.runtime.jobmanager.{BarrierReq,JobManager}
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
@@ -358,7 +358,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
           if (i.getExecutionState == ExecutionState.RUNNING) {
             i.getEnvironment.getInvokable match {
               case barrierTransceiver: BarrierTransceiver =>
-                barrierTransceiver.broadcastBarrier(checkpointID)
+                new Thread(new Runnable {
+                  override def run(): Unit =  barrierTransceiver.broadcastBarrier(checkpointID);
+                }).start()
               case _ => log.error("[FT-TaskManager] Received a barrier for the wrong vertex")
             }
           }
@@ -415,6 +417,15 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
       task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
         tdd.getTaskName, self)
 
+      //inject operator state
+      if(tdd.getOperatorState != null)
+      {
+        val vertex = task.getEnvironment.getInvokable match {
+          case opStateCarrier: OperatorStateCarrier =>
+            opStateCarrier.injectState(tdd.getOperatorState)
+        }
+      }
+      
       runningTasks.put(executionID, task) match {
         case Some(_) => throw new RuntimeException(
           s"TaskManager contains already a task with executionID $executionID.")

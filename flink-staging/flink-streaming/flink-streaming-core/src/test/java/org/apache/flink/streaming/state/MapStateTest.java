@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.streaming.state.checkpoint.MapCheckpoint;
-import org.apache.flink.streaming.state.checkpoint.StateCheckpoint;
+import org.apache.flink.runtime.state.StateCheckpoint;
 import org.junit.Test;
 
 public class MapStateTest {
