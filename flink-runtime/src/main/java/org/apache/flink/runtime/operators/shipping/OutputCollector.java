@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.shipping;
 
 import java.io.IOException;
@@ -30,13 +29,13 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.util.Collector;
 
 /**
- * The OutputCollector collects records, and emits the pair to a set of Nephele {@link RecordWriter}s.
+ * The OutputCollector collects records, and emits them to the  {@link RecordWriter}s.
  * The OutputCollector tracks to which writers a deep-copy must be given and which not.
  */
-public class OutputCollector<T> implements Collector<T>
-{	
+public class OutputCollector<T> implements Collector<T> {
+
 	// list of writers
-	protected RecordWriter<SerializationDelegate<T>>[] writers;
+	private final RecordWriter<SerializationDelegate<T>>[] writers;
 
 	private final SerializationDelegate<T> delegate;
 
@@ -49,50 +48,33 @@ public class OutputCollector<T> implements Collector<T>
 	 * @param writers List of all writers.
 	 */
 	@SuppressWarnings("unchecked")
-	public OutputCollector(List<RecordWriter<SerializationDelegate<T>>> writers, TypeSerializer<T> serializer)
-	{
+	public OutputCollector(List<RecordWriter<SerializationDelegate<T>>> writers, TypeSerializer<T> serializer) {
 		this.delegate = new SerializationDelegate<T>(serializer);
 		this.writers = (RecordWriter<SerializationDelegate<T>>[]) writers.toArray(new RecordWriter[writers.size()]);
-	}
-	
-	/**
-	 * Adds a writer to the OutputCollector.
-	 * 
-	 * @param writer The writer to add.
-	 */
-
-	@SuppressWarnings("unchecked")
-	public void addWriter(RecordWriter<SerializationDelegate<T>> writer)
-	{
-		// avoid using the array-list here to reduce one level of object indirection
-		if (this.writers == null) {
-			this.writers = new RecordWriter[] {writer};
-		}
-		else {
-			RecordWriter<SerializationDelegate<T>>[] ws = new RecordWriter[this.writers.length + 1];
-			System.arraycopy(this.writers, 0, ws, 0, this.writers.length);
-			ws[this.writers.length] = writer;
-			this.writers = ws;
-		}
 	}
 
 	/**
 	 * Collects a record and emits it to all writers.
 	 */
 	@Override
-	public void collect(T record)
-	{
-		this.delegate.setInstance(record);
-		try {
-			for (int i = 0; i < writers.length; i++) {
-				this.writers[i].emit(this.delegate);
+	public void collect(T record)  {
+		if (record != null) {
+			this.delegate.setInstance(record);
+			try {
+				for (RecordWriter<SerializationDelegate<T>> writer : writers) {
+					writer.emit(this.delegate);
+				}
+			}
+			catch (IOException e) {
+				throw new RuntimeException("Emitting the record caused an I/O exception: " + e.getMessage(), e);
+			}
+			catch (InterruptedException e) {
+				throw new RuntimeException("Emitting the record was interrupted: " + e.getMessage(), e);
 			}
 		}
-		catch (IOException e) {
-			throw new RuntimeException("Emitting the record caused an I/O exception: " + e.getMessage(), e);
-		}
-		catch (InterruptedException e) {
-			throw new RuntimeException("Emitting the record was interrupted: " + e.getMessage(), e);
+		else {
+			throw new NullPointerException("The system does not support records that are null."
+								+ "Null values are only supported as fields inside other objects.");
 		}
 	}
 
@@ -111,6 +93,7 @@ public class OutputCollector<T> implements Collector<T>
 	 * List of writers that are associated with this output collector
 	 * @return list of writers
 	 */
+	@SuppressWarnings("unchecked")
 	public List<RecordWriter<SerializationDelegate<T>>> getWriters() {
 		return Collections.unmodifiableList(Arrays.asList(this.writers));
 	}
