@@ -20,7 +20,8 @@ package org.apache.flink.streaming.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.flink.streaming.state.checkpoint.StateCheckpoint;
+import org.apache.flink.runtime.state.OperatorState;
+import org.apache.flink.runtime.state.StateCheckpoint;
 import org.junit.Test;
 
 public class OperatorStateTest {

@@ -25,15 +25,17 @@ import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.BarrierTransceiver;
+import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.jobmanager.BarrierAck;
+import org.apache.flink.runtime.jobmanager.StateBarrierAck;
 import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.streaming.io.IndexedReaderIterator;
-import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
@@ -43,7 +45,7 @@ import org.slf4j.LoggerFactory;
 import akka.actor.ActorRef;
 
 public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTaskContext<OUT>,
-		BarrierTransceiver {
+		BarrierTransceiver, OperatorStateCarrier {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamVertex.class);
 
@@ -90,9 +92,27 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 		this.context = createRuntimeContext(getEnvironment().getTaskName(), this.states);
 	}
 
+	protected <T> void invokeUserFunction(StreamInvokable<?, T> userInvokable) throws Exception {
+		userInvokable.setRuntimeContext(context);
+		userInvokable.open(getTaskConfiguration());
+
+		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+			invokable.setRuntimeContext(context);
+			invokable.open(getTaskConfiguration());
+		}
+
+		userInvokable.invoke();
+		userInvokable.close();
+
+		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+			invokable.close();
+		}
+
+	}
+
 	@Override
 	public void broadcastBarrier(long id) {
-		// Only called at input vertices
+		//Only called at input vertices
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Received barrier from jobmanager: " + id);
 		}
@@ -101,9 +121,21 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	@Override
 	public void confirmBarrier(long barrierID) {
-		getEnvironment().getJobManager().tell(
-				new BarrierAck(getEnvironment().getJobID(), getEnvironment().getJobVertexId(),
-						context.getIndexOfThisSubtask(), barrierID), ActorRef.noSender());
+		
+		if(states != null && states.containsKey("kafka"))
+		{
+			getEnvironment().getJobManager().tell(
+					new StateBarrierAck(getEnvironment().getJobID(), 
+							getEnvironment().getJobVertexId(), context.getIndexOfThisSubtask(), 
+							barrierID, states.get("kafka")), ActorRef.noSender());
+		}
+		else
+		{
+			getEnvironment().getJobManager().tell(
+					new BarrierAck(getEnvironment().getJobID(), getEnvironment().getJobVertexId(),
+							context.getIndexOfThisSubtask(), barrierID), ActorRef.noSender());	
+		}
+		
 	}
 
 	public void setInputsOutputs() {
@@ -240,7 +272,8 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	private void actOnBarrier(long id) {
 		try {
 			outputHandler.broadcastBarrier(id);
-			System.out.println("Superstep " + id + " processed: " + StreamVertex.this);
+			//TODO checkpoint state here
+			confirmBarrier(id);
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Superstep " + id + " processed: " + StreamVertex.this);
 			}
@@ -255,6 +288,12 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	public String toString() {
 		return configuration.getOperatorName() + " (" + context.getIndexOfThisSubtask() + ")";
 	}
+
+	@Override
+	public void injectState(OperatorState state) {
+		states.put("kafka", state);
+	}
+	
 
 	private class SuperstepEventListener implements EventListener<TaskEvent> {
 

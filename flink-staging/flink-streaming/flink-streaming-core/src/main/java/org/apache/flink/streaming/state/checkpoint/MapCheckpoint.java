@@ -21,8 +21,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.runtime.state.OperatorState;
+import org.apache.flink.runtime.state.StateCheckpoint;
 import org.apache.flink.streaming.state.MapState;
-import org.apache.flink.streaming.state.OperatorState;
 
 public class MapCheckpoint<K, V> extends StateCheckpoint<Map<K, V>> {
 

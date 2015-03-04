@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.state.checkpoint;
+package org.apache.flink.runtime.state;
 
 import java.io.Serializable;
-
-import org.apache.flink.streaming.state.OperatorState;
 
 /**
  * Base class for creating checkpoints for {@link OperatorState}. This
@@ -34,7 +32,7 @@ public class StateCheckpoint<T> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	T checkpointedState;
+	public T checkpointedState;
 
 	/**
 	 * Creates a state checkpoint from the given {@link OperatorState}

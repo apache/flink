@@ -23,8 +23,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.state.checkpoint.MapCheckpoint;
-import org.apache.flink.streaming.state.checkpoint.StateCheckpoint;
+import org.apache.flink.runtime.state.StateCheckpoint;
+
 
 /**
  * A Map that can be used as a partitionable operator state, for both fault

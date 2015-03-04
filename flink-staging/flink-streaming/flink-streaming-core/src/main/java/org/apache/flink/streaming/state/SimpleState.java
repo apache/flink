@@ -17,7 +17,8 @@
 
 package org.apache.flink.streaming.state;
 
-import org.apache.flink.streaming.state.checkpoint.StateCheckpoint;
+import org.apache.flink.runtime.state.OperatorState;
+import org.apache.flink.runtime.state.StateCheckpoint;
 
 /**
  * Basic {@link OperatorState} for storing and updating simple objects. By default the

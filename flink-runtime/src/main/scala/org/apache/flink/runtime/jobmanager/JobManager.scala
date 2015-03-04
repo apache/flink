@@ -301,13 +301,19 @@ class JobManager(val configuration: Configuration,
                 jobInfo.client ! Failure(exception)
                 throw exception
             }
+            
             barrierMonitors.get(jobID) match {
                          case Some(monitor) =>
-                              monitor ! PoisonPill
-                              barrierMonitors.remove(jobID)
+                           newJobStatus match{
+                             case JobStatus.FINISHED | JobStatus.CANCELED =>
+                               monitor ! PoisonPill
+                               barrierMonitors.remove(jobID)
+                             case JobStatus.FAILING => 
+                               monitor ! JobStateRequest
+                           }
                           case None =>
+                            removeJob(jobID)
                         }
-            removeJob(jobID)
           }
           else {
             newJobStatus match {
@@ -315,7 +321,10 @@ class JobManager(val configuration: Configuration,
               case Some((executionGraph, _)) => 
               //FIXME this is just a fast n dirty check for determining streaming jobs 
               if (executionGraph.getScheduleMode == ScheduleMode.ALL) {
-                barrierMonitors += jobID -> StreamStateMonitor.props(context, executionGraph)
+                barrierMonitors.get(jobID) match {
+                  case None => 
+                    barrierMonitors += jobID -> StreamStateMonitor.props(context, executionGraph)
+                }
               }
               case None =>
                 log.error("Cannot create state monitor for job ID {}.", jobID)
@@ -327,12 +336,27 @@ class JobManager(val configuration: Configuration,
           removeJob(jobID)
       }
 
-    case BarrierAck(jobID, jobVertex, instanceID, checkpoint) =>
-      barrierMonitors.get(jobID) match {
-        case Some(monitor) => monitor ! BarrierAck(jobID, jobVertex, instanceID, checkpoint)
+    case msg: BarrierAck =>
+      barrierMonitors.get(msg.jobID) match {
+        case Some(monitor) => monitor ! msg
+        case None =>
+      }
+    case msg: StateBarrierAck =>
+      barrierMonitors.get(msg.jobID) match {
+        case Some(monitor) => monitor ! msg
         case None =>
       }
 
+    case msg: JobStateResponse =>
+      //inject initial states and restart the job
+      currentJobs.get(msg.jobID) match {
+        case Some(jobExecution) =>
+          import scala.collection.JavaConverters._
+          jobExecution._1.loadOperatorStates(msg.opStates.asJava)
+          jobExecution._1.restart()
+        case None =>
+      } 
+      
     case ScheduleOrUpdateConsumers(jobId, executionId, partitionIndex) =>
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>

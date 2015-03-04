@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.state;
+package org.apache.flink.runtime.state;
 
 import java.io.Serializable;
-
-import org.apache.flink.streaming.state.checkpoint.StateCheckpoint;
 
 /**
  * Abstract class for representing operator states in Flink programs. By
@@ -33,7 +31,7 @@ public abstract class OperatorState<T> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	protected T state;
+	public T state;
 
 	/**
 	 * Constructor used for initializing the state. In case of failure, the
