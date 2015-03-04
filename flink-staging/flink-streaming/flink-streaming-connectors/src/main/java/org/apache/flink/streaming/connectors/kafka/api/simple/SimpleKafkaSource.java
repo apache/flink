@@ -29,13 +29,14 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 	private String topicId;
 	private final String host;
 	private final int port;
-	private KafkaConsumerIterator iterator;
+	protected KafkaConsumerIterator iterator;
 
 	/**
 	 * Partition index is set automatically by instance id.
 	 * @param topicId
 	 * @param host
 	 * @param port
+	 * @param deserializationSchema
 	 */
 	public SimpleKafkaSource(String topicId,
 							 String host, int port, DeserializationSchema<OUT> deserializationSchema) {
@@ -48,7 +49,13 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 	private void initializeConnection() {
 		int partitionIndex = getRuntimeContext().getIndexOfThisSubtask();
 		iterator = new KafkaConsumerIterator(host, port, topicId, 0, 100L);
+	}
+
+	protected void setInitialOffset(Configuration config) {
 		iterator.initializeFromCurrent();
+	}
+
+	protected void gotMessage(MessageWithOffset msg) {
 	}
 
 	@SuppressWarnings("unchecked")
@@ -56,13 +63,16 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 	public void invoke(Collector<OUT> collector) throws Exception {
 		while (iterator.hasNext()) {
 			MessageWithOffset msg = iterator.nextWithOffset();
+			gotMessage(msg);
 			OUT out = schema.deserialize(msg.getMessage());
 			collector.collect(out);
 		}
 	}
 
+
 	@Override
 	public void open(Configuration config) {
 		initializeConnection();
+		setInitialOffset(config);
 	}
 }
