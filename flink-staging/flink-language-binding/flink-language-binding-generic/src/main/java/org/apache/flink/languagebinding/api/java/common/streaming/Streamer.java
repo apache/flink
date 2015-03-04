@@ -13,10 +13,11 @@
 package org.apache.flink.languagebinding.api.java.common.streaming;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.Iterator;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
@@ -41,12 +42,13 @@ public abstract class Streamer implements Serializable {
 	private static final byte SIGNAL_LAST = 32;
 
 	private final byte[] buffer = new byte[4];
-	private DatagramPacket packet;
-	protected InetAddress host;
 
-	protected DatagramSocket socket;
-	protected int port1;
-	protected int port2;
+	protected ServerSocket server;
+	protected Socket socket;
+	protected InputStream in;
+	protected OutputStream out;
+	protected int port;
+
 	protected Sender sender;
 	protected Receiver receiver;
 
@@ -61,17 +63,8 @@ public abstract class Streamer implements Serializable {
 	}
 
 	public void open() throws IOException {
-		host = InetAddress.getByName("localhost");
-		packet = new DatagramPacket(buffer, 0, 4);
-		socket = new DatagramSocket(0, host);
-		socket.setSoTimeout(10000);
-		try {
-			setupProcess();
-			setupPorts();
-		} catch (SocketTimeoutException ste) {
-			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
-		}
-		socket.setSoTimeout(300000);
+		server = new ServerSocket(0);
+		setupProcess();
 	}
 
 	/**
@@ -92,30 +85,17 @@ public abstract class Streamer implements Serializable {
 		receiver.close();
 	}
 
-	/**
-	 * Setups the required UDP-ports.The streamer requires two UDP-ports to send control-signals to, one each for
-	 * reading/writing operations.
-	 *
-	 * @throws IOException
-	 */
-	private void setupPorts() throws IOException, SocketTimeoutException {
-		socket.receive(new DatagramPacket(buffer, 0, 4));
-		checkForError();
-		port1 = getInt(buffer, 0);
-		socket.receive(new DatagramPacket(buffer, 0, 4));
-		checkForError();
-		port2 = getInt(buffer, 0);
-	}
-
 	private void sendWriteNotification(int size, boolean hasNext) throws IOException {
 		byte[] tmp = new byte[5];
 		putInt(tmp, 0, size);
 		tmp[4] = hasNext ? 0 : SIGNAL_LAST;
-		socket.send(new DatagramPacket(tmp, 0, 5, host, port1));
+		out.write(tmp, 0, 5);
+		out.flush();
 	}
 
 	private void sendReadConfirmation() throws IOException {
-		socket.send(new DatagramPacket(new byte[1], 0, 1, host, port2));
+		out.write(new byte[1], 0, 1);
+		out.flush();
 	}
 
 	private void checkForError() {
@@ -145,7 +125,7 @@ public abstract class Streamer implements Serializable {
 				names[x] = config.getString(PLANBINDER_CONFIG_BCVAR_NAME_PREFIX + x, null);
 			}
 
-			socket.receive(packet);
+			in.read(buffer, 0, 4);
 			checkForError();
 			int size = sender.sendRecord(broadcastCount);
 			sendWriteNotification(size, false);
@@ -153,13 +133,13 @@ public abstract class Streamer implements Serializable {
 			for (String name : names) {
 				Iterator bcv = function.getRuntimeContext().getBroadcastVariable(name).iterator();
 
-				socket.receive(packet);
+				in.read(buffer, 0, 4);
 				checkForError();
 				size = sender.sendRecord(name);
 				sendWriteNotification(size, false);
 
 				while (bcv.hasNext() || sender.hasRemaining(0)) {
-					socket.receive(packet);
+					in.read(buffer, 0, 4);
 					checkForError();
 					size = sender.sendBuffer(bcv, 0);
 					sendWriteNotification(size, bcv.hasNext() || sender.hasRemaining(0));
@@ -183,13 +163,15 @@ public abstract class Streamer implements Serializable {
 			int size;
 			if (i.hasNext()) {
 				while (true) {
-					socket.receive(packet);
+					in.read(buffer, 0, 4);
 					int sig = getInt(buffer, 0);
 					switch (sig) {
 						case SIGNAL_BUFFER_REQUEST:
 							if (i.hasNext() || sender.hasRemaining(0)) {
 								size = sender.sendBuffer(i, 0);
 								sendWriteNotification(size, sender.hasRemaining(0) || i.hasNext());
+							} else {
+								throw new RuntimeException("External process requested data even though none is available.");
 							}
 							break;
 						case SIGNAL_FINISHED:
@@ -226,7 +208,7 @@ public abstract class Streamer implements Serializable {
 			int size;
 			if (i1.hasNext() || i2.hasNext()) {
 				while (true) {
-					socket.receive(packet);
+					in.read(buffer, 0, 4);
 					int sig = getInt(buffer, 0);
 					switch (sig) {
 						case SIGNAL_BUFFER_REQUEST_G0:

@@ -13,7 +13,7 @@
 package org.apache.flink.languagebinding.api.java.python.streaming;
 
 import java.io.IOException;
-import java.net.DatagramPacket;
+import java.lang.reflect.Field;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import static org.apache.flink.languagebinding.api.java.common.PlanBinder.DEBUG;
 import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.FLINK_PYTHON_EXECUTOR_NAME;
@@ -38,6 +38,7 @@ public class PythonStreamer extends Streamer {
 	private final int id;
 	private final boolean usePython3;
 	private final boolean debug;
+	private Thread shutdownThread;
 
 	private String inputFilePath;
 	private String outputFilePath;
@@ -90,54 +91,62 @@ public class PythonStreamer extends Streamer {
 			} catch (IOException ex) {
 				throw new RuntimeException(FLINK_PYTHON3_BINARY_KEY + "=" + FLINK_PYTHON3_BINARY_PATH + " does not point to a valid python binary.");
 			}
-			pb.command(FLINK_PYTHON3_BINARY_PATH, "-O", "-B", executorPath, "" + socket.getLocalPort());
+			pb.command(FLINK_PYTHON3_BINARY_PATH, "-O", "-B", executorPath, "" + server.getLocalPort());
 		} else {
 			try {
 				Runtime.getRuntime().exec(FLINK_PYTHON2_BINARY_PATH);
 			} catch (IOException ex) {
 				throw new RuntimeException(FLINK_PYTHON2_BINARY_KEY + "=" + FLINK_PYTHON2_BINARY_PATH + " does not point to a valid python binary.");
 			}
-			pb.command(FLINK_PYTHON2_BINARY_PATH, "-O", "-B", executorPath, "" + socket.getLocalPort());
+			pb.command(FLINK_PYTHON2_BINARY_PATH, "-O", "-B", executorPath, "" + server.getLocalPort());
 		}
 		if (debug) {
 			socket.setSoTimeout(0);
 			LOG.info("Waiting for Python Process : " + function.getRuntimeContext().getTaskName()
-					+ " Run python /tmp/flink" + FLINK_PYTHON_EXECUTOR_NAME + " " + socket.getLocalPort());
+					+ " Run python /tmp/flink" + FLINK_PYTHON_EXECUTOR_NAME + " " + server.getLocalPort());
 		} else {
 			process = pb.start();
 			new StreamPrinter(process.getInputStream()).start();
 			new StreamPrinter(process.getErrorStream(), true, msg).start();
 		}
-		byte[] executorPort = new byte[4];
-		socket.receive(new DatagramPacket(executorPort, 0, 4));
-		int exPort = getInt(executorPort, 0);
-		if (exPort == -2) {
-			try { //wait before terminating to ensure that the complete error message is printed
-				Thread.sleep(2000);
-			} catch (InterruptedException ex) {
+
+		shutdownThread = new Thread() {
+			@Override
+			public void run() {
+				try {
+					destroyProcess();
+				} catch (IOException ex) {
+				}
 			}
-			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely." + msg);
-		}
+		};
+
+		Runtime.getRuntime().addShutdownHook(shutdownThread);
+
+		socket = server.accept();
+		in = socket.getInputStream();
+		out = socket.getOutputStream();
 
 		byte[] opSize = new byte[4];
 		putInt(opSize, 0, operator.length);
-		socket.send(new DatagramPacket(opSize, 0, 4, host, exPort));
-		socket.send(new DatagramPacket(operator, 0, operator.length, host, exPort));
+		out.write(opSize, 0, 4);
+		out.write(operator, 0, operator.length);
 
 		byte[] meta = importString.toString().getBytes("utf-8");
 		putInt(opSize, 0, meta.length);
-		socket.send(new DatagramPacket(opSize, 0, 4, host, exPort));
-		socket.send(new DatagramPacket(meta, 0, meta.length, host, exPort));
+		out.write(opSize, 0, 4);
+		out.write(meta, 0, meta.length);
 
 		byte[] input = inputFilePath.getBytes("utf-8");
 		putInt(opSize, 0, input.length);
-		socket.send(new DatagramPacket(opSize, 0, 4, host, exPort));
-		socket.send(new DatagramPacket(input, 0, input.length, host, exPort));
+		out.write(opSize, 0, 4);
+		out.write(input, 0, input.length);
 
 		byte[] output = outputFilePath.getBytes("utf-8");
 		putInt(opSize, 0, output.length);
-		socket.send(new DatagramPacket(opSize, 0, 4, host, exPort));
-		socket.send(new DatagramPacket(output, 0, output.length, host, exPort));
+		out.write(opSize, 0, 4);
+		out.write(output, 0, output.length);
+
+		out.flush();
 
 		try { // wait a bit to catch syntax errors
 			Thread.sleep(2000);
@@ -165,9 +174,30 @@ public class PythonStreamer extends Streamer {
 			LOG.error("Exception occurred while closing Streamer. :" + e.getMessage());
 		}
 		if (!debug) {
-			try {
-				process.exitValue();
-			} catch (IllegalThreadStateException ise) { //process still active
+			destroyProcess();
+		}
+		if (shutdownThread != null) {
+			Runtime.getRuntime().removeShutdownHook(shutdownThread);
+		}
+	}
+
+	private void destroyProcess() throws IOException {
+		try {
+			process.exitValue();
+		} catch (IllegalThreadStateException ise) { //process still active
+			if (process.getClass().getName().equals("java.lang.UNIXProcess")) {
+				int pid;
+				try {
+					Field f = process.getClass().getDeclaredField("pid");
+					f.setAccessible(true);
+					pid = f.getInt(process);
+				} catch (Throwable e) {
+					process.destroy();
+					return;
+				}
+				String[] args = new String[]{"kill", "-9", "" + pid};
+				Runtime.getRuntime().exec(args);
+			} else {
 				process.destroy();
 			}
 		}

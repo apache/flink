@@ -20,39 +20,35 @@ import socket
 import struct
 #argv[1] = port
 
-
+s = None
 try:
     import dill
     port = int(sys.argv[1])
 
-    s1 = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-    s1.bind((socket.gethostbyname("localhost"), 0))
-    s1.sendto(struct.pack(">i", s1.getsockname()[1]), (socket.gethostbyname("localhost"), port))
+    s = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+    s.connect((socket.gethostbyname("localhost"), port))
 
-    size = struct.unpack(">i", s1.recv(4))[0]
-    serialized_operator = s1.recv(size)
+    size = struct.unpack(">i", s.recv(4, socket.MSG_WAITALL))[0]
+    serialized_operator = s.recv(size, socket.MSG_WAITALL)
 
-    size = struct.unpack(">i", s1.recv(4))[0]
-    import_string = s1.recv(size).decode("utf-8")
+    size = struct.unpack(">i", s.recv(4, socket.MSG_WAITALL))[0]
+    import_string = s.recv(size, socket.MSG_WAITALL).decode("utf-8")
 
-    size = struct.unpack(">i", s1.recv(4))[0]
-    input_file = s1.recv(size).decode("utf-8")
+    size = struct.unpack(">i", s.recv(4, socket.MSG_WAITALL))[0]
+    input_file = s.recv(size, socket.MSG_WAITALL).decode("utf-8")
 
-    size = struct.unpack(">i", s1.recv(4))[0]
-    output_file = s1.recv(size).decode("utf-8")
+    size = struct.unpack(">i", s.recv(4, socket.MSG_WAITALL))[0]
+    output_file = s.recv(size, socket.MSG_WAITALL).decode("utf-8")
 
     exec(import_string)
     
     operator = dill.loads(serialized_operator)
-    operator._configure(input_file, output_file, port)
+    operator._configure(input_file, output_file, s)
     operator._go()
     sys.stdout.flush()
     sys.stderr.flush()
 except:
     sys.stdout.flush()
     sys.stderr.flush()
-    s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-    s.bind((socket.gethostbyname("localhost"), 0))
-    destination = (socket.gethostbyname("localhost"), int(sys.argv[1]))
-    s.sendto(struct.pack(">i", -2), destination)
+    s.send(struct.pack(">i", -2))
     raise

@@ -103,7 +103,7 @@ class GroupReduceFunction(Function.Function):
         keys.sort()
         for key in keys:
             values = grouping[key]
-            for op in self._sort_ops:
+            for op in reversed(self._sort_ops):
                 values.sort(key=lambda x:x[op[0]], reverse = op[1] == Order.DESCENDING)
             result = function(Iterator.ListIterator(values), collector)
             if result is not None:

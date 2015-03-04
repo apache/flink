@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 import mmap
-import socket
+import socket as SOCKET
 import tempfile
 from struct import pack, unpack
 from collections import deque
@@ -61,18 +61,12 @@ class OneWayBusyBufferingMappedFileConnection(object):
 
 
 class BufferingUDPMappedFileConnection(object):
-    def __init__(self, input_file=tempfile.gettempdir() + "/flink_data/input", output_file=tempfile.gettempdir() + "/flink_data/output", port=25000):
+    def __init__(self, input_file=tempfile.gettempdir() + "/flink_data/input", output_file=tempfile.gettempdir() + "/flink_data/output", socket=None):
         self._input_file = open(input_file, "rb+")
         self._output_file = open(output_file, "rb+")
         self._file_input_buffer = mmap.mmap(self._input_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_READ)
         self._file_output_buffer = mmap.mmap(self._output_file.fileno(), MAPPED_FILE_SIZE, mmap.MAP_SHARED, mmap.ACCESS_WRITE)
-        self._socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        self._socket.bind((socket.gethostbyname("localhost"), 0))
-        self._socket.settimeout(300)
-        self._destination = (socket.gethostbyname("localhost"), port)
-
-        self._socket.sendto(pack(">I", self._socket.getsockname()[1]), self._destination)
-        self._socket.sendto(pack(">I", self._socket.getsockname()[1]), self._destination)
+        self._socket = socket
 
         self._out = deque()
         self._out_size = 0
@@ -97,10 +91,10 @@ class BufferingUDPMappedFileConnection(object):
     def _write_buffer(self):
         self._file_output_buffer.seek(0, 0)
         self._file_output_buffer.write(b"".join(self._out))
-        self._socket.sendto(pack(">i", self._out_size), self._destination)
+        self._socket.send(pack(">i", self._out_size))
         self._out.clear()
         self._out_size = 0
-        self._socket.recvfrom(1)
+        self._socket.recv(1, SOCKET.MSG_WAITALL)
 
     def read(self, des_size, ignored=None):
         if self._input_size == self._input_offset:
@@ -110,10 +104,10 @@ class BufferingUDPMappedFileConnection(object):
         return self._input[old_offset:self._input_offset]
 
     def _read_buffer(self):
-        self._socket.sendto(SIGNAL_REQUEST_BUFFER, self._destination)
+        self._socket.send(SIGNAL_REQUEST_BUFFER)
         self._file_input_buffer.seek(0, 0)
         self._input_offset = 0
-        meta_size = self._socket.recvfrom(5)[0]
+        meta_size = self._socket.recv(5, SOCKET.MSG_WAITALL)
         self._input_size = unpack(">I", meta_size[:4])[0]
         self._was_last = meta_size[4] == SIGNAL_WAS_LAST
         self._input = self._file_input_buffer.read(self._input_size)
@@ -121,7 +115,7 @@ class BufferingUDPMappedFileConnection(object):
     def send_end_signal(self):
         if self._out_size:
             self._write_buffer()
-        self._socket.sendto(SIGNAL_FINISHED, self._destination)
+        self._socket.send(SIGNAL_FINISHED)
 
     def has_next(self, ignored=None):
         return not self._was_last or not self._input_size == self._input_offset
@@ -134,8 +128,8 @@ class BufferingUDPMappedFileConnection(object):
 
 
 class TwinBufferingUDPMappedFileConnection(BufferingUDPMappedFileConnection):
-    def __init__(self, input_file=tempfile.gettempdir() + "/flink/data/input", output_file=tempfile.gettempdir() + "/flink/data/output", port=25000):
-        super(TwinBufferingUDPMappedFileConnection, self).__init__(input_file, output_file, port)
+    def __init__(self, input_file=tempfile.gettempdir() + "/flink/data/input", output_file=tempfile.gettempdir() + "/flink/data/output", socket=None):
+        super(TwinBufferingUDPMappedFileConnection, self).__init__(input_file, output_file, socket)
         self._input = ["", ""]
         self._input_offset = [0, 0]
         self._input_size = [0, 0]
@@ -150,12 +144,12 @@ class TwinBufferingUDPMappedFileConnection(BufferingUDPMappedFileConnection):
 
     def _read_buffer(self, group):
         if group:
-            self._socket.sendto(SIGNAL_REQUEST_BUFFER_G1, self._destination)
+            self._socket.send(SIGNAL_REQUEST_BUFFER_G1)
         else:
-            self._socket.sendto(SIGNAL_REQUEST_BUFFER_G0, self._destination)
+            self._socket.send(SIGNAL_REQUEST_BUFFER_G0)
         self._file_input_buffer.seek(0, 0)
         self._input_offset[group] = 0
-        meta_size = self._socket.recvfrom(5)[0]
+        meta_size = self._socket.recv(5, SOCKET.MSG_WAITALL)
         self._input_size[group] = unpack(">I", meta_size[:4])[0]
         self._was_last[group] = meta_size[4] == SIGNAL_WAS_LAST
         self._input[group] = self._file_input_buffer.read(self._input_size[group])

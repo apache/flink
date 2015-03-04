@@ -260,7 +260,7 @@ class ByteArrayDeserializer(object):
 
     def deserialize(self):
         size = unpack(">i", self.read(4, self._group))[0]
-        return bytearray(self.read(size, self._group))
+        return bytearray(self.read(size, self._group)) if size else bytearray(b"")
 
 
 class BooleanDeserializer(object):
@@ -315,7 +315,7 @@ class StringDeserializer(object):
 
     def deserialize(self):
         length = unpack(">i", self.read(4, self._group))[0]
-        return self.read(length, self._group).decode("utf-8")
+        return self.read(length, self._group).decode("utf-8") if length else ""
 
 
 class NullDeserializer(object):
