@@ -26,6 +26,7 @@ import java.util.Random;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.hash.AbstractHashTableProber;
 import org.apache.flink.runtime.operators.hash.AbstractMutableHashTable;
@@ -747,7 +748,7 @@ public class MemoryHashTableTest {
 		List<MemorySegment> memory = new ArrayList<MemorySegment>();
 		
 		for (int i = 0; i < numPages; i++) {
-			memory.add(new MemorySegment(new byte[pageSize]));
+			memory.add(new HeapMemorySegment(new byte[pageSize]));
 		}
 		
 		return memory;

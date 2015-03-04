@@ -37,7 +37,7 @@ import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
@@ -81,7 +81,7 @@ public class MassiveStringSortingITCase {
 			BufferedReader verifyReader = null;
 			
 			try {
-				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
+				MemoryManager mm = new HeapMemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
 					
 				TypeSerializer<String> serializer = StringSerializer.INSTANCE;
@@ -171,7 +171,7 @@ public class MassiveStringSortingITCase {
 			BufferedReader verifyReader = null;
 			
 			try {
-				MemoryManager mm = new DefaultMemoryManager(1024 * 1024, 1);
+				MemoryManager mm = new HeapMemoryManager(1024 * 1024, 1);
 				IOManager ioMan = new IOManagerAsync();
 					
 				TupleTypeInfo<Tuple2<String, String[]>> typeInfo = (TupleTypeInfo<Tuple2<String, String[]>>) (TupleTypeInfo<?>) TypeInfoParser.parse("Tuple2<String, String[]>");

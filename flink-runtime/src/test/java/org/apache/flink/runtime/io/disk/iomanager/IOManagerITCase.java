@@ -34,8 +34,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.DefaultMemoryManagerTest;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerTest;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 
 /**
  * Integration test case for the I/O manager.
@@ -54,11 +54,11 @@ public class IOManagerITCase {
 
 	private IOManager ioManager;
 
-	private DefaultMemoryManager memoryManager;
+	private HeapMemoryManager memoryManager;
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
+		memoryManager = new HeapMemoryManager(MEMORY_SIZE, 1);
 		ioManager = new IOManagerAsync();
 	}
 
@@ -81,7 +81,7 @@ public class IOManagerITCase {
 	@Test
 	public void parallelChannelsTest() throws Exception {
 		final Random rnd = new Random(SEED);
-		final AbstractInvokable memOwner = new DefaultMemoryManagerTest.DummyInvokable();
+		final AbstractInvokable memOwner = new MemoryManagerTest.DummyInvokable();
 		
 		FileIOChannel.ID[] ids = new FileIOChannel.ID[NUM_CHANNELS];
 		BlockChannelWriter[] writers = new BlockChannelWriter[NUM_CHANNELS];

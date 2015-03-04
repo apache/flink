@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -86,7 +87,7 @@ public class EventSerializer {
 	public static Buffer toBuffer(AbstractEvent event) {
 		final ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(event);
 
-		final Buffer buffer = new Buffer(new MemorySegment(serializedEvent.array()), RECYCLER, false);
+		final Buffer buffer = new Buffer(new HeapMemorySegment(serializedEvent.array()), RECYCLER, false);
 		buffer.setSize(serializedEvent.remaining());
 
 		return buffer;

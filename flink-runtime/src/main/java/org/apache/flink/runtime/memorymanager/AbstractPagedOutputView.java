@@ -228,7 +228,7 @@ public abstract class AbstractPagedOutputView implements DataOutputView {
 	@Override
 	public void writeShort(int v) throws IOException {
 		if (this.positionInSegment < this.segmentSize - 1) {
-			this.currentSegment.putShort(this.positionInSegment, (short) v);
+			this.currentSegment.putShortBigEndian(this.positionInSegment, (short) v);
 			this.positionInSegment += 2;
 		}
 		else if (this.positionInSegment == this.segmentSize) {
@@ -244,7 +244,7 @@ public abstract class AbstractPagedOutputView implements DataOutputView {
 	@Override
 	public void writeChar(int v) throws IOException {
 		if (this.positionInSegment < this.segmentSize - 1) {
-			this.currentSegment.putChar(this.positionInSegment, (char) v);
+			this.currentSegment.putCharBigEndian(this.positionInSegment, (char) v);
 			this.positionInSegment += 2;
 		}
 		else if (this.positionInSegment == this.segmentSize) {

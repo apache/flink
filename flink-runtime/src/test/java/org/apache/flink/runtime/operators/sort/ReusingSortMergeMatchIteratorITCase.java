@@ -28,7 +28,7 @@ import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -91,7 +91,7 @@ public class ReusingSortMergeMatchIteratorITCase {
 		this.comparator2 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
 		this.pairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
 
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
+		this.memoryManager = new HeapMemoryManager(MEMORY_SIZE, 1);
 		this.ioManager = new IOManagerAsync();
 	}
 

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network.api.reader;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
@@ -70,7 +70,7 @@ public class IteratorWrappingMockSingleInputGate<T extends IOReadableWritable> e
 			@Override
 			public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
 				if (inputIterator.next(reuse) != null) {
-					final Buffer buffer = new Buffer(new MemorySegment(new byte[bufferSize]), mock(BufferRecycler.class));
+					final Buffer buffer = new Buffer(new HeapMemorySegment(new byte[bufferSize]), mock(BufferRecycler.class));
 					serializer.setNextBuffer(buffer);
 					serializer.addRecord(reuse);
 

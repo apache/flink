@@ -280,7 +280,7 @@ public abstract class AbstractPagedInputView implements DataInputView {
 	@Override
 	public short readShort() throws IOException {
 		if (this.positionInSegment < this.limitInSegment - 1) {
-			final short v = this.currentSegment.getShort(this.positionInSegment);
+			final short v = this.currentSegment.getShortBigEndian(this.positionInSegment);
 			this.positionInSegment += 2;
 			return v;
 		}
@@ -296,7 +296,7 @@ public abstract class AbstractPagedInputView implements DataInputView {
 	@Override
 	public int readUnsignedShort() throws IOException {
 		if (this.positionInSegment < this.limitInSegment - 1) {
-			final int v = this.currentSegment.getShort(this.positionInSegment) & 0xffff;
+			final int v = this.currentSegment.getShortBigEndian(this.positionInSegment) & 0xffff;
 			this.positionInSegment += 2;
 			return v;
 		}
@@ -312,7 +312,7 @@ public abstract class AbstractPagedInputView implements DataInputView {
 	@Override
 	public char readChar() throws IOException  {
 		if (this.positionInSegment < this.limitInSegment - 1) {
-			final char v = this.currentSegment.getChar(this.positionInSegment);
+			final char v = this.currentSegment.getCharBigEndian(this.positionInSegment);
 			this.positionInSegment += 2;
 			return v;
 		}

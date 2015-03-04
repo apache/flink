@@ -25,9 +25,7 @@ import java.util.Random;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
-import org.apache.flink.runtime.operators.sort.QuickSort;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.RandomIntPairGenerator;
 import org.apache.flink.runtime.operators.testutils.UniformIntPairGenerator;
@@ -51,7 +49,7 @@ public class FixedLengthRecordSorterTest
 	
 	private static final int MEMORY_PAGE_SIZE = 32 * 1024; 
 
-	private DefaultMemoryManager memoryManager;
+	private HeapMemoryManager memoryManager;
 	
 	private TypeSerializer<IntPair> serializer;
 	
@@ -60,7 +58,7 @@ public class FixedLengthRecordSorterTest
 
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, MEMORY_PAGE_SIZE);
+		this.memoryManager = new HeapMemoryManager(MEMORY_SIZE, MEMORY_PAGE_SIZE);
 		this.serializer = new IntPairSerializer();
 		this.comparator = new IntPairComparator();
 	}

@@ -141,6 +141,14 @@ JVM's heap space for internal data buffers, leaving 20% of the JVM's heap space
 free for objects created by user-defined functions. (DEFAULT: 0.7)
 This parameter is only evaluated, if `taskmanager.memory.size` is not set.
 
+- `taskmanager.memory.allocateDirectly`: If set to true, the task manager will
+allocate memory outside of the JVM heap (DEFAULT: false). When memory is allocated
+outside the JVM heap, it is not subject to the garbage collector. Also, the data
+does not have to be copied out of the JVM to exchange it with other processes.
+Depending on the user program, this can increase the performance of the runtime.
+The amount of memory allocated must be set by specifying `taskmanager.memory.size`.
+Otherwise, a fraction of the heap memory will be used as a reference to determine
+the size of the memory (`taskmanager.memory.fraction`).
 
 ## Full Reference
 

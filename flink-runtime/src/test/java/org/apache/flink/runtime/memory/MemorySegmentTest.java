@@ -24,35 +24,65 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Random;
 
+import org.apache.flink.core.memory.DirectMemorySegment;
+import org.apache.flink.core.memory.HeapMemorySegment;
+import org.apache.flink.runtime.memorymanager.DirectMemoryManager;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
+import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.junit.Assert;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class MemorySegmentTest {
-	
+
 	public static final long RANDOM_SEED = 643196033469871L;
 
 	public static final int MANAGED_MEMORY_SIZE = 1024 * 1024 * 16;
 
 	public static final int PAGE_SIZE = 1024 * 512;
 
-	private DefaultMemoryManager manager;
+	private MemoryManager manager;
 
 	private MemorySegment segment;
 
 	private Random random;
 
-	@Before
-	public void setUp() throws Exception{
+	public MemorySegmentTest(MemoryManager manager) {
+		this.manager = manager;
+	}
+
+	@Parameterized.Parameters
+	/* Instantiates all of the tests in this class with the HeapMemoryManager and the DirectMemoryManager */
+	public static Collection<Object[]> generateParameters() {
 		try {
-			this.manager = new DefaultMemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE);
-			this.segment = manager.allocatePages(new DefaultMemoryManagerTest.DummyInvokable(), 1).get(0);
+			HeapMemoryManager heapMemoryManager = new HeapMemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE);
+			DirectMemoryManager directMemoryManager = new DirectMemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE);
+
+			return Arrays.asList(new Object[][] {
+					{heapMemoryManager}, {directMemoryManager}
+			});
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Test setup failed.");
+		}
+		return null;
+	}
+
+	@Before
+	public void setUp() {
+		try {
+			this.segment = this.manager.allocatePages(new MemoryManagerTest.DummyInvokable(), 1).get(0);
 			this.random = new Random(RANDOM_SEED);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -65,7 +95,7 @@ public class MemorySegmentTest {
 		this.manager.release(this.segment);
 		this.random = null;
 		this.segment = null;
-		
+
 		if (!this.manager.verifyEmpty()) {
 			Assert.fail("Not all memory has been properly released.");
 		}
@@ -548,27 +578,195 @@ public class MemorySegmentTest {
 	
 	@Test
 	public void testByteBufferWrapping() {
+		int numBytes = 1024;
+		MemorySegment seg = null;
 		try {
-			MemorySegment seg = new MemorySegment(new byte[1024]);
-			
+			if (segment instanceof HeapMemorySegment) {
+				seg = new HeapMemorySegment(new byte[numBytes]);
+			} else if (segment instanceof DirectMemorySegment) {
+				seg = new DirectMemorySegment(numBytes);
+			} else {
+				fail("Unknown MemorySegment implementation was loaded!");
+			}
+
 			ByteBuffer buf1 = seg.wrap(13, 47);
 			assertEquals(13, buf1.position());
 			assertEquals(60, buf1.limit());
 			assertEquals(47, buf1.remaining());
-			
+
 			ByteBuffer buf2 = seg.wrap(500, 267);
 			assertEquals(500, buf2.position());
 			assertEquals(767, buf2.limit());
 			assertEquals(267, buf2.remaining());
-			
+
 			ByteBuffer buf3 = seg.wrap(0, 1024);
 			assertEquals(0, buf3.position());
-			assertEquals(1024, buf3.limit());
-			assertEquals(1024, buf3.remaining());
+			assertEquals(numBytes, buf3.limit());
+			assertEquals(numBytes, buf3.remaining());
+
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());
 		}
+	}
+
+
+	@Test
+	public void testBulkOperations() {
+
+		int numBytes = 1024;
+		MemorySegment seg = null;
+		if (segment instanceof HeapMemorySegment) {
+			seg = new HeapMemorySegment(new byte[numBytes]);
+		} else if (segment instanceof DirectMemorySegment) {
+			seg = new DirectMemorySegment(numBytes);
+		} else {
+			fail("Unknown MemorySegment implementation was loaded!");
+		}
+
+		byte[] dataExpected = new byte[numBytes];
+		long seed = random.nextLong();
+		random.setSeed(seed);
+		random.nextBytes(dataExpected);
+
+		try {
+			RandomAccessFile file = new RandomAccessFile("/tmp/mem_segment_test.file", "rw");
+			// write expected data to file
+			file.write(dataExpected);
+			file.seek(0);
+			// test bulk put method
+			// load file contents into memory segment
+			seg.put(file, 0, numBytes);
+			file.close();
+
+			RandomAccessFile file2 = new RandomAccessFile("/tmp/mem_segment_test2.file", "rw");
+			// test bulk get method
+			// write second file with data from memory segment
+			seg.get(file2, 0, numBytes);
+			file2.seek(0);
+
+			// read file previously written by memory segment
+			byte[] data = new byte[numBytes];
+			file2.read(data);
+
+			Assert.assertArrayEquals(dataExpected, data);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Could not create/read/write random access file.");
+		}
+	}
+
+	@Test
+	public void testCompare() {
+		int numBytes = segment.size();
+		MemorySegment seg2 = null;
+		if (segment instanceof HeapMemorySegment) {
+			seg2 = new HeapMemorySegment(new byte[numBytes]);
+		} else if (segment instanceof DirectMemorySegment) {
+			seg2 = new DirectMemorySegment(numBytes);
+		} else {
+			fail("Unknown MemorySegment implementation was loaded!");
+		}
+		long seed = random.nextLong();
+		random.setSeed(seed);
+
+		int cmp = 0;
+		byte[] expected = new byte[numBytes];
+		random.nextBytes(expected);
+		// compare bytes without offset (equal)
+		segment.put(0, expected);
+		seg2.put(0, expected);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(0, cmp);
+		// compare byte with offset
+		segment.put(6, expected, 6, numBytes - 6);
+		seg2.put(6, expected, 6, numBytes - 6);
+		cmp = segment.compare(seg2, 6, 6, numBytes - 6);
+		Assert.assertEquals(0, cmp);
+
+		// not equal check
+		segment.put(0, (byte) 1);
+		seg2.put(0, (byte) 2);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(cmp < 0, true);
+		// not equal check
+		segment.put(0, (byte) 2);
+		seg2.put(0, (byte) 1);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(cmp > 0, true);
+
+		// restore equality
+		segment.put(0, (byte) 0);
+		seg2.put(0, (byte) 0);
+
+		// not equal check with offset
+		segment.put(6, (byte) 1);
+		seg2.put(6, (byte) 2);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(cmp < 0, true);
+		// not equal check with offset
+		segment.put(6, (byte) 2);
+		seg2.put(6, (byte) 1);
+		cmp = segment.compare(seg2, 0, 0, numBytes);
+		Assert.assertEquals(cmp > 0, true);
+
+	}
+
+	@Test
+	public void testSwapBytes() {
+		int numBytes = segment.size();
+		MemorySegment seg2 = null;
+		if (segment instanceof HeapMemorySegment) {
+			seg2 = new HeapMemorySegment(new byte[numBytes]);
+		} else if (segment instanceof DirectMemorySegment) {
+			seg2 = new DirectMemorySegment(numBytes);
+		} else {
+			fail("Unknown MemorySegment implementation was loaded!");
+		}
+		long seed = random.nextLong();
+		random.setSeed(seed);
+
+		int cmp = 0;
+		byte[] b1 = new byte[numBytes];
+		byte[] b2 = new byte[numBytes];
+		random.nextBytes(b1);
+		random.nextBytes(b2);
+
+		/* swap without offset */
+		segment.put(0, b1);
+		seg2.put(0, b2);
+		// swap bytes
+		segment.swapBytes(seg2, 0, 0, numBytes);
+
+		byte[] result = new byte[numBytes];
+		segment.get(0, result);
+		Assert.assertArrayEquals(result, b2);
+
+		result = new byte[numBytes];
+		seg2.get(0, result);
+		Assert.assertArrayEquals(result, b1);
+
+		/* swap with offset */
+		segment.put(0, b1);
+		seg2.put(0, b2);
+
+		// swap bytes
+		segment.swapBytes(seg2, 6, 6, numBytes - 6);
+
+		for(int i = 0; i < 6; i++) {
+			byte tmp = b1[i];
+			b1[i] = b2[i];
+			b2[i] = tmp;
+		}
+		result = new byte[numBytes];
+		segment.get(0, result, 0, numBytes);
+		Assert.assertArrayEquals(result, b2);
+
+		result = new byte[numBytes];
+		seg2.get(0, result, 0, numBytes);
+		Assert.assertArrayEquals(result, b1);
+
 	}
 }

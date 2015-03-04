@@ -25,12 +25,10 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.core.memory.DataInputView
+import org.apache.flink.core.memory.{HeapMemorySegment, DataInputView, MemorySegment, DataOutputView}
 import java.io.IOException
 import org.apache.flink.api.common.typeutils.TypeComparator
 import com.amazonaws.services.sqs.model.UnsupportedOperationException
-import org.apache.flink.core.memory.MemorySegment
-import org.apache.flink.core.memory.DataOutputView
 import org.mockito.Mockito
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter
 import java.util.List
@@ -80,7 +78,7 @@ class CaseClassComparatorTest {
       val numMemSegs = 20
       val memory : List[MemorySegment] = new ArrayList[MemorySegment](numMemSegs)
       for (i <- 1 to numMemSegs) {
-        memory.add(new MemorySegment(new Array[Byte](32*1024)))
+        memory.add(new HeapMemorySegment(new Array[Byte](32*1024)))
       }
       
       val sorter : NormalizedKeySorter[CaseTestClass] = new NormalizedKeySorter[CaseTestClass](
