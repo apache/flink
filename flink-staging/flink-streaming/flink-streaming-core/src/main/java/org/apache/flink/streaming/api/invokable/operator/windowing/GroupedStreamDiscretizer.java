@@ -60,11 +60,8 @@ public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 
 	@Override
 	public void invoke() throws Exception {
-		if (readNext() == null) {
-			throw new RuntimeException("DataStream must not be empty");
-		}
 
-		while (nextRecord != null) {
+		while (isRunning && readNext() != null) {
 
 			Object key = keySelector.getKey(nextObject);
 
@@ -76,8 +73,6 @@ public class GroupedStreamDiscretizer<IN> extends StreamDiscretizer<IN> {
 			}
 
 			groupDiscretizer.processRealElement(nextObject);
-
-			readNext();
 		}
 
 		for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {

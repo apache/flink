@@ -71,7 +71,7 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> 
 	public void invoke() throws Exception {
 
 		// Continuously run
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			processRealElement(nextObject);
 		}
 

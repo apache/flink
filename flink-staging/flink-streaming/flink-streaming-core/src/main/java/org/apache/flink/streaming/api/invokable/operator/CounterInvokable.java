@@ -30,14 +30,16 @@ public class CounterInvokable<IN> extends ChainableInvokable<IN, Long> {
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			collector.collect(++count);
 		}
 	}
 
 	@Override
 	public void collect(IN record) {
-		collector.collect(++count);
+		if (isRunning) {
+			collector.collect(++count);
+		}
 	}
 
 }

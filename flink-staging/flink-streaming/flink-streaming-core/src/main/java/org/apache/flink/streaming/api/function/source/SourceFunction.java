@@ -24,6 +24,8 @@ import org.apache.flink.util.Collector;
 
 public interface SourceFunction<OUT> extends Function, Serializable {
 
-	public void invoke(Collector<OUT> collector) throws Exception;
+	public void run(Collector<OUT> collector) throws Exception;
+	
+	public void cancel();
 		
 }

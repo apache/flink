@@ -224,9 +224,10 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     Validate.notNull(function, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
       val cleanFun = StreamExecutionEnvironment.clean(function)
-      override def invoke(out: Collector[T]) {
+      override def run(out: Collector[T]) {
         cleanFun(out)
       }
+      override def cancel() = {}
     }
     addSource(sourceFunction)
   }

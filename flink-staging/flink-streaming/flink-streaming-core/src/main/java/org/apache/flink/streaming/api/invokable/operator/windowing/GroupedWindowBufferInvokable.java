@@ -42,7 +42,7 @@ public class GroupedWindowBufferInvokable<T> extends WindowBufferInvokable<T> {
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -64,8 +64,10 @@ public class GroupedWindowBufferInvokable<T> extends WindowBufferInvokable<T> {
 
 	@Override
 	public void collect(WindowEvent<T> record) {
-		nextObject = record;
-		callUserFunctionAndLogException();
+		if (isRunning) {
+			nextObject = record;
+			callUserFunctionAndLogException();
+		}
 	}
 
 }

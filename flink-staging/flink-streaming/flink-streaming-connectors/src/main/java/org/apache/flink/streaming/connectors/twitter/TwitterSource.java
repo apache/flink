@@ -57,6 +57,8 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	private boolean streaming;
 	private int numberOfTweets;
 
+	private volatile boolean isRunning = false;
+
 	/**
 	 * Create {@link TwitterSource} for streaming
 	 * 
@@ -90,18 +92,18 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	}
 
 	@Override
-	public void invoke(Collector<String> collector) throws Exception {
-
-		if (streaming) {
-			collectMessages(collector);
-		} else {
-			collectFiniteMessages(collector);
+	public void run(Collector<String> collector) throws Exception {
+		isRunning = true;
+		try {
+			if (streaming) {
+				collectMessages(collector);
+			} else {
+				collectFiniteMessages(collector);
+			}
+		} finally {
+			closeConnection();
+			isRunning = false;
 		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		closeConnection();
 	}
 
 	/**
@@ -196,7 +198,7 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 			LOG.info("Tweet-stream begins");
 		}
 
-		while (true) {
+		while (isRunning) {
 			collectOneMessage(collector);
 		}
 	}
@@ -246,7 +248,8 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	/**
 	 * Get the size of the queue in which the tweets are contained temporarily.
 	 * 
-	 * @return the size of the queue in which the tweets are contained temporarily
+	 * @return the size of the queue in which the tweets are contained
+	 *         temporarily
 	 */
 	public int getQueueSize() {
 		return queueSize;
@@ -279,5 +282,11 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	 */
 	public void setWaitSec(int waitSec) {
 		this.waitSec = waitSec;
+	}
+
+	@Override
+	public void cancel() {
+		isRunning = false;
+		closeConnection();
 	}
 }

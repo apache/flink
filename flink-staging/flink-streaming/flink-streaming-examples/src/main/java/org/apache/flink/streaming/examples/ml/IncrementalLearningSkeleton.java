@@ -93,7 +93,7 @@ public class IncrementalLearningSkeleton {
 		private static final int NEW_DATA_SLEEP_TIME = 1000;
 
 		@Override
-		public void invoke(Collector<Integer> collector) throws Exception {
+		public void run(Collector<Integer> collector) throws Exception {
 			while (true) {
 				collector.collect(getNewData());
 			}
@@ -102,6 +102,11 @@ public class IncrementalLearningSkeleton {
 		private Integer getNewData() throws InterruptedException {
 			Thread.sleep(NEW_DATA_SLEEP_TIME);
 			return 1;
+		}
+		
+		@Override
+		public void cancel() {
+			// No cleanup needed
 		}
 	}
 
@@ -114,7 +119,7 @@ public class IncrementalLearningSkeleton {
 		private static final int TRAINING_DATA_SLEEP_TIME = 10;
 
 		@Override
-		public void invoke(Collector<Integer> collector) throws Exception {
+		public void run(Collector<Integer> collector) throws Exception {
 			while (true) {
 				collector.collect(getTrainingData());
 			}
@@ -125,6 +130,11 @@ public class IncrementalLearningSkeleton {
 			Thread.sleep(TRAINING_DATA_SLEEP_TIME);
 			return 1;
 
+		}
+		
+		@Override
+		public void cancel() {
+			// No cleanup needed
 		}
 	}
 

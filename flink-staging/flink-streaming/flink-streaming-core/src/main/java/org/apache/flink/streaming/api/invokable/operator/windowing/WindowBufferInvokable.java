@@ -26,8 +26,7 @@ import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
  * This invokable flattens the results of the window transformations by
  * outputing the elements of the {@link StreamWindow} one-by-one
  */
-public class WindowBufferInvokable<T> extends
-		ChainableInvokable<WindowEvent<T>, StreamWindow<T>> {
+public class WindowBufferInvokable<T> extends ChainableInvokable<WindowEvent<T>, StreamWindow<T>> {
 
 	protected WindowBuffer<T> buffer;
 
@@ -40,7 +39,7 @@ public class WindowBufferInvokable<T> extends
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -67,8 +66,10 @@ public class WindowBufferInvokable<T> extends
 
 	@Override
 	public void collect(WindowEvent<T> record) {
-		nextObject = record;
-		callUserFunctionAndLogException();
+		if (isRunning) {
+			nextObject = record;
+			callUserFunctionAndLogException();
+		}
 	}
 
 }

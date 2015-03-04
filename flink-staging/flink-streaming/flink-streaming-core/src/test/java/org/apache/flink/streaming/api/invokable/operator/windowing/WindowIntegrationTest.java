@@ -208,6 +208,10 @@ public class WindowIntegrationTest implements Serializable {
 			windows.add(value);
 		}
 
+		@Override
+		public void cancel() {
+		}
+
 	}
 
 	@SuppressWarnings("serial")
@@ -219,6 +223,10 @@ public class WindowIntegrationTest implements Serializable {
 		@Override
 		public void invoke(StreamWindow<Integer> value) throws Exception {
 			windows.add(value);
+		}
+
+		@Override
+		public void cancel() {
 		}
 
 	}
@@ -234,6 +242,10 @@ public class WindowIntegrationTest implements Serializable {
 			windows.add(value);
 		}
 
+		@Override
+		public void cancel() {
+		}
+
 	}
 
 	@SuppressWarnings("serial")
@@ -245,6 +257,10 @@ public class WindowIntegrationTest implements Serializable {
 		@Override
 		public void invoke(StreamWindow<Integer> value) throws Exception {
 			windows.add(value);
+		}
+
+		@Override
+		public void cancel() {
 		}
 
 	}
@@ -260,6 +276,10 @@ public class WindowIntegrationTest implements Serializable {
 			windows.add(value);
 		}
 
+		@Override
+		public void cancel() {
+		}
+
 	}
 
 	@SuppressWarnings("serial")
@@ -273,6 +293,10 @@ public class WindowIntegrationTest implements Serializable {
 			windows.add(value);
 		}
 
+		@Override
+		public void cancel() {
+		}
+
 	}
 
 	@SuppressWarnings("serial")
@@ -284,6 +308,10 @@ public class WindowIntegrationTest implements Serializable {
 		@Override
 		public void invoke(StreamWindow<Integer> value) throws Exception {
 			windows.add(value);
+		}
+
+		@Override
+		public void cancel() {
 		}
 
 	}

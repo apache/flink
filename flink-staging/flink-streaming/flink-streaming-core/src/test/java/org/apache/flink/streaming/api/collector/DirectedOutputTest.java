@@ -88,6 +88,10 @@ public class DirectedOutputTest {
 			outputs.put(name, new ArrayList<Long>());
 			this.list = outputs.get(name);
 		}
+
+		@Override
+		public void cancel() {
+		}
 	}
 
 	private static Map<String, List<Long>> outputs = new HashMap<String, List<Long>>();

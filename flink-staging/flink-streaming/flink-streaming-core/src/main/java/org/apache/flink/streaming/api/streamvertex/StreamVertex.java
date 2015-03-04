@@ -154,6 +154,13 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	}
 
 	@Override
+	public void cancel() {
+		if (userInvokable != null) {
+			userInvokable.cancel();
+		}
+	}
+
+	@Override
 	public StreamConfig getConfig() {
 		return configuration;
 	}

@@ -53,6 +53,8 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	private long zookeeperSyncTimeMillis;
 	private static final long ZOOKEEPER_DEFAULT_SYNC_TIME = 200;
 
+	private volatile boolean isRunning = false;
+
 	/**
 	 * Creates a KafkaSource that consumes a topic.
 	 * 
@@ -107,21 +109,31 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	 *            The Collector for sending data to the dataStream
 	 */
 	@Override
-	public void invoke(Collector<OUT> collector) throws Exception {
-
-		while (consumerIterator.hasNext()) {
-			OUT out = schema.deserialize(consumerIterator.next().message());
-			if (schema.isEndOfStream(out)) {
-				break;
+	public void run(Collector<OUT> collector) throws Exception {
+		isRunning = true;
+		try {
+			while (isRunning && consumerIterator.hasNext()) {
+				OUT out = schema.deserialize(consumerIterator.next().message());
+				if (schema.isEndOfStream(out)) {
+					break;
+				}
+				collector.collect(out);
 			}
-			collector.collect(out);
+		} finally {
+			consumer.shutdown();
 		}
-		consumer.shutdown();
-
 	}
 
 	@Override
-	public void open(Configuration config) {
+	public void open(Configuration config) throws Exception {
 		initializeConnection();
+	}
+
+	@Override
+	public void cancel() {
+		isRunning = false;
+		if (consumer != null) {
+			consumer.shutdown();
+		}
 	}
 }

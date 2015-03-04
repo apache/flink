@@ -41,7 +41,7 @@ public class KafkaProducerExample {
 		@SuppressWarnings({ "unused", "serial" })
 		DataStream<String> stream1 = env.addSource(new SourceFunction<String>() {
 			@Override
-			public void invoke(Collector<String> collector) throws Exception {
+			public void run(Collector<String> collector) throws Exception {
 				for (int i = 0; i < 100; i++) {
 					collector.collect("message #" + i);
 					Thread.sleep(100L);
@@ -49,6 +49,12 @@ public class KafkaProducerExample {
 
 				collector.collect(new String("q"));
 			}
+
+			@Override
+			public void cancel() {				
+			}
+			
+			
 		}).addSink(
 				new KafkaSink<String>(topic, host + ":" + port, new JavaDefaultStringSchema())
 		)

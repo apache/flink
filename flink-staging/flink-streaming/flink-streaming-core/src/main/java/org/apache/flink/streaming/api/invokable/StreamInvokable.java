@@ -107,7 +107,13 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 			}
 			return nextRecord;
 		} catch (IOException e) {
-			throw new RuntimeException("Could not read next record.");
+			if (isRunning) {
+				throw new RuntimeException("Could not read next record due to: "
+						+ StringUtils.stringifyException(e));
+			} else {
+				// Task already cancelled do nothing
+				return null;
+			}
 		}
 	}
 
@@ -157,6 +163,10 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 		} catch (Exception e) {
 			throw new RuntimeException("Error when closing the function: " + e.getMessage());
 		}
+	}
+
+	public void cancel() {
+		isRunning = false;
 	}
 
 	public void setRuntimeContext(RuntimeContext t) {
