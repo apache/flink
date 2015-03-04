@@ -30,7 +30,7 @@ FLINK_SCALA_VERSION_SHORT: "2.10"
 FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
 FLINK_GITHUB_URL:  https://github.com/apache/flink
 
-FLINK_WEBSITE_URL: http://flink.apache.org
+FLINK_WEBSITE_URL: http://flink.apache.org/
 FLINK_DOWNLOAD_URL: http://flink.apache.org/downloads.html
 
 FLINK_DOWNLOAD_URL_HADOOP1_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.1/flink-0.8.1-bin-hadoop1.tgz
