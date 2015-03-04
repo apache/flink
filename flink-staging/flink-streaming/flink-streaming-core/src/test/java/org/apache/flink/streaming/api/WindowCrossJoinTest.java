@@ -143,6 +143,10 @@ public class WindowCrossJoinTest implements Serializable {
 		public void invoke(Tuple2<Tuple2<Integer, String>, Tuple1<Integer>> value) {
 			joinResults.add(new Tuple2<Tuple2<Integer, String>, Integer>(value.f0, value.f1.f0));
 		}
+		
+		@Override
+		public void cancel() {
+		}
 	}
 
 	private static class CrossResultSink implements
@@ -152,6 +156,10 @@ public class WindowCrossJoinTest implements Serializable {
 		@Override
 		public void invoke(Tuple2<Tuple2<Integer, String>, Tuple1<Integer>> value) {
 			crossResults.add(new Tuple2<Tuple2<Integer, String>, Integer>(value.f0, value.f1.f0));
+		}
+		
+		@Override
+		public void cancel() {
 		}
 	}
 }

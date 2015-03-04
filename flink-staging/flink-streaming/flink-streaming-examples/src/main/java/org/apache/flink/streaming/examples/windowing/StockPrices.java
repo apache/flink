@@ -267,7 +267,7 @@ public class StockPrices {
 		}
 
 		@Override
-		public void invoke(Collector<StockPrice> collector) throws Exception {
+		public void run(Collector<StockPrice> collector) throws Exception {
 			price = DEFAULT_PRICE;
 			Random random = new Random();
 
@@ -276,6 +276,11 @@ public class StockPrices {
 				collector.collect(new StockPrice(symbol, price));
 				Thread.sleep(random.nextInt(200));
 			}
+		}
+		
+		@Override
+		public void cancel() {
+			// No cleanup needed
 		}
 	}
 
@@ -307,7 +312,7 @@ public class StockPrices {
 		StringBuilder stringBuilder;
 
 		@Override
-		public void invoke(Collector<String> collector) throws Exception {
+		public void run(Collector<String> collector) throws Exception {
 			random = new Random();
 			stringBuilder = new StringBuilder();
 
@@ -321,6 +326,11 @@ public class StockPrices {
 				Thread.sleep(500);
 			}
 
+		}
+		
+		@Override
+		public void cancel() {
+			// No cleanup needed
 		}
 	}
 

@@ -50,11 +50,16 @@ public class StreamVertexTest {
 		private Tuple1<Integer> tuple = new Tuple1<Integer>(0);
 
 		@Override
-		public void invoke(Collector<Tuple1<Integer>> collector) throws Exception {
+		public void run(Collector<Tuple1<Integer>> collector) throws Exception {
 			for (int i = 0; i < 10; i++) {
 				tuple.f0 = i;
 				collector.collect(tuple);
 			}
+		}
+
+		@Override
+		public void cancel() {
+			// No cleanup needed
 		}
 	}
 
@@ -76,6 +81,10 @@ public class StreamVertexTest {
 			Integer k = tuple.getField(0);
 			Integer v = tuple.getField(1);
 			data.put(k, v);
+		}
+
+		@Override
+		public void cancel() {
 		}
 	}
 
@@ -141,6 +150,10 @@ public class StreamVertexTest {
 		@Override
 		public void invoke(String value) {
 			result.add(value);
+		}
+
+		@Override
+		public void cancel() {
 		}
 	}
 

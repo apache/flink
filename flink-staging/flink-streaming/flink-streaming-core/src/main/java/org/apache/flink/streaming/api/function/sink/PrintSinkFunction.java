@@ -84,15 +84,19 @@ public class PrintSinkFunction<IN> extends RichSinkFunction<IN> {
 	}
 	
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		this.stream = null;
 		this.prefix = null;
-		super.close();
 	}
 	
 	@Override
 	public String toString() {
 		return "Print to " + (target == STD_OUT ? "System.out" : "System.err");
+	}
+
+	@Override
+	public void cancel() {
+		close();
 	}
 
 }

@@ -38,6 +38,8 @@ public class FileSourceFunction extends RichParallelSourceFunction<String> {
 
 	private TypeInformation<String> typeInfo;
 
+	private volatile boolean isRunning;
+
 	public FileSourceFunction(InputFormat<String, ?> format, TypeInformation<String> typeInfo) {
 		this.inputFormat = format;
 		this.typeInfo = typeInfo;
@@ -51,33 +53,32 @@ public class FileSourceFunction extends RichParallelSourceFunction<String> {
 	}
 
 	@Override
-	public void invoke(Collector<String> collector) throws Exception {
+	public void run(Collector<String> collector) throws Exception {
+		isRunning = true;
 		final TypeSerializer<String> serializer = typeInfo.createSerializer(getRuntimeContext()
 				.getExecutionConfig());
 		final Iterator<InputSplit> splitIterator = getInputSplits();
 		@SuppressWarnings("unchecked")
 		final InputFormat<String, InputSplit> format = (InputFormat<String, InputSplit>) this.inputFormat;
 		try {
-			while (splitIterator.hasNext()) {
+			while (isRunning && splitIterator.hasNext()) {
 
 				final InputSplit split = splitIterator.next();
 				String record = serializer.createInstance();
 
 				format.open(split);
-				try {
-					while (!format.reachedEnd()) {
-						if ((record = format.nextRecord(record)) != null) {
-							collector.collect(record);
-						}
+				while (!format.reachedEnd()) {
+					if ((record = format.nextRecord(record)) != null) {
+						collector.collect(record);
 					}
-				} finally {
-					format.close();
 				}
+
 			}
 			collector.close();
-		} catch (Exception ex) {
-			ex.printStackTrace();
+		} finally {
+			format.close();
 		}
+		isRunning = false;
 	}
 
 	private Iterator<InputSplit> getInputSplits() {
@@ -125,5 +126,10 @@ public class FileSourceFunction extends RichParallelSourceFunction<String> {
 				throw new UnsupportedOperationException();
 			}
 		};
+	}
+
+	@Override
+	public void cancel() {
+		isRunning = false;
 	}
 }

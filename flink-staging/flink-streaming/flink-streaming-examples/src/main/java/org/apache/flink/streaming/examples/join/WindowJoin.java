@@ -108,13 +108,18 @@ public class WindowJoin {
 		}
 
 		@Override
-		public void invoke(Collector<Tuple2<String, Integer>> out) throws Exception {
+		public void run(Collector<Tuple2<String, Integer>> out) throws Exception {
 			while (true) {
 				outTuple.f0 = names[rand.nextInt(names.length)];
 				outTuple.f1 = rand.nextInt(GRADE_COUNT) + 1;
 				out.collect(outTuple);
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
 			}
+		}
+		
+		@Override
+		public void cancel() {
+			// No cleanup needed
 		}
 	}
 
@@ -134,13 +139,18 @@ public class WindowJoin {
 		}
 
 		@Override
-		public void invoke(Collector<Tuple2<String, Integer>> out) throws Exception {
+		public void run(Collector<Tuple2<String, Integer>> out) throws Exception {
 			while (true) {
 				outTuple.f0 = names[rand.nextInt(names.length)];
 				outTuple.f1 = rand.nextInt(SALARY_MAX) + 1;
 				out.collect(outTuple);
 				Thread.sleep(rand.nextInt(SLEEP_TIME) + 1);
 			}
+		}
+		
+		@Override
+		public void cancel() {
+			// No cleanup needed
 		}
 	}
 

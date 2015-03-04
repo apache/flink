@@ -33,9 +33,9 @@ import org.apache.flink.streaming.connectors.util.SerializationSchema;
 
 /**
  * Sink that emits its inputs to a Kafka topic.
- *
+ * 
  * @param <IN>
- * 		Type of the sink input
+ *            Type of the sink input
  */
 public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
@@ -49,14 +49,15 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	private KafkaPartitioner<IN> partitioner;
 
 	/**
-	 * Creates a KafkaSink for a given topic. The partitioner distributes the messages between the partitions of the topics.
-	 *
+	 * Creates a KafkaSink for a given topic. The partitioner distributes the
+	 * messages between the partitions of the topics.
+	 * 
 	 * @param topicId
-	 * 		ID of the Kafka topic.
+	 *            ID of the Kafka topic.
 	 * @param brokerAddr
-	 * 		Address of the Kafka broker (with port number).
+	 *            Address of the Kafka broker (with port number).
 	 * @param serializationSchema
-	 * 		User defined serialization schema.
+	 *            User defined serialization schema.
 	 */
 	public KafkaSink(String topicId, String brokerAddr,
 			SerializationSchema<IN, byte[]> serializationSchema) {
@@ -64,16 +65,17 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	}
 
 	/**
-	 * Creates a KafkaSink for a given topic. The sink produces its input into the topic.
-	 *
+	 * Creates a KafkaSink for a given topic. The sink produces its input into
+	 * the topic.
+	 * 
 	 * @param topicId
-	 * 		ID of the Kafka topic.
+	 *            ID of the Kafka topic.
 	 * @param brokerAddr
-	 * 		Address of the Kafka broker (with port number).
+	 *            Address of the Kafka broker (with port number).
 	 * @param serializationSchema
-	 * 		User defined serialization schema.
+	 *            User defined serialization schema.
 	 * @param partitioner
-	 * 		User defined partitioner.
+	 *            User defined partitioner.
 	 */
 	public KafkaSink(String topicId, String brokerAddr,
 			SerializationSchema<IN, byte[]> serializationSchema, KafkaPartitioner<IN> partitioner) {
@@ -111,9 +113,9 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 
 	/**
 	 * Called when new data arrives to the sink, and forwards it to Kafka.
-	 *
+	 * 
 	 * @param next
-	 * 		The incoming data
+	 *            The incoming data
 	 */
 	@Override
 	public void invoke(IN next) {
@@ -130,6 +132,11 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 		if (producer != null) {
 			producer.close();
 		}
+	}
+
+	@Override
+	public void cancel() {
+		close();
 	}
 
 }

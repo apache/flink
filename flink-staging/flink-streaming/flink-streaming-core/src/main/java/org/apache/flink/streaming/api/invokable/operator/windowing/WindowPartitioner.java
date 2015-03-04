@@ -44,7 +44,7 @@ public class WindowPartitioner<T> extends ChainableInvokable<StreamWindow<T>, St
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -71,8 +71,10 @@ public class WindowPartitioner<T> extends ChainableInvokable<StreamWindow<T>, St
 
 	@Override
 	public void collect(StreamWindow<T> record) {
-		nextObject = record;
-		callUserFunctionAndLogException();
+		if (isRunning) {
+			nextObject = record;
+			callUserFunctionAndLogException();
+		}
 	}
 
 }

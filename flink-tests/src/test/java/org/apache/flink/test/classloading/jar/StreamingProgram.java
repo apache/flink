@@ -18,16 +18,14 @@
 
 package org.apache.flink.test.classloading.jar;
 
+import java.util.StringTokenizer;
+
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.test.recordJobs.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.util.Collector;
-
-import java.util.StringTokenizer;
 
 @SuppressWarnings("serial")
 public class StreamingProgram {
@@ -99,6 +97,10 @@ public class StreamingProgram {
 	public static class NoOpSink implements SinkFunction<Word>{
 		@Override
 		public void invoke(Word value) throws Exception {
+		}
+
+		@Override
+		public void cancel() {
 		}
 	}
 }

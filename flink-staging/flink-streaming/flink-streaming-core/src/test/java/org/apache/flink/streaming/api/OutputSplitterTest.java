@@ -76,6 +76,10 @@ public class OutputSplitterTest {
 			public void invoke(Integer value) {
 				splitterResult1.add(value);
 			}
+			
+			@Override
+			public void cancel() {
+			}
 		});
 
 		d1.split(new OutputSelector<Integer>() {
@@ -97,6 +101,10 @@ public class OutputSplitterTest {
 			@Override
 			public void invoke(Integer value) {
 				splitterResult2.add(value);
+			}
+			
+			@Override
+			public void cancel() {
 			}
 		});
 		env.execute();
@@ -144,6 +152,10 @@ public class OutputSplitterTest {
 			public void invoke(Integer value) {
 				splitterResult1.add(value);
 			}
+			
+			@Override
+			public void cancel() {
+			}
 		});
 
 		ds.split(new OutputSelector<Integer>() {
@@ -167,6 +179,10 @@ public class OutputSplitterTest {
 			@Override
 			public void invoke(Integer value) {
 				splitterResult2.add(value);
+			}
+			
+			@Override
+			public void cancel() {
 			}
 		});
 		env.execute();

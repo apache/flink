@@ -18,10 +18,12 @@
 package org.apache.flink.streaming.api.function.source;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
@@ -33,7 +35,7 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	protected static final Logger LOG = LoggerFactory.getLogger(SocketTextStreamFunction.class);
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private String hostname;
 	private int port;
 	private char delimiter;
@@ -42,6 +44,8 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	private Socket socket;
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
 	private static final int CONNECTION_RETRY_SLEEP = 1000;
+
+	private volatile boolean isRunning = false;
 
 	public SocketTextStreamFunction(String hostname, int port, char delimiter, long maxRetry) {
 		this.hostname = hostname;
@@ -55,65 +59,91 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		socket = new Socket();
-		
+
 		socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
 	}
-	
+
 	@Override
-	public void invoke(Collector<String> collector) throws Exception {
+	public void run(Collector<String> collector) throws Exception {
 		streamFromSocket(collector, socket);
 	}
 
 	public void streamFromSocket(Collector<String> collector, Socket socket) throws Exception {
-		StringBuffer buffer = new StringBuffer();
-		BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		isRunning = true;
+		try {
+			StringBuffer buffer = new StringBuffer();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(
+					socket.getInputStream()));
 
-		while (true) {
-			int data = reader.read();
-			if (data == -1) {
-				socket.close();
-				long retry = 0;
-				boolean success = false;
-				while (retry < maxRetry && !success) {
-					if (!retryForever) {
-						retry++;
-					}
-					LOG.warn("Lost connection to server socket. Retrying in " + (CONNECTION_RETRY_SLEEP / 1000) + " seconds...");
-					try {
-						socket = new Socket();
-						socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
-						success = true;
-					} catch (ConnectException ce) {
-						Thread.sleep(CONNECTION_RETRY_SLEEP);
+			while (isRunning) {
+				int data;
+				try {
+					data = reader.read();
+				} catch (SocketException e) {
+					if (!isRunning) {
+						break;
+					} else {
+						throw e;
 					}
 				}
 
-				if (success) {
-					LOG.info("Server socket is reconnected.");
-				} else {
-					LOG.error("Could not reconnect to server socket.");
-					break;
+				if (data == -1) {
+					socket.close();
+					long retry = 0;
+					boolean success = false;
+					while (retry < maxRetry && !success) {
+						if (!retryForever) {
+							retry++;
+						}
+						LOG.warn("Lost connection to server socket. Retrying in "
+								+ (CONNECTION_RETRY_SLEEP / 1000) + " seconds...");
+						try {
+							socket = new Socket();
+							socket.connect(new InetSocketAddress(hostname, port),
+									CONNECTION_TIMEOUT_TIME);
+							success = true;
+						} catch (ConnectException ce) {
+							Thread.sleep(CONNECTION_RETRY_SLEEP);
+						}
+					}
+
+					if (success) {
+						LOG.info("Server socket is reconnected.");
+					} else {
+						LOG.error("Could not reconnect to server socket.");
+						break;
+					}
+					reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+					continue;
 				}
-				reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-				continue;
+
+				if (data == delimiter) {
+					collector.collect(buffer.toString());
+					buffer = new StringBuffer();
+				} else if (data != '\r') { // ignore carriage return
+					buffer.append((char) data);
+				}
 			}
 
-			if (data == delimiter) {
+			if (buffer.length() > 0) {
 				collector.collect(buffer.toString());
-				buffer = new StringBuffer();
-			} else if (data != '\r') { // ignore carriage return
-				buffer.append((char) data);
 			}
-		}
-
-		if (buffer.length() > 0) {
-			collector.collect(buffer.toString());
+		} finally {
+			socket.close();
 		}
 	}
 
 	@Override
-	public void close() throws Exception {
-		socket.close();
-		super.close();
+	public void cancel() {
+		isRunning = false;
+		if (socket != null && !socket.isClosed()) {
+			try {
+				socket.close();
+			} catch (IOException e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Could not close open socket");
+				}
+			}
+		}
 	}
 }
