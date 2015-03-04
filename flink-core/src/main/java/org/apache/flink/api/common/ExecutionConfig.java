@@ -35,6 +35,12 @@ public class ExecutionConfig implements Serializable {
 	// Key for storing it in the Job Configuration
 	public static final String CONFIG_KEY = "runtime.config";
 
+	/**
+	 * The constant to use for the degree of parallelism, if the system should use the number
+	 *  of currently available slots.
+	 */
+	public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
+
 	private boolean useClosureCleaner = true;
 	private int degreeOfParallelism = -1;
 	private int numberOfExecutionRetries = -1;
