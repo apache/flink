@@ -19,27 +19,30 @@
 package org.apache.flink.graph.example;
 
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.example.utils.ExampleUtils;
+import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
 import org.apache.flink.graph.library.SingleSourceShortestPaths;
 
 public class SingleSourceShortestPathsExample implements ProgramDescription {
 
-	private static int maxIterations = 5;
-
 	public static void main(String[] args) throws Exception {
+
+		if (!parseParameters(args)) {
+			return;
+		}
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Vertex<Long, Double>> vertices = ExampleUtils.getLongDoubleVertexData(env);
+		DataSet<Vertex<Long, Double>> vertices = getVerticesDataSet(env);
 
-		DataSet<Edge<Long, Double>> edges = ExampleUtils.getLongDoubleEdgeData(env);
-
-		Long srcVertexId = 1L;
+		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
 
 		Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
 
@@ -47,13 +50,91 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 				.run(new SingleSourceShortestPaths<Long>(srcVertexId,
 						maxIterations)).getVertices();
 
-		singleSourceShortestPaths.print();
+		// emit result
+		if (fileOutput) {
+			singleSourceShortestPaths.writeAsCsv(outputPath, "\n", ",");
+		} else {
+			singleSourceShortestPaths.print();
+		}
 
-		env.execute();
+		env.execute("Single Source Shortest Paths Example");
 	}
 
 	@Override
 	public String getDescription() {
 		return "Single Source Shortest Paths";
+	}
+
+	// ******************************************************************************************************************
+	// UTIL METHODS
+	// ******************************************************************************************************************
+
+	private static boolean fileOutput = false;
+
+	private static Long srcVertexId = null;
+
+	private static String verticesInputPath = null;
+
+	private static String edgesInputPath = null;
+
+	private static String outputPath = null;
+
+	private static int maxIterations = 5;
+
+	private static boolean parseParameters(String[] args) {
+
+		if (args.length > 0) {
+			if (args.length == 5) {
+				fileOutput = true;
+				srcVertexId = Long.parseLong(args[0]);
+				verticesInputPath = args[1];
+				edgesInputPath = args[2];
+				outputPath = args[3];
+				maxIterations = Integer.parseInt(args[4]);
+			} else {
+				System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
+						" <input vertices path> <input edges path> <output path> <num iterations>");
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static DataSet<Vertex<Long, Double>> getVerticesDataSet(ExecutionEnvironment env) {
+		if (fileOutput) {
+			return env.readCsvFile(verticesInputPath)
+					.lineDelimiter("\n")
+					.types(Long.class, Double.class)
+					.map(new MapFunction<Tuple2<Long, Double>, Vertex<Long, Double>>() {
+
+						@Override
+						public Vertex<Long, Double> map(Tuple2<Long, Double> tuple2) throws Exception {
+							return new Vertex<Long, Double>(tuple2.f0, tuple2.f1);
+						}
+					});
+		} else {
+			System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
+					" <input vertices path> <input edges path> <output path> <num iterations>");
+			return SingleSourceShortestPathsData.getDefaultVertexDataSet(env);
+		}
+	}
+
+	private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
+		if (fileOutput) {
+			return env.readCsvFile(edgesInputPath)
+					.lineDelimiter("\n")
+					.types(Long.class, Long.class, Double.class)
+					.map(new MapFunction<Tuple3<Long, Long, Double>, Edge<Long, Double>>() {
+
+						@Override
+						public Edge<Long, Double> map(Tuple3<Long, Long, Double> tuple3) throws Exception {
+							return new Edge(tuple3.f0, tuple3.f1, tuple3.f2);
+						}
+					});
+		} else {
+			System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
+					" <input vertices path> <input edges path> <output path> <num iterations>");
+			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
+		}
 	}
 }
