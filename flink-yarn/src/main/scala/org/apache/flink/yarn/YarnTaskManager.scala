@@ -18,8 +18,6 @@
 
 package org.apache.flink.yarn
 
-import akka.actor.{ActorLogging, Actor}
-import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.taskmanager.{NetworkEnvironmentConfiguration, TaskManagerConfiguration, TaskManager}
 import org.apache.flink.yarn.Messages.StopYarnSession
@@ -40,8 +38,9 @@ class YarnTaskManager(connectionInfo: InstanceConnectionInfo, jobManagerAkkaURL:
   }
 
   def receiveYarnMessages: Receive = {
-    case StopYarnSession(status) =>
-      log.info(s"Stopping YARN TaskManager with final application status $status")
+    case StopYarnSession(status, diagnostics) =>
+      log.info(s"Stopping YARN TaskManager with final application status $status " +
+        s"and diagnostics: $diagnostics")
       context.system.shutdown()
   }
 }
