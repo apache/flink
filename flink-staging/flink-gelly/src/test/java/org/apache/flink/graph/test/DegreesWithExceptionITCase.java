@@ -19,11 +19,15 @@
 package org.apache.flink.graph.test;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Graph;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.NoSuchElementException;
+
+import static org.junit.Assert.fail;
 
 public class DegreesWithExceptionITCase {
 
@@ -38,8 +42,10 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
 
 		try {
-			graph.outDegrees().print();
+			graph.outDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			env.execute();
+
+			fail("graph.outDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
 			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
 			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
@@ -57,8 +63,10 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
 
 		try {
-			graph.inDegrees().print();
+			graph.inDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			env.execute();
+
+			fail("graph.inDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
 			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
 			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
@@ -76,8 +84,10 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
 
 		try {
-			graph.getDegrees().print();
+			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			env.execute();
+
+			fail("graph.getDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
 			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
 			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
@@ -95,8 +105,10 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
 
 		try {
-			graph.getDegrees().print();
+			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			env.execute();
+
+			fail("graph.getDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
 			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
 			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
@@ -114,8 +126,10 @@ public class DegreesWithExceptionITCase {
 				TestGraphUtils.getLongLongEdgeInvalidSrcTrgData(env), env);
 
 		try {
-			graph.getDegrees().print();
+			graph.getDegrees().output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			env.execute();
+
+			fail("graph.getDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
 			Assert.assertEquals("The edge src/trg id could not be found within the vertexIds", e.getCause().getMessage());
 			Assert.assertTrue(e.getCause() instanceof NoSuchElementException);
