@@ -217,8 +217,6 @@ public class ExecutionConfig implements Serializable {
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
 
-
-
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
 	 *
