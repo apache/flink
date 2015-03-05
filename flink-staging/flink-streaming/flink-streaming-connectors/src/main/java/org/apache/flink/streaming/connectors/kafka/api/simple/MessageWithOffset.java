@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kafka.api.simple;
 
+/**
+ * POJO encapsulating records received from Kafka with their offset.
+ */
 public class MessageWithOffset {
 	private long offset;
 	private byte[] message;

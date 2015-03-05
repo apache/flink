@@ -35,7 +35,7 @@ import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 import org.apache.flink.util.Collector;
 
 /**
- * Source that listens to a Kafka topic.
+ * Source that listens to a Kafka topic using the high level Kafka API.
  * 
  * @param <OUT>
  *            Type of the messages on the topic.

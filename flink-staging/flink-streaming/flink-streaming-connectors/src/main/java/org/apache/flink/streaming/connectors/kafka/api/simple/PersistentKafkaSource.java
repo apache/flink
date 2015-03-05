@@ -23,6 +23,14 @@ import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 import org.apache.flink.util.Collector;
 
+/**
+ * Kafka source persisting its offset through the {@link OperatorState} interface.
+ * This allows the offset to be restored to the latest one that has been acknowledged
+ * by the whole execution graph.
+ *
+ * @param <OUT>
+ *            Type of the messages on the topic.
+ */
 public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 
 	private static final long serialVersionUID = 1L;
@@ -31,22 +39,14 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 
 	private transient OperatorState<Long> kafkaOffSet;
 
-	/**
-	 * Partition index is set automatically by instance id.
-	 * 
-	 * @param topicId
-	 * @param host
-	 * @param port
-	 * @param deserializationSchema
-	 */
-	public PersistentKafkaSource(String topicId, String host, int port, long initialOffset,
+	public PersistentKafkaSource(String topicId, String host, int port, int partition, long initialOffset,
 			DeserializationSchema<OUT> deserializationSchema) {
-		super(topicId, host, port, deserializationSchema);
+		super(topicId, host, port, partition, deserializationSchema);
 		this.initialOffset = initialOffset;
 	}
 
 	@Override
-	public void open(Configuration parameters) {
+	public void open(Configuration parameters) throws InterruptedException {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 		@SuppressWarnings("unchecked")
 		OperatorState<Long> lastKafkaOffSet = (OperatorState<Long>) context.getState("kafka");
@@ -62,21 +62,16 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 	}
 
 	@Override
-	protected void setInitialOffset(Configuration config) {
+	protected void setInitialOffset(Configuration config) throws InterruptedException{
 		iterator.initializeFromOffset(kafkaOffSet.getState());
 	}
 
-	@Override
-	protected void gotMessage(MessageWithOffset msg) {
-		System.out.println(msg.getOffset() + " :: " + schema.deserialize(msg.getMessage()));
-	}
 
 	@Override
 	public void run(Collector<OUT> collector) throws Exception {
 		MessageWithOffset msg;
 		while (iterator.hasNext()) {
 			msg = iterator.nextWithOffset();
-			gotMessage(msg);
 			OUT out = schema.deserialize(msg.getMessage());
 			collector.collect(out);
 			kafkaOffSet.update(msg.getOffset());

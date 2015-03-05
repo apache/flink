@@ -26,6 +26,9 @@ import org.I0Itec.zkclient.serialize.ZkSerializer;
 
 import kafka.admin.AdminUtils;
 
+/**
+ * Factory for creating custom Kafka partitions.
+ */
 public class KafkaTopicFactory {
 
 	public static void createTopic(String zookeeperServer, String topicName, int numOfPartitions, int replicationFactor) {
