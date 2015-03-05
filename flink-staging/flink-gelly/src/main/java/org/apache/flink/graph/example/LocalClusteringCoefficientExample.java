@@ -23,14 +23,14 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.EdgesFunction;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.NeighborsFunctionWithVertexValue;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.example.utils.ExampleUtils;
+import org.apache.flink.graph.example.utils.LocalClusteringCoefficientData;
+import org.apache.flink.types.NullValue;
 
 import java.util.HashSet;
 
@@ -48,16 +48,15 @@ public class LocalClusteringCoefficientExample implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Vertex<Long, Double>> vertices = getVertexDataSet(env);
-		DataSet<Edge<Long, Double>> edges = getEdgeDataSet(env);
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
+		DataSet<Edge<Long, NullValue>> edges = getEdgeDataSet(env);
+		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(edges, env);
 
 		// Get the neighbors of each vertex in a HashSet
 		DataSet<Tuple2<Long, HashSet<Long>>> neighborhoods = graph
 				.reduceOnEdges(new NeighborhoodEdgesFunction(), EdgeDirection.OUT);
 
 		// Construct a new graph where the neighborhood is the vertex value
-		Graph<Long, HashSet<Long>, Double> newGraph = graph
+		Graph<Long, HashSet<Long>, NullValue> newGraph = graph
 				.mapVertices(new EmptyVertexMapFunction())
 				.joinWithVertices(neighborhoods, new NeighborhoodVertexMapFunction());
 
@@ -80,18 +79,18 @@ public class LocalClusteringCoefficientExample implements ProgramDescription {
 	// --------------------------------------------------------------------------------------------
 
 	private static final class NeighborhoodEdgesFunction
-			implements EdgesFunction<Long, Double, Tuple2<Long, HashSet<Long>>> {
+			implements EdgesFunction<Long, NullValue, Tuple2<Long, HashSet<Long>>> {
 
 		@Override
 		public Tuple2<Long, HashSet<Long>> iterateEdges(
-				Iterable<Tuple2<Long, Edge<Long, Double>>> edges) throws Exception {
+				Iterable<Tuple2<Long, Edge<Long, NullValue>>> edges) throws Exception {
 
 			Long vertexId = null;
 			HashSet<Long> neighbors = new HashSet<Long>();
 
-			for (Tuple2<Long, Edge<Long, Double>> edge : edges) {
+			for (Tuple2<Long, Edge<Long, NullValue>> edge : edges) {
 				vertexId = edge.f0;
-				neighbors.add(edge.f1.f1);
+				neighbors.add(edge.f1.getTarget());
 			}
 
 			return new Tuple2<Long, HashSet<Long>>(vertexId, neighbors);
@@ -99,10 +98,10 @@ public class LocalClusteringCoefficientExample implements ProgramDescription {
 	}
 
 	private static final class EmptyVertexMapFunction
-			implements MapFunction<Vertex<Long, Double>, HashSet<Long>> {
+			implements MapFunction<Vertex<Long, NullValue>, HashSet<Long>> {
 
 		@Override
-		public HashSet<Long> map(Vertex<Long, Double> arg) throws Exception {
+		public HashSet<Long> map(Vertex<Long, NullValue> arg) throws Exception {
 			return new HashSet<Long>();
 		}
 	}
@@ -117,24 +116,27 @@ public class LocalClusteringCoefficientExample implements ProgramDescription {
 	}
 
 	private static final class ClusteringCoefficientNeighborsFunction
-			implements NeighborsFunctionWithVertexValue<Long, HashSet<Long>, Double, Tuple2<Long, Double>> {
+			implements NeighborsFunctionWithVertexValue<Long, HashSet<Long>, NullValue, Tuple2<Long, Double>> {
 
 		@Override
 		public Tuple2<Long, Double> iterateNeighbors(Vertex<Long, HashSet<Long>> vertex,
-				Iterable<Tuple2<Edge<Long, Double>, Vertex<Long, HashSet<Long>>>> neighbors) throws Exception {
+				Iterable<Tuple2<Edge<Long, NullValue>, Vertex<Long, HashSet<Long>>>> neighbors) throws Exception {
 
 			int deg = vertex.getValue().size();
 			int e = 0;
 
 			// Calculate common neighbor count (e)
-			for (Tuple2<Edge<Long, Double>, Vertex<Long, HashSet<Long>>> neighbor : neighbors) {
+			for (Tuple2<Edge<Long, NullValue>, Vertex<Long, HashSet<Long>>> neighbor : neighbors) {
 				// Iterate neighbor's neighbors
-				for (Long nn : neighbor.f1.f1) {
+				for (Long nn : neighbor.f1.getValue()) {
 					if (vertex.getValue().contains(nn)) {
 						e++;
 					}
 				}
 			}
+
+			// We assume an undirected graph, so we need to divide e here
+			e /= 2;
 
 			// Calculate clustering coefficient
 			double cc;
@@ -154,67 +156,46 @@ public class LocalClusteringCoefficientExample implements ProgramDescription {
 	// --------------------------------------------------------------------------------------------
 
 	private static boolean fileOutput = false;
-	private static String vertexInputPath = null;
 	private static String edgeInputPath = null;
 	private static String outputPath = null;
 
 	private static boolean parseParameters(String[] args) {
 
 		if(args.length > 0) {
-			if(args.length != 3) {
-				System.err.println("Usage: LocalClusteringCoefficient <vertex path> <edge path> <output path>");
+			if(args.length != 2) {
+				System.err.println("Usage: LocalClusteringCoefficient <edge path> <output path>");
 				return false;
 			}
 
 			fileOutput = true;
-			vertexInputPath = args[0];
-			edgeInputPath = args[1];
-			outputPath = args[2];
+			edgeInputPath = args[0];
+			outputPath = args[1];
 		} else {
 			System.out.println("Executing LocalClusteringCoefficient example with default parameters and built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: LocalClusteringCoefficient <vertex path> <edge path> <output path>");
+			System.out.println("  Usage: LocalClusteringCoefficient <edge path> <output path>");
 		}
 		return true;
 	}
 
 	@SuppressWarnings("serial")
-	private static DataSet<Vertex<Long, Double>> getVertexDataSet(ExecutionEnvironment env) {
-
-		if (fileOutput) {
-			return env.readCsvFile(vertexInputPath)
-					.fieldDelimiter(" ")
-					.lineDelimiter("\n")
-					.types(Long.class, Double.class)
-					.map(new MapFunction<Tuple2<Long, Double>, Vertex<Long, Double>>() {
-						@Override
-						public Vertex<Long, Double> map(Tuple2<Long, Double> value) throws Exception {
-							return new Vertex<Long, Double>(value.f0, value.f1);
-						}
-					});
-		}
-
-		return ExampleUtils.getLongDoubleVertexData(env);
-	}
-
-	@SuppressWarnings("serial")
-	private static DataSet<Edge<Long, Double>> getEdgeDataSet(ExecutionEnvironment env) {
+	private static DataSet<Edge<Long, NullValue>> getEdgeDataSet(ExecutionEnvironment env) {
 
 		if (fileOutput) {
 			return env.readCsvFile(edgeInputPath)
 					.fieldDelimiter(" ")
 					.lineDelimiter("\n")
-					.types(Long.class, Long.class, Double.class)
-					.map(new MapFunction<Tuple3<Long, Long, Double>, Edge<Long, Double>>() {
+					.types(Long.class, Long.class)
+					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
 						@Override
-						public Edge<Long, Double> map(Tuple3<Long, Long, Double> value) throws Exception {
-							return new Edge<Long, Double>(value.f0, value.f1, value.f2);
+						public Edge<Long, NullValue> map(Tuple2<Long, Long> value) throws Exception {
+							return new Edge<Long, NullValue>(value.f0, value.f1, NullValue.getInstance());
 						}
 					});
 		}
 
-		return ExampleUtils.getLongDoubleEdgeData(env);
+		return LocalClusteringCoefficientData.getDefaultEdgeDataSet(env);
 	}
 
 	@Override
