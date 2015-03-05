@@ -18,20 +18,27 @@
 
 package org.apache.flink.streaming.io;
 
+import java.io.IOException;
+
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.io.network.api.reader.StreamingAbstractRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
-public class IndexedMutableReader<T extends IOReadableWritable> extends
-		StreamingMutableRecordReader<T> {
+public class StreamingMutableRecordReader<T extends IOReadableWritable> extends
+		StreamingAbstractRecordReader<T> implements MutableReader<T> {
 
-	InputGate reader;
-
-	public IndexedMutableReader(InputGate reader) {
-		super(reader);
-		this.reader = reader;
+	public StreamingMutableRecordReader(InputGate inputGate) {
+		super(inputGate);
 	}
 
-	public int getNumberOfInputChannels() {
-		return reader.getNumberOfInputChannels();
+	@Override
+	public boolean next(final T target) throws IOException, InterruptedException {
+		return getNextRecord(target);
+	}
+
+	@Override
+	public void clearBuffers() {
+		super.clearBuffers();
 	}
 }
