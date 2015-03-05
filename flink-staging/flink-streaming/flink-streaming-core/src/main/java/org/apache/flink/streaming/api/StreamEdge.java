@@ -22,13 +22,24 @@ import java.util.List;
 
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 
+/**
+ * An edge in the streaming topology. One edge like this does not necessarily
+ * gets converted to a connection between two job vertices (due to chaining/optimization).
+ */
 public class StreamEdge implements Serializable {
 
 	final private int sourceVertex;
 	final private int targetVertex;
+
+	/**
+	 * The type number of the input for co-tasks.
+	 */
 	final private int typeNumber;
+
+	/**
+	 * A list of output names that the target vertex listens to (if there is output selection).
+	 */
 	final private List<String> selectedNames;
-//	private OutputSelector<?> outputSelector;
 	final private StreamPartitioner<?> outputPartitioner;
 
 	public StreamEdge(int sourceVertex, int targetVertex, int typeNumber, List<String> selectedNames, StreamPartitioner<?> outputPartitioner) {
@@ -36,7 +47,6 @@ public class StreamEdge implements Serializable {
 		this.targetVertex = targetVertex;
 		this.typeNumber = typeNumber;
 		this.selectedNames = selectedNames;
-//		this.outputSelector = outputSelector;
 		this.outputPartitioner = outputPartitioner;
 	}
 

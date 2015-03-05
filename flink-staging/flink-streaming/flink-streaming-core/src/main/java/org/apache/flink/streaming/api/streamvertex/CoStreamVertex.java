@@ -17,21 +17,20 @@
 
 package org.apache.flink.streaming.api.streamvertex;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.StreamEdge;
-import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.streaming.io.CoRecordReader;
 import org.apache.flink.streaming.io.IndexedReaderIterator;
+import org.apache.flink.streaming.io.InputGateFactory;
 import org.apache.flink.util.MutableObjectIterator;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 
@@ -87,22 +86,19 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 			int inputType = inEdges.get(i).getTypeNumber();
 			InputGate reader = getEnvironment().getInputGate(i);
 			switch (inputType) {
-			case 1:
-				inputList1.add(reader);
-				break;
-			case 2:
-				inputList2.add(reader);
-				break;
-			default:
-				throw new RuntimeException("Invalid input type number: " + inputType);
+				case 1:
+					inputList1.add(reader);
+					break;
+				case 2:
+					inputList2.add(reader);
+					break;
+				default:
+					throw new RuntimeException("Invalid input type number: " + inputType);
 			}
 		}
 
-		final InputGate reader1 = inputList1.size() == 1 ? inputList1.get(0) : new UnionInputGate(
-				inputList1.toArray(new InputGate[inputList1.size()]));
-
-		final InputGate reader2 = inputList2.size() == 1 ? inputList2.get(0) : new UnionInputGate(
-				inputList2.toArray(new InputGate[inputList2.size()]));
+		final InputGate reader1 = InputGateFactory.createInputGate(inputList1);
+		final InputGate reader2 = InputGateFactory.createInputGate(inputList2);
 
 		coReader = new CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
 				reader1, reader2);
@@ -112,12 +108,12 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 	@Override
 	public <X> MutableObjectIterator<X> getInput(int index) {
 		switch (index) {
-		case 0:
-			return (MutableObjectIterator<X>) inputIter1;
-		case 1:
-			return (MutableObjectIterator<X>) inputIter2;
-		default:
-			throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
+			case 0:
+				return (MutableObjectIterator<X>) inputIter1;
+			case 1:
+				return (MutableObjectIterator<X>) inputIter2;
+			default:
+				throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
 		}
 	}
 
@@ -130,12 +126,12 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 	@Override
 	public <X> StreamRecordSerializer<X> getInputSerializer(int index) {
 		switch (index) {
-		case 0:
-			return (StreamRecordSerializer<X>) inputDeserializer1;
-		case 1:
-			return (StreamRecordSerializer<X>) inputDeserializer2;
-		default:
-			throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
+			case 0:
+				return (StreamRecordSerializer<X>) inputDeserializer1;
+			case 1:
+				return (StreamRecordSerializer<X>) inputDeserializer2;
+			default:
+				throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
 		}
 	}
 
