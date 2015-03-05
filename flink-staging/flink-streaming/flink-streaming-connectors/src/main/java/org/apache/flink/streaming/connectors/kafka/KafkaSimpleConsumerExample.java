@@ -17,21 +17,18 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.api.KafkaSource;
-<<<<<<< HEAD
 import org.apache.flink.streaming.connectors.kafka.api.simple.PersistentKafkaSource;
-=======
->>>>>>> a62796a... s
 import org.apache.flink.streaming.connectors.util.JavaDefaultStringSchema;
 
-public class KafkaConsumerExample {
+public class KafkaSimpleConsumerExample {
 
 	private static String host;
 	private static int port;
 	private static String topic;
+	private static int partition;
+	private static long offset;
 
 	public static void main(String[] args) throws Exception {
 
@@ -42,7 +39,7 @@ public class KafkaConsumerExample {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment().setDegreeOfParallelism(4);
 
 		DataStream<String> kafkaStream = env
-				.addSource(new KafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()));
+				.addSource(new PersistentKafkaSource<String>(topic, host, port, partition, offset, new JavaDefaultStringSchema()));
 
 		kafkaStream.print();
 
@@ -50,13 +47,15 @@ public class KafkaConsumerExample {
 	}
 
 	private static boolean parseParameters(String[] args) {
-		if (args.length == 3) {
+		if (args.length == 4) {
 			host = args[0];
 			port = Integer.parseInt(args[1]);
 			topic = args[2];
+			partition = Integer.parseInt(args[3]);
+			offset = Long.parseLong(args[4]);
 			return true;
 		} else {
-			System.err.println("Usage: KafkaConsumerExample <host> <port> <topic>");
+			System.err.println("Usage: KafkaConsumerExample <host> <port> <topic> <partition> <offset>");
 			return false;
 		}
 	}

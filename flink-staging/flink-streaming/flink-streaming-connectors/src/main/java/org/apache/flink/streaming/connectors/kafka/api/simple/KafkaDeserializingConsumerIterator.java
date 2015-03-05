@@ -23,12 +23,13 @@ public class KafkaDeserializingConsumerIterator<IN> extends KafkaConsumerIterato
 
 	private DeserializationSchema<IN> deserializationSchema;
 
-	public KafkaDeserializingConsumerIterator(String host, int port, String topic, int partition, long waitOnEmptyFetch, DeserializationSchema<IN> deserializationSchema) {
+	public KafkaDeserializingConsumerIterator(String host, int port, String topic, int partition, long waitOnEmptyFetch,
+												DeserializationSchema<IN> deserializationSchema) {
 		super(host, port, topic, partition, waitOnEmptyFetch);
 		this.deserializationSchema = deserializationSchema;
 	}
 
-	public IN nextRecord() {
+	public IN nextRecord() throws InterruptedException {
 		return deserializationSchema.deserialize(next());
 	}
 

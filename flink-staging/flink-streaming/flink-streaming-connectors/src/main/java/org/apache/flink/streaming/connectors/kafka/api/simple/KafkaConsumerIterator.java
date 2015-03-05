@@ -36,10 +36,17 @@ import kafka.javaapi.TopicMetadata;
 import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.message.MessageAndOffset;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Iterates the records received from a partition of a Kafka topic as byte arrays.
+ */
 public class KafkaConsumerIterator {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final long DEFAULT_WAIT_ON_EMPTY_FETCH = 1000L;
 
 	private List<String> hosts;
 	private String topic;
@@ -54,11 +61,21 @@ public class KafkaConsumerIterator {
 	private transient Iterator<MessageAndOffset> iter;
 	private transient FetchResponse fetchResponse;
 
-	public KafkaConsumerIterator(String host, int port, String topic, int partition,
+	/**
+	 * Constructor with configurable wait time on empty fetch. For connecting to the Kafka service
+	 * we use the so called simple or low level Kafka API thus directly connecting to one of the brokers.
+	 *
+	 * @param hostName Hostname of a known Kafka broker
+	 * @param port Port of the known Kafka broker
+	 * @param topic Name of the topic to listen to
+	 * @param partition Partition in the chosen topic
+	 * @param waitOnEmptyFetch wait time on empty fetch in millis
+	 */
+	public KafkaConsumerIterator(String hostName, int port, String topic, int partition,
 			long waitOnEmptyFetch) {
 
 		this.hosts = new ArrayList<String>();
-		hosts.add(host);
+		hosts.add(hostName);
 		this.port = port;
 
 		this.topic = topic;
@@ -68,14 +85,37 @@ public class KafkaConsumerIterator {
 		replicaBrokers = new ArrayList<String>();
 	}
 
-	private void initialize() {
+	/**
+	 * Constructor without configurable wait time on empty fetch. For connecting to the Kafka service
+	 * we use the so called simple or low level Kafka API thus directly connecting to one of the brokers.
+	 *
+	 * @param hostName Hostname of a known Kafka broker
+	 * @param port Port of the known Kafka broker
+	 * @param topic Name of the topic to listen to
+	 * @param partition Partition in the chosen topic
+	 */
+	public KafkaConsumerIterator(String hostName, int port, String topic, int partition){
+		this(hostName, port, topic, partition, DEFAULT_WAIT_ON_EMPTY_FETCH);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Initializing a connection
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Initializes the connection by detecting the leading broker of
+	 * the topic and establishing a connection to it.
+	 */
+	private void initialize() throws InterruptedException {
 		PartitionMetadata metadata;
 		do {
 			metadata = findLeader(hosts, port, topic, partition);
-			try {
-				Thread.sleep(1000L);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+			if (metadata == null) {
+				try {
+					Thread.sleep(waitOnEmptyFetch);
+				} catch (InterruptedException e) {
+					throw new InterruptedException("Establishing connection to Kafka failed");
+				}
 			}
 		} while (metadata == null);
 
@@ -90,7 +130,10 @@ public class KafkaConsumerIterator {
 		consumer = new SimpleConsumer(leadBroker, port, 100000, 64 * 1024, clientName);
 	}
 
-	public void initializeFromBeginning() {
+	/**
+	 * Initializes a connection from the earliest available offset.
+	 */
+	public void initializeFromBeginning() throws InterruptedException {
 		initialize();
 		readOffset = getLastOffset(consumer, topic, partition,
 				kafka.api.OffsetRequest.EarliestTime(), clientName);
@@ -98,7 +141,10 @@ public class KafkaConsumerIterator {
 		resetFetchResponse(readOffset);
 	}
 
-	public void initializeFromCurrent() {
+	/**
+	 * Initializes a connection from the latest available offset.
+	 */
+	public void initializeFromCurrent() throws InterruptedException {
 		initialize();
 		readOffset = getLastOffset(consumer, topic, partition,
 				kafka.api.OffsetRequest.LatestTime(), clientName);
@@ -106,28 +152,48 @@ public class KafkaConsumerIterator {
 		resetFetchResponse(readOffset);
 	}
 
-	public void initializeFromOffset(long offset) {
+	/**
+	 * Initializes a connection from the specified offset.
+	 *
+	 * @param offset Desired Kafka offset
+	 */
+	public void initializeFromOffset(long offset) throws InterruptedException {
 		initialize();
 		readOffset = offset;
 		resetFetchResponse(readOffset);
 	}
 
+
+	// --------------------------------------------------------------------------------------------
+	//  Iterator methods
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Convenience method to emulate iterator behaviour.
+	 *
+	 * @return whether the iterator has a next element
+	 */
 	public boolean hasNext() {
 		return true;
 	}
 
-	public byte[] next() {
+	/**
+	 * Returns the next message received from Kafka as a
+	 * byte array.
+	 *
+	 * @return next message as a byte array.
+	 */
+	public byte[] next() throws InterruptedException {
 		return nextWithOffset().getMessage();
 	}
 
-	private void resetFetchResponse(long offset) {
-		FetchRequest req = new FetchRequestBuilder().clientId(clientName)
-				.addFetch(topic, partition, offset, 100000).build();
-		fetchResponse = consumer.fetch(req);
-		iter = fetchResponse.messageSet(topic, partition).iterator();
-	}
-
-	public MessageWithOffset nextWithOffset() {
+	/**
+	 * Returns the next message and its offset received from
+	 * Kafka encapsulated in a POJO.
+	 *
+	 * @return next message and its offset.
+	 */
+	public MessageWithOffset nextWithOffset() throws InterruptedException {
 
 		synchronized (fetchResponse) {
 			while (!iter.hasNext()) {
@@ -135,7 +201,7 @@ public class KafkaConsumerIterator {
 				try {
 					Thread.sleep(waitOnEmptyFetch);
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					throw new InterruptedException("Fetching from Kafka was interrupted");
 				}
 			}
 
@@ -152,15 +218,35 @@ public class KafkaConsumerIterator {
 
 			byte[] bytes = new byte[payload.limit()];
 			payload.get(bytes);
+
 			return new MessageWithOffset(messageAndOffset.offset(), bytes);
 		}
 	}
 
+	/**
+	 * Resets the iterator to a given offset.
+	 *
+	 * @param offset Desired Kafka offset.
+	 */
 	public void reset(long offset) {
 		synchronized (fetchResponse) {
 			readOffset = offset;
 			resetFetchResponse(offset);
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Internal utilities
+	// --------------------------------------------------------------------------------------------
+
+	private void resetFetchResponse(long offset) {
+		FetchRequest req = new FetchRequestBuilder().clientId(clientName)
+				.addFetch(topic, partition, offset, 100000).build();
+		fetchResponse = consumer.fetch(req);
+
+		//TODO deal with broker failures
+
+		iter = fetchResponse.messageSet(topic, partition).iterator();
 	}
 
 	private PartitionMetadata findLeader(List<String> a_hosts, int a_port, String a_topic,
@@ -212,7 +298,7 @@ public class KafkaConsumerIterator {
 		OffsetResponse response = consumer.getOffsetsBefore(request);
 
 		if (response.hasError()) {
-			throw new RuntimeException("Error fetching data Offset Data the Broker. Reason: "
+			throw new RuntimeException("Error fetching data from Kafka broker. Reason: "
 					+ response.errorCode(topic, partition));
 		}
 		long[] offsets = response.offsets(topic, partition);
