@@ -58,7 +58,6 @@ public class FlinkYarnSessionCli {
 	public static final String CONFIG_FILE_LOGBACK_NAME = "logback.xml";
 	public static final String CONFIG_FILE_LOG4J_NAME = "log4j.properties";
 
-
 	private static final int CLIENT_POLLING_INTERVALL = 3;
 
 
@@ -73,6 +72,7 @@ public class FlinkYarnSessionCli {
 	private final Option TM_MEMORY;
 	private final Option CONTAINER;
 	private final Option SLOTS;
+	private final Option DETACHED;
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
@@ -80,7 +80,9 @@ public class FlinkYarnSessionCli {
 	 */
 	private final Option DYNAMIC_PROPERTIES;
 
+	//------------------------------------ Internal fields -------------------------
 	private AbstractFlinkYarnCluster yarnCluster = null;
+	private boolean detachedMode = false;
 
 	public FlinkYarnSessionCli(String shortPrefix, String longPrefix) {
 		QUERY = new Option(shortPrefix + "q", longPrefix + "query", false, "Display available YARN resources (memory, cores)");
@@ -92,6 +94,7 @@ public class FlinkYarnSessionCli {
 		CONTAINER = new Option(shortPrefix + "n", longPrefix + "container", true, "Number of YARN container to allocate (=Number of Task Managers)");
 		SLOTS = new Option(shortPrefix + "s", longPrefix + "slots", true, "Number of slots per TaskManager");
 		DYNAMIC_PROPERTIES = new Option(shortPrefix + "D", true, "Dynamic properties");
+		DETACHED = new Option(shortPrefix + "d", longPrefix + "detached", false, "Start detached");
 	}
 
 	public AbstractFlinkYarnClient createFlinkYarnClient(CommandLine cmd) {
@@ -212,6 +215,10 @@ public class FlinkYarnSessionCli {
 
 		flinkYarnClient.setDynamicPropertiesEncoded(dynamicPropertiesEncoded);
 
+		if(cmd.hasOption(DETACHED.getOpt())) {
+			detachedMode = true;
+			flinkYarnClient.setDetachedMode(detachedMode);
+		}
 		return flinkYarnClient;
 	}
 
@@ -234,6 +241,7 @@ public class FlinkYarnSessionCli {
 		opt.addOption(QUEUE);
 		opt.addOption(SLOTS);
 		opt.addOption(DYNAMIC_PROPERTIES);
+		opt.addOption(DETACHED);
 		formatter.printHelp(" ", opt);
 	}
 
@@ -289,6 +297,7 @@ public class FlinkYarnSessionCli {
 
 				if(yarnCluster.hasFailed()) {
 					System.err.println("The YARN cluster has failed");
+					yarnCluster.shutdown();
 				}
 
 				// wait until CLIENT_POLLING_INTERVALL is over or the user entered something.
@@ -335,6 +344,7 @@ public class FlinkYarnSessionCli {
 		options.addOption(SHIP_PATH);
 		options.addOption(SLOTS);
 		options.addOption(DYNAMIC_PROPERTIES);
+		options.addOption(DETACHED);
 	}
 
 	public int run(String[] args) {
@@ -405,17 +415,25 @@ public class FlinkYarnSessionCli {
 
 			//------------------ Cluster running, let user control it ------------
 
-			runInteractiveCli(yarnCluster);
+			if(detachedMode) {
+				// print info and quit:
+				LOG.info("The Flink YARN client has been started in detached mode. In order to stop" +
+						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
+						"yarn application -kill "+yarnCluster.getApplicationId()+"\n" +
+						"Please also note that the temporary files of the YARN session in {} will not be removed.", flinkYarnClient.getSessionFilesDir());
+			} else {
+				runInteractiveCli(yarnCluster);
 
-			if(!yarnCluster.hasBeenStopped()) {
-				LOG.info("Command Line Interface requested session shutdown");
-				yarnCluster.shutdown();
-			}
+				if (!yarnCluster.hasBeenStopped()) {
+					LOG.info("Command Line Interface requested session shutdown");
+					yarnCluster.shutdown();
+				}
 
-			try {
-				yarnPropertiesFile.delete();
-			} catch (Exception e) {
-				LOG.warn("Exception while deleting the JobManager address file", e);
+				try {
+					yarnPropertiesFile.delete();
+				} catch (Exception e) {
+					LOG.warn("Exception while deleting the JobManager address file", e);
+				}
 			}
 		}
 		return 0;

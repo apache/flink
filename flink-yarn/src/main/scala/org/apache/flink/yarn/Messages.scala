@@ -31,7 +31,7 @@ object Messages {
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
   case class RegisterClient(client: ActorRef)
 
-  case class StopYarnSession(status: FinalApplicationStatus)
+  case class StopYarnSession(status: FinalApplicationStatus, diagnostics: String)
 
   case object JobManagerStopped
 
@@ -41,7 +41,7 @@ object Messages {
 
   case class JobManagerActorRef(jobManager: ActorRef)
 
-  case object PollContainerCompletion
+  case object HeartbeatWithYarn
   case object PollYarnClusterStatus // see org.apache.flink.runtime.yarn.FlinkYarnClusterStatus for
                                     // the response
   case object CheckForUserCommand

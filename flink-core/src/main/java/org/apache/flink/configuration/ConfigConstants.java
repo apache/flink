@@ -188,6 +188,35 @@ public final class ConfigConstants {
 	 */
 	public static final String YARN_HEAP_LIMIT_CAP = "yarn.heap-limit-cap";
 
+	/**
+	 * Reallocate failed YARN containers.
+	 */
+	public static final String YARN_REALLOCATE_FAILED_CONTAINERS = "yarn.reallocate-failed";
+
+	/**
+	 * The maximum number of failed YARN containers before entirely stopping
+	 * the YARN session / job on YARN.
+	 *
+	 * By default, we take the number of of initially requested containers.
+	 */
+	public static final String YARN_MAX_FAILED_CONTAINERS = "yarn.maximum-failed-containers";
+
+	/**
+	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers.
+	 * This value is usually limited by YARN.
+	 *
+	 * By default, its 1.
+	 */
+	public static final String YARN_APPLICATION_ATTEMPTS = "yarn.application-attempts";
+
+	/**
+	 * The heartbeat intervall between the Application Master and the YARN Resource Manager.
+	 *
+	 * The default value is 5 (seconds).
+	 */
+	public static final String YARN_HEARTBEAT_DELAY_SECONDS = "yarn.heartbeat-delay";
+
+
 	// ------------------------ Hadoop Configuration ------------------------
 
 	/**
