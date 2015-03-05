@@ -245,8 +245,6 @@ public class StreamGraph extends StreamingPlan {
 	 *            Id of the iteration tail
 	 * @param iterationID
 	 *            ID of iteration for mulitple iterations
-	 * @param parallelism
-	 *            Number of parallel instances created
 	 * @param waitTime
 	 *            Max waiting time for next record
 	 */
@@ -297,8 +295,6 @@ public class StreamGraph extends StreamingPlan {
 	 *            Name of the vertex
 	 * @param vertexClass
 	 *            The class of the vertex
-	 * @param invokableObjectject
-	 *            The user defined invokable object
 	 * @param operatorName
 	 *            Type of the user defined operator
 	 * @param parallelism
@@ -419,8 +415,8 @@ public class StreamGraph extends StreamingPlan {
 		return this.bufferTimeouts.get(vertexID);
 	}
 
-	public void addOperatorState(Integer veretxName, String stateName, OperatorState<?> state) {
-		Map<String, OperatorState<?>> states = operatorStates.get(veretxName);
+	public void addOperatorState(Integer vertexName, String stateName, OperatorState<?> state) {
+		Map<String, OperatorState<?>> states = operatorStates.get(vertexName);
 		if (states == null) {
 			states = new HashMap<String, OperatorState<?>>();
 			states.put(stateName, state);
@@ -432,7 +428,7 @@ public class StreamGraph extends StreamingPlan {
 				states.put(stateName, state);
 			}
 		}
-		operatorStates.put(veretxName, states);
+		operatorStates.put(vertexName, states);
 	}
 
 	/**

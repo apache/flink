@@ -78,7 +78,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	}
 
 	public KafkaSource(String zookeeperHost, String topicId,
-					   DeserializationSchema<OUT> deserializationSchema, long zookeeperSyncTimeMillis){
+					   	DeserializationSchema<OUT> deserializationSchema, long zookeeperSyncTimeMillis){
 		this(zookeeperHost, topicId, DEFAULT_GROUP_ID, deserializationSchema, ZOOKEEPER_DEFAULT_SYNC_TIME);
 	}
 

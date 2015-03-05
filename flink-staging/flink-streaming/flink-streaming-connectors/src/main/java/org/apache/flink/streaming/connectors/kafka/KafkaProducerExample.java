@@ -42,7 +42,7 @@ public class KafkaProducerExample {
 		DataStream<String> stream1 = env.addSource(new SourceFunction<String>() {
 			@Override
 			public void run(Collector<String> collector) throws Exception {
-				for (int i = 0; i < 100; i++) {
+				for (int i = 0; i < 20; i++) {
 					collector.collect("message #" + i);
 					Thread.sleep(100L);
 				}

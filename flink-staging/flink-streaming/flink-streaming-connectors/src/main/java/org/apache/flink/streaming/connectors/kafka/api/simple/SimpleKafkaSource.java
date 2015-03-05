@@ -38,8 +38,7 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 	 * @param port
 	 * @param deserializationSchema
 	 */
-	public SimpleKafkaSource(String topicId,
-							 String host, int port, DeserializationSchema<OUT> deserializationSchema) {
+	public SimpleKafkaSource(String topicId, String host, int port, DeserializationSchema<OUT> deserializationSchema) {
 		super(deserializationSchema);
 		this.topicId = topicId;
 		this.host = host;
@@ -55,18 +54,23 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 		iterator.initializeFromCurrent();
 	}
 
+	//This just for debug purposes
 	protected void gotMessage(MessageWithOffset msg) {
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public void invoke(Collector<OUT> collector) throws Exception {
+	public void run(Collector<OUT> collector) throws Exception {
 		while (iterator.hasNext()) {
 			MessageWithOffset msg = iterator.nextWithOffset();
 			gotMessage(msg);
 			OUT out = schema.deserialize(msg.getMessage());
 			collector.collect(out);
 		}
+	}
+
+	@Override
+	public void cancel() {
 	}
 
 

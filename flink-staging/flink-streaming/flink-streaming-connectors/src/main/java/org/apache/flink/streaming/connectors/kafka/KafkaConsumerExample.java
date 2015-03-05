@@ -19,10 +19,9 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.api.KafkaSource;
-import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaCustomOffsetSource;
-import org.apache.flink.streaming.connectors.kafka.api.simple.SimpleKafkaSource;
+import org.apache.flink.streaming.connectors.kafka.api.simple.PersistentKafkaSource;
 import org.apache.flink.streaming.connectors.util.JavaDefaultStringSchema;
+import org.apache.flink.streaming.state.SimpleState;
 
 public class KafkaConsumerExample {
 
@@ -43,7 +42,8 @@ public class KafkaConsumerExample {
 				.addSource(
 //						new KafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()))
 //						new SimpleKafkaSource<String>(topic, host, port, new JavaDefaultStringSchema()))
-						new KafkaCustomOffsetSource<String>(topic, host, port, new JavaDefaultStringSchema()))
+						new PersistentKafkaSource<String>(topic, host, port, 10L, new JavaDefaultStringSchema()))
+				.registerState("kafka", new SimpleState<Long>())
 				.setParallelism(3)
 				.print().setParallelism(3);
 

@@ -26,7 +26,7 @@ import org.I0Itec.zkclient.serialize.ZkSerializer;
 
 import kafka.admin.AdminUtils;
 
-public class KafkaTopicCreator {
+public class KafkaTopicFactory {
 
 	public static void createTopic(String zookeeperServer, String topicName, int numOfPartitions, int replicationFactor) {
 		createTopic(zookeeperServer, topicName, numOfPartitions, replicationFactor, new Properties(), 10000, 10000);
