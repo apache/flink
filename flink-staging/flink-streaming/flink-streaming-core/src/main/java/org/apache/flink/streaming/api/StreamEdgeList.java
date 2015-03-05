@@ -23,6 +23,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Stores the stream topology with adjacency list graph representation.
+ * Edges are represented with {@link org.apache.flink.streaming.api.StreamEdge}s
+ */
 public class StreamEdgeList {
 
 	private Map<Integer, List<StreamEdge>> outEdgeLists;
