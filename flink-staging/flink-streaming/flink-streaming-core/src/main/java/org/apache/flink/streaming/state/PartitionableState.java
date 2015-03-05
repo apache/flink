@@ -28,6 +28,10 @@ import org.apache.flink.runtime.state.OperatorState;
  */
 public abstract class PartitionableState<T> extends OperatorState<T> {
 
+	public PartitionableState(T initialState) {
+		super(initialState);
+	}
+
 	private static final long serialVersionUID = 1L;
 
 	/**

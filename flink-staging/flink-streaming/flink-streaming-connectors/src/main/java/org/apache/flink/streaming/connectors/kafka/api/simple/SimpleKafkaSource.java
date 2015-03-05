@@ -46,6 +46,7 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 	}
 
 	private void initializeConnection() {
+		//TODO: Fix this
 		int partitionIndex = getRuntimeContext().getIndexOfThisSubtask();
 		iterator = new KafkaConsumerIterator(host, port, topicId, 0, 100L);
 	}
@@ -58,7 +59,6 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 	protected void gotMessage(MessageWithOffset msg) {
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void run(Collector<OUT> collector) throws Exception {
 		while (iterator.hasNext()) {

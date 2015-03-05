@@ -32,7 +32,7 @@ public class StateCheckpoint<T> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	public T checkpointedState;
+	public OperatorState<T> checkpointedState;
 
 	/**
 	 * Creates a state checkpoint from the given {@link OperatorState}
@@ -41,32 +41,11 @@ public class StateCheckpoint<T> implements Serializable {
 	 *            The {@link OperatorState} to checkpoint.
 	 */
 	public StateCheckpoint(OperatorState<T> operatorState) {
-		this.checkpointedState = operatorState.getState();
+		this.checkpointedState = operatorState;
 	}
 
-	public StateCheckpoint() {
-		this.checkpointedState = null;
-	}
-
-	/**
-	 * Returns the state object for the checkpoint.
-	 * 
-	 * @return The checkpointed state object.
-	 */
-	public T getCheckpointedState() {
+	public OperatorState<T> restore() {
 		return checkpointedState;
-	}
-
-	/**
-	 * Updates the checkpoint from next one. Override this method to allow
-	 * incremental updates.
-	 * 
-	 * @param nextCheckpoint
-	 *            The {@link StateCheckpoint} will be used to update from.
-	 */
-	public StateCheckpoint<T> update(StateCheckpoint<T> nextCheckpoint) {
-		this.checkpointedState = nextCheckpoint.getCheckpointedState();
-		return this;
 	}
 
 	@Override
