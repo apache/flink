@@ -37,11 +37,9 @@ public class DirectedOutputSelectorWrapper<OUT> implements OutputSelectorWrapper
 
 	private Map<String, List<Collector<OUT>>> outputMap;
 	private Set<Collector<OUT>> selectAllOutputs;
-//	private Set<Collector<OUT>> emitted;
 
 	public DirectedOutputSelectorWrapper(List<OutputSelector<OUT>> outputSelectors) {
 		this.outputSelectors = outputSelectors;
-//		this.emitted = new HashSet<Collector<OUT>>();
 		this.selectAllOutputs = new HashSet<Collector<OUT>>(); //new LinkedList<Collector<OUT>>();
 		this.outputMap = new HashMap<String, List<Collector<OUT>>>();
 	}

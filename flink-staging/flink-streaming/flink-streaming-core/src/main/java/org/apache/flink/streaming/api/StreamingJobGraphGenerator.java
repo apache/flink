@@ -253,7 +253,6 @@ public class StreamingJobGraphGenerator {
 				headVertex.getConfiguration()) : chainedConfigs.get(headOfChain).get(
 				upStreamvertexID);
 
-//		List<Integer> outEdgeIndexList = streamGraph.getOutEdgeTypes(upStreamvertexID);
 		int numOfInputs = downStreamConfig.getNumberOfInputs();
 
 		downStreamConfig.setInputIndex(numOfInputs++, streamGraph.getEdge(upStreamvertexID, downStreamvertexID).getTypeNumber());

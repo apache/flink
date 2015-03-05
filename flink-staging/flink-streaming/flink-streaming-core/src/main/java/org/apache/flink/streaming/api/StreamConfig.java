@@ -49,9 +49,7 @@ public class StreamConfig implements Serializable {
 	private static final String VERTEX_NAME = "vertexID";
 	private static final String OPERATOR_NAME = "operatorName";
 	private static final String ITERATION_ID = "iteration-id";
-//	private static final String OUTPUT_SELECTOR = "outputSelector";
 	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
-	private static final String DIRECTED_EMIT = "directedEmit";
 	private static final String SERIALIZEDUDF = "serializedudf";
 	private static final String USER_FUNCTION = "userfunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
@@ -60,9 +58,7 @@ public class StreamConfig implements Serializable {
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out_1";
 	private static final String TYPE_SERIALIZER_OUT_2 = "typeSerializer_out_2";
 	private static final String ITERATON_WAIT = "iterationWait";
-	private static final String OUTPUTS = "outvertexIDs";
 	private static final String NONCHAINED_OUTPUTS = "NONCHAINED_OUTPUTS";
-	private static final String CHAINED_OUTPUT_EDGES = "CHAINED_OUTPUTS";
 	private static final String EDGES_IN_ORDER = "rwOrder";
 	private static final String OUT_STREAM_EDGES = "out stream edges";
 	private static final String IN_STREAM_EDGES = "out stream edges";
@@ -247,7 +243,7 @@ public class StreamConfig implements Serializable {
 					SerializationUtils.serialize((Serializable) selected));
 		} else {
 			config.setBytes(OUTPUT_NAME + output,
-					SerializationUtils.serialize((Serializable) new ArrayList<String>()));
+					SerializationUtils.serialize(new ArrayList<String>()));
 		}
 	}
 
@@ -305,6 +301,7 @@ public class StreamConfig implements Serializable {
 		config.setBytes(OUT_STREAM_EDGES, SerializationUtils.serialize((Serializable) outEdges));
 	}
 
+	@SuppressWarnings("unchecked")
 	public List<StreamEdge> getOutEdges(ClassLoader cl) {
 		try {
 			return (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(
@@ -318,6 +315,7 @@ public class StreamConfig implements Serializable {
 		config.setBytes(IN_STREAM_EDGES, SerializationUtils.serialize((Serializable) inEdges));
 	}
 
+	@SuppressWarnings("unchecked")
 	public List<StreamEdge> getInEdges(ClassLoader cl) {
 		try {
 			return (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(

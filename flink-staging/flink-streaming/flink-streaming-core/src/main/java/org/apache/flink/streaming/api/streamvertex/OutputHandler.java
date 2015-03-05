@@ -26,6 +26,7 @@ import java.util.Map;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.StreamEdge;
@@ -35,7 +36,7 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.io.StreamRecordWriter;
+import org.apache.flink.streaming.io.RecordWriterFactory;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
@@ -181,26 +182,10 @@ public class OutputHandler<OUT> {
 
 		StreamPartitioner<T> outputPartitioner = configuration.getPartitioner(cl, outputVertex);
 
-		RecordWriter<SerializationDelegate<StreamRecord<T>>> output;
+		ResultPartitionWriter bufferWriter = vertex.getEnvironment().getWriter(outputIndex);
 
-		if (configuration.getBufferTimeout() >= 0) {
-
-			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<T>>>(vertex
-					.getEnvironment().getWriter(outputIndex), outputPartitioner,
-					configuration.getBufferTimeout());
-
-			if (LOG.isTraceEnabled()) {
-				LOG.trace("StreamRecordWriter initiated with {} bufferTimeout for {}",
-						configuration.getBufferTimeout(), vertex.getClass().getSimpleName());
-			}
-		} else {
-			output = new RecordWriter<SerializationDelegate<StreamRecord<T>>>(vertex
-					.getEnvironment().getWriter(outputIndex), outputPartitioner);
-
-			if (LOG.isTraceEnabled()) {
-				LOG.trace("RecordWriter initiated for {}", vertex.getClass().getSimpleName());
-			}
-		}
+		RecordWriter<SerializationDelegate<StreamRecord<T>>> output =
+				RecordWriterFactory.createRecordWriter(bufferWriter, outputPartitioner, configuration.getBufferTimeout());
 
 		StreamOutput<T> streamOutput = new StreamOutput<T>(output, vertex.instanceID,
 				outSerializationDelegate);
