@@ -21,6 +21,6 @@ package org.apache.flink.ml.common
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.common.WithParameters
 
-trait Learner[I, O] extends WithParameters {
-  def fit(input: DataSet[I], parameters: ParameterMap = ParameterMap.Empty): O
+trait Learner[IN, OUT] extends WithParameters {
+  def fit(input: DataSet[IN], parameters: ParameterMap = ParameterMap.Empty): OUT
 }
