@@ -40,8 +40,8 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
 			ExecutionConfig executionConfig, Map<String, OperatorState<?>> operatorStates) {
-		super(name, env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(),
-				userCodeClassLoader, executionConfig, env.getCopyTask());
+		super(name, env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(), userCodeClassLoader,
+				executionConfig, env.getCopyTask());
 		this.env = env;
 		this.operatorStates = operatorStates;
 	}
@@ -65,6 +65,14 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 			}
 		}
 
+	}
+
+	public void registerState(String name, OperatorState<?> state) {
+		if (state == null) {
+			throw new RuntimeException("Cannot register null state");
+		} else {
+			operatorStates.put(name, state);
+		}
 	}
 
 	/**

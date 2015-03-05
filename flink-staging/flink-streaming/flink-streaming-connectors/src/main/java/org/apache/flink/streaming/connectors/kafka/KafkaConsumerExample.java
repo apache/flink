@@ -17,11 +17,11 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.api.simple.PersistentKafkaSource;
 import org.apache.flink.streaming.connectors.util.JavaDefaultStringSchema;
-import org.apache.flink.streaming.state.SimpleState;
 
 public class KafkaConsumerExample {
 
@@ -43,7 +43,7 @@ public class KafkaConsumerExample {
 //						new KafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()))
 //						new SimpleKafkaSource<String>(topic, host, port, new JavaDefaultStringSchema()))
 						new PersistentKafkaSource<String>(topic, host, port, 10L, new JavaDefaultStringSchema()))
-				.registerState("kafka", new SimpleState<Long>())
+				.registerState("kafka", new OperatorState<Long>(null))
 				.setParallelism(3)
 				.print().setParallelism(3);
 

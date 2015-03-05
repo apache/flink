@@ -18,29 +18,29 @@
 package org.apache.flink.streaming.connectors.kafka.api.simple;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.util.DeserializationSchema;
-import org.apache.flink.streaming.state.SimpleState;
 import org.apache.flink.util.Collector;
 
 public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 
-	private static final long NUM_RECORDS_PER_CHECKPOINT = 1000;
+	private static final long serialVersionUID = 1L;
 
 	private long initialOffset;
 
-	private transient SimpleState<Long> kafkaOffSet;
-	private transient long checkpointCounter;
+	private transient OperatorState<Long> kafkaOffSet;
 
 	/**
 	 * Partition index is set automatically by instance id.
-	 *
+	 * 
 	 * @param topicId
 	 * @param host
 	 * @param port
 	 * @param deserializationSchema
 	 */
-	public PersistentKafkaSource(String topicId, String host, int port, long initialOffset, DeserializationSchema<OUT> deserializationSchema) {
+	public PersistentKafkaSource(String topicId, String host, int port, long initialOffset,
+			DeserializationSchema<OUT> deserializationSchema) {
 		super(topicId, host, port, deserializationSchema);
 		this.initialOffset = initialOffset;
 	}
@@ -48,15 +48,16 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 	@Override
 	public void open(Configuration parameters) {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-		SimpleState<Long> lastKafkaOffSet = (SimpleState<Long>) context.getState("kafka");
+		@SuppressWarnings("unchecked")
+		OperatorState<Long> lastKafkaOffSet = (OperatorState<Long>) context.getState("kafka");
 
-		if (lastKafkaOffSet.getState() == null){
-			kafkaOffSet = new SimpleState<Long>(initialOffset);
+		if (lastKafkaOffSet.getState() == null) {
+			kafkaOffSet = new OperatorState<Long>(initialOffset);
+			context.registerState("kafka", kafkaOffSet);
 		} else {
 			kafkaOffSet = lastKafkaOffSet;
 		}
 
-		checkpointCounter = 0;
 		super.open(parameters);
 	}
 
@@ -78,10 +79,7 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 			gotMessage(msg);
 			OUT out = schema.deserialize(msg.getMessage());
 			collector.collect(out);
-			if (checkpointCounter > NUM_RECORDS_PER_CHECKPOINT){
-				kafkaOffSet = new SimpleState<Long>(msg.getOffset());
-				kafkaOffSet.checkpoint();
-			}
+			kafkaOffSet.update(msg.getOffset());
 		}
 	}
 }
