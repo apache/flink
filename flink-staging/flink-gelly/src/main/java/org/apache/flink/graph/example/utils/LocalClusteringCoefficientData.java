@@ -32,16 +32,14 @@ public class LocalClusteringCoefficientData {
 			"2 1\n" +
 			"1 3\n" +
 			"3 1\n" +
+			"1 4\n" +
+			"4 1\n" +
 			"2 3\n" +
 			"3 2\n" +
+			"2 4\n" +
+			"4 2\n" +
 			"3 4\n" +
-			"4 3\n" +
-			"3 5\n" +
-			"5 3\n" +
-			"4 5\n" +
-			"5 4\n" +
-			"5 1\n" +
-			"1 5\n";
+			"4 3\n";
 
 	public static final DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 

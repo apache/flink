@@ -67,10 +67,9 @@ public class LocalClusteringCoefficientExampleITCase extends MultipleProgramsTes
 		LocalClusteringCoefficientExample.main(new String[] {edgesPath, resultPath});
 
 		expectedResult = "1,0.5\n" +
-				"2,0.0\n" +
+				"2,0.5\n" +
 				"3,0.5\n" +
-				"4,0.0\n" +
-				"5,0.0\n";
+				"4,0.5\n";
 	}
 
 	@Test
@@ -159,16 +158,21 @@ public class LocalClusteringCoefficientExampleITCase extends MultipleProgramsTes
 
 		for (int i = 1; i <= 9; ++i) {
 			String vertex = Integer.toString(i);
-			expectedResult += vertex + "," + Double.toString(2.0/3.0) + "\n";
+			expectedResult += vertex + "," + Double.toString(1.0/3.0) + "\n";
 
 			// Connect to neighbors
 			if (i > 1) {
 				String leftNeighbor = Integer.toString(i - 1);
 				edges += vertex + " " + leftNeighbor + "\n";
+			} else {
+				edges += vertex + " 9\n";
 			}
+
 			if (i < 9) {
 				String rightNeighbor = Integer.toString(i + 1);
 				edges += vertex + " " + rightNeighbor + "\n";
+			} else {
+				edges += vertex + " 1\n";
 			}
 
 			// Connect to the central node
@@ -178,7 +182,7 @@ public class LocalClusteringCoefficientExampleITCase extends MultipleProgramsTes
 		}
 
 		// Expected result for the central node
-		expectedResult += "10,0.25\n";
+		expectedResult += "10,0.125\n";
 
 		String edgesPath = createTempFile(edges);
 
