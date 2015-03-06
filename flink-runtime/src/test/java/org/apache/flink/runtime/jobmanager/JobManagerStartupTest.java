@@ -20,12 +20,18 @@ package org.apache.flink.runtime.jobmanager;
 
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+
+import com.google.common.io.Files;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.net.NetUtils;
+
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -33,6 +39,26 @@ import org.junit.Test;
  * situations, when the JobManager cannot be started.
  */
 public class JobManagerStartupTest {
+
+	private final static String DOES_NOT_EXISTS_NO_SIR = "does-not-exist-no-sir";
+
+	private File blobStorageDirectory;
+
+	@Before
+	public void before() {
+		// Prepare test directory
+		blobStorageDirectory = Files.createTempDir();
+
+		assertTrue(blobStorageDirectory.setExecutable(true, false));
+		assertTrue(blobStorageDirectory.setReadable(true, false));
+		assertTrue(blobStorageDirectory.setWritable(false, false));
+	}
+
+	@After
+	public void after() {
+		// Cleanup test directory
+		assertTrue(blobStorageDirectory.delete());
+	}
 
 	/**
 	 * Verifies that the JobManager fails fast (and with expressive error message)
@@ -87,7 +113,8 @@ public class JobManagerStartupTest {
 			return;
 		}
 		Configuration failConfig = new Configuration();
-		failConfig.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, "/does-not-exist-no-sir");
+		String nonExistDirectory = new File(blobStorageDirectory, DOES_NOT_EXISTS_NO_SIR).getAbsolutePath();
+		failConfig.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, nonExistDirectory);
 
 		try {
 			JobManager.runJobManager(failConfig, ExecutionMode.CLUSTER(), "localhost", portNum);
