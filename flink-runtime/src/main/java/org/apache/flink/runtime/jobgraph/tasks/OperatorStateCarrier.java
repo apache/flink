@@ -20,8 +20,10 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.runtime.state.OperatorState;
 
+import java.util.Map;
+
 public interface OperatorStateCarrier {
 	
-	public void injectState(OperatorState state);
+	public void injectStates(Map<String, OperatorState<?>> state);
 	
 }

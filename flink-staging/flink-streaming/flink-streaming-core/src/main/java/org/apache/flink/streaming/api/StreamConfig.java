@@ -67,6 +67,7 @@ public class StreamConfig implements Serializable {
 	// DEFAULT VALUES
 
 	private static final long DEFAULT_TIMEOUT = 100;
+	public static final String STATE_MONITORING = "STATE_MONITORING";
 
 	// CONFIG METHODS
 
@@ -300,6 +301,18 @@ public class StreamConfig implements Serializable {
 		config.setBytes(EDGES_IN_ORDER, SerializationUtils.serialize((Serializable) outEdgeList));
 	}
 
+
+	public void setStateMonitoring(boolean stateMonitoring) {
+		
+		config.setBoolean(STATE_MONITORING, stateMonitoring);
+		
+	}
+	
+	public boolean getStateMonitoring()
+	{
+		return config.getBoolean(STATE_MONITORING, false);
+	}
+
 	@SuppressWarnings("unchecked")
 	public List<Tuple2<Integer, Integer>> getOutEdgesInOrder(ClassLoader cl) {
 		try {
@@ -399,6 +412,7 @@ public class StreamConfig implements Serializable {
 			builder.append("\nInvokable: Missing");
 		}
 		builder.append("\nBuffer timeout: " + getBufferTimeout());
+		builder.append("\nState Monitoring: " + getStateMonitoring());
 		if (isChainStart() && getChainedOutputs(cl).size() > 0) {
 			builder.append("\n\n\n---------------------\nChained task configs\n---------------------\n");
 			builder.append(getTransitiveChainedTaskConfigs(cl)).toString();

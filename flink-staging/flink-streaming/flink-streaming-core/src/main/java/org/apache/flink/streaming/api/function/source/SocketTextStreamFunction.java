@@ -59,7 +59,6 @@ public class SocketTextStreamFunction extends RichSourceFunction<String> {
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		socket = new Socket();
-
 		socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
 	}
 

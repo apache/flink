@@ -19,11 +19,9 @@ package org.apache.flink.streaming.io;
 
 import java.io.IOException;
 import java.util.LinkedList;
-import java.util.Queue;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.event.task.StreamingSuperstep;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
@@ -33,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.streaming.api.streamvertex.StreamingSuperstep;
 
 /**
  * A CoRecordReader wraps {@link MutableRecordReader}s of two different input
@@ -65,8 +64,6 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	private CoBarrierBuffer barrierBuffer1;
 	private CoBarrierBuffer barrierBuffer2;
-
-	private Queue<Integer> unprocessedIndices = new LinkedList<Integer>();
 
 	public CoRecordReader(InputGate inputgate1, InputGate inputgate2) {
 		super(new UnionInputGate(inputgate1, inputgate2));
@@ -109,14 +106,14 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 	@SuppressWarnings("unchecked")
 	protected int getNextRecord(T1 target1, T2 target2) throws IOException, InterruptedException {
 
-		requestPartitionsOnce();	
+		requestPartitionsOnce();
 
 		while (true) {
 			if (currentReaderIndex == 0) {
 				if ((bufferReader1.isFinished() && bufferReader2.isFinished())) {
 					return 0;
 				}
-				
+
 				currentReaderIndex = getNextReaderIndexBlocking();
 
 			}
@@ -234,10 +231,8 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 	@Override
 	public void onEvent(InputGate bufferReader) {
 		if (bufferReader == bufferReader1) {
-			System.out.println("Added 1");
 			availableRecordReaders.add(1);
 		} else if (bufferReader == bufferReader2) {
-			System.out.println("Added 2");
 			availableRecordReaders.add(2);
 		}
 	}

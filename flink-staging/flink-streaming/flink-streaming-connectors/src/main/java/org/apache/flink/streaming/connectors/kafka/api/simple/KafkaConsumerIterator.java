@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.api.simple;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,13 +37,11 @@ import kafka.javaapi.TopicMetadata;
 import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.message.MessageAndOffset;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Iterates the records received from a partition of a Kafka topic as byte arrays.
  */
-public class KafkaConsumerIterator {
+public class KafkaConsumerIterator implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 

@@ -75,6 +75,14 @@ public class JobGraph implements Serializable {
 
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 	
+	public enum JobType {STREAMING, BATCH}
+	
+	private JobType jobType = JobType.BATCH;
+	
+	private boolean monitoringEnabled = false;
+	
+	private long monitorInterval = 10000;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -251,6 +259,31 @@ public class JobGraph implements Serializable {
 	 */
 	public int getNumberOfVertices() {
 		return this.taskVertices.size();
+	}
+
+
+	public void setJobType(JobType jobType) {
+		this.jobType = jobType;
+	}
+
+	public JobType getJobType() {
+		return jobType;
+	}
+
+	public void setMonitoringEnabled(boolean monitoringEnabled) {
+		this.monitoringEnabled = monitoringEnabled;
+	}
+
+	public boolean isMonitoringEnabled() {
+		return monitoringEnabled;
+	}
+
+	public void setMonitorInterval(long monitorInterval) {
+		this.monitorInterval = monitorInterval;
+	}
+
+	public long getMonitorInterval() {
+		return monitorInterval;
 	}
 
 	/**

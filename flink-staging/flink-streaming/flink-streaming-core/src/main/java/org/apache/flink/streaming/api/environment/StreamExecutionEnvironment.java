@@ -151,6 +151,19 @@ public abstract class StreamExecutionEnvironment {
 		this.bufferTimeout = timeoutMillis;
 		return this;
 	}
+	
+	public StreamExecutionEnvironment enableMonitoring(long interval)
+	{
+		streamGraph.setMonitoringEnabled(true);
+		streamGraph.setMonitoringInterval(interval);
+		return this;
+	}
+	
+	public StreamExecutionEnvironment enableMonitoring()
+	{
+		streamGraph.setMonitoringEnabled(true);
+		return this;
+	}
 
 	/**
 	 * Sets the maximum time frequency (milliseconds) for the flushing of the

@@ -71,7 +71,14 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 		if (state == null) {
 			throw new RuntimeException("Cannot register null state");
 		} else {
-			operatorStates.put(name, state);
+			if(operatorStates.containsKey(name))
+			{
+				throw new RuntimeException("State is already registered");
+			}
+			else
+			{
+				operatorStates.put(name, state);
+			}
 		}
 	}
 

@@ -56,6 +56,7 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeoutException;
@@ -123,7 +124,7 @@ public class Execution implements Serializable {
 	
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 	
-	private OperatorState operatorState;
+	private Map<String,OperatorState<?>> operatorStates;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -857,11 +858,11 @@ public class Execution implements Serializable {
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
 	}
 
-	public void setOperatorState(OperatorState operatorState) {
-		this.operatorState = operatorState;
+	public void setOperatorStates(Map<String,OperatorState<?>> operatorStates) {
+		this.operatorStates = operatorStates;
 	}
 
-	public OperatorState getOperatorState() {
-		return operatorState;
+	public Map<String,OperatorState<?>> getOperatorStates() {
+		return operatorStates;
 	}
 }

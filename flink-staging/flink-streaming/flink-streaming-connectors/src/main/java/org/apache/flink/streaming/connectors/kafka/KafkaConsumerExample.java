@@ -17,14 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSource;
-<<<<<<< HEAD
-import org.apache.flink.streaming.connectors.kafka.api.simple.PersistentKafkaSource;
-=======
->>>>>>> a62796a... s
 import org.apache.flink.streaming.connectors.util.JavaDefaultStringSchema;
 
 public class KafkaConsumerExample {

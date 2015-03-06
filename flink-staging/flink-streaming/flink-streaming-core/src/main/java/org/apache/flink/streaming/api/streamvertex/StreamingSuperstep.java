@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.event.task;
+package org.apache.flink.streaming.api.streamvertex;
 
 import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.event.task.TaskEvent;
 
 public class StreamingSuperstep extends TaskEvent {
 
