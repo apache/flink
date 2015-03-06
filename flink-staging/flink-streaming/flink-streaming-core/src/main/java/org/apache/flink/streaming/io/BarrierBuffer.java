@@ -23,10 +23,10 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
 
-import org.apache.flink.runtime.event.task.StreamingSuperstep;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.streaming.api.streamvertex.StreamingSuperstep;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +53,12 @@ public class BarrierBuffer {
 		this.reader = reader;
 	}
 
+	/**
+	 * Starts the next superstep
+	 * 
+	 * @param superstep
+	 *            The next superstep
+	 */
 	protected void startSuperstep(StreamingSuperstep superstep) {
 		this.currentSuperstep = superstep;
 		this.superstepStarted = true;
@@ -61,30 +67,53 @@ public class BarrierBuffer {
 		}
 	}
 
+	/**
+	 * Buffers a bufferOrEvent received from a blocked channel
+	 * 
+	 * @param bufferOrEvent
+	 *            bufferOrEvent to buffer
+	 */
 	protected void store(BufferOrEvent bufferOrEvent) {
 		nonprocessed.add(bufferOrEvent);
 	}
 
+	/**
+	 * Get then next non-blocked non-processed BufferOrEvent. Returns null if
+	 * not available.
+	 */
 	protected BufferOrEvent getNonProcessed() {
-		BufferOrEvent nextNonprocessed = null;
-		while (nextNonprocessed == null && !nonprocessed.isEmpty()) {
-			nextNonprocessed = nonprocessed.poll();
+		BufferOrEvent nextNonprocessed;
+		while ((nextNonprocessed = nonprocessed.poll()) != null) {
 			if (isBlocked(nextNonprocessed.getChannelIndex())) {
 				blockedNonprocessed.add(nextNonprocessed);
-				nextNonprocessed = null;
+			} else {
+				return nextNonprocessed;
 			}
 		}
-		return nextNonprocessed;
+		return null;
 	}
 
+	/**
+	 * Checks whether a given channel index is blocked for this inputgate
+	 * 
+	 * @param channelIndex
+	 *            The channel index to check
+	 */
 	protected boolean isBlocked(int channelIndex) {
 		return blockedChannels.contains(channelIndex);
 	}
 
+	/**
+	 * Checks whether all channels are blocked meaning that barriers are
+	 * received from all channels
+	 */
 	protected boolean isAllBlocked() {
 		return blockedChannels.size() == totalNumberOfInputChannels;
 	}
 
+	/**
+	 * Returns the next non-blocked BufferOrEvent. This is a blocking operator.
+	 */
 	public BufferOrEvent getNextNonBlocked() throws IOException, InterruptedException {
 		// If there are non-processed buffers from the previously blocked ones,
 		// we get the next
@@ -99,7 +128,7 @@ public class BarrierBuffer {
 				bufferOrEvent = inputGate.getNextBufferOrEvent();
 				if (isBlocked(bufferOrEvent.getChannelIndex())) {
 					// If channel blocked we just store it
-					store(bufferOrEvent);
+					blockedNonprocessed.add(bufferOrEvent);
 				} else {
 					return bufferOrEvent;
 				}
@@ -107,6 +136,12 @@ public class BarrierBuffer {
 		}
 	}
 
+	/**
+	 * Blocks the given channel index, from which a barrier has been received.
+	 * 
+	 * @param channelIndex
+	 *            The channel index to block.
+	 */
 	protected void blockChannel(int channelIndex) {
 		if (!blockedChannels.contains(channelIndex)) {
 			blockedChannels.add(channelIndex);
@@ -122,16 +157,27 @@ public class BarrierBuffer {
 		}
 	}
 
+	/**
+	 * Releases the blocks on all channels.
+	 */
 	protected void releaseBlocks() {
-		nonprocessed.addAll(blockedNonprocessed);
+		if (!nonprocessed.isEmpty()) {
+			// sanity check
+			throw new RuntimeException("Error in barrier buffer logic");
+		}
+		nonprocessed = blockedNonprocessed;
+		blockedNonprocessed = new LinkedList<BufferOrEvent>();
 		blockedChannels.clear();
-		blockedNonprocessed.clear();
 		superstepStarted = false;
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("All barriers received, blocks released");
 		}
 	}
 
+	/**
+	 * Method that is executed once the barrier has been received from all
+	 * channels.
+	 */
 	protected void actOnAllBlocked() {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Publishing barrier to the vertex");
@@ -140,10 +186,12 @@ public class BarrierBuffer {
 		releaseBlocks();
 	}
 
-	public String toString() {
-		return blockedChannels.toString();
-	}
-
+	/**
+	 * Processes a streaming superstep event
+	 * 
+	 * @param bufferOrEvent
+	 *            The BufferOrEvent containing the event
+	 */
 	public void processSuperstep(BufferOrEvent bufferOrEvent) {
 		StreamingSuperstep superstep = (StreamingSuperstep) bufferOrEvent.getEvent();
 		if (!superstepStarted) {

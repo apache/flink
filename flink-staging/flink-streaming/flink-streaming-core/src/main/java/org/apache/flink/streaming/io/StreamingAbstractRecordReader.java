@@ -22,7 +22,6 @@ import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.StreamingSuperstep;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.serialization.SpillingAdaptiveSpanningRecordDeserializer;
+import org.apache.flink.streaming.api.streamvertex.StreamingSuperstep;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable> extends AbstractReader implements
 		ReaderBase {
 
+	@SuppressWarnings("unused")
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingAbstractRecordReader.class);
 
 	private final RecordDeserializer<T>[] recordDeserializers;
@@ -56,6 +57,7 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 
 	private final BarrierBuffer barrierBuffer;
 
+	@SuppressWarnings("unchecked")
 	protected StreamingAbstractRecordReader(InputGate inputGate) {
 		super(inputGate);
 		barrierBuffer = new BarrierBuffer(inputGate, this);

@@ -104,7 +104,6 @@ class JobManager(val configuration: Configuration,
   /** List of current jobs running jobs */
   val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
   
-  val barrierMonitors = scala.collection.mutable.HashMap[JobID, ActorRef]()
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
@@ -284,78 +283,43 @@ class JobManager(val configuration: Configuration,
           if(newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
 
-          // is the client waiting for the job result?
+            // is the client waiting for the job result?
             newJobStatus match {
               case JobStatus.FINISHED =>
                 val accumulatorResults = accumulatorManager.getJobAccumulatorResults(jobID)
-                jobInfo.client ! JobResultSuccess(jobID, jobInfo.duration, accumulatorResults)
+                jobInfo.client ! JobResultSuccess(jobID,jobInfo.duration,accumulatorResults)
               case JobStatus.CANCELED =>
                 jobInfo.client ! Failure(new JobCancellationException(jobID,
-                  "Job was cancelled.", error))
+                  "Job was cancelled.",error))
               case JobStatus.FAILED =>
                 jobInfo.client ! Failure(new JobExecutionException(jobID,
-                  "Job execution failed.", error))
+                  "Job execution failed.",error))
               case x =>
-                val exception = new JobExecutionException(jobID, s"$x is not a " +
-                  "terminal state.")
+                val exception = new JobExecutionException(jobID,s"$x is not a " +
+                        "terminal state.")
                 jobInfo.client ! Failure(exception)
                 throw exception
             }
+
+            removeJob(jobID)
             
-            barrierMonitors.get(jobID) match {
-                         case Some(monitor) =>
-                           newJobStatus match{
-                             case JobStatus.FINISHED | JobStatus.CANCELED =>
-                               monitor ! PoisonPill
-                               barrierMonitors.remove(jobID)
-                             case JobStatus.FAILING => 
-                               monitor ! JobStateRequest
-                           }
-                          case None =>
-                            removeJob(jobID)
-                        }
-          }
-          else {
-            newJobStatus match {
-              case JobStatus.RUNNING => currentJobs.get(jobID) match {
-              case Some((executionGraph, _)) => 
-              //FIXME this is just a fast n dirty check for determining streaming jobs 
-              if (executionGraph.getScheduleMode == ScheduleMode.ALL) {
-                barrierMonitors.get(jobID) match {
-                  case None => 
-                    barrierMonitors += jobID -> StreamStateMonitor.props(context, executionGraph)
-                }
-              }
-              case None =>
-                log.error("Cannot create state monitor for job ID {}.", jobID)
-                new IllegalStateException("Cannot find execution graph for job ID " + jobID)
-              }
-            }
           }
         case None =>
           removeJob(jobID)
-      }
+          }
 
     case msg: BarrierAck =>
-      barrierMonitors.get(msg.jobID) match {
-        case Some(monitor) => monitor ! msg
+      currentJobs.get(msg.jobID) match {
+        case Some(jobExecution) =>
+          jobExecution._1.getStateMonitorActor forward  msg
         case None =>
       }
     case msg: StateBarrierAck =>
-      barrierMonitors.get(msg.jobID) match {
-        case Some(monitor) => monitor ! msg
-        case None =>
-      }
-
-    case msg: JobStateResponse =>
-      //inject initial states and restart the job
       currentJobs.get(msg.jobID) match {
         case Some(jobExecution) =>
-          import scala.collection.JavaConverters._
-          jobExecution._1.loadOperatorStates(msg.opStates.asJava)
-          jobExecution._1.restart()
+          jobExecution._1.getStateMonitorActor forward  msg
         case None =>
-      } 
+      }
       
     case ScheduleOrUpdateConsumers(jobId, executionId, partitionIndex) =>
       currentJobs.get(jobId) match {
@@ -522,6 +486,9 @@ class JobManager(val configuration: Configuration,
         executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode)
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
+        
+        executionGraph.setMonitoringEnabled(jobGraph.isMonitoringEnabled)
+        executionGraph.setMonitoringInterval(jobGraph.getMonitorInterval)
 
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits
@@ -564,6 +531,9 @@ class JobManager(val configuration: Configuration,
           log.debug(s"Successfully created execution graph from job graph ${jobId} (${jobName}).")
         }
 
+        // give an actorContext
+        executionGraph.setParentContext(context);
+        
         // get notified about job status changes
         executionGraph.registerJobStatusListener(self)
 

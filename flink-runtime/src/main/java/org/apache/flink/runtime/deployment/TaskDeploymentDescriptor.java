@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.OperatorState;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -78,7 +79,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** The list of JAR files required to run this task. */
 	private final List<BlobKey> requiredJarFiles;
 	
-	private OperatorState operatorState;
+	private Map<String, OperatorState<?>> operatorStates;
 
 	/**
 	 * Constructs a task deployment descriptor.
@@ -128,13 +129,13 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			Configuration taskConfiguration, String invokableClassName,
 			List<PartitionDeploymentDescriptor> producedPartitions,
 			List<PartitionConsumerDeploymentDescriptor> consumedPartitions,
-			List<BlobKey> requiredJarFiles, int targetSlotNumber, OperatorState operatorState) {
+			List<BlobKey> requiredJarFiles, int targetSlotNumber, Map<String,OperatorState<?>> operatorStates) {
 
 		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
 				consumedPartitions, requiredJarFiles, targetSlotNumber);
 		
-		setOperatorState(operatorState);
+		setOperatorStates(operatorStates);
 	}
 
 	/**
@@ -243,11 +244,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
 				strProducedPartitions, strConsumedPartitions);
 	}
 
-	public void setOperatorState(OperatorState operatorState) {
-		this.operatorState = operatorState;
+	public void setOperatorStates(Map<String,OperatorState<?>> operatorStates) {
+		this.operatorStates = operatorStates;
 	}
 
-	public OperatorState getOperatorState() {
-		return operatorState;
+	public Map<String, OperatorState<?>> getOperatorStates() {
+		return operatorStates;
 	}
 }

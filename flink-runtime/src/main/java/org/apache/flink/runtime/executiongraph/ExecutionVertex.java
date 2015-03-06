@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.google.common.base.Preconditions.checkElementIndex;
@@ -90,7 +91,7 @@ public class ExecutionVertex implements Serializable {
 	
 	private volatile boolean scheduleLocalOnly;
 	
-	private OperatorState operatorState;
+	private Map<String,OperatorState<?>> operatorState;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -198,11 +199,11 @@ public class ExecutionVertex implements Serializable {
 		return currentExecution.getAssignedResourceLocation();
 	}
 
-	public void setOperatorState(OperatorState operatorState) {
+	public void setOperatorState(Map<String,OperatorState<?>> operatorState) {
 		this.operatorState = operatorState;
 	}
 
-	public OperatorState getOperatorState() {
+	public Map<String,OperatorState<?>> getOperatorState() {
 		return operatorState;
 	}
 	
@@ -393,7 +394,7 @@ public class ExecutionVertex implements Serializable {
 				
 				if(operatorState!=null)
 				{
-					execution.setOperatorState(operatorState);
+					execution.setOperatorStates(operatorState);
 				}
 				
 			}

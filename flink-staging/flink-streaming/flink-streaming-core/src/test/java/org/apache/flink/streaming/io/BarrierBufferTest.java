@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Queue;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.event.task.StreamingSuperstep;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.streaming.api.streamvertex.StreamingSuperstep;
 import org.junit.Test;
 
 public class BarrierBufferTest {

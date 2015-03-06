@@ -92,6 +92,10 @@ public class StreamGraph extends StreamingPlan {
 	private Set<Integer> sources;
 
 	private ExecutionConfig executionConfig;
+	
+	private boolean monitoringEnabled;
+	
+	private long monitoringInterval = 10000;
 
 	public StreamGraph(ExecutionConfig executionConfig) {
 
@@ -604,6 +608,22 @@ public class StreamGraph extends StreamingPlan {
 
 	public String getOperatorName(Integer vertexID) {
 		return operatorNames.get(vertexID);
+	}
+
+	public void setMonitoringEnabled(boolean monitoringEnabled) {
+		this.monitoringEnabled = monitoringEnabled;
+	}
+
+	public boolean isMonitoringEnabled() {
+		return monitoringEnabled;
+	}
+
+	public void setMonitoringInterval(long monitoringInterval) {
+		this.monitoringInterval = monitoringInterval;
+	}
+
+	public long getMonitoringInterval() {
+		return monitoringInterval;
 	}
 
 	@Override

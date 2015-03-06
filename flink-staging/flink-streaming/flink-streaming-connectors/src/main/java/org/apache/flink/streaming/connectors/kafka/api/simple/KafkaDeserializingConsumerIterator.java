@@ -21,6 +21,7 @@ import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 
 public class KafkaDeserializingConsumerIterator<IN> extends KafkaConsumerIterator {
 
+	private static final long serialVersionUID = 1L;
 	private DeserializationSchema<IN> deserializationSchema;
 
 	public KafkaDeserializingConsumerIterator(String host, int port, String topic, int partition, long waitOnEmptyFetch,

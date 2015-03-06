@@ -352,7 +352,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
       }
 
     case BarrierReq(attemptID, checkpointID) =>
-      log.debug("[FT-TaskManager] Barrier request received for attempt {}", attemptID)
+      log.debug("[FT-TaskManager] Barrier {} request received for attempt {}", 
+          checkpointID, attemptID)
       runningTasks.get(attemptID) match {
         case Some(i) =>
           if (i.getExecutionState == ExecutionState.RUNNING) {
@@ -416,15 +417,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
         tdd.getTaskName, self)
-
-      //inject operator state
-      if(tdd.getOperatorState != null)
-      {
-        val vertex = task.getEnvironment.getInvokable match {
-          case opStateCarrier: OperatorStateCarrier =>
-            opStateCarrier.injectState(tdd.getOperatorState)
-        }
-      }
       
       runningTasks.put(executionID, task) match {
         case Some(_) => throw new RuntimeException(
@@ -446,6 +438,15 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       task.setEnvironment(env)
 
+      //inject operator state
+      if(tdd.getOperatorStates != null)
+      {
+        val vertex = task.getEnvironment.getInvokable match {
+          case opStateCarrier: OperatorStateCarrier =>
+            opStateCarrier.injectStates(tdd.getOperatorStates)
+        }
+      }
+      
       // register the task with the network stack and profiles
       networkEnvironment match {
         case Some(ne) =>
