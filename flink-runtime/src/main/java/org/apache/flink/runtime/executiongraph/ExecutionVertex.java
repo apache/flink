@@ -328,11 +328,9 @@ public class ExecutionVertex implements Serializable {
 	 */
 	public Iterable<Instance> getPreferredLocations() {
 		// if we have hard location constraints, use those
-		{
-			List<Instance> constraintInstances = this.locationConstraintInstances;
-			if (constraintInstances != null && !constraintInstances.isEmpty()) {
-				return constraintInstances;
-			}
+		List<Instance> constraintInstances = this.locationConstraintInstances;
+		if (constraintInstances != null && !constraintInstances.isEmpty()) {
+			return constraintInstances;
 		}
 		
 		// otherwise, base the preferred locations on the input connections

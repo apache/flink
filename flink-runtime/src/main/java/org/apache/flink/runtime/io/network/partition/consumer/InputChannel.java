@@ -46,7 +46,8 @@ public abstract class InputChannel {
 
 	protected final SingleInputGate inputGate;
 
-	protected InputChannel(SingleInputGate inputGate, int channelIndex, ExecutionAttemptID producerExecutionId, IntermediateResultPartitionID partitionId) {
+	protected InputChannel(SingleInputGate inputGate, int channelIndex, ExecutionAttemptID producerExecutionId,
+			IntermediateResultPartitionID partitionId) {
 		this.inputGate = inputGate;
 		this.channelIndex = channelIndex;
 		this.producerExecutionId = producerExecutionId;

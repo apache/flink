@@ -215,7 +215,7 @@ public class Execution implements Serializable {
 	 */
 	public boolean scheduleForExecution(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
 		if (scheduler == null) {
-			throw new NullPointerException();
+			throw new IllegalArgumentException("Cannot send null Scheduler when scheduling execution.");
 		}
 
 		final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();

@@ -613,8 +613,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
     }
 
     try {
-      networkEnvironment = Some(new NetworkEnvironment(self, jobManager, timeout,
-        networkConfig))
+      networkEnvironment = Some(new NetworkEnvironment(self, jobManager, timeout, networkConfig))
     } catch {
       case ioe: IOException =>
         log.error(ioe, "Failed to instantiate network environment.")
