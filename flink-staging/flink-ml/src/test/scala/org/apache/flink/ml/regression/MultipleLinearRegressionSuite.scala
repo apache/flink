@@ -30,7 +30,7 @@ class MultipleLinearRegressionSuite extends FlatSpec with ShouldMatchers {
   it should "estimate the correct linear function" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val learner = new MultipleLinearRegression()
+    val learner = MultipleLinearRegression()
 
     import RegressionData._
 
