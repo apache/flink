@@ -32,7 +32,7 @@ class ALSSuite extends FlatSpec with ShouldMatchers {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    val als = new ALS()
+    val als = ALS()
     .setIterations(iterations)
     .setLambda(lambda)
     .setBlocks(4)

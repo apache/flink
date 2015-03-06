@@ -29,45 +29,61 @@ import org.apache.flink.api.scala._
 
 import org.jblas.{SimpleBlas, DoubleMatrix}
 
-/**
- * Multiple linear regression using the ordinary least squares (OLS) estimator.
- *
- * The linear regression finds a solution to the problem
- *
- *    y = w0 + w1*x1 + w2*x2 ... + wn*xn = w0 + w^T*x
- *
- * such that the sum of squared residuals is minimized
- *
- *    min_{w, w0} = \sum (y - w^T*x - w0)^2
- *
- * The minimization problem is solved by (stochastic) gradient descent. For each labeled vector
- * (x,y), the gradient is calculated. The weighted average of all gradients is subtracted from
- * the current value of b which gives the new value of b. The weight is defined as
- * Stepsize/math.sqrt(iteration).
- *
- * The optimization runs at most Iterations or, if a ConvergenceThreshold has been set, until the
- * convergence criterion has been met. As convergence criterion the relative change of the sum of 
- * squared residuals is used:
- * 
- * Convergence if: (S_{k-1} - S_k)/S_{k-1} < ConvergenceThreshold
- * 
- * with S_k being the sum of squared residuals in iteration k.
- *
- * At the moment, the whole partition is used for SGD, making it effectively a batch gradient
- * descent. Once a sampling operator has been introduced, the algorithm can be optimized.
- * 
- * Parameters:
- * 
- *  - Iterations: Maximum number of iterations
- *
- *  - Stepsize: Initial stepsize for the gradient descent method. This value decides how far the
- *      gradient descent method goes in the direction of the gradient. Tuning this parameter can
- *      lead to better practical results.
- *
- *  - ConvergenceThreshold: Threshold for relative change of sum of squared residuals until
- *      convergence
- *  
- */
+/** Multiple linear regression using the ordinary least squares (OLS) estimator.
+  *
+  * The linear regression finds a solution to the problem
+  *
+  * `y = w_0 + w_1*x_1 + w_2*x_2 ... + w_n*x_n = w_0 + w^T*x`
+  *
+  * such that the sum of squared residuals is minimized
+  *
+  * `min_{w, w_0} = \sum (y - w^T*x - w_0)^2`
+  *
+  * The minimization problem is solved by (stochastic) gradient descent. For each labeled vector
+  * `(x,y)`, the gradient is calculated. The weighted average of all gradients is subtracted from
+  * the current value `w` which gives the new value of `w_new`. The weight is defined as
+  * `stepsize/math.sqrt(iteration)`.
+  *
+  * The optimization runs at most a maximum number of iteratinos or, if a convergence threshold has
+  * been set, until the convergence criterion has been met. As convergence criterion the relative
+  * change of the sum of squared residuals is used:
+  *
+  * `(S_{k-1} - S_k)/S_{k-1} < \rho`
+  *
+  * with S_k being the sum of squared residuals in iteration k and `\rho` being the convergence
+  * threshold.
+  *
+  * At the moment, the whole partition is used for SGD, making it effectively a batch gradient
+  * descent. Once a sampling operator has been introduced, the algorithm can be optimized.
+  *
+  * @example
+  *          {{{
+  *             val mlr = MultipleLinearRegression()
+  *               .setIterations(10)
+  *               .setStepsize(0.5)
+  *               .setConvergenceThreshold(0.001)
+  *
+  *             val trainingDS: DataSet[LabeledVector] = ...
+  *             val data: DataSet[Vector] = ...
+  *
+  *             val model = mlr.fit(trainingDS)
+  *
+  *             val predictions = model.transform(data)
+  *          }}}
+  *
+  * =Parameters=
+  *
+  *  - [[MultipleLinearRegression.Iterations]]: Maximum number of iterations.
+  *
+  *  - [[MultipleLinearRegression.Stepsize]]:
+  *  Initial stepsize for the gradient descent method. This value decides how far the gradient
+  *  descent method goes in the direction of the gradient. Tuning this parameter can lead to better
+  *  practical results.
+  *
+  *  - [[MultipleLinearRegression.ConvergenceThreshold]]:
+  *  Threshold for relative change of sum of squared residuals until convergence.
+  *
+  */
 class MultipleLinearRegression extends Learner[LabeledVector, MultipleLinearRegressionModel]
 with Serializable {
   import MultipleLinearRegression._
@@ -192,14 +208,13 @@ with Serializable {
     new MultipleLinearRegressionModel(resultingWeightVector)
   }
 
-  /**
-   * Creates a DataSet with one zero vector. The zero vector has dimension d, which is given
-   * by the dimensionDS.
-   *
-   * @param dimensionDS DataSet with one element d, denoting the dimension of the returned zero
-   *                    vector
-   * @return DataSet of a zero vector of dimension d
-   */
+  /** Creates a DataSet with one zero vector. The zero vector has dimension d, which is given
+    * by the dimensionDS.
+    *
+    * @param dimensionDS DataSet with one element d, denoting the dimension of the returned zero
+    *                    vector
+    * @return DataSet of a zero vector of dimension d
+    */
   private def createInitialWeightVector(dimensionDS: DataSet[Int]):
   DataSet[(DoubleMatrix, Double)] = {
     dimensionDS.map {
@@ -225,19 +240,24 @@ object MultipleLinearRegression {
   case object ConvergenceThreshold extends Parameter[Double] {
     val defaultValue = None
   }
+
+  // ====================== Facotry methods ==========================
+
+  def apply(): MultipleLinearRegression = {
+    new MultipleLinearRegression()
+  }
 }
 
 //--------------------------------------------------------------------------------------------------
 //  Flink function definitions
 //--------------------------------------------------------------------------------------------------
 
-/**
- * Calculates for a labeled vector and the current weight vector its squared residual
- *
- *    (y - (w^Tx + w0))^2
- *
- * The weight vector is received as a broadcast variable.
- */
+/** Calculates for a labeled vector and the current weight vector its squared residual:
+  *
+  * `(y - (w^Tx + w_0))^2`
+  *
+  * The weight vector is received as a broadcast variable.
+  */
 private class SquaredResiduals extends RichMapFunction[LabeledVector, Double] {
   import MultipleLinearRegression.WEIGHTVECTOR_BROADCAST
 
@@ -265,15 +285,14 @@ private class SquaredResiduals extends RichMapFunction[LabeledVector, Double] {
   }
 }
 
-/**
- * Calculates for a labeled vector and the current weight vector the gradient minimizing the
- * OLS equation. The gradient is given by: 
- * 
- *    dw = 2*(w^T*x + w0 - y)*x
- *    dw0 = 2*(w^T*x + w0 - y)
- * 
- * The weight vector is received as a broadcast variable.
- */
+/** Calculates for a labeled vector and the current weight vector the gradient minimizing the
+  * OLS equation. The gradient is given by:
+  *
+  * `dw = 2*(w^T*x + w_0 - y)*x`
+  * `dw_0 = 2*(w^T*x + w_0 - y)`
+  *
+  * The weight vector is received as a broadcast variable.
+  */
 private class LinearRegressionGradientDescent extends
 RichMapFunction[LabeledVector, (DoubleMatrix, Double, Int)] {
 
@@ -306,13 +325,12 @@ RichMapFunction[LabeledVector, (DoubleMatrix, Double, Int)] {
   }
 }
 
-/**
- * Calculates the new weight vector based on the partial gradients. In order to do that,
- * all partial gradients are averaged and weighted by the current stepsize. This update value is
- * added to the current weight vector.
- * 
- * @param stepsize Initial value of the step size used to update the weight vector
- */
+/** Calculates the new weight vector based on the partial gradients. In order to do that,
+  * all partial gradients are averaged and weighted by the current stepsize. This update value is
+  * added to the current weight vector.
+  *
+  * @param stepsize Initial value of the step size used to update the weight vector
+  */
 private class LinearRegressionWeightsUpdate(val stepsize: Double) extends
 RichMapFunction[(DoubleMatrix, Double, Int), (DoubleMatrix, Double)] {
 
@@ -355,16 +373,15 @@ RichMapFunction[(DoubleMatrix, Double, Int), (DoubleMatrix, Double)] {
 //  Model definition
 //--------------------------------------------------------------------------------------------------
 
-/**
- * Multiple linear regression model returned by [[MultipleLinearRegression]]. The model stores the
- * calculated weight vector and applies the linear model to given vectors v:
- *
- *    \hat{y} = w^T*v + w0
- *
- * with \hat{y} being the predicted regression value.
- * 
- * @param weights DataSet containing the calculated weight vector
- */
+/** Multiple linear regression model returned by [[MultipleLinearRegression]]. The model stores the
+  * calculated weight vector and applies the linear model to given vectors v:
+  *
+  * `hat y = w^T*v + w_0`
+  *
+  * with `hat y` being the predicted regression value.
+  *
+  * @param weights DataSet containing the calculated weight vector
+  */
 class MultipleLinearRegressionModel private[regression]
 (val weights: DataSet[(DoubleMatrix, Double)]) extends
 Transformer[ Vector, LabeledVector ] {
