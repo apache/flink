@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import com.google.common.io.Files;
@@ -39,15 +40,15 @@ public class BlobUtilsTest {
 		// Prepare test directory
 		blobUtilsTestDirectory = Files.createTempDir();
 
-		blobUtilsTestDirectory.setExecutable(true, false);
-		blobUtilsTestDirectory.setReadable(true, false);
-		blobUtilsTestDirectory.setWritable(false, false);
+		assertTrue(blobUtilsTestDirectory.setExecutable(true, false));
+		assertTrue(blobUtilsTestDirectory.setReadable(true, false));
+		assertTrue(blobUtilsTestDirectory.setWritable(false, false));
 	}
 
 	@After
 	public void after() {
 		// Cleanup test directory
-		blobUtilsTestDirectory.delete();
+		assertTrue(blobUtilsTestDirectory.delete());
 	}
 
 	@Test(expected = Exception.class)
