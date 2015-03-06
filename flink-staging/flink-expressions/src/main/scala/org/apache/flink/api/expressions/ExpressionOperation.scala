@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.expressions.analysis.{GroupByAnalyzer, SelectionAnalyzer,
 PredicateAnalyzer}
 import org.apache.flink.api.expressions.operations._
+import org.apache.flink.api.expressions.parser.ExpressionParser
 import org.apache.flink.api.expressions.tree.{ResolvedFieldReference,
 UnresolvedFieldReference, Expression}
 
@@ -67,6 +68,21 @@ case class ExpressionOperation[A <: OperationTranslator](
   }
 
   /**
+   * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
+   * can contain complex expressions and aggregations.
+   *
+   * Example:
+   *
+   * {{{
+   *   in.select("key, value.avg + " The average" as average, other.substring(0, 10)")
+   * }}}
+   */
+  def select(fields: String): ExpressionOperation[A] = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    select(fieldExprs: _*)
+  }
+
+  /**
    * Renames the fields of the expression result. Use this to disambiguate fields before
    * joining to operations.
    *
@@ -84,7 +100,21 @@ case class ExpressionOperation[A <: OperationTranslator](
       case false => throw new ExpressionException("Only field expression allowed in as().")
     }
     this.copy(operation = As(operation, fields.toArray map { _.name }))
+  }
 
+  /**
+   * Renames the fields of the expression result. Use this to disambiguate fields before
+   * joining to operations.
+   *
+   * Example:
+   *
+   * {{{
+   *   in.as("a, b")
+   * }}}
+   */
+  def as(fields: String): ExpressionOperation[A] = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    as(fieldExprs: _*)
   }
 
   /**
@@ -110,10 +140,39 @@ case class ExpressionOperation[A <: OperationTranslator](
    * Example:
    *
    * {{{
-   *   in.filter('name === "Fred")
+   *   in.filter("name === 'Fred'")
+   * }}}
+   */
+  def filter(predicate: String): ExpressionOperation[A] = {
+    val predicateExpr = ExpressionParser.parseExpression(predicate)
+    filter(predicateExpr)
+  }
+
+  /**
+   * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
+   * clause.
+   *
+   * Example:
+   *
+   * {{{
+   *   in.filter(name === "Fred")
    * }}}
    */
   def where(predicate: Expression): ExpressionOperation[A] = {
+    filter(predicate)
+  }
+
+  /**
+   * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
+   * clause.
+   *
+   * Example:
+   *
+   * {{{
+   *   in.filter("name === 'Fred'")
+   * }}}
+   */
+  def where(predicate: String): ExpressionOperation[A] = {
     filter(predicate)
   }
 
@@ -144,8 +203,24 @@ case class ExpressionOperation[A <: OperationTranslator](
   }
 
   /**
+   * Groups the elements on some grouping keys. Use this before a selection with aggregations
+   * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+   *
+   * Example:
+   *
+   * {{{
+   *   in.groupBy("key").select("key, value.avg")
+   * }}}
+   */
+  def groupBy(fields: String): ExpressionOperation[A] = {
+    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
+    groupBy(fieldsExpr: _*)
+  }
+
+  /**
    * Joins to expression operations. Similar to an SQL join. The fields of the two joined
-   * operations must not overlap, use [[as]] to rename fields if necessary.
+   * operations must not overlap, use [[as]] to rename fields if necessary. You can use
+   * where and select clauses after a join to further specify the behaviour of the join.
    *
    * Example:
    *

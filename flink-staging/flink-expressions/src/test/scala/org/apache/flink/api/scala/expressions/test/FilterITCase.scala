@@ -16,18 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expressions
+package org.apache.flink.api.scala.expressions.test
 
 import org.apache.flink.api.expressions.tree.Literal
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.expressions._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit._
 
 
 @RunWith(classOf[Parameterized])

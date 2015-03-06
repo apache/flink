@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expressions
+package org.apache.flink.api.scala.expressions.test
 
 import org.apache.flink.api.expressions.ExpressionException
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.expressions._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
@@ -30,7 +31,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
-class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class AsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
   private var expected: String = ""
   private val _tempFolder = new TemporaryFolder()
@@ -48,52 +49,76 @@ class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgra
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
+  @Test
+  def testAs: Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
+      "how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" + "7,4," +
+      "Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5," +
+      "Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" + "15,5," +
+      "Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" + "19," +
+      "6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+  }
+
   @Test(expected = classOf[ExpressionException])
-  def testGroupingOnNonExistentField: Unit = {
+  def testAsWithToFewFields: Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
-      .groupBy('_foo)
-      .select('a.avg)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = ""
+    expected = "no"
   }
 
-  @Test
-  def testGroupedAggregate: Unit = {
-
-    // the grouping key needs to be forwarded to the intermediate DataSet, even
-    // if we don't want the key in the output
+  @Test(expected = classOf[ExpressionException])
+  def testAsWithToManyFields: Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
-      .groupBy('b)
-      .select('b, 'a.sum)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c, 'd)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n"
+    expected = "no"
   }
 
-  @Test
-  def testGroupingKeyForwardIfNotUsed: Unit = {
-
-    // the grouping key needs to be forwarded to the intermediate DataSet, even
-    // if we don't want the key in the output
+  @Test(expected = classOf[ExpressionException])
+  def testAsWithAmbiguousFields: Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
-      .groupBy('b)
-      .select('a.sum)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'b)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n"
+    expected = "no"
   }
 
+  @Test(expected = classOf[ExpressionException])
+  def testAsWithNonFieldReference1: Unit = {
 
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    // as can only have field references
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a + 1, 'b, 'b)
 
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "no"
+  }
 
+  @Test(expected = classOf[ExpressionException])
+  def testAsWithNonFieldReference2: Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    // as can only have field references
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a as 'foo, 'b, 'b)
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "no"
+  }
 }

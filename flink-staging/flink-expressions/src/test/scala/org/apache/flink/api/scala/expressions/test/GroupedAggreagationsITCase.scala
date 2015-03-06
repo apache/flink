@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expressions
+package org.apache.flink.api.scala.expressions.test
 
 import org.apache.flink.api.expressions.ExpressionException
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.expressions._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
@@ -30,7 +31,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
-class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class GroupedAggreagationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
   private var expected: String = ""
   private val _tempFolder = new TemporaryFolder()
@@ -48,24 +49,13 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     compareResultsByLinesInMemory(expected, resultPath)
   }
 
-  @Test
-  def testAggregationTypes: Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).toExpression
-      .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "231,1,21,21,11"
-  }
-
   @Test(expected = classOf[ExpressionException])
-  def testAggregationOnNonExistingField: Unit = {
+  def testGroupingOnNonExistentField: Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).toExpression
-      .select('foo.avg)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      .groupBy('_foo)
+      .select('a.avg)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
@@ -73,54 +63,34 @@ class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
   }
 
   @Test
-  def testWorkingAggregationDataTypes: Unit = {
+  def testGroupedAggregate: Unit = {
+
+    // the grouping key needs to be forwarded to the intermediate DataSet, even
+    // if we don't want the key in the output
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(
-      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
-      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toExpression
-      .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      .groupBy('b)
+      .select('b, 'a.sum)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "1,1,1,1,1.5,1.5,2"
+    expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n"
   }
 
   @Test
-  def testAggregationWithArithmetic: Unit = {
+  def testGroupingKeyForwardIfNotUsed: Unit = {
+
+    // the grouping key needs to be forwarded to the intermediate DataSet, even
+    // if we don't want the key in the output
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toExpression
-      .select(('_1 + 2).avg + 2, '_2.count + " THE COUNT")
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c)
+      .groupBy('b)
+      .select('a.sum)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "5.5,2 THE COUNT"
+    expected = "1\n" + "5\n" + "15\n" + "34\n" + "65\n" + "111\n"
   }
-
-  @Test(expected = classOf[ExpressionException])
-  def testNonWorkingAggregationDataTypes: Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("Hello", 1)).toExpression
-      .select('_1.sum)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = ""
-  }
-
-  @Test(expected = classOf[ExpressionException])
-  def testNoNestedAggregations: Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("Hello", 1)).toExpression
-      .select('_2.sum.sum)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = ""
-  }
-
-
 }

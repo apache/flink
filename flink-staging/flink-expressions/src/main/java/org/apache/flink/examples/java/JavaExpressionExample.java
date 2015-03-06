@@ -19,20 +19,12 @@ package org.apache.flink.examples.java;
 
 
 import org.apache.flink.api.expressions.ExpressionOperation;
-import org.apache.flink.api.expressions.tree.EqualTo$;
-import org.apache.flink.api.expressions.tree.Expression;
-import org.apache.flink.api.expressions.tree.Literal$;
-import org.apache.flink.api.expressions.tree.UnresolvedFieldReference$;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.scala.expressions.JavaBatchTranslator;
+import org.apache.flink.api.java.expressions.ExpressionUtil;
 
 /**
- * This is extremely bare-bones. We need a parser that can parse expressions in a String
- * and create the correct expression AST. Then we can use expressions like this:
- *
- * {@code in.select("'field0.avg, 'field1.count") }
+ * Very simple example that shows how the Java Expression API can be used.
  */
 public class JavaExpressionExample {
 
@@ -60,17 +52,16 @@ public class JavaExpressionExample {
 		DataSet<WC> input = env.fromElements(
 				new WC("Hello", 1),
 				new WC("Ciao", 1),
-				new WC("Hello", 1)
-		);
+				new WC("Hello", 1));
 
-		ExpressionOperation<JavaBatchTranslator> expr = new JavaBatchTranslator().createExpressionOperation(
-				input,
-				new Expression[] { UnresolvedFieldReference$.MODULE$.apply("count"), UnresolvedFieldReference$.MODULE$.apply("word")});
+		ExpressionOperation expr = ExpressionUtil.from(input);
 
-		ExpressionOperation<JavaBatchTranslator> filtered = expr.filter(
-				EqualTo$.MODULE$.apply(UnresolvedFieldReference$.MODULE$.apply("word"), Literal$.MODULE$.apply("Hello")));
+		ExpressionOperation filtered = expr
+				.groupBy("word")
+				.select("word.count as count, word")
+				.filter("count = 2");
 
-		DataSet<WC> result = (DataSet<WC>) filtered.as(TypeExtractor.createTypeInfo(WC.class));
+		DataSet<WC> result = ExpressionUtil.toSet(filtered, WC.class);
 
 		result.print();
 		env.execute();

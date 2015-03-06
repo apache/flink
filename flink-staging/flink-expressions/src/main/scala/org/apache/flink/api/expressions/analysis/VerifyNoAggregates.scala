@@ -15,18 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.expressions.analysis
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.expressions.ExpressionException
+import org.apache.flink.api.expressions.tree.{Aggregation, Expression}
+
+import scala.collection.mutable
 
 /**
- * Analyzer for unary predicates, i.e. filter operations.
+ * Rule that verifies that an expression does not contain aggregate operations. Right now, join
+ * predicates and filter predicates cannot contain aggregates.
  */
-class PredicateAnalyzer(inputFields: Seq[(String, TypeInformation[_])]) extends Analyzer {
-  def rules = Seq(
-    new ResolveFieldReferences(inputFields),
-    new InsertAutoCasts,
-    new TypeCheck,
-    new VerifyNoAggregates,
-    new VerifyBoolean)
+class VerifyNoAggregates extends Rule {
+
+  def apply(expr: Expression) = {
+    val errors = mutable.MutableList[String]()
+
+    val result = expr.transformPre {
+      case agg: Aggregation=> {
+        errors +=
+          s"""Aggregations are not allowed in join/filter predicates."""
+        agg
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new ExpressionException(
+        s"""Invalid expression "$expr": ${errors.mkString(" ")}""")
+    }
+
+    result
+
+  }
 }

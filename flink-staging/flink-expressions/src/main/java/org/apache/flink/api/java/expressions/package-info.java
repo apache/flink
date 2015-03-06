@@ -15,18 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.expressions.analysis
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /**
- * Analyzer for unary predicates, i.e. filter operations.
+ * Package doc wohoooo
  */
-class PredicateAnalyzer(inputFields: Seq[(String, TypeInformation[_])]) extends Analyzer {
-  def rules = Seq(
-    new ResolveFieldReferences(inputFields),
-    new InsertAutoCasts,
-    new TypeCheck,
-    new VerifyNoAggregates,
-    new VerifyBoolean)
-}
+package org.apache.flink.api.java.expressions;

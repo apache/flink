@@ -25,6 +25,9 @@ import scala.language.implicitConversions
 /**
  * These are all the operations that can be used to construct an [[Expression]] AST for expression
  * operations.
+ *
+ * These operations must be kept in sync with the parser in
+ * [[org.apache.flink.api.expressions.parser.ExpressionParser]].
  */
 trait ImplicitExpressionOperations {
   def expr: Expression
@@ -85,6 +88,10 @@ trait ImplicitExpressionConversions {
 
   implicit class SymbolExpression(s: Symbol) extends ImplicitExpressionOperations {
     def expr = UnresolvedFieldReference(s.name)
+  }
+
+  implicit class LiteralLongExpression(l: Long) extends ImplicitExpressionOperations {
+    def expr = Literal(l)
   }
 
   implicit class LiteralIntExpression(i: Int) extends ImplicitExpressionOperations {

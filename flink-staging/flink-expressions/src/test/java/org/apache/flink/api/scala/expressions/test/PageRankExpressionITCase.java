@@ -16,7 +16,7 @@
 * limitations under the License.
 */
 
-package org.apache.flink.api.scala.expressions;
+package org.apache.flink.api.scala.expressions.test;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.scala.PageRankExpression;

@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expressions
+package org.apache.flink.api.scala.expressions.test
 
-import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.expressions.ExpressionException
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.expressions._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
@@ -109,6 +109,19 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'h)
 
     val joinDs = ds1.join(ds2).where('a === 'g).select('c, 'g)
+
+    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = ""
+  }
+
+  @Test(expected = classOf[ExpressionException])
+  def testJoinWithAmbiguousFields: Unit = {
+    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).as('d, 'e, 'f, 'g, 'c)
+
+    val joinDs = ds1.join(ds2).where('a === 'd).select('c, 'g)
 
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()

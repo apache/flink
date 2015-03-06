@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expressions
+package org.apache.flink.api.scala.expressions.test
 
 import org.apache.flink.api.expressions.ExpressionException
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.expressions._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
@@ -121,7 +122,19 @@ class SelectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
   def testAsWithAmbiguousFields: Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'c as 'b)
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b, 'b)
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "no"
+  }
+
+
+  @Test(expected = classOf[ExpressionException])
+  def testOnlyFieldRefInAs: Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env).as('a, 'b as 'c, 'd)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()

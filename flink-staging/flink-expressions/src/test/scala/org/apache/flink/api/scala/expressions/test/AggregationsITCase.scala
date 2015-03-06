@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expressions
+package org.apache.flink.api.scala.expressions.test
 
 import org.apache.flink.api.expressions.ExpressionException
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.expressions._
+import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -29,7 +31,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
-class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class AggregationsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
   private var expected: String = ""
   private val _tempFolder = new TemporaryFolder()
@@ -48,49 +50,77 @@ class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsT
   }
 
   @Test
-  def testSubstring: Unit = {
+  def testAggregationTypes: Unit = {
+
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
-      .select('a.substring(0, 'b))
+    val ds = CollectionDataSets.get3TupleDataSet(env).toExpression
+      .select('_1.sum, '_1.min, '_1.max, '_1.count, '_1.avg)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "AA\nB"
+    expected = "231,1,21,21,11"
+  }
+
+  @Test(expected = classOf[ExpressionException])
+  def testAggregationOnNonExistingField: Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env).toExpression
+      .select('foo.avg)
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = ""
   }
 
   @Test
-  def testSubstringWithMaxEnd: Unit = {
+  def testWorkingAggregationDataTypes: Unit = {
+
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("ABCD", 2), ("ABCD", 1)).as('a, 'b)
-      .select('a.substring('b))
+    val ds = env.fromElements(
+      (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
+      (2: Byte, 2: Short, 2, 2L, 2.0f, 2.0d, "Ciao")).toExpression
+      .select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "CD\nBCD"
+    expected = "1,1,1,1,1.5,1.5,2"
+  }
+
+  @Test
+  def testAggregationWithArithmetic: Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements((1f, "Hello"), (2f, "Ciao")).toExpression
+      .select(('_1 + 2).avg + 2, '_2.count + " THE COUNT")
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "5.5,2 THE COUNT"
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testNonWorkingSubstring1: Unit = {
+  def testNonWorkingAggregationDataTypes: Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).as('a, 'b)
-      .select('a.substring(0, 'b))
+    val ds = env.fromElements(("Hello", 1)).toExpression
+      .select('_1.sum)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "AAA\nBB"
+    expected = ""
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testNonWorkingSubstring2: Unit = {
+  def testNoNestedAggregations: Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(("AAAA", "c"), ("BBBB", "d")).as('a, 'b)
-      .select('a.substring('b, 15))
+    val ds = env.fromElements(("Hello", 1)).toExpression
+      .select('_2.sum.sum)
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "AAA\nBB"
+    expected = ""
   }
 
 

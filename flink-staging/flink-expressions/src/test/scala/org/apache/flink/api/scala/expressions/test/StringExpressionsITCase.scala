@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.expressions
+package org.apache.flink.api.scala.expressions.test
 
 import org.apache.flink.api.expressions.ExpressionException
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.expressions._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -29,7 +30,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(classOf[Parameterized])
-class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
+class StringExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
   private var expected: String = ""
   private val _tempFolder = new TemporaryFolder()
@@ -48,78 +49,49 @@ class ExpressionsITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
   }
 
   @Test
-  def testArithmetic: Unit = {
-
+  def testSubstring: Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements((5, 10)).as('a, 'b)
-      .select('a - 5, 'a + 5, 'a / 2, 'a * 2, 'a % 2, -'a)
+    val ds = env.fromElements(("AAAA", 2), ("BBBB", 1)).as('a, 'b)
+      .select('a.substring(0, 'b))
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "0,10,2,10,1,-5"
+    expected = "AA\nB"
   }
 
   @Test
-  def testLogic: Unit = {
-
+  def testSubstringWithMaxEnd: Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements((5, true)).as('a, 'b)
-      .select('b && true, 'b && false, 'b || false, !'b)
+    val ds = env.fromElements(("ABCD", 2), ("ABCD", 1)).as('a, 'b)
+      .select('a.substring('b))
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "true,false,true,false"
-  }
-
-  @Test
-  def testComparisons: Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements((5, 5, 4)).as('a, 'b, 'c)
-      .select('a > 'c, 'a >= 'b, 'a < 'c, 'a.isNull, 'a.isNotNull)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "true,true,false,false,true"
-  }
-
-  @Test
-  def testBitwiseOperations: Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val ds = env.fromElements((3.toByte, 5.toByte)).as('a, 'b)
-      .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,7,6,-4"
-  }
-
-  @Test
-  def testBitwiseWithAutocast: Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val ds = env.fromElements((3, 5.toByte)).as('a, 'b)
-      .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a)
-
-    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
-    env.execute()
-    expected = "1,7,6,-4"
+    expected = "CD\nBCD"
   }
 
   @Test(expected = classOf[ExpressionException])
-  def testBitwiseWithNonWorkingAutocast: Unit = {
+  def testNonWorkingSubstring1: Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-
-    val ds = env.fromElements((3.0, 5)).as('a, 'b)
-      .select('a & 'b, 'a | 'b, 'a ^ 'b, ~'a)
+    val ds = env.fromElements(("AAAA", 2.0), ("BBBB", 1.0)).as('a, 'b)
+      .select('a.substring(0, 'b))
 
     ds.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
-    expected = "1,7,6,-4"
+    expected = "AAA\nBB"
+  }
+
+  @Test(expected = classOf[ExpressionException])
+  def testNonWorkingSubstring2: Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(("AAAA", "c"), ("BBBB", "d")).as('a, 'b)
+      .select('a.substring('b, 15))
+
+    ds.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "AAA\nBB"
   }
 
 

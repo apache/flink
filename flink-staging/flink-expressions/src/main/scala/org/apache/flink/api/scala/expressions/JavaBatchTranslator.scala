@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.expressions.analysis.ExtractEquiJoinFields
 import org.apache.flink.api.expressions.operations._
+import org.apache.flink.api.expressions.parser.ExpressionParser
 import org.apache.flink.api.expressions.runtime.{ExpressionAggregateFunction, ExpressionFilterFunction, ExpressionJoinFunction, ExpressionSelectFunction}
 import org.apache.flink.api.expressions.tree._
 import org.apache.flink.api.expressions.typeinfo.{RenameOperator, RenamingProxyTypeInfo, RowTypeInfo}
@@ -43,9 +44,27 @@ class JavaBatchTranslator extends OperationTranslator {
 
   type Representation[A] = JavaDataSet[A]
 
+
+  def createExpressionOperation[A](
+    repr: JavaDataSet[A]): ExpressionOperation[JavaBatchTranslator] = {
+    val fields =
+      repr.getType.asInstanceOf[CompositeType[A]].getFieldNames.map(UnresolvedFieldReference)
+
+    createExpressionOperation(repr, fields.toArray.asInstanceOf[Array[Expression]], false)
+  }
+
+  def createExpressionOperation[A](
+    repr: JavaDataSet[A],
+    expression: String): ExpressionOperation[JavaBatchTranslator] = {
+    val fields = ExpressionParser.parseExpressionList(expression)
+
+    createExpressionOperation(repr, fields.toArray)
+  }
+
   def createExpressionOperation[A](
       repr: JavaDataSet[A],
-      fields: Array[Expression]): ExpressionOperation[JavaBatchTranslator] = {
+      fields: Array[Expression],
+      checkDeterministicFields: Boolean = true): ExpressionOperation[JavaBatchTranslator] = {
 
     // shortcut for DataSet[Row]
     repr.getType match {
@@ -72,6 +91,11 @@ class JavaBatchTranslator extends OperationTranslator {
 
     val inputType = repr.getType.asInstanceOf[CompositeType[A]]
 
+    if (!inputType.hasDeterministicFieldOrder && checkDeterministicFields) {
+      throw new ExpressionException(s"You cannot rename fields upon Table creaton: " +
+          s"Field order of input type $inputType is not deterministic." )
+    }
+
     if (fields.length != inputType.getFieldNames.length) {
       throw new ExpressionException("Number of selected fields: '" + fields.mkString(",") +
         "' and number of fields in input type " + inputType + " do not match.")
@@ -80,7 +104,7 @@ class JavaBatchTranslator extends OperationTranslator {
     val newFieldNames = fields map {
       case UnresolvedFieldReference(name) => name
       case e =>
-        throw new ExpressionException("Only field expressions allowed in 'as' operation, " +
+        throw new ExpressionException("Only field references allowed in 'as' operation, " +
           " offending expression: " + e)
     }
 
@@ -166,6 +190,13 @@ class JavaBatchTranslator extends OperationTranslator {
     op match {
       case Root(dataSet: JavaDataSet[Row], resultFields) =>
         dataSet
+
+      case Root(_, _) =>
+        throw new ExpressionException("Invalid Root for JavaBatchTranslator: " + op)
+
+      case GroupBy(_, fields) =>
+        throw new ExpressionException("Dangling GroupBy operation. Did you forget a " +
+          "SELECT statement?")
 
       case As(input, newNames) =>
         val translatedInput = translateInternal(input)
@@ -332,6 +363,11 @@ class JavaBatchTranslator extends OperationTranslator {
 
     val (reducedPredicate, leftFields, rightFields) =
       ExtractEquiJoinFields(leftType, rightType, predicate)
+
+    if (leftFields.isEmpty || rightFields.isEmpty) {
+      throw new ExpressionException("Could not derive equi-join predicates " +
+        "for predicate " + predicate + ".")
+    }
 
     val leftKey = new ExpressionKeys[L](leftFields, leftType)
     val rightKey = new ExpressionKeys[R](rightFields, rightType)

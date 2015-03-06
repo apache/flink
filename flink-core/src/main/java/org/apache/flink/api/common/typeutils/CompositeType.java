@@ -176,6 +176,18 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	public abstract String[] getFieldNames();
 
 	/**
+	 * True if this type has an inherent ordering of the fields, such that a user can
+	 * always be sure in which order the fields will be in. This is true for Tuples and
+	 * Case Classes. It is not true for Regular Java Objects, since there, the ordering of
+	 * the fields can be arbitrary.
+	 *
+	 * This is used when translating a DataSet or DataStream to an Expression Table, when
+	 * initially renaming the fields of the underlying type.
+	 */
+	public boolean hasDeterministicFieldOrder() {
+		return false;
+	}
+	/**
 	 * Returns the field index of the composite field of the given name.
 	 *
 	 * @return The field index or -1 if this type does not have a field of the given name.

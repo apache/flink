@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.expressions.operations._
+import org.apache.flink.api.expressions.parser.ExpressionParser
 import org.apache.flink.api.expressions.runtime.{ExpressionFilterFunction, ExpressionSelectFunction}
 import org.apache.flink.api.expressions.tree._
 import org.apache.flink.api.expressions.typeinfo.RowTypeInfo
@@ -42,6 +43,23 @@ import org.apache.flink.streaming.api.invokable.operator.MapInvokable
 class JavaStreamingTranslator extends OperationTranslator {
 
   type Representation[A] = DataStream[A]
+
+
+  def createExpressionOperation[A](
+    repr: DataStream[A]): ExpressionOperation[JavaStreamingTranslator] = {
+    val fields =
+      repr.getType.asInstanceOf[CompositeType[A]].getFieldNames.map(UnresolvedFieldReference)
+
+    createExpressionOperation(repr, fields.toArray.asInstanceOf[Array[Expression]])
+  }
+
+  def createExpressionOperation[A](
+      repr: DataStream[A],
+      expression: String): ExpressionOperation[JavaStreamingTranslator] = {
+    val fields = ExpressionParser.parseExpressionList(expression)
+
+    createExpressionOperation(repr, fields.toArray)
+  }
 
   def createExpressionOperation[A](
       repr: DataStream[A],
@@ -80,7 +98,7 @@ class JavaStreamingTranslator extends OperationTranslator {
     val newFieldNames = fields map {
       case UnresolvedFieldReference(name) => name
       case e =>
-        throw new ExpressionException("Only field expressions allowed in 'as' operation, " +
+        throw new ExpressionException("Only field references allowed in 'as' operation, " +
           " offending expression: " + e)
     }
 
@@ -165,6 +183,13 @@ class JavaStreamingTranslator extends OperationTranslator {
     op match {
       case Root(dataSet: DataStream[Row], resultFields) =>
         dataSet
+
+      case Root(_, _) =>
+        throw new ExpressionException("Invalid Root for JavaStreamingTranslator: " + op)
+
+      case GroupBy(_, fields) =>
+        throw new ExpressionException("Dangling GroupBy operation. Did you forget a " +
+          "SELECT statement?")
 
       case As(input, newNames) =>
         throw new ExpressionException("As operation for Streams not yet implemented.")
