@@ -27,14 +27,25 @@ $(document).ready(function() {
  * Initializes global config table
  */
 function loadConfigTable(json) {
-	$("#confTable").empty();
+	$("#confTable1").empty();
 	var table = "<table class=\"table table-bordered table-hover table-striped\">";
-	table += "<tr><th>Property</th><th>Value</th></tr>";
-	for (var key in json) {
-		if (json.hasOwnProperty(key)) {
-			table += "<tr><td>"+key+"</td><td>"+json[key]+"</td></tr>";
+	table += "<tr><th class=\"col-lg-4\">Property</th><th>Value</th></tr>";
+	for (var key in json.user) {
+		if (json.user.hasOwnProperty(key)) {
+			table += "<tr><td>"+key+"</td><td>"+json.user[key]+"</td></tr>";
 		}
 	}
 	table += "</table>";
-	$("#confTable").append(table);
+	$("#confTable1").append(table);
+
+	$("#confTable2").empty();
+	var table = "<table class=\"table table-bordered table-hover table-striped\">";
+	table += "<tr><th class=\"col-lg-4\">Property</th><th>Value</th></tr>";
+	for (var key in json.default) {
+		if (json.default.hasOwnProperty(key)) {
+			table += "<tr><td>"+key+"</td><td>"+json.default[key]+"</td></tr>";
+		}
+	}
+	table += "</table>";
+	$("#confTable2").append(table);
 }
