@@ -1710,7 +1710,7 @@ Generic:
 val env  = ExecutionEnvironment.getExecutionEnvironment
 
 // read text file from local files system
-val localLiens = env.readTextFile("file:///path/to/my/textfile")
+val localLines = env.readTextFile("file:///path/to/my/textfile")
 
 // read text file from a HDFS running at nnHost:nnPort
 val hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile")
@@ -2222,7 +2222,7 @@ val initial = env.fromElements(0)
 val count = initial.iterate(10000) { iterationInput: DataSet[Int] =>
   val result = iterationInput.map { i => 
     val x = Math.random()
-    val y = Math.randon()
+    val y = Math.random()
     i + (if (x * x + y * y < 1) 1 else 0)
   }
   result
