@@ -221,8 +221,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    *
    */
-  def iterate[R](maxWaitTimeMillis:Long = 0)(stepFunction: DataStream[T] => (DataStream[T], DataStream[R]))
-        : DataStream[R] = {
+  def iterate[R](maxWaitTimeMillis:Long = 0)
+                (stepFunction: DataStream[T] => (DataStream[T], DataStream[R])) : DataStream[R] = {
     val iterativeStream = javaStream.iterate(maxWaitTimeMillis)
 
     val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
@@ -494,23 +494,6 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * SplitDataStream.
    */
   def split(selector: OutputSelector[T]): SplitDataStream[T] = javaStream.split(selector)
-
-//  /**
-//   * Creates a new SplitDataStream that contains only the elements satisfying the
-//   *  given output selector predicate.
-//   */
-//  def split(fun: T => String): SplitDataStream[T] = {
-//    if (fun == null) {
-//      throw new NullPointerException("OutputSelector must not be null.")
-//    }
-//    val selector = new OutputSelector[T] {
-//      val cleanFun = clean(fun)
-//      def select(in: T): java.lang.Iterable[String] = {
-//        List(cleanFun(in))
-//      }
-//    }
-//    split(selector)
-//  }
 
   /**
    * Creates a new SplitDataStream that contains only the elements satisfying the
