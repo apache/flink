@@ -63,17 +63,17 @@ public class GraphMetrics implements ProgramDescription {
 		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(getEdgesDataSet(env), env);
 		
 		/** get the number of vertices **/
-		DataSet<Integer> numVertices = graph.numberOfVertices();
+		long numVertices = graph.numberOfVertices();
 		
 		/** get the number of edges **/
-		DataSet<Integer> numEdges = graph.numberOfEdges();
+		long numEdges = graph.numberOfEdges();
 		
 		/** compute the average node degree **/
 		DataSet<Tuple2<Long, Long>> verticesWithDegrees = graph.getDegrees();
 
 		DataSet<Double> avgNodeDegree = verticesWithDegrees
 				.aggregate(Aggregations.SUM, 1).map(new AvgNodeDegreeMapper())
-				.withBroadcastSet(numVertices, "numberOfVertices");
+				.withBroadcastSet(env.fromElements(numVertices), "numberOfVertices");
 		
 		/** find the vertex with the maximum in-degree **/
 		DataSet<Long> maxInDegreeVertex = graph.inDegrees().maxBy(1).map(new ProjectVertexId());
@@ -88,8 +88,8 @@ public class GraphMetrics implements ProgramDescription {
 		DataSet<Long> minOutDegreeVertex = graph.outDegrees().minBy(1).map(new ProjectVertexId());
 		
 		/** print the results **/
-		ExampleUtils.printResult(numVertices, "Total number of vertices");
-		ExampleUtils.printResult(numEdges, "Total number of edges");
+		ExampleUtils.printResult(env.fromElements(numVertices), "Total number of vertices");
+		ExampleUtils.printResult(env.fromElements(numEdges), "Total number of edges");
 		ExampleUtils.printResult(avgNodeDegree, "Average node degree");
 		ExampleUtils.printResult(maxInDegreeVertex, "Vertex with Max in-degree");
 		ExampleUtils.printResult(minInDegreeVertex, "Vertex with Min in-degree");

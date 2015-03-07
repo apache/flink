@@ -26,7 +26,6 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.utils.GraphUtils;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -39,18 +38,17 @@ public class InvalidVertexIdsValidator<K extends Comparable<K> & Serializable, V
 	 * Checks that the edge set input contains valid vertex Ids, i.e. that they
 	 * also exist in the vertex input set.
 	 * 
-	 * @return a singleton DataSet<Boolean> stating whether a graph is valid
+	 * @return a Boolean stating whether a graph is valid
 	 *         with respect to its vertex ids.
 	 */
 	@Override
-	public DataSet<Boolean> validate(Graph<K, VV, EV> graph) {
+	public Boolean validate(Graph<K, VV, EV> graph) throws Exception {
 		DataSet<Tuple1<K>> edgeIds = graph.getEdges()
 				.flatMap(new MapEdgeIds<K, EV>()).distinct();
 		DataSet<K> invalidIds = graph.getVertices().coGroup(edgeIds).where(0)
 				.equalTo(0).with(new GroupInvalidIds<K, VV>()).first(1);
 
-		return GraphUtils.count(invalidIds.map(new KToTupleMap<K>()),
-				graph.getContext()).map(new InvalidIdsMap());
+		return invalidIds.map(new KToTupleMap<K>()).count() == 0;
 	}
 
 	private static final class MapEdgeIds<K extends Comparable<K> & Serializable, EV extends Serializable>
