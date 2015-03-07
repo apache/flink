@@ -123,9 +123,9 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
-		DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
+		Boolean result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 
-		result.writeAsText(resultPath);
+		env.fromElements(result).writeAsText(resultPath);
 		env.execute();
 
 		expectedResult = "true\n";
@@ -141,8 +141,8 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
-		DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
-		result.writeAsText(resultPath);
+		Boolean result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
+		env.fromElements(result).writeAsText(resultPath);
 		env.execute();
 
 		expectedResult = "false\n";
