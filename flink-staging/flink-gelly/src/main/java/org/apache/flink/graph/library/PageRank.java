@@ -20,7 +20,11 @@ package org.apache.flink.graph.library;
 
 import java.io.Serializable;
 
+<<<<<<< HEAD
 import org.apache.flink.api.java.DataSet;
+=======
+import org.apache.flink.api.java.ExecutionEnvironment;
+>>>>>>> [FLINK-1632][gelly] Deleted GraphUtils and made Gelly methods use DS.count()
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
@@ -47,10 +51,19 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 
 		VertexCentricIteration<K, Double, Double, Double> iteration = network.createVertexCentricIteration(
 				new VertexRankUpdater<K>(beta), new RankMessenger<K>(), maxIterations);
+<<<<<<< HEAD
 
 		iteration.addBroadcastSetForMessagingFunction("numberOfVertices", numberOfVertices);
 		iteration.addBroadcastSetForUpdateFunction("numberOfVertices", numberOfVertices);
 
+=======
+		try {
+			iteration.addBroadcastSetForUpdateFunction("numberOfVertices",
+					ExecutionEnvironment.getExecutionEnvironment().fromElements(network.numberOfVertices()));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+>>>>>>> [FLINK-1632][gelly] Deleted GraphUtils and made Gelly methods use DS.count()
 		return network.runVertexCentricIteration(iteration);
 	}
 
