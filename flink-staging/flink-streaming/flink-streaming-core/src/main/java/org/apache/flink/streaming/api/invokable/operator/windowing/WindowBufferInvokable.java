@@ -52,10 +52,13 @@ public class WindowBufferInvokable<T> extends ChainableInvokable<WindowEvent<T>,
 	protected void handleWindowEvent(WindowEvent<T> windowEvent, WindowBuffer<T> buffer)
 			throws Exception {
 		if (windowEvent.isElement()) {
+			System.out.println("element: " + windowEvent.getElement());
 			buffer.store(windowEvent.getElement());
 		} else if (windowEvent.isEviction()) {
+			System.out.println("eviction: " + windowEvent.getEviction());
 			buffer.evict(windowEvent.getEviction());
 		} else if (windowEvent.isTrigger()) {
+			System.out.println("trigger");
 			buffer.emitWindow(collector);
 		}
 	}

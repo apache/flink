@@ -35,6 +35,8 @@ import org.apache.flink.streaming.api.invokable.operator.windowing.WindowPartiti
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowReducer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.StreamWindowTypeInfo;
+import org.apache.flink.streaming.api.windowing.WindowUtils.WindowKey;
+import org.apache.flink.streaming.api.windowing.WindowUtils.WindowTransformation;
 
 /**
  * A {@link DiscretizedStream} represents a data stream that has been divided

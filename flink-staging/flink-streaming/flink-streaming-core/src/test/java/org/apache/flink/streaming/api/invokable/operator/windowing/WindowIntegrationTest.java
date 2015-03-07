@@ -89,17 +89,6 @@ public class WindowIntegrationTest implements Serializable {
 		inputs.add(11);
 		inputs.add(11);
 
-		StreamExecutionEnvironment env = new TestStreamEnvironment(2, MEMORYSIZE);
-
-		DataStream<Integer> source = env.fromCollection(inputs);
-
-		source.window(Count.of(2)).every(Count.of(3)).sum(0).getDiscretizedStream()
-				.addSink(new CentralSink1());
-
-		source.window(Count.of(4)).groupBy(new ModKey(2)).mapWindow(new IdentityWindowMap())
-				.flatten().addSink(new CentralSink2());
-
-		KeySelector<Integer, ?> key = new ModKey(2);
 		Timestamp<Integer> ts = new Timestamp<Integer>() {
 
 			private static final long serialVersionUID = 1L;
@@ -110,38 +99,50 @@ public class WindowIntegrationTest implements Serializable {
 			}
 		};
 
+		StreamExecutionEnvironment env = new TestStreamEnvironment(2, MEMORYSIZE);
+
+		DataStream<Integer> source = env.fromCollection(inputs);
+
+		source.window(Time.of(2, ts)).every(Time.of(3, ts)).sum(0).getDiscretizedStream()
+				.addSink(new CentralSink1());
+
+		source.window(Time.of(4, ts, 1)).groupBy(new ModKey(2)).mapWindow(new IdentityWindowMap())
+				.flatten().addSink(new CentralSink2());
+
+		KeySelector<Integer, ?> key = new ModKey(2);
+
 		source.groupBy(key).window(Time.of(4, ts, 1)).sum(0).getDiscretizedStream()
 				.addSink(new DistributedSink1());
 
 		source.groupBy(new ModKey(3)).window(Count.of(2)).groupBy(new ModKey(2))
 				.mapWindow(new IdentityWindowMap()).flatten().addSink(new DistributedSink2());
 
-		source.window(Count.of(2)).every(Count.of(3)).min(0).getDiscretizedStream()
+		source.window(Time.of(2, ts)).every(Time.of(3, ts)).min(0).getDiscretizedStream()
 				.addSink(new CentralSink3());
 
 		source.groupBy(key).window(Time.of(4, ts, 1)).max(0).getDiscretizedStream()
 				.addSink(new DistributedSink3());
 
-		source.window(Count.of(5)).mapWindow(new IdentityWindowMap()).flatten()
+		source.window(Time.of(5, ts, 1)).mapWindow(new IdentityWindowMap()).flatten()
 				.addSink(new DistributedSink4());
 
 		env.execute();
 
-		// sum ( Count of 2 slide 3 )
+		// sum ( Time of 2 slide 3 )
 		List<StreamWindow<Integer>> expected1 = new ArrayList<StreamWindow<Integer>>();
-		expected1.add(StreamWindow.fromElements(4));
+		expected1.add(StreamWindow.fromElements(5));
 		expected1.add(StreamWindow.fromElements(9));
-		expected1.add(StreamWindow.fromElements(22));
+		expected1.add(StreamWindow.fromElements(32));
 
 		validateOutput(expected1, CentralSink1.windows);
 
-		// Tumbling Count of 4 grouped by mod 2
+		// Tumbling Time of 4 grouped by mod 2
 		List<StreamWindow<Integer>> expected2 = new ArrayList<StreamWindow<Integer>>();
-		expected2.add(StreamWindow.fromElements(2, 2));
+		expected2.add(StreamWindow.fromElements(2, 2, 4));
 		expected2.add(StreamWindow.fromElements(1, 3));
-		expected2.add(StreamWindow.fromElements(4, 10));
-		expected2.add(StreamWindow.fromElements(5, 11));
-		expected2.add(StreamWindow.fromElements(11));
+		expected2.add(StreamWindow.fromElements(5));
+		expected2.add(StreamWindow.fromElements(10));
+		expected2.add(StreamWindow.fromElements(11, 11));
 
 		validateOutput(expected2, CentralSink2.windows);
 
@@ -167,11 +168,11 @@ public class WindowIntegrationTest implements Serializable {
 
 		validateOutput(expected4, DistributedSink2.windows);
 
-		// min ( Count of 2 slide 3 )
+		// min ( Time of 2 slide 3 )
 		List<StreamWindow<Integer>> expected5 = new ArrayList<StreamWindow<Integer>>();
-		expected5.add(StreamWindow.fromElements(2));
+		expected5.add(StreamWindow.fromElements(1));
 		expected5.add(StreamWindow.fromElements(4));
-		expected5.add(StreamWindow.fromElements(11));
+		expected5.add(StreamWindow.fromElements(10));
 
 		validateOutput(expected5, CentralSink3.windows);
 
@@ -186,8 +187,9 @@ public class WindowIntegrationTest implements Serializable {
 		validateOutput(expected6, DistributedSink3.windows);
 
 		List<StreamWindow<Integer>> expected7 = new ArrayList<StreamWindow<Integer>>();
-		expected7.add(StreamWindow.fromElements(1, 2, 2, 3, 4));
-		expected7.add(StreamWindow.fromElements(5, 10, 11, 11));
+		expected7.add(StreamWindow.fromElements(1, 2, 2, 3, 4, 5));
+		expected7.add(StreamWindow.fromElements(10));
+		expected7.add(StreamWindow.fromElements(10, 11, 11));
 
 		validateOutput(expected7, DistributedSink4.windows);
 
