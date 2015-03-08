@@ -71,6 +71,8 @@ public class CollectionExecutor {
 	
 	private final ExecutionConfig executionConfig;
 
+	private int iterationSuperstep;
+
 	// --------------------------------------------------------------------------------------------
 	
 	public CollectionExecutor(ExecutionConfig executionConfig) {
@@ -183,7 +185,7 @@ public class CollectionExecutor {
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
 			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, getClass().getClassLoader(), executionConfig) :
-					new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep, classLoader, executionConfig);
+					new IterationRuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -225,7 +227,7 @@ public class CollectionExecutor {
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
 			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig) :
-				new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep, classLoader, executionConfig);
+				new IterationRuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -279,7 +281,10 @@ public class CollectionExecutor {
 			
 			// set the input to the current partial solution
 			this.intermediateResults.put(iteration.getPartialSolution(), currentResult);
-			
+
+			// set the superstep number
+			iterationSuperstep = superstep;
+
 			// grab the current iteration result
 			currentResult = (List<T>) execute(iteration.getNextPartialSolution(), superstep);
 
@@ -372,6 +377,9 @@ public class CollectionExecutor {
 			// set the input to the current partial solution
 			this.intermediateResults.put(iteration.getSolutionSet(), currentSolution);
 			this.intermediateResults.put(iteration.getWorkset(), currentWorkset);
+
+			// set the superstep number
+			iterationSuperstep = superstep;
 
 			// grab the current iteration result
 			List<T> solutionSetDelta = (List<T>) execute(iteration.getSolutionSetDelta(), superstep);
@@ -477,16 +485,13 @@ public class CollectionExecutor {
 	
 	private class IterationRuntimeUDFContext extends RuntimeUDFContext implements IterationRuntimeContext {
 
-		private final int superstep;
-
-		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, int superstep, ClassLoader classloader, ExecutionConfig executionConfig) {
+		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader classloader, ExecutionConfig executionConfig) {
 			super(name, numParallelSubtasks, subtaskIndex, classloader, executionConfig);
-			this.superstep = superstep;
 		}
 
 		@Override
 		public int getSuperstepNumber() {
-			return superstep;
+			return iterationSuperstep;
 		}
 
 		@SuppressWarnings("unchecked")
