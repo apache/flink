@@ -17,22 +17,29 @@
 
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.WindowEvent;
-import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
 /**
- * This invokable flattens the results of the window transformations by
- * outputing the elements of the {@link StreamWindow} one-by-one
+ * This invokable applies either split or key partitioning depending on the
+ * transformation.
  */
-public class WindowBufferInvokable<T> extends ChainableInvokable<WindowEvent<T>, StreamWindow<T>> {
+public class ParallelWindowPartitioner<T> extends
+		ChainableInvokable<StreamWindow<T>, StreamWindow<T>> {
 
-	protected WindowBuffer<T> buffer;
+	private KeySelector<T, ?> keySelector;
+	private int numberOfSplits;
+	private int currentWindowID = 0;
 
-	public WindowBufferInvokable(WindowBuffer<T> buffer) {
+	public ParallelWindowPartitioner(KeySelector<T, ?> keySelector) {
 		super(null);
-		this.buffer = buffer;
+		this.keySelector = keySelector;
+	}
+
+	public ParallelWindowPartitioner(int numberOfSplits) {
+		super(null);
+		this.numberOfSplits = numberOfSplits;
 	}
 
 	private static final long serialVersionUID = 1L;
@@ -46,26 +53,28 @@ public class WindowBufferInvokable<T> extends ChainableInvokable<WindowEvent<T>,
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		handleWindowEvent(nextObject);
-	}
+		StreamWindow<T> currentWindow = nextObject;
+		currentWindow.setID(++currentWindowID);
 
-	protected void handleWindowEvent(WindowEvent<T> windowEvent, WindowBuffer<T> buffer)
-			throws Exception {
-		if (windowEvent.isElement()) {
-			buffer.store(windowEvent.getElement());
-		} else if (windowEvent.isEviction()) {
-			buffer.evict(windowEvent.getEviction());
-		} else if (windowEvent.isTrigger()) {
-			buffer.emitWindow(collector);
+		if (keySelector == null) {
+			if (numberOfSplits <= 1) {
+				collector.collect(currentWindow);
+			} else {
+				for (StreamWindow<T> window : currentWindow.split(numberOfSplits)) {
+					collector.collect(window);
+				}
+			}
+		} else {
+
+			for (StreamWindow<T> window : currentWindow.partitionBy(keySelector)) {
+				collector.collect(window);
+			}
+
 		}
 	}
 
-	private void handleWindowEvent(WindowEvent<T> windowEvent) throws Exception {
-		handleWindowEvent(windowEvent, buffer);
-	}
-
 	@Override
-	public void collect(WindowEvent<T> record) {
+	public void collect(StreamWindow<T> record) {
 		if (isRunning) {
 			nextObject = record;
 			callUserFunctionAndLogException();

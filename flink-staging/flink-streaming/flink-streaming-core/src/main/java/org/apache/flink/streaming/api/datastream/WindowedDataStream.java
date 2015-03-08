@@ -46,14 +46,11 @@ import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.WindowUtils;
 import org.apache.flink.streaming.api.windowing.WindowUtils.WindowTransformation;
 import org.apache.flink.streaming.api.windowing.helper.Time;
-import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
-import org.apache.flink.streaming.api.windowing.policy.CountEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
@@ -261,7 +258,7 @@ public class WindowedDataStream<OUT> {
 	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
 
 		WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
-				.with(reduceFunction);
+				.with(clean(reduceFunction));
 
 		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation);
 
@@ -288,7 +285,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public <R> WindowedDataStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction) {
-		return discretize(WindowTransformation.MAPWINDOW.with(windowMapFunction),
+		return discretize(WindowTransformation.MAPWINDOW.with(clean(windowMapFunction)),
 				new BasicWindowBuffer<OUT>()).mapWindow(windowMapFunction);
 	}
 
@@ -370,42 +367,36 @@ public class WindowedDataStream<OUT> {
 
 	@SuppressWarnings("unchecked")
 	private WindowBuffer<OUT> getWindowBuffer(WindowTransformation transformation) {
+		TriggerPolicy<OUT> trigger = getTrigger();
+		EvictionPolicy<OUT> eviction = getEviction();
 
 		if (transformation == WindowTransformation.REDUCEWINDOW) {
-			if (getTrigger() instanceof TumblingEvictionPolicy) {
+			if (WindowUtils.isTumblingPolicy(trigger, eviction)) {
 				if (groupByKey == null) {
 					return new TumblingPreReducer<OUT>(
-							clean((ReduceFunction<OUT>) transformation.getUDF()), getType()
+							(ReduceFunction<OUT>) transformation.getUDF(), getType()
 									.createSerializer(getExecutionConfig()));
 				} else {
 					return new TumblingGroupedPreReducer<OUT>(
-							clean((ReduceFunction<OUT>) transformation.getUDF()), groupByKey,
-							getType().createSerializer(getExecutionConfig()));
+							(ReduceFunction<OUT>) transformation.getUDF(), groupByKey, getType()
+									.createSerializer(getExecutionConfig()));
 				}
-			} else if (getTrigger() instanceof CountTriggerPolicy
-					&& getEviction() instanceof CountEvictionPolicy && groupByKey == null) {
+			} else if (WindowUtils.isSlidingCountPolicy(trigger, eviction) && groupByKey == null) {
 
-				int slide = ((CountTriggerPolicy<OUT>) getTrigger()).getSlideSize();
-				int window = ((CountEvictionPolicy<OUT>) getEviction()).getWindowSize();
-				int start = ((CountEvictionPolicy<OUT>) getEviction()).getStart();
-				if (slide < window) {
-					return new SlidingCountPreReducer<OUT>(
-							clean((ReduceFunction<OUT>) transformation.getUDF()), dataStream
-									.getType().createSerializer(getExecutionConfig()), window,
-							slide, start);
-				}
-			} else if (getTrigger() instanceof TimeTriggerPolicy
-					&& getEviction() instanceof TimeEvictionPolicy && groupByKey == null) {
-				int slide = (int) ((TimeTriggerPolicy<OUT>) getTrigger()).getSlideSize();
-				int window = (int) ((TimeEvictionPolicy<OUT>) getEviction()).getWindowSize();
-				TimestampWrapper<OUT> wrapper = ((TimeEvictionPolicy<OUT>) getEviction())
-						.getTimeStampWrapper();
-				if (slide < window) {
-					return new SlidingTimePreReducer<OUT>(
-							clean((ReduceFunction<OUT>) transformation.getUDF()), dataStream
-									.getType().createSerializer(getExecutionConfig()), window,
-							slide, wrapper);
-				}
+				return new SlidingCountPreReducer<OUT>(
+						clean((ReduceFunction<OUT>) transformation.getUDF()), dataStream.getType()
+								.createSerializer(getExecutionConfig()),
+						WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
+						((CountTriggerPolicy<?>) trigger).getStart());
+
+			} else if (WindowUtils.isSlidingTimePolicy(trigger, eviction) && groupByKey == null) {
+
+				return new SlidingTimePreReducer<OUT>(
+						(ReduceFunction<OUT>) transformation.getUDF(), dataStream.getType()
+								.createSerializer(getExecutionConfig()),
+						WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
+						WindowUtils.getTimeStampWrapper(trigger));
+
 			}
 		}
 		return new BasicWindowBuffer<OUT>();

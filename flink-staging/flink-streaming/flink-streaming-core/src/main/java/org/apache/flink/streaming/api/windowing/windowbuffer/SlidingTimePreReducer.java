@@ -28,14 +28,14 @@ public class SlidingTimePreReducer<T> extends SlidingPreReducer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private int windowSize;
-	private int slideSize;
+	private long windowSize;
+	private long slideSize;
 	private TimestampWrapper<T> timestampWrapper;
 	private T lastStored;
 	protected long windowStartTime;
 
 	public SlidingTimePreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer,
-			int windowSize, int slideSize, TimestampWrapper<T> timestampWrapper) {
+			long windowSize, long slideSize, TimestampWrapper<T> timestampWrapper) {
 		super(reducer, serializer);
 		if (windowSize > slideSize) {
 			this.windowSize = windowSize;
@@ -66,8 +66,7 @@ public class SlidingTimePreReducer<T> extends SlidingPreReducer<T> {
 	}
 
 	@Override
-	protected void updateIndexAtEmit() {
-		index = 0;
+	protected void afterEmit() {
 		long lastTime = timestampWrapper.getTimestamp(lastStored);
 		if (lastTime - windowStartTime >= slideSize) {
 			windowStartTime = windowStartTime + slideSize;
@@ -92,7 +91,7 @@ public class SlidingTimePreReducer<T> extends SlidingPreReducer<T> {
 	}
 
 	@Override
-	protected boolean addCurrentToReduce(T next) {
+	protected boolean currentEligible(T next) {
 		return windowStartTime == timestampWrapper.getStartTime()
 				|| timestampWrapper.getTimestamp(next) - windowStartTime >= slideSize;
 	}

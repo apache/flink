@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.windowing;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.api.windowing.policy.CountEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
@@ -48,8 +49,100 @@ public class WindowUtils {
 				|| (eviction instanceof TumblingEvictionPolicy && trigger instanceof CountTriggerPolicy);
 	}
 
+	public static boolean isSlidingTimePolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
+		if (isTimeOnly(trigger, eviction)) {
+			long slide = getSlideSize(trigger);
+			long window = getWindowSize(eviction);
+
+			return slide < window
+					&& getTimeStampWrapper(trigger).equals(getTimeStampWrapper(eviction));
+		} else {
+			return false;
+		}
+	}
+
+	public static boolean isSlidingCountPolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
+		if (isCountOnly(trigger, eviction)) {
+			long slide = getSlideSize(trigger);
+			long window = getWindowSize(eviction);
+
+			return slide < window
+					&& ((CountTriggerPolicy<?>) trigger).getStart() == ((CountEvictionPolicy<?>) eviction)
+							.getStart()
+					&& ((CountEvictionPolicy<?>) eviction).getDeleteOnEviction() == 1;
+		} else {
+			return false;
+		}
+	}
+
+	public static <X> TimestampWrapper<X> getTimeStampWrapper(TriggerPolicy<X> trigger) {
+		if (trigger instanceof TimeTriggerPolicy) {
+			return ((TimeTriggerPolicy<X>) trigger).getTimeStampWrapper();
+		} else {
+			throw new IllegalArgumentException(
+					"Timestamp wrapper can only be accessed for time policies");
+		}
+	}
+
+	public static <X> TimestampWrapper<X> getTimeStampWrapper(EvictionPolicy<X> eviction) {
+		if (eviction instanceof EvictionPolicy) {
+			return ((TimeEvictionPolicy<X>) eviction).getTimeStampWrapper();
+		} else {
+			throw new IllegalArgumentException(
+					"Timestamp wrapper can only be accessed for time policies");
+		}
+	}
+
+	public static long getSlideSize(TriggerPolicy<?> trigger) {
+		if (trigger instanceof TimeTriggerPolicy) {
+			return ((TimeTriggerPolicy<?>) trigger).getSlideSize();
+		} else if (trigger instanceof CountTriggerPolicy) {
+			return ((CountTriggerPolicy<?>) trigger).getSlideSize();
+		} else {
+			throw new IllegalArgumentException(
+					"Slide size can only be accessed for time or count policies");
+		}
+	}
+
+	public static long getWindowSize(EvictionPolicy<?> eviction) {
+		if (eviction instanceof TimeEvictionPolicy) {
+			return ((TimeEvictionPolicy<?>) eviction).getWindowSize();
+		} else if (eviction instanceof CountEvictionPolicy) {
+			return ((CountEvictionPolicy<?>) eviction).getWindowSize();
+		} else {
+			throw new IllegalArgumentException(
+					"Window size can only be accessed for time or count policies");
+		}
+	}
+
+	public static boolean isTumblingPolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
+		if (eviction instanceof TumblingEvictionPolicy) {
+			return true;
+		} else if (isTimeOnly(trigger, eviction)) {
+			long slide = getSlideSize(trigger);
+			long window = getWindowSize(eviction);
+
+			return slide == window
+					&& getTimeStampWrapper(trigger).equals(getTimeStampWrapper(eviction));
+		} else if (isCountOnly(trigger, eviction)) {
+			long slide = getSlideSize(trigger);
+			long window = getWindowSize(eviction);
+
+			return slide == window
+					&& ((CountTriggerPolicy<?>) trigger).getStart() == ((CountEvictionPolicy<?>) eviction)
+							.getStart()
+					&& ((CountEvictionPolicy<?>) eviction).getDeleteOnEviction() == 1;
+		} else {
+			return false;
+		}
+	}
+
 	public static boolean isTimeOnly(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
 		return trigger instanceof TimeTriggerPolicy && eviction instanceof TimeEvictionPolicy;
+	}
+
+	public static boolean isCountOnly(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
+		return trigger instanceof CountTriggerPolicy && eviction instanceof CountEvictionPolicy;
 	}
 
 	public static boolean isSystemTimeTrigger(TriggerPolicy<?> trigger) {

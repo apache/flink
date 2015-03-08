@@ -172,6 +172,10 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 		return this;
 	}
 
+	public void setID(int id) {
+		this.windowID = id;
+	}
+
 	/**
 	 * Checks whether this window can be merged with the given one.
 	 * 

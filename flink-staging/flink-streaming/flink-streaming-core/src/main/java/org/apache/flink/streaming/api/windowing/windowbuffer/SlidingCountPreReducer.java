@@ -27,12 +27,14 @@ public class SlidingCountPreReducer<T> extends SlidingPreReducer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private int windowSize;
-	private int slideSize;
+	private long windowSize;
+	private long slideSize;
 	private int start;
 
+	protected long index = 0;
+
 	public SlidingCountPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer,
-			int windowSize, int slideSize, int start) {
+			long windowSize, long slideSize, int start) {
 		super(reducer, serializer);
 		if (windowSize > slideSize) {
 			this.windowSize = windowSize;
@@ -46,8 +48,8 @@ public class SlidingCountPreReducer<T> extends SlidingPreReducer<T> {
 	}
 
 	@Override
-	public SlidingCountPreReducer<T> clone() {
-		return new SlidingCountPreReducer<T>(reducer, serializer, windowSize, slideSize, start);
+	protected void afterStore() {
+		index++;
 	}
 
 	@Override
@@ -60,12 +62,7 @@ public class SlidingCountPreReducer<T> extends SlidingPreReducer<T> {
 	}
 
 	@Override
-	public String toString() {
-		return currentReduced.toString();
-	}
-
-	@Override
-	protected boolean addCurrentToReduce(T next) {
+	protected boolean currentEligible(T next) {
 		if (index <= slideSize) {
 			return true;
 		} else {
@@ -74,10 +71,14 @@ public class SlidingCountPreReducer<T> extends SlidingPreReducer<T> {
 	}
 
 	@Override
-	protected void updateIndexAtEmit() {
+	protected void afterEmit() {
 		if (index >= slideSize) {
 			index = index - slideSize;
 		}
 	}
 
+	@Override
+	public SlidingCountPreReducer<T> clone() {
+		return new SlidingCountPreReducer<T>(reducer, serializer, windowSize, slideSize, start);
+	}
 }

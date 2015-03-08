@@ -36,7 +36,6 @@ public abstract class SlidingPreReducer<T> implements WindowBuffer<T>, CompleteP
 
 	protected TypeSerializer<T> serializer;
 
-	protected int index = 0;
 	protected int toRemove = 0;
 
 	protected int elementsSinceLastPreAggregate = 0;
@@ -48,64 +47,87 @@ public abstract class SlidingPreReducer<T> implements WindowBuffer<T>, CompleteP
 
 	public boolean emitWindow(Collector<StreamWindow<T>> collector) {
 		StreamWindow<T> currentWindow = new StreamWindow<T>();
-		T finalAggregate = getFinalAggregate();
-		if (finalAggregate != null) {
-			currentWindow.add(finalAggregate);
-			collector.collect(currentWindow);
-			updateIndexAtEmit();
+
+		try {
+			if (addFinalAggregate(currentWindow)) {
+				collector.collect(currentWindow);
+				afterEmit();
+				return true;
+			} else {
+				afterEmit();
+				return false;
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+
+	}
+
+	protected void afterEmit() {
+		// Do nothing by default
+	}
+
+	public boolean addFinalAggregate(StreamWindow<T> currentWindow) throws Exception {
+		T finalReduce = null;
+
+		if (!reduced.isEmpty()) {
+			finalReduce = reduced.get(0);
+			for (int i = 1; i < reduced.size(); i++) {
+				finalReduce = reducer.reduce(finalReduce, serializer.copy(reduced.get(i)));
+
+			}
+			if (currentReduced != null) {
+				finalReduce = reducer.reduce(finalReduce, serializer.copy(currentReduced));
+			}
+
+		} else {
+			finalReduce = currentReduced;
+		}
+
+		if (finalReduce != null) {
+			currentWindow.add(finalReduce);
 			return true;
 		} else {
-			updateIndexAtEmit();
 			return false;
 		}
 
 	}
 
-	protected abstract void updateIndexAtEmit();
-
-	public T getFinalAggregate() {
-		try {
-			if (!reduced.isEmpty()) {
-				T finalReduce = reduced.get(0);
-				for (int i = 1; i < reduced.size(); i++) {
-					finalReduce = reducer.reduce(finalReduce, serializer.copy(reduced.get(i)));
-
-				}
-				if (currentReduced != null) {
-					finalReduce = reducer.reduce(finalReduce, serializer.copy(currentReduced));
-				}
-				return finalReduce;
-			} else {
-				return currentReduced;
-			}
-
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-
 	public void store(T element) throws Exception {
 		addToBufferIfEligible(element);
-		index++;
+		afterStore();
+	}
+
+	protected void afterStore() {
+		// Do nothing by default
 	}
 
 	protected void addToBufferIfEligible(T element) throws Exception {
-		if (addCurrentToReduce(element) && currentReduced != null) {
-			reduced.add(currentReduced);
+		if (currentEligible(element) && currentReduced != null) {
+			addCurrentToBuffer(element);
 			elementsPerPreAggregate.add(elementsSinceLastPreAggregate);
-			currentReduced = element;
 			elementsSinceLastPreAggregate = 1;
 		} else {
-			if (currentReduced == null) {
-				currentReduced = element;
-			} else {
-				currentReduced = reducer.reduce(serializer.copy(currentReduced), element);
-			}
+			updateCurrent(element);
+
 			elementsSinceLastPreAggregate++;
 		}
 	}
 
-	protected abstract boolean addCurrentToReduce(T next);
+	protected void updateCurrent(T element) throws Exception {
+		if (currentReduced == null) {
+			currentReduced = element;
+		} else {
+			currentReduced = reducer.reduce(serializer.copy(currentReduced), element);
+		}
+	}
+
+	protected void addCurrentToBuffer(T element) {
+		reduced.add(currentReduced);
+		currentReduced = element;
+	}
+
+	protected abstract boolean currentEligible(T next);
 
 	public void evict(int n) {
 		toRemove += n;
