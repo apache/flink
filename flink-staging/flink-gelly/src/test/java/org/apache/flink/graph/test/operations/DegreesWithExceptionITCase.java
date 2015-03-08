@@ -36,7 +36,6 @@ import java.util.NoSuchElementException;
 
 import static org.junit.Assert.*;
 
-@SuppressWarnings("serial")
 public class DegreesWithExceptionITCase {
 
 	private static final int PARALLELISM = 4;
