@@ -45,17 +45,16 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 		this.initialOffset = initialOffset;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void open(Configuration parameters) throws InterruptedException {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-		@SuppressWarnings("unchecked")
-		OperatorState<Long> lastKafkaOffSet = (OperatorState<Long>) context.getState("kafka");
-
-		if (lastKafkaOffSet.getState() == null) {
+		
+		if (context.containsState("kafka")) {
+			kafkaOffSet = (OperatorState<Long>) context.getState("kafka");
+		} else {
 			kafkaOffSet = new OperatorState<Long>(initialOffset);
 			context.registerState("kafka", kafkaOffSet);
-		} else {
-			kafkaOffSet = lastKafkaOffSet;
 		}
 
 		super.open(parameters);

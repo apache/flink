@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
-import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.util.InstantiationUtil;
 
 public class StreamConfig implements Serializable {
@@ -55,7 +54,6 @@ public class StreamConfig implements Serializable {
 	private static final String SERIALIZEDUDF = "serializedudf";
 	private static final String USER_FUNCTION = "userfunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
-	private static final String OPERATOR_STATES = "operatorStates";
 	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
 	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out_1";
@@ -329,20 +327,6 @@ public class StreamConfig implements Serializable {
 
 	public int getInputIndex(int inputNumber) {
 		return config.getInteger(INPUT_TYPE + inputNumber, 0);
-	}
-
-	public void setOperatorStates(Map<String, OperatorState<?>> states) {
-		config.setBytes(OPERATOR_STATES, SerializationUtils.serialize((Serializable) states));
-	}
-
-	@SuppressWarnings("unchecked")
-	public Map<String, OperatorState<?>> getOperatorStates(ClassLoader cl) {
-		try {
-			return (Map<String, OperatorState<?>>) InstantiationUtil.readObjectFromConfig(
-					this.config, OPERATOR_STATES, cl);
-		} catch (Exception e) {
-			throw new RuntimeException("Could not load operator state");
-		}
 	}
 
 	public void setChainedOutputs(List<Integer> chainedOutputs) {
