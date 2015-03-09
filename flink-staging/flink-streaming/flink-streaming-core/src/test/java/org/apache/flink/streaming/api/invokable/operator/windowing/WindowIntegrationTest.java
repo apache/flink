@@ -44,7 +44,7 @@ public class WindowIntegrationTest implements Serializable {
 	private static final Integer MEMORYSIZE = 32;
 
 	@SuppressWarnings("serial")
-	private static class ModKey implements KeySelector<Integer, Integer> {
+	public static class ModKey implements KeySelector<Integer, Integer> {
 		private int m;
 
 		public ModKey(int m) {
@@ -126,82 +126,93 @@ public class WindowIntegrationTest implements Serializable {
 		source.window(Time.of(5, ts, 1)).mapWindow(new IdentityWindowMap()).flatten()
 				.addSink(new DistributedSink4());
 
-		source.window(Time.of(5, ts, 1)).every(Time.of(4, ts, 1)).sum(0).getDiscretizedStream()
-				.addSink(new DistributedSink5());
+		source.window(Time.of(5, ts, 1)).every(Time.of(4, ts, 1)).groupBy(new ModKey(2)).sum(0)
+				.getDiscretizedStream().addSink(new DistributedSink5());
 
 		env.execute();
 
-		// sum ( Time of 3 slide 2 )
-		List<StreamWindow<Integer>> expected1 = new ArrayList<StreamWindow<Integer>>();
-		expected1.add(StreamWindow.fromElements(5));
-		expected1.add(StreamWindow.fromElements(11));
-		expected1.add(StreamWindow.fromElements(9));
-		expected1.add(StreamWindow.fromElements(10));
-		expected1.add(StreamWindow.fromElements(32));
-
-		validateOutput(expected1, CentralSink1.windows);
-
-		// Tumbling Time of 4 grouped by mod 2
-		List<StreamWindow<Integer>> expected2 = new ArrayList<StreamWindow<Integer>>();
-		expected2.add(StreamWindow.fromElements(2, 2, 4));
-		expected2.add(StreamWindow.fromElements(1, 3));
-		expected2.add(StreamWindow.fromElements(5));
-		expected2.add(StreamWindow.fromElements(10));
-		expected2.add(StreamWindow.fromElements(11, 11));
-
-		validateOutput(expected2, CentralSink2.windows);
-
-		// groupby mod 2 sum ( Tumbling Time of 4)
-		List<StreamWindow<Integer>> expected3 = new ArrayList<StreamWindow<Integer>>();
-		expected3.add(StreamWindow.fromElements(4));
-		expected3.add(StreamWindow.fromElements(5));
-		expected3.add(StreamWindow.fromElements(22));
-		expected3.add(StreamWindow.fromElements(8));
-		expected3.add(StreamWindow.fromElements(10));
-
-		validateOutput(expected3, DistributedSink1.windows);
-
-		// groupby mod3 Tumbling Count of 2 grouped by mod 2
-		List<StreamWindow<Integer>> expected4 = new ArrayList<StreamWindow<Integer>>();
-		expected4.add(StreamWindow.fromElements(2, 2));
-		expected4.add(StreamWindow.fromElements(1));
-		expected4.add(StreamWindow.fromElements(4));
-		expected4.add(StreamWindow.fromElements(5, 11));
-		expected4.add(StreamWindow.fromElements(10));
-		expected4.add(StreamWindow.fromElements(11));
-		expected4.add(StreamWindow.fromElements(3));
-
-		validateOutput(expected4, DistributedSink2.windows);
-
-		// min ( Time of 2 slide 3 )
-		List<StreamWindow<Integer>> expected5 = new ArrayList<StreamWindow<Integer>>();
-		expected5.add(StreamWindow.fromElements(1));
-		expected5.add(StreamWindow.fromElements(4));
-		expected5.add(StreamWindow.fromElements(10));
-
-		validateOutput(expected5, CentralSink3.windows);
-
-		// groupby mod 2 max ( Tumbling Time of 4)
-		List<StreamWindow<Integer>> expected6 = new ArrayList<StreamWindow<Integer>>();
-		expected6.add(StreamWindow.fromElements(3));
-		expected6.add(StreamWindow.fromElements(5));
-		expected6.add(StreamWindow.fromElements(11));
-		expected6.add(StreamWindow.fromElements(4));
-		expected6.add(StreamWindow.fromElements(10));
-
-		validateOutput(expected6, DistributedSink3.windows);
-
-		List<StreamWindow<Integer>> expected7 = new ArrayList<StreamWindow<Integer>>();
-		expected7.add(StreamWindow.fromElements(1, 2, 2, 3, 4, 5));
-		expected7.add(StreamWindow.fromElements(10));
-		expected7.add(StreamWindow.fromElements(10, 11, 11));
-
-		validateOutput(expected7, DistributedSink4.windows);
+		 // sum ( Time of 3 slide 2 )
+		 List<StreamWindow<Integer>> expected1 = new
+		 ArrayList<StreamWindow<Integer>>();
+		 expected1.add(StreamWindow.fromElements(5));
+		 expected1.add(StreamWindow.fromElements(11));
+		 expected1.add(StreamWindow.fromElements(9));
+		 expected1.add(StreamWindow.fromElements(10));
+		 expected1.add(StreamWindow.fromElements(32));
+		
+		 validateOutput(expected1, CentralSink1.windows);
+		
+		 // Tumbling Time of 4 grouped by mod 2
+		 List<StreamWindow<Integer>> expected2 = new
+		 ArrayList<StreamWindow<Integer>>();
+		 expected2.add(StreamWindow.fromElements(2, 2, 4));
+		 expected2.add(StreamWindow.fromElements(1, 3));
+		 expected2.add(StreamWindow.fromElements(5));
+		 expected2.add(StreamWindow.fromElements(10));
+		 expected2.add(StreamWindow.fromElements(11, 11));
+		
+		 validateOutput(expected2, CentralSink2.windows);
+		
+		 // groupby mod 2 sum ( Tumbling Time of 4)
+		 List<StreamWindow<Integer>> expected3 = new
+		 ArrayList<StreamWindow<Integer>>();
+		 expected3.add(StreamWindow.fromElements(4));
+		 expected3.add(StreamWindow.fromElements(5));
+		 expected3.add(StreamWindow.fromElements(22));
+		 expected3.add(StreamWindow.fromElements(8));
+		 expected3.add(StreamWindow.fromElements(10));
+		
+		 validateOutput(expected3, DistributedSink1.windows);
+		
+		 // groupby mod3 Tumbling Count of 2 grouped by mod 2
+		 List<StreamWindow<Integer>> expected4 = new
+		 ArrayList<StreamWindow<Integer>>();
+		 expected4.add(StreamWindow.fromElements(2, 2));
+		 expected4.add(StreamWindow.fromElements(1));
+		 expected4.add(StreamWindow.fromElements(4));
+		 expected4.add(StreamWindow.fromElements(5, 11));
+		 expected4.add(StreamWindow.fromElements(10));
+		 expected4.add(StreamWindow.fromElements(11));
+		 expected4.add(StreamWindow.fromElements(3));
+		
+		 validateOutput(expected4, DistributedSink2.windows);
+		
+		 // min ( Time of 2 slide 3 )
+		 List<StreamWindow<Integer>> expected5 = new
+		 ArrayList<StreamWindow<Integer>>();
+		 expected5.add(StreamWindow.fromElements(1));
+		 expected5.add(StreamWindow.fromElements(4));
+		 expected5.add(StreamWindow.fromElements(10));
+		
+		 validateOutput(expected5, CentralSink3.windows);
+		
+		 // groupby mod 2 max ( Tumbling Time of 4)
+		 List<StreamWindow<Integer>> expected6 = new
+		 ArrayList<StreamWindow<Integer>>();
+		 expected6.add(StreamWindow.fromElements(3));
+		 expected6.add(StreamWindow.fromElements(5));
+		 expected6.add(StreamWindow.fromElements(11));
+		 expected6.add(StreamWindow.fromElements(4));
+		 expected6.add(StreamWindow.fromElements(10));
+		
+		 validateOutput(expected6, DistributedSink3.windows);
+		
+		 List<StreamWindow<Integer>> expected7 = new
+		 ArrayList<StreamWindow<Integer>>();
+		 expected7.add(StreamWindow.fromElements(1, 2, 2, 3, 4, 5));
+		 expected7.add(StreamWindow.fromElements(10));
+		 expected7.add(StreamWindow.fromElements(10, 11, 11));
+		
+		 validateOutput(expected7, DistributedSink4.windows);
 
 		List<StreamWindow<Integer>> expected8 = new ArrayList<StreamWindow<Integer>>();
-		expected8.add(StreamWindow.fromElements(12));
-		expected8.add(StreamWindow.fromElements(9));
-		expected8.add(StreamWindow.fromElements(32));
+		expected8.add(StreamWindow.fromElements(4, 8));
+		expected8.add(StreamWindow.fromElements(4, 5));
+		expected8.add(StreamWindow.fromElements(10, 22));
+
+		for (List<Integer> sw : DistributedSink5.windows) {
+			Collections.sort(sw);
+		}
 
 		validateOutput(expected8, DistributedSink5.windows);
 

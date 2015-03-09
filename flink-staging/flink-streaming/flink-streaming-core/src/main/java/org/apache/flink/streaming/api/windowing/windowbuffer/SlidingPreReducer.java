@@ -103,15 +103,23 @@ public abstract class SlidingPreReducer<T> implements WindowBuffer<T>, CompleteP
 	}
 
 	protected void addToBufferIfEligible(T element) throws Exception {
-		if (currentEligible(element) && currentReduced != null) {
+		if (currentEligible(element) && currentNotEmpty()) {
 			addCurrentToBuffer(element);
 			elementsPerPreAggregate.add(elementsSinceLastPreAggregate);
-			elementsSinceLastPreAggregate = 1;
-		} else {
-			updateCurrent(element);
-
-			elementsSinceLastPreAggregate++;
+			elementsSinceLastPreAggregate = 0;
+			resetCurrent();
 		}
+		updateCurrent(element);
+
+		elementsSinceLastPreAggregate++;
+	}
+
+	protected void resetCurrent() {
+		currentReduced = null;
+	}
+
+	protected boolean currentNotEmpty() {
+		return currentReduced != null;
 	}
 
 	protected void updateCurrent(T element) throws Exception {
@@ -122,9 +130,8 @@ public abstract class SlidingPreReducer<T> implements WindowBuffer<T>, CompleteP
 		}
 	}
 
-	protected void addCurrentToBuffer(T element) {
+	protected void addCurrentToBuffer(T element) throws Exception {
 		reduced.add(currentReduced);
-		currentReduced = element;
 	}
 
 	protected abstract boolean currentEligible(T next);
@@ -135,7 +142,7 @@ public abstract class SlidingPreReducer<T> implements WindowBuffer<T>, CompleteP
 		Integer lastPreAggregateSize = elementsPerPreAggregate.peek();
 		while (lastPreAggregateSize != null && lastPreAggregateSize <= toRemove) {
 			toRemove = max(toRemove - elementsPerPreAggregate.removeFirst(), 0);
-			reduced.removeFirst();
+			removeLastReduced();
 			lastPreAggregateSize = elementsPerPreAggregate.peek();
 		}
 
@@ -144,7 +151,11 @@ public abstract class SlidingPreReducer<T> implements WindowBuffer<T>, CompleteP
 		}
 	}
 
-	public int max(int a, int b) {
+	protected void removeLastReduced() {
+		reduced.removeFirst();
+	}
+
+	public static int max(int a, int b) {
 		if (a > b) {
 			return a;
 		} else {
