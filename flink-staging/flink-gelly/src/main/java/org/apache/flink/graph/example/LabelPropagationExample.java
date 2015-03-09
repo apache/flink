@@ -28,6 +28,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.library.LabelPropagation;
+import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -38,6 +39,14 @@ import org.apache.flink.util.Collector;
  * the most frequent label among their neighbors. The algorithm converges when
  * no vertex changes value or the maximum number of iterations have been
  * reached.
+ *
+ * The edges input file is expected to contain one edge per line, with long IDs
+ * in the following format:"<sourceVertexID>\t<targetVertexID>".
+ *
+ * The vertices input file is expected to contain one vertex per line, with long IDs
+ * and long vertex values, in the following format:"<vertexID>\t<vertexValue>".
+ *
+ * If no arguments are provided, the example runs with a random graph of 100 vertices.
  */
 public class LabelPropagationExample implements ProgramDescription {
 
@@ -109,15 +118,10 @@ public class LabelPropagationExample implements ProgramDescription {
 
 		if (fileOutput) {
 			return env.readCsvFile(vertexInputPath)
-					.fieldDelimiter(" ")
+					.fieldDelimiter("\t")
 					.lineDelimiter("\n")
 					.types(Long.class, Long.class)
-					.map(new MapFunction<Tuple2<Long, Long>, Vertex<Long, Long>>() {
-						@Override
-						public Vertex<Long, Long> map(Tuple2<Long, Long> value) throws Exception {
-							return new Vertex<Long, Long>(value.f0, value.f1);
-						}
-					});
+					.map(new Tuple2ToVertexMap<Long, Long>());
 		}
 
 		return env.generateSequence(1, numVertices).map(
@@ -133,7 +137,7 @@ public class LabelPropagationExample implements ProgramDescription {
 
 		if (fileOutput) {
 			return env.readCsvFile(edgeInputPath)
-					.fieldDelimiter(" ")
+					.fieldDelimiter("\t")
 					.lineDelimiter("\n")
 					.types(Long.class, Long.class)
 					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {

@@ -36,8 +36,6 @@ import java.io.File;
 @RunWith(Parameterized.class)
 public class SingleSourceShortestPathsITCase extends MultipleProgramsTestBase {
 
-    private String verticesPath;
-
     private String edgesPath;
 
     private String resultPath;
@@ -54,20 +52,16 @@ public class SingleSourceShortestPathsITCase extends MultipleProgramsTestBase {
     @Before
     public void before() throws Exception {
         resultPath = tempFolder.newFile().toURI().toString();
-        File verticesFile = tempFolder.newFile();
-        Files.write(SingleSourceShortestPathsData.VERTICES, verticesFile, Charsets.UTF_8);
 
         File edgesFile = tempFolder.newFile();
         Files.write(SingleSourceShortestPathsData.EDGES, edgesFile, Charsets.UTF_8);
-
-        verticesPath = verticesFile.toURI().toString();
         edgesPath = edgesFile.toURI().toString();
     }
 
     @Test
     public void testSSSPExample() throws Exception {
         SingleSourceShortestPathsExample.main(new String[]{SingleSourceShortestPathsData.SRC_VERTEX_ID + "",
-                verticesPath, edgesPath, resultPath, SingleSourceShortestPathsData.NUM_VERTICES + ""});
+                edgesPath, resultPath, 10 + ""});
         expected = SingleSourceShortestPathsData.RESULTED_SINGLE_SOURCE_SHORTEST_PATHS;
     }
 
