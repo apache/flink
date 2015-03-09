@@ -30,6 +30,15 @@ import org.apache.flink.streaming.api.streamvertex.StreamingSuperstep;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Class encapsulating the functionality that is necessary to sync inputs on
+ * superstep barriers. Once a barrier is received from an input channel, whe
+ * should not process further buffers from that channel until we received the
+ * barrier from all other channels as well. To avoid back-pressuring the
+ * readers, we buffer up the new data received from the blocked channels until
+ * the blocks are released.
+ * 
+ */
 public class BarrierBuffer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);
@@ -54,7 +63,7 @@ public class BarrierBuffer {
 	}
 
 	/**
-	 * Starts the next superstep
+	 * Starts the next superstep in the buffer
 	 * 
 	 * @param superstep
 	 *            The next superstep

@@ -62,8 +62,8 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	private boolean hasRequestedPartitions;
 
-	private CoBarrierBuffer barrierBuffer1;
-	private CoBarrierBuffer barrierBuffer2;
+	protected CoBarrierBuffer barrierBuffer1;
+	protected CoBarrierBuffer barrierBuffer2;
 
 	public CoRecordReader(InputGate inputgate1, InputGate inputgate2) {
 		super(new UnionInputGate(inputgate1, inputgate2));
@@ -195,7 +195,7 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 		}
 	}
 
-	private int getNextReaderIndexBlocking() throws InterruptedException {
+	protected int getNextReaderIndexBlocking() throws InterruptedException {
 
 		Integer nextIndex = 0;
 
@@ -230,6 +230,10 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	@Override
 	public void onEvent(InputGate bufferReader) {
+		addToAvailable(bufferReader);
+	}
+	
+	protected void addToAvailable(InputGate bufferReader){
 		if (bufferReader == bufferReader1) {
 			availableRecordReaders.add(1);
 		} else if (bufferReader == bufferReader2) {

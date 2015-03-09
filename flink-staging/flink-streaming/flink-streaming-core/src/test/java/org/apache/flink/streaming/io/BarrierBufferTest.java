@@ -44,8 +44,6 @@ public class BarrierBufferTest {
 		input.add(createBuffer(0));
 		input.add(createBuffer(0));
 		input.add(createBuffer(0));
-		input.add(createBuffer(2));
-		input.add(createBuffer(2));
 
 		InputGate mockIG = new MockInputGate(1, input);
 		AbstractReader mockAR = new MockReader(mockIG);
@@ -55,8 +53,6 @@ public class BarrierBufferTest {
 		assertEquals(input.get(0), bb.getNextNonBlocked());
 		assertEquals(input.get(1), bb.getNextNonBlocked());
 		assertEquals(input.get(2), bb.getNextNonBlocked());
-		assertEquals(input.get(3), bb.getNextNonBlocked());
-		assertEquals(input.get(4), bb.getNextNonBlocked());
 
 	}
 
@@ -136,7 +132,7 @@ public class BarrierBufferTest {
 
 	}
 
-	private static class MockInputGate implements InputGate {
+	protected static class MockInputGate implements InputGate {
 
 		private int numChannels;
 		private Queue<BufferOrEvent> boes;
@@ -175,7 +171,7 @@ public class BarrierBufferTest {
 
 	}
 
-	private static class MockReader extends AbstractReader {
+	protected static class MockReader extends AbstractReader {
 
 		protected MockReader(InputGate inputGate) {
 			super(inputGate);
@@ -183,11 +179,11 @@ public class BarrierBufferTest {
 
 	}
 
-	private static BufferOrEvent createSuperstep(long id, int channel) {
+	protected static BufferOrEvent createSuperstep(long id, int channel) {
 		return new BufferOrEvent(new StreamingSuperstep(id), channel);
 	}
 
-	private static BufferOrEvent createBuffer(int channel) {
+	protected static BufferOrEvent createBuffer(int channel) {
 		return new BufferOrEvent(new Buffer(new MemorySegment(new byte[] { 1 }),
 				new BufferRecycler() {
 

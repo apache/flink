@@ -46,7 +46,6 @@ import org.apache.flink.streaming.api.streamvertex.StreamIterationHead;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationTail;
 import org.apache.flink.streaming.api.streamvertex.StreamVertex;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
-import org.apache.flink.runtime.state.OperatorState;
 import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
@@ -85,7 +84,6 @@ public class StreamGraph extends StreamingPlan {
 	private Map<Integer, Integer> iterationIDtoTailID;
 	private Map<Integer, Integer> iterationTailCount;
 	private Map<Integer, Long> iterationTimeouts;
-	private Map<Integer, Map<String, OperatorState<?>>> operatorStates;
 	private Map<Integer, InputFormat<String, ?>> inputFormatLists;
 	private List<Map<Integer, ?>> containingMaps;
 
@@ -149,10 +147,8 @@ public class StreamGraph extends StreamingPlan {
 		containingMaps.add(iterationTailCount);
 		iterationTimeouts = new HashMap<Integer, Long>();
 		containingMaps.add(iterationTailCount);
-		operatorStates = new HashMap<Integer, Map<String, OperatorState<?>>>();
-		containingMaps.add(operatorStates);
 		inputFormatLists = new HashMap<Integer, InputFormat<String, ?>>();
-		containingMaps.add(operatorStates);
+		containingMaps.add(inputFormatLists);
 		sources = new HashSet<Integer>();
 	}
 
@@ -419,22 +415,6 @@ public class StreamGraph extends StreamingPlan {
 		return this.bufferTimeouts.get(vertexID);
 	}
 
-	public void addOperatorState(Integer vertexName, String stateName, OperatorState<?> state) {
-		Map<String, OperatorState<?>> states = operatorStates.get(vertexName);
-		if (states == null) {
-			states = new HashMap<String, OperatorState<?>>();
-			states.put(stateName, state);
-		} else {
-			if (states.containsKey(stateName)) {
-				throw new RuntimeException("State has already been registered with this name: "
-						+ stateName);
-			} else {
-				states.put(stateName, state);
-			}
-		}
-		operatorStates.put(vertexName, states);
-	}
-
 	/**
 	 * Sets a user defined {@link OutputSelector} for the given operator. Used
 	 * for directed emits.
@@ -592,10 +572,6 @@ public class StreamGraph extends StreamingPlan {
 
 	public List<OutputSelector<?>> getOutputSelector(Integer vertexID) {
 		return outputSelectors.get(vertexID);
-	}
-
-	public Map<String, OperatorState<?>> getState(Integer vertexID) {
-		return operatorStates.get(vertexID);
 	}
 
 	public Integer getIterationID(Integer vertexID) {
