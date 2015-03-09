@@ -18,10 +18,24 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 
+/**
+ * A BarrierTransceiver describes an operator's barrier checkpointing behavior used for 
+ * fault tolerance. In the most common case [[broadcastBarrier]] is being expected to be called 
+ * periodically upon receiving a checkpoint barrier. Furthermore, a [[confirmBarrier]] method should
+ * be implemented and used for acknowledging a specific checkpoint checkpoint.
+ */
 public interface BarrierTransceiver {
 
+	/**
+	 * A callback for notifying an operator of a new checkpoint barrier.
+	 * @param barrierID
+	 */
 	public void broadcastBarrier(long barrierID);
-	
+
+	/**
+	 * A callback for confirming that a barrier checkpoint is complete
+	 * @param barrierID
+	 */
 	public void confirmBarrier(long barrierID);
 	
 }

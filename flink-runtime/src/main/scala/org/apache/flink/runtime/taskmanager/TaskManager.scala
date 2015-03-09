@@ -443,7 +443,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
       {
         val vertex = task.getEnvironment.getInvokable match {
           case opStateCarrier: OperatorStateCarrier =>
-            opStateCarrier.injectStates(tdd.getOperatorStates)
+            opStateCarrier.injectState(tdd.getOperatorStates)
         }
       }
       
