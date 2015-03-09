@@ -22,11 +22,20 @@ package org.apache.flink.ml
  * Convenience to handle Flink's [[org.apache.flink.ml.math.Matrix]] and [[Vector]] abstraction.
  */
 package object math {
-  implicit class RichDenseMatrix(matrix: DenseMatrix) extends Iterable[Double] {
-    override def iterator: Iterator[Double] = matrix.values.iterator
+  implicit class RichMatrix(matrix: Matrix) extends Iterable[Double] {
+
+    override def iterator: Iterator[Double] = {
+      matrix match {
+        case dense: DenseMatrix => dense.values.iterator
+      }
+    }
   }
 
-  implicit class RichDenseVector(vector: DenseVector) extends Iterable[Double] {
-    override def iterator: Iterator[Double] = vector.values.iterator
+  implicit class RichVector(vector: Vector) extends Iterable[Double] {
+    override def iterator: Iterator[Double] = {
+      vector match {
+        case dense: DenseVector => dense.values.iterator
+      }
+    }
   }
 }
