@@ -15,33 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.api.simple;
+package org.apache.flink.streaming.connectors.kafka.api.simple.offset;
 
-/**
- * POJO encapsulating records received from Kafka with their offset.
- */
-public class MessageWithOffset {
-	private long offset;
-	private byte[] message;
+import kafka.javaapi.consumer.SimpleConsumer;
 
-	public MessageWithOffset(long offset, byte[] message) {
+public class GivenOffset extends KafkaOffset {
+
+	private final long offset;
+
+	public GivenOffset(long offset) {
 		this.offset = offset;
-		this.message = message;
 	}
 
-	public long getOffset() {
+	@Override
+	public long getOffset(SimpleConsumer consumer, String topic, int partition, String clientName) {
 		return offset;
 	}
 
-	public void setOffset(long offset) {
-		this.offset = offset;
-	}
-
-	public byte[] getMessage() {
-		return message;
-	}
-
-	public void setMessage(byte[] message) {
-		this.message = message;
-	}
 }

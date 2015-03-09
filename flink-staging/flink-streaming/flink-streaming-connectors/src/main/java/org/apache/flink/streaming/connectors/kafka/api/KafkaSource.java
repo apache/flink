@@ -106,6 +106,8 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 		List<KafkaStream<byte[], byte[]>> streams = consumerMap.get(topicId);
 		KafkaStream<byte[], byte[]> stream = streams.get(0);
 
+		consumer.commitOffsets();
+
 		consumerIterator = stream.iterator();
 	}
 
