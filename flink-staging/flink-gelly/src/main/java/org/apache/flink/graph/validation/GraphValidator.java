@@ -33,6 +33,6 @@ import org.apache.flink.graph.Graph;
 public abstract class GraphValidator<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
 		implements Serializable {
 
-	public abstract Boolean validate(Graph<K, VV, EV> graph) throws Exception;
+	public abstract boolean validate(Graph<K, VV, EV> graph) throws Exception;
 
 }

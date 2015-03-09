@@ -20,11 +20,6 @@ package org.apache.flink.graph.library;
 
 import java.io.Serializable;
 
-<<<<<<< HEAD
-import org.apache.flink.api.java.DataSet;
-=======
-import org.apache.flink.api.java.ExecutionEnvironment;
->>>>>>> [FLINK-1632][gelly] Deleted GraphUtils and made Gelly methods use DS.count()
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
@@ -45,25 +40,13 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	}
 
 	@Override
-	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) {
+	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) throws Exception {
 
-		DataSet<Integer> numberOfVertices = network.numberOfVertices();
+		final long numberOfVertices = network.numberOfVertices();
 
 		VertexCentricIteration<K, Double, Double, Double> iteration = network.createVertexCentricIteration(
-				new VertexRankUpdater<K>(beta), new RankMessenger<K>(), maxIterations);
-<<<<<<< HEAD
-
-		iteration.addBroadcastSetForMessagingFunction("numberOfVertices", numberOfVertices);
-		iteration.addBroadcastSetForUpdateFunction("numberOfVertices", numberOfVertices);
-
-=======
-		try {
-			iteration.addBroadcastSetForUpdateFunction("numberOfVertices",
-					ExecutionEnvironment.getExecutionEnvironment().fromElements(network.numberOfVertices()));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
->>>>>>> [FLINK-1632][gelly] Deleted GraphUtils and made Gelly methods use DS.count()
+				new VertexRankUpdater<K>(beta, numberOfVertices), new RankMessenger<K>(numberOfVertices),
+				maxIterations);
 		return network.runVertexCentricIteration(iteration);
 	}
 
@@ -76,15 +59,11 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 			extends VertexUpdateFunction<K, Double, Double> {
 
 		private final double beta;
-		private int numVertices;
+		private final long numVertices;
 		
-		public VertexRankUpdater(double beta) {
+		public VertexRankUpdater(double beta, long numberOfVertices) {
 			this.beta = beta;
-		}
-		
-		@Override
-		public void preSuperstep(){
-			numVertices = (Integer) getBroadcastSet("numberOfVertices").iterator().next();
+			this.numVertices = numberOfVertices;
 		}
 
 		@Override
@@ -110,11 +89,10 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	public static final class RankMessenger<K extends Comparable<K> & Serializable>
 			extends MessagingFunction<K, Double, Double, Double> {
 
-		private int numVertices;
+		private final long numVertices;
 
-		@Override
-		public void preSuperstep(){
-			numVertices = (Integer) getBroadcastSet("numberOfVertices").iterator().next();
+		public RankMessenger(long numberOfVertices) {
+			this.numVertices = numberOfVertices;
 		}
 
 		@Override
