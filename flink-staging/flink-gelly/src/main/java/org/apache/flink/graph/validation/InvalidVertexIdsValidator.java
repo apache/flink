@@ -38,11 +38,11 @@ public class InvalidVertexIdsValidator<K extends Comparable<K> & Serializable, V
 	 * Checks that the edge set input contains valid vertex Ids, i.e. that they
 	 * also exist in the vertex input set.
 	 * 
-	 * @return a Boolean stating whether a graph is valid
+	 * @return a boolean stating whether a graph is valid
 	 *         with respect to its vertex ids.
 	 */
 	@Override
-	public Boolean validate(Graph<K, VV, EV> graph) throws Exception {
+	public boolean validate(Graph<K, VV, EV> graph) throws Exception {
 		DataSet<Tuple1<K>> edgeIds = graph.getEdges()
 				.flatMap(new MapEdgeIds<K, EV>()).distinct();
 		DataSet<K> invalidIds = graph.getVertices().coGroup(edgeIds).where(0)

@@ -926,7 +926,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 *            the maximum number of iterations for the inner delta iteration
 	 * @return true if the graph is weakly connected.
 	 */
-	public Boolean isWeaklyConnected(int maxIterations) throws Exception {
+	public boolean isWeaklyConnected(int maxIterations) throws Exception {
 		// first, convert to an undirected graph
 		Graph<K, VV, EV> graph = this.getUndirected();
 
