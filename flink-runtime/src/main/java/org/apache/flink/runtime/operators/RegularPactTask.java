@@ -254,7 +254,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			initOutputs();
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the output handlers failed" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -339,7 +339,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Initializing the input processing failed" +
-					e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+						(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 			}
 
 			if (!this.running) {
@@ -420,7 +420,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the UDF" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 	}
 	
@@ -1002,7 +1002,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					localStub = initStub(userCodeFunctionType);
 				} catch (Exception e) {
 					throw new RuntimeException("Initializing the user code and the configuration failed" +
-						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+							(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 				}
 				
 				if (!(localStub instanceof FlatCombineFunction)) {
