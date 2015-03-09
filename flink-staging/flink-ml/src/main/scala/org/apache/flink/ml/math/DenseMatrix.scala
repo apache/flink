@@ -53,6 +53,16 @@ case class DenseMatrix(val numRows: Int,
     s"DenseMatrix($numRows, $numCols, ${values.mkString(", ")})"
   }
 
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case dense: DenseMatrix =>
+        numRows == dense.numRows && numCols == dense.numCols && values.zip(dense.values).forall {
+          case (a, b) => a == b
+        }
+      case _ => false
+    }
+  }
+
 }
 
 object DenseMatrix {

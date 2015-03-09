@@ -49,6 +49,17 @@ case class DenseVector(val values: Array[Double]) extends Vector {
   override def toString: String = {
     s"DenseVector(${values.mkString(", ")})"
   }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case dense: DenseVector =>
+        values.length == dense.values.length && values.zip(dense.values).forall{
+          case (a,b) => a == b
+        }
+
+      case _ => false
+    }
+  }
 }
 
 object DenseVector {
