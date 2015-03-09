@@ -26,38 +26,47 @@ import org.apache.flink.runtime.execution.ExecutionState.RUNNING
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph, ExecutionVertex}
 import org.apache.flink.runtime.jobgraph.JobStatus._
 import org.apache.flink.runtime.jobgraph.{JobID, JobVertexID}
-import org.apache.flink.runtime.state.OperatorState
+import org.apache.flink.runtime.state.StateHandle
 
 import scala.collection.JavaConversions._
 import scala.collection.immutable.TreeMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{FiniteDuration, _}
 
-object StreamCheckpointCoordinator {
-
-  def spawn(context: ActorContext,executionGraph: ExecutionGraph,
-            interval: FiniteDuration = 5 seconds): ActorRef = {
-
-    val vertices: Iterable[ExecutionVertex] = getExecutionVertices(executionGraph)
-    val monitor = context.system.actorOf(Props(new StreamCheckpointCoordinator(executionGraph,
-      vertices,vertices.map(x => ((x.getJobVertex.getJobVertexId,x.getParallelSubtaskIndex),
-              List.empty[Long])).toMap, Map() ,interval,0L,-1L)))
-    monitor ! InitBarrierScheduler
-    monitor
-  }
-
-  private def getExecutionVertices(executionGraph: ExecutionGraph): Iterable[ExecutionVertex] = {
-    for((_,execJobVertex) <- executionGraph.getAllVertices;
-        execVertex: ExecutionVertex <- execJobVertex.getTaskVertices)
-    yield execVertex
-  }
-}
+/**
+ * The StreamCheckpointCoordinator is responsible for operator state management and checkpoint
+ * coordination in streaming jobs. It periodically sends checkpoint barriers to the sources of a
+ * running job and constantly collects acknowledgements from operators while the barriers are being 
+ * disseminated throughout the execution graph. Upon time intervals it finds the last globally
+ * acknowledged checkpoint barrier to be used for a consistent recovery and loads all associated 
+ * state handles to the respected execution vertices.
+ * 
+ * The following messages describe this actor's expected behavior: 
+ *
+ *  - [[InitBarrierScheduler]] initiates the actor and schedules the periodic [[BarrierTimeout]] 
+ *  and [[CompactAndUpdate]] messages that are used for maintaining the state checkpointing logic. 
+ *
+ *  - [[BarrierTimeout]] is periodically triggered upon initiation in order to start a new 
+ *  checkpoint barrier. That is when the barriers are being disseminated to the source vertices.
+ *
+ *  - [[BarrierAck]] is being sent by each operator upon the completion of a state checkpoint. All
+ *  such acknowledgements are being collected and inspected upon [[CompactAndUpdate]] handling in
+ *  order to find out the last consistent checkpoint.
+ *  
+ *  - [[StateBarrierAck]] describes an acknowledgement such as the case of a [[BarrierAck]] that 
+ *  additionally carries operatorState with it.
+ *
+ * - [[CompactAndUpdate]] marks the last globally consistent checkpoint barrier to be used for 
+ * recovery purposes and removes all older states and acknowledgements up to that barrier.
+ * Furthermore, it updates the current ExecutionGraph with the current operator state handles 
+ * 
+ */
 
 class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
                          val vertices: Iterable[ExecutionVertex],
                          var acks: Map[(JobVertexID,Int),List[Long]],
                          var states: Map[(JobVertexID, Integer, Long), 
-                                 java.util.Map[String,OperatorState[_]]],
+                                 StateHandle],
                          val interval: FiniteDuration,var curId: Long,var ackId: Long)
         extends Actor with ActorLogMessages with ActorLogging {
   
@@ -95,8 +104,6 @@ class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
           }
           log.debug(acks.toString)
       
-      
-      
     case CompactAndUpdate =>
       val barrierCount = acks.values.foldLeft(TreeMap[Long,Int]().withDefaultValue(0))((dict,myList)
       => myList.foldLeft(dict)((dict2,elem) => dict2.updated(elem,dict2(elem) + 1)))
@@ -108,7 +115,26 @@ class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
       executionGraph.loadOperatorStates(states)
       
   }
-  
+}
+
+object StreamCheckpointCoordinator {
+
+  def spawn(context: ActorContext,executionGraph: ExecutionGraph,
+            interval: FiniteDuration = 5 seconds): ActorRef = {
+
+    val vertices: Iterable[ExecutionVertex] = getExecutionVertices(executionGraph)
+    val monitor = context.system.actorOf(Props(new StreamCheckpointCoordinator(executionGraph,
+      vertices,vertices.map(x => ((x.getJobVertex.getJobVertexId,x.getParallelSubtaskIndex),
+              List.empty[Long])).toMap, Map() ,interval,0L,-1L)))
+    monitor ! InitBarrierScheduler
+    monitor
+  }
+
+  private def getExecutionVertices(executionGraph: ExecutionGraph): Iterable[ExecutionVertex] = {
+    for((_,execJobVertex) <- executionGraph.getAllVertices;
+        execVertex: ExecutionVertex <- execJobVertex.getTaskVertices)
+    yield execVertex
+  }
 }
 
 case class BarrierTimeout()
@@ -122,7 +148,7 @@ case class BarrierReq(attemptID: ExecutionAttemptID,checkpointID: Long)
 case class BarrierAck(jobID: JobID,jobVertexID: JobVertexID,instanceID: Int,checkpointID: Long)
 
 case class StateBarrierAck(jobID: JobID, jobVertexID: JobVertexID, instanceID: Integer,
-                           checkpointID: Long, states: java.util.Map[String,OperatorState[_]])
+                           checkpointID: Long, states: StateHandle)
        
 
 

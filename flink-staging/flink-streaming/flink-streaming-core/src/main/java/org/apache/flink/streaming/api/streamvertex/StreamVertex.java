@@ -28,6 +28,8 @@ import org.apache.flink.runtime.jobgraph.tasks.BarrierTransceiver;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.jobmanager.BarrierAck;
 import org.apache.flink.runtime.jobmanager.StateBarrierAck;
+import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.StreamConfig;
@@ -112,7 +114,8 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 		if (configuration.getStateMonitoring() && !states.isEmpty()) {
 			getEnvironment().getJobManager().tell(
 					new StateBarrierAck(getEnvironment().getJobID(), getEnvironment()
-							.getJobVertexId(), context.getIndexOfThisSubtask(), barrierID, states),
+							.getJobVertexId(), context.getIndexOfThisSubtask(), barrierID, 
+							new LocalStateHandle(states)),
 					ActorRef.noSender());
 		} else {
 			getEnvironment().getJobManager().tell(
@@ -284,8 +287,8 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	 * Re-injects the user states into the map
 	 */
 	@Override
-	public void injectStates(Map<String, OperatorState<?>> states) {
-		this.states.putAll(states);
+	public void injectState(StateHandle stateHandle) {
+		this.states.putAll(stateHandle.getState());
 	}
 
 	private class SuperstepEventListener implements EventListener<TaskEvent> {

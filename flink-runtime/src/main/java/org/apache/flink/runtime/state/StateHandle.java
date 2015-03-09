@@ -16,17 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph.tasks;
+package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.state.StateHandle;
+
+import java.io.Serializable;
+import java.util.Map;
 
 /**
- * This is an interface meant to be implemented by any invokable that has to support state recovery.
- * It is mainly used by the TaskManager to identify operators that support state recovery in order 
- * to inject their initial state upon creation.
+ * StateHandle is a general handle interface meant to abstract operator state fetching. 
+ * A StateHandle implementation can for example include the state itself in cases where the state 
+ * is lightweight or fetching it lazily from some external storage when the state is too large.
+ * 
  */
-public interface OperatorStateCarrier {
+public interface StateHandle extends Serializable{
 
-	public void injectState(StateHandle stateHandle);
-
+	/**
+	 * getState should retrieve and return the state managed the handle. 
+	 * 
+	 * @return
+	 */
+	public Map<String,OperatorState<?>> getState();
+	
 }

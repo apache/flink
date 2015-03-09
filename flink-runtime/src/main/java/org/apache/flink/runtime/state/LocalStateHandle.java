@@ -16,17 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobgraph.tasks;
+package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.state.StateHandle;
+
+import java.util.Map;
 
 /**
- * This is an interface meant to be implemented by any invokable that has to support state recovery.
- * It is mainly used by the TaskManager to identify operators that support state recovery in order 
- * to inject their initial state upon creation.
+ * A StateHandle that includes a copy of the state itself. This state handle is recommended for 
+ * cases where the operatorState is lightweight enough to pass throughout the network. 
+ * 
  */
-public interface OperatorStateCarrier {
+public class LocalStateHandle implements StateHandle{
+	
+	private final Map<String, OperatorState<?>>  state;
 
-	public void injectState(StateHandle stateHandle);
+	public LocalStateHandle(Map<String,OperatorState<?>> state) {
+		this.state = state;
+	}
 
+	@Override
+	public Map<String,OperatorState<?>> getState() {
+		return state;
+	}
 }

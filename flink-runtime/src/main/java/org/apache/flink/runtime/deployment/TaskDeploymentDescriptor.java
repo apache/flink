@@ -23,12 +23,11 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.OperatorState;
+import org.apache.flink.runtime.state.StateHandle;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -79,7 +78,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** The list of JAR files required to run this task. */
 	private final List<BlobKey> requiredJarFiles;
 	
-	private Map<String, OperatorState<?>> operatorStates;
+	private StateHandle operatorStates;
 
 	/**
 	 * Constructs a task deployment descriptor.
@@ -129,13 +128,13 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			Configuration taskConfiguration, String invokableClassName,
 			List<PartitionDeploymentDescriptor> producedPartitions,
 			List<PartitionConsumerDeploymentDescriptor> consumedPartitions,
-			List<BlobKey> requiredJarFiles, int targetSlotNumber, Map<String,OperatorState<?>> operatorStates) {
+			List<BlobKey> requiredJarFiles, int targetSlotNumber, StateHandle operatorStates) {
 
 		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
 				consumedPartitions, requiredJarFiles, targetSlotNumber);
 		
-		setOperatorStates(operatorStates);
+		setOperatorState(operatorStates);
 	}
 
 	/**
@@ -244,11 +243,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
 				strProducedPartitions, strConsumedPartitions);
 	}
 
-	public void setOperatorStates(Map<String,OperatorState<?>> operatorStates) {
+	public void setOperatorState(StateHandle operatorStates) {
 		this.operatorStates = operatorStates;
 	}
 
-	public Map<String, OperatorState<?>> getOperatorStates() {
+	public StateHandle getOperatorStates() {
 		return operatorStates;
 	}
 }

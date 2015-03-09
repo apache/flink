@@ -46,7 +46,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
-import org.apache.flink.runtime.state.OperatorState;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 
@@ -56,7 +56,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeoutException;
@@ -124,7 +123,7 @@ public class Execution implements Serializable {
 	
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 	
-	private Map<String,OperatorState<?>> operatorStates;
+	private StateHandle operatorState;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -858,11 +857,11 @@ public class Execution implements Serializable {
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
 	}
 
-	public void setOperatorStates(Map<String,OperatorState<?>> operatorStates) {
-		this.operatorStates = operatorStates;
+	public void setOperatorState(StateHandle operatorStates) {
+		this.operatorState = operatorStates;
 	}
 
-	public Map<String,OperatorState<?>> getOperatorStates() {
-		return operatorStates;
+	public StateHandle getOperatorState() {
+		return operatorState;
 	}
 }
