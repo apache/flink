@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.api.simple;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.ConnectorSource;
+import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaConsumerIterator;
 import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 import org.apache.flink.util.Collector;
 
@@ -32,33 +33,25 @@ import org.apache.flink.util.Collector;
 public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private String topicId;
-	private final String hostName;
-	private final int port;
-	private final int partition;
+	protected String topicId;
+	protected final String zookeeperServerAddress;
 	protected KafkaConsumerIterator iterator;
 
-	public SimpleKafkaSource(String topic, String hostName, int port, int partition,
-								DeserializationSchema<OUT> deserializationSchema) {
+	public SimpleKafkaSource(String topic, String zookeeperServerAddress,
+			DeserializationSchema<OUT> deserializationSchema) {
 		super(deserializationSchema);
 		this.topicId = topic;
-		this.hostName = hostName;
-		this.port = port;
-		this.partition = partition;
-	}
-
-	private void initializeConnection() {
-		iterator = new KafkaConsumerIterator(hostName, port, topicId, partition);
+		this.zookeeperServerAddress = zookeeperServerAddress;
 	}
 
 	protected void setInitialOffset(Configuration config) throws InterruptedException {
-		iterator.initializeFromCurrent();
+		iterator.initialize();
 	}
 
 	@Override
 	public void run(Collector<OUT> collector) throws Exception {
 		while (iterator.hasNext()) {
-			MessageWithOffset msg = iterator.nextWithOffset();
+			MessageWithMetadata msg = iterator.nextWithOffset();
 			OUT out = schema.deserialize(msg.getMessage());
 			collector.collect(out);
 		}
@@ -71,7 +64,7 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	@Override
 	public void open(Configuration config) throws InterruptedException {
-		initializeConnection();
+//		initializeConnection();
 		setInitialOffset(config);
 	}
 }
