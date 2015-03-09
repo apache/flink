@@ -37,6 +37,10 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 
+/**
+ * A series of tests (reusing one FlinkMiniCluster) where tasks fail (one or more time)
+ * and the recovery should restart them to verify job completion.
+ */
 @SuppressWarnings("serial")
 public class SimpleRecoveryITCase {
 
