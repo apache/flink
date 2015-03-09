@@ -46,25 +46,6 @@ public class YarnTaskManagerRunner {
 
 	public static void main(final String[] args) throws IOException {
 
-		/*try {
-			Runtime.getRuntime().addShutdownHook(new Thread() {
-				@Override
-				public void run() {
-					super.run();
-					System.out.println("Call on shutdown hook");
-				}
-			});
-			Signal.handle(new Signal("TERM"), new SignalHandler() {
-				@Override
-				public void handle(Signal signal) {
-					System.out.println("Got TERM call");
-				}
-			});
-		} catch (Throwable t) {
-			System.out.println("Exception tmsg = " + t.getMessage());
-			t.printStackTrace();
-		} */
-
 		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN TaskManager", args);
 		EnvironmentInformation.checkJavaVersion();
 		org.apache.flink.runtime.util.SignalHandler.register(LOG);
