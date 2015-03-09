@@ -45,6 +45,18 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.*;
 
+/**
+ * This test verifies the behavior of the recovery in the case when a TaskManager
+ * fails (shut down) in the middle of a job execution.
+ *
+ * The test works with multiple in-process task managers. Initially, it starts a JobManager
+ * and two TaskManagers with 2 slots each. It submits a program with parallelism 4
+ * and waits until all tasks are brought up (coordination between the test and the tasks
+ * happens via shared blocking queues). It then starts another TaskManager, which is
+ * guaranteed to remain empty (all tasks are already deployed) and kills one of
+ * the original task managers. The recovery should restart the tasks on the new TaskManager.
+ */
+@SuppressWarnings("serial")
 public class TaskManagerFailureRecoveryITCase {
 
 	@Test
@@ -165,10 +177,12 @@ public class TaskManagerFailureRecoveryITCase {
 	}
 
 	private static class FailingMapper<T> extends RichMapFunction<T, T> {
+		private static final long serialVersionUID = 4435412404173331157L;
 
 		private static final BlockingQueue<Object> TASK_TO_COORD_QUEUE = new LinkedBlockingQueue<Object>();
 
 		private static final BlockingQueue<Object> COORD_TO_TASK_QUEUE = new LinkedBlockingQueue<Object>();
+
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
