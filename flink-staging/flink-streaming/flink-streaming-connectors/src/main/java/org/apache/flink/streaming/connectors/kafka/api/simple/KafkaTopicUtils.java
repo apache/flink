@@ -25,22 +25,52 @@ import org.I0Itec.zkclient.exception.ZkMarshallingError;
 import org.I0Itec.zkclient.serialize.ZkSerializer;
 
 import kafka.admin.AdminUtils;
+import kafka.api.PartitionMetadata;
+import kafka.api.TopicMetadata;
+import scala.collection.JavaConversions;
+import scala.collection.Seq;
 
 /**
- * Factory for creating custom Kafka partitions.
+ * For retrieving Kafka topic information (e.g. number of partitions),
+ * or creating a topic.
  */
-public class KafkaTopicFactory {
+public class KafkaTopicUtils {
 
-	public static void createTopic(String zookeeperServer, String topicName, int numOfPartitions, int replicationFactor) {
-		createTopic(zookeeperServer, topicName, numOfPartitions, replicationFactor, new Properties(), 10000, 10000);
+	private final ZkClient zkClient;
+
+	public KafkaTopicUtils(String zookeeperServer) {
+		this(zookeeperServer, 10000, 10000);
 	}
 
-	public static void createTopic(String zookeeperServer, String topicName, int numOfPartitions, int replicationFactor, Properties topicProperties, int sessionTimeoutMs, int connectionTimeoutMs) {
-		ZkClient zkClient = new ZkClient(zookeeperServer, sessionTimeoutMs, connectionTimeoutMs,
+	public KafkaTopicUtils(String zookeeperServer, int sessionTimeoutMs, int connectionTimeoutMs) {
+		zkClient = new ZkClient(zookeeperServer, sessionTimeoutMs, connectionTimeoutMs,
 				new KafkaZKStringSerializer());
+	}
 
+	public void createTopic(String topicName, int numOfPartitions, int replicationFactor) {
+		createTopic(topicName, numOfPartitions, replicationFactor, new Properties());
+	}
+
+	public void createTopic(String topicName, int numOfPartitions, int replicationFactor, Properties topicProperties) {
 		Properties topicConfig = new Properties();
 		AdminUtils.createTopic(zkClient, topicName, numOfPartitions, replicationFactor, topicConfig);
+	}
+
+	public int getNumberOfPartitions(String topicName) {
+		Seq<PartitionMetadata> partitionMetadataSeq = getTopicInfo(topicName).partitionsMetadata();
+		return JavaConversions.asJavaCollection(partitionMetadataSeq).size();
+	}
+
+	public TopicMetadata getTopicInfo(String topicName) {
+		if (topicExists(topicName)) {
+			return AdminUtils.fetchTopicMetadataFromZk(topicName, zkClient);
+		} else {
+			throw new RuntimeException("Topic does not exist: " + topicName);
+		}
+	}
+
+	public boolean topicExists(String topicName) {
+		return AdminUtils.topicExists(zkClient, topicName);
 	}
 
 	private static class KafkaZKStringSerializer implements ZkSerializer {

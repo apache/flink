@@ -17,11 +17,21 @@
 
 package org.apache.flink.streaming.connectors.kafka.api.simple;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaIdleConsumerIterator;
+import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaMultiplePartitionsIterator;
+import org.apache.flink.streaming.connectors.kafka.api.simple.offset.CurrentOffset;
+import org.apache.flink.streaming.connectors.kafka.api.simple.offset.GivenOffset;
+import org.apache.flink.streaming.connectors.kafka.api.simple.offset.KafkaOffset;
 import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Kafka source persisting its offset through the {@link OperatorState} interface.
@@ -35,45 +45,73 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
-	private long initialOffset;
+	private static final Logger LOG = LoggerFactory.getLogger(PersistentKafkaSource.class);
 
-	private transient OperatorState<Long> kafkaOffSet;
+	private transient OperatorState<Map<Integer, KafkaOffset>> kafkaOffSet;
+	private transient Map<Integer, KafkaOffset> partitions;
 
-	public PersistentKafkaSource(String topicId, String host, int port, int partition, long initialOffset,
+	private int partition;
+	
+	public PersistentKafkaSource(String topicId, String host, int port,
 			DeserializationSchema<OUT> deserializationSchema) {
-		super(topicId, host, port, partition, deserializationSchema);
-		this.initialOffset = initialOffset;
+		super(topicId, host, port, deserializationSchema);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public void open(Configuration parameters) throws InterruptedException {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-		
-		if (context.containsState("kafka")) {
-			kafkaOffSet = (OperatorState<Long>) context.getState("kafka");
+		int indexOfSubtask = context.getIndexOfThisSubtask();
+		int numberOfSubtasks = context.getNumberOfParallelSubtasks();
+		int numberOfPartitions = new KafkaTopicUtils(hostName + ":2181", 5000, 5000).getNumberOfPartitions(topicId);
+
+		if (indexOfSubtask >= numberOfPartitions) {
+			iterator = new KafkaIdleConsumerIterator();
 		} else {
-			kafkaOffSet = new OperatorState<Long>(initialOffset);
-			context.registerState("kafka", kafkaOffSet);
+			if (context.containsState("kafka")) {
+				kafkaOffSet = (OperatorState<Map<Integer, KafkaOffset>>) context.getState("kafka");
+
+				partitions = kafkaOffSet.getState();
+
+				iterator = new KafkaMultiplePartitionsIterator(hostName, port, topicId, partitions, 500);
+			} else {
+				partitions = new HashMap<Integer, KafkaOffset>();
+
+				partition = indexOfSubtask;
+
+				for (int partitionIndex = indexOfSubtask;
+					 partitionIndex < numberOfPartitions;
+					 partitionIndex += numberOfSubtasks) {
+					partitions.put(partitionIndex, new CurrentOffset());
+				}
+
+				kafkaOffSet = new OperatorState<Map<Integer, KafkaOffset>>(partitions);
+
+				context.registerState("kafka", kafkaOffSet);
+
+				iterator = new KafkaMultiplePartitionsIterator(hostName, port, topicId, partitions, 500);
+			}
+
+			if (LOG.isInfoEnabled()) {
+				LOG.info("KafkaSource ({}/{}) listening to partitions {} of topic {}.",
+						indexOfSubtask + 1, numberOfSubtasks, partitions.keySet(), topicId);
+			}
 		}
 
-		super.open(parameters);
+		iterator.initialize();
 	}
-
-	@Override
-	protected void setInitialOffset(Configuration config) throws InterruptedException{
-		iterator.initializeFromOffset(kafkaOffSet.getState());
-	}
-
 
 	@Override
 	public void run(Collector<OUT> collector) throws Exception {
-		MessageWithOffset msg;
+		MessageWithMetadata msg;
 		while (iterator.hasNext()) {
 			msg = iterator.nextWithOffset();
 			OUT out = schema.deserialize(msg.getMessage());
 			collector.collect(out);
-			kafkaOffSet.update(msg.getOffset());
+
+			// TODO avoid object creation
+			partitions.put(msg.getPartition(), new GivenOffset(msg.getOffset()));
+			kafkaOffSet.update(partitions);
 		}
 	}
 }
