@@ -56,7 +56,9 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBuffer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.CompletePreAggregator;
+import org.apache.flink.streaming.api.windowing.windowbuffer.SlidingCountGroupedPreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.SlidingCountPreReducer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.SlidingTimeGroupedPreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.SlidingTimePreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.TumblingGroupedPreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.TumblingPreReducer;
@@ -337,8 +339,10 @@ public class WindowedDataStream<OUT> {
 	}
 
 	private int getDiscretizerParallelism() {
-		return isLocal || WindowUtils.isParallelPolicy(getTrigger(), getEviction())
-				|| (discretizerKey != null) ? dataStream.environment.getDegreeOfParallelism() : 1;
+		return isLocal
+				|| WindowUtils.isParallelPolicy(getTrigger(), getEviction(),
+						dataStream.getParallelism()) || (discretizerKey != null) ? dataStream.environment
+				.getDegreeOfParallelism() : 1;
 	}
 
 	private StreamInvokable<OUT, WindowEvent<OUT>> getDiscretizer() {
@@ -381,21 +385,35 @@ public class WindowedDataStream<OUT> {
 							(ReduceFunction<OUT>) transformation.getUDF(), groupByKey, getType()
 									.createSerializer(getExecutionConfig()));
 				}
-			} else if (WindowUtils.isSlidingCountPolicy(trigger, eviction) && groupByKey == null) {
+			} else if (WindowUtils.isSlidingCountPolicy(trigger, eviction)) {
+				if (groupByKey == null) {
+					return new SlidingCountPreReducer<OUT>(
+							clean((ReduceFunction<OUT>) transformation.getUDF()), dataStream
+									.getType().createSerializer(getExecutionConfig()),
+							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
+							((CountTriggerPolicy<?>) trigger).getStart());
+				} else {
+					return new SlidingCountGroupedPreReducer<OUT>(
+							clean((ReduceFunction<OUT>) transformation.getUDF()), dataStream
+									.getType().createSerializer(getExecutionConfig()), groupByKey,
+							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
+							((CountTriggerPolicy<?>) trigger).getStart());
+				}
 
-				return new SlidingCountPreReducer<OUT>(
-						clean((ReduceFunction<OUT>) transformation.getUDF()), dataStream.getType()
-								.createSerializer(getExecutionConfig()),
-						WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
-						((CountTriggerPolicy<?>) trigger).getStart());
-
-			} else if (WindowUtils.isSlidingTimePolicy(trigger, eviction) && groupByKey == null) {
-
-				return new SlidingTimePreReducer<OUT>(
-						(ReduceFunction<OUT>) transformation.getUDF(), dataStream.getType()
-								.createSerializer(getExecutionConfig()),
-						WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
-						WindowUtils.getTimeStampWrapper(trigger));
+			} else if (WindowUtils.isSlidingTimePolicy(trigger, eviction)) {
+				if (groupByKey == null) {
+					return new SlidingTimePreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(), dataStream.getType()
+									.createSerializer(getExecutionConfig()),
+							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
+							WindowUtils.getTimeStampWrapper(trigger));
+				} else {
+					return new SlidingTimeGroupedPreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(), dataStream.getType()
+									.createSerializer(getExecutionConfig()), groupByKey,
+							WindowUtils.getWindowSize(eviction), WindowUtils.getSlideSize(trigger),
+							WindowUtils.getTimeStampWrapper(trigger));
+				}
 
 			}
 		}
