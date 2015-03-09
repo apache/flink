@@ -56,8 +56,6 @@ public class AutoParallelismITCase {
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, NUM_TM);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, SLOTS_PER_TM);
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
-
 		cluster = new ForkableFlinkMiniCluster(config, false);
 	}
 

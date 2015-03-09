@@ -40,6 +40,12 @@ public final class ConfigConstants {
 	 * value to 0 effectively disables fault tolerance.
 	 */
 	public static final String DEFAULT_EXECUTION_RETRIES_KEY = "execution-retries.default";
+
+	/**
+	 * Config parameter for the delay between execution retries. The value must be specified in the
+	 * notation "10 s" or "1 min" (style of Scala Finite Durations)
+	 */
+	public static final String DEFAULT_EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
 	
@@ -339,7 +345,7 @@ public final class ConfigConstants {
 	public static final String AKKA_ASK_TIMEOUT = "akka.ask.timeout";
 
 	/**
-	 * Timeout for all blocking calls
+	 * Timeout for all blocking calls that look up remote actors
 	 */
 	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
 	

@@ -850,9 +850,21 @@ object JobManager {
       ConfigConstants.DEFAULT_EXECUTION_RETRIES_KEY,
       ConfigConstants.DEFAULT_EXECUTION_RETRIES)
 
-    val delayBetweenRetries = 2 * Duration(configuration.getString(
-      ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
-      ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)).toMillis
+    // configure the delay between execution retries.
+    // unless explicitly specifies, this is dependent on the heartbeat timeout
+    val pauseString = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
+                                              ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)
+    val delayString = configuration.getString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY,
+                                              pauseString)
+
+    val delayBetweenRetries: Long = try {
+        Duration(delayString).toMillis
+      }
+      catch {
+        case n: NumberFormatException => throw new Exception(
+          s"Invalid config value for ${ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY}: " +
+            s"${pauseString}. Value must be a valid duration (such as 100 milli or 1 min)");
+      }
 
     val archiveProps: Props = Props(classOf[MemoryArchivist], archiveCount)
 
