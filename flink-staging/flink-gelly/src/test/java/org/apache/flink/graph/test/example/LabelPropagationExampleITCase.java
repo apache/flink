@@ -61,20 +61,20 @@ public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
 		 * Test one iteration of label propagation example with a simple graph
 		 */
 
-		final String vertices = "1 10\n" +
-				"2 10\n" +
-				"3 30\n" +
-				"4 40\n" +
-				"5 40\n" +
-				"6 40\n" +
-				"7 70\n";
+		final String vertices = "1	10\n" +
+				"2	10\n" +
+				"3	30\n" +
+				"4	40\n" +
+				"5	40\n" +
+				"6	40\n" +
+				"7	70\n";
 
-		final String edges = "1 3\n" +
-				"2 3\n" +
-				"4 7\n" +
-				"5 7\n" +
-				"6 7\n" +
-				"7 3\n";
+		final String edges = "1	3\n" +
+				"2	3\n" +
+				"4	7\n" +
+				"5	7\n" +
+				"6	7\n" +
+				"7	3\n";
 
 		String verticesPath = createTempFile(vertices);
 		String edgesPath = createTempFile(edges);
@@ -96,24 +96,24 @@ public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
 		 * Test the label propagation example where a tie must be broken
 		 */
 
-		final String vertices = "1 10\n" +
-				"2 10\n" +
-				"3 10\n" +
-				"4 10\n" +
-				"5 0\n" +
-				"6 20\n" +
-				"7 20\n" +
-				"8 20\n" +
-				"9 20\n";
+		final String vertices = "1	10\n" +
+				"2	10\n" +
+				"3	10\n" +
+				"4	10\n" +
+				"5	0\n" +
+				"6	20\n" +
+				"7	20\n" +
+				"8	20\n" +
+				"9	20\n";
 
-		final String edges = "1 5\n" +
-				"2 5\n" +
-				"3 5\n" +
-				"4 5\n" +
-				"6 5\n" +
-				"7 5\n" +
-				"8 5\n" +
-				"9 5\n";
+		final String edges = "1	5\n" +
+				"2	5\n" +
+				"3	5\n" +
+				"4	5\n" +
+				"6	5\n" +
+				"7	5\n" +
+				"8	5\n" +
+				"9	5\n";
 
 		String verticesPath = createTempFile(vertices);
 		String edgesPath = createTempFile(edges);
