@@ -26,7 +26,7 @@ import org.apache.flink.api.scala.DataSet
  * @tparam IN Type of incoming elements
  * @tparam OUT Type of outgoing elements
  */
-trait Transformer[IN, OUT] {
+trait Transformer[IN, OUT] extends WithParameters {
   def chain[CHAINED](transformer: Transformer[OUT, CHAINED]): ChainedTransformer[IN, OUT, CHAINED] = {
     new ChainedTransformer[IN, OUT, CHAINED](this, transformer)
   }

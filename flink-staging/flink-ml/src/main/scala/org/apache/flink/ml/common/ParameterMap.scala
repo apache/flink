@@ -41,8 +41,9 @@ class ParameterMap(val map: mutable.Map[Parameter[_], Any]) extends Serializable
    * @param value Value associated with the given key
    * @tparam T Type of value
    */
-  def add[T](parameter: Parameter[T], value: T): Unit = {
+  def add[T](parameter: Parameter[T], value: T): ParameterMap = {
     map += (parameter -> value)
+    this
   }
 
   /**
@@ -100,6 +101,10 @@ class ParameterMap(val map: mutable.Map[Parameter[_], Any]) extends Serializable
 
 object ParameterMap {
   val Empty = new ParameterMap
+
+  def apply(): ParameterMap = {
+    new ParameterMap
+  }
 }
 
 /**

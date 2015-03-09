@@ -20,6 +20,7 @@ package org.apache.flink.ml.regression
 
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.ml.common.ParameterMap
+import org.apache.flink.ml.feature.PolynomialBase
 import org.scalatest.{ShouldMatchers, FlatSpec}
 
 import org.apache.flink.api.scala._
@@ -43,21 +44,57 @@ class MultipleLinearRegressionSuite extends FlatSpec with ShouldMatchers {
     val inputDS = env.fromCollection(data)
     val model = learner.fit(inputDS, parameters)
 
-    val betasList = model.weights.collect
+    val weightList = model.weights.collect
 
-    betasList.size should equal(1)
+    weightList.size should equal(1)
 
-    val (betas, beta0) = betasList(0)
+    val (weights, weight0) = weightList(0)
 
-    expectedBetas.data zip betas.data foreach {
-      case (expectedBeta, beta) => {
-        beta should be (expectedBeta +- 1)
-      }
+    expectedWeights.data zip weights.data foreach {
+      case (expectedWeight, weight) =>
+        weight should be (expectedWeight +- 1)
     }
-    beta0 should be (expectedBeta0 +- 0.4)
+    weight0 should be (expectedWeight0 +- 0.4)
 
     val srs = model.squaredResidualSum(inputDS).collect(0)
 
     srs should be (expectedSquaredResidualSum +- 2)
+  }
+
+  it should "calculate the correct polynomial function" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val polynomialBase = PolynomialBase()
+    val learner = MultipleLinearRegression()
+
+    val pipeline = polynomialBase.chain(learner)
+
+    val inputDS = env.fromCollection(RegressionData.polynomialData)
+
+    val parameters = ParameterMap()
+    .add(PolynomialBase.Degree, 3)
+    .add(MultipleLinearRegression.Stepsize, 0.002)
+    .add(MultipleLinearRegression.Iterations, 100)
+
+    val model = pipeline.fit(inputDS, parameters)
+
+    val weightList = model.weights.collect
+
+    weightList.size should equal(1)
+
+    val (weights, weight0) = weightList(0)
+
+    RegressionData.expectedPolynomialWeights.zip(weights.data) foreach {
+      case (expectedWeight, weight) =>
+        weight should be(expectedWeight +- 0.1)
+    }
+
+    weight0 should be(RegressionData.expectedPolynomialWeight0 +- 0.1)
+
+    val transformedInput = polynomialBase.transform(inputDS, parameters)
+
+    val srs = model.squaredResidualSum(transformedInput).collect(0)
+
+    srs should be(RegressionData.expectedPolynomialSquaredResidualSum +- 5)
   }
 }
