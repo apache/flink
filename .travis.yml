@@ -15,7 +15,7 @@ language: java
 matrix:
   include:
     - jdk: "oraclejdk7"
-      env: PROFILE="-Dhadoop.profile=1"
+      env: PROFILE="-Dhadoop.profile=1 -Dscala-2.11"
     - jdk: "openjdk6" # this will also deploy a uberjar to s3 at some point
       env: PROFILE="-Dhadoop.profile=1"
     - jdk: "openjdk7"
@@ -23,7 +23,7 @@ matrix:
     - jdk: "openjdk6" # we must use openjdk6 here to deploy a java6 compatible uber-jar for YARN
       env: PROFILE="-Dhadoop.version=2.2.0"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.6.0"
+      env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11"
 
 
 git:
