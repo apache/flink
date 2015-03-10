@@ -23,7 +23,6 @@ import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -43,6 +42,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
@@ -285,22 +287,39 @@ public class ExecutionVertex {
 	 * @return The preferred locations for this vertex execution, or null, if there is no preference.
 	 */
 	public Iterable<Instance> getPreferredLocations() {
-		HashSet<Instance> locations = new HashSet<Instance>();
-		
+
+		Set<Instance> locations = new HashSet<Instance>();
+		Set<Instance> inputLocations = new HashSet<Instance>();
+
+		// go over all inputs
 		for (int i = 0; i < inputEdges.length; i++) {
+			inputLocations.clear();
 			ExecutionEdge[] sources = inputEdges[i];
 			if (sources != null) {
+				// go over all input sources
 				for (int k = 0; k < sources.length; k++) {
+					// look-up assigned slot of input source
 					SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
 					if (sourceSlot != null) {
-						locations.add(sourceSlot.getInstance());
-						if (locations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-							return null;
+						// add input location
+						inputLocations.add(sourceSlot.getInstance());
+						// inputs which have too many distinct sources are not considered
+						if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
+							inputLocations.clear();
+							break;
 						}
 					}
 				}
 			}
+			// keep the locations of the input with the least preferred locations
+			if(locations.isEmpty() || // nothing assigned yet
+					(!inputLocations.isEmpty() && inputLocations.size() < locations.size())) {
+				// current input has fewer preferred locations
+				locations.clear();
+				locations.addAll(inputLocations);
+			}
 		}
+
 		return locations;
 	}
 	
