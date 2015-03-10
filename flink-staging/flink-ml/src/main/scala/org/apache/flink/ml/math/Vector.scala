@@ -36,4 +36,11 @@ trait Vector {
    * @return element with index
    */
   def apply(index: Int): Double
+
+  /**
+   * Copies the vector instance
+   *
+   * @return Copy of the vector instance
+   */
+  def copy: Vector
 }

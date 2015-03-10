@@ -60,6 +60,15 @@ case class DenseVector(val values: Array[Double]) extends Vector {
       case _ => false
     }
   }
+
+  /**
+   * Copies the vector instance
+   *
+   * @return Copy of the vector instance
+   */
+  override def copy: Vector = {
+    DenseVector(values.clone())
+  }
 }
 
 object DenseVector {

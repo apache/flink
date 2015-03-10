@@ -54,7 +54,7 @@ JEKYLL_CMD="build"
 while getopts ":p" opt; do
 	case $opt in
 		p)
-		JEKYLL_CMD="serve --watch"
+		JEKYLL_CMD="serve --baseurl "" --watch"
 		;;
 	esac
 done

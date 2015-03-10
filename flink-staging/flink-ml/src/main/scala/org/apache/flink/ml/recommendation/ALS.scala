@@ -13,11 +13,12 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.ml.recommendation
 
-import java.lang
+import java.{util, lang}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.operators.Order
@@ -28,7 +29,9 @@ import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner, GroupReduceFunction, CoGroupFunction}
 
-import org.jblas.{Solve, SimpleBlas, DoubleMatrix}
+import com.github.fommil.netlib.BLAS.{ getInstance => blas }
+import com.github.fommil.netlib.LAPACK.{ getInstance => lapack }
+import org.netlib.util.intW
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -43,21 +46,23 @@ import scala.util.Random
   * column of the item matrix is `v_i`. The matrix `R` is called the ratings matrix and
   * `(R)_{i,j} = r_{i,j}`.
   *
-  * In order to find the user and item matrix the following problem is solved:
+  * In order to find the user and item matrix, the following problem is solved:
   *
   * `argmin_{U,V} sum_(i,j\ with\ r_{i,j} != 0) (r_{i,j} - u_{i}^Tv_{j})^2 +
   * \lambda (sum_(i) n_{u_i} ||u_i||^2 + sum_(j) n_{v_j} ||v_j||^2)`
   *
-  * Overfitting is avoided by using a weighted-lambda-regularization scheme.
+  * with `\lambda` being the regularization factor, `n_{u_i}` being the number of items the user `i`
+  * has rated and `n_{v_j}` being the number of times the item `j` has been rated. This
+  * regularization scheme to avoid overfitting is called weighted-lambda-regularization. Details
+  * can be found in the work of [[http://dx.doi.org/10.1007/978-3-540-68880-8_32 Zhou et al.]].
   *
   * By fixing one of the matrices `U` or `V` one obtains a quadratic form which can be solved. The
   * solution of the modified problem is guaranteed to decrease the overall cost function. By
   * applying this step alternately to the matrices `U` and `V`, we can iteratively improve the
-  * overall solution. Details can be found in the work of
-  * [[http://dx.doi.org/10.1007/978-3-540-68880-8_32 Zhou et al.]].
+  * matrix factorization.
   *
   * The matrix `R` is given in its sparse representation as a tuple of `(i, j, r)` where `i` is the
-  * row index, `j` is the column index and `r` is the matrix a position `(i,j)`.
+  * row index, `j` is the column index and `r` is the matrix value at position `(i,j)`.
   *
   * @example
   *          {{{
@@ -68,7 +73,7 @@ import scala.util.Random
   *               .setIterations(10)
   *               .setNumFactors(10)
   *
-  *             val model = als.fit(inputDS))
+  *             val model = als.fit(inputDS)
   *
   *             val data2Predict: DataSet[(Int, Int)] = env.readCsvFile[(Int, Int)](pathToData)
   *
@@ -79,20 +84,23 @@ import scala.util.Random
   *
   *  - [[ALS.NumFactors]]:
   *  The number of latent factors. It is the dimension of the calculated user and item vectors.
+  *  (Default value: '''10''')
   *
   *  - [[ALS.Lambda]]:
   *  Regularization factor. Tune this value in order to avoid overfitting/generalization.
+  *  (Default value: '''1''')
   *
-  *  - [[ALS.Iterations]]: The number of iterations to perform.
+  *  - [[ALS.Iterations]]: The number of iterations to perform. (Default value: '''10''')
   *
   *  - [[ALS.Blocks]]:
   *  The number of blocks into which the user and item matrix a grouped. The fewer
   *  blocks one uses, the less data is sent redundantly. However, bigger blocks entail bigger
   *  update messages which have to be stored on the Heap. If the algorithm fails because of
-  *  an OutOfMemoryException, then try to increase the number of blocks.
+  *  an OutOfMemoryException, then try to increase the number of blocks. (Default value: '''None''')
   *
   *  - [[ALS.Seed]]:
-  *  Random seed used to generate the initial item matrix for the algorithm
+  *  Random seed used to generate the initial item matrix for the algorithm.
+  *  (Default value: '''0''')
   *
   *  - [[ALS.TemporaryPath]]:
   *  Path to a temporary directory into which intermediate results are stored. If
@@ -103,7 +111,7 @@ import scala.util.Random
   *  the individual steps are stored in the specified directory. By splitting the algorithm
   *  into multiple smaller steps, Flink does not have to split the available memory amongst too many
   *  operators. This allows the system to process bigger individual messasges and improves the
-  *  overall performance.
+  *  overall performance. (Default value: '''None''')
   *
   * The ALS implementation is based on Spark's MLLib implementation of ALS which you can find
   * [[https://github.com/apache/spark/blob/master/mllib/src/main/scala/org/apache/spark/mllib/
@@ -318,10 +326,10 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
 
         // in order to save space, store only the upper triangle of the XtX matrix
         val triangleSize = (factors*factors - factors)/2 + factors
-        val matrix = DoubleMatrix.zeros(triangleSize)
-        val fullMatrix = DoubleMatrix.zeros(factors, factors)
-        val userXtX = new ArrayBuffer[DoubleMatrix]()
-        val userXy = new ArrayBuffer[DoubleMatrix]()
+        val matrix = Array.fill(triangleSize)(0.0)
+        val fullMatrix = Array.fill(factors * factors)(0.0)
+        val userXtX = new ArrayBuffer[Array[Double]]()
+        val userXy = new ArrayBuffer[Array[Double]]()
         val numRatings = new ArrayBuffer[Int]()
 
         override def coGroup(left: lang.Iterable[(Int, Int, Array[Array[Double]])],
@@ -341,8 +349,8 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
             val oldLength = userXtX.length
 
             while(i < (numUsers - oldLength)) {
-              userXtX += DoubleMatrix.zeros(triangleSize)
-              userXy += DoubleMatrix.zeros(factors)
+              userXtX += Array.fill(triangleSize)(0.0)
+              userXy += Array.fill(factors)(0.0)
               numRatings.+=(0)
 
               i += 1
@@ -356,8 +364,9 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
           i = 0
           while(i  < matricesToClear){
             numRatings(i) = 0
-            userXtX(i).fill(0.0f)
-            userXy(i).fill(0.0f)
+
+            util.Arrays.fill(userXtX(i), 0.0)
+            util.Arrays.fill(userXy(i), 0.0)
 
             i += 1
           }
@@ -372,7 +381,8 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
 
             var p = 0
             while(p < blockFactors.length){
-              val vector = new DoubleMatrix(blockFactors(p))
+              val vector = blockFactors(p)
+
               outerProduct(vector, matrix, factors)
 
               val (users, ratings) = inInfo.ratingsForBlock(itemBlock)(p)
@@ -380,8 +390,8 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
               var i = 0
               while (i < users.length) {
                 numRatings(users(i)) += 1
-                userXtX(users(i)).addi(matrix)
-                SimpleBlas.axpy(ratings(i), vector, userXy(users(i)))
+                blas.daxpy(matrix.length, 1, matrix, 1, userXtX(users(i)), 1)
+                blas.daxpy(vector.length, ratings(i), vector, 1, userXy(users(i)), 1)
 
                 i += 1
               }
@@ -401,12 +411,14 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
 
             // add regularization constant
             while(f < factors){
-              fullMatrix.data(f*factors + f) += lambda * numRatings(i)
+              fullMatrix(f*factors + f) += lambda * numRatings(i)
               f += 1
             }
 
             // calculate new user vector
-            array(i) = Solve.solvePositive(fullMatrix, userXy(i)).data
+            val result = new intW(0)
+            lapack.dposv("U", factors, 1, fullMatrix, factors , userXy(i), factors, result)
+            array(i) = userXy(i)
 
             i += 1
           }
@@ -696,16 +708,13 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
 
   // ================================ Math helper functions ========================================
 
-  def outerProduct(vector: DoubleMatrix, matrix: DoubleMatrix, factors: Int): Unit = {
-    val vd =  vector.data
-    val md = matrix.data
-
+  def outerProduct(vector: Array[Double], matrix: Array[Double], factors: Int): Unit = {
     var row = 0
     var pos = 0
     while(row < factors){
       var col = 0
       while(col <= row){
-        md(pos) = vd(row) * vd(col)
+        matrix(pos) = vector(row) * vector(col)
         col += 1
         pos += 1
       }
@@ -714,24 +723,22 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
     }
   }
 
-  def generateFullMatrix(triangularMatrix: DoubleMatrix, fullMatrix: DoubleMatrix,
+  def generateFullMatrix(triangularMatrix: Array[Double], fullMatrix: Array[Double],
                          factors: Int): Unit = {
     var row = 0
     var pos = 0
-    val fmd = fullMatrix.data
-    val tmd = triangularMatrix.data
 
     while(row < factors){
       var col = 0
       while(col < row){
-        fmd(row*factors + col) = tmd(pos)
-        fmd(col*factors + row) = tmd(pos)
+        fullMatrix(row*factors + col) = triangularMatrix(pos)
+        fullMatrix(col*factors + row) = triangularMatrix(pos)
 
         pos += 1
         col += 1
       }
 
-      fmd(row*factors + row) = tmd(pos)
+      fullMatrix(row*factors + row) = triangularMatrix(pos)
 
       pos += 1
       row += 1
@@ -893,7 +900,8 @@ object ALS {
   * @param itemFactors Calcualted item matrix
   * @param lambda Regularization value used to calculate the model
   */
-class ALSModel(@transient val userFactors: DataSet[Factors],@transient val itemFactors: DataSet[Factors],
+class ALSModel(@transient val userFactors: DataSet[Factors],
+               @transient val itemFactors: DataSet[Factors],
                val lambda: Double) extends Transformer[(Int, Int), (Int, Int, Double)] with
 Serializable{
 
@@ -905,10 +913,10 @@ Serializable{
       triple => {
         val (((uID, iID), uFactors), iFactors) = triple
 
-        val uFactorsVector = new DoubleMatrix(uFactors.factors)
-        val iFactorsVector = new DoubleMatrix(iFactors.factors)
+        val uFactorsVector = uFactors.factors
+        val iFactorsVector = iFactors.factors
 
-        val prediction = SimpleBlas.dot(uFactorsVector, iFactorsVector)
+        val prediction = blas.ddot(uFactorsVector.length, uFactorsVector, 1, iFactorsVector, 1)
 
         (uID, iID, prediction)
       }
@@ -925,13 +933,13 @@ Serializable{
       triple => {
         val (((uID, iID), uFactors), iFactors) = triple
 
-        val uFactorsVector = new DoubleMatrix(uFactors.factors)
-        val iFactorsVector = new DoubleMatrix(iFactors.factors)
+        val uFactorsVector = uFactors.factors
+        val iFactorsVector = iFactors.factors
 
-        val squaredUNorm2 = uFactorsVector.dot(uFactorsVector)
-        val squaredINorm2 = iFactorsVector.dot(iFactorsVector)
+        val squaredUNorm2 = blas.ddot(uFactorsVector.length, uFactorsVector, 1, uFactorsVector, 1)
+        val squaredINorm2 = blas.ddot(iFactorsVector.length, iFactorsVector, 1, iFactorsVector, 1)
 
-        val prediction = SimpleBlas.dot(uFactorsVector, iFactorsVector)
+        val prediction = blas.ddot(uFactorsVector.length, uFactorsVector, 1, iFactorsVector, 1)
 
         (uID, iID, prediction, squaredUNorm2, squaredINorm2)
       }

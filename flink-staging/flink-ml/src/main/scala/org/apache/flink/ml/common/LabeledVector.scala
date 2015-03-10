@@ -20,4 +20,10 @@ package org.apache.flink.ml.common
 
 import org.apache.flink.ml.math.Vector
 
+/** This class represents a vector with an associated label as it is required for many supervised
+  * learning tasks.
+  *
+  * @param vector Data point
+  * @param label Label of the data point
+  */
 case class LabeledVector(vector: Vector, label: Double) {}

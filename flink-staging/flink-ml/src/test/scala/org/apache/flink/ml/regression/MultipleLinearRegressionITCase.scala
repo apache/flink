@@ -19,23 +19,27 @@
 package org.apache.flink.ml.regression
 
 import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.client.CliFrontendTestUtils
 import org.apache.flink.ml.common.ParameterMap
 import org.apache.flink.ml.feature.PolynomialBase
-import org.scalatest.{ShouldMatchers, FlatSpec}
+import org.junit.{BeforeClass, Test}
+import org.scalatest.ShouldMatchers
 
 import org.apache.flink.api.scala._
 
-class MultipleLinearRegressionSuite extends FlatSpec with ShouldMatchers {
-  behavior of "LinearRegression"
+class MultipleLinearRegressionITCase extends ShouldMatchers {
 
-  it should "estimate the correct linear function" in {
+  @Test
+  def testEstimationOfLinearFunction(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setDegreeOfParallelism(2)
 
     val learner = MultipleLinearRegression()
 
     import RegressionData._
 
-    val parameters = new ParameterMap
+    val parameters = ParameterMap()
 
     parameters.add(MultipleLinearRegression.Stepsize, 1.0)
     parameters.add(MultipleLinearRegression.Iterations, 10)
@@ -50,7 +54,7 @@ class MultipleLinearRegressionSuite extends FlatSpec with ShouldMatchers {
 
     val (weights, weight0) = weightList(0)
 
-    expectedWeights.data zip weights.data foreach {
+    expectedWeights zip weights foreach {
       case (expectedWeight, weight) =>
         weight should be (expectedWeight +- 1)
     }
@@ -61,8 +65,11 @@ class MultipleLinearRegressionSuite extends FlatSpec with ShouldMatchers {
     srs should be (expectedSquaredResidualSum +- 2)
   }
 
-  it should "calculate the correct polynomial function" in {
+  @Test
+  def testEstimationOfCubicFunction(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setDegreeOfParallelism(2)
 
     val polynomialBase = PolynomialBase()
     val learner = MultipleLinearRegression()
@@ -72,9 +79,9 @@ class MultipleLinearRegressionSuite extends FlatSpec with ShouldMatchers {
     val inputDS = env.fromCollection(RegressionData.polynomialData)
 
     val parameters = ParameterMap()
-    .add(PolynomialBase.Degree, 3)
-    .add(MultipleLinearRegression.Stepsize, 0.002)
-    .add(MultipleLinearRegression.Iterations, 100)
+      .add(PolynomialBase.Degree, 3)
+      .add(MultipleLinearRegression.Stepsize, 0.002)
+      .add(MultipleLinearRegression.Iterations, 100)
 
     val model = pipeline.fit(inputDS, parameters)
 
@@ -84,7 +91,7 @@ class MultipleLinearRegressionSuite extends FlatSpec with ShouldMatchers {
 
     val (weights, weight0) = weightList(0)
 
-    RegressionData.expectedPolynomialWeights.zip(weights.data) foreach {
+    RegressionData.expectedPolynomialWeights.zip(weights) foreach {
       case (expectedWeight, weight) =>
         weight should be(expectedWeight +- 0.1)
     }
@@ -96,5 +103,13 @@ class MultipleLinearRegressionSuite extends FlatSpec with ShouldMatchers {
     val srs = model.squaredResidualSum(transformedInput).collect(0)
 
     srs should be(RegressionData.expectedPolynomialSquaredResidualSum +- 5)
+  }
+}
+
+object MultipleLinearRegressionITCase{
+
+  @BeforeClass
+  def setup(): Unit = {
+    CliFrontendTestUtils.pipeSystemOutToNull()
   }
 }

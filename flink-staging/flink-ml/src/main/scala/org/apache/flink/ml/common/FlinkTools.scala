@@ -27,18 +27,24 @@ import org.apache.flink.core.fs.Path
 
 import scala.reflect.ClassTag
 
-/**
- * Collection of convenience functions
- */
+/** FlinkTools contains a set of convenience functions for Flink's machine learning library:
+  *
+  *  - persist:
+  *  Takes up to 5 [[DataSet]]s and file paths. Each [[DataSet]] is written to the specified
+  *  path and subsequently re-read from disk. This method can be used to effectively split the
+  *  execution graph at the given [[DataSet]]. Writing it to disk triggers its materialization
+  *  and specifying it as a source will prevent the re-execution of it.
+  */
 object FlinkTools {
 
-  /**
-   *
-   * @param dataset
-   * @param path
-   * @tparam T
-   * @return
-   */
+  /** Writes a [[DataSet]] to the specified path and returns it as a DataSource for subsequent
+    * operations.
+    *
+    * @param dataset [[DataSet]] to write to disk
+    * @param path File path to write dataset to
+    * @tparam T Type of the [[DataSet]] elements
+    * @return [[DataSet]] reading the just written file
+    */
   def persist[T: ClassTag: TypeInformation](dataset: DataSet[T], path: String): DataSet[T] = {
     val env = dataset.getExecutionEnvironment
     val outputFormat = new TypeSerializerOutputFormat[T]
@@ -57,6 +63,17 @@ object FlinkTools {
     env.createInput(inputFormat)
   }
 
+  /** Writes multiple [[DataSet]]s to the specified paths and returns them as DataSources for
+    * subsequent operations.
+    *
+    * @param ds1 First [[DataSet]] to write to disk
+    * @param ds2 Second [[DataSet]] to write to disk
+    * @param path1 Path for ds1
+    * @param path2 Path for ds2
+    * @tparam A Type of the first [[DataSet]]'s elements
+    * @tparam B Type of the second [[DataSet]]'s elements
+    * @return Tuple of [[DataSet]]s reading the just written files
+    */
   def persist[A: ClassTag: TypeInformation ,B: ClassTag: TypeInformation](ds1: DataSet[A], ds2:
   DataSet[B], path1: String, path2: String):(DataSet[A], DataSet[B])  = {
     val env = ds1.getExecutionEnvironment
@@ -88,6 +105,20 @@ object FlinkTools {
     (env.createInput(if1), env.createInput(if2))
   }
 
+  /** Writes multiple [[DataSet]]s to the specified paths and returns them as DataSources for
+    * subsequent operations.
+    *
+    * @param ds1 First [[DataSet]] to write to disk
+    * @param ds2 Second [[DataSet]] to write to disk
+    * @param ds3 Third [[DataSet]] to write to disk
+    * @param path1 Path for ds1
+    * @param path2 Path for ds2
+    * @param path3 Path for ds3
+    * @tparam A Type of first [[DataSet]]'s elements
+    * @tparam B Type of second [[DataSet]]'s elements
+    * @tparam C Type of third [[DataSet]]'s elements
+    * @return Tuple of [[DataSet]]s reading the just written files
+    */
   def persist[A: ClassTag: TypeInformation ,B: ClassTag: TypeInformation,
   C: ClassTag: TypeInformation](ds1: DataSet[A], ds2:  DataSet[B], ds3: DataSet[C], path1:
   String, path2: String, path3: String): (DataSet[A], DataSet[B], DataSet[C])  = {
@@ -131,6 +162,23 @@ object FlinkTools {
     (env.createInput(if1), env.createInput(if2), env.createInput(if3))
   }
 
+  /** Writes multiple [[DataSet]]s to the specified paths and returns them as DataSources for
+    * subsequent operations.
+    *
+    * @param ds1 First [[DataSet]] to write to disk
+    * @param ds2 Second [[DataSet]] to write to disk
+    * @param ds3 Third [[DataSet]] to write to disk
+    * @param ds4 Fourth [[DataSet]] to write to disk
+    * @param path1 Path for ds1
+    * @param path2 Path for ds2
+    * @param path3 Path for ds3
+    * @param path4 Path for ds4
+    * @tparam A Type of first [[DataSet]]'s elements
+    * @tparam B Type of second [[DataSet]]'s elements
+    * @tparam C Type of third [[DataSet]]'s elements
+    * @tparam D Type of fourth [[DataSet]]'s elements
+    * @return Tuple of [[DataSet]]s reading the just written files
+    */
   def persist[A: ClassTag: TypeInformation ,B: ClassTag: TypeInformation,
   C: ClassTag: TypeInformation, D: ClassTag: TypeInformation](ds1: DataSet[A], ds2:  DataSet[B],
                                                               ds3: DataSet[C], ds4: DataSet[D],
@@ -188,6 +236,26 @@ object FlinkTools {
     (env.createInput(if1), env.createInput(if2), env.createInput(if3), env.createInput(if4))
   }
 
+  /** Writes multiple [[DataSet]]s to the specified paths and returns them as DataSources for
+    * subsequent operations.
+    *
+    * @param ds1 First [[DataSet]] to write to disk
+    * @param ds2 Second [[DataSet]] to write to disk
+    * @param ds3 Third [[DataSet]] to write to disk
+    * @param ds4 Fourth [[DataSet]] to write to disk
+    * @param ds5 Fifth [[DataSet]] to write to disk
+    * @param path1 Path for ds1
+    * @param path2 Path for ds2
+    * @param path3 Path for ds3
+    * @param path4 Path for ds4
+    * @param path5 Path for ds5
+    * @tparam A Type of first [[DataSet]]'s elements
+    * @tparam B Type of second [[DataSet]]'s elements
+    * @tparam C Type of third [[DataSet]]'s elements
+    * @tparam D Type of fourth [[DataSet]]'s elements
+    * @tparam E Type of fifth [[DataSet]]'s elements
+    * @return Tuple of [[DataSet]]s reading the just written files
+    */
   def persist[A: ClassTag: TypeInformation ,B: ClassTag: TypeInformation,
   C: ClassTag: TypeInformation, D: ClassTag: TypeInformation, E: ClassTag: TypeInformation]
   (ds1: DataSet[A], ds2:  DataSet[B], ds3: DataSet[C], ds4: DataSet[D], ds5: DataSet[E], path1:
