@@ -20,6 +20,18 @@ package org.apache.flink.ml.common
 
 import org.apache.flink.api.scala.DataSet
 
+/** This class represents a chain of multiple [[Transformer]].
+  *
+  * Calling the method `transform` on this object will first apply the preceding [[Transformer]] to
+  * the input data. The resulting output data is then fed to the succeeding [[Transformer]].
+  *
+  * @param head Preceding [[Transformer]]
+  * @param tail Succeeding [[Transformer]]
+  * @tparam IN Type of incoming elements
+  * @tparam TEMP Type of output elements of the preceding [[Transformer]] and input type of
+  *              succeeding [[Transformer]]
+  * @tparam OUT Type of outgoing elements
+  */
 class ChainedTransformer[IN, TEMP, OUT](val head: Transformer[IN, TEMP],
                                         val tail: Transformer[TEMP, OUT])
   extends Transformer[IN, OUT] {

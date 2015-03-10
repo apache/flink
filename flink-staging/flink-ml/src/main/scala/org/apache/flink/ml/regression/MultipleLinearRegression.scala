@@ -23,11 +23,10 @@ import org.apache.flink.api.scala.DataSet
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.ml.math.Vector
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.math.JBlas._
 
 import org.apache.flink.api.scala._
 
-import org.jblas.{SimpleBlas, DoubleMatrix}
+import com.github.fommil.netlib.BLAS.{ getInstance => blas }
 
 /** Multiple linear regression using the ordinary least squares (OLS) estimator.
   *
@@ -77,8 +76,9 @@ import org.jblas.{SimpleBlas, DoubleMatrix}
   *
   *  - [[MultipleLinearRegression.Stepsize]]:
   *  Initial step size for the gradient descent method.
-  *  This value controls how far the gradient descent method moves in the opposite direction of the gradient.
-  *  Tuning this parameter might be crucial to make it stable and to obtain a better performance.
+  *  This value controls how far the gradient descent method moves in the opposite direction of the
+  *  gradient. Tuning this parameter might be crucial to make it stable and to obtain a better
+  *  performance.
   *
   *  - [[MultipleLinearRegression.ConvergenceThreshold]]:
   *  Threshold for relative change of sum of squared residuals until convergence.
@@ -113,7 +113,11 @@ with Serializable {
     val convergenceThreshold = map.get(ConvergenceThreshold)
 
     // calculate dimension of the feature vectors
-    val dimension = input.map{_.vector.size}.reduce { math.max(_, _) }
+    val dimension = input.map{_.vector.size}.reduce {
+      (a, b) =>
+        require(a == b, "All input vector must have the same dimension.")
+        a
+    }
 
     // initial weight vector is set to 0
     val initialWeightVector = createInitialWeightVector(dimension)
@@ -150,7 +154,9 @@ with Serializable {
                   val (leftBetas, leftBeta0, leftCount) = left
                   val (rightBetas, rightBeta0, rightCount) = right
 
-                  (leftBetas.add(rightBetas), leftBeta0 + rightBeta0, leftCount + rightCount)
+                  blas.daxpy(leftBetas.length, 1.0, rightBetas, 1, leftBetas, 1)
+
+                  (leftBetas, leftBeta0 + rightBeta0, leftCount + rightCount)
             }.map {
               new LinearRegressionWeightsUpdate(stepsize)
             }.withBroadcastSet(weightVector, WEIGHTVECTOR_BROADCAST)
@@ -197,7 +203,8 @@ with Serializable {
                 val (leftBetas, leftBeta0, leftCount) = left
                 val (rightBetas, rightBeta0, rightCount) = right
 
-                (leftBetas.add(rightBetas), leftBeta0 + rightBeta0, leftCount + rightCount)
+                blas.daxpy(leftBetas.length, 1, rightBetas, 1, leftBetas, 1)
+                (leftBetas, leftBeta0 + rightBeta0, leftCount + rightCount)
             }.map {
               new LinearRegressionWeightsUpdate(stepsize)
             }.withBroadcastSet(weightVector, WEIGHTVECTOR_BROADCAST)
@@ -216,11 +223,11 @@ with Serializable {
     * @return DataSet of a zero vector of dimension d
     */
   private def createInitialWeightVector(dimensionDS: DataSet[Int]):
-  DataSet[(DoubleMatrix, Double)] = {
+  DataSet[(Array[Double], Double)] = {
     dimensionDS.map {
       dimension =>
         val values = Array.fill(dimension)(0.0)
-        (new DoubleMatrix(dimension, 1, values: _*), 0.0)
+        (values, 0.0)
     }
   }
 }
@@ -261,13 +268,13 @@ object MultipleLinearRegression {
 private class SquaredResiduals extends RichMapFunction[LabeledVector, Double] {
   import MultipleLinearRegression.WEIGHTVECTOR_BROADCAST
 
-  var weightVector: DoubleMatrix = null
+  var weightVector: Array[Double] = null
   var weight0: Double = 0.0
 
   @throws(classOf[Exception])
   override def open(configuration: Configuration): Unit = {
     val list = this.getRuntimeContext.
-      getBroadcastVariable[(DoubleMatrix, Double)](WEIGHTVECTOR_BROADCAST)
+      getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
 
     val weightsPair = list.get(0)
 
@@ -279,7 +286,9 @@ private class SquaredResiduals extends RichMapFunction[LabeledVector, Double] {
     val vector = value.vector
     val label = value.label
 
-    val residual = weightVector.dot(vector) + weight0 - label
+    val dotProduct = blas.ddot(weightVector.length, weightVector, 1, vector, 1)
+
+    val residual = dotProduct + weight0 - label
 
     residual*residual
   }
@@ -294,17 +303,17 @@ private class SquaredResiduals extends RichMapFunction[LabeledVector, Double] {
   * The weight vector is received as a broadcast variable.
   */
 private class LinearRegressionGradientDescent extends
-RichMapFunction[LabeledVector, (DoubleMatrix, Double, Int)] {
+RichMapFunction[LabeledVector, (Array[Double], Double, Int)] {
 
   import MultipleLinearRegression.WEIGHTVECTOR_BROADCAST
 
-  var weightVector: DoubleMatrix = null
+  var weightVector: Array[Double] = null
   var weight0: Double = 0.0
 
   @throws(classOf[Exception])
   override def open(configuration: Configuration): Unit = {
     val list = this.getRuntimeContext.
-      getBroadcastVariable[(DoubleMatrix, Double)](WEIGHTVECTOR_BROADCAST)
+      getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
 
     val weightsPair = list.get(0)
 
@@ -312,13 +321,19 @@ RichMapFunction[LabeledVector, (DoubleMatrix, Double, Int)] {
     weight0 = weightsPair._2
   }
 
-  override def map(value: LabeledVector): (DoubleMatrix, Double, Int) = {
+  override def map(value: LabeledVector): (Array[Double], Double, Int) = {
     val x = value.vector
     val label = value.label
 
-    val error = weightVector.dot(x) + weight0 - label
+    val dotProduct = blas.ddot(weightVector.length, weightVector, 1, x, 1)
 
-    val weightsGradient = x.mul(2 * error)
+    val error = dotProduct + weight0 - label
+
+    // reuse vector x
+    val weightsGradient = x
+
+    blas.dscal(weightsGradient.length, 2*error, weightsGradient, 1)
+
     val weight0Gradient = 2 * error
 
     (weightsGradient, weight0Gradient, 1)
@@ -332,17 +347,17 @@ RichMapFunction[LabeledVector, (DoubleMatrix, Double, Int)] {
   * @param stepsize Initial value of the step size used to update the weight vector
   */
 private class LinearRegressionWeightsUpdate(val stepsize: Double) extends
-RichMapFunction[(DoubleMatrix, Double, Int), (DoubleMatrix, Double)] {
+RichMapFunction[(Array[Double], Double, Int), (Array[Double], Double)] {
 
   import MultipleLinearRegression.WEIGHTVECTOR_BROADCAST
 
-  var weights: DoubleMatrix = null
+  var weights: Array[Double] = null
   var weight0: Double = 0.0
 
   @throws(classOf[Exception])
   override def open(configuration: Configuration): Unit = {
     val list = this.getRuntimeContext.
-      getBroadcastVariable[(DoubleMatrix, Double)](WEIGHTVECTOR_BROADCAST)
+      getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
 
     val weightsPair = list.get(0)
 
@@ -350,8 +365,10 @@ RichMapFunction[(DoubleMatrix, Double, Int), (DoubleMatrix, Double)] {
     weight0 = weightsPair._2
   }
 
-  override def map(value: (DoubleMatrix, Double, Int)): (DoubleMatrix, Double) = {
-    val weightsGradient = value._1.div(value._3)
+  override def map(value: (Array[Double], Double, Int)): (Array[Double], Double) = {
+    val weightsGradient = value._1
+    blas.dscal(weightsGradient.length, 1.0/value._3, weightsGradient, 1)
+
     val weight0Gradient = value._2 / value._3
 
     val iteration = getIterationRuntimeContext.getSuperstepNumber
@@ -360,9 +377,8 @@ RichMapFunction[(DoubleMatrix, Double, Int), (DoubleMatrix, Double)] {
     // decreasing
     val effectiveStepsize = stepsize/math.sqrt(iteration)
 
-    val newWeights = new DoubleMatrix(weights.rows, weights.columns)
-    newWeights.copy(weights)
-    SimpleBlas.axpy( -effectiveStepsize, weightsGradient, newWeights)
+    val newWeights = weights.clone
+    blas.daxpy(newWeights.length, -effectiveStepsize, weightsGradient, 1, newWeights, 1)
     val newWeight0 = weight0 - effectiveStepsize * weight0Gradient
 
     (newWeights, newWeight0)
@@ -383,7 +399,7 @@ RichMapFunction[(DoubleMatrix, Double, Int), (DoubleMatrix, Double)] {
   * @param weights DataSet containing the calculated weight vector
   */
 class MultipleLinearRegressionModel private[regression]
-(val weights: DataSet[(DoubleMatrix, Double)]) extends
+(val weights: DataSet[(Array[Double], Double)]) extends
 Transformer[ Vector, LabeledVector ] {
 
   import MultipleLinearRegression.WEIGHTVECTOR_BROADCAST
@@ -403,13 +419,14 @@ Transformer[ Vector, LabeledVector ] {
   }
 
   private class LinearRegressionPrediction extends RichMapFunction[Vector, LabeledVector] {
-    private var weights: DoubleMatrix = null
+    private var weights: Array[Double] = null
     private var weight0: Double = 0
 
 
     @throws(classOf[Exception])
     override def open(configuration: Configuration): Unit = {
-      val t = getRuntimeContext.getBroadcastVariable[(DoubleMatrix, Double)](WEIGHTVECTOR_BROADCAST)
+      val t = getRuntimeContext
+        .getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
 
       val weightsPair = t.get(0)
 
@@ -418,7 +435,9 @@ Transformer[ Vector, LabeledVector ] {
     }
 
     override def map(value: Vector): LabeledVector = {
-      val prediction = weights.dot(value) + weight0
+      val dotProduct = blas.ddot(weights.length, weights, 1, value, 1)
+
+      val prediction = dotProduct + weight0
 
       LabeledVector(value, prediction)
     }

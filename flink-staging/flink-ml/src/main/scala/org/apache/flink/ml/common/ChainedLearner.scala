@@ -20,6 +20,19 @@ package org.apache.flink.ml.common
 
 import org.apache.flink.api.scala.DataSet
 
+/** This class represents a [[org.apache.flink.ml.common.Learner]] which is chained to a
+  * [[Transformer]].
+  *
+  * Calling the method `fit` on this object will pipe the input data through the given
+  * [[Transformer]], whose output is fed to the [[Learner]].
+  *
+  * @param head Preceding [[Transformer]] pipeline
+  * @param tail [[Learner]] instance
+  * @tparam IN Type of the training data
+  * @tparam TEMP Type of the produced data by the transformer pipeline and input type to the
+  *              [[Learner]]
+  * @tparam OUT Type of the trained model
+  */
 class ChainedLearner[IN, TEMP, OUT](val head: Transformer[IN, TEMP],
                                     val tail: Learner[TEMP, OUT])
   extends Learner[IN, OUT] {
