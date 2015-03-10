@@ -974,6 +974,16 @@ public abstract class ExecutionEnvironment {
 				config.getDefaultKryoSerializerClasses().size();
 		LOG.info("The job has {} registered types and {} default Kryo serializers", registeredTypes, defaultKryoSerializers);
 
+		if(config.isForceKryoEnabled() && config.isForceAvroEnabled()) {
+			LOG.warn("In the ExecutionConfig, both Avro and Kryo are enforced. Using Kryo serializer");
+		}
+		if(config.isForceKryoEnabled()) {
+			LOG.info("Using KryoSerializer for serializing POJOs");
+		}
+		if(config.isForceAvroEnabled()) {
+			LOG.info("Using AvroSerializer for serializing POJOs");
+		}
+
 		if(LOG.isDebugEnabled()) {
 			LOG.debug("Registered Kryo types: {}", Joiner.on(',').join(config.getRegisteredKryoTypes()));
 			LOG.debug("Registered Kryo with Serializers types: {}", Joiner.on(',').join(config.getRegisteredTypesWithKryoSerializers()));

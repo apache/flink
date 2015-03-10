@@ -26,6 +26,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
@@ -40,6 +41,8 @@ import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 @RunWith(Parameterized.class)
 public class AvroPojoTest extends MultipleProgramsTestBase {
@@ -74,7 +77,7 @@ public class AvroPojoTest extends MultipleProgramsTestBase {
 		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
 		DataSet<User> usersDS = env.createInput(users)
 				// null map type because the order changes in different JVMs (hard to test)
-				.map(new MapFunction<User, User>() {
+		.map(new MapFunction<User, User>() {
 			@Override
 			public User map(User value) throws Exception {
 				value.setTypeMap(null);
@@ -92,6 +95,34 @@ public class AvroPojoTest extends MultipleProgramsTestBase {
 	}
 
 	@Test
+	public void testSerializeWithAvro() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableForceAvro();
+		Path in = new Path(inFile.getAbsoluteFile().toURI());
+
+		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
+		DataSet<User> usersDS = env.createInput(users)
+				// null map type because the order changes in different JVMs (hard to test)
+				.map(new MapFunction<User, User>() {
+					@Override
+					public User map(User value) throws Exception {
+						Map<CharSequence, Long> ab = new HashMap<CharSequence, Long>(1);
+						ab.put("hehe", 12L);
+						value.setTypeMap(ab);
+						return value;
+					}
+				});
+
+		usersDS.writeAsText(resultPath);
+
+		env.execute("Simple Avro read job");
+
+
+		expected = "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], \"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", \"type_map\": {\"hehe\": 12}, \"type_fixed\": null, \"type_union\": null}\n" +
+				"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, \"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", \"type_map\": {\"hehe\": 12}, \"type_fixed\": null, \"type_union\": null}\n";
+	}
+
+	@Test
 	public void testKeySelection() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().enableObjectReuse();
@@ -103,7 +134,7 @@ public class AvroPojoTest extends MultipleProgramsTestBase {
 		DataSet<Tuple2<String, Integer>> res = usersDS.groupBy("name").reduceGroup(new GroupReduceFunction<User, Tuple2<String, Integer>>() {
 			@Override
 			public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
-				for(User u : values) {
+				for (User u : values) {
 					out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
 				}
 			}
@@ -115,12 +146,10 @@ public class AvroPojoTest extends MultipleProgramsTestBase {
 		expected = "(Alyssa,1)\n(Charlie,1)\n";
 	}
 
-
 	@Test
 	public void testWithAvroGenericSer() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().enableGenericTypeSerializationWithAvro();
-		env.getConfig().enableForceKryo();
+		env.getConfig().enableForceAvro();
 		Path in = new Path(inFile.getAbsoluteFile().toURI());
 
 		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
@@ -135,6 +164,36 @@ public class AvroPojoTest extends MultipleProgramsTestBase {
 			@Override
 			public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
 				for(User u : values) {
+					out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
+				}
+			}
+		});
+
+		res.writeAsText(resultPath);
+		env.execute("Avro Key selection");
+
+
+		expected = "(Charlie,1)\n(Alyssa,1)\n";
+	}
+
+	@Test
+	public void testWithKryoGenericSer() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableForceKryo();
+		Path in = new Path(inFile.getAbsoluteFile().toURI());
+
+		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
+		DataSet<User> usersDS = env.createInput(users);
+
+		DataSet<Tuple2<String, Integer>> res = usersDS.groupBy(new KeySelector<User, String>() {
+			@Override
+			public String getKey(User value) throws Exception {
+				return String.valueOf(value.getName());
+			}
+		}).reduceGroup(new GroupReduceFunction<User, Tuple2<String, Integer>>() {
+			@Override
+			public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
+				for (User u : values) {
 					out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
 				}
 			}
