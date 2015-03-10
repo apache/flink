@@ -31,6 +31,15 @@ import org.junit.Test;
 public class MultiTriggerPolicyTest {
 
 	/**
+	 * This constant defines the timeout for the test of the start ups of the
+	 * active trigger policy Threads.
+	 */
+	private static final int TIMEOUT = 120000;
+
+	// Use this to increase the timeout to be as long as possible.
+	// private static final int TIMEOUT=Integer.MAX_VALUE;
+
+	/**
 	 * This test covers all regular notify call. It takes no fake elements into
 	 * account.
 	 */
@@ -138,8 +147,8 @@ public class MultiTriggerPolicyTest {
 		Runnable runnable = multiTrigger.createActiveTriggerRunnable(cb);
 		new Thread(runnable).start();
 
-		assertTrue("Even after 10000ms not all active policy runnables were started.",
-				cb.check(10000, 1, 2, 3));
+		assertTrue("Even after " + TIMEOUT + "ms not all active policy runnables were started.",
+				cb.check(TIMEOUT, 1, 2, 3));
 	}
 
 	private void arrayEqualityCheck(Object[] array1, Object[] array2) {
