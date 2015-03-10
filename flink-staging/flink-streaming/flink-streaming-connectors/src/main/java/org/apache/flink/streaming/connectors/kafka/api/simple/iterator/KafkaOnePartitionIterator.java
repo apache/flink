@@ -25,10 +25,14 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.streaming.connectors.kafka.api.simple.MessageWithMetadata;
+import org.apache.flink.streaming.connectors.kafka.api.simple.offset.CurrentOffset;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.KafkaOffset;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import kafka.api.FetchRequest;
 import kafka.api.FetchRequestBuilder;
+import kafka.common.ErrorMapping;
 import kafka.javaapi.FetchResponse;
 import kafka.javaapi.PartitionMetadata;
 import kafka.javaapi.TopicMetadata;
@@ -43,7 +47,9 @@ public class KafkaOnePartitionIterator implements KafkaConsumerIterator, Seriali
 
 	private static final long serialVersionUID = 1L;
 
-	private static final long DEFAULT_WAIT_ON_EMPTY_FETCH = 1000L;
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaOnePartitionIterator.class);
+
+	private static final long DEFAULT_WAIT_ON_EMPTY_FETCH = 10000L;
 
 	private List<String> hosts;
 	private String topic;
@@ -53,9 +59,9 @@ public class KafkaOnePartitionIterator implements KafkaConsumerIterator, Seriali
 	private transient SimpleConsumer consumer;
 	private List<String> replicaBrokers;
 	private String clientName;
+	private String leadBroker;
 
 	private KafkaOffset initialOffset;
-
 	private transient Iterator<MessageAndOffset> iter;
 	private transient FetchResponse fetchResponse;
 
@@ -105,7 +111,7 @@ public class KafkaOnePartitionIterator implements KafkaConsumerIterator, Seriali
 					+ ":" + port);
 		}
 
-		String leadBroker = metadata.leader().host();
+		leadBroker = metadata.leader().host();
 		clientName = "Client_" + topic + "_" + partition;
 
 		consumer = new SimpleConsumer(leadBroker, port, 100000, 64 * 1024, clientName);
@@ -148,7 +154,7 @@ public class KafkaOnePartitionIterator implements KafkaConsumerIterator, Seriali
 		return nextWithOffset().getMessage();
 	}
 
-	public boolean fetchHasNext() {
+	public boolean fetchHasNext() throws InterruptedException {
 		synchronized (fetchResponse) {
 			if (!iter.hasNext()) {
 				resetFetchResponse(readOffset);
@@ -191,29 +197,34 @@ public class KafkaOnePartitionIterator implements KafkaConsumerIterator, Seriali
 		}
 	}
 
-	/**
-	 * Resets the iterator to a given offset.
-	 *
-	 * @param offset Desired Kafka offset.
-	 */
-	public void reset(long offset) {
-		synchronized (fetchResponse) {
-			readOffset = offset;
-			resetFetchResponse(offset);
-		}
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//  Internal utilities
 	// --------------------------------------------------------------------------------------------
 
-	private void resetFetchResponse(long offset) {
+	private void resetFetchResponse(long offset) throws InterruptedException {
 		FetchRequest req = new FetchRequestBuilder().clientId(clientName)
 				.addFetch(topic, partition, offset, 100000).build();
 
 		fetchResponse = consumer.fetch(req);
 
-		//TODO deal with broker failures
+		if (fetchResponse.hasError()) {
+			short code = fetchResponse.errorCode(topic, partition);
+
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Error fetching data from the Broker:" + leadBroker + " Reason: " + code);
+			}
+
+			if (code == ErrorMapping.OffsetOutOfRangeCode()) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Asked for invalid offset {}, setting the offset to the latest.", offset);
+				}
+
+				readOffset = new CurrentOffset().getOffset(consumer, topic, partition, clientName);
+			}
+			consumer.close();
+			consumer = null;
+			leadBroker = findNewLeader(leadBroker, topic, partition, port);
+		}
 
 		iter = fetchResponse.messageSet(topic, partition).iterator();
 	}
@@ -256,6 +267,35 @@ public class KafkaOnePartitionIterator implements KafkaConsumerIterator, Seriali
 			}
 		}
 		return returnMetaData;
+	}
+
+	private String findNewLeader(String a_oldLeader, String a_topic, int a_partition, int a_port) throws InterruptedException {
+		for (int i = 0; i < 3; i++) {
+			if (LOG.isInfoEnabled()) {
+				LOG.info("Trying to find a new leader after Broker failure.");
+			}
+			boolean goToSleep = false;
+			PartitionMetadata metadata = findLeader(replicaBrokers, a_port, a_topic, a_partition);
+			if (metadata == null) {
+				goToSleep = true;
+			} else if (metadata.leader() == null) {
+				goToSleep = true;
+			} else if (a_oldLeader.equalsIgnoreCase(metadata.leader().host()) && i == 0) {
+				// first time through if the leader hasn't changed give ZooKeeper a second to recover
+				// second time, assume the broker did recover before failover, or it was a non-Broker issue
+				//
+				goToSleep = true;
+			} else {
+				return metadata.leader().host();
+			}
+			if (goToSleep) {
+				try {
+					Thread.sleep(10000);
+				} catch (InterruptedException ie) {
+				}
+			}
+		}
+		throw new InterruptedException("Unable to find new leader after Broker failure.");
 	}
 
 }
