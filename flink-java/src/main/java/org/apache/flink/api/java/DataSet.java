@@ -80,10 +80,8 @@ import org.apache.flink.api.java.operators.UnionOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
@@ -123,11 +121,7 @@ public abstract class DataSet<T> {
 		}
 
 		this.context = context;
-		if (typeInfo instanceof PojoTypeInfo && context.getConfig().isForceKryoEnabled()) {
-			this.type = new GenericTypeInfo<T>(typeInfo.getTypeClass());
-		} else {
-			this.type = typeInfo;
-		}
+		this.type = typeInfo;
 	}
 
 	/**

@@ -74,7 +74,7 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean disableAutoTypeRegistration = false;
 
-	private boolean serializeGenericTypesWithAvro = false;
+	private boolean forceAvro = false;
 
 	/** If set to true, progress updates are printed to System.out during execution */
 	private boolean printProgressDuringExecution = true;
@@ -272,16 +272,19 @@ public class ExecutionConfig implements Serializable {
 		return forceKryo;
 	}
 
-	public void enableGenericTypeSerializationWithAvro() {
-		serializeGenericTypesWithAvro = true;
+	/**
+	 * Force Flink to use the AvroSerializer for POJOs.
+	 */
+	public void enableForceAvro() {
+		forceAvro = true;
 	}
 
-	public void disableGenericTypeSerializationWithAvro() {
-		serializeGenericTypesWithAvro = true;
+	public void disableForceAvro() {
+		forceAvro = false;
 	}
 
-	public boolean serializeGenericTypesWithAvro() {
-		return serializeGenericTypesWithAvro;
+	public boolean isForceAvroEnabled() {
+		return forceAvro;
 	}
 
 	/**
