@@ -16,13 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager
+package org.apache.flink.runtime.jobmanager;
 
 /**
- * Holder for command line parameters of the JobManager.
- *
- * @param configDir The directory to load the configuration from.
- * @param executionMode Mode for the JobManager.
+ * The startup mode for the JobManager.
  */
-case class JobManagerCLIConfiguration(configDir: String = null,
-                                      executionMode: JobManagerMode = null) {}
+public enum JobManagerMode {
+
+	/**
+	 * Causes the JobManager to operate in single user mode and
+	 * start a local embedded TaskManager.
+	 */
+	LOCAL,
+
+	/**
+	 * Starts the JobManager in the regular mode where it waits for external TaskManagers
+	 * to connect.
+	 */
+	CLUSTER
+}
