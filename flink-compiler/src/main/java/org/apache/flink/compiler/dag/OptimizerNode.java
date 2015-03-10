@@ -88,8 +88,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// --------------------------------- General Parameters ---------------------------------------
 	
 	private int degreeOfParallelism = -1; // the number of parallel instances of this node
-
-	private int subtasksPerInstance = -1; // the number of parallel instance that will run on the same machine
 	
 	private long minimalMemoryPerSubTask = -1;
 
@@ -100,8 +98,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	protected boolean onDynamicPath;
 	
 	protected List<PlanNode> cachedPlans;	// cache candidates, because the may be accessed repeatedly
-	
-	protected int[][] remappedKeys;
 
 	// ------------------------------------------------------------------------
 	//                      Constructor / Setup
@@ -115,25 +111,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public OptimizerNode(Operator<?> op) {
 		this.pactContract = op;
 		readStubAnnotations();
-		
-		if (this.pactContract instanceof AbstractUdfOperator) {
-			final AbstractUdfOperator<?, ?> pact = (AbstractUdfOperator<?, ?>) this.pactContract;
-			this.remappedKeys = new int[pact.getNumberOfInputs()][];
-			for (int i = 0; i < this.remappedKeys.length; i++) {
-				final int[] keys = pact.getKeyColumns(i);
-				int[] rk = new int[keys.length];
-				System.arraycopy(keys, 0, rk, 0, keys.length);
-				this.remappedKeys[i] = rk;
-			}
-		}
 	}
 	
 	protected OptimizerNode(OptimizerNode toCopy) {
 		this.pactContract = toCopy.pactContract;
 		
 		this.intProps = toCopy.intProps;
-		
-		this.remappedKeys = toCopy.remappedKeys;
 		
 		this.openBranches = toCopy.openBranches;
 		this.closedBranchingNodes = toCopy.closedBranchingNodes;
@@ -142,7 +125,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		this.estimatedNumRecords = toCopy.estimatedNumRecords;
 		
 		this.degreeOfParallelism = toCopy.degreeOfParallelism;
-		this.subtasksPerInstance = toCopy.subtasksPerInstance;
 		this.minimalMemoryPerSubTask = toCopy.minimalMemoryPerSubTask;
 		
 		this.id = toCopy.id;
@@ -259,7 +241,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public abstract List<PlanNode> getAlternativePlans(CostEstimator estimator);
 
 	/**
-	 * This method implements the visit of a depth-first graph traversing visitor. Implementors must first
+	 * This method implements the visit of a depth-first graph traversing visitor. Implementers must first
 	 * call the <code>preVisit()</code> method, then hand the visitor to their children, and finally call
 	 * the <code>postVisit()</code> method.
 	 * 
@@ -666,13 +648,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// ------------------------------------------------------------------------
 	// Access of stub annotations
 	// ------------------------------------------------------------------------
-
-	/**
-	 * An optional method where nodes can describe which fields will be unique in their output.
-	 */
-	public List<FieldSet> createUniqueFieldsForNode() {
-		return null;
-	}
 	
 	/**
 	 * Gets the FieldSets which are unique in the output of the node. 
@@ -1156,9 +1131,5 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 
 		return bld.toString();
-	}
-
-	public int[] getRemappedKeys(int input) {
-		return this.remappedKeys[input];
 	}
 }
