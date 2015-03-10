@@ -1,0 +1,101 @@
+---
+mathjax: include
+title: "Multiple linear regression"
+---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+* This will be replaced by the TOC
+{:toc}
+
+## Description
+
+ Multiple linear regression tries to find a linear function which best fits the provided input data.
+ Given a set of input data with its value $(\mathbf{x}, y)$, the multiple linear regression finds
+ a vector $\mathbf{w}$ such that the sum of the squared residuals is minimized:
+
+ $$ S(\mathbf{w}) = \sum_{i=1} \left(y - \mathbf{w}^T\mathbf{x_i} \right)^2$$
+
+ Written in matrix notation, we obtain the following formulation:
+
+ $$\mathbf{w}^* = \arg \min_{\mathbf{w}} (\mathbf{y} - X\mathbf{w})^2$$
+
+ This problem has a closed form solution which is given by:
+
+  $$\mathbf{w}^* = \left(X^TX\right)^{-1}X^T\mathbf{y}$$
+
+  However, in cases where the input data set is so huge that a complete parse over the whole data
+  set is prohibitive, one can apply stochastic gradient descent (SGD) to approximate the solution.
+  The SGD first calculates for a random subset of the input data set the gradients. The gradient
+  for a given point $\mathbf{x}_i$ is given by:
+
+  $$\nabla_{\mathbf{w}} S(\mathbf{w}, \mathbf{x_i}) = 2\left(\mathbf{w}^T\mathbf{x_i} -
+    y\right)\mathbf{x_i}$$
+
+  The gradients are averaged and scaled. The scaling is defined by $\gamma = \frac{s}{\sqrt{j}}$
+  with $s$ being the initial step size and $j$ being the current iteration number. The resulting gradient is subtracted from the
+  current weight vector giving the new weight vector for the next iteration:
+
+  $$\mathbf{w}_{t+1} = \mathbf{w}_t - \gamma \frac{1}{n}\sum_{i=1}^n \nabla_{\mathbf{w}} S(\mathbf{w}, \mathbf{x_i})$$
+
+  The multiple linear regression algorithm computes either a fixed number of SGD iterations or terminates based on a dynamic convergence criterion.
+  The convergence criterion is the relative change in the sum of squared residuals:
+
+  $$\frac{S_{k-1} - S_k}{S_{k-1}} < \rho$$
+
+## Parameters
+
+  The multiple linear regression implementation can be controlled by the following parameters:
+
+Iterations
+: The maximum number of iterations.
+(Default value: **10**)
+
+Stepsize
+: Initial step size for the gradient descent method.
+This value controls how far the gradient descent method moves in the opposite direction of the gradient.
+Tuning this parameter might be crucial to make it stable and to obtain a better performance.
+(Default value: **0.1**)
+
+ConvergenceThreshold
+: Threshold for relative change of the sum of squared residuals until the iteration is stopped.
+(Default value: **None**)
+
+
+## Examples
+
+{% highlight scala %}
+// Create multiple linear regression learner
+val mlr = MultipleLinearRegression()
+.setIterations(10)
+.setStepsize(0.5)
+.setConvergenceThreshold(0.001)
+
+// Obtain training and testing data set
+val trainingDS: DataSet[LabeledVector] = ...
+val testingDS: DataSet[Vector] = ...
+
+// Fit the linear model to the provided data
+val model = mlr.fit(trainingDS)
+
+// Calculate the predictions for the test data
+val predictions = model.transform(testingDS)
+{% endhighlight %}
+
+
