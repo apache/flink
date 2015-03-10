@@ -17,6 +17,10 @@
 
 package org.apache.flink.streaming.io;
 
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.concurrent.LinkedBlockingDeque;
+
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
@@ -27,10 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.util.event.EventListener;
-
-import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import org.apache.flink.streaming.api.streamvertex.StreamingSuperstep;
 
 /**
  * A CoRecordReader wraps {@link MutableRecordReader}s of two different input
@@ -44,7 +45,9 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	private final InputGate bufferReader2;
 
-	private final BlockingQueue<Integer> availableRecordReaders = new LinkedBlockingQueue<Integer>();
+	private final LinkedBlockingDeque<Integer> availableRecordReaders = new LinkedBlockingDeque<Integer>();
+
+	private LinkedList<Integer> processed = new LinkedList<Integer>();
 
 	private AdaptiveSpanningRecordDeserializer[] reader1RecordDeserializers;
 
@@ -59,15 +62,18 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	private boolean hasRequestedPartitions;
 
-	public CoRecordReader(InputGate bufferReader1, InputGate bufferReader2) {
-		super(new UnionInputGate(bufferReader1, bufferReader2));
+	protected CoBarrierBuffer barrierBuffer1;
+	protected CoBarrierBuffer barrierBuffer2;
 
-		this.bufferReader1 = bufferReader1;
-		this.bufferReader2 = bufferReader2;
+	public CoRecordReader(InputGate inputgate1, InputGate inputgate2) {
+		super(new UnionInputGate(inputgate1, inputgate2));
 
-		this.reader1RecordDeserializers = new AdaptiveSpanningRecordDeserializer[bufferReader1
+		this.bufferReader1 = inputgate1;
+		this.bufferReader2 = inputgate2;
+
+		this.reader1RecordDeserializers = new AdaptiveSpanningRecordDeserializer[inputgate1
 				.getNumberOfInputChannels()];
-		this.reader2RecordDeserializers = new AdaptiveSpanningRecordDeserializer[bufferReader2
+		this.reader2RecordDeserializers = new AdaptiveSpanningRecordDeserializer[inputgate2
 				.getNumberOfInputChannels()];
 
 		for (int i = 0; i < reader1RecordDeserializers.length; i++) {
@@ -78,8 +84,14 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 			reader2RecordDeserializers[i] = new AdaptiveSpanningRecordDeserializer<T2>();
 		}
 
-		bufferReader1.registerListener(this);
-		bufferReader2.registerListener(this);
+		inputgate1.registerListener(this);
+		inputgate2.registerListener(this);
+
+		barrierBuffer1 = new CoBarrierBuffer(inputgate1, this);
+		barrierBuffer2 = new CoBarrierBuffer(inputgate2, this);
+
+		barrierBuffer1.setOtherBarrierBuffer(barrierBuffer2);
+		barrierBuffer2.setOtherBarrierBuffer(barrierBuffer1);
 	}
 
 	public void requestPartitionsOnce() throws IOException, InterruptedException {
@@ -103,6 +115,7 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 				}
 
 				currentReaderIndex = getNextReaderIndexBlocking();
+
 			}
 
 			if (currentReaderIndex == 1) {
@@ -123,12 +136,17 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 						}
 					} else {
 
-						final BufferOrEvent boe = bufferReader1.getNextBufferOrEvent();
+						final BufferOrEvent boe = barrierBuffer1.getNextNonBlocked();
 
 						if (boe.isBuffer()) {
 							reader1currentRecordDeserializer = reader1RecordDeserializers[boe
 									.getChannelIndex()];
 							reader1currentRecordDeserializer.setNextBuffer(boe.getBuffer());
+						} else if (boe.getEvent() instanceof StreamingSuperstep) {
+							barrierBuffer1.processSuperstep(boe);
+							currentReaderIndex = 0;
+
+							break;
 						} else if (handleEvent(boe.getEvent())) {
 							currentReaderIndex = 0;
 
@@ -153,12 +171,17 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 							return 2;
 						}
 					} else {
-						final BufferOrEvent boe = bufferReader2.getNextBufferOrEvent();
+						final BufferOrEvent boe = barrierBuffer2.getNextNonBlocked();
 
 						if (boe.isBuffer()) {
 							reader2currentRecordDeserializer = reader2RecordDeserializers[boe
 									.getChannelIndex()];
 							reader2currentRecordDeserializer.setNextBuffer(boe.getBuffer());
+						} else if (boe.getEvent() instanceof StreamingSuperstep) {
+							barrierBuffer2.processSuperstep(boe);
+							currentReaderIndex = 0;
+
+							break;
 						} else if (handleEvent(boe.getEvent())) {
 							currentReaderIndex = 0;
 
@@ -172,8 +195,33 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 		}
 	}
 
-	private int getNextReaderIndexBlocking() throws InterruptedException {
-		return availableRecordReaders.take();
+	protected int getNextReaderIndexBlocking() throws InterruptedException {
+
+		Integer nextIndex = 0;
+
+		while (processed.contains(nextIndex = availableRecordReaders.take())) {
+			processed.remove(nextIndex);
+		}
+
+		if (nextIndex == 1) {
+			if (barrierBuffer1.isAllBlocked()) {
+				availableRecordReaders.addFirst(1);
+				processed.add(2);
+				return 2;
+			} else {
+				return 1;
+			}
+		} else {
+			if (barrierBuffer2.isAllBlocked()) {
+				availableRecordReaders.addFirst(2);
+				processed.add(1);
+				return 1;
+			} else {
+				return 2;
+			}
+
+		}
+
 	}
 
 	// ------------------------------------------------------------------------
@@ -182,6 +230,10 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	@Override
 	public void onEvent(InputGate bufferReader) {
+		addToAvailable(bufferReader);
+	}
+	
+	protected void addToAvailable(InputGate bufferReader){
 		if (bufferReader == bufferReader1) {
 			availableRecordReaders.add(1);
 		} else if (bufferReader == bufferReader2) {
@@ -203,4 +255,27 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 			}
 		}
 	}
+
+	private class CoBarrierBuffer extends BarrierBuffer {
+
+		private CoBarrierBuffer otherBuffer;
+
+		public CoBarrierBuffer(InputGate inputGate, AbstractReader reader) {
+			super(inputGate, reader);
+		}
+
+		public void setOtherBarrierBuffer(CoBarrierBuffer other) {
+			this.otherBuffer = other;
+		}
+
+		@Override
+		protected void actOnAllBlocked() {
+			if (otherBuffer.isAllBlocked()) {
+				super.actOnAllBlocked();
+				otherBuffer.releaseBlocks();
+			}
+		}
+
+	}
+
 }

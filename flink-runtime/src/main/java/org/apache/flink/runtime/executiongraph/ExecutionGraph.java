@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import akka.actor.ActorContext;
 import akka.actor.ActorRef;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -31,13 +31,16 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobmanager.StreamCheckpointCoordinator;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import scala.Tuple3;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
@@ -50,6 +53,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static akka.dispatch.Futures.future;
@@ -116,6 +120,14 @@ public class ExecutionGraph implements Serializable {
 
 	private boolean allowQueuedScheduling = true;
 
+	private ActorContext parentContext;
+
+	private  ActorRef stateMonitorActor;
+	
+	private boolean monitoringEnabled;
+	
+	private long monitoringInterval = 10000;
+
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 
 	
@@ -157,6 +169,18 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	// --------------------------------------------------------------------------------------------
+	
+	public void setStateMonitorActor(ActorRef stateMonitorActor) {
+		this.stateMonitorActor = stateMonitorActor;
+	}
+
+	public ActorRef getStateMonitorActor() {
+		return stateMonitorActor;
+	}
+
+	public void setParentContext(ActorContext parentContext) {
+		this.parentContext = parentContext;
+	}
 
 	public void setNumberOfRetriesLeft(int numberOfRetriesLeft) {
 		if (numberOfRetriesLeft < -1) {
@@ -210,6 +234,14 @@ public class ExecutionGraph implements Serializable {
 			
 			this.verticesInCreationOrder.add(ejv);
 		}
+	}
+
+	public void setMonitoringEnabled(boolean monitoringEnabled) {
+		this.monitoringEnabled = monitoringEnabled;
+	}
+
+	public void setMonitoringInterval(long  monitoringInterval) {
+		this.monitoringInterval = monitoringInterval;
 	}
 
 	/**
@@ -359,11 +391,16 @@ public class ExecutionGraph implements Serializable {
 					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
 						ejv.scheduleAll(scheduler, allowQueuedScheduling);
 					}
-
 					break;
 
 				case BACKTRACKING:
 					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
+			}
+
+			if(monitoringEnabled)
+			{
+				stateMonitorActor = StreamCheckpointCoordinator.spawn(parentContext, this,
+						Duration.create(monitoringInterval, TimeUnit.MILLISECONDS));
 			}
 		}
 		else {
@@ -527,6 +564,14 @@ public class ExecutionGraph implements Serializable {
 		}
 		else {
 			return false;
+		}
+	}
+	
+	public synchronized void loadOperatorStates(Map<Tuple3<JobVertexID, Integer, Long> , StateHandle> states)
+	{
+		for(Map.Entry<Tuple3<JobVertexID, Integer, Long> , StateHandle> state : states.entrySet())
+		{
+			tasks.get(state.getKey()._1()).getTaskVertices()[state.getKey()._2()].setOperatorState(state.getValue());
 		}
 	}
 

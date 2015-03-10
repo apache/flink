@@ -16,22 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.io;
+package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
-public class IndexedMutableReader<T extends IOReadableWritable> extends
-		StreamingMutableRecordReader<T> {
+import java.util.Map;
 
-	InputGate reader;
+/**
+ * A StateHandle that includes a copy of the state itself. This state handle is recommended for 
+ * cases where the operatorState is lightweight enough to pass throughout the network. 
+ * 
+ */
+public class LocalStateHandle implements StateHandle{
+	
+	private final Map<String, OperatorState<?>>  state;
 
-	public IndexedMutableReader(InputGate reader) {
-		super(reader);
-		this.reader = reader;
+	public LocalStateHandle(Map<String,OperatorState<?>> state) {
+		this.state = state;
 	}
 
-	public int getNumberOfInputChannels() {
-		return reader.getNumberOfInputChannels();
+	@Override
+	public Map<String,OperatorState<?>> getState() {
+		return state;
 	}
 }

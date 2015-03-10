@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.util.InstantiationUtil;
 
 public class StreamConfig implements Serializable {
@@ -48,13 +47,13 @@ public class StreamConfig implements Serializable {
 	private static final String OUTPUT_NAME = "outputName_";
 	private static final String PARTITIONER_OBJECT = "partitionerObject_";
 	private static final String VERTEX_NAME = "vertexID";
+	private static final String OPERATOR_NAME = "operatorName";
 	private static final String ITERATION_ID = "iteration-id";
 	private static final String OUTPUT_SELECTOR = "outputSelector";
 	private static final String DIRECTED_EMIT = "directedEmit";
 	private static final String SERIALIZEDUDF = "serializedudf";
 	private static final String USER_FUNCTION = "userfunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
-	private static final String OPERATOR_STATES = "operatorStates";
 	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
 	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out_1";
@@ -66,6 +65,7 @@ public class StreamConfig implements Serializable {
 	// DEFAULT VALUES
 
 	private static final long DEFAULT_TIMEOUT = 100;
+	public static final String STATE_MONITORING = "STATE_MONITORING";
 
 	// CONFIG METHODS
 
@@ -85,6 +85,14 @@ public class StreamConfig implements Serializable {
 
 	public Integer getVertexID() {
 		return config.getInteger(VERTEX_NAME, -1);
+	}
+
+	public void setOperatorName(String name) {
+		config.setString(OPERATOR_NAME, name);
+	}
+
+	public String getOperatorName() {
+		return config.getString(OPERATOR_NAME, "Missing");
 	}
 
 	public void setTypeSerializerIn1(StreamRecordSerializer<?> serializer) {
@@ -291,6 +299,18 @@ public class StreamConfig implements Serializable {
 		config.setBytes(EDGES_IN_ORDER, SerializationUtils.serialize((Serializable) outEdgeList));
 	}
 
+
+	public void setStateMonitoring(boolean stateMonitoring) {
+		
+		config.setBoolean(STATE_MONITORING, stateMonitoring);
+		
+	}
+	
+	public boolean getStateMonitoring()
+	{
+		return config.getBoolean(STATE_MONITORING, false);
+	}
+
 	@SuppressWarnings("unchecked")
 	public List<Tuple2<Integer, Integer>> getOutEdgesInOrder(ClassLoader cl) {
 		try {
@@ -307,20 +327,6 @@ public class StreamConfig implements Serializable {
 
 	public int getInputIndex(int inputNumber) {
 		return config.getInteger(INPUT_TYPE + inputNumber, 0);
-	}
-
-	public void setOperatorStates(Map<String, OperatorState<?>> states) {
-		config.setBytes(OPERATOR_STATES, SerializationUtils.serialize((Serializable) states));
-	}
-
-	@SuppressWarnings("unchecked")
-	public Map<String, OperatorState<?>> getOperatorStates(ClassLoader cl) {
-		try {
-			return (Map<String, OperatorState<?>>) InstantiationUtil.readObjectFromConfig(
-					this.config, OPERATOR_STATES, cl);
-		} catch (Exception e) {
-			throw new RuntimeException("Could not load operator state");
-		}
 	}
 
 	public void setChainedOutputs(List<Integer> chainedOutputs) {
@@ -390,6 +396,7 @@ public class StreamConfig implements Serializable {
 			builder.append("\nInvokable: Missing");
 		}
 		builder.append("\nBuffer timeout: " + getBufferTimeout());
+		builder.append("\nState Monitoring: " + getStateMonitoring());
 		if (isChainStart() && getChainedOutputs(cl).size() > 0) {
 			builder.append("\n\n\n---------------------\nChained task configs\n---------------------\n");
 			builder.append(getTransitiveChainedTaskConfigs(cl)).toString();

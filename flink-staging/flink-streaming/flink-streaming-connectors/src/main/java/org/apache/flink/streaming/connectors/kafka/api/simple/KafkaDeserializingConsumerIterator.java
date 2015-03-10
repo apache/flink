@@ -15,30 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.state;
+package org.apache.flink.streaming.connectors.kafka.api.simple;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 
-import org.apache.flink.runtime.state.OperatorState;
-import org.apache.flink.runtime.state.StateCheckpoint;
-import org.junit.Test;
+public class KafkaDeserializingConsumerIterator<IN> extends KafkaConsumerIterator {
 
-public class OperatorStateTest {
+	private static final long serialVersionUID = 1L;
+	private DeserializationSchema<IN> deserializationSchema;
 
-	@Test
-	public void testOperatorState() {
-		OperatorState<Integer> os = new OperatorState<Integer>(5);
+	public KafkaDeserializingConsumerIterator(String host, int port, String topic, int partition, long waitOnEmptyFetch,
+												DeserializationSchema<IN> deserializationSchema) {
+		super(host, port, topic, partition, waitOnEmptyFetch);
+		this.deserializationSchema = deserializationSchema;
+	}
 
-		StateCheckpoint<Integer> scp = os.checkpoint();
-
-		assertTrue(os.stateEquals(scp.restore()));
-
-		assertEquals((Integer) 5, os.getState());
-
-		os.update(10);
-
-		assertEquals((Integer) 10, os.getState());
+	public IN nextRecord() throws InterruptedException {
+		return deserializationSchema.deserialize(next());
 	}
 
 }

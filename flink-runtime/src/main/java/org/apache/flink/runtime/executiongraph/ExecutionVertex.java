@@ -18,17 +18,17 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.deployment.PartialPartitionInfo;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.deployment.PartialPartitionInfo;
 import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartitionInfo;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -38,8 +38,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.state.StateHandle;
 import org.slf4j.Logger;
-
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
@@ -50,9 +50,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.google.common.base.Preconditions.checkElementIndex;
-import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
-import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
-import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
 /**
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
@@ -88,6 +85,8 @@ public class ExecutionVertex implements Serializable {
 	private volatile List<Instance> locationConstraintInstances;
 	
 	private volatile boolean scheduleLocalOnly;
+	
+	private StateHandle operatorState;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -193,6 +192,14 @@ public class ExecutionVertex implements Serializable {
 	
 	public InstanceConnectionInfo getCurrentAssignedResourceLocation() {
 		return currentExecution.getAssignedResourceLocation();
+	}
+
+	public void setOperatorState(StateHandle operatorState) {
+		this.operatorState = operatorState;
+	}
+
+	public StateHandle getOperatorState() {
+		return operatorState;
 	}
 	
 	public ExecutionGraph getExecutionGraph() {
@@ -370,7 +377,8 @@ public class ExecutionVertex implements Serializable {
 			Execution execution = currentExecution;
 			ExecutionState state = execution.getState();
 
-			if (state == FINISHED || state == CANCELED || state == FAILED) {
+			if (state == ExecutionState.FINISHED || state == ExecutionState.CANCELED
+					|| state == ExecutionState.FAILED) {
 				priorExecutions.add(execution);
 				currentExecution = new Execution(this, execution.getAttemptNumber()+1,
 						System.currentTimeMillis(), timeout);
@@ -379,6 +387,12 @@ public class ExecutionVertex implements Serializable {
 				if (grp != null) {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
+				
+				if(operatorState!=null)
+				{
+					execution.setOperatorState(operatorState);
+				}
+				
 			}
 			else {
 				throw new IllegalStateException("Cannot reset a vertex that is in state " + state);
@@ -422,8 +436,9 @@ public class ExecutionVertex implements Serializable {
 		ExecutionState state = execution.getState();
 
 		// sanity check
-		if (!(state == FINISHED || state == CANCELED || state == FAILED)) {
-			throw new IllegalStateException("Cannot archive ExecutionVertex that is not in a finished state.");
+		if (!(state == ExecutionState.FINISHED || state == ExecutionState.CANCELED || state == ExecutionState.FAILED)) {
+			throw new IllegalStateException(
+					"Cannot archive ExecutionVertex that is not in a finished state.");
 		}
 		
 		// prepare the current execution for archiving
@@ -506,7 +521,7 @@ public class ExecutionVertex implements Serializable {
 		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, getTaskName(),
 				subTaskIndex, getTotalNumberOfParallelSubtasks(), getExecutionGraph().getJobConfiguration(),
 				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
-				producedPartitions, consumedPartitions, jarFiles, slot.getSlotNumber());
+				producedPartitions, consumedPartitions, jarFiles, slot.getSlotNumber(), operatorState);
 	}
 
 	// --------------------------------------------------------------------------------------------

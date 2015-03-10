@@ -43,7 +43,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobgraph.tasks.{OperatorStateCarrier,BarrierTransceiver}
+import org.apache.flink.runtime.jobmanager.{BarrierReq,JobManager}
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
@@ -349,6 +350,23 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
       networkEnvironment foreach {
         _.getPartitionManager.failIntermediateResultPartitions(executionID)
       }
+
+    case BarrierReq(attemptID, checkpointID) =>
+      log.debug("[FT-TaskManager] Barrier {} request received for attempt {}", 
+          checkpointID, attemptID)
+      runningTasks.get(attemptID) match {
+        case Some(i) =>
+          if (i.getExecutionState == ExecutionState.RUNNING) {
+            i.getEnvironment.getInvokable match {
+              case barrierTransceiver: BarrierTransceiver =>
+                new Thread(new Runnable {
+                  override def run(): Unit =  barrierTransceiver.broadcastBarrier(checkpointID);
+                }).start()
+              case _ => log.error("[FT-TaskManager] Received a barrier for the wrong vertex")
+            }
+          }
+        case None => log.error("[FT-TaskManager] Received a barrier for an unknown vertex")
+      }
   }
 
   /**
@@ -399,7 +417,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
         tdd.getTaskName, self)
-
+      
       runningTasks.put(executionID, task) match {
         case Some(_) => throw new RuntimeException(
           s"TaskManager contains already a task with executionID $executionID.")
@@ -420,6 +438,15 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       task.setEnvironment(env)
 
+      //inject operator state
+      if(tdd.getOperatorStates != null)
+      {
+        val vertex = task.getEnvironment.getInvokable match {
+          case opStateCarrier: OperatorStateCarrier =>
+            opStateCarrier.injectState(tdd.getOperatorStates)
+        }
+      }
+      
       // register the task with the network stack and profiles
       networkEnvironment match {
         case Some(ne) =>

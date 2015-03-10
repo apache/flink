@@ -46,7 +46,6 @@ import org.apache.flink.streaming.api.streamvertex.StreamIterationHead;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationTail;
 import org.apache.flink.streaming.api.streamvertex.StreamVertex;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.state.OperatorState;
 import org.apache.sling.commons.json.JSONArray;
 import org.apache.sling.commons.json.JSONException;
 import org.apache.sling.commons.json.JSONObject;
@@ -85,13 +84,16 @@ public class StreamGraph extends StreamingPlan {
 	private Map<Integer, Integer> iterationIDtoTailID;
 	private Map<Integer, Integer> iterationTailCount;
 	private Map<Integer, Long> iterationTimeouts;
-	private Map<Integer, Map<String, OperatorState<?>>> operatorStates;
 	private Map<Integer, InputFormat<String, ?>> inputFormatLists;
 	private List<Map<Integer, ?>> containingMaps;
 
 	private Set<Integer> sources;
 
 	private ExecutionConfig executionConfig;
+	
+	private boolean monitoringEnabled;
+	
+	private long monitoringInterval = 10000;
 
 	public StreamGraph(ExecutionConfig executionConfig) {
 
@@ -145,10 +147,8 @@ public class StreamGraph extends StreamingPlan {
 		containingMaps.add(iterationTailCount);
 		iterationTimeouts = new HashMap<Integer, Long>();
 		containingMaps.add(iterationTailCount);
-		operatorStates = new HashMap<Integer, Map<String, OperatorState<?>>>();
-		containingMaps.add(operatorStates);
 		inputFormatLists = new HashMap<Integer, InputFormat<String, ?>>();
-		containingMaps.add(operatorStates);
+		containingMaps.add(inputFormatLists);
 		sources = new HashSet<Integer>();
 	}
 
@@ -245,8 +245,6 @@ public class StreamGraph extends StreamingPlan {
 	 *            Id of the iteration tail
 	 * @param iterationID
 	 *            ID of iteration for mulitple iterations
-	 * @param parallelism
-	 *            Number of parallel instances created
 	 * @param waitTime
 	 *            Max waiting time for next record
 	 */
@@ -297,8 +295,6 @@ public class StreamGraph extends StreamingPlan {
 	 *            Name of the vertex
 	 * @param vertexClass
 	 *            The class of the vertex
-	 * @param invokableObjectject
-	 *            The user defined invokable object
 	 * @param operatorName
 	 *            Type of the user defined operator
 	 * @param parallelism
@@ -417,22 +413,6 @@ public class StreamGraph extends StreamingPlan {
 
 	public long getBufferTimeout(Integer vertexID) {
 		return this.bufferTimeouts.get(vertexID);
-	}
-
-	public void addOperatorState(Integer veretxName, String stateName, OperatorState<?> state) {
-		Map<String, OperatorState<?>> states = operatorStates.get(veretxName);
-		if (states == null) {
-			states = new HashMap<String, OperatorState<?>>();
-			states.put(stateName, state);
-		} else {
-			if (states.containsKey(stateName)) {
-				throw new RuntimeException("State has already been registered with this name: "
-						+ stateName);
-			} else {
-				states.put(stateName, state);
-			}
-		}
-		operatorStates.put(veretxName, states);
 	}
 
 	/**
@@ -594,10 +574,6 @@ public class StreamGraph extends StreamingPlan {
 		return outputSelectors.get(vertexID);
 	}
 
-	public Map<String, OperatorState<?>> getState(Integer vertexID) {
-		return operatorStates.get(vertexID);
-	}
-
 	public Integer getIterationID(Integer vertexID) {
 		return iterationIds.get(vertexID);
 	}
@@ -608,6 +584,22 @@ public class StreamGraph extends StreamingPlan {
 
 	public String getOperatorName(Integer vertexID) {
 		return operatorNames.get(vertexID);
+	}
+
+	public void setMonitoringEnabled(boolean monitoringEnabled) {
+		this.monitoringEnabled = monitoringEnabled;
+	}
+
+	public boolean isMonitoringEnabled() {
+		return monitoringEnabled;
+	}
+
+	public void setMonitoringInterval(long monitoringInterval) {
+		this.monitoringInterval = monitoringInterval;
+	}
+
+	public long getMonitoringInterval() {
+		return monitoringInterval;
 	}
 
 	@Override

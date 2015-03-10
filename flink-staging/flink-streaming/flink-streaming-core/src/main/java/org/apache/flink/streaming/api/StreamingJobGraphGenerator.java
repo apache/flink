@@ -74,7 +74,13 @@ public class StreamingJobGraphGenerator {
 
 		// Turn lazy scheduling off
 		jobGraph.setScheduleMode(ScheduleMode.ALL);
-
+		jobGraph.setJobType(JobGraph.JobType.STREAMING);
+		jobGraph.setMonitoringEnabled(streamGraph.isMonitoringEnabled());
+		jobGraph.setMonitorInterval(streamGraph.getMonitoringInterval());
+		if(jobGraph.isMonitoringEnabled())
+		{
+			jobGraph.setNumberOfExecutionRetries(Integer.MAX_VALUE);
+		}
 		init();
 
 		setChaining();
@@ -188,7 +194,9 @@ public class StreamingJobGraphGenerator {
 		builtVertices.add(vertexID);
 		jobGraph.addVertex(vertex);
 
-		return new StreamConfig(vertex.getConfiguration());
+		StreamConfig retConfig = new StreamConfig(vertex.getConfiguration());
+		retConfig.setOperatorName(chainedNames.get(vertexID));
+		return retConfig;
 	}
 
 	private void setVertexConfig(Integer vertexID, StreamConfig config,
@@ -204,11 +212,11 @@ public class StreamingJobGraphGenerator {
 
 		config.setUserInvokable(streamGraph.getInvokable(vertexID));
 		config.setOutputSelectors(streamGraph.getOutputSelector(vertexID));
-		config.setOperatorStates(streamGraph.getState(vertexID));
 
 		config.setNumberOfOutputs(nonChainableOutputs.size());
 		config.setOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
+		config.setStateMonitoring(streamGraph.isMonitoringEnabled());
 
 		Class<? extends AbstractInvokable> vertexClass = streamGraph.getJobVertexClass(vertexID);
 

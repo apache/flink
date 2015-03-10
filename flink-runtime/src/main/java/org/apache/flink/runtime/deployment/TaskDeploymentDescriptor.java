@@ -23,6 +23,7 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.StateHandle;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -76,6 +77,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The list of JAR files required to run this task. */
 	private final List<BlobKey> requiredJarFiles;
+	
+	private StateHandle operatorStates;
 
 	/**
 	 * Constructs a task deployment descriptor.
@@ -117,6 +120,21 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.producedPartitions = new ArrayList<PartitionDeploymentDescriptor>();
 		this.consumedPartitions = new ArrayList<PartitionConsumerDeploymentDescriptor>();
 		this.requiredJarFiles = new ArrayList<BlobKey>();
+	}
+
+	public TaskDeploymentDescriptor(
+			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId, String taskName,
+			int indexInSubtaskGroup, int numberOfSubtasks, Configuration jobConfiguration,
+			Configuration taskConfiguration, String invokableClassName,
+			List<PartitionDeploymentDescriptor> producedPartitions,
+			List<PartitionConsumerDeploymentDescriptor> consumedPartitions,
+			List<BlobKey> requiredJarFiles, int targetSlotNumber, StateHandle operatorStates) {
+
+		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
+				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
+				consumedPartitions, requiredJarFiles, targetSlotNumber);
+		
+		setOperatorState(operatorStates);
 	}
 
 	/**
@@ -223,5 +241,13 @@ public final class TaskDeploymentDescriptor implements Serializable {
 				"Produced partitions: %s, Consumed partitions: %s", jobID, vertexID, executionId,
 				taskName, indexInSubtaskGroup, numberOfSubtasks, invokableClassName,
 				strProducedPartitions, strConsumedPartitions);
+	}
+
+	public void setOperatorState(StateHandle operatorStates) {
+		this.operatorStates = operatorStates;
+	}
+
+	public StateHandle getOperatorStates() {
+		return operatorStates;
 	}
 }

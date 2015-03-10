@@ -41,7 +41,7 @@ import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobID}
+import org.apache.flink.runtime.jobgraph.{ScheduleMode,JobGraph,JobStatus,JobID}
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -97,12 +97,13 @@ class JobManager(val configuration: Configuration,
                  val delayBetweenRetries: Long,
                  val timeout: FiniteDuration)
   extends Actor with ActorLogMessages with ActorLogging {
-
+  
   /** Reference to the log, for debugging */
-  protected val LOG = JobManager.LOG
+  val LOG = JobManager.LOG
 
   /** List of current jobs running jobs */
-  protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
+  val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
+  
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
@@ -282,30 +283,44 @@ class JobManager(val configuration: Configuration,
           if(newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
 
-          // is the client waiting for the job result?
+            // is the client waiting for the job result?
             newJobStatus match {
               case JobStatus.FINISHED =>
                 val accumulatorResults = accumulatorManager.getJobAccumulatorResults(jobID)
-                jobInfo.client ! JobResultSuccess(jobID, jobInfo.duration, accumulatorResults)
+                jobInfo.client ! JobResultSuccess(jobID,jobInfo.duration,accumulatorResults)
               case JobStatus.CANCELED =>
                 jobInfo.client ! Failure(new JobCancellationException(jobID,
-                  "Job was cancelled.", error))
+                  "Job was cancelled.",error))
               case JobStatus.FAILED =>
                 jobInfo.client ! Failure(new JobExecutionException(jobID,
-                  "Job execution failed.", error))
+                  "Job execution failed.",error))
               case x =>
-                val exception = new JobExecutionException(jobID, s"$x is not a " +
-                  "terminal state.")
+                val exception = new JobExecutionException(jobID,s"$x is not a " +
+                        "terminal state.")
                 jobInfo.client ! Failure(exception)
                 throw exception
             }
 
             removeJob(jobID)
+            
           }
         case None =>
           removeJob(jobID)
-      }
+          }
 
+    case msg: BarrierAck =>
+      currentJobs.get(msg.jobID) match {
+        case Some(jobExecution) =>
+          jobExecution._1.getStateMonitorActor forward  msg
+        case None =>
+      }
+    case msg: StateBarrierAck =>
+      currentJobs.get(msg.jobID) match {
+        case Some(jobExecution) =>
+          jobExecution._1.getStateMonitorActor forward  msg
+        case None =>
+      }
+      
     case ScheduleOrUpdateConsumers(jobId, executionId, partitionIndex) =>
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
@@ -471,6 +486,9 @@ class JobManager(val configuration: Configuration,
         executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode)
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
+        
+        executionGraph.setMonitoringEnabled(jobGraph.isMonitoringEnabled)
+        executionGraph.setMonitoringInterval(jobGraph.getMonitorInterval)
 
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits
@@ -513,6 +531,9 @@ class JobManager(val configuration: Configuration,
           log.debug(s"Successfully created execution graph from job graph ${jobId} (${jobName}).")
         }
 
+        // give an actorContext
+        executionGraph.setParentContext(context);
+        
         // get notified about job status changes
         executionGraph.registerJobStatusListener(self)
 

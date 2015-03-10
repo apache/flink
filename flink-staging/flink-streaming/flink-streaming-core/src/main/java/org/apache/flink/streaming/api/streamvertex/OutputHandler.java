@@ -84,6 +84,13 @@ public class OutputHandler<OUT> {
 
 	}
 
+	public void broadcastBarrier(long id) throws IOException, InterruptedException {
+		StreamingSuperstep barrier = new StreamingSuperstep(id);
+		for (StreamOutput<?> streamOutput : outputMap.values()) {
+			streamOutput.broadcastEvent(barrier);
+		}
+	}
+
 	public Collection<StreamOutput<?>> getOutputs() {
 		return outputMap.values();
 	}

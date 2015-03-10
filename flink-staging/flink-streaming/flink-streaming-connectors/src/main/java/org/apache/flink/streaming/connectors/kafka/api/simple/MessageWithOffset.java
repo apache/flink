@@ -15,39 +15,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.state;
-
-import org.apache.flink.streaming.state.checkpoint.StateCheckpoint;
+package org.apache.flink.streaming.connectors.kafka.api.simple;
 
 /**
- * Basic {@link OperatorState} for storing and updating simple objects. By default the
- * whole stored object is checkpointed at each backup. Override checkpoint to
- * allow a more fine-grained behavior.
- *
- * @param <T>
- *            The type of the stored state object.
+ * POJO encapsulating records received from Kafka with their offset.
  */
-public class SimpleState<T> extends OperatorState<T> {
+public class MessageWithOffset {
+	private long offset;
+	private byte[] message;
 
-	private static final long serialVersionUID = 1L;
-
-	public SimpleState() {
-		super();
+	public MessageWithOffset(long offset, byte[] message) {
+		this.offset = offset;
+		this.message = message;
 	}
 
-	public SimpleState(T initialState) {
-		super(initialState);
+	public long getOffset() {
+		return offset;
 	}
 
-	@Override
-	public StateCheckpoint<T> checkpoint() {
-		return new StateCheckpoint<T>(this);
+	public void setOffset(long offset) {
+		this.offset = offset;
 	}
 
-	@Override
-	public OperatorState<T> restore(StateCheckpoint<T> checkpoint) {
-		this.state = checkpoint.getCheckpointedState();
-		return this;
+	public byte[] getMessage() {
+		return message;
 	}
 
+	public void setMessage(byte[] message) {
+		this.message = message;
+	}
 }

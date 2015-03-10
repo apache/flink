@@ -36,12 +36,10 @@ public class KafkaConsumerExample {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment().setDegreeOfParallelism(4);
 
-		@SuppressWarnings("unused")
-		DataStream<String> stream1 = env
-				.addSource(
-						new KafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()))
-				.setParallelism(3)
-				.print().setParallelism(3);
+		DataStream<String> kafkaStream = env
+				.addSource(new KafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()));
+
+		kafkaStream.print();
 
 		env.execute();
 	}

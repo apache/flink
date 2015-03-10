@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.streamvertex;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
@@ -51,25 +52,19 @@ public class InputHandler<IN> {
 		inputSerializer = configuration.getTypeSerializerIn1(streamVertex.userClassLoader);
 
 		int numberOfInputs = configuration.getNumberOfInputs();
+
 		if (numberOfInputs > 0) {
+			InputGate inputGate = numberOfInputs < 2 ? streamVertex.getEnvironment()
+					.getInputGate(0) : new UnionInputGate(streamVertex.getEnvironment()
+					.getAllInputGates());
 
-			if (numberOfInputs < 2) {
-				inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(
-						streamVertex.getEnvironment().getInputGate(0));
+			inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(inputGate);
+			inputs.registerTaskEventListener(streamVertex.getSuperstepListener(),
+					StreamingSuperstep.class);
 
-			} else {
-				inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(
-						new UnionInputGate(streamVertex.getEnvironment().getAllInputGates()));
-			}
-
-			inputIter = createInputIterator();
+			inputIter = new IndexedReaderIterator<StreamRecord<IN>>(inputs, inputSerializer);
 		}
-	}
 
-	private IndexedReaderIterator<StreamRecord<IN>> createInputIterator() {
-		final IndexedReaderIterator<StreamRecord<IN>> iter = new IndexedReaderIterator<StreamRecord<IN>>(
-				inputs, inputSerializer);
-		return iter;
 	}
 
 	protected static <T> IndexedReaderIterator<StreamRecord<T>> staticCreateInputIterator(

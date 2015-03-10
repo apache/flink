@@ -19,16 +19,16 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.api.KafkaSink;
+import org.apache.flink.streaming.connectors.kafka.api.simple.PersistentKafkaSource;
 import org.apache.flink.streaming.connectors.util.JavaDefaultStringSchema;
-import org.apache.flink.util.Collector;
 
-public class KafkaProducerExample {
+public class KafkaSimpleConsumerExample {
 
 	private static String host;
 	private static int port;
 	private static String topic;
+	private static int partition;
+	private static long offset;
 
 	public static void main(String[] args) throws Exception {
 
@@ -38,40 +38,26 @@ public class KafkaProducerExample {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment().setDegreeOfParallelism(4);
 
-		@SuppressWarnings({ "unused", "serial" })
-		DataStream<String> stream1 = env.addSource(new SourceFunction<String>() {
-			@Override
-			public void run(Collector<String> collector) throws Exception {
-				for (int i = 0; i < 20; i++) {
-					collector.collect("message #" + i);
-					Thread.sleep(100L);
-				}
+		DataStream<String> kafkaStream = env
+				.addSource(new PersistentKafkaSource<String>(topic, host, port, partition, offset, new JavaDefaultStringSchema()));
 
-				collector.collect(new String("q"));
-			}
-
-			@Override
-			public void cancel() {				
-			}
-			
-			
-		}).addSink(
-				new KafkaSink<String>(topic, host + ":" + port, new JavaDefaultStringSchema())
-		)
-		.setParallelism(3);
+		kafkaStream.print();
 
 		env.execute();
 	}
 
 	private static boolean parseParameters(String[] args) {
-		if (args.length == 3) {
+		if (args.length == 4) {
 			host = args[0];
 			port = Integer.parseInt(args[1]);
 			topic = args[2];
+			partition = Integer.parseInt(args[3]);
+			offset = Long.parseLong(args[4]);
 			return true;
 		} else {
-			System.err.println("Usage: KafkaProducerExample <host> <port> <topic>");
+			System.err.println("Usage: KafkaConsumerExample <host> <port> <topic> <partition> <offset>");
 			return false;
 		}
 	}
+
 }

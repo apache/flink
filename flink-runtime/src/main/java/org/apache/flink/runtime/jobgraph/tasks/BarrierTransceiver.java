@@ -15,30 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.state;
+package org.apache.flink.runtime.jobgraph.tasks;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
-import org.apache.flink.runtime.state.OperatorState;
-import org.apache.flink.runtime.state.StateCheckpoint;
-import org.junit.Test;
+/**
+ * A BarrierTransceiver describes an operator's barrier checkpointing behavior used for 
+ * fault tolerance. In the most common case [[broadcastBarrier]] is being expected to be called 
+ * periodically upon receiving a checkpoint barrier. Furthermore, a [[confirmBarrier]] method should
+ * be implemented and used for acknowledging a specific checkpoint checkpoint.
+ */
+public interface BarrierTransceiver {
 
-public class OperatorStateTest {
+	/**
+	 * A callback for notifying an operator of a new checkpoint barrier.
+	 * @param barrierID
+	 */
+	public void broadcastBarrier(long barrierID);
 
-	@Test
-	public void testOperatorState() {
-		OperatorState<Integer> os = new OperatorState<Integer>(5);
-
-		StateCheckpoint<Integer> scp = os.checkpoint();
-
-		assertTrue(os.stateEquals(scp.restore()));
-
-		assertEquals((Integer) 5, os.getState());
-
-		os.update(10);
-
-		assertEquals((Integer) 10, os.getState());
-	}
-
+	/**
+	 * A callback for confirming that a barrier checkpoint is complete
+	 * @param barrierID
+	 */
+	public void confirmBarrier(long barrierID);
+	
 }

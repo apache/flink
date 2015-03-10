@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.io;
+package org.apache.flink.runtime.jobgraph.tasks;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.state.StateHandle;
 
-public class IndexedMutableReader<T extends IOReadableWritable> extends
-		StreamingMutableRecordReader<T> {
+/**
+ * This is an interface meant to be implemented by any invokable that has to support state recovery.
+ * It is mainly used by the TaskManager to identify operators that support state recovery in order 
+ * to inject their initial state upon creation.
+ */
+public interface OperatorStateCarrier {
 
-	InputGate reader;
+	public void injectState(StateHandle stateHandle);
 
-	public IndexedMutableReader(InputGate reader) {
-		super(reader);
-		this.reader = reader;
-	}
-
-	public int getNumberOfInputChannels() {
-		return reader.getNumberOfInputChannels();
-	}
 }

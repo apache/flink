@@ -84,7 +84,14 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 				next = recordIterator.next(reuse1, reuse2);
 			} catch (IOException e) {
 				if (isRunning) {
-					throw e;
+					throw new RuntimeException("Could not read next record.", e);
+				} else {
+					// Task already cancelled do nothing
+					next = 0;
+				}
+			} catch (IllegalStateException e) {
+				if (isRunning) {
+					throw new RuntimeException("Could not read next record.", e);
 				} else {
 					// Task already cancelled do nothing
 					next = 0;

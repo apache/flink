@@ -17,16 +17,22 @@
 
 package org.apache.flink.streaming.state;
 
+import org.apache.flink.runtime.state.OperatorState;
+
 /**
  * Base class for representing operator states that can be repartitioned for
  * state state and load balancing.
- *
+ * 
  * @param <T>
  *            The type of the operator state.
  */
 public abstract class PartitionableState<T> extends OperatorState<T> {
 
 	private static final long serialVersionUID = 1L;
+
+	PartitionableState(T initialState) {
+		super(initialState);
+	}
 
 	/**
 	 * Repartitions(divides) the current state into the given number of new

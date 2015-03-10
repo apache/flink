@@ -16,22 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.io;
+package org.apache.flink.runtime.state;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
-public class IndexedMutableReader<T extends IOReadableWritable> extends
-		StreamingMutableRecordReader<T> {
+import java.io.Serializable;
+import java.util.Map;
 
-	InputGate reader;
+/**
+ * StateHandle is a general handle interface meant to abstract operator state fetching. 
+ * A StateHandle implementation can for example include the state itself in cases where the state 
+ * is lightweight or fetching it lazily from some external storage when the state is too large.
+ * 
+ */
+public interface StateHandle extends Serializable{
 
-	public IndexedMutableReader(InputGate reader) {
-		super(reader);
-		this.reader = reader;
-	}
-
-	public int getNumberOfInputChannels() {
-		return reader.getNumberOfInputChannels();
-	}
+	/**
+	 * getState should retrieve and return the state managed the handle. 
+	 * 
+	 * @return
+	 */
+	public Map<String,OperatorState<?>> getState();
+	
 }
