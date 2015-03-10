@@ -40,7 +40,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class GraphCreationITCase extends MultipleProgramsTestBase {
 
-	public GraphCreationITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public GraphCreationITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

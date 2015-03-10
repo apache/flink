@@ -35,7 +35,7 @@ import java.io.File;
 @RunWith(Parameterized.class)
 public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
 
-	public LabelPropagationExampleITCase(ExecutionMode mode){
+	public LabelPropagationExampleITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

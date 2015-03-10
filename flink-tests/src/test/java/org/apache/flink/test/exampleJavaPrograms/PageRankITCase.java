@@ -36,7 +36,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class PageRankITCase extends MultipleProgramsTestBase {
 
-	public PageRankITCase(ExecutionMode mode){
+	public PageRankITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

@@ -43,7 +43,7 @@ import java.util.Arrays;
 
 @RunWith(Parameterized.class)
 public class AvroPojoTest extends MultipleProgramsTestBase {
-	public AvroPojoTest(ExecutionMode mode) {
+	public AvroPojoTest(TestExecutionMode mode) {
 		super(mode);
 	}
 

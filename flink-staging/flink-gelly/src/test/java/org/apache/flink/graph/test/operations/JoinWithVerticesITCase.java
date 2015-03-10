@@ -38,7 +38,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
 
-	public JoinWithVerticesITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public JoinWithVerticesITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

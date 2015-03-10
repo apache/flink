@@ -42,7 +42,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class HadoopReduceFunctionITCase extends MultipleProgramsTestBase {
 
-	public HadoopReduceFunctionITCase(ExecutionMode mode){
+	public HadoopReduceFunctionITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
