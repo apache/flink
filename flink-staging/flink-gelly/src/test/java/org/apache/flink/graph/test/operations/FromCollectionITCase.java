@@ -35,7 +35,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class FromCollectionITCase extends MultipleProgramsTestBase {
 
-	public FromCollectionITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public FromCollectionITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

@@ -47,7 +47,7 @@ public class SingleSourceShortestPathsITCase extends MultipleProgramsTestBase {
     @Rule
     public TemporaryFolder tempFolder = new TemporaryFolder();
 
-    public SingleSourceShortestPathsITCase(ExecutionMode mode) {
+    public SingleSourceShortestPathsITCase(TestExecutionMode mode) {
         super(mode);
     }
 

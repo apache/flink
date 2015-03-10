@@ -38,7 +38,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class CountCollectITCase extends MultipleProgramsTestBase {
 
-	public CountCollectITCase(ExecutionMode mode) {
+	public CountCollectITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 

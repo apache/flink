@@ -38,7 +38,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class GraphMutationsITCase extends MultipleProgramsTestBase {
 
-	public GraphMutationsITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public GraphMutationsITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

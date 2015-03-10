@@ -45,7 +45,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class PartitionITCase extends MultipleProgramsTestBase {
 
-	public PartitionITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public PartitionITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

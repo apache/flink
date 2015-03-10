@@ -45,7 +45,7 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class DataSinkITCase extends MultipleProgramsTestBase {
 
-	public DataSinkITCase(ExecutionMode mode) {
+	public DataSinkITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 

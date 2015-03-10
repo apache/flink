@@ -36,7 +36,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class SumMinMaxITCase extends MultipleProgramsTestBase {
 
-	public SumMinMaxITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public SumMinMaxITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

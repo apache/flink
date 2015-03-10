@@ -43,7 +43,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class CrossITCase extends MultipleProgramsTestBase {
 
-	public CrossITCase(ExecutionMode mode){
+	public CrossITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

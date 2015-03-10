@@ -80,8 +80,9 @@ public class TestBaseUtils {
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
 
-	protected static ForkableFlinkMiniCluster startCluster(int numTaskManagers, int
-			taskManagerNumSlots) throws Exception {
+	protected static ForkableFlinkMiniCluster startCluster(int numTaskManagers, int taskManagerNumSlots)
+			throws Exception {
+
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 		config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, true);
@@ -95,7 +96,8 @@ public class TestBaseUtils {
 
 	protected static void stopCluster(ForkableFlinkMiniCluster executor, FiniteDuration timeout)
 			throws Exception {
-		if(executor != null) {
+
+		if (executor != null) {
 			int numUnreleasedBCVars = 0;
 			int numActiveConnections = 0;
 			{
