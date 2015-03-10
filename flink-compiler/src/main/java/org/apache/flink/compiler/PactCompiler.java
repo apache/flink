@@ -353,25 +353,18 @@ public class PactCompiler {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new compiler instance. The compiler has no access to statistics about the
+	 * Creates a new optimizer instance. The optimizer has no access to statistics about the
 	 * inputs and can hence not determine any properties. It will perform all optimization with
-	 * unknown sizes and default to the most robust execution strategies. The
-	 * compiler also uses conservative default estimates for the operator costs, since
-	 * it has no access to another cost estimator.
-	 * <p>
-	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
+	 * unknown sizes and hence use only the heuristic cost functions, which result in the selection
+	 * of the most robust execution strategies.
 	 */
 	public PactCompiler() {
 		this(null, new DefaultCostEstimator());
 	}
 
 	/**
-	 * Creates a new compiler instance that uses the statistics object to determine properties about the input.
-	 * Given those statistics, the compiler can make better choices for the execution strategies.
-	 * as if no filesystem was given. The compiler uses conservative default estimates for the operator costs, since
-	 * it has no access to another cost estimator.
-	 * <p>
-	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
+	 * Creates a new optimizer instance that uses the statistics object to determine properties about the input.
+	 * Given those statistics, the optimizer can make better choices for the execution strategies.
 	 * 
 	 * @param stats
 	 *        The statistics to be used to determine the input properties.
@@ -381,27 +374,24 @@ public class PactCompiler {
 	}
 
 	/**
-	 * Creates a new compiler instance. The compiler has no access to statistics about the
+	 * Creates a new optimizer instance. The optimizer has no access to statistics about the
 	 * inputs and can hence not determine any properties. It will perform all optimization with
-	 * unknown sizes and default to the most robust execution strategies. It uses
-	 * however the given cost estimator to compute the costs of the individual operations.
-	 * <p>
-	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
+	 * unknown sizes and hence use only the heuristic cost functions, which result in the selection
+	 * of the most robust execution strategies.
+	 *
+	 * The optimizer uses the given cost estimator to compute the costs of the individual operations.
 	 * 
-	 * @param estimator
-	 *        The <tt>CostEstimator</tt> to use to cost the individual operations.
+	 * @param estimator The cost estimator to use to cost the individual operations.
 	 */
 	public PactCompiler(CostEstimator estimator) {
 		this(null, estimator);
 	}
 
 	/**
-	 * Creates a new compiler instance that uses the statistics object to determine properties about the input.
-	 * Given those statistics, the compiler can make better choices for the execution strategies.
-	 * as if no filesystem was given. It uses the given cost estimator to compute the costs of the individual
-	 * operations.
-	 * <p>
-	 * The address of the job manager (to obtain system characteristics) is determined via the global configuration.
+	 * Creates a new optimizer instance that uses the statistics object to determine properties about the input.
+	 * Given those statistics, the optimizer can make better choices for the execution strategies.
+	 *
+	 * The optimizer uses the given cost estimator to compute the costs of the individual operations.
 	 * 
 	 * @param stats
 	 *        The statistics to be used to determine the input properties.
@@ -412,9 +402,10 @@ public class PactCompiler {
 		this.statistics = stats;
 		this.costEstimator = estimator;
 
-		// determine the default parallelization degree
-		this.defaultDegreeOfParallelism = GlobalConfiguration.getInteger(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
-			ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
+		// determine the default parallelism
+		this.defaultDegreeOfParallelism = GlobalConfiguration.getInteger(
+				ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
+				ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
 		
 		if (defaultDegreeOfParallelism < 1) {
 			LOG.warn("Config value " + defaultDegreeOfParallelism + " for option "
@@ -444,36 +435,35 @@ public class PactCompiler {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Translates the given plan in to an OptimizedPlan, where all nodes have their local strategy assigned
-	 * and all channels have a shipping strategy assigned. The compiler connects to the job manager to obtain information
-	 * about the available instances and their memory and then chooses an instance type to schedule the execution on.
-	 * <p>
-	 * The compilation process itself goes through several phases:
-	 * <ol>
-	 * <li>Create an optimizer data flow representation of the program, assign parallelism and compute size estimates.</li>
-	 * <li>Compute interesting properties and auxiliary structures.</li>
-	 * <li>Enumerate plan alternatives. This cannot be done in the same step as the interesting property computation (as
-	 * opposed to the Database approaches), because we support plans that are not trees.</li>
-	 * </ol>
+	 * Translates the given program to an OptimizedPlan, where all nodes have their local strategy assigned
+	 * and all channels have a shipping strategy assigned.
+	 *
+	 * For more details on the optimization phase, see the comments for
+	 * {@link #compile(org.apache.flink.api.common.Plan, org.apache.flink.compiler.postpass.OptimizerPostPass)}.
 	 * 
 	 * @param program The program to be translated.
 	 * @return The optimized plan.
+	 *
 	 * @throws CompilerException
 	 *         Thrown, if the plan is invalid or the optimizer encountered an inconsistent
 	 *         situation during the compilation process.
 	 */
 	public OptimizedPlan compile(Plan program) throws CompilerException {
-		// -------------------- try to get the connection to the job manager ----------------------
-		// --------------------------to obtain instance information --------------------------------
 		final OptimizerPostPass postPasser = getPostPassFromPlan(program);
 		return compile(program, postPasser);
 	}
 
 	/**
-	 * Translates the given pact plan in to an OptimizedPlan, where all nodes have their local strategy assigned
-	 * and all channels have a shipping strategy assigned. The process goes through several phases:
+	 * Translates the given program to an OptimizedPlan. The optimized plan describes for each operator
+	 * which strategy to use (such as hash join versus sort-merge join), what data exchange method to use
+	 * (local pipe forward, shuffle, broadcast), what exchange mode to use (pipelined, batch),
+	 * where to cache intermediate results, etc,
+	 *
+	 * The optimization happens in multiple phases:
 	 * <ol>
-	 * <li>Create <tt>OptimizerNode</tt> representations of the PACTs, assign parallelism and compute size estimates.</li>
+	 *     <li>Create optimizer dag implementation of the program.
+	 *
+	 *     <tt>OptimizerNode</tt> representations of the PACTs, assign parallelism and compute size estimates.</li>
 	 * <li>Compute interesting properties and auxiliary structures.</li>
 	 * <li>Enumerate plan alternatives. This cannot be done in the same step as the interesting property computation (as
 	 * opposed to the Database approaches), because we support plans that are not trees.</li>
