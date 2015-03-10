@@ -23,16 +23,25 @@ under the License.
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Apache Flink: {{ page.title }}</title>
-    <link rel="shortcut icon" href="{{ site.baseurl }}favicon.ico" type="image/x-icon">
-    <link rel="icon" href="{{ site.baseurl }}favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="{{ site.baseurl }}css/bootstrap.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}css/bootstrap-lumen-custom.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}css/syntax.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}css/custom.css">
-    <link href="{{ site.baseurl }}css/main/main.css" rel="stylesheet">
+    <link rel="shortcut icon" href="{{ site.baseurl }}/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="{{ site.baseurl }}/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="{{ site.baseurl }}/css/bootstrap.css">
+    <link rel="stylesheet" href="{{ site.baseurl }}/css/bootstrap-lumen-custom.css">
+    <link rel="stylesheet" href="{{ site.baseurl }}/css/syntax.css">
+    <link rel="stylesheet" href="{{ site.baseurl }}/css/custom.css">
+    <link href="{{ site.baseurl }}/css/main/main.css" rel="stylesheet">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-    <script src="{{ site.baseurl }}js/bootstrap.min.js"></script>
-    <script src="{{ site.baseurl }}js/codetabs.js"></script>
+    <script src="{{ site.baseurl }}/js/bootstrap.min.js"></script>
+    <script src="{{ site.baseurl }}/js/codetabs.js"></script>
+
+    {% if page.mathjax %}
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+    </script>
+    <script type="text/javascript"
+            src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
+    {% endif %}
   </head>
   <body>
 

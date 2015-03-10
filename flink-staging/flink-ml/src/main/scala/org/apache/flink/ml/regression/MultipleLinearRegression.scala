@@ -37,7 +37,7 @@ import org.jblas.{SimpleBlas, DoubleMatrix}
   *
   * such that the sum of squared residuals is minimized
   *
-  * `min_{w, w_0} = \sum (y - w^T*x - w_0)^2`
+  * `min_{w, w_0} \sum (y - w^T*x - w_0)^2`
   *
   * The minimization problem is solved by (stochastic) gradient descent. For each labeled vector
   * `(x,y)`, the gradient is calculated. The weighted average of all gradients is subtracted from
@@ -64,11 +64,11 @@ import org.jblas.{SimpleBlas, DoubleMatrix}
   *               .setConvergenceThreshold(0.001)
   *
   *             val trainingDS: DataSet[LabeledVector] = ...
-  *             val data: DataSet[Vector] = ...
+  *             val testingDS: DataSet[Vector] = ...
   *
   *             val model = mlr.fit(trainingDS)
   *
-  *             val predictions = model.transform(data)
+  *             val predictions = model.transform(testingDS)
   *          }}}
   *
   * =Parameters=
@@ -76,9 +76,9 @@ import org.jblas.{SimpleBlas, DoubleMatrix}
   *  - [[MultipleLinearRegression.Iterations]]: Maximum number of iterations.
   *
   *  - [[MultipleLinearRegression.Stepsize]]:
-  *  Initial stepsize for the gradient descent method. This value decides how far the gradient
-  *  descent method goes in the direction of the gradient. Tuning this parameter can lead to better
-  *  practical results.
+  *  Initial step size for the gradient descent method.
+  *  This value controls how far the gradient descent method moves in the opposite direction of the gradient.
+  *  Tuning this parameter might be crucial to make it stable and to obtain a better performance.
   *
   *  - [[MultipleLinearRegression.ConvergenceThreshold]]:
   *  Threshold for relative change of sum of squared residuals until convergence.
