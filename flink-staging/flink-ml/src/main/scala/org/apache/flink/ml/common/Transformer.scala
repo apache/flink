@@ -20,14 +20,24 @@ package org.apache.flink.ml.common
 
 import org.apache.flink.api.scala.DataSet
 
-/**
- * A transformer represents
- *
- * @tparam IN Type of incoming elements
- * @tparam OUT Type of outgoing elements
- */
+/** Base trait for an algorithm which transforms the input data to some output data.
+  *
+  * A [[Transformer]] is used to transform input data to some output data. Transformations might
+  * be feature extractors, feature mappings, whitening or centralization just to name a few.
+  *
+  * [[Transformer]] can be chained with other [[Transformer]] creating a [[ChainedTransformer]],
+  * which again can be chained. Chaining a [[Transformer]] with a [[Learner]] creates a
+  * [[ChainedLearner]] which terminates a pipeline.
+  *
+  * A [[Transformer]] implementation has to implement the method `transform`, which defines how
+  * the input data is transformed into the output data.
+  *
+  * @tparam IN Type of incoming elements
+  * @tparam OUT Type of outgoing elements
+  */
 trait Transformer[IN, OUT] extends WithParameters {
-  def chain[CHAINED](transformer: Transformer[OUT, CHAINED]): ChainedTransformer[IN, OUT, CHAINED] = {
+  def chain[CHAINED](transformer: Transformer[OUT, CHAINED]):
+  ChainedTransformer[IN, OUT, CHAINED] = {
     new ChainedTransformer[IN, OUT, CHAINED](this, transformer)
   }
 

@@ -62,21 +62,46 @@ under the License.
 ## Parameters
 
   The multiple linear regression implementation can be controlled by the following parameters:
+  
+   <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 20%">Parameters</th>
+        <th class="text-center">Description</th>
+      </tr>
+    </thead>
 
-Iterations
-: The maximum number of iterations.
-(Default value: **10**)
-
-Stepsize
-: Initial step size for the gradient descent method.
-This value controls how far the gradient descent method moves in the opposite direction of the gradient.
-Tuning this parameter might be crucial to make it stable and to obtain a better performance.
-(Default value: **0.1**)
-
-ConvergenceThreshold
-: Threshold for relative change of the sum of squared residuals until the iteration is stopped.
-(Default value: **None**)
-
+    <tbody>
+      <tr>
+        <td><strong>Iterations</strong></td>
+        <td>
+          <p>
+            The maximum number of iterations. (Default value: <strong>10</strong>)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Stepsize</strong></td>
+        <td>
+          <p>
+            Initial step size for the gradient descent method.
+            This value controls how far the gradient descent method moves in the opposite direction of the gradient.
+            Tuning this parameter might be crucial to make it stable and to obtain a better performance. 
+            (Default value: <strong>0.1</strong>)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>ConvergenceThreshold</strong></td>
+        <td>
+          <p>
+            Threshold for relative change of the sum of squared residuals until the iteration is stopped.
+            (Default value: <strong>None</strong>)
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
 ## Examples
 
@@ -97,5 +122,3 @@ val model = mlr.fit(trainingDS)
 // Calculate the predictions for the test data
 val predictions = model.transform(testingDS)
 {% endhighlight %}
-
-

@@ -28,13 +28,13 @@ import org.apache.flink.api.scala._
 /** Maps a vector into the polynomial feature space.
   *
   * This transformer takes a a vector of values `(x, y, z, ...)` and maps it into the
-  * polynomial feature space of degree `n`. That is to say, it calculates the following
+  * polynomial feature space of degree `d`. That is to say, it calculates the following
   * representation:
   *
   * `(x, y, z, x^2, xy, y^2, yz, z^2, x^3, x^2y, x^2z, xyz, ...)^T`
   *
   * This transformer can be prepended to all [[Transformer]] and
-  * [[org.apache.flink.ml.commonLearner]] implementations which expect an input of
+  * [[org.apache.flink.ml.common.Learner]] implementations which expect an input of
   * [[LabeledVector]].
   *
   * @example

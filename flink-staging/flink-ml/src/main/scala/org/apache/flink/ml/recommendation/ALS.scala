@@ -13,6 +13,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.flink.ml.recommendation
@@ -43,21 +44,23 @@ import scala.util.Random
   * column of the item matrix is `v_i`. The matrix `R` is called the ratings matrix and
   * `(R)_{i,j} = r_{i,j}`.
   *
-  * In order to find the user and item matrix the following problem is solved:
+  * In order to find the user and item matrix, the following problem is solved:
   *
   * `argmin_{U,V} sum_(i,j\ with\ r_{i,j} != 0) (r_{i,j} - u_{i}^Tv_{j})^2 +
   * \lambda (sum_(i) n_{u_i} ||u_i||^2 + sum_(j) n_{v_j} ||v_j||^2)`
   *
-  * Overfitting is avoided by using a weighted-lambda-regularization scheme.
+  * with `\lambda` being the regularization factor, `n_{u_i}` being the number of items the user `i`
+  * has rated and `n_{v_j}` being the number of times the item `j` has been rated. This
+  * regularization scheme to avoid overfitting is called weighted-lambda-regularization. Details
+  * can be found in the work of [[http://dx.doi.org/10.1007/978-3-540-68880-8_32 Zhou et al.]].
   *
   * By fixing one of the matrices `U` or `V` one obtains a quadratic form which can be solved. The
   * solution of the modified problem is guaranteed to decrease the overall cost function. By
   * applying this step alternately to the matrices `U` and `V`, we can iteratively improve the
-  * overall solution. Details can be found in the work of
-  * [[http://dx.doi.org/10.1007/978-3-540-68880-8_32 Zhou et al.]].
+  * matrix factorization.
   *
   * The matrix `R` is given in its sparse representation as a tuple of `(i, j, r)` where `i` is the
-  * row index, `j` is the column index and `r` is the matrix a position `(i,j)`.
+  * row index, `j` is the column index and `r` is the matrix value at position `(i,j)`.
   *
   * @example
   *          {{{
@@ -68,7 +71,7 @@ import scala.util.Random
   *               .setIterations(10)
   *               .setNumFactors(10)
   *
-  *             val model = als.fit(inputDS))
+  *             val model = als.fit(inputDS)
   *
   *             val data2Predict: DataSet[(Int, Int)] = env.readCsvFile[(Int, Int)](pathToData)
   *
@@ -79,20 +82,23 @@ import scala.util.Random
   *
   *  - [[ALS.NumFactors]]:
   *  The number of latent factors. It is the dimension of the calculated user and item vectors.
+  *  (Default value: '''10''')
   *
   *  - [[ALS.Lambda]]:
   *  Regularization factor. Tune this value in order to avoid overfitting/generalization.
+  *  (Default value: '''1''')
   *
-  *  - [[ALS.Iterations]]: The number of iterations to perform.
+  *  - [[ALS.Iterations]]: The number of iterations to perform. (Default value: '''10''')
   *
   *  - [[ALS.Blocks]]:
   *  The number of blocks into which the user and item matrix a grouped. The fewer
   *  blocks one uses, the less data is sent redundantly. However, bigger blocks entail bigger
   *  update messages which have to be stored on the Heap. If the algorithm fails because of
-  *  an OutOfMemoryException, then try to increase the number of blocks.
+  *  an OutOfMemoryException, then try to increase the number of blocks. (Default value: '''None''')
   *
   *  - [[ALS.Seed]]:
-  *  Random seed used to generate the initial item matrix for the algorithm
+  *  Random seed used to generate the initial item matrix for the algorithm.
+  *  (Default value: '''0''')
   *
   *  - [[ALS.TemporaryPath]]:
   *  Path to a temporary directory into which intermediate results are stored. If
@@ -103,7 +109,7 @@ import scala.util.Random
   *  the individual steps are stored in the specified directory. By splitting the algorithm
   *  into multiple smaller steps, Flink does not have to split the available memory amongst too many
   *  operators. This allows the system to process bigger individual messasges and improves the
-  *  overall performance.
+  *  overall performance. (Default value: '''None''')
   *
   * The ALS implementation is based on Spark's MLLib implementation of ALS which you can find
   * [[https://github.com/apache/spark/blob/master/mllib/src/main/scala/org/apache/spark/mllib/
@@ -893,7 +899,8 @@ object ALS {
   * @param itemFactors Calcualted item matrix
   * @param lambda Regularization value used to calculate the model
   */
-class ALSModel(@transient val userFactors: DataSet[Factors],@transient val itemFactors: DataSet[Factors],
+class ALSModel(@transient val userFactors: DataSet[Factors],
+               @transient val itemFactors: DataSet[Factors],
                val lambda: Double) extends Transformer[(Int, Int), (Int, Int, Double)] with
 Serializable{
 

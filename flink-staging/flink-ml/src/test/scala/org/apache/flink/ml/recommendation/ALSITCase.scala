@@ -19,24 +19,27 @@
 package org.apache.flink.ml.recommendation
 
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.scalatest.{ShouldMatchers, FlatSpec}
+import org.apache.flink.client.CliFrontendTestUtils
+import org.junit.{BeforeClass, Test}
+import org.scalatest.ShouldMatchers
 
 import org.apache.flink.api.scala._
 
-class ALSSuite extends FlatSpec with ShouldMatchers {
+class ALSITCase extends ShouldMatchers {
 
-  behavior of "ALS"
-
-  it should "factorize a given matrix" in {
+  @Test
+  def testMatrixFactorization(): Unit = {
     import ALSData._
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
+    env.setDegreeOfParallelism(2)
+
     val als = ALS()
-    .setIterations(iterations)
-    .setLambda(lambda)
-    .setBlocks(4)
-    .setNumFactors(numFactors)
+      .setIterations(iterations)
+      .setLambda(lambda)
+      .setBlocks(4)
+      .setNumFactors(numFactors)
 
     val inputDS = env.fromCollection(data)
 
@@ -65,6 +68,14 @@ class ALSSuite extends FlatSpec with ShouldMatchers {
     val risk = model.empiricalRisk(inputDS).collect(0)
 
     risk should be(expectedEmpiricalRisk +- 1)
+  }
+}
+
+object ALSITCase {
+
+  @BeforeClass
+  def setup(): Unit = {
+    CliFrontendTestUtils.pipeSystemOutToNull()
   }
 }
 

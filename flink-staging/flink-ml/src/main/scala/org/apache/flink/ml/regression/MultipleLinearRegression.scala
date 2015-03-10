@@ -77,8 +77,9 @@ import org.jblas.{SimpleBlas, DoubleMatrix}
   *
   *  - [[MultipleLinearRegression.Stepsize]]:
   *  Initial step size for the gradient descent method.
-  *  This value controls how far the gradient descent method moves in the opposite direction of the gradient.
-  *  Tuning this parameter might be crucial to make it stable and to obtain a better performance.
+  *  This value controls how far the gradient descent method moves in the opposite direction of the
+  *  gradient. Tuning this parameter might be crucial to make it stable and to obtain a better
+  *  performance.
   *
   *  - [[MultipleLinearRegression.ConvergenceThreshold]]:
   *  Threshold for relative change of sum of squared residuals until convergence.
