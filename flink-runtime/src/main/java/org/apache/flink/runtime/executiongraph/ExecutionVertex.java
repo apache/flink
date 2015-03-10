@@ -50,6 +50,9 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.google.common.base.Preconditions.checkElementIndex;
+import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
+import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
+import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
 /**
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
@@ -377,8 +380,7 @@ public class ExecutionVertex implements Serializable {
 			Execution execution = currentExecution;
 			ExecutionState state = execution.getState();
 
-			if (state == ExecutionState.FINISHED || state == ExecutionState.CANCELED
-					|| state == ExecutionState.FAILED) {
+			if (state == FINISHED || state == CANCELED || state ==FAILED) {
 				priorExecutions.add(execution);
 				currentExecution = new Execution(this, execution.getAttemptNumber()+1,
 						System.currentTimeMillis(), timeout);
@@ -388,8 +390,7 @@ public class ExecutionVertex implements Serializable {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
 				
-				if(operatorState!=null)
-				{
+				if (operatorState != null) {
 					execution.setOperatorState(operatorState);
 				}
 				
@@ -436,9 +437,8 @@ public class ExecutionVertex implements Serializable {
 		ExecutionState state = execution.getState();
 
 		// sanity check
-		if (!(state == ExecutionState.FINISHED || state == ExecutionState.CANCELED || state == ExecutionState.FAILED)) {
-			throw new IllegalStateException(
-					"Cannot archive ExecutionVertex that is not in a finished state.");
+		if (!(state == FINISHED || state == CANCELED || state == FAILED)) {
+			throw new IllegalStateException("Cannot archive ExecutionVertex that is not in a finished state.");
 		}
 		
 		// prepare the current execution for archiving
