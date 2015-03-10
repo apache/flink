@@ -16,27 +16,68 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.test;
+package org.apache.flink.graph.test.operations;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.test.TestGraphUtils;
+import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.NoSuchElementException;
 
 import static org.junit.Assert.fail;
 
+@SuppressWarnings("serial")
 public class DegreesWithExceptionITCase {
+
+	private static ForkableFlinkMiniCluster cluster;
+
+	@BeforeClass
+	public static void suppressOutput() {
+		TestGraphUtils.pipeSystemOutToNull();
+	}
+
+	@BeforeClass
+	public static void setupCluster() {
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
+		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
+
+		cluster = new ForkableFlinkMiniCluster(config, false);
+	}
+
+	@AfterClass
+	public static void tearDownCluster() {
+		try {
+			cluster.stop();
+		}
+		catch (Throwable t) {
+			System.err.println("Error stopping cluster on shutdown");
+			t.printStackTrace();
+			fail("Cluster shutdown caused an exception: " + t.getMessage());
+		}
+	}
 
 	@Test
 	public void testOutDegreesInvalidEdgeSrcId() throws Exception {
 		/*
 		* Test outDegrees() with an edge having a srcId that does not exist in the vertex DataSet
 		*/
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
+				"localhost", cluster.getJobManagerRPCPort());
+
+		env.setDegreeOfParallelism(4);
+		env.setNumberOfExecutionRetries(0);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
@@ -57,7 +98,11 @@ public class DegreesWithExceptionITCase {
 		/*
 		* Test inDegrees() with an edge having a trgId that does not exist in the vertex DataSet
 		*/
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
+				"localhost", cluster.getJobManagerRPCPort());
+
+		env.setDegreeOfParallelism(4);
+		env.setNumberOfExecutionRetries(0);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
@@ -78,7 +123,11 @@ public class DegreesWithExceptionITCase {
 		/*
 		* Test getDegrees() with an edge having a trgId that does not exist in the vertex DataSet
 		*/
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
+				"localhost", cluster.getJobManagerRPCPort());
+
+		env.setDegreeOfParallelism(4);
+		env.setNumberOfExecutionRetries(0);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
@@ -99,7 +148,11 @@ public class DegreesWithExceptionITCase {
 		/*
 		* Test getDegrees() with an edge having a srcId that does not exist in the vertex DataSet
 		*/
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
+				"localhost", cluster.getJobManagerRPCPort());
+
+		env.setDegreeOfParallelism(4);
+		env.setNumberOfExecutionRetries(0);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
@@ -120,7 +173,11 @@ public class DegreesWithExceptionITCase {
 		/*
 		* Test getDegrees() with an edge having a srcId and a trgId that does not exist in the vertex DataSet
 		*/
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
+				"localhost", cluster.getJobManagerRPCPort());
+
+		env.setDegreeOfParallelism(4);
+		env.setNumberOfExecutionRetries(0);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidSrcTrgData(env), env);

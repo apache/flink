@@ -18,6 +18,7 @@
 
 package org.apache.flink.graph.test;
 
+import java.io.PrintStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -345,5 +346,18 @@ public class TestGraphUtils {
 		public String toString() {
 			return "(" + tField.toString() + "," + intField + ")";
 		}
+	}
+
+	/**
+	 * Method useful for suppressing sysout printing
+	 */
+	public static void pipeSystemOutToNull() {
+		System.setOut(new PrintStream(new BlackholeOutputSteam()));
+		System.setErr(new PrintStream(new BlackholeOutputSteam()));
+	}
+
+	private static final class BlackholeOutputSteam extends java.io.OutputStream {
+		@Override
+		public void write(int b){}
 	}
 }
