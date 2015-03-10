@@ -28,7 +28,7 @@ CustomType}
 import org.apache.flink.compiler.PactCompiler
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase}
 import org.apache.flink.util.Collector
 import org.hamcrest.core.{IsNot, IsEqual}
@@ -42,7 +42,7 @@ import scala.collection.JavaConverters._
 import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
-class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
+class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
   private var expected: String = null
   private val _tempFolder = new TemporaryFolder()
@@ -277,7 +277,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
     /*
      * check correctness of groupReduce on custom type with key extractor and combine
      */
-    org.junit.Assume.assumeThat(mode, new IsNot(new IsEqual(ExecutionMode.COLLECTION)))
+    org.junit.Assume.assumeThat(mode, new IsNot(new IsEqual(TestExecutionMode.COLLECTION)))
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds =  CollectionDataSets.getCustomTypeDataSet(env)
@@ -297,7 +297,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
     /*
      * check correctness of groupReduce on tuples with combine
      */
-    org.junit.Assume.assumeThat(mode, new IsNot(new IsEqual(ExecutionMode.COLLECTION)))
+    org.junit.Assume.assumeThat(mode, new IsNot(new IsEqual(TestExecutionMode.COLLECTION)))
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     // important because it determines how often the combiner is called
@@ -318,7 +318,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
     /*
      * check correctness of all-groupreduce for tuples with combine
      */
-    org.junit.Assume.assumeThat(mode, new IsNot(new IsEqual(ExecutionMode.COLLECTION)))
+    org.junit.Assume.assumeThat(mode, new IsNot(new IsEqual(TestExecutionMode.COLLECTION)))
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds =  CollectionDataSets.get3TupleDataSet(env).map(t => t).setParallelism(4)
@@ -665,7 +665,7 @@ class GroupReduceITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mo
       .reduceGroup(new Tuple3SortedGroupReduceWithCombine)
     reduceDs.writeAsCsv(resultPath)
     env.execute()
-    if (mode == ExecutionMode.COLLECTION) {
+    if (mode == TestExecutionMode.COLLECTION) {
       expected = null
     } else {
       expected = "1,Hi\n" +

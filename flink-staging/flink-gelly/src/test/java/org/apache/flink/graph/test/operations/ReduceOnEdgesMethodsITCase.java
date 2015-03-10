@@ -40,7 +40,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
-	public ReduceOnEdgesMethodsITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public ReduceOnEdgesMethodsITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

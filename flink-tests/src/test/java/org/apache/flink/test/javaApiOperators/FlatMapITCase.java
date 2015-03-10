@@ -40,7 +40,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 
 @RunWith(Parameterized.class)
 public class FlatMapITCase extends MultipleProgramsTestBase {
-	public FlatMapITCase(ExecutionMode mode){
+	public FlatMapITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

@@ -32,7 +32,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class WeaklyConnectedITCase extends MultipleProgramsTestBase {
 
-	public WeaklyConnectedITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public WeaklyConnectedITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

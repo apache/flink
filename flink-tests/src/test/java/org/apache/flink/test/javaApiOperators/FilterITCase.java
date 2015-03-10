@@ -39,7 +39,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 
 @RunWith(Parameterized.class)
 public class FilterITCase extends MultipleProgramsTestBase {
-	public FilterITCase(ExecutionMode mode){
+	public FilterITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

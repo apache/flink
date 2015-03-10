@@ -49,7 +49,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class JoinITCase extends MultipleProgramsTestBase {
 
-	public JoinITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public JoinITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

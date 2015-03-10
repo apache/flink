@@ -54,7 +54,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 	private static final int DOP = 2;
 	private static final String NEGATIVE_ELEMENTS_AGGR = "count.negative.elements";
 
-	public AggregatorsITCase(ExecutionMode mode){
+	public AggregatorsITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
