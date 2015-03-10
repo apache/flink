@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -30,8 +29,20 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
 import org.apache.flink.graph.library.SingleSourceShortestPaths;
 
+/**
+ * This example implements the Single Source Shortest Paths algorithm,
+ * using a vertex-centric iteration.
+ *
+ * The input file is expected to contain one edge per line, with long IDs
+ * and double weights, in CSV format:
+ * "<sourceVertexID>\t<targetVertexID>\t<edgeValue>".
+ *
+ * If no arguments are provided, the example runs with default data from {@link SingleSourceShortestPathsData}.
+ *
+ */
 public class SingleSourceShortestPathsExample implements ProgramDescription {
 
+	@SuppressWarnings("serial")
 	public static void main(String[] args) throws Exception {
 
 		if (!parseParameters(args)) {
@@ -40,15 +51,19 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Vertex<Long, Double>> vertices = getVerticesDataSet(env);
-
 		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
 
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
+		Graph<Long, Double, Double> graph = Graph.fromDataSet(edges,
+				new MapFunction<Long, Double>() {
+
+					public Double map(Long value) {
+						return Double.MAX_VALUE;
+					}
+		}, env);
 
 		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = graph
-				.run(new SingleSourceShortestPaths<Long>(srcVertexId,
-						maxIterations)).getVertices();
+				.run(new SingleSourceShortestPaths<Long>(srcVertexId, maxIterations))
+				.getVertices();
 
 		// emit result
 		if (fileOutput) {
@@ -71,9 +86,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 
 	private static boolean fileOutput = false;
 
-	private static Long srcVertexId = null;
-
-	private static String verticesInputPath = null;
+	private static Long srcVertexId = 1l;
 
 	private static String edgesInputPath = null;
 
@@ -83,41 +96,27 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 
 	private static boolean parseParameters(String[] args) {
 
-		if (args.length > 0) {
-			if (args.length == 5) {
-				fileOutput = true;
-				srcVertexId = Long.parseLong(args[0]);
-				verticesInputPath = args[1];
-				edgesInputPath = args[2];
-				outputPath = args[3];
-				maxIterations = Integer.parseInt(args[4]);
-			} else {
+		if(args.length > 0) {
+			if(args.length != 4) {
 				System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
-						" <input vertices path> <input edges path> <output path> <num iterations>");
+						" <input edges path> <output path> <num iterations>");
 				return false;
 			}
+
+			fileOutput = true;
+			srcVertexId = Long.parseLong(args[0]);
+			edgesInputPath = args[1];
+			outputPath = args[2];
+			maxIterations = Integer.parseInt(args[3]);
+		} else {
+				System.out.println("Executing Single Source Shortest Paths example "
+						+ "with default parameters and built-in default data.");
+				System.out.println("  Provide parameters to read input data from files.");
+				System.out.println("  See the documentation for the correct format of input files.");
+				System.out.println("Usage: SingleSourceShortestPaths <source vertex id>" +
+						" <input edges path> <output path> <num iterations>");
 		}
 		return true;
-	}
-
-	@SuppressWarnings("serial")
-	private static DataSet<Vertex<Long, Double>> getVerticesDataSet(ExecutionEnvironment env) {
-		if (fileOutput) {
-			return env.readCsvFile(verticesInputPath)
-					.lineDelimiter("\n")
-					.types(Long.class, Double.class)
-					.map(new MapFunction<Tuple2<Long, Double>, Vertex<Long, Double>>() {
-
-						@Override
-						public Vertex<Long, Double> map(Tuple2<Long, Double> tuple2) throws Exception {
-							return new Vertex<Long, Double>(tuple2.f0, tuple2.f1);
-						}
-					});
-		} else {
-			System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
-					" <input vertices path> <input edges path> <output path> <num iterations>");
-			return SingleSourceShortestPathsData.getDefaultVertexDataSet(env);
-		}
 	}
 
 	@SuppressWarnings("serial")
@@ -125,6 +124,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 		if (fileOutput) {
 			return env.readCsvFile(edgesInputPath)
 					.lineDelimiter("\n")
+					.fieldDelimiter("\t")
 					.types(Long.class, Long.class, Double.class)
 					.map(new MapFunction<Tuple3<Long, Long, Double>, Edge<Long, Double>>() {
 
@@ -134,8 +134,6 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 						}
 					});
 		} else {
-			System.err.println("Usage: SingleSourceShortestPaths <source vertex id>" +
-					" <input vertices path> <input edges path> <output path> <num iterations>");
 			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
 		}
 	}

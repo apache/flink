@@ -20,6 +20,7 @@ package org.apache.flink.graph.library;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
@@ -41,9 +42,15 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 
 	@Override
 	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) {
+
+		DataSet<Integer> numberOfVertices = network.numberOfVertices();
+
 		VertexCentricIteration<K, Double, Double, Double> iteration = network.createVertexCentricIteration(
 				new VertexRankUpdater<K>(beta), new RankMessenger<K>(), maxIterations);
-		iteration.addBroadcastSetForUpdateFunction("numberOfVertices", network.numberOfVertices());
+
+		iteration.addBroadcastSetForMessagingFunction("numberOfVertices", numberOfVertices);
+		iteration.addBroadcastSetForUpdateFunction("numberOfVertices", numberOfVertices);
+
 		return network.runVertexCentricIteration(iteration);
 	}
 
@@ -55,7 +62,6 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	public static final class VertexRankUpdater<K extends Comparable<K> & Serializable>
 			extends VertexUpdateFunction<K, Double, Double> {
 
-		
 		private final double beta;
 		private int numVertices;
 		
@@ -91,8 +97,19 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	public static final class RankMessenger<K extends Comparable<K> & Serializable>
 			extends MessagingFunction<K, Double, Double, Double> {
 
+		private int numVertices;
+
+		@Override
+		public void preSuperstep(){
+			numVertices = (Integer) getBroadcastSet("numberOfVertices").iterator().next();
+		}
+
 		@Override
 		public void sendMessages(K vertexId, Double newRank) {
+			if (getSuperstepNumber() == 1) {
+				// initialize vertex ranks
+				newRank = 1.0 / numVertices;
+			}
 			for (Edge<K, Double> edge : getOutgoingEdges()) {
 				sendMessageTo(edge.getTarget(), newRank * edge.getValue());
 			}
