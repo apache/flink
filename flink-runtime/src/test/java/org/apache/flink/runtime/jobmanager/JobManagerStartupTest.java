@@ -80,7 +80,7 @@ public class JobManagerStartupTest {
 		}
 		
 		try {
-			JobManager.runJobManager(new Configuration(), ExecutionMode.CLUSTER(), "localhost", portNum);
+			JobManager.runJobManager(new Configuration(), JobManagerMode.CLUSTER, "localhost", portNum);
 			fail("this should throw an exception");
 		}
 		catch (Exception e) {
@@ -117,7 +117,7 @@ public class JobManagerStartupTest {
 		failConfig.setString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, nonExistDirectory);
 
 		try {
-			JobManager.runJobManager(failConfig, ExecutionMode.CLUSTER(), "localhost", portNum);
+			JobManager.runJobManager(failConfig, JobManagerMode.CLUSTER, "localhost", portNum);
 			fail("this should fail with an exception");
 		}
 		catch (Exception e) {

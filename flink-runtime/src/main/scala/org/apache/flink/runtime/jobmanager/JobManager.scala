@@ -629,8 +629,6 @@ class JobManager(val configuration: Configuration,
  * look up the JobManager actor reference.
  */
 object JobManager {
-  
-  import ExecutionMode._
 
   val LOG = LoggerFactory.getLogger(classOf[JobManager])
 
@@ -656,7 +654,7 @@ object JobManager {
 
     // parsing the command line arguments
     val (configuration: Configuration,
-         executionMode: ExecutionMode,
+         executionMode: JobManagerMode,
          listeningHost: String, listeningPort: Int) =
     try {
       parseArgs(args)
@@ -717,7 +715,7 @@ object JobManager {
    * @param listeningPort The port where the JobManager should listen for messages.
    */
   def runJobManager(configuration: Configuration,
-                    executionMode: ExecutionMode,
+                    executionMode: JobManagerMode,
                     listeningAddress: String,
                     listeningPort: Int) : Unit = {
 
@@ -761,7 +759,7 @@ object JobManager {
         "JobManager_Process_Reaper")
 
       // bring up a local task manager, if needed
-      if (executionMode.equals(LOCAL)) {
+      if (executionMode == JobManagerMode.LOCAL) {
         LOG.info("Starting embedded TaskManager for JobManager's LOCAL execution mode")
 
         TaskManager.startTaskManagerActor(configuration, jobManagerSystem, listeningAddress,
@@ -798,18 +796,29 @@ object JobManager {
    * @param args command line arguments
    * @return Quadruple of configuration, execution mode and an optional listening address
    */
-  def parseArgs(args: Array[String]): (Configuration, ExecutionMode, String, Int) = {
+  def parseArgs(args: Array[String]): (Configuration, JobManagerMode, String, Int) = {
     val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("JobManager") {
       head("Flink JobManager")
+
       opt[String]("configDir") action { (arg, c) => c.copy(configDir = arg) } text {
         "The configuration directory." }
+
       opt[String]("executionMode") action { (arg, c) =>
-        if (arg.equalsIgnoreCase("local")){
-          c.copy(executionMode = LOCAL)
-        } else if (arg.equalsIgnoreCase("cluster")) {
-          c.copy(executionMode = CLUSTER)
-        } else {
+        val argLower = arg.toLowerCase()
+        var result: JobManagerCLIConfiguration = null
+
+        for (mode <- JobManagerMode.values() if result == null) {
+          val modeName = mode.name().toLowerCase()
+
+          if (modeName.equals(argLower)) {
+            result = c.copy(executionMode = mode)
+          }
+        }
+
+        if (result == null) {
           throw new Exception("Unknown execution mode: " + arg)
+        } else {
+          result
         }
       } text {
         "The execution mode of the JobManager (CLUSTER / LOCAL)"
