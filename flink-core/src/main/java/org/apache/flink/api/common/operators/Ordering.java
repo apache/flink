@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
 
 import java.util.ArrayList;
@@ -26,9 +25,10 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.types.Key;
 
 /**
- *
+ * This class represents an ordering on a set of fields. It specifies the fields and order direction
+ * (ascending, descending).
  */
-public class Ordering {
+public class Ordering implements Cloneable {
 	
 	protected FieldList indexes = new FieldList();
 	
@@ -212,9 +212,6 @@ public class Ordering {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	
-	
 
 	public Ordering clone() {
 		Ordering newOrdering = new Ordering();
@@ -223,7 +220,6 @@ public class Ordering {
 		newOrdering.orders.addAll(this.orders);
 		return newOrdering;
 	}
-	
 
 	@Override
 	public int hashCode() {
@@ -234,7 +230,6 @@ public class Ordering {
 		result = prime * result + ((types == null) ? 0 : types.hashCode());
 		return result;
 	}
-
 
 	@Override
 	public boolean equals(Object obj) {
@@ -273,7 +268,7 @@ public class Ordering {
 	}
 
 	public String toString() {
-		final StringBuffer buf = new StringBuffer("[");
+		final StringBuilder buf = new StringBuilder("[");
 		for (int i = 0; i < indexes.size(); i++) {
 			if (i != 0) {
 				buf.append(",");

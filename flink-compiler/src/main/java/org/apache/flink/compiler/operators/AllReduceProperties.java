@@ -30,11 +30,11 @@ import org.apache.flink.compiler.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.compiler.dataproperties.RequestedLocalProperties;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
-public final class AllReduceProperties extends OperatorDescriptorSingle
-{
+public final class AllReduceProperties extends OperatorDescriptorSingle {
 
 	@Override
 	public DriverStrategy getStrategy() {
@@ -45,24 +45,30 @@ public final class AllReduceProperties extends OperatorDescriptorSingle
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		if (in.getShipStrategy() == ShipStrategyType.FORWARD) {
 			// locally connected, directly instantiate
-			return new SingleInputPlanNode(node, "Reduce ("+node.getPactContract().getName()+")", in, DriverStrategy.ALL_REDUCE);
+			return new SingleInputPlanNode(node, "Reduce ("+node.getPactContract().getName()+")",
+											in, DriverStrategy.ALL_REDUCE);
 		} else {
 			// non forward case.plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
-			toCombiner.setShipStrategy(ShipStrategyType.FORWARD);
+			toCombiner.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			
 			// create an input node for combine with same DOP as input node
 			ReduceNode combinerNode = ((ReduceNode) node).getCombinerUtilityNode();
 			combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
 
-			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine ("+node.getPactContract().getName()+")", toCombiner, DriverStrategy.ALL_REDUCE);
+			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode,
+					"Combine ("+node.getPactContract().getName()+")", toCombiner, DriverStrategy.ALL_REDUCE);
 			combiner.setCosts(new Costs(0, 0));
 			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
 			
 			Channel toReducer = new Channel(combiner);
-			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
-			toReducer.setLocalStrategy(in.getLocalStrategy(), in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", toReducer, DriverStrategy.ALL_REDUCE);
+			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(),
+										in.getShipStrategySortOrder(), in.getDataExchangeMode());
+			toReducer.setLocalStrategy(in.getLocalStrategy(), in.getLocalStrategyKeys(),
+										in.getLocalStrategySortOrder());
+
+			return new SingleInputPlanNode(node, "Reduce ("+node.getPactContract().getName()+")",
+											toReducer, DriverStrategy.ALL_REDUCE);
 		}
 	}
 	

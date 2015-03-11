@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties.EmptySemanticProperties;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
@@ -139,7 +140,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 			NoOpNode noop = new NoOpNode();
 			noop.setDegreeOfParallelism(getDegreeOfParallelism());
 
-			PactConnection noOpConn = new PactConnection(nextPartialSolution, noop);
+			PactConnection noOpConn = new PactConnection(nextPartialSolution, noop, ExecutionMode.PIPELINED);
 			noop.setIncomingConnection(noOpConn);
 			nextPartialSolution.addOutgoingConnection(noOpConn);
 			
@@ -151,13 +152,15 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		
 		if (terminationCriterion == null) {
 			this.singleRoot = nextPartialSolution;
-			this.rootConnection = new PactConnection(nextPartialSolution);
+			this.rootConnection = new PactConnection(nextPartialSolution, ExecutionMode.PIPELINED);
 		}
 		else {
 			// we have a termination criterion
 			SingleRootJoiner singleRootJoiner = new SingleRootJoiner();
-			this.rootConnection = new PactConnection(nextPartialSolution, singleRootJoiner);
-			this.terminationCriterionRootConnection = new PactConnection(terminationCriterion, singleRootJoiner);
+			this.rootConnection = new PactConnection(nextPartialSolution, singleRootJoiner, ExecutionMode.PIPELINED);
+			this.terminationCriterionRootConnection = new PactConnection(terminationCriterion, singleRootJoiner,
+																		ExecutionMode.PIPELINED);
+
 			singleRootJoiner.setInputs(this.rootConnection, this.terminationCriterionRootConnection);
 			
 			this.singleRoot = singleRootJoiner;
@@ -316,7 +319,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 				else if (report == FeedbackPropertiesMeetRequirementsReport.NOT_MET) {
 					// attach a no-op node through which we create the properties of the original input
 					Channel toNoOp = new Channel(candidate);
-					globPropsReq.parameterizeChannel(toNoOp, false);
+					globPropsReq.parameterizeChannel(toNoOp, false, rootConnection.getDataExchangeMode(), false);
 					locPropsReq.parameterizeChannel(toNoOp);
 					
 					UnaryOperatorNode rebuildPropertiesNode = new UnaryOperatorNode("Rebuild Partial Solution Properties", FieldList.EMPTY_LIST);

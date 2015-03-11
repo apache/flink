@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.operators.OperatorDescriptorDual;
@@ -39,8 +40,8 @@ public class SinkJoiner extends TwoInputNode {
 	public SinkJoiner(OptimizerNode input1, OptimizerNode input2) {
 		super(new NoOpBinaryUdfOp<Nothing>(new NothingTypeInfo()));
 
-		PactConnection conn1 = new PactConnection(input1, this);
-		PactConnection conn2 = new PactConnection(input2, this);
+		PactConnection conn1 = new PactConnection(input1, this, null, ExecutionMode.PIPELINED);
+		PactConnection conn2 = new PactConnection(input2, this, null, ExecutionMode.PIPELINED);
 		
 		this.input1 = conn1;
 		this.input2 = conn2;
@@ -87,7 +88,7 @@ public class SinkJoiner extends TwoInputNode {
 			List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>(pred2branches);
 			
 			ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
-			mergeLists(result1, result2, result);
+			mergeLists(result1, result2, result, false);
 			
 			this.openBranches = result.isEmpty() ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
 		}
