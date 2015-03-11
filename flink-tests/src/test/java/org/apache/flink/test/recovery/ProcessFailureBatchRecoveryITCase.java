@@ -162,7 +162,7 @@ public class ProcessFailureBatchRecoveryITCase {
 			env.setDegreeOfParallelism(PARALLELISM);
 			env.setNumberOfExecutionRetries(1);
 
-			final long NUM_ELEMENTS = 1000000L;
+			final long NUM_ELEMENTS = 100000L;
 			final DataSet<Long> result = env.generateSequence(1, NUM_ELEMENTS)
 
 				// make sure every mapper is involved (no one is skipped because of lazy split assignment)
@@ -190,7 +190,7 @@ public class ProcessFailureBatchRecoveryITCase {
 							}
 							else {
 								// otherwise wait so that we make slow progress
-								Thread.sleep(10);
+								Thread.sleep(100);
 							}
 						}
 						return value;
@@ -237,8 +237,8 @@ public class ProcessFailureBatchRecoveryITCase {
 			// we create the marker file which signals the program functions tasks that they can complete
 			touchFile(new File(coordinateTempDir, PROCEED_MARKER_FILE));
 
-			// wait for at most 30 seconds for the program to complete
-			programTrigger.join(30000);
+			// wait for at most 2 minutes for the program to complete
+			programTrigger.join(120000);
 
 			// check that the program really finished
 			assertFalse("The program did not finish in time", programTrigger.isAlive());
