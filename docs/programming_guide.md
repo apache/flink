@@ -1431,7 +1431,7 @@ public class WordWithCount {
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-class WordWithCount(val word: String, val count: Int) {
+class WordWithCount(var word: String, var count: Int) {
     def this() {
       this(null, -1)
     }
