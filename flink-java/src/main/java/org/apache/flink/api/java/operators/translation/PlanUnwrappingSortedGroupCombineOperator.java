@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
-import org.apache.flink.api.common.operators.base.GroupReducePartialOperatorBase;
+import org.apache.flink.api.common.operators.base.GroupCombineOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -30,10 +30,10 @@ import org.apache.flink.util.Collector;
  * A reduce operator that takes 3-tuples (groupKey, sortKey, value), and applies the sorted partial group reduce
  * operation only on the unwrapped values.
  */
-public class PlanUnwrappingSortedReduceGroupPartialOperator<IN, OUT, K1, K2> extends GroupReducePartialOperatorBase<Tuple3<K1, K2, IN>, OUT, GroupReduceFunction<Tuple3<K1, K2, IN>,OUT>> {
+public class PlanUnwrappingSortedGroupCombineOperator<IN, OUT, K1, K2> extends GroupCombineOperatorBase<Tuple3<K1, K2, IN>, OUT, FlatCombineFunction<Tuple3<K1, K2, IN>,OUT>> {
 
-	public PlanUnwrappingSortedReduceGroupPartialOperator(GroupReduceFunction<IN, OUT> udf, Keys.SelectorFunctionKeys<IN, K1> groupingKey, Keys.SelectorFunctionKeys<IN, K2> sortingKey, String name,
-															TypeInformation<OUT> outType, TypeInformation<Tuple3<K1, K2, IN>> typeInfoWithKey)
+	public PlanUnwrappingSortedGroupCombineOperator(FlatCombineFunction<IN, OUT> udf, Keys.SelectorFunctionKeys<IN, K1> groupingKey, Keys.SelectorFunctionKeys<IN, K2> sortingKey, String name,
+													TypeInformation<OUT> outType, TypeInformation<Tuple3<K1, K2, IN>> typeInfoWithKey)
 	{
 		super(new TupleUnwrappingGroupReducer<IN, OUT, K1, K2>(udf),
 				new UnaryOperatorInformation<Tuple3<K1, K2, IN>, OUT>(typeInfoWithKey, outType),
@@ -42,24 +42,24 @@ public class PlanUnwrappingSortedReduceGroupPartialOperator<IN, OUT, K1, K2> ext
 
 	}
 
-	public static final class TupleUnwrappingGroupReducer<IN, OUT, K1, K2> extends WrappingFunction<GroupReduceFunction<IN, OUT>>
-			implements GroupReduceFunction<Tuple3<K1, K2, IN>, OUT>
+	public static final class TupleUnwrappingGroupReducer<IN, OUT, K1, K2> extends WrappingFunction<FlatCombineFunction<IN, OUT>>
+			implements FlatCombineFunction<Tuple3<K1, K2, IN>, OUT>
 	{
 
 		private static final long serialVersionUID = 1L;
 
 		private final Tuple3UnwrappingIterator<IN, K1, K2> iter;
 
-		private TupleUnwrappingGroupReducer(GroupReduceFunction<IN, OUT> wrapped) {
+		private TupleUnwrappingGroupReducer(FlatCombineFunction<IN, OUT> wrapped) {
 			super(wrapped);
 			this.iter = new Tuple3UnwrappingIterator<IN, K1, K2>();
 		}
 
 
 		@Override
-		public void reduce(Iterable<Tuple3<K1, K2, IN>> values, Collector<OUT> out) throws Exception {
+		public void combine(Iterable<Tuple3<K1, K2, IN>> values, Collector<OUT> out) throws Exception {
 			iter.set(values.iterator());
-			this.wrappedFunction.reduce(iter, out);
+			this.wrappedFunction.combine(iter, out);
 		}
 
 		@Override

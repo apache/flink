@@ -22,7 +22,7 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -42,16 +42,17 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- *
- * @see org.apache.flink.api.common.functions.GroupReduceFunction
+ * Base operator for the combineGroup transformation. It receives the UDF GroupCombineOperator as an input.
+ * This class is later processed by the compiler to generate the plan.
+ * @see org.apache.flink.api.common.functions.CombineFunction
  */
-public class GroupReducePartialOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
+public class GroupCombineOperatorBase<IN, OUT, FT extends FlatCombineFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
 
 	/** The ordering for the order inside a reduce group. */
 	private Ordering groupOrder;
 
-	public GroupReducePartialOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, int[] keyPositions, String name) {
+	public GroupCombineOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, int[] keyPositions, String name) {
 		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, keyPositions, name);
 	}
 
@@ -80,7 +81,7 @@ public class GroupReducePartialOperatorBase<IN, OUT, FT extends GroupReduceFunct
 
 	@Override
 	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
-		GroupReduceFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
+		FlatCombineFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
 
 		UnaryOperatorInformation<IN, OUT> operatorInfo = getOperatorInfo();
 		TypeInformation<IN> inputType = operatorInfo.getInputType();
@@ -128,7 +129,7 @@ public class GroupReducePartialOperatorBase<IN, OUT, FT extends GroupReduceFunct
 			}
 			CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
 
-			function.reduce(inputDataCopy, collector);
+			function.combine(inputDataCopy, collector);
 		} else {
 			final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
 			boolean[] keyOrderings = new boolean[keyColumns.length];
@@ -140,7 +141,7 @@ public class GroupReducePartialOperatorBase<IN, OUT, FT extends GroupReduceFunct
 			CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
 
 			while (keyedIterator.nextKey()) {
-				function.reduce(keyedIterator.getValues(), collector);
+				function.combine(keyedIterator.getValues(), collector);
 			}
 		}
 

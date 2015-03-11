@@ -239,7 +239,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 
 
 		if(javaOp instanceof GroupReduceOperatorBase &&
-				(source.getDriverStrategy() == DriverStrategy.SORTED_GROUP_COMBINE || source.getDriverStrategy() == DriverStrategy.ALL_GROUP_COMBINE)) {
+				(source.getDriverStrategy() == DriverStrategy.SORTED_GROUP_COMBINE || source.getDriverStrategy() == DriverStrategy.ALL_GROUP_REDUCE_COMBINE)) {
 			GroupReduceOperatorBase<?, ?, ?> groupNode = (GroupReduceOperatorBase<?, ?, ?>) javaOp;
 			type = groupNode.getInput().getOperatorInfo().getOutputType();
 		}

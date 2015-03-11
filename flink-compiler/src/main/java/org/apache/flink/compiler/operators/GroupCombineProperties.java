@@ -18,6 +18,9 @@
 
 package org.apache.flink.compiler.operators;
 
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.dag.SingleInputNode;
 import org.apache.flink.compiler.dataproperties.GlobalProperties;
 import org.apache.flink.compiler.dataproperties.LocalProperties;
@@ -31,21 +34,65 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import java.util.Collections;
 import java.util.List;
 
-public final class AllGroupReducePartialProperties extends OperatorDescriptorSingle {
+/**
+ * The properties file belonging to the GroupCombineNode. It translates the GroupCombine operation
+ * to the driver strategy SORTED_GROUP_COMBINE and sets the relevant grouping and sorting keys.
+ * @see org.apache.flink.compiler.dag.GroupCombineNode
+ */
+public final class GroupCombineProperties extends OperatorDescriptorSingle {
+
+	private final Ordering ordering;        // ordering that we need to use if an additional ordering is requested 
+
+	public GroupCombineProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
+		super(groupKeys);
+
+		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
+		
+		this.ordering = new Ordering();
+		for (Integer key : this.keyList) {
+			this.ordering.appendOrdering(key, null, Order.ANY);
+		}
+
+		// and next the additional order fields
+		if (additionalOrderKeys != null) {
+			for (int i = 0; i < additionalOrderKeys.getNumberOfFields(); i++) {
+				Integer field = additionalOrderKeys.getFieldNumber(i);
+				Order order = additionalOrderKeys.getOrder(i);
+				this.ordering.appendOrdering(field, additionalOrderKeys.getType(i), order);
+			}
+		}
+
+	}
 
 	@Override
 	public DriverStrategy getStrategy() {
-		return DriverStrategy.ALL_GROUP_REDUCE_PARTIAL;
+		return DriverStrategy.SORTED_GROUP_COMBINE;
 	}
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, "GroupReducePartial ("+node.getPactContract().getName()+")", in, DriverStrategy.ALL_GROUP_REDUCE_PARTIAL);
+		node.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
+		
+		// sorting key info
+		SingleInputPlanNode singleInputPlanNode = new SingleInputPlanNode(
+				node, 
+				"GroupCombine (" + node.getPactContract().getName() + ")",
+				in, // reuse the combine strategy also used in the group reduce
+				DriverStrategy.SORTED_GROUP_COMBINE, this.keyList);
+
+		// set sorting comparator key info
+		singleInputPlanNode.setDriverKeyInfo(this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections(), 0);
+		// set grouping comparator key info
+		singleInputPlanNode.setDriverKeyInfo(this.keyList, 1);
+		
+		return singleInputPlanNode;
 	}
 
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
-		return Collections.singletonList(new RequestedGlobalProperties());
+		RequestedGlobalProperties props = new RequestedGlobalProperties();
+		props.setRandomPartitioning();
+		return Collections.singletonList(props);
 	}
 
 	@Override
@@ -53,18 +100,15 @@ public final class AllGroupReducePartialProperties extends OperatorDescriptorSin
 		return Collections.singletonList(new RequestedLocalProperties());
 	}
 
-
 	@Override
 	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
 		if (gProps.getUniqueFieldCombination() != null && gProps.getUniqueFieldCombination().size() > 0 &&
-				gProps.getPartitioning() == PartitioningProperty.RANDOM_PARTITIONED)
-		{
+				gProps.getPartitioning() == PartitioningProperty.RANDOM_PARTITIONED) {
 			gProps.setAnyPartitioning(gProps.getUniqueFieldCombination().iterator().next().toFieldList());
 		}
 		gProps.clearUniqueFieldCombinations();
 		return gProps;
 	}
-
 
 	@Override
 	public LocalProperties computeLocalProperties(LocalProperties lProps) {

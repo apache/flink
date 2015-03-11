@@ -24,6 +24,7 @@ import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -60,7 +61,7 @@ import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
-import org.apache.flink.api.java.operators.GroupReducePartialOperator;
+import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
@@ -460,21 +461,26 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Applies a partial GroupReduce transformation on a non-grouped {@link DataSet}.
-	 * In contrast to the reduceGroup transformation, the GroupReduce function is only called on each partition. Thus,
-	 * partial solutions are likely to occur.
-	 * @param reducer The ReduceFunction that is applied on the DataSet.
-	 * @return A GroupReducePartial operator which represents the partially reduced DataSet
+	 * Applies a CombineFunction on a non-grouped {@link DataSet}.
+	 * A CombineFunction is similar to a GroupReduceFunction but does not perform a full data exchange. Instead, the
+	 * CombineFunction calls the combine method once per partition for combining a group of results. This
+	 * operator is suitable for combining values into an intermediate format before doing a proper groupReduce where
+	 * the data is shuffled across the node for further reduction. The GroupReduce operator can also be supplied with
+	 * a combiner by implementing the RichGroupReduce function. The combine method of the RichGroupReduce function
+	 * demands input and output type to be the same. The CombineFunction, on the other side, can have an arbitrary
+	 * output type.
+	 * @param combiner The CombineFunction that is applied on the DataSet.
+	 * @return A GroupCombineOperator which represents the combined DataSet.
 	 */
-	public <R> GroupReducePartialOperator<T, R> reduceGroupPartially(GroupReduceFunction<T, R> reducer) {
-		if (reducer == null) {
+	public <R> GroupCombineOperator<T, R> combineGroup(FlatCombineFunction<T, R> combiner) {
+		if (combiner == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
 
 		String callLocation = Utils.getCallLocationName();
-		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, getType(), callLocation, true);
-		return new GroupReducePartialOperator<T, R>(this, resultType, clean(reducer), callLocation);
-	} 
+		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner, getType(), callLocation, true);
+		return new GroupCombineOperator<T, R>(this, resultType, clean(combiner), callLocation);
+	}
 
 	/**
 	 * Selects an element with minimum value.

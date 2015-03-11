@@ -33,9 +33,10 @@ import org.apache.flink.util.Collector;
  * This special variant of the combine function supports to return more than one element per group.
  * It is frequently less efficient to use than the {@link CombineFunction}.
  * 
- * @param <T> The data type processed by the combine function.
+ * @param <IN> The data type processed by the combine function.
+ * @param <OUT> The data type emitted by the combine function.
  */
-public interface FlatCombineFunction<T> extends Function, Serializable {
+public interface FlatCombineFunction<IN, OUT> extends Function, Serializable {
 
 	/**
 	 * The combine method, called (potentially multiple timed) with subgroups of elements.
@@ -46,5 +47,5 @@ public interface FlatCombineFunction<T> extends Function, Serializable {
 	 * @throws Exception The function may throw Exceptions, which will cause the program to cancel,
 	 *                   and may trigger the recovery logic.
 	 */
-	void combine(Iterable<T> values, Collector<T> out) throws Exception;
+	void combine(Iterable<IN> values, Collector<OUT> out) throws Exception;
 }

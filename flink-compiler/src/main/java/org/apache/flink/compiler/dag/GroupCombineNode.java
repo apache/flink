@@ -19,11 +19,10 @@
 package org.apache.flink.compiler.dag;
 
 import org.apache.flink.api.common.operators.Ordering;
-import org.apache.flink.api.common.operators.base.GroupReducePartialOperatorBase;
+import org.apache.flink.api.common.operators.base.GroupCombineOperatorBase;
 import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.operators.AllGroupReducePartialProperties;
-import org.apache.flink.compiler.operators.GroupReducePartialProperties;
+import org.apache.flink.compiler.operators.AllGroupCombineProperties;
+import org.apache.flink.compiler.operators.GroupCombineProperties;
 import org.apache.flink.compiler.operators.OperatorDescriptorSingle;
 import org.apache.flink.configuration.Configuration;
 
@@ -31,9 +30,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The optimizer representation of a <i>GroupReducePartial</i> operation.
+ * The optimizer representation of a <i>GroupCombineNode</i> operation.
  */
-public class GroupReducePartialNode extends SingleInputNode {
+public class GroupCombineNode extends SingleInputNode {
 
 	private final List<OperatorDescriptorSingle> possibleProperties;
 
@@ -42,7 +41,7 @@ public class GroupReducePartialNode extends SingleInputNode {
 	 *
 	 * @param operator The reduce operation.
 	 */
-	public GroupReducePartialNode(GroupReducePartialOperatorBase<?, ?, ?> operator) {
+	public GroupCombineNode(GroupCombineOperatorBase<?, ?, ?> operator) {
 		super(operator);
 
 		if (this.keys == null) {
@@ -56,20 +55,19 @@ public class GroupReducePartialNode extends SingleInputNode {
 	private List<OperatorDescriptorSingle> initPossibleProperties() {
 		// see if an internal hint dictates the strategy to use
 		final Configuration conf = getPactContract().getParameters();
-		final String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
 
 		// check if we can work with a grouping (simple reducer), or if we need ordering because of a group order
 		Ordering groupOrder = null;
-		if (getPactContract() instanceof GroupReducePartialOperatorBase) {
-			groupOrder = ((GroupReducePartialOperatorBase<?, ?, ?>) getPactContract()).getGroupOrder();
+		if (getPactContract() instanceof GroupCombineOperatorBase) {
+			groupOrder = getPactContract().getGroupOrder();
 			if (groupOrder != null && groupOrder.getNumberOfFields() == 0) {
 				groupOrder = null;
 			}
 		}
 
 		OperatorDescriptorSingle props = (this.keys == null ?
-				new AllGroupReducePartialProperties() :
-				new GroupReducePartialProperties(this.keys, groupOrder));
+				new AllGroupCombineProperties() :
+				new GroupCombineProperties(this.keys, groupOrder));
 
 		return Collections.singletonList(props);
 	}
@@ -82,13 +80,13 @@ public class GroupReducePartialNode extends SingleInputNode {
 	 * @return The operator represented by this optimizer node.
 	 */
 	@Override
-	public GroupReducePartialOperatorBase<?, ?, ?> getPactContract() {
-		return (GroupReducePartialOperatorBase<?, ?, ?>) super.getPactContract();
+	public GroupCombineOperatorBase<?, ?, ?> getPactContract() {
+		return (GroupCombineOperatorBase<?, ?, ?>) super.getPactContract();
 	}
 
 	@Override
 	public String getName() {
-		return "GroupReduce";
+		return "GroupCombine";
 	}
 
 	@Override

@@ -44,7 +44,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Chained variant of the GroupReducePartialDriver
+ * Chained variant of the GroupCombineDriver
  * 
  * Acts like a combiner with a custom output type OUT.
  *
@@ -54,9 +54,9 @@ import java.util.List;
  * @param <IN> The data type consumed
  * @param <OUT> The data type produced
  */
-public class GroupReducePartialChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
+public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(GroupReducePartialChainedDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GroupCombineChainedDriver.class);
 
 	/**
 	 * Fix length records with a length below this threshold will be in-place sorted, if possible.

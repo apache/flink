@@ -627,59 +627,58 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Creates a new [[DataSet]] by passing all elements in this DataSet to the group reduce function.
-   * The function can output zero or more elements using the [[Collector]]. The concatenation of the
-   * emitted values will form the resulting [[DataSet]].
+   *  Applies a CombineFunction on a grouped [[DataSet]].  A
+   *  CombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  the combine method once per partition for combining a group of
+   *  results. This operator is suitable for combining values into an
+   *  intermediate format before doing a proper groupReduce where the
+   *  data is shuffled across the node for further reduction. The
+   *  GroupReduce operator can also be supplied with a combiner by
+   *  implementing the RichGroupReduce function. The combine method of
+   *  the RichGroupReduce function demands input and output type to be
+   *  the same. The CombineFunction, on the other side, can have an
+   *  arbitrary output type.
    */
-  def reduceGroupPartially[R: TypeInformation: ClassTag](
-      reducer: GroupReduceFunction[T, R]): DataSet[R] = {
-    if (reducer == null) {
-      throw new NullPointerException("GroupReduce function must not be null.")
+  def combineGroup[R: TypeInformation: ClassTag](
+      combiner: FlatCombineFunction[T, R]): DataSet[R] = {
+    if (combiner == null) {
+      throw new NullPointerException("Combine function must not be null.")
     }
-    wrap(new GroupReducePartialOperator[T, R](javaSet,
+    wrap(new GroupCombineOperator[T, R](javaSet,
       implicitly[TypeInformation[R]],
-      reducer,
+      combiner,
       getCallLocationName()))
   }
 
   /**
-   * Creates a new [[DataSet]] by passing all elements in this DataSet to the group reduce function.
-   * The function can output zero or more elements using the [[Collector]]. The concatenation of the
-   * emitted values will form the resulting [[DataSet]].
+   *  Applies a CombineFunction on a grouped [[DataSet]].  A
+   *  CombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  the combine method once per partition for combining a group of
+   *  results. This operator is suitable for combining values into an
+   *  intermediate format before doing a proper groupReduce where the
+   *  data is shuffled across the node for further reduction. The
+   *  GroupReduce operator can also be supplied with a combiner by
+   *  implementing the RichGroupReduce function. The combine method of
+   *  the RichGroupReduce function demands input and output type to be
+   *  the same. The CombineFunction, on the other side, can have an
+   *  arbitrary output type.
    */
-  def reduceGroupPartially[R: TypeInformation: ClassTag](
+  def combineGroup[R: TypeInformation: ClassTag](
       fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
     if (fun == null) {
-      throw new NullPointerException("GroupReduce function must not be null.")
+      throw new NullPointerException("Combine function must not be null.")
     }
-    val reducer = new GroupReduceFunction[T, R] {
+    val combiner = new FlatCombineFunction[T, R] {
       val cleanFun = clean(fun)
-      def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
+      def combine(in: java.lang.Iterable[T], out: Collector[R]) {
         cleanFun(in.iterator().asScala, out)
       }
     }
-    wrap(new GroupReducePartialOperator[T, R](javaSet,
+    wrap(new GroupCombineOperator[T, R](javaSet,
       implicitly[TypeInformation[R]],
-      reducer,
-      getCallLocationName()))
-  }
-
-  /**
-   * Creates a new [[DataSet]] by passing all elements in this DataSet to the group reduce function.
-   */
-  def reduceGroupPartially[R: TypeInformation: ClassTag](fun: (Iterator[T]) => R): DataSet[R] = {
-    if (fun == null) {
-      throw new NullPointerException("GroupReduce function must not be null.")
-    }
-    val reducer = new GroupReduceFunction[T, R] {
-      val cleanFun = clean(fun)
-      def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
-        out.collect(cleanFun(in.iterator().asScala))
-      }
-    }
-    wrap(new GroupReducePartialOperator[T, R](javaSet,
-      implicitly[TypeInformation[R]],
-      reducer,
+      combiner,
       getCallLocationName()))
   }
 

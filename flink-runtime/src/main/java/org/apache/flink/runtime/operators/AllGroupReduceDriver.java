@@ -32,9 +32,13 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * GroupReduce task which is executed by a Nephele task manager. The task has a
+ * GroupReduceDriver task which is executed by a Nephele task manager. The task has a
  * single input and one or multiple outputs. It is provided with a GroupReduceFunction
- * implementation.
+ * implementation or a RichGroupFunction. This Driver performs
+ * multiple tasks depending on the DriverStrategy. In case of a ALL_GROUP_REDUCE_COMBINE
+ * it uses the combine function of the supplied user function. In case
+ * of the ALL_GROUP_REDUCE, it uses the reduce function of the supplied user function to
+ * process all elements. In either case, the function is executed on all elements.
  * <p>
  * The GroupReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
  * key. The iterator is handed to the <code>reduce()</code> method of the GroupReduceFunction.
@@ -85,15 +89,19 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 	public void prepare() throws Exception {
 		final TaskConfig config = this.taskContext.getTaskConfig();
 		this.strategy = config.getDriverStrategy();
-		
-		if (strategy == DriverStrategy.ALL_GROUP_COMBINE) {
-			if (!(this.taskContext.getStub() instanceof FlatCombineFunction)) {
-				throw new Exception("Using combiner on a UDF that does not implement the combiner interface " + FlatCombineFunction.class.getName());
-			}
+
+		switch (this.strategy) {
+			case ALL_GROUP_REDUCE_COMBINE:
+				if (!(this.taskContext.getStub() instanceof FlatCombineFunction)) {
+					throw new Exception("Using combiner on a UDF that does not implement the combiner interface " + FlatCombineFunction.class.getName());
+				}
+			case ALL_GROUP_REDUCE:
+			case ALL_GROUP_COMBINE:
+				break;
+			default:
+				throw new Exception("Unrecognized driver strategy for AllGroupReduce driver: " + this.strategy.name());
 		}
-		else if (strategy != DriverStrategy.ALL_GROUP_REDUCE) {
-			throw new Exception("Unrecognized driver strategy for AllGroupReduce driver: " + config.getDriverStrategy().name());
-		}
+
 		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();
 		this.input = this.taskContext.getInput(0);
 
@@ -108,7 +116,7 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 	@Override
 	public void run() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(this.taskContext.formatLogString("AllGroupReduce preprocessing done. Running Reducer code."));
+			LOG.debug(this.taskContext.formatLogString("AllGroupReduceDriver preprocessing done. Running Reducer code."));
 		}
 
 		if (objectReuseEnabled) {
@@ -120,10 +128,12 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 					final GroupReduceFunction<IT, OT> reducer = this.taskContext.getStub();
 					final Collector<OT> output = this.taskContext.getOutputCollector();
 					reducer.reduce(inIter, output);
-				} else {
-					@SuppressWarnings("unchecked") final FlatCombineFunction<IT> combiner = (FlatCombineFunction<IT>) this.taskContext.getStub();
-					@SuppressWarnings("unchecked") final Collector<IT> output = (Collector<IT>) this.taskContext.getOutputCollector();
+				} else if (strategy == DriverStrategy.ALL_GROUP_REDUCE_COMBINE || strategy == DriverStrategy.ALL_GROUP_COMBINE) {
+					@SuppressWarnings("unchecked") final FlatCombineFunction<IT, OT> combiner = (FlatCombineFunction<IT, OT>) this.taskContext.getStub();
+					final Collector<OT> output = this.taskContext.getOutputCollector();
 					combiner.combine(inIter, output);
+				} else {
+					throw new Exception("The strategy " + strategy + " is unknown to this driver.");
 				}
 			}
 
@@ -136,10 +146,12 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 					final GroupReduceFunction<IT, OT> reducer = this.taskContext.getStub();
 					final Collector<OT> output = this.taskContext.getOutputCollector();
 					reducer.reduce(inIter, output);
-				} else {
-					@SuppressWarnings("unchecked") final FlatCombineFunction<IT> combiner = (FlatCombineFunction<IT>) this.taskContext.getStub();
-					@SuppressWarnings("unchecked") final Collector<IT> output = (Collector<IT>) this.taskContext.getOutputCollector();
+				} else if (strategy == DriverStrategy.ALL_GROUP_REDUCE_COMBINE || strategy == DriverStrategy.ALL_GROUP_COMBINE) {
+					@SuppressWarnings("unchecked") final FlatCombineFunction<IT, OT> combiner = (FlatCombineFunction<IT, OT>) this.taskContext.getStub();
+					final Collector<OT> output = this.taskContext.getOutputCollector();
 					combiner.combine(inIter, output);
+				} else {
+					throw new Exception("The strategy " + strategy + " is unknown to this driver.");
 				}
 			}
 		}

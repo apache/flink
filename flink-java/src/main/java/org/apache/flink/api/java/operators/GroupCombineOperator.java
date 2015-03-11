@@ -18,19 +18,19 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
-import org.apache.flink.api.common.operators.base.GroupReducePartialOperatorBase;
+import org.apache.flink.api.common.operators.base.GroupCombineOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
-import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupPartialOperator;
-import org.apache.flink.api.java.operators.translation.PlanUnwrappingSortedReduceGroupPartialOperator;
+import org.apache.flink.api.java.operators.translation.PlanUnwrappingGroupCombineOperator;
+import org.apache.flink.api.java.operators.translation.PlanUnwrappingSortedGroupCombineOperator;
 import org.apache.flink.api.java.operators.translation.TwoKeyExtractingMapper;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -44,9 +44,9 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
  */
-public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, GroupReducePartialOperator<IN, OUT>> {
+public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, GroupCombineOperator<IN, OUT>> {
 
-	private final GroupReduceFunction<IN, OUT> function;
+	private final FlatCombineFunction<IN, OUT> function;
 
 	private final Grouping<IN> grouper;
 
@@ -56,15 +56,15 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 	 * Constructor for a non-grouped reduce (all reduce).
 	 *
 	 * @param input The input data set to the groupReduce function.
+	 * @param resultType The type information for the resulting type.
 	 * @param function The user-defined GroupReduce function.
+	 * @param defaultName The operator's name.
 	 */
-	public GroupReducePartialOperator(DataSet<IN> input, TypeInformation<OUT> resultType, GroupReduceFunction<IN, OUT> function, String defaultName) {
+	public GroupCombineOperator(DataSet<IN> input, TypeInformation<OUT> resultType, FlatCombineFunction<IN, OUT> function, String defaultName) {
 		super(input, resultType);
-
 		this.function = function;
 		this.grouper = null;
 		this.defaultName = defaultName;
-
 	}
 
 	/**
@@ -73,18 +73,16 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 	 * @param input The grouped input to be processed group-wise by the groupReduce function.
 	 * @param function The user-defined GroupReduce function.
 	 */
-	public GroupReducePartialOperator(Grouping<IN> input, TypeInformation<OUT> resultType, GroupReduceFunction<IN, OUT> function, String defaultName) {
+	public GroupCombineOperator(Grouping<IN> input, TypeInformation<OUT> resultType, FlatCombineFunction<IN, OUT> function, String defaultName) {
 		super(input != null ? input.getDataSet() : null, resultType);
 
 		this.function = function;
 		this.grouper = input;
 		this.defaultName = defaultName;
-
 	}
 
-
 	@Override
-	protected GroupReduceFunction<IN, OUT> getFunction() {
+	protected FlatCombineFunction<IN, OUT> getFunction() {
 		return function;
 	}
 
@@ -93,16 +91,16 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	protected GroupReducePartialOperatorBase<?, OUT, ?> translateToDataFlow(Operator<IN> input) {
+	protected GroupCombineOperatorBase<?, OUT, ?> translateToDataFlow(Operator<IN> input) {
 
-		String name = getName() != null ? getName() : "GroupReducePartial at " + defaultName;
+		String name = getName() != null ? getName() : "GroupCombine at " + defaultName;
 
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {
 			// non grouped reduce
 			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
-			GroupReducePartialOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> po =
-					new GroupReducePartialOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>>(function, operatorInfo, new int[0], name);
+			GroupCombineOperatorBase<IN, OUT, FlatCombineFunction<IN, OUT>> po =
+					new GroupCombineOperatorBase<IN, OUT, FlatCombineFunction<IN, OUT>>(function, operatorInfo, new int[0], name);
 
 			po.setInput(input);
 			// the degree of parallelism for a non grouped reduce can only be 1
@@ -119,7 +117,7 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 				SortedGrouping<IN> sortedGrouper = (SortedGrouping<IN>) grouper;
 				Keys.SelectorFunctionKeys<IN, ?> sortKeys = sortedGrouper.getSortSelectionFunctionKey();
 
-				PlanUnwrappingSortedReduceGroupPartialOperator<IN, OUT, ?, ?> po = translateSelectorFunctionSortedReducer(
+				PlanUnwrappingSortedGroupCombineOperator<IN, OUT, ?, ?> po = translateSelectorFunctionSortedReducer(
 						selectorKeys, sortKeys, function, getInputType(), getResultType(), name, input);
 
 				// set group order
@@ -135,7 +133,7 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 				po.setDegreeOfParallelism(this.getParallelism());
 				return po;
 			} else {
-				PlanUnwrappingReduceGroupPartialOperator<IN, OUT, ?> po = translateSelectorFunctionReducer(
+				PlanUnwrappingGroupCombineOperator<IN, OUT, ?> po = translateSelectorFunctionReducer(
 						selectorKeys, function, getInputType(), getResultType(), name, input);
 
 				po.setDegreeOfParallelism(this.getParallelism());
@@ -146,8 +144,8 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
-			GroupReducePartialOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> po =
-					new GroupReducePartialOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
+			GroupCombineOperatorBase<IN, OUT, FlatCombineFunction<IN, OUT>> po =
+					new GroupCombineOperatorBase<IN, OUT, FlatCombineFunction<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
 
 			po.setInput(input);
 			po.setDegreeOfParallelism(getParallelism());
@@ -176,8 +174,8 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 
 	// --------------------------------------------------------------------------------------------
 
-	private static <IN, OUT, K> PlanUnwrappingReduceGroupPartialOperator<IN, OUT, K> translateSelectorFunctionReducer(
-			Keys.SelectorFunctionKeys<IN, ?> rawKeys, GroupReduceFunction<IN, OUT> function,
+	private static <IN, OUT, K> PlanUnwrappingGroupCombineOperator<IN, OUT, K> translateSelectorFunctionReducer(
+			Keys.SelectorFunctionKeys<IN, ?> rawKeys, FlatCombineFunction<IN, OUT> function,
 			TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator<IN> input)
 	{
 		@SuppressWarnings("unchecked")
@@ -187,7 +185,7 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 
 		KeyExtractingMapper<IN, K> extractor = new KeyExtractingMapper<IN, K>(keys.getKeyExtractor());
 
-		PlanUnwrappingReduceGroupPartialOperator<IN, OUT, K> reducer = new PlanUnwrappingReduceGroupPartialOperator<IN, OUT, K>(function, keys, name, outputType, typeInfoWithKey);
+		PlanUnwrappingGroupCombineOperator<IN, OUT, K> reducer = new PlanUnwrappingGroupCombineOperator<IN, OUT, K>(function, keys, name, outputType, typeInfoWithKey);
 
 		MapOperatorBase<IN, Tuple2<K, IN>, MapFunction<IN, Tuple2<K, IN>>> mapper = new MapOperatorBase<IN, Tuple2<K, IN>, MapFunction<IN, Tuple2<K, IN>>>(extractor, new UnaryOperatorInformation<IN, Tuple2<K, IN>>(inputType, typeInfoWithKey), "Key Extractor");
 
@@ -200,8 +198,8 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 		return reducer;
 	}
 
-	private static <IN, OUT, K1, K2> PlanUnwrappingSortedReduceGroupPartialOperator<IN, OUT, K1, K2> translateSelectorFunctionSortedReducer(
-			Keys.SelectorFunctionKeys<IN, ?> rawGroupingKey, Keys.SelectorFunctionKeys<IN, ?> rawSortingKey, GroupReduceFunction<IN, OUT> function,
+	private static <IN, OUT, K1, K2> PlanUnwrappingSortedGroupCombineOperator<IN, OUT, K1, K2> translateSelectorFunctionSortedReducer(
+			Keys.SelectorFunctionKeys<IN, ?> rawGroupingKey, Keys.SelectorFunctionKeys<IN, ?> rawSortingKey, FlatCombineFunction<IN, OUT> function,
 			TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator<IN> input)
 	{
 		@SuppressWarnings("unchecked")
@@ -214,7 +212,7 @@ public class GroupReducePartialOperator<IN, OUT> extends SingleInputUdfOperator<
 
 		TwoKeyExtractingMapper<IN, K1, K2> extractor = new TwoKeyExtractingMapper<IN, K1, K2>(groupingKey.getKeyExtractor(), sortingKey.getKeyExtractor());
 
-		PlanUnwrappingSortedReduceGroupPartialOperator<IN, OUT, K1, K2> reducer = new PlanUnwrappingSortedReduceGroupPartialOperator<IN, OUT, K1, K2>(function, groupingKey, sortingKey, name, outputType, typeInfoWithKey);
+		PlanUnwrappingSortedGroupCombineOperator<IN, OUT, K1, K2> reducer = new PlanUnwrappingSortedGroupCombineOperator<IN, OUT, K1, K2>(function, groupingKey, sortingKey, name, outputType, typeInfoWithKey);
 
 		MapOperatorBase<IN, Tuple3<K1, K2, IN>, MapFunction<IN, Tuple3<K1, K2, IN>>> mapper = new MapOperatorBase<IN, Tuple3<K1, K2, IN>, MapFunction<IN, Tuple3<K1, K2, IN>>>(extractor, new UnaryOperatorInformation<IN, Tuple3<K1, K2, IN>>(inputType, typeInfoWithKey), "Key Extractor");
 

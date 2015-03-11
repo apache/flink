@@ -41,36 +41,43 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Combine operator, standalone (not chained)
- * <p>
+ * Non-chained combine driver which is used for a CombineGroup transformation or a GroupReduce transformation where
+ * the user supplied a RichGroupReduceFunction with a combine method. The combining is performed in memory with a
+ * lazy approach which only combines elements which currently fit in the sorter. This may lead to a partial solution.
+ * In the case of the RichGroupReduceFunction this partial result is transformed into a proper deterministic result.
+ * The CombineGroup uses the FlatCombineFunction interface which allows to combine values of type <IN> to any type
+ * of type <OUT>. In contrast, the RichGroupReduceFunction requires the combine method to have the same input and
+ * output type to be able to reduce the elements after the combine from <IN> to <OUT>.
+ *
  * The CombineTask uses a combining iterator over its input. The output of the iterator is emitted.
  * 
- * @param <T> The data type consumed and produced by the combiner.
+ * @param <IN> The data type consumed by the combiner.
+ * @param <OUT> The data type produced by the combiner.
  */
-public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFunction<T>, T> {
+public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<FlatCombineFunction<IN, OUT>, OUT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceCombineDriver.class);
 
 	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
 	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
-	private PactTaskContext<FlatCombineFunction<T>, T> taskContext;
+	private PactTaskContext<FlatCombineFunction<IN, OUT>, OUT> taskContext;
 
-	private InMemorySorter<T> sorter;
+	private InMemorySorter<IN> sorter;
 
-	private FlatCombineFunction<T> combiner;
+	private FlatCombineFunction<IN, OUT> combiner;
 
-	private TypeSerializer<T> serializer;
+	private TypeSerializer<IN> serializer;
 
-	private TypeComparator<T> sortingComparator;
+	private TypeComparator<IN> sortingComparator;
 	
-	private TypeComparator<T> groupingComparator;
+	private TypeComparator<IN> groupingComparator;
 
 	private QuickSort sortAlgo = new QuickSort();
 
 	private MemoryManager memManager;
 
-	private Collector<T> output;
+	private Collector<OUT> output;
 
 	private volatile boolean running = true;
 
@@ -79,7 +86,7 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<FlatCombineFunction<T>, T> context) {
+	public void setup(PactTaskContext<FlatCombineFunction<IN, OUT>, OUT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -90,9 +97,9 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 	}
 	
 	@Override
-	public Class<FlatCombineFunction<T>> getStubType() {
+	public Class<FlatCombineFunction<IN, OUT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<FlatCombineFunction<T>> clazz = (Class<FlatCombineFunction<T>>) (Class<?>) FlatCombineFunction.class;
+		final Class<FlatCombineFunction<IN, OUT>> clazz = (Class<FlatCombineFunction<IN, OUT>>) (Class<?>) FlatCombineFunction.class;
 		return clazz;
 	}
 
@@ -103,15 +110,16 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 
 	@Override
 	public void prepare() throws Exception {
-		if(this.taskContext.getTaskConfig().getDriverStrategy() != DriverStrategy.SORTED_GROUP_COMBINE){
-			throw new Exception("Invalid strategy " + this.taskContext.getTaskConfig().getDriverStrategy() + " for " +
+		final DriverStrategy driverStrategy = this.taskContext.getTaskConfig().getDriverStrategy();
+		if(driverStrategy != DriverStrategy.SORTED_GROUP_COMBINE){
+			throw new Exception("Invalid strategy " + driverStrategy + " for " +
 					"group reduce combinder.");
 		}
 
 		this.memManager = this.taskContext.getMemoryManager();
 		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
 
-		final TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
+		final TypeSerializerFactory<IN> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.serializer = serializerFactory.getSerializer();
 		this.sortingComparator = this.taskContext.getDriverComparator(0);
 		this.groupingComparator = this.taskContext.getDriverComparator(1);
@@ -125,9 +133,9 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 		if (this.sortingComparator.supportsSerializationWithKeyNormalization() &&
 				this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
 		{
-			this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.sortingComparator, memory);
+			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, this.sortingComparator, memory);
 		} else {
-			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.sortingComparator.duplicate(), memory);
+			this.sorter = new NormalizedKeySorter<IN>(this.serializer, this.sortingComparator.duplicate(), memory);
 		}
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
@@ -144,10 +152,10 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 			LOG.debug("Combiner starting.");
 		}
 
-		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
-		final TypeSerializer<T> serializer = this.serializer;
+		final MutableObjectIterator<IN> in = this.taskContext.getInput(0);
+		final TypeSerializer<IN> serializer = this.serializer;
 
-		T value = serializer.createInstance();
+		IN value = serializer.createInstance();
 
 		while (running && (value = in.next(value)) != null) {
 
@@ -171,17 +179,17 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 	}
 
 	private void sortAndCombine() throws Exception {
-		final InMemorySorter<T> sorter = this.sorter;
+		final InMemorySorter<IN> sorter = this.sorter;
 
 		if (objectReuseEnabled) {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 
-				final ReusingKeyGroupedIterator<T> keyIter = 
-						new ReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
+				final ReusingKeyGroupedIterator<IN> keyIter = 
+						new ReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.serializer, this.groupingComparator);
 
-				final FlatCombineFunction<T> combiner = this.combiner;
-				final Collector<T> output = this.output;
+				final FlatCombineFunction<IN, OUT> combiner = this.combiner;
+				final Collector<OUT> output = this.output;
 
 				// iterate over key groups
 				while (this.running && keyIter.nextKey()) {
@@ -192,11 +200,11 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 
-				final NonReusingKeyGroupedIterator<T> keyIter = 
-						new NonReusingKeyGroupedIterator<T>(sorter.getIterator(), this.groupingComparator);
+				final NonReusingKeyGroupedIterator<IN> keyIter = 
+						new NonReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.groupingComparator);
 
-				final FlatCombineFunction<T> combiner = this.combiner;
-				final Collector<T> output = this.output;
+				final FlatCombineFunction<IN, OUT> combiner = this.combiner;
+				final Collector<OUT> output = this.output;
 
 				// iterate over key groups
 				while (this.running && keyIter.nextKey()) {

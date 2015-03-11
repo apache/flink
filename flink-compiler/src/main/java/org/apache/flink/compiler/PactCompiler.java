@@ -30,7 +30,7 @@ import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
 import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
-import org.apache.flink.api.common.operators.base.GroupReducePartialOperatorBase;
+import org.apache.flink.api.common.operators.base.GroupCombineOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
@@ -69,7 +69,7 @@ import org.apache.flink.compiler.dag.DataSourceNode;
 import org.apache.flink.compiler.dag.FilterNode;
 import org.apache.flink.compiler.dag.FlatMapNode;
 import org.apache.flink.compiler.dag.GroupReduceNode;
-import org.apache.flink.compiler.dag.GroupReducePartialNode;
+import org.apache.flink.compiler.dag.GroupCombineNode;
 import org.apache.flink.compiler.dag.IterationNode;
 import org.apache.flink.compiler.dag.JoinNode;
 import org.apache.flink.compiler.dag.MapNode;
@@ -703,8 +703,8 @@ public class PactCompiler {
 			else if (c instanceof GroupReduceOperatorBase) {
 				n = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) c);
 			}
-			else if (c instanceof GroupReducePartialOperatorBase) {
-				n = new GroupReducePartialNode((GroupReducePartialOperatorBase<?, ?, ?>) c);
+			else if (c instanceof GroupCombineOperatorBase) {
+				n = new GroupCombineNode((GroupCombineOperatorBase<?, ?, ?>) c);
 			}
 			else if (c instanceof JoinOperatorBase) {
 				n = new JoinNode((JoinOperatorBase<?, ?, ?, ?>) c);
