@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
@@ -24,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
@@ -81,11 +81,8 @@ public class DataSourceNode extends OptimizerNode {
 			this.sequentialInput = false;
 		}
 
-		if (pactContract.getUserCodeWrapper().getUserCodeObject() instanceof ReplicatingInputFormat) {
-			this.replicatedInput = true;
-		} else {
-			this.replicatedInput = false;
-		}
+		this.replicatedInput = ReplicatingInputFormat.class.isAssignableFrom(
+														pactContract.getUserCodeWrapper().getUserCodeClass());
 
 		this.gprops = new GlobalProperties();
 		this.lprops = new LocalProperties();
@@ -119,7 +116,7 @@ public class DataSourceNode extends OptimizerNode {
 
 	@Override
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
-		// if unsplittable, DOP remains at 1
+		// if unsplittable, parallelism remains at 1
 		if (!this.sequentialInput) {
 			super.setDegreeOfParallelism(degreeOfParallelism);
 		}
@@ -131,14 +128,14 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) {}
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode defaultDataExchangeMode) {}
 
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
 		// see, if we have a statistics object that can tell us a bit about the file
 		if (statistics != null) {
 			// instantiate the input format, as this is needed by the statistics 
-			InputFormat<?, ?> format = null;
+			InputFormat<?, ?> format;
 			String inFormatDescription = "<unknown>";
 			
 			try {
@@ -156,7 +153,9 @@ public class DataSourceNode extends OptimizerNode {
 			try {
 				inFormatDescription = format.toString();
 			}
-			catch (Throwable t) {}
+			catch (Throwable t) {
+				// we can ignore this error, as it only prevents us to use a cosmetic string
+			}
 			
 			// first of all, get the statistics from the cache
 			final String statisticsKey = getPactContract().getStatisticsKey();

@@ -20,10 +20,10 @@ package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.Union;
 import org.apache.flink.api.common.operators.util.FieldSet;
@@ -39,6 +39,7 @@ import org.apache.flink.compiler.operators.OperatorDescriptorDual;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.plan.NamedChannel;
 import org.apache.flink.compiler.plan.PlanNode;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
 /**
@@ -105,36 +106,31 @@ public class BinaryUnionNode extends TwoInputNode {
 		// step down to all producer nodes and calculate alternative plans
 		final List<? extends PlanNode> subPlans1 = getFirstPredecessorNode().getAlternativePlans(estimator);
 		final List<? extends PlanNode> subPlans2 = getSecondPredecessorNode().getAlternativePlans(estimator);
-		
-		// calculate alternative sub-plans for broadcast inputs
-		final List<Set<? extends NamedChannel>> broadcastPlanChannels = new ArrayList<Set<? extends NamedChannel>>();
+
 		List<PactConnection> broadcastConnections = getBroadcastConnections();
-		List<String> broadcastConnectionNames = getBroadcastConnectionNames();
-		for (int i = 0; i < broadcastConnections.size(); i++ ) {
-			PactConnection broadcastConnection = broadcastConnections.get(i);
-			String broadcastConnectionName = broadcastConnectionNames.get(i);
-			List<PlanNode> broadcastPlanCandidates = broadcastConnection.getSource().getAlternativePlans(estimator);
-			// wrap the plan candidates in named channels 
-			HashSet<NamedChannel> broadcastChannels = new HashSet<NamedChannel>(broadcastPlanCandidates.size());
-			for (PlanNode plan: broadcastPlanCandidates) {
-				final NamedChannel c = new NamedChannel(broadcastConnectionName, plan);
-				c.setShipStrategy(ShipStrategyType.BROADCAST);
-				broadcastChannels.add(c);
-			}
-			broadcastPlanChannels.add(broadcastChannels);
+		if (broadcastConnections != null && broadcastConnections.size() > 0) {
+			throw new CompilerException("Found BroadcastVariables on a Union operation");
 		}
 		
 		final ArrayList<PlanNode> outputPlans = new ArrayList<PlanNode>();
-		
+
+		final List<Set<? extends NamedChannel>> broadcastPlanChannels = Collections.emptyList();
+
 		final BinaryUnionOpDescriptor operator = new BinaryUnionOpDescriptor();
 		final RequestedLocalProperties noLocalProps = new RequestedLocalProperties();
-		
+
+		final ExecutionMode input1Mode = this.input1.getDataExchangeMode();
+		final ExecutionMode input2Mode = this.input2.getDataExchangeMode();
+
 		final int dop = getDegreeOfParallelism();
 		final int inDop1 = getFirstPredecessorNode().getDegreeOfParallelism();
 		final int inDop2 = getSecondPredecessorNode().getDegreeOfParallelism();
 
 		final boolean dopChange1 = dop != inDop1;
 		final boolean dopChange2 = dop != inDop2;
+
+		final boolean input1breakPipeline = this.input1.isBreakingPipeline();
+		final boolean input2breakPipeline = this.input2.isBreakingPipeline();
 
 		// enumerate all pairwise combination of the children's plans together with
 		// all possible operator strategy combination
@@ -154,19 +150,22 @@ public class BinaryUnionNode extends TwoInputNode {
 					Channel c1 = new Channel(child1, this.input1.getMaterializationMode());
 					if (this.input1.getShipStrategy() == null) {
 						// free to choose the ship strategy
-						igps.parameterizeChannel(c1, dopChange1);
+						igps.parameterizeChannel(c1, dopChange1, input1Mode, input1breakPipeline);
 						
 						// if the DOP changed, make sure that we cancel out properties, unless the
 						// ship strategy preserves/establishes them even under changing DOPs
 						if (dopChange1 && !c1.getShipStrategy().isNetworkStrategy()) {
 							c1.getGlobalProperties().reset();
 						}
-					} else {
+					}
+					else {
 						// ship strategy fixed by compiler hint
+						ShipStrategyType shipStrategy = this.input1.getShipStrategy();
+						DataExchangeMode exMode = DataExchangeMode.select(input1Mode, shipStrategy, input1breakPipeline);
 						if (this.keys1 != null) {
-							c1.setShipStrategy(this.input1.getShipStrategy(), this.keys1.toFieldList());
+							c1.setShipStrategy(this.input1.getShipStrategy(), this.keys1.toFieldList(), exMode);
 						} else {
-							c1.setShipStrategy(this.input1.getShipStrategy());
+							c1.setShipStrategy(this.input1.getShipStrategy(), exMode);
 						}
 						
 						if (dopChange1) {
@@ -178,7 +177,7 @@ public class BinaryUnionNode extends TwoInputNode {
 					Channel c2 = new Channel(child2, this.input2.getMaterializationMode());
 					if (this.input2.getShipStrategy() == null) {
 						// free to choose the ship strategy
-						igps.parameterizeChannel(c2, dopChange2);
+						igps.parameterizeChannel(c2, dopChange2, input2Mode, input2breakPipeline);
 						
 						// if the DOP changed, make sure that we cancel out properties, unless the
 						// ship strategy preserves/establishes them even under changing DOPs
@@ -187,10 +186,12 @@ public class BinaryUnionNode extends TwoInputNode {
 						}
 					} else {
 						// ship strategy fixed by compiler hint
+						ShipStrategyType shipStrategy = this.input2.getShipStrategy();
+						DataExchangeMode exMode = DataExchangeMode.select(input2Mode, shipStrategy, input2breakPipeline);
 						if (this.keys2 != null) {
-							c2.setShipStrategy(this.input2.getShipStrategy(), this.keys2.toFieldList());
+							c2.setShipStrategy(this.input2.getShipStrategy(), this.keys2.toFieldList(), exMode);
 						} else {
-							c2.setShipStrategy(this.input2.getShipStrategy());
+							c2.setShipStrategy(this.input2.getShipStrategy(), exMode);
 						}
 						
 						if (dopChange2) {
@@ -204,7 +205,7 @@ public class BinaryUnionNode extends TwoInputNode {
 					p1.clearUniqueFieldCombinations();
 					p2.clearUniqueFieldCombinations();
 					
-					// adjust the partitionings, if they exist but are not equal. this may happen when both channels have a
+					// adjust the partitioning, if they exist but are not equal. this may happen when both channels have a
 					// partitioning that fulfills the requirements, but both are incompatible. For example may a property requirement
 					// be ANY_PARTITIONING on fields (0) and one channel is range partitioned on that field, the other is hash
 					// partitioned on that field. 
@@ -212,20 +213,22 @@ public class BinaryUnionNode extends TwoInputNode {
 						if (c1.getShipStrategy() == ShipStrategyType.FORWARD && c2.getShipStrategy() != ShipStrategyType.FORWARD) {
 							// adjust c2 to c1
 							c2 = c2.clone();
-							p1.parameterizeChannel(c2,dopChange2);
-						} else if (c2.getShipStrategy() == ShipStrategyType.FORWARD && c1.getShipStrategy() != ShipStrategyType.FORWARD) {
+							p1.parameterizeChannel(c2, dopChange2, input2Mode, input2breakPipeline);
+						}
+						else if (c2.getShipStrategy() == ShipStrategyType.FORWARD && c1.getShipStrategy() != ShipStrategyType.FORWARD) {
 							// adjust c1 to c2
 							c1 = c1.clone();
-							p2.parameterizeChannel(c1,dopChange1);
-						} else if (c1.getShipStrategy() == ShipStrategyType.FORWARD && c2.getShipStrategy() == ShipStrategyType.FORWARD) {
+							p2.parameterizeChannel(c1,dopChange1, input1Mode, input1breakPipeline);
+						}
+						else if (c1.getShipStrategy() == ShipStrategyType.FORWARD && c2.getShipStrategy() == ShipStrategyType.FORWARD) {
 							boolean adjustC1 = c1.getEstimatedOutputSize() <= 0 || c2.getEstimatedOutputSize() <= 0 ||
 									c1.getEstimatedOutputSize() <= c2.getEstimatedOutputSize();
 							if (adjustC1) {
 								c2 = c2.clone();
-								p1.parameterizeChannel(c2, dopChange2);
+								p1.parameterizeChannel(c2, dopChange2, input2Mode, input2breakPipeline);
 							} else {
 								c1 = c1.clone();
-								p2.parameterizeChannel(c1, dopChange1);
+								p2.parameterizeChannel(c1, dopChange1, input1Mode, input1breakPipeline);
 							}
 						} else {
 							// this should never happen, as it implies both realize a different strategy, which is
@@ -233,7 +236,8 @@ public class BinaryUnionNode extends TwoInputNode {
 							throw new CompilerException("Bug in Plan Enumeration for Union Node.");
 						}
 					}
-					
+
+
 					instantiate(operator, c1, c2, broadcastPlanChannels, outputPlans, estimator, igps, igps, noLocalProps, noLocalProps);
 				}
 			}

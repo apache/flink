@@ -18,6 +18,7 @@
 
 package org.apache.flink.compiler.dataproperties;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Ordering;
@@ -27,14 +28,20 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.util.Utils;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
 /**
- * This class represents global properties of the data that an operator is interested in, because it needs those
- * properties for its contract.
- * <p>
- * Currently, the properties are the following: A partitioning type (ANY, HASH, RANGE), and EITHER an ordering (for range partitioning)
- * or an FieldSet with the hash partitioning columns.
+ * This class represents the global properties of the data that are requested by an operator.
+ * Operators request the global properties they need for correct execution. This list is an example of global
+ * properties requested by certain operators:
+ * <ul>
+ *     <li>"groupBy/reduce" will request the data to be partitioned in some way after the key fields.</li>
+ *     <li>"map" will request the data to be in an arbitrary distribution - it has no prerequisites</li>
+ *     <li>"join" will request certain properties for each input. This class represents the properties
+ *         on an input alone. The properties may be partitioning on the key fields, or a combination of
+ *         replication on one input and anything-but-replication on the other input.</li>
+ * </ul>
  */
 public final class RequestedGlobalProperties implements Cloneable {
 	
@@ -60,11 +67,13 @@ public final class RequestedGlobalProperties implements Cloneable {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Sets the partitioning property for the global properties.
-	 * If the partitionFields are provided as {@link FieldSet} also subsets are valid,
-	 * if provided as {@link FieldList} partitioning fields must exactly match incl. order.
+	 * Sets these properties to request a hash partitioning on the given fields.
 	 *
-	 * @param partitionedFields
+	 * If the fields are provided as {@link FieldSet}, then any permutation of the fields is a
+	 * valid partitioning, including subsets. If the fields are given as a {@link FieldList},
+	 * then only an exact partitioning on the fields matches this requested partitioning.
+	 *
+	 * @param partitionedFields The key fields for the partitioning.
 	 */
 	public void setHashPartitioned(FieldSet partitionedFields) {
 		if (partitionedFields == null) {
@@ -91,11 +100,14 @@ public final class RequestedGlobalProperties implements Cloneable {
 	}
 
 	/**
-	 * Sets the partitioning property for the global properties.
-	 * If the partitionFields are provided as {@link FieldSet} also subsets are valid,
-	 * if provided as {@link FieldList} partitioning fields must exactly match incl. order.
+	 * Sets these properties to request some partitioning on the given fields. This will allow
+	 * both hash partitioning and range partitioning to match.
 	 *
-	 * @param partitionedFields
+	 * If the fields are provided as {@link FieldSet}, then any permutation of the fields is a
+	 * valid partitioning, including subsets. If the fields are given as a {@link FieldList},
+	 * then only an exact partitioning on the fields matches this requested partitioning.
+	 *
+	 * @param partitionedFields The key fields for the partitioning.
 	 */
 	public void setAnyPartitioning(FieldSet partitionedFields) {
 		if (partitionedFields == null) {
@@ -131,11 +143,13 @@ public final class RequestedGlobalProperties implements Cloneable {
 	}
 
 	/**
-	 * Sets the partitioning property for the global properties.
-	 * If the partitionFields are provided as {@link FieldSet} also subsets are valid,
-	 * if provided as {@link FieldList} partitioning fields must exactly match incl. order.
+	 * Sets these properties to request a custom partitioning with the given {@link Partitioner} instance.
 	 *
-	 * @param partitionedFields
+	 * If the fields are provided as {@link FieldSet}, then any permutation of the fields is a
+	 * valid partitioning, including subsets. If the fields are given as a {@link FieldList},
+	 * then only an exact partitioning on the fields matches this requested partitioning.
+	 *
+	 * @param partitionedFields The key fields for the partitioning.
 	 */
 	public void setCustomPartitioned(FieldSet partitionedFields, Partitioner<?> partitioner) {
 		if (partitionedFields == null || partitioner == null) {
@@ -322,63 +336,102 @@ public final class RequestedGlobalProperties implements Cloneable {
 	}
 
 	/**
-	 * Parameterizes the ship strategy fields of a channel such that the channel produces the desired global properties.
+	 * Parametrizes the ship strategy fields of a channel such that the channel produces
+	 * the desired global properties.
 	 * 
-	 * @param channel The channel to parameterize.
-	 * @param globalDopChange
+	 * @param channel The channel to parametrize.
+	 * @param globalDopChange Flag indicating whether the degree of parallelism changes
+	 *                        between sender and receiver.
+	 * @param exchangeMode The mode of data exchange (pipelined, always batch,
+	 *                     batch only on shuffle, ...)
+	 * @param breakPipeline Indicates whether this data exchange should break
+	 *                      pipelines (unless pipelines are forced).
 	 */
-	public void parameterizeChannel(Channel channel, boolean globalDopChange) {
+	public void parameterizeChannel(Channel channel, boolean globalDopChange,
+									ExecutionMode exchangeMode, boolean breakPipeline) {
 
 		// safety check. Fully replicated input must be preserved.
-		if(channel.getSource().getGlobalProperties().isFullyReplicated() &&
+		if (channel.getSource().getGlobalProperties().isFullyReplicated() &&
 				!(this.partitioning == PartitioningProperty.FULL_REPLICATION ||
-					this.partitioning == PartitioningProperty.ANY_DISTRIBUTION)) {
-			throw new CompilerException("Fully replicated input must be preserved and may not be converted into another global property.");
+					this.partitioning == PartitioningProperty.ANY_DISTRIBUTION))
+		{
+			throw new CompilerException("Fully replicated input must be preserved " +
+					"and may not be converted into another global property.");
 		}
 
 		// if we request nothing, then we need no special strategy. forward, if the number of instances remains
 		// the same, randomly repartition otherwise
 		if (isTrivial() || this.partitioning == PartitioningProperty.ANY_DISTRIBUTION) {
-			channel.setShipStrategy(globalDopChange ? ShipStrategyType.PARTITION_RANDOM : ShipStrategyType.FORWARD);
+			ShipStrategyType shipStrategy = globalDopChange ? ShipStrategyType.PARTITION_RANDOM :
+																ShipStrategyType.FORWARD;
+
+			DataExchangeMode em = DataExchangeMode.select(exchangeMode, shipStrategy, breakPipeline);
+			channel.setShipStrategy(shipStrategy, em);
 			return;
 		}
 		
 		final GlobalProperties inGlobals = channel.getSource().getGlobalProperties();
 		// if we have no global parallelism change, check if we have already compatible global properties
 		if (!globalDopChange && isMetBy(inGlobals)) {
-			channel.setShipStrategy(ShipStrategyType.FORWARD);
+			DataExchangeMode em = DataExchangeMode.select(exchangeMode, ShipStrategyType.FORWARD, breakPipeline);
+			channel.setShipStrategy(ShipStrategyType.FORWARD, em);
 			return;
 		}
 		
 		// if we fall through the conditions until here, we need to re-establish
+		ShipStrategyType shipType;
+		FieldList partitionKeys;
+		boolean[] sortDirection;
+		Partitioner<?> partitioner;
+
 		switch (this.partitioning) {
 			case FULL_REPLICATION:
-				channel.setShipStrategy(ShipStrategyType.BROADCAST);
+				shipType = ShipStrategyType.BROADCAST;
+				partitionKeys = null;
+				sortDirection = null;
+				partitioner = null;
 				break;
-			
+
 			case ANY_PARTITIONING:
 			case HASH_PARTITIONED:
-				channel.setShipStrategy(ShipStrategyType.PARTITION_HASH, Utils.createOrderedFromSet(this.partitioningFields));
+				shipType = ShipStrategyType.PARTITION_HASH;
+				partitionKeys = Utils.createOrderedFromSet(this.partitioningFields);
+				sortDirection = null;
+				partitioner = null;
 				break;
 			
 			case RANGE_PARTITIONED:
-				channel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
-				if(this.dataDistribution != null) {
+				shipType = ShipStrategyType.PARTITION_RANGE;
+				partitionKeys = this.ordering.getInvolvedIndexes();
+				sortDirection = this.ordering.getFieldSortDirections();
+				partitioner = null;
+
+				if (this.dataDistribution != null) {
 					channel.setDataDistribution(this.dataDistribution);
 				}
 				break;
-			
+
 			case FORCED_REBALANCED:
-				channel.setShipStrategy(ShipStrategyType.PARTITION_FORCED_REBALANCE);
+				shipType = ShipStrategyType.PARTITION_FORCED_REBALANCE;
+				partitionKeys = null;
+				sortDirection = null;
+				partitioner = null;
 				break;
-				
+
 			case CUSTOM_PARTITIONING:
-				channel.setShipStrategy(ShipStrategyType.PARTITION_CUSTOM, Utils.createOrderedFromSet(this.partitioningFields), this.customPartitioner);
+				shipType = ShipStrategyType.PARTITION_CUSTOM;
+				partitionKeys = Utils.createOrderedFromSet(this.partitioningFields);
+				sortDirection = null;
+				partitioner = this.customPartitioner;
 				break;
-				
+
 			default:
-				throw new CompilerException("Invalid partitioning to create through a data exchange: " + this.partitioning.name());
+				throw new CompilerException("Invalid partitioning to create through a data exchange: "
+											+ this.partitioning.name());
 		}
+
+		DataExchangeMode exMode = DataExchangeMode.select(exchangeMode, shipType, breakPipeline);
+		channel.setShipStrategy(shipType, partitionKeys, sortDirection, partitioner, exMode);
 	}
 
 	// ------------------------------------------------------------------------

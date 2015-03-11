@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputOperator;
@@ -50,17 +51,18 @@ import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.compiler.plan.PlanNode.SourceAndDamReport;
 import org.apache.flink.compiler.util.NoOpUnaryUdfOp;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
 import com.google.common.collect.Sets;
 
 /**
- * A node in the optimizer's program representation for a PACT with a single input.
+ * A node in the optimizer's program representation for an operation with a single input.
  * 
- * This class contains all the generic logic for branch handling, interesting properties,
- * and candidate plan enumeration. The subclasses for specific operators simply add logic
- * for cost estimates and specify possible strategies for their realization.
+ * This class contains all the generic logic for handling branching flows, as well as to
+ * enumerate candidate execution plans. The subclasses for specific operators simply add logic
+ * for cost estimates and specify possible strategies for their execution.
  */
 public abstract class SingleInputNode extends OptimizerNode {
 	
@@ -73,12 +75,12 @@ public abstract class SingleInputNode extends OptimizerNode {
 	/**
 	 * Creates a new node with a single input for the optimizer plan.
 	 * 
-	 * @param pactContract The PACT that the node represents.
+	 * @param programOperator The PACT that the node represents.
 	 */
-	protected SingleInputNode(SingleInputOperator<?, ?, ?> pactContract) {
-		super(pactContract);
+	protected SingleInputNode(SingleInputOperator<?, ?, ?> programOperator) {
+		super(programOperator);
 		
-		int[] k = pactContract.getKeyColumns(0);
+		int[] k = programOperator.getKeyColumns(0);
 		this.keys = k == null || k.length == 0 ? null : new FieldSet(k);
 	}
 	
@@ -115,7 +117,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	}
 
 	/**
-	 * Sets the <tt>PactConnection</tt> through which this node receives its input.
+	 * Sets the connection through which this node receives its input.
 	 * 
 	 * @param inConn The input connection to set.
 	 */
@@ -136,7 +138,6 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 	}
 
-
 	@Override
 	public List<PactConnection> getIncomingConnections() {
 		return Collections.singletonList(this.inConn);
@@ -145,12 +146,14 @@ public abstract class SingleInputNode extends OptimizerNode {
 
 	@Override
 	public SemanticProperties getSemanticProperties() {
-		return ((SingleInputOperator<?,?,?>) getPactContract()).getSemanticProperties();
+		return getPactContract().getSemanticProperties();
 	}
 	
 
 	@Override
-	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) throws CompilerException {
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode defaultExchangeMode)
+			throws CompilerException
+	{
 		// see if an internal hint dictates the strategy to use
 		final Configuration conf = getPactContract().getParameters();
 		final String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
@@ -181,7 +184,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input.");
 		} else {
 			pred = contractToNode.get(children);
-			conn = new PactConnection(pred, this);
+			conn = new PactConnection(pred, this, defaultExchangeMode);
 			if (preSet != null) {
 				conn.setShipStrategy(preSet);
 			}
@@ -250,15 +253,19 @@ public abstract class SingleInputNode extends OptimizerNode {
 		final List<Set<? extends NamedChannel>> broadcastPlanChannels = new ArrayList<Set<? extends NamedChannel>>();
 		List<PactConnection> broadcastConnections = getBroadcastConnections();
 		List<String> broadcastConnectionNames = getBroadcastConnectionNames();
+
 		for (int i = 0; i < broadcastConnections.size(); i++ ) {
 			PactConnection broadcastConnection = broadcastConnections.get(i);
 			String broadcastConnectionName = broadcastConnectionNames.get(i);
 			List<PlanNode> broadcastPlanCandidates = broadcastConnection.getSource().getAlternativePlans(estimator);
-			// wrap the plan candidates in named channels 
+
+			// wrap the plan candidates in named channels
 			HashSet<NamedChannel> broadcastChannels = new HashSet<NamedChannel>(broadcastPlanCandidates.size());
 			for (PlanNode plan: broadcastPlanCandidates) {
-				final NamedChannel c = new NamedChannel(broadcastConnectionName, plan);
-				c.setShipStrategy(ShipStrategyType.BROADCAST);
+				NamedChannel c = new NamedChannel(broadcastConnectionName, plan);
+				DataExchangeMode exMode = DataExchangeMode.select(broadcastConnection.getDataExchangeMode(),
+										ShipStrategyType.BROADCAST, broadcastConnection.isBreakingPipeline());
+				c.setShipStrategy(ShipStrategyType.BROADCAST, exMode);
 				broadcastChannels.add(c);
 			}
 			broadcastPlanChannels.add(broadcastChannels);
@@ -270,21 +277,24 @@ public abstract class SingleInputNode extends OptimizerNode {
 			for (OperatorDescriptorSingle ods : getPossibleProperties()) {
 				pairs.addAll(ods.getPossibleGlobalProperties());
 			}
-			allValidGlobals = (RequestedGlobalProperties[]) pairs.toArray(new RequestedGlobalProperties[pairs.size()]);
+			allValidGlobals = pairs.toArray(new RequestedGlobalProperties[pairs.size()]);
 		}
 		final ArrayList<PlanNode> outputPlans = new ArrayList<PlanNode>();
-		
+
+		final ExecutionMode executionMode = this.inConn.getDataExchangeMode();
+
 		final int dop = getDegreeOfParallelism();
 		final int inDop = getPredecessorNode().getDegreeOfParallelism();
-
 		final boolean dopChange = inDop != dop;
+
+		final boolean breaksPipeline = this.inConn.isBreakingPipeline();
 
 		// create all candidates
 		for (PlanNode child : subPlans) {
 
-			if(child.getGlobalProperties().isFullyReplicated()) {
+			if (child.getGlobalProperties().isFullyReplicated()) {
 				// fully replicated input is always locally forwarded if DOP is not changed
-				if(dopChange) {
+				if (dopChange) {
 					// can not continue with this child
 					childrenSkippedDueToReplicatedInput = true;
 					continue;
@@ -297,7 +307,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 				// pick the strategy ourselves
 				for (RequestedGlobalProperties igps: intGlobal) {
 					final Channel c = new Channel(child, this.inConn.getMaterializationMode());
-					igps.parameterizeChannel(c, dopChange);
+					igps.parameterizeChannel(c, dopChange, executionMode, breaksPipeline);
 					
 					// if the DOP changed, make sure that we cancel out properties, unless the
 					// ship strategy preserves/establishes them even under changing DOPs
@@ -320,10 +330,13 @@ public abstract class SingleInputNode extends OptimizerNode {
 			} else {
 				// hint fixed the strategy
 				final Channel c = new Channel(child, this.inConn.getMaterializationMode());
+				final ShipStrategyType shipStrategy = this.inConn.getShipStrategy();
+				final DataExchangeMode exMode = DataExchangeMode.select(executionMode, shipStrategy, breaksPipeline);
+
 				if (this.keys != null) {
-					c.setShipStrategy(this.inConn.getShipStrategy(), this.keys.toFieldList());
+					c.setShipStrategy(shipStrategy, this.keys.toFieldList(), exMode);
 				} else {
-					c.setShipStrategy(this.inConn.getShipStrategy());
+					c.setShipStrategy(shipStrategy, exMode);
 				}
 				
 				if (dopChange) {

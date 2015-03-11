@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.AbstractUdfOperator;
 import org.apache.flink.api.common.operators.CompilerHints;
 import org.apache.flink.api.common.operators.Operator;
@@ -133,42 +134,39 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 
 	// ------------------------------------------------------------------------
-	//      Abstract methods that implement node specific behavior
-	//        and the pact type specific optimization methods.
+	//  Methods specific to unary- / binary- / special nodes
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Gets the name of this node. This returns either the name of the PACT, or
-	 * a string marking the node as a data source or a data sink.
+	 * Gets the name of this node, which is the name of the function/operator, or
+	 * data source / data sink.
 	 * 
 	 * @return The node name.
 	 */
 	public abstract String getName();
 
 	/**
-	 * This function is for plan translation purposes. Upon invocation, the implementing subclasses should
-	 * examine its contained contract and look at the contracts that feed their data into that contract.
-	 * The method should then create a <tt>PactConnection</tt> for each of those inputs.
-	 * <p>
-	 * In addition, the nodes must set the shipping strategy of the connection, if a suitable optimizer hint is found.
-	 * 
-	 * @param contractToNode
-	 *        The map to translate the contracts to their corresponding optimizer nodes.
+	 * This function connects the predecessors to this operator.
+	 *
+	 * @param operatorToNode The map from program operators to optimizer nodes.
+	 * @param defaultExchangeMode The data exchange mode to use, if the operator does not
+	 *                            specify one.
 	 */
-	public abstract void setInput(Map<Operator<?>, OptimizerNode> contractToNode);
+	public abstract void setInput(Map<Operator<?>, OptimizerNode> operatorToNode,
+									ExecutionMode defaultExchangeMode);
 
 	/**
-	 * This function is for plan translation purposes. Upon invocation, this method creates a {@link PactConnection}
-	 * for each one of the broadcast inputs associated with the {@code Operator} referenced by this node.
-	 * <p>
-	 * The {@code PactConnections} must set its shipping strategy type to BROADCAST.
-	 * 
-	 * @param operatorToNode
-	 *        The map associating operators with their corresponding optimizer nodes.
+	 * This function connects the predecessors to this operator.
+	 *
+	 * @param operatorToNode The map from program operators to optimizer nodes.
+	 * @param defaultExchangeMode The data exchange mode to use, if the operator does not
+	 *                            specify one.
+	 *
 	 * @throws CompilerException
 	 */
-	public void setBroadcastInputs(Map<Operator<?>, OptimizerNode> operatorToNode) throws CompilerException {
-
+	public void setBroadcastInputs(Map<Operator<?>, OptimizerNode> operatorToNode, ExecutionMode defaultExchangeMode)
+			throws CompilerException
+	{
 		// skip for Operators that don't support broadcast variables 
 		if (!(getPactContract() instanceof AbstractUdfOperator<?, ?>)) {
 			return;
@@ -180,7 +178,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		// create connections and add them
 		for (Map.Entry<String, Operator<?>> input : operator.getBroadcastInputs().entrySet()) {
 			OptimizerNode predecessor = operatorToNode.get(input.getValue());
-			PactConnection connection = new PactConnection(predecessor, this, ShipStrategyType.BROADCAST);
+			PactConnection connection = new PactConnection(predecessor, this,
+															ShipStrategyType.BROADCAST, defaultExchangeMode);
 			addBroadcastConnection(input.getKey(), connection);
 			predecessor.addOutgoingConnection(connection);
 		}
@@ -189,7 +188,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	/**
 	 * This method needs to be overridden by subclasses to return the children.
 	 * 
-	 * @return The list of incoming links.
+	 * @return The list of incoming connections.
 	 */
 	public abstract List<PactConnection> getIncomingConnections();
 
@@ -198,7 +197,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * for the node itself must have been computed before.
 	 * The node must then see how many of interesting properties it preserves and add its own.
 	 * 
-	 * @param estimator	The {@code CostEstimator} instance to use for plan cost estimation.
+	 * @param estimator The {@code CostEstimator} instance to use for plan cost estimation.
 	 */
 	public abstract void computeInterestingPropertiesForInputs(CostEstimator estimator);
 
@@ -212,7 +211,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public abstract void computeUnclosedBranchStack();
 	
 	
-	protected List<UnclosedBranchDescriptor> computeUnclosedBranchStackForBroadcastInputs(List<UnclosedBranchDescriptor> branchesSoFar) {
+	protected List<UnclosedBranchDescriptor> computeUnclosedBranchStackForBroadcastInputs(
+															List<UnclosedBranchDescriptor> branchesSoFar)
+	{
 		// handle the data flow branching for the broadcast inputs
 		for (PactConnection broadcastInput : getBroadcastConnections()) {
 			OptimizerNode bcSource = broadcastInput.getSource();
@@ -221,7 +222,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			List<UnclosedBranchDescriptor> bcBranches = bcSource.getBranchesForParent(broadcastInput);
 			
 			ArrayList<UnclosedBranchDescriptor> mergedBranches = new ArrayList<UnclosedBranchDescriptor>();
-			mergeLists(branchesSoFar, bcBranches, mergedBranches);
+			mergeLists(branchesSoFar, bcBranches, mergedBranches, true);
 			branchesSoFar = mergedBranches.isEmpty() ? Collections.<UnclosedBranchDescriptor>emptyList() : mergedBranches;
 		}
 		
@@ -261,9 +262,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	@Override
 	public Iterable<OptimizerNode> getPredecessors() {
 		List<OptimizerNode> allPredecessors = new ArrayList<OptimizerNode>();
-		
-		for (Iterator<PactConnection> inputs = getIncomingConnections().iterator(); inputs.hasNext(); ){
-			allPredecessors.add(inputs.next().getSource());
+
+		for (PactConnection pactConnection : getIncomingConnections()) {
+			allPredecessors.add(pactConnection.getSource());
 		}
 		
 		for (PactConnection conn : getBroadcastConnections()) {
@@ -303,8 +304,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	/**
 	 * Adds the broadcast connection identified by the given {@code name} to this node.
 	 * 
-	 * @param broadcastConnection
-	 *        The connection to add.
+	 * @param broadcastConnection The connection to add.
 	 */
 	public void addBroadcastConnection(String name, PactConnection broadcastConnection) {
 		this.broadcastConnectionNames.add(name);
@@ -353,42 +353,40 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 
 	/**
-	 * Gets the object that specifically describes the contract of this node.
+	 * Gets the operator represented by this optimizer node.
 	 * 
-	 * @return This node's contract.
+	 * @return This node's operator.
 	 */
 	public Operator<?> getPactContract() {
 		return this.pactContract;
 	}
 
 	/**
-	 * Gets the degree of parallelism for the contract represented by this optimizer node.
-	 * The degree of parallelism denotes how many parallel instances of the user function will be
+	 * Gets the parallelism for the operator represented by this optimizer node.
+	 * The parallelism denotes how many parallel instances of the operator on will be
 	 * spawned during the execution. If this value is <code>-1</code>, then the system will take
 	 * the default number of parallel instances.
 	 * 
-	 * @return The degree of parallelism.
+	 * @return The parallelism of the operator.
 	 */
 	public int getDegreeOfParallelism() {
 		return this.degreeOfParallelism;
 	}
 
 	/**
-	 * Sets the degree of parallelism for the contract represented by this optimizer node.
-	 * The degree of parallelism denotes how many parallel instances of the user function will be
+	 * Sets the parallelism for this optimizer node.
+	 * The parallelism denotes how many parallel instances of the operator will be
 	 * spawned during the execution. If this value is set to <code>-1</code>, then the system will take
 	 * the default number of parallel instances.
 	 * 
-	 * @param degreeOfParallelism
-	 *        The degree of parallelism to set.
-	 * @throws IllegalArgumentException
-	 *         If the degree of parallelism is smaller than one and not -1.
+	 * @param parallelism The parallelism to set.
+	 * @throws IllegalArgumentException If the parallelism is smaller than one and not -1.
 	 */
-	public void setDegreeOfParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1) {
-			throw new IllegalArgumentException("Degree of parallelism of " + degreeOfParallelism + " is invalid.");
+	public void setDegreeOfParallelism(int parallelism) {
+		if (parallelism < 1 && parallelism != -1) {
+			throw new IllegalArgumentException("Degree of parallelism of " + parallelism + " is invalid.");
 		}
-		this.degreeOfParallelism = degreeOfParallelism;
+		this.degreeOfParallelism = parallelism;
 	}
 	
 	/**
@@ -496,6 +494,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	public boolean isBranching() {
 		return getOutgoingConnections() != null && getOutgoingConnections().size() > 1;
+	}
+
+	public void markAllOutgoingConnectionsAsPipelineBreaking() {
+		if (this.outgoingConnections == null) {
+			throw new IllegalStateException("The outgoing connections have not yet been initialized.");
+		}
+		for (PactConnection conn : getOutgoingConnections()) {
+			conn.markBreaksPipeline();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -971,10 +978,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 	
 	/**
-	 * The node IDs are assigned in graph-traversal order (pre-order), hence, each list is sorted by ID in ascending order and
-	 * all consecutive lists start with IDs in ascending order.
+	 * The node IDs are assigned in graph-traversal order (pre-order), hence, each list is
+	 * sorted by ID in ascending order and all consecutive lists start with IDs in ascending order.
+	 *
+	 * @param markJoinedBranchesAsPipelineBreaking True, if the
 	 */
-	protected final boolean mergeLists(List<UnclosedBranchDescriptor> child1open, List<UnclosedBranchDescriptor> child2open, List<UnclosedBranchDescriptor> result) {
+	protected final boolean mergeLists(List<UnclosedBranchDescriptor> child1open,
+										List<UnclosedBranchDescriptor> child2open,
+										List<UnclosedBranchDescriptor> result,
+										boolean markJoinedBranchesAsPipelineBreaking) {
 
 		//remove branches which have already been closed
 		removeClosedBranches(child1open);
@@ -1033,7 +1045,15 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 				// if it is the same, add it only once, otherwise process the join of the paths
 				if (vector1 == vector2) {
 					result.add(child1open.get(index1));
-				} else {
+				}
+				else {
+					// we merge (re-join) a branch
+
+					// mark the branch as a point where we break the pipeline
+					if (markJoinedBranchesAsPipelineBreaking) {
+						currBanchingNode.markAllOutgoingConnectionsAsPipelineBreaking();
+					}
+
 					if (this.hereJoinedBranches == null) {
 						this.hereJoinedBranches = new ArrayList<OptimizerNode>(2);
 					}
