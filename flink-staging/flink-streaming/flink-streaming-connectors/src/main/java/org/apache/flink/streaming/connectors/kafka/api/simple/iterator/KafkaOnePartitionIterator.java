@@ -252,8 +252,7 @@ public class KafkaOnePartitionIterator implements KafkaConsumerIterator, Seriali
 				}
 			} catch (Exception e) {
 				throw new RuntimeException("Error communicating with Broker [" + seed
-						+ "] to find Leader for [" + a_topic + ", " + a_partition + "] Reason: "
-						+ e);
+						+ "] to find Leader for [" + a_topic + ", " + a_partition + "]", e);
 			} finally {
 				if (consumer != null) {
 					consumer.close();

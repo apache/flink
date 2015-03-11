@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka.api.simple;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Collection;
 import java.util.Properties;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -27,6 +28,7 @@ import org.I0Itec.zkclient.serialize.ZkSerializer;
 import kafka.admin.AdminUtils;
 import kafka.api.PartitionMetadata;
 import kafka.api.TopicMetadata;
+import kafka.cluster.Broker;
 import scala.collection.JavaConversions;
 import scala.collection.Seq;
 
@@ -35,6 +37,14 @@ import scala.collection.Seq;
  * or creating a topic.
  */
 public class KafkaTopicUtils {
+
+	public static void main(String[] args) {
+		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils("localhost:2181", 5000, 5000);
+//		TopicMetadata para4 = kafkaTopicUtils.getTopicInfo("para4");
+//		PartitionMetadata next = JavaConversions.asJavaCollection(para4.partitionsMetadata()).iterator().next();
+//		next.
+		System.out.println(kafkaTopicUtils.getLeaderBrokerAddressForTopic("para4"));
+	}
 
 	private final ZkClient zkClient;
 
@@ -59,6 +69,19 @@ public class KafkaTopicUtils {
 	public int getNumberOfPartitions(String topicName) {
 		Seq<PartitionMetadata> partitionMetadataSeq = getTopicInfo(topicName).partitionsMetadata();
 		return JavaConversions.asJavaCollection(partitionMetadataSeq).size();
+	}
+
+	public String getLeaderBrokerAddressForTopic(String topicName) {
+		TopicMetadata topicInfo = getTopicInfo(topicName);
+
+		Collection<PartitionMetadata> partitions = JavaConversions.asJavaCollection(topicInfo.partitionsMetadata());
+		PartitionMetadata partitionMetadata = partitions.iterator().next();
+
+		Broker leader = JavaConversions.asJavaCollection(partitionMetadata.isr()).iterator().next();
+
+		// TODO for Kafka version 8.2.0
+		//		return leader.connectionString();
+		return leader.getConnectionString();
 	}
 
 	public TopicMetadata getTopicInfo(String topicName) {

@@ -19,11 +19,6 @@ package org.apache.flink.streaming.connectors.kafka.api;
 
 import java.util.Properties;
 
-import kafka.javaapi.producer.Producer;
-import kafka.producer.KeyedMessage;
-import kafka.producer.ProducerConfig;
-import kafka.serializer.DefaultEncoder;
-
 import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kafka.config.EncoderWrapper;
 import org.apache.flink.streaming.connectors.kafka.config.PartitionerWrapper;
@@ -31,11 +26,16 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaDistributePa
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.connectors.util.SerializationSchema;
 
+import kafka.javaapi.producer.Producer;
+import kafka.producer.KeyedMessage;
+import kafka.producer.ProducerConfig;
+import kafka.serializer.DefaultEncoder;
+
 /**
  * Sink that emits its inputs to a Kafka topic.
- * 
+ *
  * @param <IN>
- *            Type of the sink input
+ * 		Type of the sink input
  */
 public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
@@ -51,33 +51,33 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	/**
 	 * Creates a KafkaSink for a given topic. The partitioner distributes the
 	 * messages between the partitions of the topics.
-	 * 
-	 * @param topicId
-	 *            ID of the Kafka topic.
+	 *
 	 * @param brokerAddr
-	 *            Address of the Kafka broker (with port number).
+	 * 		Address of the Kafka broker (with port number).
+	 * @param topicId
+	 * 		ID of the Kafka topic.
 	 * @param serializationSchema
-	 *            User defined serialization schema.
+	 * 		User defined serialization schema.
 	 */
-	public KafkaSink(String topicId, String brokerAddr,
+	public KafkaSink(String brokerAddr, String topicId,
 			SerializationSchema<IN, byte[]> serializationSchema) {
-		this(topicId, brokerAddr, serializationSchema, new KafkaDistributePartitioner<IN>());
+		this(brokerAddr, topicId, serializationSchema, new KafkaDistributePartitioner<IN>());
 	}
 
 	/**
 	 * Creates a KafkaSink for a given topic. The sink produces its input into
 	 * the topic.
-	 * 
-	 * @param topicId
-	 *            ID of the Kafka topic.
+	 *
 	 * @param brokerAddr
-	 *            Address of the Kafka broker (with port number).
+	 * 		Address of the Kafka broker (with port number).
+	 * @param topicId
+	 * 		ID of the Kafka topic.
 	 * @param serializationSchema
-	 *            User defined serialization schema.
+	 * 		User defined serialization schema.
 	 * @param partitioner
-	 *            User defined partitioner.
+	 * 		User defined partitioner.
 	 */
-	public KafkaSink(String topicId, String brokerAddr,
+	public KafkaSink(String brokerAddr, String topicId,
 			SerializationSchema<IN, byte[]> serializationSchema, KafkaPartitioner<IN> partitioner) {
 		this.topicId = topicId;
 		this.brokerAddr = brokerAddr;
@@ -107,15 +107,19 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 
 		ProducerConfig config = new ProducerConfig(props);
 
-		producer = new Producer<IN, byte[]>(config);
+		try {
+			producer = new Producer<IN, byte[]>(config);
+		} catch (NullPointerException e) {
+			throw new RuntimeException("Cannot connect to Kafka broker " + brokerAddr);
+		}
 		initDone = true;
 	}
 
 	/**
 	 * Called when new data arrives to the sink, and forwards it to Kafka.
-	 * 
+	 *
 	 * @param next
-	 *            The incoming data
+	 * 		The incoming data
 	 */
 	@Override
 	public void invoke(IN next) {

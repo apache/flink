@@ -34,16 +34,14 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	protected String topicId;
-	protected final String hostName;
-//	protected final int port;
+	protected final String zookeeperServerAddress;
 	protected KafkaConsumerIterator iterator;
 
-	public SimpleKafkaSource(String topic, String hostName,
+	public SimpleKafkaSource(String topic, String zookeeperServerAddress,
 			DeserializationSchema<OUT> deserializationSchema) {
 		super(deserializationSchema);
 		this.topicId = topic;
-		this.hostName = hostName;
-//		this.port = port;
+		this.zookeeperServerAddress = zookeeperServerAddress;
 	}
 
 	protected void setInitialOffset(Configuration config) throws InterruptedException {

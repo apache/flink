@@ -35,9 +35,8 @@ public class KafkaSimpleConsumerExample {
 		}
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment().setDegreeOfParallelism(4);
-
 		DataStream<String> kafkaStream = env
-				.addSource(new PersistentKafkaSource<String>(topic, host + ":" + port, new JavaDefaultStringSchema()));
+				.addSource(new PersistentKafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()));
 
 		kafkaStream.print();
 

@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaConsumerIterator;
 import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaIdleConsumerIterator;
 import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaMultiplePartitionsIterator;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.CurrentOffset;
@@ -39,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * by the whole execution graph.
  *
  * @param <OUT>
- *            Type of the messages on the topic.
+ * 		Type of the messages on the topic.
  */
 public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 
@@ -47,14 +48,48 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PersistentKafkaSource.class);
 
-	private transient OperatorState<Map<Integer, KafkaOffset>> kafkaOffSet;
-	private transient Map<Integer, KafkaOffset> partitions;
+	protected transient OperatorState<Map<Integer, KafkaOffset>> kafkaOffSet;
+	protected transient Map<Integer, KafkaOffset> partitions;
 
 	private int partition;
-	
-	public PersistentKafkaSource(String topicId, String host,
+
+	private int zookeeperSyncTimeMillis;
+	private int waitOnEmptyFetchMillis;
+
+	/**
+	 * Creates a persistent Kafka source that consumes a topic.
+	 *
+	 * @param zookeeperHost
+	 * 		Address of the Zookeeper host (with port number).
+	 * @param topicId
+	 * 		ID of the Kafka topic.
+	 * @param deserializationSchema
+	 * 		User defined deserialization schema.
+	 */
+	public PersistentKafkaSource(String zookeeperHost, String topicId,
 			DeserializationSchema<OUT> deserializationSchema) {
-		super(topicId, host, deserializationSchema);
+		this(zookeeperHost, topicId, deserializationSchema, 5000, 500);
+	}
+
+	/**
+	 * Creates a persistent Kafka source that consumes a topic.
+	 *
+	 * @param zookeeperHost
+	 * 		Address of the Zookeeper host (with port number).
+	 * @param topicId
+	 * 		ID of the Kafka topic.
+	 * @param deserializationSchema
+	 * 		User defined deserialization schema.
+	 * @param zookeeperSyncTimeMillis
+	 * 		Synchronization time with zookeeper.
+	 * @param waitOnEmptyFetchMillis
+	 * 		Time to wait before fetching for new message.
+	 */
+	public PersistentKafkaSource(String zookeeperHost, String topicId,
+			DeserializationSchema<OUT> deserializationSchema, int zookeeperSyncTimeMillis, int waitOnEmptyFetchMillis) {
+		super(topicId, zookeeperHost, deserializationSchema);
+		this.zookeeperSyncTimeMillis = zookeeperSyncTimeMillis;
+		this.waitOnEmptyFetchMillis = waitOnEmptyFetchMillis;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -63,7 +98,13 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 		int indexOfSubtask = context.getIndexOfThisSubtask();
 		int numberOfSubtasks = context.getNumberOfParallelSubtasks();
-		int numberOfPartitions = new KafkaTopicUtils(hostName, 5000, 5000).getNumberOfPartitions(topicId);
+
+		KafkaTopicUtils kafkaTopicUtils =
+				new KafkaTopicUtils(zookeeperServerAddress, zookeeperSyncTimeMillis, zookeeperSyncTimeMillis);
+
+		int numberOfPartitions = kafkaTopicUtils.getNumberOfPartitions(topicId);
+
+		String brokerAddress = kafkaTopicUtils.getLeaderBrokerAddressForTopic(topicId);
 
 		if (indexOfSubtask >= numberOfPartitions) {
 			iterator = new KafkaIdleConsumerIterator();
@@ -72,25 +113,21 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 				kafkaOffSet = (OperatorState<Map<Integer, KafkaOffset>>) context.getState("kafka");
 
 				partitions = kafkaOffSet.getState();
-
-				iterator = new KafkaMultiplePartitionsIterator(hostName, topicId, partitions, 500);
 			} else {
 				partitions = new HashMap<Integer, KafkaOffset>();
 
 				partition = indexOfSubtask;
 
-				for (int partitionIndex = indexOfSubtask;
-					 partitionIndex < numberOfPartitions;
-					 partitionIndex += numberOfSubtasks) {
+				for (int partitionIndex = indexOfSubtask; partitionIndex < numberOfPartitions; partitionIndex += numberOfSubtasks) {
 					partitions.put(partitionIndex, new CurrentOffset());
 				}
 
 				kafkaOffSet = new OperatorState<Map<Integer, KafkaOffset>>(partitions);
 
 				context.registerState("kafka", kafkaOffSet);
-
-				iterator = new KafkaMultiplePartitionsIterator(hostName, topicId, partitions, 500);
 			}
+
+			iterator = getMultiKafkaIterator(brokerAddress, topicId, partitions, waitOnEmptyFetchMillis);
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info("KafkaSource ({}/{}) listening to partitions {} of topic {}.",
@@ -101,12 +138,21 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 		iterator.initialize();
 	}
 
+	protected KafkaConsumerIterator getMultiKafkaIterator(String hostName, String topic, Map<Integer, KafkaOffset> partitionsWithOffset, int waitOnEmptyFetch) {
+		return new KafkaMultiplePartitionsIterator(hostName, topic, partitionsWithOffset, waitOnEmptyFetch);
+	}
+
 	@Override
 	public void run(Collector<OUT> collector) throws Exception {
 		MessageWithMetadata msg;
 		while (iterator.hasNext()) {
 			msg = iterator.nextWithOffset();
 			OUT out = schema.deserialize(msg.getMessage());
+
+			if (schema.isEndOfStream(out)) {
+				break;
+			}
+
 			collector.collect(out);
 
 			// TODO avoid object creation

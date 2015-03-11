@@ -56,7 +56,7 @@ public class KafkaProducerExample {
 			
 			
 		}).addSink(
-				new KafkaSink<String>(topic, host + ":" + port, new JavaDefaultStringSchema())
+				new KafkaSink<String>(host + ":" + port, topic, new JavaDefaultStringSchema())
 		)
 		.setParallelism(3);
 

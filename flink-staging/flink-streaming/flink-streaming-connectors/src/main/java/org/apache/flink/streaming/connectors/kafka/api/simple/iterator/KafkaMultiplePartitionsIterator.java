@@ -30,8 +30,8 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaMultiplePartitionsIterator.class);
 
-	private List<KafkaOnePartitionIterator> partitions;
-	private final int waitOnEmptyFetch;
+	protected List<KafkaOnePartitionIterator> partitions;
+	protected final int waitOnEmptyFetch;
 
 	public KafkaMultiplePartitionsIterator(String hostName, String topic, Map<Integer, KafkaOffset> partitionsWithOffset, int waitOnEmptyFetch) {
 		partitions = new ArrayList<KafkaOnePartitionIterator>(partitionsWithOffset.size());
@@ -45,7 +45,7 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 
 		for (Map.Entry<Integer, KafkaOffset> partitionWithOffset : partitionsWithOffset.entrySet()) {
 			partitions.add(new KafkaOnePartitionIterator(
-					hostName,
+					host,
 					port,
 					topic,
 					partitionWithOffset.getKey(),
@@ -70,7 +70,7 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 		return nextWithOffset().getMessage();
 	}
 
-	private int lastCheckedPartitionIndex = -1;
+	protected int lastCheckedPartitionIndex = -1;
 
 	@Override
 	public MessageWithMetadata nextWithOffset() throws InterruptedException {
@@ -94,7 +94,7 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 		}
 	}
 
-	private int nextPartition(int currentPartition) {
+	protected int nextPartition(int currentPartition) {
 		return (currentPartition + 1) % partitions.size();
 	}
 }
