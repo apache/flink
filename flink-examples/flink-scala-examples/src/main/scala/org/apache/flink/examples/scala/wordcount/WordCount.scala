@@ -17,6 +17,9 @@
  */
 package org.apache.flink.examples.scala.wordcount
 
+import java.util
+import java.util.regex.{Matcher, Pattern}
+
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.wordcount.util.WordCountData
 
@@ -41,8 +44,48 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData
  *   - write and use user-defined functions.
  *
  */
-object WordCount {
+
+
+object top_page {
+  def parseLong(s: String) = try {
+    s.toLong
+  } catch {
+    case _ => 0L
+  }
+
   def main(args: Array[String]) {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    var t = "a b c d"
+    var el = t.split(" ")
+    println("el", el.deep.mkString(", "))
+    var p = Pattern.compile(" ");
+    var m = p.matcher(t);
+    println("Groups:")
+    while(m.find()) {
+      println(m.group())
+    }
+
+
+    System.exit(0)
+
+    env.readTextFile(args(0))
+      .map(_.split(" "))
+      .filter(_.length == 4)
+      .map { fields => (fields(1), parseLong(fields(2)))}
+      .groupBy(0)
+      .sum(1)
+      .print()
+
+    env.execute("Top Page")
+  }
+}
+
+object WordCount {
+
+
+
+
+  /*def main(args: Array[String]) {
     if (!parseParameters(args)) {
       return
     }
@@ -62,7 +105,7 @@ object WordCount {
     }
 
     env.execute("Scala WordCount Example")
-  }
+  } */
 
   private def parseParameters(args: Array[String]): Boolean = {
     if (args.length > 0) {

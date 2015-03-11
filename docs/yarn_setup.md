@@ -25,12 +25,12 @@ under the License.
 
 ## In a Nutshell
 
-Start YARN session with 4 Task Managers (each with 4 GB of Heapspace):
+Start a YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 
 ~~~bash
 wget {{ site.FLINK_WGET_URL_YARN_STABLE }}
-tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2-yarn.tgz
-cd flink-yarn-{{ site.FLINK_VERSION_SHORT }}/
+tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2.tgz
+cd flink-{{ site.FLINK_VERSION_SHORT }}/
 ./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
 ~~~
 
@@ -60,11 +60,11 @@ Download the YARN tgz package on the [download page]({{site.baseurl}}/downloads.
 Extract the package using:
 
 ~~~bash
-tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2-yarn.tgz
-cd flink-yarn-{{site.FLINK_VERSION_SHORT }}/
+tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2.tgz
+cd flink-{{site.FLINK_VERSION_SHORT }}/
 ~~~
 
-If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). You can find the result of the build in `flink-dist/target/flink-{{ site.FLINK_VERSION_SHORT }}-bin/flink-yarn-{{ site.FLINK_VERSION_SHORT }}/` (*Note: The version might be different for you* ).
+If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). You can find the result of the build in `flink-dist/target/flink-{{ site.FLINK_VERSION_SHORT }}-bin/flink-{{ site.FLINK_VERSION_SHORT }}/` (*Note: The version might be different for you* ).
 
 
 #### Start a Session
@@ -83,6 +83,7 @@ Usage:
      -n,--container <arg>   Number of YARN container to allocate (=Number of Task Managers)
    Optional
      -D <arg>                        Dynamic properties
+     -d,--detached                   Start detached
      -jm,--jobManagerMemory <arg>    Memory for JobManager Container [in MB]
      -q,--query                      Display available YARN resources (memory, cores)
      -qu,--queue <arg>               Specify YARN queue.
@@ -102,18 +103,13 @@ The system will use the configuration in `conf/flink-config.yaml`. Please follow
 
 Flink on YARN will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines), `taskmanager.tmp.dirs` (we are using the tmp directories given by YARN) and `parallelization.degree.default` if the number of slots has been specified.
 
-If you don't want to change the configuration file to pass configuration parameters, there is the option to pass dynamic properties via the `-D` flag. So you can pass parameters this way: `-Dfs.overwrite-files=true -Dtaskmanager.network.numberOfBuffers=16368`.
+If you don't want to change the configuration file to set configuration parameters, there is the option to pass dynamic properties via the `-D` flag. So you can pass parameters this way: `-Dfs.overwrite-files=true -Dtaskmanager.network.numberOfBuffers=16368`.
 
 The example invocation starts 11 containers, since there is one additional container for the ApplicationMaster and Job Manager.
 
 Once Flink is deployed in your YARN cluster, it will show you the connection details of the Job Manager.
 
-The client has to remain open to keep the deployment running. We suggest to use `screen`, which will start a detachable shell:
-
-1. Open `screen`,
-2. Start Flink on YARN,
-3. Use `CTRL+a`, then press `d` to detach the screen session,
-4. Use `screen -r` to resume again.
+If you don't want TODOTODO
 
 
 ### Submit Job to Flink
