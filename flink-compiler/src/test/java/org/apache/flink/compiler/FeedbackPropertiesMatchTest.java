@@ -50,6 +50,7 @@ import org.apache.flink.compiler.plan.PlanNode.FeedbackPropertiesMeetRequirement
 import org.apache.flink.compiler.testfunctions.DummyFlatJoinFunction;
 import org.apache.flink.compiler.testfunctions.IdentityMapper;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
@@ -67,12 +68,12 @@ public class FeedbackPropertiesMatchTest {
 			SourcePlanNode otherTarget = new SourcePlanNode(getSourceNode(), "Source");
 			
 			Channel toMap1 = new Channel(target);
-			toMap1.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap1.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map1 = new SingleInputPlanNode(getMapNode(), "Mapper 1", toMap1, DriverStrategy.MAP);
 			
 			Channel toMap2 = new Channel(map1);
-			toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap2.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map2 = new SingleInputPlanNode(getMapNode(), "Mapper 2", toMap2, DriverStrategy.MAP);
 			
@@ -96,12 +97,12 @@ public class FeedbackPropertiesMatchTest {
 			SourcePlanNode target = new SourcePlanNode(getSourceNode(), "Source");
 			
 			Channel toMap1 = new Channel(target);
-			toMap1.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap1.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map1 = new SingleInputPlanNode(getMapNode(), "Mapper 1", toMap1, DriverStrategy.MAP);
 			
 			Channel toMap2 = new Channel(map1);
-			toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap2.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map2 = new SingleInputPlanNode(getMapNode(), "Mapper 2", toMap2, DriverStrategy.MAP);
 			
@@ -674,10 +675,10 @@ public class FeedbackPropertiesMatchTest {
 				RequestedGlobalProperties reqGp = new RequestedGlobalProperties();
 				reqGp.setAnyPartitioning(new FieldSet(2, 5));
 				
-				toMap1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 5));
+				toMap1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 5), DataExchangeMode.PIPELINED);
 				toMap1.setLocalStrategy(LocalStrategy.NONE);
 				
-				toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
 				
 				
@@ -700,10 +701,10 @@ public class FeedbackPropertiesMatchTest {
 				RequestedGlobalProperties reqGp = new RequestedGlobalProperties();
 				reqGp.setAnyPartitioning(new FieldSet(2, 5));
 				
-				toMap1.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap1.setLocalStrategy(LocalStrategy.NONE);
 				
-				toMap2.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 5));
+				toMap2.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 5), DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
 				
 				
@@ -726,10 +727,10 @@ public class FeedbackPropertiesMatchTest {
 				RequestedLocalProperties reqLp = new RequestedLocalProperties();
 				reqLp.setGroupedFields(new FieldList(4, 1));
 				
-				toMap1.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap1.setLocalStrategy(LocalStrategy.SORT, new FieldList(5, 7), new boolean[] {false, false});
 				
-				toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
 				
 				toMap1.setRequiredGlobalProps(null);
@@ -751,10 +752,10 @@ public class FeedbackPropertiesMatchTest {
 				RequestedLocalProperties reqLp = new RequestedLocalProperties();
 				reqLp.setGroupedFields(new FieldList(4, 1));
 				
-				toMap1.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap1.setLocalStrategy(LocalStrategy.NONE);
 				
-				toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.SORT, new FieldList(5, 7), new boolean[] {false, false});
 				
 				
@@ -780,10 +781,10 @@ public class FeedbackPropertiesMatchTest {
 				RequestedLocalProperties reqLp = new RequestedLocalProperties();
 				reqLp.setGroupedFields(new FieldList(5, 7));
 				
-				toMap1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(5, 7));
+				toMap1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(5, 7), DataExchangeMode.PIPELINED);
 				toMap1.setLocalStrategy(LocalStrategy.SORT, new FieldList(5, 7), new boolean[] {false, false});
 				
-				toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
 				
 				toMap1.setRequiredGlobalProps(reqGp);
@@ -824,13 +825,13 @@ public class FeedbackPropertiesMatchTest {
 				RequestedLocalProperties reqLp = new RequestedLocalProperties();
 				reqLp.setGroupedFields(new FieldList(4, 1));
 				
-				toMap1.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap1.setLocalStrategy(LocalStrategy.SORT, new FieldList(5, 7), new boolean[] {false, false});
 				
-				toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
 				
-				toMap3.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap3.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap3.setLocalStrategy(LocalStrategy.NONE);
 				
 				toMap1.setRequiredGlobalProps(null);
@@ -855,13 +856,13 @@ public class FeedbackPropertiesMatchTest {
 				RequestedGlobalProperties reqGp = new RequestedGlobalProperties();
 				reqGp.setAnyPartitioning(new FieldSet(2, 3));
 				
-				toMap1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(1, 2));
+				toMap1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(1, 2), DataExchangeMode.PIPELINED);
 				toMap1.setLocalStrategy(LocalStrategy.NONE);
 				
-				toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.NONE);
 				
-				toMap3.setShipStrategy(ShipStrategyType.FORWARD);
+				toMap3.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toMap3.setLocalStrategy(LocalStrategy.NONE);
 				
 				toMap1.setRequiredGlobalProps(null);
@@ -892,21 +893,21 @@ public class FeedbackPropertiesMatchTest {
 			SourcePlanNode source2 = new SourcePlanNode(getSourceNode(), "Source 2");
 			
 			Channel toMap1 = new Channel(source1);
-			toMap1.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap1.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map1 = new SingleInputPlanNode(getMapNode(), "Mapper 1", toMap1, DriverStrategy.MAP);
 			
 			Channel toMap2 = new Channel(source2);
-			toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap2.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map2 = new SingleInputPlanNode(getMapNode(), "Mapper 2", toMap2, DriverStrategy.MAP);
 			
 			Channel toJoin1 = new Channel(map1);
 			Channel toJoin2 = new Channel(map2);
 			
-			toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+			toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toJoin1.setLocalStrategy(LocalStrategy.NONE);
-			toJoin2.setShipStrategy(ShipStrategyType.FORWARD);
+			toJoin2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toJoin2.setLocalStrategy(LocalStrategy.NONE);
 			
 			DualInputPlanNode join = new DualInputPlanNode(getJoinNode(), "Join", toJoin1, toJoin2, DriverStrategy.HYBRIDHASH_BUILD_FIRST);
@@ -927,12 +928,12 @@ public class FeedbackPropertiesMatchTest {
 			SourcePlanNode source = new SourcePlanNode(getSourceNode(), "Other Source");
 			
 			Channel toMap1 = new Channel(target);
-			toMap1.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap1.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map1 = new SingleInputPlanNode(getMapNode(), "Mapper 1", toMap1, DriverStrategy.MAP);
 			
 			Channel toMap2 = new Channel(source);
-			toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap2.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map2 = new SingleInputPlanNode(getMapNode(), "Mapper 2", toMap2, DriverStrategy.MAP);
 			
@@ -942,13 +943,13 @@ public class FeedbackPropertiesMatchTest {
 			DualInputPlanNode join = new DualInputPlanNode(getJoinNode(), "Join", toJoin1, toJoin2, DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 			
 			Channel toAfterJoin = new Channel(join);
-			toAfterJoin.setShipStrategy(ShipStrategyType.FORWARD);
+			toAfterJoin.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toAfterJoin.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode afterJoin = new SingleInputPlanNode(getMapNode(), "After Join Mapper", toAfterJoin, DriverStrategy.MAP);
 			
 			// attach some properties to the non-relevant input
 			{
-				toMap2.setShipStrategy(ShipStrategyType.BROADCAST);
+				toMap2.setShipStrategy(ShipStrategyType.BROADCAST, DataExchangeMode.PIPELINED);
 				toMap2.setLocalStrategy(LocalStrategy.SORT, new FieldList(2, 7), new boolean[] {true, true});
 				
 				RequestedGlobalProperties joinGp = new RequestedGlobalProperties();
@@ -957,7 +958,7 @@ public class FeedbackPropertiesMatchTest {
 				RequestedLocalProperties joinLp = new RequestedLocalProperties();
 				joinLp.setOrdering(new Ordering(2, null, Order.ASCENDING).appendOrdering(7, null, Order.ASCENDING));
 				
-				toJoin2.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin2.setLocalStrategy(LocalStrategy.NONE);
 				toJoin2.setRequiredGlobalProps(joinGp);
 				toJoin2.setRequiredLocalProps(joinLp);
@@ -967,7 +968,7 @@ public class FeedbackPropertiesMatchTest {
 			
 			// no properties from the partial solution, no required properties
 			{
-				toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.NONE);
 				
 				GlobalProperties gp = new GlobalProperties();
@@ -979,7 +980,7 @@ public class FeedbackPropertiesMatchTest {
 			
 			// some properties from the partial solution, no required properties
 			{
-				toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.NONE);
 				
 				GlobalProperties gp = new GlobalProperties();
@@ -1006,7 +1007,7 @@ public class FeedbackPropertiesMatchTest {
 				toJoin1.setRequiredGlobalProps(rgp);
 				toJoin1.setRequiredLocalProps(rlp);
 				
-				toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.NONE);
 				
 				FeedbackPropertiesMeetRequirementsReport report = join.checkPartialSolutionPropertiesMet(target, gp, lp);
@@ -1028,7 +1029,7 @@ public class FeedbackPropertiesMatchTest {
 				toJoin1.setRequiredGlobalProps(rgp);
 				toJoin1.setRequiredLocalProps(rlp);
 				
-				toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.NONE);
 				
 				FeedbackPropertiesMeetRequirementsReport report = join.checkPartialSolutionPropertiesMet(target, gp, lp);
@@ -1053,7 +1054,7 @@ public class FeedbackPropertiesMatchTest {
 				toJoin1.setRequiredGlobalProps(null);
 				toJoin1.setRequiredLocalProps(null);
 				
-				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 1));
+				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 1), DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.SORT, new FieldList(7, 3), new boolean[] {true, false});
 				
 				FeedbackPropertiesMeetRequirementsReport report = join.checkPartialSolutionPropertiesMet(target, gp, lp);
@@ -1075,13 +1076,13 @@ public class FeedbackPropertiesMatchTest {
 				toMap1.setRequiredGlobalProps(null);
 				toMap1.setRequiredLocalProps(null);
 				
-				toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.NONE);
 				
 				toJoin1.setRequiredGlobalProps(rgp);
 				toJoin1.setRequiredLocalProps(rlp);
 			
-				toAfterJoin.setShipStrategy(ShipStrategyType.FORWARD);
+				toAfterJoin.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toAfterJoin.setLocalStrategy(LocalStrategy.NONE);
 				
 				toAfterJoin.setRequiredGlobalProps(rgp);
@@ -1112,7 +1113,7 @@ public class FeedbackPropertiesMatchTest {
 				toJoin1.setRequiredGlobalProps(rgp1);
 				toJoin1.setRequiredLocalProps(rlp1);
 			
-				toAfterJoin.setShipStrategy(ShipStrategyType.FORWARD);
+				toAfterJoin.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toAfterJoin.setLocalStrategy(LocalStrategy.NONE);
 				
 				toAfterJoin.setRequiredGlobalProps(rgp2);
@@ -1137,7 +1138,7 @@ public class FeedbackPropertiesMatchTest {
 				toJoin1.setRequiredGlobalProps(null);
 				toJoin1.setRequiredLocalProps(null);
 				
-				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 1));
+				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(2, 1), DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.SORT, new FieldList(7, 3), new boolean[] {true, false});
 				
 				toAfterJoin.setRequiredGlobalProps(rgp);
@@ -1159,7 +1160,7 @@ public class FeedbackPropertiesMatchTest {
 				toJoin1.setRequiredGlobalProps(null);
 				toJoin1.setRequiredLocalProps(null);
 				
-				toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.SORT, new FieldList(7, 3), new boolean[] {true, false});
 				
 				toAfterJoin.setRequiredGlobalProps(null);
@@ -1184,7 +1185,7 @@ public class FeedbackPropertiesMatchTest {
 				toJoin1.setRequiredGlobalProps(null);
 				toJoin1.setRequiredLocalProps(null);
 				
-				toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.SORT, new FieldList(7, 3), new boolean[] {true, false});
 				
 				toAfterJoin.setRequiredGlobalProps(rgp);
@@ -1206,27 +1207,27 @@ public class FeedbackPropertiesMatchTest {
 			SourcePlanNode target = new SourcePlanNode(getSourceNode(), "Partial Solution");
 			
 			Channel toMap1 = new Channel(target);
-			toMap1.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap1.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map1 = new SingleInputPlanNode(getMapNode(), "Mapper 1", toMap1, DriverStrategy.MAP);
 			
 			Channel toMap2 = new Channel(target);
-			toMap2.setShipStrategy(ShipStrategyType.FORWARD);
+			toMap2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toMap2.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode map2 = new SingleInputPlanNode(getMapNode(), "Mapper 2", toMap2, DriverStrategy.MAP);
 			
 			Channel toJoin1 = new Channel(map1);
-			toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+			toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toJoin1.setLocalStrategy(LocalStrategy.NONE);
 			
 			Channel toJoin2 = new Channel(map2);
-			toJoin2.setShipStrategy(ShipStrategyType.FORWARD);
+			toJoin2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toJoin2.setLocalStrategy(LocalStrategy.NONE);
 			
 			DualInputPlanNode join = new DualInputPlanNode(getJoinNode(), "Join", toJoin1, toJoin2, DriverStrategy.HYBRIDHASH_BUILD_FIRST);
 			
 			Channel toAfterJoin = new Channel(join);
-			toAfterJoin.setShipStrategy(ShipStrategyType.FORWARD);
+			toAfterJoin.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			toAfterJoin.setLocalStrategy(LocalStrategy.NONE);
 			SingleInputPlanNode afterJoin = new SingleInputPlanNode(getMapNode(), "After Join Mapper", toAfterJoin, DriverStrategy.MAP);
 			
@@ -1336,8 +1337,8 @@ public class FeedbackPropertiesMatchTest {
 				toJoin2.setRequiredGlobalProps(null);
 				toJoin2.setRequiredLocalProps(null);
 				
-				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(88));
-				toJoin2.setShipStrategy(ShipStrategyType.BROADCAST);
+				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(88), DataExchangeMode.PIPELINED);
+				toJoin2.setShipStrategy(ShipStrategyType.BROADCAST, DataExchangeMode.PIPELINED);
 				
 				toAfterJoin.setRequiredGlobalProps(rgp);
 				toAfterJoin.setRequiredLocalProps(rlp);
@@ -1358,8 +1359,8 @@ public class FeedbackPropertiesMatchTest {
 				RequestedLocalProperties rlp = new RequestedLocalProperties();
 				rlp.setGroupedFields(new FieldList(2, 1));
 				
-				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(88));
-				toJoin2.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(88), DataExchangeMode.PIPELINED);
+				toJoin2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				
 				toAfterJoin.setRequiredGlobalProps(rgp);
 				toAfterJoin.setRequiredLocalProps(rlp);
@@ -1380,8 +1381,8 @@ public class FeedbackPropertiesMatchTest {
 				RequestedLocalProperties rlp = new RequestedLocalProperties();
 				rlp.setGroupedFields(new FieldList(77, 69));
 				
-				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(88));
-				toJoin2.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.PARTITION_HASH, new FieldList(88), DataExchangeMode.PIPELINED);
+				toJoin2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				
 				toAfterJoin.setRequiredGlobalProps(rgp);
 				toAfterJoin.setRequiredLocalProps(rlp);
@@ -1400,10 +1401,10 @@ public class FeedbackPropertiesMatchTest {
 				rgp.setHashPartitioned(new FieldList(3));
 				
 				
-				toJoin1.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin1.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.SORT, new FieldList(3), new boolean[] { false });
 				
-				toJoin2.setShipStrategy(ShipStrategyType.FORWARD);
+				toJoin2.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 				toJoin1.setLocalStrategy(LocalStrategy.NONE);
 				
 				toAfterJoin.setRequiredGlobalProps(rgp);
@@ -1421,15 +1422,15 @@ public class FeedbackPropertiesMatchTest {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final DataSourceNode getSourceNode() {
+	private static DataSourceNode getSourceNode() {
 		return new DataSourceNode(new GenericDataSourceBase<String, TextInputFormat>(new TextInputFormat(new Path("/")), new OperatorInformation<String>(BasicTypeInfo.STRING_TYPE_INFO)));
 	}
 	
-	private static final MapNode getMapNode() {
+	private static MapNode getMapNode() {
 		return new MapNode(new MapOperatorBase<String, String, MapFunction<String,String>>(new IdentityMapper<String>(), new UnaryOperatorInformation<String, String>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO), "map op"));
 	}
 	
-	private static final JoinNode getJoinNode() {
+	private static JoinNode getJoinNode() {
 		return new JoinNode(new JoinOperatorBase<String, String, String, FlatJoinFunction<String, String, String>>(new DummyFlatJoinFunction<String>(), new BinaryOperatorInformation<String, String, String>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO), new int[] {1}, new int[] {2}, "join op"));
 	}
 }

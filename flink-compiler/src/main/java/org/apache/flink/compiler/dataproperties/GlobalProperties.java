@@ -21,6 +21,7 @@ package org.apache.flink.compiler.dataproperties;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -30,16 +31,15 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.util.Utils;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * This class represents global properties of the data at a certain point in the plan.
- * Global properties are properties that describe data across different partitions.
- * <p>
- * Currently, the properties are the following: A partitioning type (ANY, HASH, RANGE), and EITHER an ordering (for range partitioning)
- * or an FieldSet with the hash partitioning columns.
+ * Global properties are properties that describe data across different partitions, such as
+ * whether the data is hash partitioned, range partitioned, replicated, etc.
  */
 public class GlobalProperties implements Cloneable {
 
@@ -67,9 +67,9 @@ public class GlobalProperties implements Cloneable {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Sets the partitioning property for the global properties.
+	 * Sets this global properties to represent a hash partitioning.
 	 * 
-	 * @param partitionedFields 
+	 * @param partitionedFields The key fields on which the data is hash partitioned.
 	 */
 	public void setHashPartitioned(FieldList partitionedFields) {
 		if (partitionedFields == null) {
@@ -355,30 +355,64 @@ public class GlobalProperties implements Cloneable {
 	}
 
 
-	public void parameterizeChannel(Channel channel, boolean globalDopChange) {
+	public void parameterizeChannel(Channel channel, boolean globalDopChange,
+									ExecutionMode exchangeMode, boolean breakPipeline) {
+
+		ShipStrategyType shipType;
+		FieldList partitionKeys;
+		boolean[] sortDirection;
+		Partitioner<?> partitioner;
+
 		switch (this.partitioning) {
 			case RANDOM_PARTITIONED:
-				channel.setShipStrategy(globalDopChange ? ShipStrategyType.PARTITION_RANDOM : ShipStrategyType.FORWARD);
+				shipType = globalDopChange ? ShipStrategyType.PARTITION_RANDOM : ShipStrategyType.FORWARD;
+				partitionKeys = null;
+				sortDirection = null;
+				partitioner = null;
 				break;
+
 			case FULL_REPLICATION:
-				channel.setShipStrategy(ShipStrategyType.BROADCAST);
+				shipType = ShipStrategyType.BROADCAST;
+				partitionKeys = null;
+				sortDirection = null;
+				partitioner = null;
 				break;
+
 			case ANY_PARTITIONING:
 			case HASH_PARTITIONED:
-				channel.setShipStrategy(ShipStrategyType.PARTITION_HASH, Utils.createOrderedFromSet(this.partitioningFields));
+				shipType = ShipStrategyType.PARTITION_HASH;
+				partitionKeys = Utils.createOrderedFromSet(this.partitioningFields);
+				sortDirection = null;
+				partitioner = null;
 				break;
+
 			case RANGE_PARTITIONED:
-				channel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
+				shipType = ShipStrategyType.PARTITION_RANGE;
+				partitionKeys = this.ordering.getInvolvedIndexes();
+				sortDirection = this.ordering.getFieldSortDirections();
+				partitioner = null;
 				break;
+
 			case FORCED_REBALANCED:
-				channel.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
+				shipType = ShipStrategyType.PARTITION_RANDOM;
+				partitionKeys = null;
+				sortDirection = null;
+				partitioner = null;
 				break;
+
 			case CUSTOM_PARTITIONING:
-				channel.setShipStrategy(ShipStrategyType.PARTITION_CUSTOM, this.partitioningFields, this.customPartitioner);
+				shipType = ShipStrategyType.PARTITION_CUSTOM;
+				partitionKeys = this.partitioningFields;
+				sortDirection = null;
+				partitioner = this.customPartitioner;
 				break;
+
 			default:
 				throw new CompilerException("Unsupported partitioning strategy");
 		}
+
+		DataExchangeMode exMode = DataExchangeMode.select(exchangeMode, shipType, breakPipeline);
+		channel.setShipStrategy(shipType, partitionKeys, sortDirection, partitioner, exMode);
 	}
 
 	// ------------------------------------------------------------------------
@@ -438,7 +472,7 @@ public class GlobalProperties implements Cloneable {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final GlobalProperties combine(GlobalProperties gp1, GlobalProperties gp2) {
+	public static GlobalProperties combine(GlobalProperties gp1, GlobalProperties gp2) {
 		if (gp1.isFullyReplicated()) {
 			if (gp2.isFullyReplicated()) {
 				return new GlobalProperties();
@@ -448,7 +482,7 @@ public class GlobalProperties implements Cloneable {
 		} else if (gp2.isFullyReplicated()) {
 			return gp1;
 		} else if (gp1.ordering != null) {
-			return gp1; 
+			return gp1;
 		} else if (gp2.ordering != null) {
 			return gp2;
 		} else if (gp1.partitioningFields != null) {

@@ -51,6 +51,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	
 	private int maxDepth = -1;
 
+	private boolean breakPipeline;  // whether this connection should break the pipeline due to potential deadlocks
+
 	/**
 	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
 	 * The temp mode is by default <tt>NONE</tt>.
@@ -74,10 +76,10 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 * @param shipStrategy
 	 *        The shipping strategy.
 	 * @param exchangeMode
-	 *        The data exchange mode (pipelined / batch)
+	 *        The data exchange mode (pipelined / batch / batch only for shuffles / ... )
 	 */
 	public PactConnection(OptimizerNode source, OptimizerNode target,
-						  ShipStrategyType shipStrategy, ExecutionMode exchangeMode)
+							ShipStrategyType shipStrategy, ExecutionMode exchangeMode)
 	{
 		if (source == null || target == null) {
 			throw new NullPointerException("Source and target must not be null.");
@@ -95,14 +97,14 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 * @param source
 	 *        The source node.
 	 */
-	public PactConnection(OptimizerNode source) {
+	public PactConnection(OptimizerNode source, ExecutionMode exchangeMode) {
 		if (source == null) {
 			throw new NullPointerException("Source and target must not be null.");
 		}
 		this.source = source;
 		this.target = null;
 		this.shipStrategy = ShipStrategyType.NONE;
-		this.dataExchangeMode = null;
+		this.dataExchangeMode = exchangeMode;
 	}
 
 	/**
@@ -149,9 +151,27 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 	 */
 	public ExecutionMode getDataExchangeMode() {
 		if (dataExchangeMode == null) {
-			throw new IllegalStateException("This connection does not have a data exchange");
+			throw new IllegalStateException("This connection does not have the data exchange mode set");
 		}
 		return dataExchangeMode;
+	}
+
+	/**
+	 * Marks that this connection should do a decoupled data exchange (such as batched)
+	 * rather then pipeline data. Connections are marked as pipeline breakers to avoid
+	 * deadlock situations.
+	 */
+	public void markBreaksPipeline() {
+		this.breakPipeline = true;
+	}
+
+	/**
+	 * Checks whether this connection is marked to break the pipeline.
+	 *
+	 * @return True, if this connection is marked to break the pipeline, false otherwise.
+	 */
+	public boolean isBreakingPipeline() {
+		return this.breakPipeline;
 	}
 
 	/**
@@ -199,6 +219,8 @@ public class PactConnection implements EstimateProvider, DumpableConnection<Opti
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Estimates
 	// --------------------------------------------------------------------------------------------
 
 	@Override

@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties.EmptySemanticProperties;
@@ -66,7 +67,7 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) {}
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode dataExchangeMode) {}
 
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {

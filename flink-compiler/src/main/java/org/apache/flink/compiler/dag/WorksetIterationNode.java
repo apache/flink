@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties.EmptySemanticProperties;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
@@ -148,7 +149,9 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		this.worksetNode = worksetNode;
 	}
 	
-	public void setNextPartialSolution(OptimizerNode solutionSetDelta, OptimizerNode nextWorkset) {
+	public void setNextPartialSolution(OptimizerNode solutionSetDelta, OptimizerNode nextWorkset,
+										ExecutionMode executionMode) {
+
 		// check whether the next partial solution is itself the join with
 		// the partial solution (so we can potentially do direct updates)
 		if (solutionSetDelta instanceof TwoInputNode) {
@@ -166,7 +169,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 			NoOpNode noop = new NoOpNode();
 			noop.setDegreeOfParallelism(getDegreeOfParallelism());
 
-			PactConnection noOpConn = new PactConnection(nextWorkset, noop);
+			PactConnection noOpConn = new PactConnection(nextWorkset, noop, executionMode);
 			noop.setIncomingConnection(noOpConn);
 			nextWorkset.addOutgoingConnection(noOpConn);
 			
@@ -178,7 +181,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 				new SolutionSetDeltaOperator(getSolutionSetKeyFields()));
 		solutionSetDeltaUpdateAux.setDegreeOfParallelism(getDegreeOfParallelism());
 
-		PactConnection conn = new PactConnection(solutionSetDelta, solutionSetDeltaUpdateAux);
+		PactConnection conn = new PactConnection(solutionSetDelta, solutionSetDeltaUpdateAux, executionMode);
 		solutionSetDeltaUpdateAux.setIncomingConnection(conn);
 		solutionSetDelta.addOutgoingConnection(conn);
 		
@@ -186,8 +189,10 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		this.nextWorkset = nextWorkset;
 		
 		this.singleRoot = new SingleRootJoiner();
-		this.solutionSetDeltaRootConnection = new PactConnection(solutionSetDeltaUpdateAux, this.singleRoot);
-		this.nextWorksetRootConnection = new PactConnection(nextWorkset, this.singleRoot);
+		this.solutionSetDeltaRootConnection = new PactConnection(solutionSetDeltaUpdateAux,
+													this.singleRoot, executionMode);
+
+		this.nextWorksetRootConnection = new PactConnection(nextWorkset, this.singleRoot, executionMode);
 		this.singleRoot.setInputs(this.solutionSetDeltaRootConnection, this.nextWorksetRootConnection);
 		
 		solutionSetDeltaUpdateAux.addOutgoingConnection(this.solutionSetDeltaRootConnection);
@@ -350,30 +355,37 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 				GlobalProperties atEndGlobal = candidate.getGlobalProperties();
 				LocalProperties atEndLocal = candidate.getLocalProperties();
 				
-				FeedbackPropertiesMeetRequirementsReport report = candidate.checkPartialSolutionPropertiesMet(wspn, atEndGlobal, atEndLocal);
+				FeedbackPropertiesMeetRequirementsReport report = candidate.checkPartialSolutionPropertiesMet(wspn,
+																							atEndGlobal, atEndLocal);
+
 				if (report == FeedbackPropertiesMeetRequirementsReport.NO_PARTIAL_SOLUTION) {
 					; // depends only through broadcast variable on the workset solution
 				}
 				else if (report == FeedbackPropertiesMeetRequirementsReport.NOT_MET) {
 					// attach a no-op node through which we create the properties of the original input
 					Channel toNoOp = new Channel(candidate);
-					globPropsReqWorkset.parameterizeChannel(toNoOp, false);
+					globPropsReqWorkset.parameterizeChannel(toNoOp, false,
+															nextWorksetRootConnection.getDataExchangeMode(), false);
 					locPropsReqWorkset.parameterizeChannel(toNoOp);
 					
-					UnaryOperatorNode rebuildWorksetPropertiesNode = new UnaryOperatorNode("Rebuild Workset Properties", FieldList.EMPTY_LIST);
+					UnaryOperatorNode rebuildWorksetPropertiesNode = new UnaryOperatorNode("Rebuild Workset Properties",
+																							FieldList.EMPTY_LIST);
 					
 					rebuildWorksetPropertiesNode.setDegreeOfParallelism(candidate.getDegreeOfParallelism());
 					
-					SingleInputPlanNode rebuildWorksetPropertiesPlanNode = new SingleInputPlanNode(rebuildWorksetPropertiesNode, "Rebuild Workset Properties", toNoOp, DriverStrategy.UNARY_NO_OP);
-					rebuildWorksetPropertiesPlanNode.initProperties(toNoOp.getGlobalProperties(), toNoOp.getLocalProperties());
+					SingleInputPlanNode rebuildWorksetPropertiesPlanNode = new SingleInputPlanNode(
+												rebuildWorksetPropertiesNode, "Rebuild Workset Properties",
+												toNoOp, DriverStrategy.UNARY_NO_OP);
+					rebuildWorksetPropertiesPlanNode.initProperties(toNoOp.getGlobalProperties(),
+																	toNoOp.getLocalProperties());
 					estimator.costOperator(rebuildWorksetPropertiesPlanNode);
 						
 					GlobalProperties atEndGlobalModified = rebuildWorksetPropertiesPlanNode.getGlobalProperties();
 					LocalProperties atEndLocalModified = rebuildWorksetPropertiesPlanNode.getLocalProperties();
 						
 					if (!(atEndGlobalModified.equals(atEndGlobal) && atEndLocalModified.equals(atEndLocal))) {
-						FeedbackPropertiesMeetRequirementsReport report2 = candidate.checkPartialSolutionPropertiesMet(wspn, atEndGlobalModified, atEndLocalModified);
-						
+						FeedbackPropertiesMeetRequirementsReport report2 = candidate.checkPartialSolutionPropertiesMet(
+																		wspn, atEndGlobalModified, atEndLocalModified);
 						if (report2 != FeedbackPropertiesMeetRequirementsReport.NOT_MET) {
 							newCandidates.add(rebuildWorksetPropertiesPlanNode);
 						}
@@ -393,13 +405,12 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		}
 		
 		// sanity check the solution set delta
-		for (Iterator<PlanNode> deltaPlans = solutionSetDeltaCandidates.iterator(); deltaPlans.hasNext(); ) {
-			SingleInputPlanNode candidate = (SingleInputPlanNode) deltaPlans.next();
+		for (PlanNode solutionSetDeltaCandidate : solutionSetDeltaCandidates) {
+			SingleInputPlanNode candidate = (SingleInputPlanNode) solutionSetDeltaCandidate;
 			GlobalProperties gp = candidate.getGlobalProperties();
-			
+
 			if (gp.getPartitioning() != PartitioningProperty.HASH_PARTITIONED || gp.getPartitioningFields() == null ||
-					!gp.getPartitioningFields().equals(this.solutionSetKeyFields))
-			{
+					!gp.getPartitioningFields().equals(this.solutionSetKeyFields)) {
 				throw new CompilerException("Bug: The solution set delta is not partitioned.");
 			}
 		}
@@ -422,10 +433,14 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 					boolean immediateDeltaUpdate;
 					
 					// check whether we need a dedicated solution set delta operator, or whether we can update on the fly
-					if (siSolutionDeltaCandidate.getInput().getShipStrategy() == ShipStrategyType.FORWARD && this.solutionDeltaImmediatelyAfterSolutionJoin) {
+					if (siSolutionDeltaCandidate.getInput().getShipStrategy() == ShipStrategyType.FORWARD &&
+							this.solutionDeltaImmediatelyAfterSolutionJoin)
+					{
 						// we do not need this extra node. we can make the predecessor the delta
 						// sanity check the node and connection
-						if (siSolutionDeltaCandidate.getDriverStrategy() != DriverStrategy.UNARY_NO_OP || siSolutionDeltaCandidate.getInput().getLocalStrategy() != LocalStrategy.NONE) {
+						if (siSolutionDeltaCandidate.getDriverStrategy() != DriverStrategy.UNARY_NO_OP ||
+								siSolutionDeltaCandidate.getInput().getLocalStrategy() != LocalStrategy.NONE)
+						{
 							throw new CompilerException("Invalid Solution set delta node.");
 						}
 						
@@ -438,8 +453,9 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 						immediateDeltaUpdate = false;
 					}
 					
-					WorksetIterationPlanNode wsNode = new WorksetIterationPlanNode(
-						this, "WorksetIteration ("+this.getPactContract().getName()+")", solutionSetIn, worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
+					WorksetIterationPlanNode wsNode = new WorksetIterationPlanNode(this,
+							"WorksetIteration ("+this.getPactContract().getName()+")", solutionSetIn,
+							worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
 					wsNode.setImmediateSolutionSetUpdate(immediateDeltaUpdate);
 					wsNode.initProperties(gp, lp);
 					target.add(wsNode);
@@ -453,7 +469,6 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		if (this.openBranches != null) {
 			return;
 		}
-
 		
 		// IMPORTANT: First compute closed branches from the two inputs
 		// we need to do this because the runtime iteration head effectively joins
@@ -464,13 +479,13 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		List<UnclosedBranchDescriptor> result2 = getSecondPredecessorNode().getBranchesForParent(getSecondIncomingConnection());
 
 		ArrayList<UnclosedBranchDescriptor> inputsMerged1 = new ArrayList<UnclosedBranchDescriptor>();
-		mergeLists(result1, result2, inputsMerged1); // this method also sets which branches are joined here (in the head)
+		mergeLists(result1, result2, inputsMerged1, true); // this method also sets which branches are joined here (in the head)
 		
 		addClosedBranches(getSingleRootOfStepFunction().closedBranchingNodes);
 
 		ArrayList<UnclosedBranchDescriptor> inputsMerged2 = new ArrayList<UnclosedBranchDescriptor>();
 		List<UnclosedBranchDescriptor> result3 = getSingleRootOfStepFunction().openBranches;
-		mergeLists(inputsMerged1, result3, inputsMerged2);
+		mergeLists(inputsMerged1, result3, inputsMerged2, true);
 
 		// handle the data flow branching for the broadcast inputs
 		List<UnclosedBranchDescriptor> result = computeUnclosedBranchStackForBroadcastInputs(inputsMerged2);

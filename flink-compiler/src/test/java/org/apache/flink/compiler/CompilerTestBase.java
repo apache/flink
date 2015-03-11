@@ -20,19 +20,16 @@ package org.apache.flink.compiler;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.java.record.operators.BulkIteration;
-import org.apache.flink.api.java.record.operators.DeltaIteration;
+import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.compiler.costs.DefaultCostEstimator;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.PlanNode;
@@ -42,9 +39,10 @@ import org.apache.flink.util.Visitor;
 import org.junit.Before;
 
 /**
- *
+ * Base class for Optimizer tests. Offers utility methods to trigger optimization
+ * of a program and to fetch the nodes in an optimizer plan that correspond
+ * the the node in the program plan.
  */
-@SuppressWarnings("deprecation")
 public abstract class CompilerTestBase implements java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;
@@ -54,8 +52,6 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	protected static final String OUT_FILE = OperatingSystem.isWindows() ? "file:/c:/" : "file:///dev/null";
 	
 	protected static final int DEFAULT_PARALLELISM = 8;
-	
-	protected static final String DEFAULT_PARALLELISM_STRING = String.valueOf(DEFAULT_PARALLELISM);
 	
 	private static final String CACHE_KEY = "cachekey";
 	
@@ -102,15 +98,10 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	}
 	
 	// ------------------------------------------------------------------------
-	public static OperatorResolver getContractResolver(Plan plan) {
-		return new OperatorResolver(plan);
-	}
 	
 	public static OptimizerPlanNodeResolver getOptimizerPlanNodeResolver(OptimizedPlan plan) {
 		return new OptimizerPlanNodeResolver(plan);
 	}
-	
-	// ------------------------------------------------------------------------
 	
 	public static final class OptimizerPlanNodeResolver {
 		
@@ -205,97 +196,6 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 			}
 		}
 	}
-	
-	// ------------------------------------------------------------------------
-	
-	public static final class OperatorResolver implements Visitor<Operator<?>> {
-		
-		private final Map<String, List<Operator<?>>> map;
-		private Set<Operator<?>> seen;
-		
-		OperatorResolver(Plan p) {
-			this.map = new HashMap<String, List<Operator<?>>>();
-			this.seen = new HashSet<Operator<?>>();
-			
-			p.accept(this);
-			this.seen = null;
-		}
-		
-		
-		@SuppressWarnings("unchecked")
-		public <T extends Operator<?>> T getNode(String name) {
-			List<Operator<?>> nodes = this.map.get(name);
-			if (nodes == null || nodes.isEmpty()) {
-				throw new RuntimeException("No nodes found with the given name.");
-			} else if (nodes.size() != 1) {
-				throw new RuntimeException("Multiple nodes found with the given name.");
-			} else {
-				return (T) nodes.get(0);
-			}
-		}
-		
-		@SuppressWarnings("unchecked")
-		public <T extends Operator<?>> T getNode(String name, Class<? extends Function> stubClass) {
-			List<Operator<?>> nodes = this.map.get(name);
-			if (nodes == null || nodes.isEmpty()) {
-				throw new RuntimeException("No node found with the given name and stub class.");
-			} else {
-				Operator<?> found = null;
-				for (Operator<?> node : nodes) {
-					if (node.getClass() == stubClass) {
-						if (found == null) {
-							found = node;
-						} else {
-							throw new RuntimeException("Multiple nodes found with the given name and stub class.");
-						}
-					}
-				}
-				if (found == null) {
-					throw new RuntimeException("No node found with the given name and stub class.");
-				} else {
-					return (T) found;
-				}
-			}
-		}
-		
-		public List<Operator<?>> getNodes(String name) {
-			List<Operator<?>> nodes = this.map.get(name);
-			if (nodes == null || nodes.isEmpty()) {
-				throw new RuntimeException("No node found with the given name.");
-			} else {
-				return new ArrayList<Operator<?>>(nodes);
-			}
-		}
-
-		@Override
-		public boolean preVisit(Operator<?> visitable) {
-			if (this.seen.add(visitable)) {
-				// add to  the map
-				final String name = visitable.getName();
-				List<Operator<?>> list = this.map.get(name);
-				if (list == null) {
-					list = new ArrayList<Operator<?>>(2);
-					this.map.put(name, list);
-				}
-				list.add(visitable);
-				
-				// recurse into bulk iterations
-				if (visitable instanceof BulkIteration) {
-					((BulkIteration) visitable).getNextPartialSolution().accept(this);
-				} else if (visitable instanceof DeltaIteration) {
-					((DeltaIteration) visitable).getSolutionSetDelta().accept(this);
-					((DeltaIteration) visitable).getNextWorkset().accept(this);
-				}
-				
-				return true;
-			} else {
-				return false;
-			}
-		}
-
-		@Override
-		public void postVisit(Operator<?> visitable) {}
-	}
 
 	/**
 	 * Collects all DataSources of a plan to add statistics
@@ -311,8 +211,8 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 			if(visitable instanceof GenericDataSourceBase) {
 				sources.add((GenericDataSourceBase<?, ?>) visitable);
 			}
-			else if(visitable instanceof BulkIteration) {
-				((BulkIteration) visitable).getNextPartialSolution().accept(this);
+			else if(visitable instanceof BulkIterationBase) {
+				((BulkIterationBase<?>) visitable).getNextPartialSolution().accept(this);
 			}
 			
 			return true;

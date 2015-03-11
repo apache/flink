@@ -35,6 +35,7 @@ import org.apache.flink.compiler.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.compiler.dataproperties.RequestedLocalProperties;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
@@ -94,13 +95,16 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 				if (!in.getLocalStrategyKeys().isValidUnorderedPrefix(this.keys)) {
 					throw new RuntimeException("Bug: Inconsistent sort for group strategy.");
 				}
-				in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
+				in.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(),
+									in.getLocalStrategySortOrder());
 			}
-			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
+			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in,
+											DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
 		} else {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
-			toCombiner.setShipStrategy(ShipStrategyType.FORWARD);
+			toCombiner.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
+
 			// create an input node for combine with same DOP as input node
 			GroupReduceNode combinerNode = ((GroupReduceNode) node).getCombinerUtilityNode();
 			combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
@@ -115,9 +119,13 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 			combiner.setDriverKeyInfo(this.keyList, 1);
 			
 			Channel toReducer = new Channel(combiner);
-			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(), in.getShipStrategySortOrder());
-			toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-			return new SingleInputPlanNode(node, "Reduce ("+node.getPactContract().getName()+")", toReducer, DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
+			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(),
+									in.getShipStrategySortOrder(), in.getDataExchangeMode());
+			toReducer.setLocalStrategy(LocalStrategy.COMBININGSORT, in.getLocalStrategyKeys(),
+										in.getLocalStrategySortOrder());
+
+			return new SingleInputPlanNode(node, "Reduce ("+node.getPactContract().getName()+")",
+											toReducer, DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
 		}
 	}
 
