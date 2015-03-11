@@ -33,8 +33,13 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 	private List<KafkaOnePartitionIterator> partitions;
 	private final int waitOnEmptyFetch;
 
-	public KafkaMultiplePartitionsIterator(String hostName, int port, String topic, Map<Integer, KafkaOffset> partitionsWithOffset, int waitOnEmptyFetch) {
+	public KafkaMultiplePartitionsIterator(String hostName, String topic, Map<Integer, KafkaOffset> partitionsWithOffset, int waitOnEmptyFetch) {
 		partitions = new ArrayList<KafkaOnePartitionIterator>(partitionsWithOffset.size());
+
+		String[] hostAndPort = hostName.split(":");
+
+		String host = hostAndPort[0];
+		int port = Integer.parseInt(hostAndPort[1]);
 
 		this.waitOnEmptyFetch = waitOnEmptyFetch;
 

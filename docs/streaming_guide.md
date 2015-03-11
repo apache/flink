@@ -1166,12 +1166,9 @@ A class providing an interface for receiving data from Kafka.
 
 The followings have to be provided for the `KafkaSource(…)` constructor in order:
 
-1. The hostname
-2. The group name
-3. The topic name
-4. The parallelism
-5. Deserialisation schema
-
+1. Zookeeper hostname
+2. The topic name
+3. Deserialisation schema
 
 Example:
 
@@ -1179,15 +1176,41 @@ Example:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DataStream<String> stream = env
-	.addSource(new KafkaSource<String>("localhost:2181", "group", "test", new SimpleStringSchema()))
+	.addSource(new KafkaSource<String>("localhost:2181", "test", new SimpleStringSchema()))
 	.print();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 stream = env
-    .addSource(new KafkaSource[String]("localhost:2181", "group", "test", new SimpleStringSchema)
+    .addSource(new KafkaSource[String]("localhost:2181", "test", new SimpleStringSchema)
     .print
+{% endhighlight %}
+</div>
+</div>
+
+#### Persistent Kafka Source
+As Kafka persists all their data, a fault tolerant Kafka source can be provided.
+
+The PersistentKafkaSource can read a topic, and if the job fails for some reason, when restarting the source will continue on reading from where it left off. For example if there are 3 partitions in the topic with offsets 31, 122, 110 read at the time of job failure, then at the time of restart it will continue on reading from those offsets, no matter whether these partitions have new messages.
+
+The followings have to be provided for the `PersistentKafkaSource(…)` constructor in order:
+
+1. The topic name
+2. The hostname of a Kafka broker
+3. Deserialisation schema
+
+Example:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+stream.addSink(new PersistentKafkaSource<String>("test", "localhost:9092", new SimpleStringSchema()));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+stream.addSink(new PersistentKafkaSource[String]("test", "localhost:9092", new SimpleStringSchema))
 {% endhighlight %}
 </div>
 </div>
@@ -1195,10 +1218,10 @@ stream = env
 #### Kafka Sink
 A class providing an interface for sending data to Kafka. 
 
-The followings have to be provided for the `KafkaSink()` constructor in order:
+The followings have to be provided for the `KafkaSink(…)` constructor in order:
 
 1. The topic name
-2. The hostname
+2. The hostname of a Kafka broker
 3. Serialisation schema
 
 Example: 
@@ -1206,12 +1229,12 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-stream.addSink(new KafkaSink<String, String>("test", "localhost:9092", new SimpleStringSchema()));
+stream.addSink(new KafkaSink<String>("test", "localhost:9092", new SimpleStringSchema()));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream.addSink(new KafkaSink[String, String]("test", "localhost:9092", new SimpleStringSchema))
+stream.addSink(new KafkaSink[String]("test", "localhost:9092", new SimpleStringSchema))
 {% endhighlight %}
 </div>
 </div>

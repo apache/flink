@@ -35,20 +35,16 @@ public class SimpleKafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	protected String topicId;
 	protected final String hostName;
-	protected final int port;
+//	protected final int port;
 	protected KafkaConsumerIterator iterator;
 
-	public SimpleKafkaSource(String topic, String hostName, int port,
+	public SimpleKafkaSource(String topic, String hostName,
 			DeserializationSchema<OUT> deserializationSchema) {
 		super(deserializationSchema);
 		this.topicId = topic;
 		this.hostName = hostName;
-		this.port = port;
+//		this.port = port;
 	}
-
-//	protected final void initializeConnection() {
-//		iterator = new KafkaMorePartitionsIterator(hostName, port, topicId, List.of(new PartitionWithOffset(partition, new CurrentOffset())), 500);
-//	}
 
 	protected void setInitialOffset(Configuration config) throws InterruptedException {
 		iterator.initialize();

@@ -52,9 +52,9 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 
 	private int partition;
 	
-	public PersistentKafkaSource(String topicId, String host, int port,
+	public PersistentKafkaSource(String topicId, String host,
 			DeserializationSchema<OUT> deserializationSchema) {
-		super(topicId, host, port, deserializationSchema);
+		super(topicId, host, deserializationSchema);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -63,7 +63,7 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 		int indexOfSubtask = context.getIndexOfThisSubtask();
 		int numberOfSubtasks = context.getNumberOfParallelSubtasks();
-		int numberOfPartitions = new KafkaTopicUtils(hostName + ":2181", 5000, 5000).getNumberOfPartitions(topicId);
+		int numberOfPartitions = new KafkaTopicUtils(hostName, 5000, 5000).getNumberOfPartitions(topicId);
 
 		if (indexOfSubtask >= numberOfPartitions) {
 			iterator = new KafkaIdleConsumerIterator();
@@ -73,7 +73,7 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 
 				partitions = kafkaOffSet.getState();
 
-				iterator = new KafkaMultiplePartitionsIterator(hostName, port, topicId, partitions, 500);
+				iterator = new KafkaMultiplePartitionsIterator(hostName, topicId, partitions, 500);
 			} else {
 				partitions = new HashMap<Integer, KafkaOffset>();
 
@@ -89,7 +89,7 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 
 				context.registerState("kafka", kafkaOffSet);
 
-				iterator = new KafkaMultiplePartitionsIterator(hostName, port, topicId, partitions, 500);
+				iterator = new KafkaMultiplePartitionsIterator(hostName, topicId, partitions, 500);
 			}
 
 			if (LOG.isInfoEnabled()) {
