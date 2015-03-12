@@ -36,6 +36,7 @@ import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -99,6 +100,16 @@ public class TypeExtractor {
 			String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) flatMapInterface, FlatMapFunction.class, false, true, inType, functionName, allowMissing);
+	}
+
+	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<OUT, IN> foldInterface, TypeInformation<IN> inType)
+	{
+		return getFoldReturnTypes(foldInterface, inType, null, false);
+	}
+
+	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<OUT, IN> foldInterface, TypeInformation<IN> inType, String functionName, boolean allowMissing)
+	{
+		return getUnaryOperatorReturnType((Function) foldInterface, FoldFunction.class, false, false, inType, functionName, allowMissing);
 	}
 	
 	
