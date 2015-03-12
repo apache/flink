@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -52,9 +51,10 @@ public class OutputHandler<OUT> {
 
 	public List<ChainableInvokable<?, ?>> chainedInvokables;
 
-	private Map<Integer, StreamOutput<?>> outputMap;
+	private Map<StreamEdge, StreamOutput<?>> outputMap;
+
 	private Map<Integer, StreamConfig> chainedConfigs;
-	private List<Tuple2<Integer, Integer>> outEdgesInOrder;
+	private List<StreamEdge> outEdgesInOrder;
 
 	public OutputHandler(StreamVertex<?, OUT> vertex) {
 
@@ -62,7 +62,7 @@ public class OutputHandler<OUT> {
 		this.vertex = vertex;
 		this.configuration = new StreamConfig(vertex.getTaskConfiguration());
 		this.chainedInvokables = new ArrayList<ChainableInvokable<?, ?>>();
-		this.outputMap = new HashMap<Integer, StreamOutput<?>>();
+		this.outputMap = new HashMap<StreamEdge, StreamOutput<?>>();
 		this.cl = vertex.getUserCodeClassLoader();
 
 		// We read the chained configs, and the order of record writer
@@ -74,16 +74,18 @@ public class OutputHandler<OUT> {
 
 		// We iterate through all the out edges from this job vertex and create
 		// a stream output
-		for (Tuple2<Integer, Integer> outEdge : outEdgesInOrder) {
-			StreamOutput<?> streamOutput = createStreamOutput(outEdge.f1,
-					chainedConfigs.get(outEdge.f0), outEdgesInOrder.indexOf(outEdge));
-			outputMap.put(outEdge.f1, streamOutput);
+		for (StreamEdge outEdge : outEdgesInOrder) {
+			StreamOutput<?> streamOutput = createStreamOutput(
+					outEdge,
+					outEdge.getTargetVertex(),
+					chainedConfigs.get(outEdge.getSourceVertex()),
+					outEdgesInOrder.indexOf(outEdge));
+			outputMap.put(outEdge, streamOutput);
 		}
 
 		// We create the outer collector that will be passed to the first task
 		// in the chain
 		this.outerCollector = createChainedCollector(configuration);
-
 	}
 
 	public void broadcastBarrier(long id) throws IOException, InterruptedException {
@@ -120,9 +122,7 @@ public class OutputHandler<OUT> {
 
 		// Create collectors for the network outputs
 		for (StreamEdge outputEdge : chainedTaskConfig.getNonChainedOutputs(cl)) {
-			Integer output = outputEdge.getTargetVertex();
-
-			Collector<?> outCollector = outputMap.get(output);
+			Collector<?> outCollector = outputMap.get(outputEdge);
 
 			wrapper.addCollector(outCollector, outputEdge);
 		}
@@ -164,14 +164,14 @@ public class OutputHandler<OUT> {
 	 *
 	 * @param outputVertex
 	 * 		Name of the output to which the streamoutput will be set up
-	 * @param configuration
+	 * @param upStreamConfig
 	 * 		The config of upStream task
-	 * @return
+	 * @return The created StreamOutput
 	 */
-	private <T> StreamOutput<T> createStreamOutput(Integer outputVertex,
-			StreamConfig configuration, int outputIndex) {
+	private <T> StreamOutput<T> createStreamOutput(StreamEdge edge, Integer outputVertex,
+			StreamConfig upStreamConfig, int outputIndex) {
 
-		StreamRecordSerializer<T> outSerializer = configuration
+		StreamRecordSerializer<T> outSerializer = upStreamConfig
 				.getTypeSerializerOut1(vertex.userClassLoader);
 		SerializationDelegate<StreamRecord<T>> outSerializationDelegate = null;
 
@@ -180,12 +180,13 @@ public class OutputHandler<OUT> {
 			outSerializationDelegate.setInstance(outSerializer.createInstance());
 		}
 
-		StreamPartitioner<T> outputPartitioner = configuration.getPartitioner(cl, outputVertex);
+		@SuppressWarnings("unchecked")
+		StreamPartitioner<T> outputPartitioner = (StreamPartitioner<T>) edge.getPartitioner();
 
 		ResultPartitionWriter bufferWriter = vertex.getEnvironment().getWriter(outputIndex);
 
 		RecordWriter<SerializationDelegate<StreamRecord<T>>> output =
-				RecordWriterFactory.createRecordWriter(bufferWriter, outputPartitioner, configuration.getBufferTimeout());
+				RecordWriterFactory.createRecordWriter(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 
 		StreamOutput<T> streamOutput = new StreamOutput<T>(output, vertex.instanceID,
 				outSerializationDelegate);

@@ -28,6 +28,10 @@ import org.apache.flink.streaming.partitioner.StreamPartitioner;
  */
 public class StreamEdge implements Serializable {
 
+	private static final long serialVersionUID = 1L;
+
+	final private String edgeId;
+
 	final private int sourceVertex;
 	final private int targetVertex;
 
@@ -48,6 +52,12 @@ public class StreamEdge implements Serializable {
 		this.typeNumber = typeNumber;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
+
+		this.edgeId = sourceVertex + "_"
+				+ targetVertex + "_"
+				+ typeNumber + "_"
+				+ selectedNames + "_"
+				+ outputPartitioner;
 	}
 
 	public int getSourceVertex() {
@@ -71,13 +81,36 @@ public class StreamEdge implements Serializable {
 	}
 
 	@Override
+	public int hashCode() {
+		return edgeId.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		StreamEdge that = (StreamEdge) o;
+
+		if (!edgeId.equals(that.edgeId)) {
+			return false;
+		}
+
+		return true;
+	}
+
+	@Override
 	public String toString() {
-		return "StreamGraphEdge{" +
-				"sourceVertex=" + sourceVertex +
-				", targetVertex=" + targetVertex +
+		return "(" +
+				sourceVertex +
+				" -> " + targetVertex +
 				", typeNumber=" + typeNumber +
 				", selectedNames=" + selectedNames +
 				", outputPartitioner=" + outputPartitioner +
-				'}';
+				')';
 	}
 }
