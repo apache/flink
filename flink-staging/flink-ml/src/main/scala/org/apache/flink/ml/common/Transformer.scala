@@ -45,5 +45,6 @@ trait Transformer[IN, OUT] extends WithParameters {
     new ChainedLearner[IN, OUT, CHAINED](this, learner)
   }
 
-  def transform(input: DataSet[IN], parameters: ParameterMap = ParameterMap.Empty): DataSet[OUT]
+  def transform(input: DataSet[IN], transformParameters: ParameterMap = ParameterMap.Empty):
+  DataSet[OUT]
 }

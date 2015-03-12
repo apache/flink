@@ -78,6 +78,21 @@ class SparseVector(
     denseVector
   }
 
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case sv: SparseVector if size == sv.size =>
+        indices.sameElements(indices) && data.sameElements(sv.data)
+      case _ => false
+    }
+  }
+
+  override def hashCode: Int = {
+    val hashCodes = List(size.hashCode, java.util.Arrays.hashCode(indices),
+      java.util.Arrays.hashCode(data))
+
+    hashCodes.foldLeft(3){ (left, right) => left * 41 + right}
+  }
+
   override def toString: String = {
     val entries = indices.zip(data).mkString(", ")
     "SparseVector(" + entries + ")"

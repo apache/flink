@@ -49,14 +49,13 @@ trait Vector {
     */
   def copy: Vector
 
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case vector: Vector if size == vector.size =>
-        0 until size forall { idx =>
-          this(idx) == vector(idx)
-        }
-
-      case _ => false
+  def equalsVector(vector: Vector): Boolean = {
+    if(size == vector.size) {
+      (0 until size) forall { idx =>
+        this(idx) == vector(idx)
+      }
+    } else {
+      false
     }
   }
 }

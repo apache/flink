@@ -34,7 +34,7 @@ class SparseMatrixSuite extends FlatSpec with Matchers {
     val sparseMatrix = SparseMatrix.fromCOO(numRows, numCols, data)
 
     val expectedSparseMatrix = SparseMatrix.fromCOO(5, 5, (3, 4, 42), (2, 1, 17), (3, 3, 88),
-      (4, 2, 99), (1, 4, 91))
+      (4, 2, 99), (1, 4, 91), (0, 0, 0), (0, 1, 0))
 
     val expectedDenseMatrix = DenseMatrix.zeros(5, 5)
     expectedDenseMatrix(3, 4) = 42
@@ -44,7 +44,7 @@ class SparseMatrixSuite extends FlatSpec with Matchers {
     expectedDenseMatrix(1, 4) = 91
 
     sparseMatrix should equal(expectedSparseMatrix)
-    sparseMatrix should equal(expectedDenseMatrix)
+    sparseMatrix.equalsMatrix(expectedDenseMatrix) should be(true)
 
     sparseMatrix.toDenseMatrix.data.sameElements(expectedDenseMatrix.data) should be(true)
 

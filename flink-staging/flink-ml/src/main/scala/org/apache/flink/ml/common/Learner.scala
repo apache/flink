@@ -34,5 +34,5 @@ import org.apache.flink.api.scala.DataSet
   * @tparam OUT Type of the trained model
   */
 trait Learner[IN, OUT] extends WithParameters {
-  def fit(input: DataSet[IN], parameters: ParameterMap = ParameterMap.Empty): OUT
+  def fit(input: DataSet[IN], fitParameters: ParameterMap = ParameterMap.Empty): OUT
 }

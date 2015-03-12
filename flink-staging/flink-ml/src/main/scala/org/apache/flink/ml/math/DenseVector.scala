@@ -52,8 +52,12 @@ case class DenseVector(val data: Array[Double]) extends Vector with Serializable
   override def equals(obj: Any): Boolean = {
     obj match {
       case dense: DenseVector => data.length == dense.data.length && data.sameElements(dense.data)
-      case _ => super.equals(obj)
+      case _ => false
     }
+  }
+
+  override def hashCode: Int = {
+    java.util.Arrays.hashCode(data)
   }
 
   /**

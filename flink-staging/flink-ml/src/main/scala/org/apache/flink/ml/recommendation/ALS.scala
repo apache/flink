@@ -49,7 +49,7 @@ import scala.util.Random
   * In order to find the user and item matrix, the following problem is solved:
   *
   * `argmin_{U,V} sum_(i,j\ with\ r_{i,j} != 0) (r_{i,j} - u_{i}^Tv_{j})^2 +
-  * \lambda (sum_(i) n_{u_i} ||u_i||^2 + sum_(j) n_{v_j} ||v_j||^2)`
+  * lambda (sum_(i) n_{u_i} ||u_i||^2 + sum_(j) n_{v_j} ||v_j||^2)`
   *
   * with `\lambda` being the regularization factor, `n_{u_i}` being the number of items the user `i`
   * has rated and `n_{v_j}` being the number of times the item `j` has been rated. This
@@ -117,7 +117,8 @@ import scala.util.Random
   * [[https://github.com/apache/spark/blob/master/mllib/src/main/scala/org/apache/spark/mllib/
   * recommendation/ALS.scala here]].
   */
-class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
+class
+ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
 
   import ALS._
 
@@ -900,10 +901,12 @@ object ALS {
   * @param itemFactors Calcualted item matrix
   * @param lambda Regularization value used to calculate the model
   */
-class ALSModel(@transient val userFactors: DataSet[Factors],
-               @transient val itemFactors: DataSet[Factors],
-               val lambda: Double) extends Transformer[(Int, Int), (Int, Int, Double)] with
-Serializable{
+class ALSModel(
+    @transient val userFactors: DataSet[Factors],
+    @transient val itemFactors: DataSet[Factors],
+    val lambda: Double)
+  extends Transformer[(Int, Int), (Int, Int, Double)]
+  with Serializable {
 
   override def transform(input: DataSet[(Int, Int)], parameters: ParameterMap): DataSet[(Int,
     Int, Double)] = {
