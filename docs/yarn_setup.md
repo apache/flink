@@ -172,8 +172,8 @@ Use the *run* action to submit a job to YARN. The client is able to determine th
 ~~~bash
 wget -O apache-license-v2.txt http://www.apache.org/licenses/LICENSE-2.0.txt
 hadoop fs -copyFromLocal LICENSE-2.0.txt hdfs:/// ...
-./bin/flink run -j ./examples/flink-java-examples-{{site.FLINK_VERSION_SHORT }}-WordCount.jar \
-                       -a 1 hdfs:///..../apache-license-v2.txt hdfs:///.../wordcount-result.txt 
+./bin/flink run ./examples/flink-java-examples-{{site.FLINK_VERSION_SHORT }}-WordCount.jar \
+        hdfs:///..../apache-license-v2.txt hdfs:///.../wordcount-result.txt
 ~~~
 
 If there is the following error, make sure that all TaskManagers started:
