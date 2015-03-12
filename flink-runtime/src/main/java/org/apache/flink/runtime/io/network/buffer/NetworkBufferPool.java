@@ -74,12 +74,14 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			int allocatedMb = ((availableMemorySegments.size()) * segmentSize) >> 20;
 			int missingMb = requiredMb - allocatedMb;
 
-			throw new OutOfMemoryError("Could not allocate enough memory segments for GlobalBufferPool (required (Mb): " + requiredMb + ", allocated (Mb): " + allocatedMb + ", missing (Mb): " + missingMb + ").");
+			throw new OutOfMemoryError("Could not allocate enough memory segments for GlobalBufferPool (required (Mb): " +
+					requiredMb + ", allocated (Mb): " + allocatedMb + ", missing (Mb): " + missingMb + ").");
 		}
 
 		int allocatedMb = ((availableMemorySegments.size()) * segmentSize) >> 20;
 
-		LOG.info("Allocated {} MB for network buffer pool (number of memory segments: {}, bytes per segment: {}).", allocatedMb, availableMemorySegments.size(), segmentSize);
+		LOG.info("Allocated {} MB for network buffer pool (number of memory segments: {}, bytes per segment: {}).",
+				allocatedMb, availableMemorySegments.size(), segmentSize);
 	}
 
 	public MemorySegment requestMemorySegment() {
