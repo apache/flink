@@ -18,25 +18,12 @@
 
 package org.apache.flink.ml.common
 
-import org.apache.flink.ml.math.Vector
-
-/** This class represents a vector with an associated label as it is required for many supervised
-  * learning tasks.
+/** Base class for blocks of elements.
   *
-  * @param label Label of the data point
-  * @param vector Data point
+  * TODO: Replace Vector type by Array type once Flink supports generic arrays
+  *
+  * @param index
+  * @param values
+  * @tparam T
   */
-case class LabeledVector(label: Double, vector: Vector) extends Serializable {
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case labeledVector: LabeledVector =>
-        vector.equals(labeledVector.vector) && label.equals(labeledVector.label)
-      case _ => false
-    }
-  }
-
-  override def toString: String = {
-    s"LabeledVector($label, $vector)"
-  }
-}
+case class Block[T](index: Int, values: Vector[T]) {}

@@ -36,8 +36,8 @@ class ChainedTransformer[IN, TEMP, OUT](val head: Transformer[IN, TEMP],
                                         val tail: Transformer[TEMP, OUT])
   extends Transformer[IN, OUT] {
 
-  override def transform(input: DataSet[IN], parameters: ParameterMap): DataSet[OUT] = {
-    val tempResult = head.transform(input, parameters)
+  override def transform(input: DataSet[IN], transformParameters: ParameterMap): DataSet[OUT] = {
+    val tempResult = head.transform(input, transformParameters)
     tail.transform(tempResult)
   }
 }

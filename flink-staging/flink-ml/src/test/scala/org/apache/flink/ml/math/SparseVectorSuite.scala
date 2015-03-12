@@ -29,14 +29,14 @@ class SparseVectorSuite extends FlatSpec with Matchers {
     val size = 5
     val sparseVector = SparseVector.fromCOO(size, data)
 
-    val expectedSparseVector = SparseVector.fromCOO(5, (0, 4), (4, 42))
+    val expectedSparseVector = SparseVector.fromCOO(5, (0, 4), (4, 42), (2, 0))
     val expectedDenseVector = DenseVector.zeros(5)
 
     expectedDenseVector(0) = 4
     expectedDenseVector(4) = 42
 
     sparseVector should equal(expectedSparseVector)
-    sparseVector should equal(expectedDenseVector)
+    sparseVector.equalsVector(expectedDenseVector) should be(true)
 
     val denseVector = sparseVector.toDenseVector
 

@@ -112,6 +112,23 @@ class SparseMatrix(
     result.toString
   }
 
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case sm: SparseMatrix if numRows == sm.numRows && numCols == sm.numCols =>
+        rowIndices.sameElements(sm.rowIndices) && colPtrs.sameElements(sm.colPtrs) &&
+        data.sameElements(sm.data)
+      case _ => false
+    }
+  }
+
+  override def hashCode: Int = {
+    val hashCodes = List(numRows.hashCode(), numCols.hashCode(),
+      java.util.Arrays.hashCode(rowIndices), java.util.Arrays.hashCode(colPtrs),
+      java.util.Arrays.hashCode(data))
+
+    hashCodes.foldLeft(5){(left, right) => left * 41 + right}
+  }
+
   private def locate(row: Int, col: Int): Int = {
     require(0 <= row && row < numRows && 0 <= col && col < numCols,
       (row, col) + " not in [0, " + numRows + ") x [0, " + numCols + ")")

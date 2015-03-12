@@ -57,12 +57,12 @@ trait Matrix {
     */
   def copy: Matrix
 
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case matrix: Matrix if numRows == matrix.numRows && numCols == matrix.numCols =>
-        val coordinates = for(row <- 0 until numRows; col <- 0 until numCols) yield (row, col)
-        coordinates forall { case(row, col) => this.apply(row, col) == matrix(row, col)}
-      case _ => false
+  def equalsMatrix(matrix: Matrix): Boolean = {
+    if(numRows == matrix.numRows && numCols == matrix.numCols) {
+      val coordinates = for(row <- 0 until numRows; col <- 0 until numCols) yield (row, col)
+      coordinates forall { case(row, col) => this.apply(row, col) == matrix(row, col)}
+    } else {
+      false
     }
   }
 

@@ -37,9 +37,9 @@ class ChainedLearner[IN, TEMP, OUT](val head: Transformer[IN, TEMP],
                                     val tail: Learner[TEMP, OUT])
   extends Learner[IN, OUT] {
 
-  override def fit(input: DataSet[IN], parameters: ParameterMap): OUT = {
-    val tempResult = head.transform(input, parameters)
+  override def fit(input: DataSet[IN], fitParameters: ParameterMap): OUT = {
+    val tempResult = head.transform(input, fitParameters)
 
-    tail.fit(tempResult, parameters)
+    tail.fit(tempResult, fitParameters)
   }
 }

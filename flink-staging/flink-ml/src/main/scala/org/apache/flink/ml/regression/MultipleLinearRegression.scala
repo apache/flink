@@ -86,7 +86,8 @@ import com.github.fommil.netlib.BLAS.{ getInstance => blas }
   *  Threshold for relative change of sum of squared residuals until convergence.
   *
   */
-class MultipleLinearRegression extends Learner[LabeledVector, MultipleLinearRegressionModel]
+class 
+MultipleLinearRegression extends Learner[LabeledVector, MultipleLinearRegressionModel]
 with Serializable {
   import MultipleLinearRegression._
 
@@ -105,9 +106,9 @@ with Serializable {
     this
   }
 
-  override def fit(input: DataSet[LabeledVector], parameters: ParameterMap):
+  override def fit(input: DataSet[LabeledVector], fitParameters: ParameterMap):
   MultipleLinearRegressionModel = {
-    val map = this.parameters ++ parameters
+    val map = this.parameters ++ fitParameters
 
     // retrieve parameters of the algorithm
     val numberOfIterations = map(Iterations)
@@ -400,9 +401,10 @@ RichMapFunction[(Array[Double], Double, Int), (Array[Double], Double)] {
   *
   * @param weights DataSet containing the calculated weight vector
   */
-class MultipleLinearRegressionModel private[regression]
-(val weights: DataSet[(Array[Double], Double)]) extends
-Transformer[ Vector, LabeledVector ] {
+class MultipleLinearRegressionModel private[regression](
+    val weights: DataSet[(Array[Double], Double)])
+  extends Transformer[ Vector, LabeledVector ]
+  with Serializable {
 
   import MultipleLinearRegression.WEIGHTVECTOR_BROADCAST
 

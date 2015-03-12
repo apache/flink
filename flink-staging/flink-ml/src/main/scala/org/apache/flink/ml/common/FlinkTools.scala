@@ -18,10 +18,11 @@
 
 package org.apache.flink.ml.common
 
+import org.apache.flink.api.common.functions.Partitioner
 import org.apache.flink.api.common.io.FileOutputFormat.OutputDirectoryMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.{TypeSerializerInputFormat, TypeSerializerOutputFormat}
-import org.apache.flink.api.scala.DataSet
+import org.apache.flink.api.scala._
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.fs.Path
 
@@ -34,6 +35,10 @@ import scala.reflect.ClassTag
   *  path and subsequently re-read from disk. This method can be used to effectively split the
   *  execution graph at the given [[DataSet]]. Writing it to disk triggers its materialization
   *  and specifying it as a source will prevent the re-execution of it.
+  *
+  *  - block:
+  *  Takes a DataSet of elements T and groups them in n blocks.
+  *
   */
 object FlinkTools {
 
@@ -323,5 +328,65 @@ object FlinkTools {
 
     (env.createInput(if1), env.createInput(if2), env.createInput(if3), env.createInput(if4), env
       .createInput(if5))
+  }
+
+  /** Groups the DataSet input into numBlocks blocks.
+    * 
+    * @param input
+    * @param numBlocks Number of Blocks
+    * @param partitionerOption Optional partitioner to control the partitioning
+    * @tparam T
+    * @return
+    */
+  def block[T: TypeInformation: ClassTag](
+    input: DataSet[T],
+    numBlocks: Int,
+    partitionerOption: Option[Partitioner[Int]] = None)
+  : DataSet[Block[T]] = {
+    val blockIDInput = input map {
+      element =>
+        val blockID = element.hashCode() % numBlocks
+
+        val blockIDResult = if(blockID < 0){
+          blockID + numBlocks
+        } else {
+          blockID
+        }
+
+        (blockIDResult, element)
+    }
+
+    val preGroupBlockIDInput = partitionerOption match {
+      case Some(partitioner) =>
+        blockIDInput partitionCustom(partitioner, 0)
+
+      case None => blockIDInput
+    }
+
+    preGroupBlockIDInput.groupBy(0).reduceGroup {
+      iter => {
+        val array = iter.toVector
+
+        val blockID = array(0)._1
+        val elements = array.map(_._2)
+
+        Block[T](blockID, elements)
+      }
+    }.withForwardedFields("0 -> index")
+  }
+
+  /** Distributes the elements by taking the modulo of their keys and assigning it to this channel
+    *
+    */
+  object ModuloKeyPartitioner extends Partitioner[Int] {
+    override def partition(key: Int, numPartitions: Int): Int = {
+      val result = key % numPartitions
+
+      if(result < 0) {
+        result + numPartitions
+      } else {
+        result
+      }
+    }
   }
 }
