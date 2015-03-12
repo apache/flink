@@ -21,6 +21,7 @@ import java.util.List;
 
 public class OutputSelectorWrapperFactory {
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static OutputSelectorWrapper<?> create(List<OutputSelector<?>> outputSelectors) {
 		if (outputSelectors.size() == 0) {
 			return new BroadcastOutputSelectorWrapper();

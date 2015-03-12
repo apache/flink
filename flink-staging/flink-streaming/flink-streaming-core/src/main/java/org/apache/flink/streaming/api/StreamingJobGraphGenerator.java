@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -53,7 +52,10 @@ public class StreamingJobGraphGenerator {
 	private JobGraph jobGraph;
 	private Collection<Integer> builtVertices;
 
+	private List<StreamEdge> physicalEdgesInOrder;
+
 	private Map<Integer, Map<Integer, StreamConfig>> chainedConfigs;
+
 	private Map<Integer, StreamConfig> vertexConfigs;
 	private Map<Integer, String> chainedNames;
 
@@ -67,6 +69,7 @@ public class StreamingJobGraphGenerator {
 		this.chainedConfigs = new HashMap<Integer, Map<Integer, StreamConfig>>();
 		this.vertexConfigs = new HashMap<Integer, StreamConfig>();
 		this.chainedNames = new HashMap<Integer, String>();
+		this.physicalEdgesInOrder = new ArrayList<StreamEdge>();
 	}
 
 	public JobGraph createJobGraph(String jobName) {
@@ -77,17 +80,43 @@ public class StreamingJobGraphGenerator {
 		jobGraph.setJobType(JobGraph.JobType.STREAMING);
 		jobGraph.setMonitoringEnabled(streamGraph.isMonitoringEnabled());
 		jobGraph.setMonitorInterval(streamGraph.getMonitoringInterval());
-		if(jobGraph.isMonitoringEnabled())
-		{
+		if (jobGraph.isMonitoringEnabled()) {
 			jobGraph.setNumberOfExecutionRetries(Integer.MAX_VALUE);
 		}
 		init();
 
 		setChaining();
 
+		setPhysicalEdges();
+
 		setSlotSharing();
 
 		return jobGraph;
+	}
+
+	private void setPhysicalEdges() {
+		Map<Integer, List<StreamEdge>> physicalInEdgesInOrder = new HashMap<Integer, List<StreamEdge>>();
+
+		for (StreamEdge edge : physicalEdgesInOrder) {
+			int target = edge.getTargetVertex();
+
+			List<StreamEdge> inEdges = physicalInEdgesInOrder.get(target);
+
+			// create if not set
+			if (inEdges == null) {
+				inEdges = new ArrayList<StreamEdge>();
+				physicalInEdgesInOrder.put(target, inEdges);
+			}
+
+			inEdges.add(edge);
+		}
+
+		for (Map.Entry<Integer, List<StreamEdge>> inEdges : physicalInEdgesInOrder.entrySet()) {
+			int vertex = inEdges.getKey();
+			List<StreamEdge> edgeList = inEdges.getValue();
+
+			vertexConfigs.get(vertex).setInPhysicalEdges(edgeList);
+		}
 	}
 
 	private void setChaining() {
@@ -96,11 +125,12 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
-	private List<Tuple2<Integer, Integer>> createChain(Integer startNode, Integer current) {
+	private List<StreamEdge> createChain(Integer startNode, Integer current) {
 
 		if (!builtVertices.contains(startNode)) {
 
-			List<Tuple2<Integer, Integer>> transitiveOutEdges = new ArrayList<Tuple2<Integer, Integer>>();
+			List<StreamEdge> transitiveOutEdges = new ArrayList<StreamEdge>();
+
 			List<StreamEdge> chainableOutputs = new ArrayList<StreamEdge>();
 			List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
@@ -117,7 +147,7 @@ public class StreamingJobGraphGenerator {
 			}
 
 			for (StreamEdge nonChainable : nonChainableOutputs) {
-				transitiveOutEdges.add(new Tuple2<Integer, Integer>(current, nonChainable.getTargetVertex()));
+				transitiveOutEdges.add(nonChainable);
 				createChain(nonChainable.getTargetVertex(), nonChainable.getTargetVertex());
 			}
 
@@ -133,9 +163,8 @@ public class StreamingJobGraphGenerator {
 				config.setChainStart();
 				config.setOutEdgesInOrder(transitiveOutEdges);
 				config.setOutEdges(streamGraph.getOutEdges(current));
-				config.setInEdges(streamGraph.getInEdges(current));
 
-				for (Tuple2<Integer, Integer> edge : transitiveOutEdges) {
+				for (StreamEdge edge : transitiveOutEdges) {
 					connect(startNode, edge);
 				}
 
@@ -154,7 +183,7 @@ public class StreamingJobGraphGenerator {
 			return transitiveOutEdges;
 
 		} else {
-			return new ArrayList<Tuple2<Integer, Integer>>();
+			return new ArrayList<StreamEdge>();
 		}
 	}
 
@@ -165,9 +194,11 @@ public class StreamingJobGraphGenerator {
 			for (StreamEdge chainable : chainedOutputs) {
 				outputChainedNames.add(chainedNames.get(chainable.getTargetVertex()));
 			}
-			return operatorName + " -> (" + StringUtils.join(outputChainedNames, ", ") + ")";
+			String returnOperatorName = operatorName + " -> (" + StringUtils.join(outputChainedNames, ", ") + ")";
+			return returnOperatorName;
 		} else if (chainedOutputs.size() == 1) {
-			return operatorName + " -> " + chainedNames.get(chainedOutputs.get(0));
+			String returnOperatorName = operatorName + " -> " + chainedNames.get(chainedOutputs.get(0).getTargetVertex());
+			return returnOperatorName;
 		} else {
 			return operatorName;
 		}
@@ -238,30 +269,20 @@ public class StreamingJobGraphGenerator {
 		vertexConfigs.put(vertexID, config);
 	}
 
-	private <T> void connect(Integer headOfChain, Tuple2<Integer, Integer> edge) {
+	private void connect(Integer headOfChain, StreamEdge edge) {
 
-		Integer upStreamvertexID = edge.f0;
-		Integer downStreamvertexID = edge.f1;
+		physicalEdgesInOrder.add(edge);
 
-		int outputIndex = streamGraph.getOutEdges(upStreamvertexID).indexOf(downStreamvertexID);
+		Integer downStreamvertexID = edge.getTargetVertex();
 
 		AbstractJobVertex headVertex = streamVertices.get(headOfChain);
 		AbstractJobVertex downStreamVertex = streamVertices.get(downStreamvertexID);
 
 		StreamConfig downStreamConfig = new StreamConfig(downStreamVertex.getConfiguration());
-		StreamConfig upStreamConfig = headOfChain.equals(upStreamvertexID) ? new StreamConfig(
-				headVertex.getConfiguration()) : chainedConfigs.get(headOfChain).get(
-				upStreamvertexID);
 
-		int numOfInputs = downStreamConfig.getNumberOfInputs();
+		downStreamConfig.setNumberOfInputs(downStreamConfig.getNumberOfInputs() + 1);
 
-		downStreamConfig.setInputIndex(numOfInputs++, streamGraph.getEdge(upStreamvertexID, downStreamvertexID).getTypeNumber());
-		downStreamConfig.setNumberOfInputs(numOfInputs);
-
-		StreamPartitioner<?> partitioner = streamGraph.getEdge(upStreamvertexID, downStreamvertexID).getPartitioner();
-
-		upStreamConfig.setPartitioner(downStreamvertexID, partitioner);
-
+		StreamPartitioner<?> partitioner = edge.getPartitioner();
 		if (partitioner.getStrategy() == PartitioningStrategy.FORWARD) {
 			downStreamVertex.connectNewDataSetAsInput(headVertex, DistributionPattern.POINTWISE);
 		} else {
@@ -281,14 +302,15 @@ public class StreamingJobGraphGenerator {
 		StreamInvokable<?, ?> headInvokable = streamGraph.getInvokable(vertexID);
 		StreamInvokable<?, ?> outInvokable = streamGraph.getInvokable(outName);
 
-		return streamGraph.getInEdges(outName).size() == 1
-				&& outInvokable != null
-				&& outInvokable.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (headInvokable.getChainingStrategy() == ChainingStrategy.HEAD || headInvokable
+		return
+				streamGraph.getInEdges(outName).size() == 1
+						&& outInvokable != null
+						&& outInvokable.getChainingStrategy() == ChainingStrategy.ALWAYS
+						&& (headInvokable.getChainingStrategy() == ChainingStrategy.HEAD || headInvokable
 						.getChainingStrategy() == ChainingStrategy.ALWAYS)
-				&& streamGraph.getEdge(vertexID, outName).getPartitioner().getStrategy() == PartitioningStrategy.FORWARD
-				&& streamGraph.getParallelism(vertexID) == streamGraph.getParallelism(outName)
-				&& streamGraph.chaining;
+						&& edge.getPartitioner().getStrategy() == PartitioningStrategy.FORWARD
+						&& streamGraph.getParallelism(vertexID) == streamGraph.getParallelism(outName)
+						&& streamGraph.chaining;
 	}
 
 	private void setSlotSharing() {

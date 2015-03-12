@@ -25,12 +25,14 @@ import org.apache.flink.util.Collector;
 
 public class BroadcastOutputSelectorWrapper<OUT> implements OutputSelectorWrapper<OUT> {
 
+	private static final long serialVersionUID = 1L;
 	private List<Collector<OUT>> outputs;
 
 	public BroadcastOutputSelectorWrapper() {
 		outputs = new ArrayList<Collector<OUT>>();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void addCollector(Collector<?> output, StreamEdge edge) {
 		outputs.add((Collector<OUT>) output);

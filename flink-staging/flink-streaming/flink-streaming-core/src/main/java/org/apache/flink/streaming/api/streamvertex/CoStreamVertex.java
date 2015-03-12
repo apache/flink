@@ -80,7 +80,7 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 		ArrayList<InputGate> inputList1 = new ArrayList<InputGate>();
 		ArrayList<InputGate> inputList2 = new ArrayList<InputGate>();
 
-		List<StreamEdge> inEdges = configuration.getInEdges(userClassLoader);
+		List<StreamEdge> inEdges = configuration.getInPhysicalEdges(userClassLoader);
 
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = inEdges.get(i).getTypeNumber();

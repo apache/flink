@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 
 public class DirectedOutputSelectorWrapper<OUT> implements OutputSelectorWrapper<OUT> {
 
+	private static final long serialVersionUID = 1L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(DirectedOutputSelectorWrapper.class);
 
 	private List<OutputSelector<OUT>> outputSelectors;
@@ -44,6 +46,7 @@ public class DirectedOutputSelectorWrapper<OUT> implements OutputSelectorWrapper
 		this.outputMap = new HashMap<String, List<Collector<OUT>>>();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void addCollector(Collector<?> output, StreamEdge edge) {
 		List<String> selectedNames = edge.getSelectedNames();
