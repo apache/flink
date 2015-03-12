@@ -102,7 +102,7 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
         WAIT_FOR_YARN_INTERVAL, jm, PollYarnClusterStatus))
 
     case msg: StopYarnSession =>
-      log.info("Stop yarn session.")
+      log.info("Sending StopYarnSession request to ApplicationMaster.")
       stopMessageReceiver = Some(sender)
       yarnJobManager foreach {
         _ forward msg
@@ -130,11 +130,16 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
     // -----------------  handle messages from the cluster -------------------
     // receive remote messages
     case msg: YarnMessage =>
+      log.debug("Received new YarnMessage {}. Now {} messages in queue", msg, messagesQueue.size)
       messagesQueue.enqueue(msg)
 
     // locally forward messages
     case LocalGetYarnMessage =>
-      sender() ! messagesQueue.headOption
+      if(messagesQueue.size > 0) {
+        sender() ! Option(messagesQueue.dequeue)
+      } else {
+        sender() ! None
+      }
   }
 
   /**

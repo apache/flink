@@ -20,13 +20,12 @@ package org.apache.flink.yarn;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
+import org.apache.log4j.Level;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import static org.apache.flink.yarn.YARNSessionFIFOITCase.addTestAppender;
-import static org.apache.flink.yarn.YARNSessionFIFOITCase.checkForLogString;
+import static org.apache.flink.yarn.UtilsTest.addTestAppender;
+import static org.apache.flink.yarn.UtilsTest.checkForLogString;
 
 
 /**
@@ -34,7 +33,7 @@ import static org.apache.flink.yarn.YARNSessionFIFOITCase.checkForLogString;
  * Is has, by default a queue called "default". The configuration here adds another queue: "qa-team".
  */
 public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
-	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionCapacitySchedulerITCase.class);
+
 
 	@BeforeClass
 	public static void setup() {
@@ -42,6 +41,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		yarnConfiguration.set("yarn.scheduler.capacity.root.queues", "default,qa-team");
 		yarnConfiguration.setInt("yarn.scheduler.capacity.root.default.capacity", 40);
 		yarnConfiguration.setInt("yarn.scheduler.capacity.root.qa-team.capacity", 60);
+		yarnConfiguration.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-capacityscheduler");
 		startYARNWithConfig(yarnConfiguration);
 	}
 
@@ -56,7 +56,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 						"-tm", "1024", "-qu", "qa-team"},
 				"Number of connected TaskManagers changed to 1. Slots available: 1", RunTypes.YARN_SESSION);
 
-		ensureNoExceptionsInLogFiles();
+		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 
@@ -66,7 +66,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testNonexistingQueue() {
-		addTestAppender();
+		addTestAppender(FlinkYarnClient.class, Level.WARN);
 		runWithArgs(new String[] {"-j", flinkUberjar.getAbsolutePath(),
 				"-n", "1",
 				"-jm", "512",
@@ -74,6 +74,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-qu", "doesntExist"}, "to unknown queue: doesntExist", RunTypes.YARN_SESSION);
 		checkForLogString("The specified queue 'doesntExist' does not exist. Available queues: default, qa-team");
 
-		ensureNoExceptionsInLogFiles();
+		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 }

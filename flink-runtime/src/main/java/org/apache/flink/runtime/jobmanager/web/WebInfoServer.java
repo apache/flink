@@ -26,6 +26,7 @@ import java.net.URL;
 
 import akka.actor.ActorRef;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,9 +65,9 @@ public class WebInfoServer {
 	private final Server server;
 
 	/**
-	 * Port for info server
+	 * The assigned port where jetty is running.
 	 */
-	private final int port;
+	private int assignedPort;
 
 	/**
 	 * Creates a new web info server. The server runs the servlets that implement the logic
@@ -87,10 +88,11 @@ public class WebInfoServer {
 			throw new NullPointerException();
 		}
 
-		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+		// if port == 0, jetty will assign an available port.
+		int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
-		if (this.port <= 0) {
-			throw new IllegalArgumentException("Invalid port for the webserver: " + this.port);
+		if (port < 0) {
+			throw new IllegalArgumentException("Invalid port for the webserver: " + port);
 		}
 
 		final FiniteDuration timeout = AkkaUtils.getTimeout(config);
@@ -190,7 +192,13 @@ public class WebInfoServer {
 	 */
 	public void start() throws Exception {
 		server.start();
-		LOG.info("Started web info server for JobManager on {}:{}",server.getConnectors()[0].getHost(), this.port);
+		final Connector connector = server.getConnectors()[0];
+		assignedPort = connector.getLocalPort(); // we have to use getLocalPort() instead of getPort() http://stackoverflow.com/questions/8884865/how-to-discover-jetty-7-running-port
+		String host = connector.getHost();
+		if(host == null) { // as per method documentation
+			host = "0.0.0.0";
+		}
+		LOG.info("Started web info server for JobManager on {}:{}", host, assignedPort);
 	}
 
 	/**
@@ -198,9 +206,10 @@ public class WebInfoServer {
 	 */
 	public void stop() throws Exception {
 		server.stop();
+		assignedPort = 0;
 	}
 
 	public int getServerPort() {
-		return this.port;
+		return this.assignedPort;
 	}
 }
