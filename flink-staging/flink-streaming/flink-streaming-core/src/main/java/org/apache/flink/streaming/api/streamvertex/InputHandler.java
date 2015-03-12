@@ -66,12 +66,6 @@ public class InputHandler<IN> {
 		}
 	}
 
-	private IndexedReaderIterator<StreamRecord<IN>> createInputIterator() {
-		final IndexedReaderIterator<StreamRecord<IN>> iter = new IndexedReaderIterator<StreamRecord<IN>>(
-				inputs, inputSerializer);
-		return iter;
-	}
-
 	protected static <T> IndexedReaderIterator<StreamRecord<T>> staticCreateInputIterator(
 			MutableReader<?> inputReader, TypeSerializer<StreamRecord<T>> serializer) {
 

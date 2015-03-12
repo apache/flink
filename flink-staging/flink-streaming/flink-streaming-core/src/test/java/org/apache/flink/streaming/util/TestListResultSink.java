@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
 
 public class TestListResultSink<T> extends RichSinkFunction<T> {
 
+	private static final long serialVersionUID = 1L;
 	private int resultListId;
 
 	public TestListResultSink() {
@@ -50,6 +51,7 @@ public class TestListResultSink<T> extends RichSinkFunction<T> {
 		super.close();
 	}
 
+	@SuppressWarnings("unchecked")
 	private List<T> resultList() {
 		synchronized (TestListWrapper.getInstance()) {
 			return (List<T>) TestListWrapper.getInstance().getList(resultListId);

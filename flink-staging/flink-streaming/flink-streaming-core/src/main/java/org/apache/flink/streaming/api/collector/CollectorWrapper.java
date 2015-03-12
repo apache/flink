@@ -29,7 +29,6 @@ public class CollectorWrapper<OUT> implements Collector<OUT> {
 		this.outputSelectorWrapper = outputSelectorWrapper;
 	}
 
-	@SuppressWarnings("unchecked")
 	public void addCollector(Collector<?> output, StreamEdge edge) {
 		outputSelectorWrapper.addCollector(output, edge);
 	}
