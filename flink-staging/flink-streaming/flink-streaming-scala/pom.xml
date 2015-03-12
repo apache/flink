@@ -113,7 +113,7 @@ under the License.
 						<jvmArg>-Xms128m</jvmArg>
 						<jvmArg>-Xmx512m</jvmArg>
 					</jvmArgs>
-					<compilerPlugins>
+					<compilerPlugins combine.children="append">
 					   <compilerPlugin>
 						   <groupId>org.scalamacros</groupId>
 						   <artifactId>paradise_${scala.version}</artifactId>
