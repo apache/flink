@@ -23,7 +23,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-## In a Nutshell
+## Quickstart: Start a long-running Flink cluster on YARN
 
 Start a YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 
@@ -35,6 +35,17 @@ cd flink-{{ site.FLINK_VERSION_SHORT }}/
 ~~~
 
 Specify the `-s` flag for the number of processing slots per Task Manager. We recommend to set the number of slots to the number of processors per machine.
+
+Once the session has been started, you can submit jobs to the cluster using the `./bin/flink` tool.
+
+## Quickstart: Run a Flink job on YARN
+
+~~~bash
+wget {{ site.FLINK_WGET_URL_YARN_STABLE }}
+tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2.tgz
+cd flink-{{ site.FLINK_VERSION_SHORT }}/
+./bin/flink -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar
+~~~
 
 ## Apache Flink on Hadoop YARN using a YARN Session
 
@@ -109,7 +120,17 @@ The example invocation starts 11 containers, since there is one additional conta
 
 Once Flink is deployed in your YARN cluster, it will show you the connection details of the Job Manager.
 
-If you don't want TODOTODO
+Stop the YARN session by stopping the unix process (using CTRL+C) or by entering 'stop' into the client.
+
+#### Detached YARN session
+
+If you do not want to keep the Flink YARN client running all the time, its also possible to start a *detached* YARN session. 
+The parameter for that is called `-d` or `--detached`.
+
+In that case, the Flink YARN client will only submit Flink to the cluster and then close itself.
+Note that in this case its not possible to stop the YARN session using Flink.
+
+Use the YARN utilities (`yarn application -kill <appId`) to stop the YARN session.
 
 
 ### Submit Job to Flink
@@ -182,6 +203,14 @@ Please note that the client then expects the `-yn` value to be set (number of Ta
 
 The command line options of the YARN session are also available with the `./bin/flink` tool. They are prefixed with a `y` or `yarn` (for the long argument options).
 
+
+## Recovery behavior of Flink on YARN
+
+Flink's YARN client has the following configuration parameters to control how to behave in case of container failures. These parameters can be set either from the `conf/flink-conf.yaml` or when starting the YARN session, using `-D` parameters.
+
+- `yarn.reallocate-failed`: This parameter controls whether Flink should reallocate failed TaskManager containers. Default: true
+- `yarn.maximum-failed-containers`: The maximum number of failed containers the ApplicationMaster accepts until it fails the YARN session. Default: The number of initally requested TaskManagers (`-n`).
+- `yarn.application-attempts`: The number of ApplicationMaster (+ its TaskManager containers) attempts. If this value is set to 1 (default), the entire YARN session will fail when the Application master fails. Higher values specify the number of restarts of the ApplicationMaster by YARN.
 
 
 ## Debugging a failed YARN session
