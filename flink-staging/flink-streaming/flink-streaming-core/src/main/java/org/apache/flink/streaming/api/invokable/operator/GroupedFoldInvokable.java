@@ -17,49 +17,45 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import java.util.HashMap;
+import java.util.Map;
 
-public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
+import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.java.functions.KeySelector;
+
+public class GroupedFoldInvokable<IN, OUT> extends StreamFoldInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	protected FoldFunction<OUT, IN> folder;
-	protected OUT accumulator;
-	protected IN nextValue;
+	private KeySelector<IN, ?> keySelector;
+	private Map<Object, OUT> values;
+	private OUT folded;
+	private OUT initialValue;
 
-	public StreamFoldInvokable(FoldFunction<OUT, IN> folder, OUT initialValue) {
-		super(folder);
-		this.folder = folder;
-		this.accumulator = initialValue;
+	public GroupedFoldInvokable(FoldFunction<OUT, IN> folder, KeySelector<IN, ?> keySelector, OUT initialValue) {
+		super(folder, initialValue);
+		this.keySelector = keySelector;
+		this.initialValue = initialValue;
+		values = new HashMap<Object, OUT>();
 	}
 
 	@Override
-	public void invoke() throws Exception {
-		while (isRunning && readNext() != null) {
-			fold();
-		}
-	}
-
 	protected void fold() throws Exception {
-		callUserFunctionAndLogException();
-
+		Object key = nextRecord.getKey(keySelector);
+		accumulator = values.get(key);
+		nextValue = nextObject;
+		if (accumulator != null) {
+			callUserFunctionAndLogException();
+			values.put(key, folded);
+			collector.collect(folded);
+		} else {
+			values.put(key, initialValue);
+			collector.collect(initialValue);
+		}
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
-
-		nextValue = nextObject;
-		accumulator = folder.fold(accumulator, nextValue);
-		collector.collect(accumulator);
-
-	}
-
-	@Override
-	public void collect(IN record) {
-		if (isRunning) {
-			nextObject = copy(record);
-			callUserFunctionAndLogException();
-		}
+		folded = folder.fold(accumulator, nextValue);
 	}
 
 }

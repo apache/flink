@@ -424,19 +424,6 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Creates a new [[DataStream]] by folding the elements of this DataStream
-   * using an associative reduce function and an initial value.
-   */
-  def fold[R: TypeInformation: ClassTag](folder: FoldFunction[R,T], initialValue: R): DataStream[R] = {
-    if (folder == null) {
-      throw new NullPointerException("Fold function must not be null.")
-    }
-    javaStream.transform("fold", implicitly[TypeInformation[R]],
-        new StreamFoldInvokable[T,R](folder, initialValue))
-  }
-
-
-  /**
    * Creates a new [[DataStream]] by reducing the elements of this DataStream
    * using an associative reduce function.
    */
@@ -449,6 +436,40 @@ class DataStream[T](javaStream: JavaStream[T]) {
       def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
     }
     reduce(reducer)
+  }
+
+  /**
+   * Creates a new [[DataStream]] by folding the elements of this DataStream
+   * using an associative fold function and an initial value.
+   */
+  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[R,T]): DataStream[R] = {
+    if (folder == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    javaStream match {
+      case ds: GroupedDataStream[_] => javaStream.transform("fold",
+        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), initialValue))
+      case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
+        new StreamFoldInvokable[T,R](folder, initialValue))
+    }
+  }
+
+  /**
+   * Creates a new [[DataStream]] by folding the elements of this DataStream
+   * using an associative fold function and an initial value.
+   */
+  def fold[R: TypeInformation: ClassTag](initialValue: R, fun: (R,T) => R): DataStream[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    val folder = new FoldFunction[R,T] {
+      val cleanFun = clean(fun)
+
+      def fold(acc: R, v: T) = {
+        cleanFun(acc, v)
+      }
+    }
+    fold(initialValue, folder)
   }
 
   /**
