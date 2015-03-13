@@ -140,7 +140,7 @@ public abstract class CancellingTestBase {
 	}
 
 	private JobGraph getJobGraph(final Plan plan) throws Exception {
-		final Optimizer pc = new Optimizer(new DataStatistics());
+		final Optimizer pc = new Optimizer(new DataStatistics(), this.executor.getConfiguration());
 		final OptimizedPlan op = pc.compile(plan);
 		final JobGraphGenerator jgg = new JobGraphGenerator();
 		return jgg.compileJobGraph(op);

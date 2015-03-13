@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.yarn;
 
+import org.apache.flink.api.common.JobID;
+
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
 
@@ -43,4 +46,30 @@ public abstract class AbstractFlinkYarnCluster {
 	public abstract List<String> getNewMessages();
 
 	public abstract String getApplicationId();
+
+	public abstract boolean isDetached();
+
+	/**
+	 * Connect the FlinkYarnCluster to the ApplicationMaster.
+	 *
+	 * Detached YARN sessions don't need to connect to the ApplicationMaster.
+	 * Detached per job YARN sessions need to connect until the required number of TaskManagers have been started.
+	 *
+	 * @throws IOException
+	 */
+	public abstract void connectToCluster() throws IOException;
+
+	/**
+	 * Disconnect from the ApplicationMaster without stopping the session
+	 * (therefore, use the {@see shutdown()} method.
+	 */
+	public abstract void disconnect();
+
+	/**
+	 * Tells the ApplicationMaster to monitor the status of JobId and stop itself once the specified
+	 * job has finished.
+	 *
+	 * @param jobID
+	 */
+	public abstract void stopAfterJob(JobID jobID);
 }

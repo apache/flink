@@ -31,6 +31,7 @@ import org.apache.flink.optimizer.util.DummyInputFormat;
 import org.apache.flink.optimizer.util.DummyOutputFormat;
 import org.apache.flink.optimizer.util.IdentityMap;
 import org.apache.flink.optimizer.util.IdentityReduce;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.types.IntValue;
 import org.junit.Test;
 

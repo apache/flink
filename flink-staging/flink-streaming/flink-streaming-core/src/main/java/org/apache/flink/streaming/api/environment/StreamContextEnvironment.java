@@ -21,15 +21,19 @@ import java.io.File;
 import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
-	protected static ClassLoader userClassLoader;
+	private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
+
 	protected List<File> jars;
 	protected Client client;
 
@@ -70,13 +74,13 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			jobGraph.addJar(new Path(file.getAbsolutePath()));
 		}
 
-		try {
-			return client.run(jobGraph, true);
-
-		} catch (Exception e) {
-			throw e;
+		JobSubmissionResult result = client.run(jobGraph, true);
+		if(result instanceof JobExecutionResult) {
+			return (JobExecutionResult) result;
+		} else {
+			LOG.warn("The Client didn't return a JobExecutionResult");
+			return new JobExecutionResult(result.getJobID(), -1, null);
 		}
-
 	}
 
 }

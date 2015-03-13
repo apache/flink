@@ -71,7 +71,8 @@ public class ExecutionPlanAfterExecutionTest implements java.io.Serializable {
 			env.getExecutionPlan();
 			env.createProgramPlan();
 		} catch (Exception e) {
-			fail("Cannot run both #getExecutionPlan and #execute.");
+			e.printStackTrace();
+			fail("Cannot run both #getExecutionPlan and #execute. Message: "+e.getMessage());
 		}
 	}
 }

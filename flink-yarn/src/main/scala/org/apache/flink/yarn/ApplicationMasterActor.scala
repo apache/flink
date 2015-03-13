@@ -23,9 +23,11 @@ import java.nio.ByteBuffer
 import java.util.Collections
 
 import akka.actor.ActorRef
+import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.messages.JobManagerMessages.{CurrentJobStatus, JobNotFound, RequestJobStatus}
 import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
 import org.apache.flink.yarn.Messages._
@@ -58,12 +60,18 @@ trait ApplicationMasterActor extends ActorLogMessages {
   val FAST_YARN_HEARTBEAT_DELAY: FiniteDuration = 500 milliseconds
   val DEFAULT_YARN_HEARTBEAT_DELAY: FiniteDuration = 5 seconds
   val YARN_HEARTBEAT_DELAY: FiniteDuration =
-    if(configuration.getString(ConfigConstants.YARN_HEARTBEAT_DELAY_SECONDS, null) == null) {
+    if(flinkConfiguration.getString(ConfigConstants.YARN_HEARTBEAT_DELAY_SECONDS, null) == null) {
       DEFAULT_YARN_HEARTBEAT_DELAY
     } else {
       FiniteDuration(
-        configuration.getInteger(ConfigConstants.YARN_HEARTBEAT_DELAY_SECONDS, 5), SECONDS)
+        flinkConfiguration.getInteger(ConfigConstants.YARN_HEARTBEAT_DELAY_SECONDS, 5), SECONDS)
     }
+
+  private def env = System.getenv()
+
+  // indicates if this AM has been started in a detached mode.
+  val detached = java.lang.Boolean.valueOf(env.get(FlinkYarnClient.ENV_DETACHED))
+  var stopWhenJobFinished: JobID = null
 
   var rmClientOption: Option[AMRMClient[ContainerRequest]] = None
   var nmClientOption: Option[NMClient] = None
@@ -129,6 +137,16 @@ trait ApplicationMasterActor extends ActorLogMessages {
       messageListener = Some(client)
       sender ! Acknowledge
 
+    case UnregisterClient =>
+      messageListener = None
+
+    case msg: StopAMAfterJob =>
+      val jobId = msg.jobId
+      log.info("ApplicatonMaster will shut down YARN session when job {} has finished", jobId)
+      stopWhenJobFinished = jobId
+      sender() ! Acknowledge
+
+
     case PollYarnClusterStatus =>
       sender() ! new FlinkYarnClusterStatus(instanceManager.getNumberOfRegisteredTaskManagers,
         instanceManager.getTotalNumberOfSlots)
@@ -136,7 +154,36 @@ trait ApplicationMasterActor extends ActorLogMessages {
     case StartYarnSession(conf, actorSystemPort, webServerPort) =>
       startYarnSession(conf, actorSystemPort, webServerPort)
 
+    case jnf: JobNotFound =>
+      LOG.warn("Job with ID {} not found in JobManager", jnf.jobID)
+      if(stopWhenJobFinished == null) {
+        LOG.warn("The ApplicationMaster didn't expect to receive this message")
+      }
+
+    case jobStatus: CurrentJobStatus =>
+      if(stopWhenJobFinished == null) {
+        LOG.warn("Received job status {} which wasn't requested", jobStatus)
+      } else {
+        if(stopWhenJobFinished != jobStatus.jobID) {
+          LOG.warn(s"Received job status for job ${jobStatus.jobID} but expected status for " +
+            s"job $stopWhenJobFinished")
+        } else {
+          if(jobStatus.status.isTerminalState) {
+            LOG.info(s"Job with ID ${jobStatus.jobID} is in terminal state ${jobStatus.status}. " +
+              s"Shutting down YARN session")
+            self ! StopYarnSession(FinalApplicationStatus.SUCCEEDED,
+              s"The monitored job with ID ${jobStatus.jobID} has finished.")
+          } else {
+            LOG.debug(s"Monitored job with ID ${jobStatus.jobID} is in state ${jobStatus.status}")
+          }
+        }
+      }
+
     case HeartbeatWithYarn =>
+      // piggyback on the YARN heartbeat to check if the job has finished
+      if(stopWhenJobFinished != null) {
+        self ! RequestJobStatus(stopWhenJobFinished)
+      }
       rmClientOption match {
         case Some(rmClient) =>
           log.debug("Send heartbeat to YARN")
@@ -222,7 +269,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
                             nmClient.startContainer(container, ctx)
                             runningContainers += 1
                             missingContainers -= 1
-                            val message = s"Launching container ${containersLaunched} " +
+                            val message = s"Launching container $containersLaunched " +
                               s"(${container.getId} on host ${container.getNodeId.getHost})."
                             log.info(message)
                             containersLaunched += 1
@@ -253,7 +300,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
             // if there are still containers missing, request them from YARN
             val toAllocateFromYarn = Math.max(missingContainers - numPendingRequests, 0)
             if(toAllocateFromYarn > 0) {
-              val reallocate = configuration
+              val reallocate = flinkConfiguration
                 .getBoolean(ConfigConstants.YARN_REALLOCATE_FAILED_CONTAINERS, true)
               log.info(s"There are $missingContainers containers missing." +
                 s" $numPendingRequests are already requested. " +
@@ -282,7 +329,8 @@ trait ApplicationMasterActor extends ActorLogMessages {
             allocatedContainersList.clear()
           }
 
-          if(failedContainers >= maxFailedContainers) {
+          // maxFailedContainers == -1 is infinite number of retries.
+          if(maxFailedContainers != -1 && failedContainers >= maxFailedContainers) {
             val msg = s"Stopping YARN session because the number of failed " +
               s"containers ($failedContainers) exceeded the maximum failed container " +
               s"count ($maxFailedContainers). This number is controlled by " +
@@ -323,7 +371,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
     Try {
       log.info("Start yarn session.")
       memoryPerTaskManager = env.get(FlinkYarnClient.ENV_TM_MEMORY).toInt
-      val heapLimit = Utils.calculateHeapSize(memoryPerTaskManager)
+      val heapLimit = Utils.calculateHeapSize(memoryPerTaskManager, flinkConfiguration)
 
       val applicationMasterHost = env.get(Environment.NM_HOST.key)
       require(applicationMasterHost != null, s"Application master (${Environment.NM_HOST} not set.")
@@ -339,8 +387,8 @@ trait ApplicationMasterActor extends ActorLogMessages {
       }
 
       numTaskManager = env.get(FlinkYarnClient.ENV_TM_COUNT).toInt
-      maxFailedContainers = configuration.getInteger(ConfigConstants.YARN_MAX_FAILED_CONTAINERS,
-        numTaskManager)
+      maxFailedContainers = flinkConfiguration.
+        getInteger(ConfigConstants.YARN_MAX_FAILED_CONTAINERS, numTaskManager)
       log.info("Requesting {} TaskManagers. Tolerating {} failed TaskManagers",
         numTaskManager, maxFailedContainers)
 
@@ -429,7 +477,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
   private def tryToReturnContainers(returnRequest: mutable.Set[PreemptionContainer]): Unit = {
     for(requestedBackContainers <- returnRequest) {
       allocatedContainersList = allocatedContainersList.dropWhile( container => {
-        val result = requestedBackContainers.equals(container)
+        val result = requestedBackContainers.getId.equals(container.getId)
         if(result) {
           log.info("Returning container {} back to ResourceManager.", container)
         }
@@ -457,7 +505,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
     log.info("Create container launch context.")
     val ctx = Records.newRecord(classOf[ContainerLaunchContext])
 
-    val javaOpts = configuration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "")
+    val javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "")
     val tmCommand = new StringBuilder(s"$$JAVA_HOME/bin/java -Xmx${heapLimit}m $javaOpts")
 
     if (hasLogback || hasLog4j) {
@@ -504,6 +552,4 @@ trait ApplicationMasterActor extends ActorLogMessages {
 
     ctx
   }
-
-  private def env = System.getenv()
 }

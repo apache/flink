@@ -37,7 +37,7 @@ import org.apache.flink.examples.java.graph.PageRankBasic.JoinVertexWithEdgesMat
 import org.apache.flink.examples.java.graph.PageRankBasic.RankAssigner;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.test.compiler.util.CompilerTestBase;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;

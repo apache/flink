@@ -30,7 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
-import org.apache.flink.test.compiler.util.CompilerTestBase;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;

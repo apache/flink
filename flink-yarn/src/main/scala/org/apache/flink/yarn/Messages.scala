@@ -22,6 +22,7 @@ import java.net.InetSocketAddress
 import java.util.Date
 
 import akka.actor.ActorRef
+import org.apache.flink.api.common.JobID
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 
@@ -30,6 +31,7 @@ object Messages {
   case class YarnMessage(message: String, date: Date = new Date())
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
   case class RegisterClient(client: ActorRef)
+  case object UnregisterClient
 
   case class StopYarnSession(status: FinalApplicationStatus, diagnostics: String)
 
@@ -46,12 +48,20 @@ object Messages {
                                     // the response
   case object CheckForUserCommand
 
+  case class StopAMAfterJob(jobId:JobID) // tell the AM to monitor the job and stop once it has
+    // finished.
+
   // Client-local messages
   case class LocalRegisterClient(jobManagerAddress: InetSocketAddress)
+  case object LocalUnregisterClient
   case object LocalGetYarnMessage // request new message
   case object LocalGetYarnClusterStatus // request the latest cluster status
 
   def getLocalGetYarnMessage(): AnyRef = {
     LocalGetYarnMessage
+  }
+
+  def getLocalUnregisterClient(): AnyRef = {
+    LocalUnregisterClient
   }
 }

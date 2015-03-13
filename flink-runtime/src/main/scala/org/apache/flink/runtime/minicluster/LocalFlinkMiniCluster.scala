@@ -193,6 +193,10 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     }
   }
 
+  def getConfiguration: Configuration = {
+    this.userConfiguration
+  }
+
   def getDefaultConfig: Configuration = {
     val config: Configuration = new Configuration()
 

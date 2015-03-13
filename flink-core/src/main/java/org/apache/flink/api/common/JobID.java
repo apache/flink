@@ -15,16 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
-package org.apache.flink.runtime.jobgraph;
+package org.apache.flink.api.common;
 
 import javax.xml.bind.DatatypeConverter;
-
 import org.apache.flink.util.AbstractID;
-
 import java.nio.ByteBuffer;
 
+/**
+ * Unique Job Identifier
+ */
 public final class JobID extends AbstractID {
 
 	private static final long serialVersionUID = 1L;

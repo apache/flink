@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -111,10 +112,16 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
 		Client client = new Client(new InetSocketAddress(host, port), configuration,
-				JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()));
+				JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()), -1);
 
 		try {
-			return client.run(jobGraph, true);
+			JobSubmissionResult result = client.run(jobGraph, true);
+			if(result instanceof JobExecutionResult) {
+				return (JobExecutionResult) result;
+			} else {
+				LOG.warn("The Client didn't return a JobExecutionResult");
+				return new JobExecutionResult(result.getJobID(), -1, null);
+			}
 		} catch (ProgramInvocationException e) {
 			throw new RuntimeException("Cannot execute job due to ProgramInvocationException", e);
 		}

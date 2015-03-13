@@ -30,6 +30,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.testfunctions.DummyCoGroupFunction;
 import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;

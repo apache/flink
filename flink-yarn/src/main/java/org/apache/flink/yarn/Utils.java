@@ -28,7 +28,6 @@ import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -64,9 +63,9 @@ public class Utils {
 	 * more than 500MB (the current HEAP_LIMIT_CAP), we'll just subtract 500 MB.
 	 * 
 	 */
-	public static int calculateHeapSize(int memory) {
-		float memoryCutoffRatio = GlobalConfiguration.getFloat(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, DEFAULT_YARN_HEAP_CUTOFF_RATIO);
-		int heapLimitCap = GlobalConfiguration.getInteger(ConfigConstants.YARN_HEAP_LIMIT_CAP, DEFAULT_HEAP_LIMIT_CAP);
+	public static int calculateHeapSize(int memory, org.apache.flink.configuration.Configuration conf) {
+		float memoryCutoffRatio = conf.getFloat(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, DEFAULT_YARN_HEAP_CUTOFF_RATIO);
+		int heapLimitCap = conf.getInteger(ConfigConstants.YARN_HEAP_LIMIT_CAP, DEFAULT_HEAP_LIMIT_CAP);
 
 		int heapLimit = (int)((float)memory * memoryCutoffRatio);
 		if( (memory - heapLimit) > heapLimitCap) {

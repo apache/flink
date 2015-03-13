@@ -29,6 +29,7 @@ import org.apache.flink.optimizer.util.DummyMatchStub;
 import org.apache.flink.optimizer.util.DummyOutputFormat;
 import org.apache.flink.optimizer.util.IdentityMap;
 import org.apache.flink.optimizer.util.IdentityReduce;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Assert;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.operators.FileDataSink;

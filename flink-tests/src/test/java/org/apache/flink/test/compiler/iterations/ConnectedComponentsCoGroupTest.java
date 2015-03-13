@@ -31,7 +31,7 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.test.compiler.util.CompilerTestBase;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.test.recordJobs.graph.ConnectedComponentsWithCoGroup;
 import org.junit.Assert;
 import org.junit.Test;

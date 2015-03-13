@@ -88,7 +88,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		plan.setDefaultParallelism(parallelism);
 
 		// optimize and compile plan 
-		Optimizer pc = new Optimizer(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(plan);
 		
 		// return job graph of failing job
@@ -118,7 +118,7 @@ public class TaskFailureITCase extends FailingTestBase {
 		plan.setDefaultParallelism(4);
 
 		// optimize and compile plan
-		Optimizer pc = new Optimizer(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(plan);
 
 		// return job graph of working job

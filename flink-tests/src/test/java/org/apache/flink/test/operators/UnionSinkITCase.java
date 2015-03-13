@@ -124,7 +124,7 @@ public class UnionSinkITCase extends RecordAPITestBase {
 		Plan plan = new Plan(output);
 		plan.setDefaultParallelism(parallelism);
 
-		Optimizer pc = new Optimizer(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(plan);
 
 		JobGraphGenerator jgg = new JobGraphGenerator();

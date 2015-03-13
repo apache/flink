@@ -21,11 +21,12 @@ package org.apache.flink.runtime.jobmanager
 import java.lang.Long
 
 import akka.actor._
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.execution.ExecutionState.RUNNING
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph, ExecutionVertex}
 import org.apache.flink.runtime.jobgraph.JobStatus._
-import org.apache.flink.runtime.jobgraph.{JobID, JobVertexID}
+import org.apache.flink.runtime.jobgraph.JobVertexID
 import org.apache.flink.runtime.state.StateHandle
 
 import scala.collection.JavaConversions._

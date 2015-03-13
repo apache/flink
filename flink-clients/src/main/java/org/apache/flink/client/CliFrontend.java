@@ -42,6 +42,7 @@ import akka.pattern.Patterns;
 import akka.util.Timeout;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.cli.CancelOptions;
 import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
@@ -66,7 +67,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
@@ -265,12 +266,32 @@ public class CliFrontend {
 		}
 
 		try {
-			Client client = getClient(options, program.getUserCodeClassLoader(), program.getMainClassName());
+			int userParallelism = options.getParallelism();
+			LOG.debug("User parallelism is set to {}", userParallelism);
 
-			int parallelism = options.getParallelism();
-			int exitCode = executeProgram(program, client, parallelism);
+			Client client = getClient(options, program.getUserCodeClassLoader(), program.getMainClassName(), userParallelism);
+			LOG.debug("Client slots is set to {}", client.getMaxSlots());
+			if(client.getMaxSlots() != -1 && userParallelism == -1) {
+				logAndSysout("Using the parallelism provided by the remote cluster ("+client.getMaxSlots()+"). " +
+						"To use another parallelism, set it at the ./bin/flink client.");
+				userParallelism = client.getMaxSlots();
+			}
+			int exitCode = 0;
 
-			if (yarnCluster != null) {
+			// check if detached per job yarn cluster is used to start flink
+			if(yarnCluster != null && yarnCluster.isDetached()) {
+				logAndSysout("The Flink YARN client has been started in detached mode. In order to stop " +
+						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
+						"yarn application -kill "+yarnCluster.getApplicationId()+"\n" +
+						"Please also note that the temporary files of the YARN session in the home directoy will not be removed.");
+				executeProgram(program, client, userParallelism, false);
+			} else {
+				// regular (blocking) execution.
+				exitCode = executeProgram(program, client, userParallelism, true);
+			}
+
+			// show YARN cluster status if its not a detached YARN cluster.
+			if (yarnCluster != null && !yarnCluster.isDetached()) {
 				List<String> msgs = yarnCluster.getNewMessages();
 				if (msgs != null && msgs.size() > 1) {
 
@@ -291,7 +312,7 @@ public class CliFrontend {
 			return handleError(t);
 		}
 		finally {
-			if (yarnCluster != null) {
+			if (yarnCluster != null && !yarnCluster.isDetached()) {
 				logAndSysout("Shutting down YARN cluster");
 				yarnCluster.shutdown();
 			}
@@ -346,7 +367,7 @@ public class CliFrontend {
 			int parallelism = options.getParallelism();
 
 			LOG.info("Creating program plan dump");
-			Client client = getClient(options, program.getUserCodeClassLoader(), program.getMainClassName());
+			Client client = getClient(options, program.getUserCodeClassLoader(), program.getMainClassName(), parallelism);
 			String jsonPlan = client.getOptimizedPlanAsJson(program, parallelism);
 
 			if (jsonPlan != null) {
@@ -555,12 +576,12 @@ public class CliFrontend {
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected int executeProgram(PackagedProgram program, Client client, int parallelism) {
-		LOG.info("Starting execution or program");
-		JobExecutionResult execResult;
+	protected int executeProgram(PackagedProgram program, Client client, int parallelism, boolean wait) {
+		LOG.info("Starting execution of program");
+		JobSubmissionResult execResult;
 		try {
 			client.setPrintStatusDuringExecution(true);
-			execResult = client.run(program, parallelism, true);
+			execResult = client.run(program, parallelism, wait);
 		}
 		catch (ProgramInvocationException e) {
 			return handleError(e);
@@ -569,15 +590,33 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
-		LOG.info("Program execution finished");
+		if(wait) {
+			LOG.info("Program execution finished");
+		}
 
-		// we come here after the job has finished
+		// we come here after the job has finished (or the job has been submitted)
 		if (execResult != null) {
-			System.out.println("Job Runtime: " + execResult.getNetRuntime());
-			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
-			if (accumulatorsResult.size() > 0) {
-				System.out.println("Accumulator Results: ");
-				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+			// if the job has been submitted to a detached YARN cluster, there won't be any
+			// exec results, but the object will be set (for the job id)
+			if (yarnCluster != null && yarnCluster.isDetached()) {
+				if(execResult.getJobID() == null) {
+					throw new RuntimeException("Error while starting job. No Job ID set.");
+				}
+				yarnCluster.stopAfterJob(execResult.getJobID());
+				yarnCluster.disconnect();
+				System.out.println("The Job has been submitted with JobID "+execResult.getJobID());
+				return 0;
+			}
+			if (execResult instanceof JobExecutionResult) {
+				JobExecutionResult result = (JobExecutionResult) execResult;
+				System.out.println("Job Runtime: " + result.getNetRuntime());
+				Map<String, Object> accumulatorsResult = result.getAllAccumulatorResults();
+				if (accumulatorsResult.size() > 0) {
+					System.out.println("Accumulator Results: ");
+					System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+				}
+			} else {
+				LOG.info("The Job did not return an execution result");
 			}
 		}
 		return 0;
@@ -681,26 +720,47 @@ public class CliFrontend {
 		LOG.info("JobManager is at " + jmActor.path());
 		return jmActor;
 	}
-	
 
-	
-	protected Client getClient(CommandLineOptions options, ClassLoader classLoader, String programName) throws Exception {
 
+	/**
+	 *
+	 * @param options
+	 * @param classLoader
+	 * @param programName
+	 * @param userParallelism The parallelism requested by the user in the CLI frontend.
+	 * @return
+	 * @throws Exception
+	 */
+	protected Client getClient(CommandLineOptions options, ClassLoader classLoader, String programName, int userParallelism) throws Exception {
 		InetSocketAddress jobManagerAddress;
-
+		int maxSlots = -1;
 		if (YARN_DEPLOY_JOBMANAGER.equals(options.getJobManagerAddress())) {
 			logAndSysout("YARN cluster mode detected. Switching Log4j output to console");
 
 			// user wants to run Flink in YARN cluster.
 			CommandLine commandLine = options.getCommandLine();
-			AbstractFlinkYarnClient flinkYarnClient =
-					CliFrontendParser.getFlinkYarnSessionCli().createFlinkYarnClient(commandLine);
+			AbstractFlinkYarnClient flinkYarnClient = CliFrontendParser.getFlinkYarnSessionCli().createFlinkYarnClient(commandLine);
 
 			if (flinkYarnClient == null) {
 				throw new RuntimeException("Unable to create Flink YARN Client. Check previous log messages");
 			}
+
+			// the number of slots available from YARN:
+			int yarnTmSlots = flinkYarnClient.getTaskManagerSlots();
+			if(yarnTmSlots == -1) {
+				yarnTmSlots = 1;
+			}
+			maxSlots = yarnTmSlots * flinkYarnClient.getTaskManagerCount();
+			if(userParallelism != -1) {
+				int slotsPerTM = userParallelism / flinkYarnClient.getTaskManagerCount();
+				logAndSysout("The YARN cluster has "+maxSlots+" slots available, but the user requested a parallelism of "+userParallelism+" on YARN. " +
+						"Each of the "+flinkYarnClient.getTaskManagerCount()+" TaskManagers will get "+slotsPerTM+" slots.");
+				flinkYarnClient.setTaskManagerSlots(slotsPerTM);
+			}
+
 			try {
 				yarnCluster = flinkYarnClient.deploy("Flink Application: " + programName);
+				yarnCluster.connectToCluster();
 			}
 			catch(Exception e) {
 				throw new RuntimeException("Error deploying the YARN cluster", e);
@@ -722,7 +782,7 @@ public class CliFrontend {
 						break;
 					}
 				} else {
-					logAndSysout("No status updates from YARN cluster received so far. Waiting ...");
+					logAndSysout("No status updates from the YARN cluster received so far. Waiting ...");
 				}
 
 				try {
@@ -738,7 +798,7 @@ public class CliFrontend {
 		else {
 			jobManagerAddress = getJobManagerAddress(options);
 		}
-		return new Client(jobManagerAddress, config, classLoader);
+		return new Client(jobManagerAddress, config, classLoader, maxSlots);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -34,6 +34,7 @@ import org.apache.flink.optimizer.util.DummyCrossStub;
 import org.apache.flink.optimizer.util.DummyInputFormat;
 import org.apache.flink.optimizer.util.DummyOutputFormat;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
 
 /**

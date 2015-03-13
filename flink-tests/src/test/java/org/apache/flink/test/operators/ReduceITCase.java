@@ -133,7 +133,7 @@ public class ReduceITCase extends RecordAPITestBase {
 
 		Plan plan = new Plan(output);
 
-		Optimizer pc = new Optimizer(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(plan);
 
 		JobGraphGenerator jgg = new JobGraphGenerator();

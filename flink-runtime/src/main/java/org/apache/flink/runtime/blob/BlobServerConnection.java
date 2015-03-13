@@ -29,7 +29,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.security.MessageDigest;
 
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

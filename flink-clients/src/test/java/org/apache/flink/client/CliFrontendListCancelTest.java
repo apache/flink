@@ -22,7 +22,7 @@ import akka.actor.*;
 import akka.testkit.JavaTestKit;
 
 import org.apache.flink.client.cli.CommandLineOptions;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

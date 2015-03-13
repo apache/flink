@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.traversals.BinaryUnionReplacer;
 import org.apache.flink.optimizer.traversals.BranchesVisitor;
 import org.apache.flink.optimizer.traversals.GraphCreatingVisitor;
@@ -45,7 +46,6 @@ import org.apache.flink.optimizer.plan.SinkJoinerPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.postpass.OptimizerPostPass;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.util.InstantiationUtil;
 
 /**
@@ -303,8 +303,8 @@ public class Optimizer {
 	 * unknown sizes and hence use only the heuristic cost functions, which result in the selection
 	 * of the most robust execution strategies.
 	 */
-	public Optimizer() {
-		this(null, new DefaultCostEstimator());
+	public Optimizer(Configuration config) {
+		this(null, new DefaultCostEstimator(), config);
 	}
 
 	/**
@@ -314,8 +314,8 @@ public class Optimizer {
 	 * @param stats
 	 *        The statistics to be used to determine the input properties.
 	 */
-	public Optimizer(DataStatistics stats) {
-		this(stats, new DefaultCostEstimator());
+	public Optimizer(DataStatistics stats, Configuration config) {
+		this(stats, new DefaultCostEstimator(), config);
 	}
 
 	/**
@@ -328,8 +328,8 @@ public class Optimizer {
 	 * 
 	 * @param estimator The cost estimator to use to cost the individual operations.
 	 */
-	public Optimizer(CostEstimator estimator) {
-		this(null, estimator);
+	public Optimizer(CostEstimator estimator, Configuration config) {
+		this(null, estimator, config);
 	}
 
 	/**
@@ -343,17 +343,17 @@ public class Optimizer {
 	 * @param estimator
 	 *        The <tt>CostEstimator</tt> to use to cost the individual operations.
 	 */
-	public Optimizer(DataStatistics stats, CostEstimator estimator) {
+	public Optimizer(DataStatistics stats, CostEstimator estimator, Configuration config) {
 		this.statistics = stats;
 		this.costEstimator = estimator;
 
 		// determine the default parallelism
 		// check for old key string first, then for new one
-		this.defaultParallelism = GlobalConfiguration.getInteger(
+		this.defaultParallelism = config.getInteger(
 				ConfigConstants.DEFAULT_PARALLELISM_KEY_OLD,
 				ConfigConstants.DEFAULT_PARALLELISM);
 		// now check for new one which overwrites old values
-		this.defaultParallelism = GlobalConfiguration.getInteger(
+		this.defaultParallelism = config.getInteger(
 				ConfigConstants.DEFAULT_PARALLELISM_KEY,
 				this.defaultParallelism);
 

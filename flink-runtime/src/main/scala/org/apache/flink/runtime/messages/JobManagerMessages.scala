@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.messages
 
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
 import org.apache.flink.runtime.client.JobStatusMessage
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{InstanceID, Instance}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobID, JobStatus, JobVertexID}
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 import scala.collection.JavaConverters._

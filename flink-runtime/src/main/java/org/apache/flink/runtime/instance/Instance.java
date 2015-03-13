@@ -27,7 +27,7 @@ import java.util.Set;
 
 import akka.actor.ActorRef;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroupAssignment;
 

@@ -44,7 +44,7 @@ public class ExecutionPlanCreationTest {
 			InetAddress mockAddress = InetAddress.getLocalHost();
 			InetSocketAddress mockJmAddress = new InetSocketAddress(mockAddress, 12345);
 			
-			Client client = new Client(mockJmAddress, new Configuration(), getClass().getClassLoader());
+			Client client = new Client(mockJmAddress, new Configuration(), getClass().getClassLoader(), -1);
 			OptimizedPlan op = (OptimizedPlan) client.getOptimizedPlan(prg, -1);
 			assertNotNull(op);
 			

@@ -25,6 +25,8 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
@@ -69,6 +71,19 @@ public class Client {
 	private final Optimizer compiler;		// the compiler to compile the jobs
 	
 	private boolean printStatusDuringExecution = false;
+
+	/**
+	 * If != -1, this field specifies the total number of available slots on the cluster
+	 * conntected to the client.
+	 */
+	private int maxSlots = -1;
+
+	/**
+	 * ID of the last job submitted with this client.
+	 */
+	private JobID lastJobId = null;
+
+	private ClassLoader userCodeClassLoader; // TODO: use userCodeClassloader to deserialize accumulator results.
 	
 	// ------------------------------------------------------------------------
 	//                            Construction
@@ -80,7 +95,7 @@ public class Client {
 	 * 
 	 * @param jobManagerAddress Address and port of the job-manager.
 	 */
-	public Client(InetSocketAddress jobManagerAddress, Configuration config, ClassLoader userCodeClassLoader) {
+	public Client(InetSocketAddress jobManagerAddress, Configuration config, ClassLoader userCodeClassLoader, int maxSlots) {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		
@@ -88,7 +103,9 @@ public class Client {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
-		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator());
+		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
+		this.userCodeClassLoader = userCodeClassLoader;
+		this.maxSlots = maxSlots;
 	}
 
 	/**
@@ -112,7 +129,8 @@ public class Client {
 			throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
 		}
 
-		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator());
+		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
 	
 	public void setPrintStatusDuringExecution(boolean print) {
@@ -125,6 +143,14 @@ public class Client {
 	
 	public int getJobManagerPort() {
 		return this.configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+	}
+
+	/**
+	 * @return -1 if unknown. The maximum number of available processing slots at the Flink cluster
+	 * connected to this client.
+	 */
+	public int getMaxSlots() {
+		return this.maxSlots;
 	}
 	
 	// ------------------------------------------------------------------------
@@ -191,8 +217,10 @@ public class Client {
 	
 	public FlinkPlan getOptimizedPlan(Plan p, int parallelism) throws CompilerException {
 		if (parallelism > 0 && p.getDefaultParallelism() <= 0) {
+			LOG.debug("Changing plan default parallelism from {} to {}",p.getDefaultParallelism(), parallelism);
 			p.setDefaultParallelism(parallelism);
 		}
+		LOG.debug("Set parallelism {}, plan default parallelism {}", parallelism, p.getDefaultParallelism());
 
 		return this.compiler.compile(p);
 	}
@@ -230,49 +258,31 @@ public class Client {
 		return job;
 	}
 
-	public JobExecutionResult run(final PackagedProgram prog, int parallelism, boolean wait) throws ProgramInvocationException {
+	public JobSubmissionResult run(final PackagedProgram prog, int parallelism, boolean wait) throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
 			return run(prog.getPlanWithJars(), parallelism, wait);
 		}
 		else if (prog.isUsingInteractiveMode()) {
-			
-			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism);
+			LOG.info("Starting program in interactive mode");
+			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism, wait);
 			ContextEnvironment.enableLocalExecution(false);
-			if (wait) {
-				// invoke here
-				try {
-					prog.invokeInteractiveModeForExecution();
-				}
-				finally {
-					ContextEnvironment.enableLocalExecution(true);
-				}
+			// invoke here
+			try {
+				prog.invokeInteractiveModeForExecution();
 			}
-			else {
-				// invoke in the background
-				Thread backGroundRunner = new Thread("Program Runner") {
-					public void run() {
-						try {
-							prog.invokeInteractiveModeForExecution();
-						}
-						catch (Throwable t) {
-							LOG.error("The program execution failed.", t);
-						}
-						finally {
-							ContextEnvironment.enableLocalExecution(true);
-						}
-					}
-				};
-				backGroundRunner.start();
+			finally {
+				ContextEnvironment.enableLocalExecution(true);
 			}
-			return null;
+
+			return new JobSubmissionResult(lastJobId);
 		}
 		else {
 			throw new RuntimeException();
 		}
 	}
 	
-	public JobExecutionResult run(PackagedProgram prog, OptimizedPlan optimizedPlan, boolean wait) throws ProgramInvocationException {
+	public JobSubmissionResult run(PackagedProgram prog, OptimizedPlan optimizedPlan, boolean wait) throws ProgramInvocationException {
 		return run(optimizedPlan, prog.getAllLibraries(), wait);
 
 	}
@@ -291,17 +301,18 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the
 	 *                                    parallel execution failed.
 	 */
-	public JobExecutionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
+	public JobSubmissionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
 		return run((OptimizedPlan) getOptimizedPlan(prog, parallelism), prog.getJarFiles(), wait);
 	}
 	
 
-	public JobExecutionResult run(OptimizedPlan compiledPlan, List<File> libraries, boolean wait) throws ProgramInvocationException {
+	public JobSubmissionResult run(OptimizedPlan compiledPlan, List<File> libraries, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(compiledPlan, libraries);
+		this.lastJobId = job.getJobID();
 		return run(job, wait);
 	}
 
-	public JobExecutionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
+	public JobSubmissionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
 
 		final String hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		if (hostname == null) {
@@ -335,6 +346,8 @@ public class Client {
 			}
 			else {
 				JobClient.submitJobDetached(jobGraph, client, timeout);
+				// return a "Fake" execution result with the JobId
+				return new JobSubmissionResult(jobGraph.getJobID());
 			}
 		}
 		catch (JobExecutionException e) {
@@ -347,8 +360,6 @@ public class Client {
 			actorSystem.shutdown();
 			actorSystem.awaitTermination();
 		}
-
-		return new JobExecutionResult(-1, null);
 	}
 
 	// --------------------------------------------------------------------------------------------

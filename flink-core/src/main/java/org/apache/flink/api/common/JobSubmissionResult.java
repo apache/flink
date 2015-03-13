@@ -15,36 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.api.common;
 
-package org.apache.flink.runtime.jobgraph;
+/**
+ * The result of a job submission.
+ * Contains the JobID
+ */
+public class JobSubmissionResult {
+	private JobID jobID;
 
-import org.apache.flink.api.common.JobID;
-import org.junit.Test;
-
-import java.nio.ByteBuffer;
-
-import static org.junit.Assert.fail;
-import static org.junit.Assert.assertEquals;
-
-public class JobIdTest {
-
-	@Test
-	public void testConvertToByteBuffer() {
-		try {
-			JobID origID = new JobID();
-
-			byte[] bytes = origID.getBytes();
-			ByteBuffer buffer = ByteBuffer.wrap(bytes);
-
-			JobID copy1 = JobID.fromByteBuffer(buffer);
-			JobID copy2 = JobID.fromByteArray(bytes);
-
-			assertEquals(origID, copy1);
-			assertEquals(origID, copy2);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	public JobSubmissionResult(JobID jobID) {
+		this.jobID = jobID;
 	}
-	
+
+	/**
+	 * Returns the JobID assigned to the job by the Flink runtime.
+	 *
+	 * @return jobID, or null if the job has been executed on a runtime without JobIDs or if the execution failed.
+	 */
+	public JobID getJobID() {
+		return jobID;
+	}
 }

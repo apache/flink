@@ -24,7 +24,7 @@ import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.examples.java.clustering.KMeans;
-import org.apache.flink.test.compiler.util.CompilerTestBase;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.test.recordJobs.graph.DeltaPageRankWithInitialDeltas;
 import org.apache.flink.test.recordJobs.kmeans.KMeansBroadcast;
 import org.apache.flink.test.recordJobs.kmeans.KMeansSingleStep;

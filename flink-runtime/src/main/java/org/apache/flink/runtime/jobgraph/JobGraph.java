@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;

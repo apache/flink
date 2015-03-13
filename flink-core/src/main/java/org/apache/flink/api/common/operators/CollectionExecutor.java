@@ -100,7 +100,7 @@ public class CollectionExecutor {
 		
 		long endTime = System.currentTimeMillis();
 		Map<String, Object> accumulatorResults = AccumulatorHelper.toResultMap(accumulators);
-		return new JobExecutionResult(endTime - startTime, accumulatorResults);
+		return new JobExecutionResult(null, endTime - startTime, accumulatorResults);
 	}
 	
 	private List<?> execute(Operator<?> operator) throws Exception {

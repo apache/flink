@@ -26,6 +26,7 @@ import static org.junit.Assert.fail;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -39,7 +40,6 @@ import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.spargel.java.examples.SpargelConnectedComponents.CCMessager;
 import org.apache.flink.spargel.java.examples.SpargelConnectedComponents.CCUpdater;
 import org.apache.flink.spargel.java.examples.SpargelConnectedComponents.IdAssigner;
-import org.apache.flink.test.compiler.util.CompilerTestBase;
 
 
 public class SpargelCompilerTest extends CompilerTestBase {

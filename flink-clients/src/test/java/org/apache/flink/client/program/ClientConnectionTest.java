@@ -91,7 +91,7 @@ public class ClientConnectionTest {
 			vertex.setInvokableClass(TestInvokable.class);
 
 			final JobGraph jg = new JobGraph("Test Job", vertex);
-			final Client client = new Client(unreachableEndpoint, config, getClass().getClassLoader());
+			final Client client = new Client(unreachableEndpoint, config, getClass().getClassLoader(), -1);
 
 			final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 

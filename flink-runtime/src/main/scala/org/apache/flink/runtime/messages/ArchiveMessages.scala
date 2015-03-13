@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.messages
 
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
-import org.apache.flink.runtime.jobgraph.JobID
 
 /**
  * This object contains the archive specific messages.

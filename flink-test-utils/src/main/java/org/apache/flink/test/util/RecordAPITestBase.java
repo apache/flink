@@ -72,7 +72,7 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 			Assert.fail("Error: Cannot obtain Pact plan. Did the thest forget to override either 'getPactPlan()' or 'getJobGraph()' ?");
 		}
 		
-		Optimizer pc = new Optimizer(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(p);
 		
 		if (printPlan) {

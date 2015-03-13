@@ -89,15 +89,20 @@ public class LocalExecutor extends PlanExecutor {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
+	public static Configuration getConfiguration(LocalExecutor le) {
+		Configuration configuration = new Configuration();
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, le.getTaskManagerNumSlots());
+		configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, le.isDefaultOverwriteFiles());
+		return configuration;
+	}
+
 	public void start() throws Exception {
 		synchronized (this.lock) {
 			if (this.flink == null) {
 				
 				// create the embedded runtime
-				Configuration configuration = new Configuration();
-				configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, getTaskManagerNumSlots());
-				configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, isDefaultOverwriteFiles());
+				Configuration configuration = getConfiguration(this);
 				// start it up
 				this.flink = new LocalFlinkMiniCluster(configuration, true);
 			} else {
@@ -158,7 +163,7 @@ public class LocalExecutor extends PlanExecutor {
 			}
 
 			try {
-				Optimizer pc = new Optimizer(new DataStatistics());
+				Optimizer pc = new Optimizer(new DataStatistics(), this.flink.getConfiguration());
 				OptimizedPlan op = pc.compile(plan);
 				
 				JobGraphGenerator jgg = new JobGraphGenerator();
@@ -186,7 +191,7 @@ public class LocalExecutor extends PlanExecutor {
 	 * @throws Exception
 	 */
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		Optimizer pc = new Optimizer(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), getConfiguration(this));
 		OptimizedPlan op = pc.compile(plan);
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 	
@@ -242,7 +247,7 @@ public class LocalExecutor extends PlanExecutor {
 		LocalExecutor exec = new LocalExecutor();
 		try {
 			exec.start();
-			Optimizer pc = new Optimizer(new DataStatistics());
+			Optimizer pc = new Optimizer(new DataStatistics(), exec.flink.getConfiguration());
 			OptimizedPlan op = pc.compile(plan);
 			PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 

@@ -20,6 +20,7 @@ package org.apache.flink.optimizer;
 
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.common.Plan;

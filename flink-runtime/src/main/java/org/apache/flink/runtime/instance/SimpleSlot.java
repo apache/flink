@@ -20,7 +20,7 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;

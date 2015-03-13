@@ -20,7 +20,7 @@
 package org.apache.flink.runtime.profiling;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 
 /**
  * This interface must be implemented by profiling components

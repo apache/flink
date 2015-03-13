@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.hadoop.conf.Configuration;
@@ -36,6 +37,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,13 +85,16 @@ public abstract class YarnTestBase {
 	};
 
 	// Temp directory which is deleted after the unit test.
-	private static TemporaryFolder tmp = new TemporaryFolder();
+	@ClassRule
+	public static TemporaryFolder tmp = new TemporaryFolder();
 
 	protected static MiniYARNCluster yarnCluster = null;
 
 	protected static File flinkUberjar;
 
 	protected static final Configuration yarnConfiguration;
+	protected static final String oldHome = System.getProperty("user.home");
+
 	static {
 		yarnConfiguration = new YarnConfiguration();
 		yarnConfiguration.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);
@@ -102,7 +107,7 @@ public abstract class YarnTestBase {
 		yarnConfiguration.setBoolean(YarnConfiguration.LOG_AGGREGATION_ENABLED, false);
 		yarnConfiguration.setInt(YarnConfiguration.NM_VCORES, 666); // memory is overwritten in the MiniYARNCluster.
 		// so we have to change the number of cores for testing.
-		yarnConfiguration.setInt(YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS, 10000); // 10 seconds expiry (to ensure we properly heartbeat with YARN).
+		yarnConfiguration.setInt(YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS, 20000); // 20 seconds expiry (to ensure we properly heartbeat with YARN).
 	}
 
 	// This code is taken from: http://stackoverflow.com/a/7201825/568695
@@ -153,11 +158,15 @@ public abstract class YarnTestBase {
 		}
 	}
 
+	private YarnClient yarnClient = null;
 	@Before
 	public void checkClusterEmpty() throws IOException, YarnException {
-		YarnClient yarnClient = YarnClient.createYarnClient();
-		yarnClient.init(yarnConfiguration);
-		yarnClient.start();
+		if(yarnClient == null) {
+			yarnClient = YarnClient.createYarnClient();
+			yarnClient.init(yarnConfiguration);
+			yarnClient.start();
+		}
+
 		List<ApplicationReport> apps = yarnClient.getApplications();
 		for(ApplicationReport app : apps) {
 			if(app.getYarnApplicationState() != YarnApplicationState.FINISHED
@@ -201,6 +210,7 @@ public abstract class YarnTestBase {
 			return name.startsWith("flink-dist") && name.endsWith(".jar") && dir.toString().contains("/lib");
 		}
 	}
+
 	public static class ContainsName implements FilenameFilter {
 		private String name;
 		private String excludeInPath = null;
@@ -305,8 +315,19 @@ public abstract class YarnTestBase {
 	}
 
 	public static void startYARNWithConfig(Configuration conf) {
-		flinkUberjar = findFile("..", new RootDirFilenameFilter());
-		Assert.assertNotNull(flinkUberjar);
+		// set the home directory to a tmp directory. Flink on YARN is using the home dir to distribute the file
+		File homeDir = null;
+		try {
+			homeDir = tmp.newFolder();
+		} catch (IOException e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+		System.setProperty("user.home", homeDir.getAbsolutePath());
+		String uberjarStartLoc = "..";
+		LOG.info("Trying to locate uberjar in {}", new File(uberjarStartLoc));
+		flinkUberjar = findFile(uberjarStartLoc, new RootDirFilenameFilter());
+		Assert.assertNotNull("Flink uberjar not found", flinkUberjar);
 		String flinkDistRootDir = flinkUberjar.getParentFile().getParent();
 
 		if (!flinkUberjar.exists()) {
@@ -396,7 +417,7 @@ public abstract class YarnTestBase {
 	/**
 	 * The test has been passed once the "terminateAfterString" has been seen.
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, RunTypes type) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type) {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -413,9 +434,23 @@ public abstract class YarnTestBase {
 		boolean expectedStringSeen = false;
 		for(int second = 0; second <  START_TIMEOUT_SECONDS; second++) {
 			sleep(1000);
+			String outContentString = outContent.toString();
+			String errContentString = errContent.toString();
+			if(failOnStrings != null) {
+				for(int i = 0; i < failOnStrings.length; i++) {
+					if(outContentString.contains(failOnStrings[i])
+							|| errContentString.contains(failOnStrings[i])) {
+						LOG.warn("Failing test. Output contained illegal string '"+ failOnStrings[i]+"'");
+						sendOutput();
+						// stopping runner.
+						runner.sendStop();
+						Assert.fail("Output contained illegal string '"+ failOnStrings[i]+"'");
+					}
+				}
+			}
 			// check output for correct TaskManager startup.
-			if(outContent.toString().contains(terminateAfterString)
-					|| errContent.toString().contains(terminateAfterString) ) {
+			if(outContentString.contains(terminateAfterString)
+					|| errContentString.contains(terminateAfterString) ) {
 				expectedStringSeen = true;
 				LOG.info("Found expected output in redirected streams");
 				// send "stop" command to command line interface
@@ -502,10 +537,31 @@ public abstract class YarnTestBase {
 	public static void tearDown() {
 		//shutdown YARN cluster
 		if (yarnCluster != null) {
-			LOG.info("shutdown MiniYarn cluster");
+			LOG.info("Shutting down MiniYarn cluster");
 			yarnCluster.stop();
 			yarnCluster = null;
 		}
+		// When we are on travis, we copy the tmp files of JUnit (containing the MiniYARNCluster log files)
+		// to <flinkRoot>/target/flink-yarn-tests-*.
+		// The files from there are picked up by the ./tools/travis_watchdog.sh script
+		// to upload them to Amazon S3.
+		if(isOnTravis()) {
+			File target = new File("../target/"+yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
+			if(!target.mkdirs()) {
+				LOG.warn("Error creating dirs to {}", target);
+			}
+			File src = tmp.getRoot();
+			LOG.info("copying the final files from {} to {}", src.getAbsolutePath(), target.getAbsolutePath());
+			try {
+				FileUtils.copyDirectoryToDirectory(src, target);
+			} catch (IOException e) {
+				LOG.warn("Error copying the final files from {} to {}: msg: {}", src.getAbsolutePath(), target.getAbsolutePath(), e.getMessage(), e);
+			}
+		}
+	}
+
+	public static boolean isOnTravis() {
+		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
 	}
 
 }

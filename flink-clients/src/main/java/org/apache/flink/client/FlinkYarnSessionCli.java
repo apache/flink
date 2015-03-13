@@ -122,12 +122,6 @@ public class FlinkYarnSessionCli {
 		} else {
 			LOG.info("No path for the flink jar passed. Using the location of "+flinkYarnClient.getClass()+" to locate the jar");
 			localJarPath = new Path("file://"+flinkYarnClient.getClass().getProtectionDomain().getCodeSource().getLocation().getPath());
-			if(!localJarPath.toString().contains("uberjar")) {
-				// we need to have a proper uberjar because otherwise we don't have the required classes available on the cluster.
-				// most likely the user did try to start yarn in a regular hadoop2 flink build (not a yarn package) (using ./bin/flink -m yarn-cluster)
-				LOG.error("The detected jar file '"+localJarPath+"' is not a uberjar.");
-				return null;
-			}
 		}
 
 		flinkYarnClient.setLocalJarPath(localJarPath);
@@ -392,6 +386,10 @@ public class FlinkYarnSessionCli {
 
 			try {
 				yarnCluster = flinkYarnClient.deploy(null);
+				// only connect to cluster if its not a detached session.
+				if(!flinkYarnClient.isDetached()) {
+					yarnCluster.connectToCluster();
+				}
 			} catch (Exception e) {
 				System.err.println("Error while deploying YARN cluster: "+e.getMessage());
 				e.printStackTrace(System.err);
@@ -423,7 +421,7 @@ public class FlinkYarnSessionCli {
 
 			if (detachedMode) {
 				// print info and quit:
-				LOG.info("The Flink YARN client has been started in detached mode. In order to stop" +
+				LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
 						"yarn application -kill "+yarnCluster.getApplicationId()+"\n" +
 						"Please also note that the temporary files of the YARN session in {} will not be removed.",

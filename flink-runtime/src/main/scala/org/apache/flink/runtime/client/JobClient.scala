@@ -88,8 +88,8 @@ ActorLogging {
 
     case Success(_) =>
 
-    case JobResultSuccess(_, duration, accumulatorResults) =>
-      jobSubmitter ! new JobExecutionResult(duration, accumulatorResults)
+    case JobResultSuccess(jobId, duration, accumulatorResults) =>
+      jobSubmitter ! new JobExecutionResult(jobId, duration, accumulatorResults)
       self ! PoisonPill
 
     case msg =>
