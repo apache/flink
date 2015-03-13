@@ -18,7 +18,9 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichFoldFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -28,6 +30,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.function.RichWindowMapFunction;
 import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
@@ -274,6 +277,50 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
+	 * Applies a fold transformation on the windowed data stream by folding the
+	 * current window at every trigger.The user can also extend the
+	 * {@link RichFoldFunction} to gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * This version of foldWindow uses user supplied typeinformation for
+	 * serializaton. Use this only when the system is unable to detect type
+	 * information.
+	 * 
+	 * @param foldFunction
+	 *            The fold function that will be applied to the windows.
+	 * @param initialValue
+	 *            Initial value given to foldFunction
+	 * @param outType
+	 *            The output type of the operator
+	 * @return The transformed DataStream
+	 */
+	public <R> DiscretizedStream<R> foldWindow(FoldFunction<R, OUT> foldFunction, R initialValue,
+			TypeInformation<R> outType) {
+
+		return discretize(WindowTransformation.FOLDWINDOW.with(clean(foldFunction)),
+				new BasicWindowBuffer<OUT>()).foldWindow(foldFunction, initialValue, outType);
+
+	}
+
+	/**
+	 * Applies a fold transformation on the windowed data stream by folding the
+	 * current window at every trigger.The user can also extend the
+	 * {@link RichFoldFunction} to gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * 
+	 * @param foldFunction
+	 *            The fold function that will be applied to the windows.
+	 * @param initialValue
+	 *            Initial value given to foldFunction
+	 * @return The transformed DataStream
+	 */
+	public <R> DiscretizedStream<R> foldWindow(FoldFunction<R, OUT> foldFunction, R initialValue) {
+
+		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(foldFunction),
+				getType());
+		return foldWindow(foldFunction, initialValue, outType);
+	}
+
+	/**
 	 * Applies a mapWindow transformation on the windowed data stream by calling
 	 * the mapWindow function on the window at every trigger. In contrast with
 	 * the standard binary reducer, with mapWindow allows the user to access all
@@ -327,7 +374,7 @@ public class WindowedDataStream<OUT> {
 		TypeInformation<WindowEvent<OUT>> bufferEventType = new TupleTypeInfo(WindowEvent.class,
 				getType(), BasicTypeInfo.INT_TYPE_INFO);
 
-		int parallelism = getDiscretizerParallelism();
+		int parallelism = getDiscretizerParallelism(transformation);
 
 		return new DiscretizedStream<OUT>(dataStream
 				.transform("Stream Discretizer", bufferEventType, discretizer)
@@ -338,11 +385,11 @@ public class WindowedDataStream<OUT> {
 
 	}
 
-	private int getDiscretizerParallelism() {
+	private int getDiscretizerParallelism(WindowTransformation transformation) {
 		return isLocal
-				|| WindowUtils.isParallelPolicy(getTrigger(), getEviction(),
-						dataStream.getParallelism()) || (discretizerKey != null) ? dataStream.environment
-				.getDegreeOfParallelism() : 1;
+				|| (transformation == WindowTransformation.REDUCEWINDOW && WindowUtils
+						.isParallelPolicy(getTrigger(), getEviction(), dataStream.getParallelism()))
+				|| (discretizerKey != null) ? dataStream.environment.getDegreeOfParallelism() : 1;
 	}
 
 	private StreamInvokable<OUT, WindowEvent<OUT>> getDiscretizer() {

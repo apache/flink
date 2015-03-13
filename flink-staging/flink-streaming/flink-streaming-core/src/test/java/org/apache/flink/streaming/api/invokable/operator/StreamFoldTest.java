@@ -23,12 +23,14 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
 
 public class StreamFoldTest {
 
-	private static class MyFolder implements FoldFunction<String, Integer>{
+	private static class MyFolder implements FoldFunction<String, Integer> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -40,8 +42,9 @@ public class StreamFoldTest {
 
 	@Test
 	public void test() {
+		TypeInformation<String> outType = TypeExtractor.getForObject("A string");
 		StreamFoldInvokable<Integer, String> invokable1 = new StreamFoldInvokable<Integer, String>(
-				new MyFolder(), "");
+				new MyFolder(), "", outType);
 
 		List<String> expected = Arrays.asList("1","11","112","1123","11233");
 		List<String> actual = MockContext.createAndExecute(invokable1,

@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 
 public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
@@ -26,11 +28,13 @@ public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 	protected FoldFunction<OUT, IN> folder;
 	protected OUT accumulator;
 	protected IN nextValue;
+	protected TypeSerializer<OUT> outTypeSerializer;
 
-	public StreamFoldInvokable(FoldFunction<OUT, IN> folder, OUT initialValue) {
+	public StreamFoldInvokable(FoldFunction<OUT, IN> folder, OUT initialValue, TypeInformation<OUT> outTypeInformation) {
 		super(folder);
 		this.folder = folder;
 		this.accumulator = initialValue;
+		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
 	}
 
 	@Override
@@ -49,7 +53,7 @@ public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 	protected void callUserFunction() throws Exception {
 
 		nextValue = nextObject;
-		accumulator = folder.fold(accumulator, nextValue);
+		accumulator = folder.fold(outTypeSerializer.copy(accumulator), nextValue);
 		collector.collect(accumulator);
 
 	}
@@ -61,5 +65,4 @@ public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 			callUserFunctionAndLogException();
 		}
 	}
-
 }
