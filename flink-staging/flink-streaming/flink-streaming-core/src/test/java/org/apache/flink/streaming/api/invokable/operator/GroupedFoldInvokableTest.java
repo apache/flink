@@ -23,7 +23,9 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.util.MockContext;
 
 import org.junit.Test;
@@ -43,6 +45,8 @@ public class GroupedFoldInvokableTest {
 
 	@Test
 	public void test() {
+		TypeInformation<String> outType = TypeExtractor.getForObject("A string");
+
 		GroupedFoldInvokable<Integer, String> invokable1 = new GroupedFoldInvokable<Integer, String>(
 				new MyFolder(), new KeySelector<Integer, String>() {
 
@@ -52,7 +56,7 @@ public class GroupedFoldInvokableTest {
 			public String getKey(Integer value) throws Exception {
 				return value.toString();
 			}
-		}, "100");
+		}, "100", outType);
 
 		List<String> expected = Arrays.asList("100", "1001", "100", "1002", "100");
 		List<String> actual = MockContext.createAndExecute(invokable1,

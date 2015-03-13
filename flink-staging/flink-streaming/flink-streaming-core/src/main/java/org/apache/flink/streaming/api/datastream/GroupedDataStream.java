@@ -96,7 +96,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType());
 
 		return transform("Grouped Fold", outType, new GroupedFoldInvokable<OUT, R>(clean(folder), keySelector,
-				initialValue));
+				initialValue, outType));
 	}
 
 	/**

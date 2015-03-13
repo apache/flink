@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 
 public class GroupedFoldInvokable<IN, OUT> extends StreamFoldInvokable<IN, OUT> {
@@ -31,8 +32,8 @@ public class GroupedFoldInvokable<IN, OUT> extends StreamFoldInvokable<IN, OUT> 
 	private OUT folded;
 	private OUT initialValue;
 
-	public GroupedFoldInvokable(FoldFunction<OUT, IN> folder, KeySelector<IN, ?> keySelector, OUT initialValue) {
-		super(folder, initialValue);
+	public GroupedFoldInvokable(FoldFunction<OUT, IN> folder, KeySelector<IN, ?> keySelector, OUT initialValue, TypeInformation<OUT> outTypeInformation) {
+		super(folder, initialValue, outTypeInformation);
 		this.keySelector = keySelector;
 		this.initialValue = initialValue;
 		values = new HashMap<Object, OUT>();
@@ -55,7 +56,7 @@ public class GroupedFoldInvokable<IN, OUT> extends StreamFoldInvokable<IN, OUT> 
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		folded = folder.fold(accumulator, nextValue);
+		folded = folder.fold(outTypeSerializer.copy(accumulator), nextValue);
 	}
 
 }

@@ -538,7 +538,7 @@ public class DataStream<OUT> {
 	public <R> SingleOutputStreamOperator<R, ?> fold(FoldFunction<R, OUT> folder, R initialValue) {
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType());
 
-		return transform("Fold", outType, new StreamFoldInvokable<OUT, R>(clean(folder), initialValue));
+		return transform("Fold", outType, new StreamFoldInvokable<OUT, R>(clean(folder), initialValue, outType));
 	}
 
 	/**

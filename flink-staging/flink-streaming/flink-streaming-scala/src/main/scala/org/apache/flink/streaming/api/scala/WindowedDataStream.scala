@@ -22,7 +22,7 @@ import scala.Array.canBuildFrom
 import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.reflect.ClassTag
 
-import org.apache.flink.api.common.functions.ReduceFunction
+import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
@@ -131,6 +131,36 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
       def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
     }
     reduceWindow(reducer)
+  }
+
+  /**
+   * Applies a fold transformation on the windowed data stream by reducing
+   * the current window at every trigger.
+   *
+   */
+  def foldWindow[R: TypeInformation: ClassTag](folder: FoldFunction[R,T], initialValue: R): 
+  WindowedDataStream[R] = {
+    if (folder == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    javaStream.foldWindow(folder, initialValue, implicitly[TypeInformation[R]])
+  }
+
+  /**
+   * Applies a fold transformation on the windowed data stream by reducing
+   * the current window at every trigger.
+   *
+   */
+  def foldWindow[R: TypeInformation: ClassTag](initialValue: R, fun: (R, T) => R): 
+  WindowedDataStream[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    val folder = new FoldFunction[R,T] {
+      val cleanFun = clean(fun)
+      def fold(acc: R, v: T) = { cleanFun(acc, v) }
+    }
+    foldWindow(folder, initialValue)
   }
 
   /**

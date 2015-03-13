@@ -424,7 +424,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Creates a new [[DataStream]] by reducing the elements of this DataStream
+  * Creates a new [[DataStream]] by reducing the elements of this DataStream
    * using an associative reduce function.
    */
   def reduce(fun: (T, T) => T): DataStream[T] = {
@@ -442,15 +442,17 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new [[DataStream]] by folding the elements of this DataStream
    * using an associative fold function and an initial value.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[R,T]): DataStream[R] = {
+  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[R,T]): 
+  DataStream[R] = {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
     javaStream match {
       case ds: GroupedDataStream[_] => javaStream.transform("fold",
-        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), initialValue))
+        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), 
+            initialValue, implicitly[TypeInformation[R]]))
       case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
-        new StreamFoldInvokable[T,R](folder, initialValue))
+        new StreamFoldInvokable[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
     }
   }
 
