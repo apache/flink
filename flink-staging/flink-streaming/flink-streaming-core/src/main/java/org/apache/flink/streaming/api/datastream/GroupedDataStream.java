@@ -17,10 +17,14 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
+import org.apache.flink.streaming.api.invokable.operator.GroupedFoldInvokable;
 import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 
@@ -68,6 +72,31 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 		return transform("Grouped Reduce", getType(), new GroupedReduceInvokable<OUT>(clean(reducer),
 				keySelector));
+	}
+
+	/**
+	 * Applies a fold transformation on the grouped data stream grouped on by
+	 * the given key position. The {@link FoldFunction} will receive input
+	 * values based on the key value. Only input values with the same key will
+	 * go to the same folder.The user can also extend
+	 * {@link RichFoldFunction} to gain access to other features provided by
+	 * the {@link RichFuntion} interface.
+	 *
+	 * @param folder
+	 *            The {@link FoldFunction} that will be called for every
+	 *            element of the input values with the same key.
+	 * @param initialValue
+	 *            The initialValue passed to the folders for each key.
+	 * @return The transformed DataStream.
+	 */
+
+	@Override
+	public <R> SingleOutputStreamOperator<R, ?> fold(FoldFunction<R, OUT> folder, R initialValue) {
+
+		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType());
+
+		return transform("Grouped Fold", outType, new GroupedFoldInvokable<OUT, R>(clean(folder), keySelector,
+				initialValue));
 	}
 
 	/**
