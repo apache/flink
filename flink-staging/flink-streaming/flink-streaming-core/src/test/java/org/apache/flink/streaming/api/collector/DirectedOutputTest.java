@@ -17,11 +17,7 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import org.apache.flink.streaming.api.datastream.SplitDataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,15 +26,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import org.apache.flink.streaming.api.datastream.SplitDataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.util.TestListResultSink;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.junit.Test;
 
 public class DirectedOutputTest {
 
 	private static final String TEN = "ten";
 	private static final String ODD = "odd";
-	private static final String ALL = "all";
-	private static final String EVEN_AND_ODD = "evenAndOdd";
-	private static final String ODD_AND_TEN = "oddAndTen";
 	private static final String EVEN = "even";
 	private static final String NON_SELECTED = "nonSelected";
 
@@ -98,19 +96,24 @@ public class DirectedOutputTest {
 
 	@Test
 	public void outputSelectorTest() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, 32);
+		StreamExecutionEnvironment env = new TestStreamEnvironment(3, 32);
+
+		TestListResultSink<Long> evenSink = new TestListResultSink<Long>();
+		TestListResultSink<Long> oddAndTenSink = new TestListResultSink<Long>();
+		TestListResultSink<Long> evenAndOddSink = new TestListResultSink<Long>();
+		TestListResultSink<Long> allSink = new TestListResultSink<Long>();
 
 		SplitDataStream<Long> source = env.generateSequence(1, 11).split(new MyOutputSelector());
-		source.select(EVEN).addSink(new ListSink(EVEN));
-		source.select(ODD, TEN).addSink(new ListSink(ODD_AND_TEN));
-		source.select(EVEN, ODD).addSink(new ListSink(EVEN_AND_ODD));
-		source.addSink(new ListSink(ALL));
+		source.select(EVEN).addSink(evenSink);
+		source.select(ODD, TEN).addSink(oddAndTenSink);
+		source.select(EVEN, ODD).addSink(evenAndOddSink);
+		source.addSink(allSink);
 
 		env.execute();
-		assertEquals(Arrays.asList(2L, 4L, 6L, 8L, 10L), outputs.get(EVEN));
-		assertEquals(Arrays.asList(1L, 3L, 5L, 7L, 9L, 10L, 11L), outputs.get(ODD_AND_TEN));
+		assertEquals(Arrays.asList(2L, 4L, 6L, 8L, 10L), evenSink.getSortedResult());
+		assertEquals(Arrays.asList(1L, 3L, 5L, 7L, 9L, 10L, 11L), oddAndTenSink.getSortedResult());
 		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L),
-				outputs.get(EVEN_AND_ODD));
-		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L), outputs.get(ALL));
+				evenAndOddSink.getResult());
+		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L), allSink.getResult());
 	}
 }
