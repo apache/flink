@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -271,6 +272,25 @@ public class WindowedDataStream<OUT> {
 		} else {
 			return discretized.reduceWindow(reduceFunction);
 		}
+	}
+
+	/**
+	 * Applies a fold transformation on the windowed data stream by folding
+	 * the current window at every trigger.The user can also extend the
+	 * {@link RichFoldFunction} to gain access to other features provided by
+	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * @param foldFunction
+	 *            The reduce function that will be applied to the windows.
+	 * @param initialValue
+	 *            Initial value given to foldFunction
+	 * @return The transformed DataStream
+	 */
+	public <R> DiscretizedStream<R> foldWindow(FoldFunction<R, OUT> foldFunction, R initialValue) {
+
+		return discretize(WindowTransformation.FOLDWINDOW.with(clean(foldFunction)),
+				new BasicWindowBuffer<OUT>()).foldWindow(foldFunction, initialValue);
+
 	}
 
 	/**
