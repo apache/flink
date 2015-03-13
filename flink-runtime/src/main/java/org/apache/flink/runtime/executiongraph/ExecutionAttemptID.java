@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.util.AbstractID;
 
 /**
  * Unique identifier for the attempt to execute a tasks. Multiple attempts happen
@@ -34,6 +34,11 @@ public class ExecutionAttemptID extends AbstractID {
 
 	public ExecutionAttemptID(long lowerPart, long upperPart) {
 		super(lowerPart, upperPart);
+	}
+
+	public void writeTo(ByteBuf buf) {
+		buf.writeLong(this.lowerPart);
+		buf.writeLong(this.upperPart);
 	}
 
 	public static ExecutionAttemptID fromByteBuf(ByteBuf buf) {

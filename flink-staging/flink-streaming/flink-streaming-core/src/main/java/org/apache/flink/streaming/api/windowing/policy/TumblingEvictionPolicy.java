@@ -87,4 +87,18 @@ public class TumblingEvictionPolicy<DATA> implements CloneableEvictionPolicy<DAT
 	public TumblingEvictionPolicy<DATA> clone() {
 		return new TumblingEvictionPolicy<DATA>(counter);
 	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof TumblingEvictionPolicy)) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+	@Override
+	public String toString() {
+		return "TumblingPolicy";
+	}
 }

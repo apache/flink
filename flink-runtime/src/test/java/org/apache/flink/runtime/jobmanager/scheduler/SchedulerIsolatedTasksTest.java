@@ -198,29 +198,29 @@ public class SchedulerIsolatedTasksTest {
 		final int NUM_TASKS_TO_SCHEDULE = 2000;
 
 		TestingUtils.setGlobalExecutionContext();
-		
+
 		try {
 			// note: since this test asynchronously releases slots, the executor needs release workers.
 			// doing the release call synchronous can lead to a deadlock
 			Scheduler scheduler = new Scheduler();
-			
-			for (int i = 0;i < NUM_INSTANCES; i++) {
+
+			for (int i = 0; i < NUM_INSTANCES; i++) {
 				scheduler.newInstanceAvailable(getRandomInstance((int) (Math.random() * NUM_SLOTS_PER_INSTANCE) + 1));
 			}
-			
+
 			assertEquals(NUM_INSTANCES, scheduler.getNumberOfAvailableInstances());
 			final int totalSlots = scheduler.getNumberOfAvailableSlots();
-			
+
 			// all slots we ever got.
 			List<SlotAllocationFuture> allAllocatedSlots = new ArrayList<SlotAllocationFuture>();
-			
+
 			// slots that need to be released
 			final Set<SimpleSlot> toRelease = new HashSet<SimpleSlot>();
-			
+
 			// flag to track errors in the concurrent thread
 			final AtomicBoolean errored = new AtomicBoolean(false);
-			
-			
+
+
 			SlotAllocationFutureAction action = new SlotAllocationFutureAction() {
 				@Override
 				public void slotAllocated(SimpleSlot slot) {
@@ -230,10 +230,10 @@ public class SchedulerIsolatedTasksTest {
 					}
 				}
 			};
-			
+
 			// thread to asynchronously release slots
 			Runnable disposer = new Runnable() {
-				
+
 				@Override
 				public void run() {
 					try {
@@ -243,25 +243,24 @@ public class SchedulerIsolatedTasksTest {
 								while (toRelease.isEmpty()) {
 									toRelease.wait();
 								}
-								
+
 								Iterator<SimpleSlot> iter = toRelease.iterator();
 								SimpleSlot next = iter.next();
 								iter.remove();
-								
+
 								next.releaseSlot();
 								recycled++;
 							}
 						}
-					}
-					catch (Throwable t) {
+					} catch (Throwable t) {
 						errored.set(true);
 					}
 				}
 			};
-			
+
 			Thread disposeThread = new Thread(disposer);
 			disposeThread.start();
-			
+
 			for (int i = 0; i < NUM_TASKS_TO_SCHEDULE; i++) {
 				SlotAllocationFuture future = scheduler.scheduleQueued(new ScheduledUnit(getDummyTask()));
 				future.setFutureAction(action);
@@ -269,23 +268,26 @@ public class SchedulerIsolatedTasksTest {
 			}
 
 			disposeThread.join();
-			
+
 			assertFalse("The slot releasing thread caused an error.", errored.get());
-			
+
 			List<SimpleSlot> slotsAfter = new ArrayList<SimpleSlot>();
 			for (SlotAllocationFuture future : allAllocatedSlots) {
 				slotsAfter.add(future.waitTillAllocated());
 			}
-			
+
+			assertEquals("All instances should have available slots.", NUM_INSTANCES,
+					scheduler.getNumberOfInstancesWithAvailableSlots());
+
 			// the slots should all be different
 			assertTrue(areAllDistinct(slotsAfter.toArray()));
-			
-			assertEquals(totalSlots, scheduler.getNumberOfAvailableSlots());
-		}
-		catch (Exception e) {
+
+			assertEquals("All slots should be available.", totalSlots,
+					scheduler.getNumberOfAvailableSlots());
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}finally{
+		} finally {
 			TestingUtils.setCallingThreadDispatcher(system);
 		}
 	}

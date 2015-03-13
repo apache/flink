@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client.web;
 
 import java.io.File;
@@ -42,7 +41,7 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
- * This class sets up the web-server that serves the web frontend. It instantiates and
+ * This class sets up the web-server that serves the web client. It instantiates and
  * configures an embedded jetty server.
  */
 public class WebInterfaceServer {
@@ -65,25 +64,22 @@ public class WebInterfaceServer {
 	 * It serves the asynchronous requests for the plans and all other static resources, like
 	 * static web pages, stylesheets or javascript files.
 	 * 
-	 * @param nepheleConfig
-	 *        The configuration for the nephele job manager. All compiled jobs will be sent
-	 *        to the manager described by this configuration.
+	 * @param config
+	 *        The configuration for the JobManager. All jobs will be sent
+	 *        to the JobManager described by this configuration.
 	 * @param port
 	 *        The port to launch the server on.
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
-	public WebInterfaceServer(Configuration nepheleConfig, int port)
-																	throws IOException {
-		Configuration config = GlobalConfiguration.getConfiguration();
-
+	public WebInterfaceServer(Configuration config, int port) throws IOException {
 		// if no explicit configuration is given, use the global configuration
-		if (nepheleConfig == null) {
-			nepheleConfig = config;
+		if (config == null) {
+			config = GlobalConfiguration.getConfiguration();
 		}
 		
 		// get base path of Flink installation
-		String basePath = nepheleConfig.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY,"");
+		String basePath = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY,"");
 
 		File tmpDir;
 		File uploadDir;
@@ -100,9 +96,7 @@ public class WebInterfaceServer {
 			ConfigConstants.DEFAULT_WEB_TMP_DIR);
 		
 		tmpDir = new File(tmpDirPath);
-		if(tmpDir.isAbsolute()) {
-			// absolute path, everything all right
-		} else {
+		if (!tmpDir.isAbsolute()) {
 			// path relative to base dir
 			tmpDir = new File(basePath+"/"+tmpDirPath);
 		}
@@ -111,9 +105,7 @@ public class WebInterfaceServer {
 				ConfigConstants.DEFAULT_WEB_JOB_STORAGE_DIR);
 		
 		uploadDir = new File(uploadDirPath);
-		if(uploadDir.isAbsolute()) {
-			// absolute path, everything peachy
-		} else {
+		if (!uploadDir.isAbsolute()) {
 			// path relative to base dir
 			uploadDir = new File(basePath+"/"+uploadDirPath);
 		}
@@ -122,21 +114,19 @@ public class WebInterfaceServer {
 				ConfigConstants.DEFAULT_WEB_PLAN_DUMP_DIR);
 		
 		planDumpDir = new File(planDumpDirPath);
-		if(planDumpDir.isAbsolute()) {
-			// absolute path, nice and dandy
-		} else {
+		if (!planDumpDir.isAbsolute()) {
 			// path relative to base dir
 			planDumpDir = new File(basePath+"/"+planDumpDirPath);
 		}
 		
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Setting up web frontend server, using web-root directory '" +
-					webRootDir.toExternalForm()	+ "'.");
+			LOG.info("Setting up web client server, using web-root directory '" +
+					webRootDir.toExternalForm() + "'.");
 			LOG.info("Web frontend server will store temporary files in '" + tmpDir.getAbsolutePath()
 				+ "', uploaded jobs in '" + uploadDir.getAbsolutePath() + "', plan-json-dumps in '"
 				+ planDumpDir.getAbsolutePath() + "'.");
 	
-			LOG.info("Web-frontend will submit jobs to nephele job-manager on "
+			LOG.info("Web client will submit jobs to JobManager at "
 				+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
 				+ config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 				+ ".");
@@ -149,18 +139,16 @@ public class WebInterfaceServer {
 		checkAndCreateDirectories(uploadDir, true);
 		checkAndCreateDirectories(planDumpDir, true);
 		
-		int jobManagerWebPort = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		int jobManagerWebPort = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+												ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 
 		// ----- the handlers for the servlets -----
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletContext.setContextPath("/");
 		servletContext.addServlet(new ServletHolder(new PactJobJSONServlet(uploadDir)), "/pactPlan");
-		servletContext.addServlet(new ServletHolder(new JobsInfoServlet(nepheleConfig)),
-				"/jobsInfo");
 		servletContext.addServlet(new ServletHolder(new PlanDisplayServlet(jobManagerWebPort)), "/showPlan");
 		servletContext.addServlet(new ServletHolder(new JobsServlet(uploadDir, tmpDir, "launch.html")), "/jobs");
-		servletContext.addServlet(new ServletHolder(new JobSubmissionServlet(nepheleConfig, uploadDir, planDumpDir)),
-			"/runJob");
+		servletContext.addServlet(new ServletHolder(new JobSubmissionServlet(config, uploadDir, planDumpDir)), "/runJob");
 
 		// ----- the hander serving the written pact plans -----
 		ResourceHandler pactPlanHandler = new ResourceHandler();

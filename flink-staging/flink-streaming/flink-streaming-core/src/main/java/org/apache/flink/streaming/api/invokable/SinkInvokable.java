@@ -31,7 +31,7 @@ public class SinkInvokable<IN> extends ChainableInvokable<IN, IN> {
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -45,6 +45,12 @@ public class SinkInvokable<IN> extends ChainableInvokable<IN, IN> {
 	public void collect(IN record) {
 		nextObject = copy(record);
 		callUserFunctionAndLogException();
+	}
+
+	@Override
+	public void cancel() {
+		super.cancel();
+		sinkFunction.cancel();
 	}
 
 }

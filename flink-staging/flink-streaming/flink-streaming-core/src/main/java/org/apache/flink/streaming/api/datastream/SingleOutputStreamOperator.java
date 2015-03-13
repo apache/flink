@@ -17,16 +17,10 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy;
-import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
-import org.apache.flink.streaming.state.OperatorState;
 
 /**
  * The SingleOutputStreamOperator represents a user defined transformation
@@ -96,43 +90,6 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 */
 	public SingleOutputStreamOperator<OUT, O> setBufferTimeout(long timeoutMillis) {
 		streamGraph.setBufferTimeout(id, timeoutMillis);
-		return this;
-	}
-
-	/**
-	 * This is a beta feature </br></br> Register an operator state for this
-	 * operator by the given name. This name can be used to retrieve the state
-	 * during runtime using {@link StreamingRuntimeContext#getState(String)}. To
-	 * obtain the {@link StreamingRuntimeContext} from the user-defined function
-	 * use the {@link RichFunction#getRuntimeContext()} method.
-	 * 
-	 * @param name
-	 *            The name of the operator state.
-	 * @param state
-	 *            The state to be registered for this name.
-	 * @return The data stream with state registered.
-	 */
-	protected SingleOutputStreamOperator<OUT, O> registerState(String name, OperatorState<?> state) {
-		streamGraph.addOperatorState(getId(), name, state);
-		return this;
-	}
-
-	/**
-	 * This is a beta feature </br></br> Register operator states for this
-	 * operator provided in a map. The registered states can be retrieved during
-	 * runtime using {@link StreamingRuntimeContext#getState(String)}. To obtain
-	 * the {@link StreamingRuntimeContext} from the user-defined function use
-	 * the {@link RichFunction#getRuntimeContext()} method.
-	 * 
-	 * @param states
-	 *            The map containing the states that will be registered.
-	 * @return The data stream with states registered.
-	 */
-	protected SingleOutputStreamOperator<OUT, O> registerState(Map<String, OperatorState<?>> states) {
-		for (Entry<String, OperatorState<?>> entry : states.entrySet()) {
-			streamGraph.addOperatorState(getId(), entry.getKey(), entry.getValue());
-		}
-
 		return this;
 	}
 

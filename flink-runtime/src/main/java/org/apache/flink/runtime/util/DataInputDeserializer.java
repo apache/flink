@@ -348,9 +348,9 @@ public class DataInputDeserializer implements DataInputView {
 					".");
 		}
 
-		if(this.position >= this.end){
+		if(this.position >= this.end) {
 			return -1;
-		}else{
+		} else {
 			int toRead = Math.min(this.end-this.position, len);
 			System.arraycopy(this.buffer,this.position,b,off,toRead);
 			this.position += toRead;

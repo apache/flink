@@ -97,7 +97,7 @@ for p in $poms; do
   # To avoid accidentally replace version numbers in our dependencies 
   # sharing the version number with the current release use the following.
 
-  perl -0777 -pe "s:<groupId>org.apache.flink</groupId>\n(\t*<artifactId>([a-z]+-)+[a-z]+</artifactId>\n\t*)<version>${old_version}</version>:<groupId>org.apache.flink</groupId>\n\1<version>${new_version}</version>:" $p > "$tmp_nuname1"
+  perl -0777 -pe "s:<groupId>org.apache.flink</groupId>\n([\t ]*<artifactId>([a-z]+-)+[a-z]+</artifactId>\n[\t ]*)<version>${old_version}</version>:<groupId>org.apache.flink</groupId>\n\1<version>${new_version}</version>:g" $p > "$tmp_nuname1"
 
   # Alternatively when no version collisions are present this is enough:
   # sed -e "s/${old_version}/${new_version}/" $p > "$tmp_nuname1"

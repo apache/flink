@@ -28,7 +28,15 @@ import org.apache.flink.api.java.typeutils.runtime.WritableComparator;
 import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
 import org.apache.hadoop.io.Writable;
 
+/**
+ * Type information for data types that extend Hadoop's {@link Writable} interface. The Writable
+ * interface defines the serialization and deserialization routines for the data type.
+ *
+ * @param <T> The type of the class represented by this type information.
+ */
 public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> implements AtomicType<T> {
+	
+	private static final long serialVersionUID = 1L;
 	
 	private final Class<T> typeClass;
 	

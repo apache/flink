@@ -63,23 +63,15 @@ public class MapOperatorBase<IN, OUT, FT extends MapFunction<IN, OUT>> extends S
 		
 		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size());
 
-		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
-		
-		if (objectReuseDisabled) {
-			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
-			
-			for (IN element : inputData) {
-				IN inCopy = inSerializer.copy(element);
-				OUT out = function.map(inCopy);
-				result.add(outSerializer.copy(out));
-			}
-		} else {
-			for (IN element : inputData) {
-				result.add(function.map(element));
-			}
+		TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
+		TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
+
+		for (IN element : inputData) {
+			IN inCopy = inSerializer.copy(element);
+			OUT out = function.map(inCopy);
+			result.add(outSerializer.copy(out));
 		}
-		
+
 		FunctionUtils.closeFunction(function);
 		
 		return result;

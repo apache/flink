@@ -234,7 +234,10 @@ class UnfinishedJoinOperation[L, R](
       }
     }
     val returnType = new CaseClassTypeInfo[(L, R)](
-      classOf[(L, R)], Seq(leftSet.getType, rightSet.getType), Array("_1", "_2")) {
+      classOf[(L, R)],
+      Array(leftSet.getType, rightSet.getType),
+      Seq(leftSet.getType, rightSet.getType),
+      Array("_1", "_2")) {
 
       override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[(L, R)] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)

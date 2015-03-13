@@ -102,7 +102,7 @@ public class TextInputFormatTest {
 	}
 
 	private void testRemovingTrailingCR(String lineBreaker,String delimiter) {
-		File tempFile=null;
+		File tempFile;
 		
 		String FIRST = "First line";
 		String SECOND = "Second line";
@@ -131,7 +131,7 @@ public class TextInputFormatTest {
 			inputFormat.open(splits[0]);
 			
 			Record r = new Record();
-			if (  (delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n") ) ) 
+			if ( (delimiter.equals("\n") && (lineBreaker.equals("\n") || lineBreaker.equals("\r\n") ) )
 					|| (lineBreaker.equals(delimiter)) ){
 
 				assertNotNull("Expecting first record here", inputFormat.nextRecord(r));
@@ -141,7 +141,7 @@ public class TextInputFormatTest {
 				assertEquals(SECOND, r.getField(0, StringValue.class).getValue());
 				
 				assertNull("The input file is over", inputFormat.nextRecord(r));
-			}else{
+			} else {
 				assertNotNull("Expecting first record here", inputFormat.nextRecord(r));
 				assertEquals(CONTENT, r.getField(0, StringValue.class).getValue());
 			}

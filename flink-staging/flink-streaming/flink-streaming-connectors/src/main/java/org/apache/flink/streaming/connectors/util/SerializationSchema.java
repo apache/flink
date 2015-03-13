@@ -19,7 +19,7 @@ package org.apache.flink.streaming.connectors.util;
 
 import java.io.Serializable;
 
-public interface SerializationSchema<T,R> extends Serializable {
+public interface SerializationSchema<T, R> extends Serializable {
 
 	/**
 	 * Serializes the incoming element to a specified type.

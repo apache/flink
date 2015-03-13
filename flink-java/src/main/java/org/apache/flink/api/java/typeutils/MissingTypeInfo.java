@@ -29,6 +29,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  */
 public class MissingTypeInfo extends TypeInformation<InvalidTypesException> {
 
+	private static final long serialVersionUID = -4212082837126702723L;
+	
 	private String functionName;
 	private InvalidTypesException typeException;
 

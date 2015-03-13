@@ -42,7 +42,7 @@ public class InputSplitClassLoaderITCase {
 			ForkableFlinkMiniCluster testCluster = new ForkableFlinkMiniCluster(config, false);
 			try {
 				int port = testCluster.getJobManagerRPCPort();
-				
+
 				PackagedProgram prog = new PackagedProgram(new File(JAR_FILE),
 						new String[] { JAR_FILE, "localhost", String.valueOf(port) } );
 				prog.invokeInteractiveModeForExecution();

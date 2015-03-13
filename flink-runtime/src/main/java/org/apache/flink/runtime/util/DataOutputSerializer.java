@@ -268,16 +268,35 @@ public class DataOutputSerializer implements DataOutputView {
 	
 	
 	private void resize(int minCapacityAdd) throws IOException {
+		int newLen = Math.max(this.buffer.length * 2, this.buffer.length + minCapacityAdd);
+		byte[] nb;
 		try {
-			final int newLen = Math.max(this.buffer.length * 2, this.buffer.length + minCapacityAdd);
-			final byte[] nb = new byte[newLen];
-			System.arraycopy(this.buffer, 0, nb, 0, this.position);
-			this.buffer = nb;
-			this.wrapper = ByteBuffer.wrap(this.buffer);
+			nb = new byte[newLen];
 		}
-		catch (NegativeArraySizeException nasex) {
+		catch (NegativeArraySizeException e) {
 			throw new IOException("Serialization failed because the record length would exceed 2GB (max addressable array size in Java).");
 		}
+		catch (OutOfMemoryError e) {
+			// this was too large to allocate, try the smaller size (if possible)
+			if (newLen > this.buffer.length + minCapacityAdd) {
+				newLen = this.buffer.length + minCapacityAdd;
+				try {
+					nb = new byte[newLen];
+				}
+				catch (OutOfMemoryError ee) {
+					// still not possible. give an informative exception message that reports the size
+					throw new IOException("Failed to serialize element. Serialized size (> "
+							+ newLen + " bytes) exceeds JVM heap space", ee);
+				}
+			} else {
+				throw new IOException("Failed to serialize element. Serialized size (> "
+						+ newLen + " bytes) exceeds JVM heap space", e);
+			}
+		}
+
+		System.arraycopy(this.buffer, 0, nb, 0, this.position);
+		this.buffer = nb;
+		this.wrapper = ByteBuffer.wrap(this.buffer);
 	}
 	
 	@SuppressWarnings("restriction")

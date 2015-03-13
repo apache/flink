@@ -62,8 +62,7 @@ under the License.
 					<skip>${skipTests}</skip>
 				</configuration>
 			</plugin>
-			
-			<!-- deactivate the shade plugin for the quickstart scripts -->
+			<!-- deactivate the shade plugin for the quickstart archetypes -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -73,7 +72,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			
 		</plugins>
 	</build>
 </project>

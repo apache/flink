@@ -40,6 +40,12 @@ under the License.
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>${shading-artifact.name}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.avro</groupId>
@@ -55,20 +61,70 @@ under the License.
 		<dependency>
 			<groupId>org.ow2.asm</groupId>
 			<artifactId>asm</artifactId>
+			<version>${asm.version}</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.twitter</groupId>
 			<artifactId>chill_2.10</artifactId>
-			<version>0.5.1</version>
+			<version>${chill.version}</version>
 		</dependency>
 
-		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-avro_2.10</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-protobuf</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+		<!-- We need protobuf for chill-protobuf -->
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<version>${protobuf.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-thrift</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+		<!-- libthrift is required by chill-thrift -->
+		<dependency>
+			<groupId>org.apache.thrift</groupId>
+			<artifactId>libthrift</artifactId>
+			<version>0.6.1</version>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>de.javakaffee</groupId>
+			<artifactId>kryo-serializers</artifactId>
+			<version>0.27</version>
+		</dependency>
+
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
-			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
@@ -78,16 +134,9 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-		
-		<dependency>
-			<groupId>joda-time</groupId>
-			<artifactId>joda-time</artifactId>
-			<scope>test</scope>
-		</dependency>
-		
 	</dependencies>
 
-	<!-- Because flink-scala uses it in tests -->
+	<!-- Because flink-scala and flink-avro uses it in tests -->
 	<build>
 		<plugins>
 			<plugin>
@@ -103,61 +152,4 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
-	<!-- See main pom.xml for explanation of profiles -->
-	<profiles>
-		<profile>
-			<id>hadoop-1</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
-				</property>
-			</activation>
-			<dependencies>
-				<!-- "Old" Hadoop = MapReduce v1 -->
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-core</artifactId>
-					<!--<exclusions>-->
-						<!--<exclusion>-->
-							<!--<groupId>*</groupId>-->
-							<!--<artifactId>*</artifactId>-->
-						<!--</exclusion>-->
-					<!--</exclusions>-->
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hadoop-2</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-					<!--<exclusions>-->
-						<!--<exclusion>-->
-							<!--<groupId>*</groupId>-->
-							<!--<artifactId>*</artifactId>-->
-						<!--</exclusion>-->
-					<!--</exclusions>-->
-				</dependency>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-mapreduce-client-core</artifactId>
-					<!--<exclusions>-->
-						<!--<exclusion>-->
-							<!--<groupId>*</groupId>-->
-							<!--<artifactId>*</artifactId>-->
-						<!--</exclusion>-->
-					<!--</exclusions>-->
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
 </project>

@@ -20,17 +20,16 @@ package org.apache.flink.streaming.api.scala
 
 import java.util
 
-import scala.collection.JavaConversions.asScalaBuffer
-import scala.reflect.ClassTag
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.datastream.{ConnectedDataStream => JavaCStream}
-import org.apache.flink.streaming.api.function.co.{ CoFlatMapFunction, CoMapFunction, CoReduceFunction, CoWindowFunction }
-import org.apache.flink.streaming.api.invokable.operator.co.{ CoFlatMapInvokable, CoMapInvokable, CoReduceInvokable }
+import org.apache.flink.streaming.api.function.co.{CoFlatMapFunction, CoMapFunction, CoReduceFunction, CoWindowFunction}
+import org.apache.flink.streaming.api.invokable.operator.co.{CoFlatMapInvokable, CoMapInvokable, CoReduceInvokable}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.util.Collector
+
+import scala.collection.JavaConversions.asScalaBuffer
+import scala.reflect.ClassTag
 
 class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
 
@@ -125,6 +124,30 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     val flatMapper = new CoFlatMapFunction[IN1, IN2, R] {
       def flatMap1(value: IN1, out: Collector[R]): Unit = clean(fun1)(value, out)
       def flatMap2(value: IN2, out: Collector[R]): Unit = clean(fun2)(value, out)
+    }
+    flatMap(flatMapper)
+  }
+
+  /**
+   * Applies a CoFlatMap transformation on a {@link ConnectedDataStream} and
+   * maps the output to a common type. The transformation calls a
+   * @param fun1 for each element of the first input
+   * and @param fun2 for each element of the second
+   * input. Each CoFlatMapFunction call returns any number of elements
+   * including none.
+   *
+   * @return The transformed { @link DataStream}
+   */
+  def flatMap[R: TypeInformation: ClassTag](fun1: IN1 => TraversableOnce[R],
+      fun2: IN2 => TraversableOnce[R]): DataStream[R] = {
+    if (fun1 == null || fun2 == null) {
+      throw new NullPointerException("FlatMap functions must not be null.")
+    }
+    val flatMapper = new CoFlatMapFunction[IN1, IN2, R] {
+      val cleanFun1 = clean(fun1)
+      val cleanFun2 = clean(fun2)
+      def flatMap1(value: IN1, out: Collector[R]) = { cleanFun1(value) foreach out.collect }
+      def flatMap2(value: IN2, out: Collector[R]) = { cleanFun2(value) foreach out.collect }
     }
     flatMap(flatMapper)
   }

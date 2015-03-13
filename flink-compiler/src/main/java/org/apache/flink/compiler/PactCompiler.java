@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.operators.base.SortPartitionOperatorBase;
+import org.apache.flink.compiler.dag.SortPartitionNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -713,6 +715,9 @@ public class PactCompiler {
 			}
 			else if (c instanceof PartitionOperatorBase) {
 				n = new PartitionNode((PartitionOperatorBase<?>) c);
+			}
+			else if (c instanceof SortPartitionOperatorBase) {
+				n = new SortPartitionNode((SortPartitionOperatorBase<?>) c);
 			}
 			else if (c instanceof PartialSolutionPlaceHolder) {
 				if (this.parent == null) {

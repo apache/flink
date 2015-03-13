@@ -44,12 +44,11 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 	public Plan getPlan(String... args) throws IllegalArgumentException {
 		
 		
-		if(args.length != 3)
-		{
+		if (args.length != 3) {
 			this.degreeOfParallelism = 1;
 			this.lineItemInputPath = "";
 			this.outputPath = "";
-		}else{
+		} else {
 			this.degreeOfParallelism = Integer.parseInt(args[0]);
 			this.lineItemInputPath = args[1];
 			this.outputPath = args[2];

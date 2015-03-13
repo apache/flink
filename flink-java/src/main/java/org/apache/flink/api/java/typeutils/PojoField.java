@@ -18,17 +18,50 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-public class PojoField {
-	public Field field;
+public class PojoField implements Serializable {
+	public transient Field field;
 	public TypeInformation<?> type;
 
 	public PojoField(Field field, TypeInformation<?> type) {
 		this.field = field;
 		this.type = type;
+	}
+
+	private void writeObject(ObjectOutputStream out)
+			throws IOException, ClassNotFoundException {
+		out.defaultWriteObject();
+		out.writeObject(field.getDeclaringClass());
+		out.writeUTF(field.getName());
+	}
+
+	private void readObject(ObjectInputStream in)
+			throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		Class<?> clazz = (Class<?>)in.readObject();
+		String fieldName = in.readUTF();
+		field = null;
+		// try superclasses as well
+		while (clazz != null) {
+			try {
+				field = clazz.getDeclaredField(fieldName);
+				field.setAccessible(true);
+				break;
+			} catch (NoSuchFieldException e) {
+				clazz = clazz.getSuperclass();
+			}
+		}
+		if (field == null) {
+			throw new RuntimeException("Class resolved at TaskManager is not compatible with class read during Plan setup."
+					+ " (" + fieldName + ")");
+		}
 	}
 
 	@Override

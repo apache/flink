@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, Props, ActorSystem}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -33,35 +33,41 @@ import org.apache.flink.runtime.taskmanager.TaskManager
  * @param singleActorSystem true if all actors shall be running in the same [[ActorSystem]],
  *                          otherwise false
  */
-class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolean = true) extends
-FlinkMiniCluster(userConfiguration, singleActorSystem) {
+class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolean = true)
+  extends FlinkMiniCluster(userConfiguration, singleActorSystem) {
 
   override def generateConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
-    cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, NetUtils.getAvailablePort)
+    cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, NetUtils.getAvailablePort())
     cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10)
+    cfg.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
     cfg.addAll(userConfig)
     cfg
   }
 
-  override def startJobManager(implicit system: ActorSystem) = {
-    system.actorOf(Props(new JobManager(configuration) with TestingJobManager),
-      JobManager.JOB_MANAGER_NAME)
+  override def startJobManager(actorSystem: ActorSystem): ActorRef = {
+
+    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _,
+    executionRetries, delayBetweenRetries,
+    timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
+
+    val testArchiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
+    val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
+
+    val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
+      libraryCacheManager, archive, accumulatorManager, None, executionRetries,
+      delayBetweenRetries, timeout) with TestingJobManager)
+
+    actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
   }
 
-  override def startTaskManager(index: Int)(implicit system: ActorSystem) = {
-    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration(HOSTNAME, configuration,
-        localAkkaCommunication = singleActorSystem, localTaskManagerCommunication = true)
+  override def startTaskManager(index: Int, system: ActorSystem) = {
 
-    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
-      networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + index)
-  }
+    val tmActorName = TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
 
-  def restartJobManager(): Unit = {
-    jobManagerActorSystem.stop(jobManagerActor)
-    jobManagerActor = startJobManager(jobManagerActorSystem)
+    TaskManager.startTaskManagerActor(configuration, system, HOSTNAME, tmActorName,
+      singleActorSystem, true, classOf[TestingTaskManager])
   }
 }

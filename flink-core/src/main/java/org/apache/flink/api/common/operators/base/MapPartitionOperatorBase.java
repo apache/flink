@@ -27,7 +27,6 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingIterator;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
@@ -66,20 +65,13 @@ public class MapPartitionOperatorBase<IN, OUT, FT extends MapPartitionFunction<I
 		
 		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size() / 4);
 
-		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
-		
-		if (objectReuseDisabled) {
-			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
-			
-			CopyingIterator<IN> source = new CopyingIterator<IN>(inputData.iterator(), inSerializer);
-			CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);
-			
-			function.mapPartition(source, resultCollector);
-		} else {
-			ListCollector<OUT> resultCollector = new ListCollector<OUT>(result);
-			function.mapPartition(inputData, resultCollector);
-		}
+		TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
+		TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
+
+		CopyingIterator<IN> source = new CopyingIterator<IN>(inputData.iterator(), inSerializer);
+		CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);
+
+		function.mapPartition(source, resultCollector);
 
 		result.trimToSize();
 		FunctionUtils.closeFunction(function);

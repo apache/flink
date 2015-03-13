@@ -49,8 +49,13 @@ public class NettyConnectionManager implements ConnectionManager {
 	}
 
 	@Override
-	public PartitionRequestClient createPartitionRequestClient(RemoteAddress remoteAddress) throws IOException {
+	public PartitionRequestClient createPartitionRequestClient(RemoteAddress remoteAddress) throws IOException, InterruptedException {
 		return partitionRequestClientFactory.createPartitionRequestClient(remoteAddress);
+	}
+
+	@Override
+	public void closeOpenChannelConnections(RemoteAddress remoteAddress) {
+		partitionRequestClientFactory.closeOpenChannelConnections(remoteAddress);
 	}
 
 	@Override

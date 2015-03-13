@@ -116,4 +116,21 @@ public class CountEvictionPolicyTest {
 		}
 	}
 
+	@Test
+	public void equalityTest() {
+		assertEquals(new CountEvictionPolicy<Integer>(5, 5, 5), new CountEvictionPolicy<Integer>(5,
+				5, 5));
+
+		assertEquals(new CountEvictionPolicy<Integer>(5, 5), new CountEvictionPolicy<Integer>(5, 5));
+		assertEquals(new CountEvictionPolicy<Integer>(5), new CountEvictionPolicy<Integer>(5));
+
+		assertNotEquals(new CountEvictionPolicy<Integer>(4, 5, 5),
+				new CountEvictionPolicy<Integer>(5, 5, 5));
+		assertNotEquals(new CountEvictionPolicy<Integer>(5, 5, 5),
+				new CountEvictionPolicy<Integer>(5, 4, 5));
+
+		assertNotEquals(new CountEvictionPolicy<Integer>(5, 5, 5),
+				new CountEvictionPolicy<Integer>(5, 5, 4));
+	}
+
 }

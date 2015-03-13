@@ -75,6 +75,14 @@ public class JobGraph implements Serializable {
 
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 	
+	public enum JobType {STREAMING, BATCH}
+	
+	private JobType jobType = JobType.BATCH;
+	
+	private boolean monitoringEnabled = false;
+	
+	private long monitorInterval = 10000;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -253,6 +261,31 @@ public class JobGraph implements Serializable {
 		return this.taskVertices.size();
 	}
 
+
+	public void setJobType(JobType jobType) {
+		this.jobType = jobType;
+	}
+
+	public JobType getJobType() {
+		return jobType;
+	}
+
+	public void setMonitoringEnabled(boolean monitoringEnabled) {
+		this.monitoringEnabled = monitoringEnabled;
+	}
+
+	public boolean isMonitoringEnabled() {
+		return monitoringEnabled;
+	}
+
+	public void setMonitorInterval(long monitorInterval) {
+		this.monitorInterval = monitorInterval;
+	}
+
+	public long getMonitorInterval() {
+		return monitorInterval;
+	}
+
 	/**
 	 * Searches for a vertex with a matching ID and returns it.
 	 * 
@@ -361,6 +394,31 @@ public class JobGraph implements Serializable {
 		if (!userJars.contains(jar)) {
 			userJars.add(jar);
 		}
+	}
+
+	/**
+	 * Adds the BLOB referenced by the key to the JobGraph's dependencies.
+	 *
+	 * @param key
+	 *        path of the JAR file required to run the job on a task manager
+	 */
+	public void addBlob(BlobKey key) {
+		if (key == null) {
+			throw new IllegalArgumentException();
+		}
+
+		if (!userJarBlobKeys.contains(key)) {
+			userJarBlobKeys.add(key);
+		}
+	}
+
+	/**
+	 * Checks whether the JobGraph has user code JAR files attached.
+	 *
+	 * @return True, if the JobGraph has user code JAR files attached, false otherwise.
+	 */
+	public boolean hasUsercodeJarFiles() {
+		return this.userJars.size() > 0;
 	}
 
 	/**

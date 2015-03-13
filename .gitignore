@@ -19,3 +19,4 @@ tmp
 _site
 docs/api
 build-target
+flink-staging/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/

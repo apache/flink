@@ -32,7 +32,7 @@ public class FlatMapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -44,8 +44,10 @@ public class FlatMapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 
 	@Override
 	public void collect(IN record) {
-		nextObject = copy(record);
-		callUserFunctionAndLogException();
+		if (isRunning) {
+			nextObject = copy(record);
+			callUserFunctionAndLogException();
+		}
 	}
 
 }

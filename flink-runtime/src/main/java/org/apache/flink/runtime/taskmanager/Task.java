@@ -19,18 +19,18 @@
 package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
 import org.apache.flink.runtime.io.network.partition.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.profiling.TaskManagerProfiler;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -144,11 +144,20 @@ public class Task {
 	}
 
 	public String getTaskName() {
-		return taskName;
+		if (LOG.isDebugEnabled()) {
+			return taskName + " (" + executionId + ")";
+		} else {
+			return taskName;
+		}
 	}
 
 	public String getTaskNameWithSubtasks() {
-		return this.taskName + " (" + (this.subtaskIndex + 1) + "/" + this.numberOfSubtasks + ")";
+		if (LOG.isDebugEnabled()) {
+			return this.taskName + " (" + (this.subtaskIndex + 1) + "/" + this.numberOfSubtasks +
+					") (" + executionId + ")";
+		} else {
+			return this.taskName + " (" + (this.subtaskIndex + 1) + "/" + this.numberOfSubtasks + ")";
+		}
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------
@@ -332,7 +341,8 @@ public class Task {
 
 	protected void notifyExecutionStateChange(ExecutionState executionState,
 											Throwable optionalError) {
-		LOG.info("Update execution state to " + executionState);
+		LOG.info("Update execution state of {} ({}) to {}.", this.getTaskName(),
+				this.getExecutionId(), executionState);
 		taskManager.tell(new JobManagerMessages.UpdateTaskExecutionState(
 				new TaskExecutionState(jobId, executionId, executionState, optionalError)),
 				ActorRef.noSender());
@@ -363,8 +373,8 @@ public class Task {
 	// Intermediate result partitions
 	// ------------------------------------------------------------------------
 
-	public BufferReader[] getReaders() {
-		return environment != null ? environment.getAllReaders() : null;
+	public SingleInputGate[] getInputGates() {
+		return environment != null ? environment.getAllInputGates() : null;
 	}
 
 	public BufferWriter[] getWriters() {

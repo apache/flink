@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream,
   SingleOutputStreamOperator, GroupedDataStream}
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.functions.MapFunction
@@ -183,7 +184,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   /**
    * Initiates an iterative part of the program that creates a loop by feeding
    * back data streams. To create a streaming iteration the user needs to define
-   * a transformation that creates two DataStreams.The first one one is the output
+   * a transformation that creates two DataStreams. The first one is the output
    * that will be fed back to the start of the iteration and the second is the output
    * stream of the iterative part.
    * <p>
@@ -198,8 +199,30 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    *
    */
-  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R]),  
-        maxWaitTimeMillis:Long = 0): DataStream[R] = {
+  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R])): DataStream[R] = {
+    iterate(0)(stepFunction)
+  }
+
+  /**
+   * Initiates an iterative part of the program that creates a loop by feeding
+   * back data streams. To create a streaming iteration the user needs to define
+   * a transformation that creates two DataStreams. The first one is the output
+   * that will be fed back to the start of the iteration and the second is the output
+   * stream of the iterative part.
+   * <p>
+   * stepfunction: initialStream => (feedback, output)
+   * <p>
+   * A common pattern is to use output splitting to create feedback and output DataStream.
+   * Please refer to the .split(...) method of the DataStream
+   * <p>
+   * By default a DataStream with iteration will never terminate, but the user
+   * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
+   * If no data received in the set time the stream terminates.
+   *
+   *
+   */
+  def iterate[R](maxWaitTimeMillis:Long = 0)
+                (stepFunction: DataStream[T] => (DataStream[T], DataStream[R])) : DataStream[R] = {
     val iterativeStream = javaStream.iterate(maxWaitTimeMillis)
 
     val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
@@ -442,27 +465,27 @@ class DataStream[T](javaStream: JavaStream[T]) {
 
   /**
    * Create a WindowedDataStream that can be used to apply
-   * transformation like .reduce(...) or aggregations on
-   * preset chunks(windows) of the data stream. To define the windows one or
-   * more WindowingHelper-s such as Time, Count and
+   * transformation like .reduceWindow(...) or aggregations on
+   * preset chunks(windows) of the data stream. To define the windows a
+   * WindowingHelper such as Time, Count and
    * Delta can be used.</br></br> When applied to a grouped data
    * stream, the windows (evictions) and slide sizes (triggers) will be
    * computed on a per group basis. </br></br> For more advanced control over
    * the trigger and eviction policies please use to
    * window(List(triggers), List(evicters))
    */
-  def window(windowingHelper: WindowingHelper[_]*): WindowedDataStream[T] =
-    javaStream.window(windowingHelper: _*)
+  def window(windowingHelper: WindowingHelper[_]): WindowedDataStream[T] =
+    javaStream.window(windowingHelper)
 
   /**
-   * Create a WindowedDataStream using the given TriggerPolicy-s and EvictionPolicy-s.
-   * Windowing can be used to apply transformation like .reduce(...) or aggregations on
-   * preset chunks(windows) of the data stream.</br></br>For most common
-   * use-cases please refer to window(WindowingHelper[_]*)
+   * Create a WindowedDataStream using the given Trigger and Eviction policies.
+   * Windowing can be used to apply transformation like .reduceWindow(...) or 
+   * aggregations on preset chunks(windows) of the data stream.</br></br>For most common
+   * use-cases please refer to window(WindowingHelper[_])
    *
    */
-  def window(triggers: List[TriggerPolicy[T]], evicters: List[EvictionPolicy[T]]):
-    WindowedDataStream[T] = javaStream.window(triggers, evicters)
+  def window(trigger: TriggerPolicy[T], eviction: EvictionPolicy[T]):
+    WindowedDataStream[T] = javaStream.window(trigger, eviction)
 
   /**
    *
@@ -476,14 +499,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new SplitDataStream that contains only the elements satisfying the
    *  given output selector predicate.
    */
-  def split(fun: T => String): SplitDataStream[T] = {
+  def split(fun: T => TraversableOnce[String]): SplitDataStream[T] = {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")
     }
     val selector = new OutputSelector[T] {
       val cleanFun = clean(fun)
       def select(in: T): java.lang.Iterable[String] = {
-        List(cleanFun(in))
+        cleanFun(in).toIterable.asJava
       }
     }
     split(selector)
@@ -568,6 +591,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
     val sinkFunction = new SinkFunction[T] {
       val cleanFun = clean(fun)
       def invoke(in: T) = cleanFun(in)
+      def cancel() = {}
     }
     this.addSink(sinkFunction)
   }

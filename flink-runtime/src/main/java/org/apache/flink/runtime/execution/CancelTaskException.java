@@ -23,4 +23,12 @@ package org.apache.flink.runtime.execution;
  */
 public class CancelTaskException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
+
+	public CancelTaskException(final String msg) {
+		super(msg);
+	}
+
+	public CancelTaskException() {
+		super("");
+	}
 }

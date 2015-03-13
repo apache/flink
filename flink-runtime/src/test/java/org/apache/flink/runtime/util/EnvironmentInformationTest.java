@@ -21,6 +21,8 @@ package org.apache.flink.runtime.util;
 import static org.junit.Assert.*;
 
 import org.junit.Test;
+import org.mockito.Mockito;
+import org.slf4j.Logger;
 
 public class EnvironmentInformationTest {
 
@@ -47,10 +49,24 @@ public class EnvironmentInformationTest {
 	public void testEnvironmentMethods() {
 		try {
 			assertNotNull(EnvironmentInformation.getJvmStartupOptions());
+			assertNotNull(EnvironmentInformation.getJvmStartupOptionsArray());
 			assertNotNull(EnvironmentInformation.getJvmVersion());
 			assertNotNull(EnvironmentInformation.getRevisionInformation());
 			assertNotNull(EnvironmentInformation.getVersion());
 			assertNotNull(EnvironmentInformation.getUserRunning());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testLogEnvironmentInformation() {
+		try {
+			Logger mockLogger = Mockito.mock(Logger.class);
+			EnvironmentInformation.logEnvironmentInfo(mockLogger, "test", new String[0]);
+			EnvironmentInformation.logEnvironmentInfo(mockLogger, "test", null);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

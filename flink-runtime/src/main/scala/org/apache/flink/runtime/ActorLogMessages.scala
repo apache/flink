@@ -25,26 +25,26 @@ import _root_.akka.event.LoggingAdapter
  * Mixin to add debug message logging
  */
 trait ActorLogMessages {
-  self: Actor =>
+  that: Actor =>
 
   override def receive: Receive = new Actor.Receive {
     private val _receiveWithLogMessages = receiveWithLogMessages
 
     override def isDefinedAt(x: Any): Boolean = _receiveWithLogMessages.isDefinedAt(x)
 
-    override def apply(x: Any):Unit = {
+    override def apply(x: Any): Unit = {
       if (!log.isDebugEnabled) {
         _receiveWithLogMessages(x)
       }
       else {
-        log.debug(s"Received message $x from ${self.sender}.")
-        
+        log.debug(s"Received message $x at ${that.self.path} from ${that.sender}.")
+
         val start = System.nanoTime()
-        
+
         _receiveWithLogMessages(x)
-        
+
         val duration = (System.nanoTime() - start) / 1000000
-        log.debug(s"Handled message $x in $duration ms from ${self.sender}.")
+        log.debug(s"Handled message $x in $duration ms from ${that.sender}.")
       }
     }
   }

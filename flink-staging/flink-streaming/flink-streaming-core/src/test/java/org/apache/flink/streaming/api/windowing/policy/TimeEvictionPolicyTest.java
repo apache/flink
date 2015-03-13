@@ -17,13 +17,16 @@
 
 package org.apache.flink.streaming.api.windowing.policy;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.util.LinkedList;
 
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class TimeEvictionPolicyTest {
 
@@ -116,6 +119,46 @@ public class TimeEvictionPolicyTest {
 
 			}
 		}
+	}
+
+	@Test
+	public void equalsTest() {
+
+		@SuppressWarnings("serial")
+		Timestamp<Integer> timeStamp = new Timestamp<Integer>() {
+
+			@Override
+			public long getTimestamp(Integer value) {
+				return value;
+			}
+
+		};
+
+		@SuppressWarnings("serial")
+		Timestamp<Integer> timeStamp2 = new Timestamp<Integer>() {
+
+			@Override
+			public long getTimestamp(Integer value) {
+				return value;
+			}
+
+		};
+
+		assertEquals(
+				new TimeEvictionPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp, 0)),
+				new TimeEvictionPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp, 0)));
+
+		assertNotEquals(new TimeEvictionPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp,
+				0)), new TimeEvictionPolicy<Integer>(5,
+				new TimestampWrapper<Integer>(timeStamp2, 0)));
+
+		assertNotEquals(new TimeEvictionPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp,
+				0)),
+				new TimeEvictionPolicy<Integer>(2, new TimestampWrapper<Integer>(timeStamp, 0)));
+
+		assertNotEquals(new TimeEvictionPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp,
+				0)),
+				new TimeEvictionPolicy<Integer>(5, new TimestampWrapper<Integer>(timeStamp, 3)));
 	}
 
 }

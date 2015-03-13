@@ -211,7 +211,7 @@ public class FeedbackPropertiesMatchTest {
 				LocalProperties lp = LocalProperties.forGrouping(new FieldList(1, 2));
 				
 				RequestedGlobalProperties reqGp = new RequestedGlobalProperties();
-				reqGp.setHashPartitioned(new FieldList(2, 5));
+				reqGp.setHashPartitioned(new FieldSet(2, 5));
 				
 				RequestedLocalProperties reqLp = new RequestedLocalProperties();
 				reqLp.setGroupedFields(new FieldList(1));
@@ -375,7 +375,7 @@ public class FeedbackPropertiesMatchTest {
 				LocalProperties lp = LocalProperties.forGrouping(new FieldList(1, 2));
 				
 				RequestedGlobalProperties reqGp = new RequestedGlobalProperties();
-				reqGp.setHashPartitioned(new FieldList(2, 5));
+				reqGp.setHashPartitioned(new FieldSet(2, 5));
 				
 				RequestedLocalProperties reqLp = new RequestedLocalProperties();
 				reqLp.setGroupedFields(new FieldList(1));
@@ -397,7 +397,7 @@ public class FeedbackPropertiesMatchTest {
 				LocalProperties lp = new LocalProperties();
 				
 				RequestedGlobalProperties reqGp = new RequestedGlobalProperties();
-				reqGp.setHashPartitioned(new FieldList(2, 5));
+				reqGp.setHashPartitioned(new FieldSet(2, 5));
 				
 				toMap1.setRequiredGlobalProps(null);
 				toMap1.setRequiredLocalProps(null);
@@ -434,7 +434,7 @@ public class FeedbackPropertiesMatchTest {
 				LocalProperties lp = LocalProperties.forGrouping(new FieldList(1));
 				
 				RequestedGlobalProperties reqGp = new RequestedGlobalProperties();
-				reqGp.setAnyPartitioning(new FieldList(2, 5));
+				reqGp.setAnyPartitioning(new FieldSet(2, 5));
 				
 				RequestedLocalProperties reqLp = new RequestedLocalProperties();
 				reqLp.setGroupedFields(new FieldList(1));

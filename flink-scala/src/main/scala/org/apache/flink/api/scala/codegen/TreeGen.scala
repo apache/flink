@@ -68,13 +68,13 @@ private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with Ty
     def mkCall(root: Tree, path: String*)(args: List[Tree]) = Apply(mkSelect(root, path: _*), args)
 
     def mkSeq(items: List[Tree]): Tree =
-      Apply(mkSelect("scala", "collection", "Seq", "apply"), items)
+      Apply(mkSelect("_root_", "scala", "collection", "Seq", "apply"), items)
 
     def mkList(items: List[Tree]): Tree =
-      Apply(mkSelect("scala", "collection", "immutable", "List", "apply"), items)
+      Apply(mkSelect("_root_", "scala", "collection", "immutable", "List", "apply"), items)
 
     def mkMap(items: List[Tree]): Tree =
-      Apply(mkSelect("scala", "collection", "immutable", "Map", "apply"), items)
+      Apply(mkSelect("_root_", "scala", "collection", "immutable", "Map", "apply"), items)
 
     def mkVal(name: String, flags: FlagSet, transient: Boolean, valTpe: Type, value: Tree): Tree = {
       ValDef(Modifiers(flags), newTermName(name), TypeTree(valTpe), value)

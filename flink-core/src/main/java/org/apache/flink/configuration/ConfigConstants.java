@@ -40,19 +40,14 @@ public final class ConfigConstants {
 	 * value to 0 effectively disables fault tolerance.
 	 */
 	public static final String DEFAULT_EXECUTION_RETRIES_KEY = "execution-retries.default";
+
+	/**
+	 * Config parameter for the delay between execution retries. The value must be specified in the
+	 * notation "10 s" or "1 min" (style of Scala Finite Durations)
+	 */
+	public static final String DEFAULT_EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
-
-	/**
-	 * The config parameter defining the storage directory to be used by the blob server.
-	 */
-	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
-
-	/**
-	 * The config parameter defining the cleanup interval of the library cache manager.
-	 */
-	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager" +
-			".cleanup.interval";
 	
 	/**
 	 * The config parameter defining the network address to connect to
@@ -65,18 +60,37 @@ public final class ConfigConstants {
 	 * for communication with the job manager.
 	 */
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
-	
-	/**
-	 * The config parameter defining the number of handler threads for the jobmanager RPC service.
-	 */
-	public static final String JOB_MANAGER_IPC_HANDLERS_KEY = "jobmanager.rpc.numhandler";
 
 	/**
-	 * The config parameter defining the number of seconds that a task manager heartbeat may be missing before it is
-	 * marked as failed.
+	 * The config parameter defining the storage directory to be used by the blob server.
 	 */
-	public static final String JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY = "jobmanager.max-heartbeat-delay-before-failure.msecs";
-	
+	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
+
+	/**
+	 * The config parameter defining number of retires for failed BLOB fetches.
+	 */
+	public static final String BLOB_FETCH_RETRIES_KEY = "blob.fetch.retries";
+
+	/**
+	 * The config parameter defining the maximum number of concurrent BLOB fetches that the JobManager serves.
+	 */
+	public static final String BLOB_FETCH_CONCURRENT_KEY = "blob.fetch.num-concurrent";
+
+	/**
+	 * The config parameter defining the backlog of BLOB fetches on the JobManager
+	 */
+	public static final String BLOB_FETCH_BACKLOG_KEY = "blob.fetch.backlog";
+
+	/**
+	 * The config parameter defining the cleanup interval of the library cache manager.
+	 */
+	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager.cleanup.interval";
+
+	/**
+	 * The config parameter defining the task manager's hostname.
+	 */
+	public static final String TASK_MANAGER_HOSTNAME_KEY = "taskmanager.hostname";
+
 	/**
 	 * The config parameter defining the task manager's IPC port from the configuration.
 	 */
@@ -127,34 +141,6 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NUM_TASK_SLOTS = "taskmanager.numberOfTaskSlots";
 
 	/**
-	 * The number of incoming network IO threads (e.g. incoming connection threads used in NettyConnectionManager
-	 * for the ServerBootstrap.)
-	 */
-	public static final String TASK_MANAGER_NET_NUM_IN_THREADS_KEY = "taskmanager.net.numInThreads";
-
-	/**
-	 * The number of outgoing network IO threads (e.g. outgoing connection threads used in NettyConnectionManager for
-	 * the Bootstrap.)
-	 */
-	public static final String TASK_MANAGER_NET_NUM_OUT_THREADS_KEY = "taskmanager.net.numOutThreads";
-
-	/**
-	 * The low water mark used in NettyConnectionManager for the Bootstrap.
-	 */
-	public static final String TASK_MANAGER_NET_NETTY_LOW_WATER_MARK = "taskmanager.net.nettyLowWaterMark";
-
-	/**
-	 * The high water mark used in NettyConnectionManager for the Bootstrap.
-	 */
-	public static final String TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK = "taskmanager.net.nettyHighWaterMark";
-	
-	/**
-	 * Parameter for the interval in which the TaskManager sends the periodic heart beat messages
-	 * to the JobManager (in msecs).
-	 */
-	public static final String TASK_MANAGER_HEARTBEAT_INTERVAL_KEY = "taskmanager.heartbeat-interval";
-
-	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
 	 */
 	public static final String TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = "taskmanager.debug.memory.startLogThread";
@@ -187,11 +173,6 @@ public final class ConfigConstants {
 	 * A value of 0 indicates infinite waiting.
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
-	
-	/**
-	 * The parameter defining the polling interval (in seconds) for the JobClient.
-	 */
-	public static final String JOBCLIENT_POLLING_INTERVAL_KEY = "jobclient.polling.interval";
 
 	// ------------------------ YARN Configuration ------------------------
 
@@ -206,6 +187,35 @@ public final class ConfigConstants {
 	 * This value is limiting this cutoff to a absolute value.
 	 */
 	public static final String YARN_HEAP_LIMIT_CAP = "yarn.heap-limit-cap";
+
+	/**
+	 * Reallocate failed YARN containers.
+	 */
+	public static final String YARN_REALLOCATE_FAILED_CONTAINERS = "yarn.reallocate-failed";
+
+	/**
+	 * The maximum number of failed YARN containers before entirely stopping
+	 * the YARN session / job on YARN.
+	 *
+	 * By default, we take the number of of initially requested containers.
+	 */
+	public static final String YARN_MAX_FAILED_CONTAINERS = "yarn.maximum-failed-containers";
+
+	/**
+	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers.
+	 * This value is usually limited by YARN.
+	 *
+	 * By default, its 1.
+	 */
+	public static final String YARN_APPLICATION_ATTEMPTS = "yarn.application-attempts";
+
+	/**
+	 * The heartbeat intervall between the Application Master and the YARN Resource Manager.
+	 *
+	 * The default value is 5 (seconds).
+	 */
+	public static final String YARN_HEARTBEAT_DELAY_SECONDS = "yarn.heartbeat-delay";
+
 
 	// ------------------------ Hadoop Configuration ------------------------
 
@@ -259,7 +269,7 @@ public final class ConfigConstants {
 	// ------------------------- JobManager Web Frontend ----------------------
 	
 	/**
-	 * The port for the pact web-frontend server.
+	 * The port for the runtime monitor web-frontend server.
 	 */
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
 
@@ -362,6 +372,11 @@ public final class ConfigConstants {
 	 * Timeout for all blocking calls
 	 */
 	public static final String AKKA_ASK_TIMEOUT = "akka.ask.timeout";
+
+	/**
+	 * Timeout for all blocking calls that look up remote actors
+	 */
+	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
@@ -401,16 +416,20 @@ public final class ConfigConstants {
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
 
 	/**
-	 * The default number of handler threads for the jobmanager RPC service.
+	 * Default number of retries for failed BLOB fetches.
 	 */
-	public static final int DEFAULT_JOB_MANAGER_IPC_HANDLERS = 8;
-	
+	public static final int DEFAULT_BLOB_FETCH_RETRIES = 5;
+
 	/**
-	 * Default number of seconds after which a task manager is marked as failed.
+	 * Default number of concurrent BLOB fetch operations.
 	 */
-	// 30 seconds (its enough to get to mars, should be enough to detect failure)
-	public static final int DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT = 30*1000;
-	
+	public static final int DEFAULT_BLOB_FETCH_CONCURRENT = 50;
+
+	/**
+	 * Default BLOB fetch connection backlog.
+	 */
+	public static final int DEFAULT_BLOB_FETCH_BACKLOG = 1000;
+
 	/**
 	 * The default network port the task manager expects incoming IPC connections. The {@code 0} means that
 	 * the TaskManager searches for a free port.
@@ -432,11 +451,6 @@ public final class ConfigConstants {
 	 * The default fraction of the free memory allocated by the task manager's memory manager.
 	 */
 	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;
-	
-	/**
-	 * The default setting for the memory manager lazy allocation feature.
-	 */
-	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_LAZY_ALLOCATION = false;
 
 	/**
 	 * Default number of buffers used in the network stack.
@@ -449,32 +463,6 @@ public final class ConfigConstants {
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE = 32768;
 
 	/**
-	 * Default number of incoming network IO threads (e.g. number of incoming connection threads used in
-	 * NettyConnectionManager for the ServerBootstrap). If set to -1, a reasonable default depending on the number of
-	 * cores will be picked.
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS = -1;
-
-	/**
-	 * Default number of outgoing network IO threads (e.g. number of outgoing connection threads used in
-	 * NettyConnectionManager for the Bootstrap). If set to -1, a reasonable default depending on the number of cores
-	 * will be picked.
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS = -1;
-
-	/**
-	 * Default low water mark used in NettyConnectionManager for the Bootstrap. If set to -1, NettyConnectionManager
-	 * will use half of the network buffer size as the low water mark.
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK = -1;
-
-	/**
-	 * Default high water mark used in NettyConnectionManager for the Bootstrap. If set to -1, NettyConnectionManager
-	 * will use the network buffer size as the high water mark.
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK = -1;
-
-	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
 	 */
 	public static final boolean DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD = false;
@@ -485,19 +473,9 @@ public final class ConfigConstants {
 	public static final long DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = 5000L;
 
 	/**
-	 * The default number of task slots per task manager
-	 */
-	public static final int DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS = -1;
-
-	/**
 	 * The default task manager's maximum registration duration
 	 */
 	public static final String DEFAULT_TASK_MANAGER_MAX_REGISTRATION_DURATION = "Inf";
-	
-	/**
-	 * The default value for the JobClient's polling interval. 2 Seconds.
-	 */
-	public static final int DEFAULT_JOBCLIENT_POLLING_INTERVAL = 2;
 	
 	/**
 	 * The default value for the maximum spilling fan in/out.
@@ -549,6 +527,8 @@ public final class ConfigConstants {
 	// ------------------------- JobManager Web Frontend ----------------------
 	
 	/**
+	 * The config key for the port of the JobManager web frontend.
+	 * Setting this value to {@code -1} disables the web frontend.
 	 */
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
 
@@ -604,6 +584,8 @@ public final class ConfigConstants {
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
 	public static String DEFAULT_AKKA_ASK_TIMEOUT = "100 s";
+
+	public static String DEFAULT_AKKA_LOOKUP_TIMEOUT = "10 s";
 	
 
 	// ----------------------------- LocalExecution ----------------------------

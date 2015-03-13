@@ -25,7 +25,7 @@ import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala.hadoop.mapred
 import org.apache.flink.api.scala.hadoop.mapreduce
@@ -89,7 +89,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
    * Returns the default degree of parallelism for this execution environment. Note that this
-   * value can be overridden by individual operations using [[DataSet.setParallelism]]
+   * value can be overridden by individual operations using [[DataSet.setParallelism]
    */
   def getDegreeOfParallelism = javaEnv.getDegreeOfParallelism
   
@@ -125,19 +125,38 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * Registers the given Serializer as a default serializer for the given class at the
-   * [[KryoSerializer]].
+   * Registers the given type with the serializer at the [[KryoSerializer]].
+   *
+   * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
+   * because it may be distributed to the worker nodes by java serialization.
    */
-  def registerKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
-    javaEnv.registerKryoSerializer(clazz, serializer)
+  def registerTypeWithKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+    javaEnv.registerTypeWithKryoSerializer(clazz, serializer)
   }
 
   /**
-   * Registers the given Serializer as a default serializer for the given class at the
-   * [[KryoSerializer]]
+   * Registers the given type with the serializer at the [[KryoSerializer]].
    */
-  def registerKryoSerializer(clazz: Class[_], serializer: Class[_ <: Serializer[_]]) {
-    javaEnv.registerKryoSerializer(clazz, serializer)
+  def registerTypeWithKryoSerializer(clazz: Class[_], serializer: Class[_ <: Serializer[_]]) {
+    javaEnv.registerTypeWithKryoSerializer(clazz, serializer)
+  }
+
+
+  /**
+   * Registers a default serializer for the given class and its sub-classes at Kryo.
+   */
+  def addDefaultKryoSerializer(clazz: Class[_], serializer: Class[_ <: Serializer[_]]) {
+    javaEnv.addDefaultKryoSerializer(clazz, serializer)
+  }
+
+  /**
+   * Registers a default serializer for the given class and its sub-classes at Kryo.
+   *
+   * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
+   * because it may be distributed to the worker nodes by java serialization.
+   */
+  def addDefaultKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+    javaEnv.addDefaultKryoSerializer(clazz, serializer)
   }
   
   /**

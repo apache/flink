@@ -301,8 +301,6 @@ public class CollectionDataSets {
 		public CustomType() {
 		}
 
-		;
-
 		public CustomType(int i, long l, String s) {
 			myInt = i;
 			myLong = l;
@@ -618,6 +616,30 @@ public class CollectionDataSets {
 		public BigDecimal bigDecimalKeepItNull;
 		public BigInt scalaBigInt;
 		public List<Object> mixed;
+
+		@Override
+		public String toString() {
+			return "PojoWithCollection{" +
+					"pojos.size()=" + pojos.size() +
+					", key=" + key +
+					", sqlDate=" + sqlDate +
+					", bigInt=" + bigInt +
+					", bigDecimalKeepItNull=" + bigDecimalKeepItNull +
+					", scalaBigInt=" + scalaBigInt +
+					", mixed=" + mixed +
+					'}';
+		}
+	}
+
+	public static class PojoWithCollectionGeneric {
+		public List<Pojo1> pojos;
+		public int key;
+		public java.sql.Date sqlDate;
+		public BigInteger bigInt;
+		public BigDecimal bigDecimalKeepItNull;
+		public BigInt scalaBigInt;
+		public List<Object> mixed;
+		private PojoWithDateAndEnum makeMeGeneric;
 
 		@Override
 		public String toString() {

@@ -40,10 +40,14 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 	}
 
 	@Override
-	public void invoke(Collector<T> collector) throws Exception {
+	public void run(Collector<T> collector) throws Exception {
 		for (T element : iterable) {
 			collector.collect(element);
 		}
+	}
+
+	@Override
+	public void cancel() {
 	}
 
 }

@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.util.InstantiationUtil;
 
 public class StreamConfig implements Serializable {
@@ -47,25 +46,26 @@ public class StreamConfig implements Serializable {
 	private static final String IS_CHAINED_VERTEX = "isChainedSubtask";
 	private static final String OUTPUT_NAME = "outputName_";
 	private static final String PARTITIONER_OBJECT = "partitionerObject_";
-	private static final String VERTEX_NAME = "vertexName";
+	private static final String VERTEX_NAME = "vertexID";
+	private static final String OPERATOR_NAME = "operatorName";
 	private static final String ITERATION_ID = "iteration-id";
 	private static final String OUTPUT_SELECTOR = "outputSelector";
 	private static final String DIRECTED_EMIT = "directedEmit";
 	private static final String SERIALIZEDUDF = "serializedudf";
 	private static final String USER_FUNCTION = "userfunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
-	private static final String OPERATOR_STATES = "operatorStates";
 	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
 	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out_1";
 	private static final String TYPE_SERIALIZER_OUT_2 = "typeSerializer_out_2";
 	private static final String ITERATON_WAIT = "iterationWait";
-	private static final String OUTPUTS = "outVertexNames";
+	private static final String OUTPUTS = "outvertexIDs";
 	private static final String EDGES_IN_ORDER = "rwOrder";
 
 	// DEFAULT VALUES
 
 	private static final long DEFAULT_TIMEOUT = 100;
+	public static final String STATE_MONITORING = "STATE_MONITORING";
 
 	// CONFIG METHODS
 
@@ -79,12 +79,20 @@ public class StreamConfig implements Serializable {
 		return config;
 	}
 
-	public void setVertexName(String vertexName) {
-		config.setString(VERTEX_NAME, vertexName);
+	public void setVertexID(Integer vertexID) {
+		config.setInteger(VERTEX_NAME, vertexID);
 	}
 
-	public String getTaskName() {
-		return config.getString(VERTEX_NAME, "Missing");
+	public Integer getVertexID() {
+		return config.getInteger(VERTEX_NAME, -1);
+	}
+
+	public void setOperatorName(String name) {
+		config.setString(OPERATOR_NAME, name);
+	}
+
+	public String getOperatorName() {
+		return config.getString(OPERATOR_NAME, "Missing");
 	}
 
 	public void setTypeSerializerIn1(StreamRecordSerializer<?> serializer) {
@@ -187,7 +195,7 @@ public class StreamConfig implements Serializable {
 
 	public void setOutputSelectors(List<OutputSelector<?>> outputSelector) {
 		try {
-			if (outputSelector != null) {
+			if (outputSelector != null && !outputSelector.isEmpty()) {
 				setDirectedEmit(true);
 				config.setBytes(OUTPUT_SELECTOR,
 						SerializationUtils.serialize((Serializable) outputSelector));
@@ -223,14 +231,14 @@ public class StreamConfig implements Serializable {
 		return config.getLong(ITERATON_WAIT, 0);
 	}
 
-	public <T> void setPartitioner(String output, StreamPartitioner<T> partitionerObject) {
+	public <T> void setPartitioner(Integer output, StreamPartitioner<T> partitionerObject) {
 
 		config.setBytes(PARTITIONER_OBJECT + output,
 				SerializationUtils.serialize(partitionerObject));
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> StreamPartitioner<T> getPartitioner(ClassLoader cl, String output) {
+	public <T> StreamPartitioner<T> getPartitioner(ClassLoader cl, Integer output) {
 		StreamPartitioner<T> partitioner = null;
 		try {
 			partitioner = (StreamPartitioner<T>) InstantiationUtil.readObjectFromConfig(
@@ -241,7 +249,7 @@ public class StreamConfig implements Serializable {
 		return partitioner;
 	}
 
-	public void setSelectedNames(String output, List<String> selected) {
+	public void setSelectedNames(Integer output, List<String> selected) {
 		if (selected != null) {
 			config.setBytes(OUTPUT_NAME + output,
 					SerializationUtils.serialize((Serializable) selected));
@@ -252,7 +260,7 @@ public class StreamConfig implements Serializable {
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<String> getSelectedNames(String output) {
+	public List<String> getSelectedNames(Integer output) {
 		return (List<String>) SerializationUtils.deserialize(config.getBytes(OUTPUT_NAME + output,
 				null));
 	}
@@ -273,28 +281,40 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(NUMBER_OF_OUTPUTS, 0);
 	}
 
-	public void setOutputs(List<String> outputVertexNames) {
-		config.setBytes(OUTPUTS, SerializationUtils.serialize((Serializable) outputVertexNames));
+	public void setOutputs(List<Integer> outputvertexIDs) {
+		config.setBytes(OUTPUTS, SerializationUtils.serialize((Serializable) outputvertexIDs));
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<String> getOutputs(ClassLoader cl) {
+	public List<Integer> getOutputs(ClassLoader cl) {
 		try {
-			return (List<String>) InstantiationUtil.readObjectFromConfig(this.config, OUTPUTS, cl);
+			return (List<Integer>) InstantiationUtil.readObjectFromConfig(this.config, OUTPUTS, cl);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate outputs.");
 		}
 	}
 
-	public void setOutEdgesInOrder(List<Tuple2<String, String>> outEdgeList) {
+	public void setOutEdgesInOrder(List<Tuple2<Integer, Integer>> outEdgeList) {
 
 		config.setBytes(EDGES_IN_ORDER, SerializationUtils.serialize((Serializable) outEdgeList));
 	}
 
+
+	public void setStateMonitoring(boolean stateMonitoring) {
+		
+		config.setBoolean(STATE_MONITORING, stateMonitoring);
+		
+	}
+	
+	public boolean getStateMonitoring()
+	{
+		return config.getBoolean(STATE_MONITORING, false);
+	}
+
 	@SuppressWarnings("unchecked")
-	public List<Tuple2<String, String>> getOutEdgesInOrder(ClassLoader cl) {
+	public List<Tuple2<Integer, Integer>> getOutEdgesInOrder(ClassLoader cl) {
 		try {
-			return (List<Tuple2<String, String>>) InstantiationUtil.readObjectFromConfig(
+			return (List<Tuple2<Integer, Integer>>) InstantiationUtil.readObjectFromConfig(
 					this.config, EDGES_IN_ORDER, cl);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate outputs.");
@@ -309,48 +329,34 @@ public class StreamConfig implements Serializable {
 		return config.getInteger(INPUT_TYPE + inputNumber, 0);
 	}
 
-	public void setOperatorStates(Map<String, OperatorState<?>> states) {
-		config.setBytes(OPERATOR_STATES, SerializationUtils.serialize((Serializable) states));
-	}
-
-	@SuppressWarnings("unchecked")
-	public Map<String, OperatorState<?>> getOperatorStates(ClassLoader cl) {
-		try {
-			return (Map<String, OperatorState<?>>) InstantiationUtil.readObjectFromConfig(
-					this.config, OPERATOR_STATES, cl);
-		} catch (Exception e) {
-			throw new RuntimeException("Could not load operator state");
-		}
-	}
-
-	public void setChainedOutputs(List<String> chainedOutputs) {
+	public void setChainedOutputs(List<Integer> chainedOutputs) {
 		config.setBytes(CHAINED_OUTPUTS,
 				SerializationUtils.serialize((Serializable) chainedOutputs));
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<String> getChainedOutputs(ClassLoader cl) {
+	public List<Integer> getChainedOutputs(ClassLoader cl) {
 		try {
-			return (List<String>) InstantiationUtil.readObjectFromConfig(this.config,
+			return (List<Integer>) InstantiationUtil.readObjectFromConfig(this.config,
 					CHAINED_OUTPUTS, cl);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate chained outputs.");
 		}
 	}
 
-	public void setTransitiveChainedTaskConfigs(Map<String, StreamConfig> chainedTaskConfigs) {
+	public void setTransitiveChainedTaskConfigs(Map<Integer, StreamConfig> chainedTaskConfigs) {
 		config.setBytes(CHAINED_TASK_CONFIG,
 				SerializationUtils.serialize((Serializable) chainedTaskConfigs));
 	}
 
 	@SuppressWarnings("unchecked")
-	public Map<String, StreamConfig> getTransitiveChainedTaskConfigs(ClassLoader cl) {
+	public Map<Integer, StreamConfig> getTransitiveChainedTaskConfigs(ClassLoader cl) {
 		try {
 
-			Map<String, StreamConfig> confs = (Map<String, StreamConfig>) InstantiationUtil
+			Map<Integer, StreamConfig> confs = (Map<Integer, StreamConfig>) InstantiationUtil
 					.readObjectFromConfig(this.config, CHAINED_TASK_CONFIG, cl);
 
-			return confs == null ? new HashMap<String, StreamConfig>() : confs;
+			return confs == null ? new HashMap<Integer, StreamConfig>() : confs;
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate configuration.");
 		}
@@ -373,12 +379,12 @@ public class StreamConfig implements Serializable {
 		builder.append("\n=======================");
 		builder.append("Stream Config");
 		builder.append("=======================");
-		builder.append("\nTask name: " + getTaskName());
+		builder.append("\nTask name: " + getVertexID());
 		builder.append("\nNumber of non-chained inputs: " + getNumberOfInputs());
 		builder.append("\nNumber of non-chained outputs: " + getNumberOfOutputs());
 		builder.append("\nOutput names: " + getOutputs(cl));
 		builder.append("\nPartitioning:");
-		for (String outputname : getOutputs(cl)) {
+		for (Integer outputname : getOutputs(cl)) {
 			builder.append("\n\t" + outputname + ": " + getPartitioner(cl, outputname));
 		}
 
@@ -390,6 +396,7 @@ public class StreamConfig implements Serializable {
 			builder.append("\nInvokable: Missing");
 		}
 		builder.append("\nBuffer timeout: " + getBufferTimeout());
+		builder.append("\nState Monitoring: " + getStateMonitoring());
 		if (isChainStart() && getChainedOutputs(cl).size() > 0) {
 			builder.append("\n\n\n---------------------\nChained task configs\n---------------------\n");
 			builder.append(getTransitiveChainedTaskConfigs(cl)).toString();

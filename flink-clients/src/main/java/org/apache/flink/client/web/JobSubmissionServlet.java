@@ -89,11 +89,11 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private final Random rand;							// random number generator for UID
 	
-	private final Configuration nepheleConfig;
+	private final Configuration config;
 
 
-	public JobSubmissionServlet(Configuration nepheleConfig, File jobDir, File planDir) {
-		this.nepheleConfig = nepheleConfig;
+	public JobSubmissionServlet(Configuration config, File jobDir, File planDir) {
+		this.config = config;
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
@@ -139,7 +139,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			}
 
 			// parse the arguments
-			List<String> params = null;
+			List<String> params;
 			try {
 				params = tokenizeArguments(args);
 			} catch (IllegalArgumentException iaex) {
@@ -166,7 +166,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			}
 
 			// create the plan
-			String[] options = params.isEmpty() ? new String[0] : (String[]) params.toArray(new String[params.size()]);
+			String[] options = params.isEmpty() ? new String[0] : params.toArray(new String[params.size()]);
 			PackagedProgram program;
 			FlinkPlan optPlan;
 			Client client;
@@ -178,7 +178,7 @@ public class JobSubmissionServlet extends HttpServlet {
 					program = new PackagedProgram(jarFile, assemblerClass, options);
 				}
 				
-				client = new Client(nepheleConfig, program.getUserCodeClassLoader());
+				client = new Client(config, program.getUserCodeClassLoader());
 				
 				optPlan = client.getOptimizedPlan(program, parallelism);
 				
@@ -239,7 +239,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				// we have a request to show the plan
 
 				// create a UID for the job
-				Long uid = null;
+				Long uid;
 				do {
 					uid = Math.abs(this.rand.nextLong());
 				} while (this.submittedJobs.containsKey(uid));
@@ -250,7 +250,8 @@ public class JobSubmissionServlet extends HttpServlet {
 				
 				if (optPlan instanceof StreamingPlan) {
 					((StreamingPlan) optPlan).dumpStreamingPlanAsJSON(jsonFile);
-				} else {
+				}
+				else {
 					PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 					jsonGen.setEncodeForHTML(true);
 					jsonGen.dumpOptimizerPlanAsJSON((OptimizedPlan) optPlan, jsonFile);
@@ -258,16 +259,24 @@ public class JobSubmissionServlet extends HttpServlet {
 				
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
-					try {
-						client.run(program,(OptimizedPlan) optPlan, false);
-					} catch (Throwable t) {
-						LOG.error("Error submitting job to the job-manager.", t);
-						showErrorPage(resp, t.getMessage());
-						return;
-					} finally {
-						program.deleteExtractedLibraries();
+					if (optPlan instanceof OptimizedPlan) {
+						try {
+							client.run(program, (OptimizedPlan) optPlan, false);
+						}
+						catch (Throwable t) {
+							LOG.error("Error submitting job to the job-manager.", t);
+							showErrorPage(resp, t.getMessage());
+							return;
+						}
+						finally {
+							program.deleteExtractedLibraries();
+						}
 					}
-				} else {
+					else {
+						throw new RuntimeException("Not implemented for Streaming Job plans");
+					}
+				}
+				else {
 					try {
 						this.submittedJobs.put(uid, client.getJobGraph(program, optPlan));
 					}
@@ -285,23 +294,27 @@ public class JobSubmissionServlet extends HttpServlet {
 
 				// redirect to the plan display page
 				resp.sendRedirect("showPlan?id=" + uid + "&suspended=" + (suspend ? "true" : "false"));
-			} else {
+			}
+			else {
 				// don't show any plan. directly submit the job and redirect to the
-				// nephele runtime monitor
+				// runtime monitor
 				try {
 					client.run(program, parallelism, false);
-				} catch (Exception ex) {
+				}
+				catch (Exception ex) {
 					LOG.error("Error submitting job to the job-manager.", ex);
 					// HACK: Is necessary because Message contains whole stack trace
 					String errorMessage = ex.getMessage().split("\n")[0];
 					showErrorPage(resp, errorMessage);
 					return;
-				} finally {
+				}
+				finally {
 					program.deleteExtractedLibraries();
 				}
 				resp.sendRedirect(START_PAGE_URL);
 			}
-		} else if (action.equals(ACTION_RUN_SUBMITTED_VALUE)) {
+		}
+		else if (action.equals(ACTION_RUN_SUBMITTED_VALUE)) {
 			// --------------- run a job that has been submitted earlier, but was -------------------
 			// --------------- not executed because of a plan display -------------------
 
@@ -328,9 +341,10 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
-				Client client = new Client(nepheleConfig, getClass().getClassLoader());
+				Client client = new Client(config, getClass().getClassLoader());
 				client.run(job, false);
-			} catch (Exception ex) {
+			}
+			catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);
 				resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 				// HACK: Is necessary because Message contains whole stack trace

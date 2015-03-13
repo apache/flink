@@ -23,8 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -50,10 +50,10 @@ public interface Environment {
 	 * @return the ID of the job from the original job graph
 	 */
 	JobID getJobID();
-	
+
 	/**
 	 * Gets the ID of the jobVertex that this task corresponds to.
-	 * 
+	 *
 	 * @return The JobVertexID of this task.
 	 */
 	JobVertexID getJobVertexId();
@@ -130,18 +130,12 @@ public interface Environment {
 
 	BroadcastVariableManager getBroadcastVariableManager();
 
-	// ------------------------------------------------------------------------
-	// Runtime result writers and readers
-	// ------------------------------------------------------------------------
-	// The environment sets up buffer-oriented writers and readers, which the
-	// user can use to produce and consume results.
-	// ------------------------------------------------------------------------
-
 	BufferWriter getWriter(int index);
 
 	BufferWriter[] getAllWriters();
 
-	BufferReader getReader(int index);
+	InputGate getInputGate(int index);
 
-	BufferReader[] getAllReaders();
+	InputGate[] getAllInputGates();
+
 }

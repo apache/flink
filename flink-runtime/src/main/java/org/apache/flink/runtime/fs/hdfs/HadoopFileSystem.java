@@ -255,6 +255,10 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 		return new Path(this.fs.getWorkingDirectory().toUri());
 	}
 
+	public Path getHomeDirectory() {
+		return new Path(this.fs.getHomeDirectory().toUri());
+	}
+
 	@Override
 	public URI getUri() {
 		return fs.getUri();
@@ -364,16 +368,15 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 
 	@Override
 	public FSDataInputStream open(final Path f, final int bufferSize) throws IOException {
-
-		final org.apache.hadoop.fs.FSDataInputStream fdis = this.fs.open(new org.apache.hadoop.fs.Path(f.toString()),
-			bufferSize);
-
+		final org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(f.toString());
+		final org.apache.hadoop.fs.FSDataInputStream fdis = this.fs.open(path, bufferSize);
 		return new HadoopDataInputStream(fdis);
 	}
 
 	@Override
 	public FSDataInputStream open(final Path f) throws IOException {
-		final org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(new org.apache.hadoop.fs.Path(f.toString()));
+		final org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(f.toString());
+		final org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(path);
 		return new HadoopDataInputStream(fdis);
 	}
 

@@ -99,6 +99,16 @@ public final class MathUtils {
 		}
 		return (int) value;
 	}
+
+	/**
+	 * Checks whether the given value is a power of two.
+	 *
+	 * @param value The value to check.
+	 * @return True, if the value is a power of two, false otherwise.
+	 */
+	public static boolean isPowerOf2(long value) {
+		return (value & (value - 1)) == 0;
+	}
 	
 	// ============================================================================================
 	

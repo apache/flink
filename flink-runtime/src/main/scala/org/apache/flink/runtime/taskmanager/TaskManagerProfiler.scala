@@ -43,8 +43,8 @@ import scala.concurrent.duration.FiniteDuration
  * @param instancePath Akka URL to [[TaskManager]] instance
  * @param reportInterval Interval of profiling action
  */
-class TaskManagerProfiler(val instancePath: String, val reportInterval: Int) extends Actor with
-ActorLogMessages with ActorLogging {
+class TaskManagerProfiler(val instancePath: String, val reportInterval: Int)
+   extends Actor with ActorLogMessages with ActorLogging {
 
   import context.dispatcher
 
@@ -135,6 +135,14 @@ ActorLogMessages with ActorLogging {
         case None =>
           log.warning(s"Could not find environment for execution id $executionID.")
       }
+  }
+
+  /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    // let the actor crash
+    throw new RuntimeException("Received unknown message " + message)
   }
 
   def startMonitoring(): Unit = {

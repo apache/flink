@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -135,6 +136,8 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	private List<File> shipFiles = new ArrayList<File>();
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
+	private boolean detached;
+
 
 	public FlinkYarnClient() {
 		conf = new YarnConfiguration();
@@ -238,6 +241,15 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 	@Override
 	public void setShipFiles(List<File> shipFiles) {
+		File shipFile;
+		for(Iterator<File> it = shipFiles.iterator(); it.hasNext(); ) {
+			shipFile = it.next();
+			// remove uberjar from ship list (by default everything in the lib/ folder is added to
+			// the list of files to ship, but we handle the uberjar separately.
+			if(shipFile.getName().startsWith("flink-dist-") && shipFile.getName().endsWith("jar")) {
+				it.remove();
+			}
+		}
 		this.shipFiles.addAll(shipFiles);
 	}
 
@@ -307,6 +319,12 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 			return deployInternal(clusterName);
 		}
 	}
+
+	@Override
+	public void setDetachedMode(boolean detachedMode) {
+		this.detached = detachedMode;
+	}
+
 	/**
 	 * This method will block until the ApplicationMaster/JobManager have been
 	 * deployed on YARN.
@@ -325,25 +343,32 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 		// ------------------ Check if the specified queue exists --------------
 
-		List<QueueInfo> queues = yarnClient.getAllQueues();
-		if(queues.size() > 0 && this.yarnQueue != null) { // check only if there are queues configured in yarn and for this session.
-			boolean queueFound = false;
-			for (QueueInfo queue : queues) {
-				if (queue.getQueueName().equals(this.yarnQueue)) {
-					queueFound = true;
-					break;
-				}
-			}
-			if (!queueFound) {
-				String queueNames = "";
+		try {
+			List<QueueInfo> queues = yarnClient.getAllQueues();
+			if (queues.size() > 0 && this.yarnQueue != null) { // check only if there are queues configured in yarn and for this session.
+				boolean queueFound = false;
 				for (QueueInfo queue : queues) {
-					queueNames += queue.getQueueName() + ", ";
+					if (queue.getQueueName().equals(this.yarnQueue)) {
+						queueFound = true;
+						break;
+					}
 				}
-				throw new YarnDeploymentException("The specified queue '" + this.yarnQueue + "' does not exist. " +
-						"Available queues: " + queueNames);
+				if (!queueFound) {
+					String queueNames = "";
+					for (QueueInfo queue : queues) {
+						queueNames += queue.getQueueName() + ", ";
+					}
+					LOG.warn("The specified queue '" + this.yarnQueue + "' does not exist. " +
+							"Available queues: " + queueNames);
+				}
+			} else {
+				LOG.debug("The YARN cluster does not have any queues configured");
 			}
-		} else {
-			LOG.debug("The YARN cluster does not have any queues configured");
+		} catch(Throwable e) {
+			LOG.warn("Error while getting queue information from YARN: "+e.getMessage());
+			if(LOG.isDebugEnabled()) {
+				LOG.debug("Error details", e);
+			}
 		}
 
 		// ------------------ Check if the YARN Cluster has the requested resources --------------
@@ -477,6 +502,8 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
+		appContext.setMaxAppAttempts(flinkConfiguration.getInteger(ConfigConstants.YARN_APPLICATION_ATTEMPTS, 1));
+
 		final ApplicationId appId = appContext.getApplicationId();
 
 		// Setup jar for ApplicationMaster
@@ -545,6 +572,9 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		if(clusterName == null) {
 			clusterName = "Flink session with "+taskManagerCount+" TaskManagers";
 		}
+		if(detached) {
+			clusterName += " (detached)";
+		}
 
 		appContext.setApplicationName(clusterName); // application name
 		appContext.setApplicationType("Apache Flink");
@@ -586,7 +616,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 			Thread.sleep(1000);
 		}
 		// the Flink cluster is deployed in YARN. Represent cluster
-		return new FlinkYarnCluster(yarnClient, appId, conf, flinkConfiguration, sessionFilesDir);
+		return new FlinkYarnCluster(yarnClient, appId, conf, flinkConfiguration, sessionFilesDir, detached);
 	}
 
 	/**
@@ -639,8 +669,6 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		return new ClusterResourceDescription(totalFreeMemory, containerLimit, nodeManagersFree);
 	}
 
-
-
 	public String getClusterDescription() throws Exception {
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -673,6 +701,10 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		}
 		yarnClient.stop();
 		return baos.toString();
+	}
+
+	public String getSessionFilesDir() {
+		return sessionFilesDir.toString();
 	}
 
 	public static class YarnDeploymentException extends RuntimeException {

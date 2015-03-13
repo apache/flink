@@ -27,7 +27,7 @@ public class MockSource<T> {
 	public static <T> List<T> createAndExecute(SourceFunction<T> source) {
 		List<T> outputs = new ArrayList<T>();
 		try {
-			source.invoke(new MockCollector<T>(outputs));
+			source.run(new MockCollector<T>(outputs));
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke source.", e);
 		}

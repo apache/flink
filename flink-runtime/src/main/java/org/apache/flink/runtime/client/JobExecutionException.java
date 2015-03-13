@@ -16,48 +16,46 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.client;
 
+import org.apache.flink.runtime.jobgraph.JobID;
+
 /**
- * This exception is thrown by the {@link JobClient} if a Nephele job has been aborted either as a result of a user
- * request or an error which occurred during the execution.
- * 
+ * This exception is the base exception for all exceptions that denote any failure during
+ * teh execution of a job. The JobExecutionException and its subclasses are thrown by
+ * the {@link JobClient}.
  */
 public class JobExecutionException extends Exception {
 
-	/**
-	 * The generated serial UID.
-	 */
 	private static final long serialVersionUID = 2818087325120827525L;
 
-	/**
-	 * Indicates whether the job has been aborted as a result of user request.
-	 */
-	private final boolean canceledByUser;
+	private JobID jobID;
 
 	/**
 	 * Constructs a new job execution exception.
 	 * 
-	 * @param msg
-	 *        the message that shall be encapsulated by this exception
-	 * @param canceledByUser
-	 *        <code>true</code> if the job has been aborted as a result of a user request, <code>false</code> otherwise
+	 * @param msg The cause for the execution exception.
+	 * @param cause The cause of the exception
 	 */
-	public JobExecutionException(final String msg, final boolean canceledByUser) {
-		super(msg);
+	public JobExecutionException(final JobID jobID, final String msg, final Throwable cause) {
+		super(msg, cause);
 
-		this.canceledByUser = canceledByUser;
+		this.jobID = jobID;
 	}
 
-	/**
-	 * Returns <code>true</code> if the job has been aborted as a result of a user request, <code>false</code>
-	 * otherwise.
-	 * 
-	 * @return <code>true</code> if the job has been aborted as a result of a user request, <code>false</code> otherwise
-	 */
-	public boolean isJobCanceledByUser() {
+	public JobExecutionException(final JobID jobID, final String msg) {
+		super(msg);
 
-		return this.canceledByUser;
+		this.jobID = jobID;
+	}
+
+	public JobExecutionException(final JobID jobID, final Throwable cause) {
+		super(cause);
+
+		this.jobID = jobID;
+	}
+
+	public JobID getJobID() {
+		return jobID;
 	}
 }

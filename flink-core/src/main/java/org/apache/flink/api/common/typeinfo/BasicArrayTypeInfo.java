@@ -29,6 +29,8 @@ import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
 public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 
+	private static final long serialVersionUID = 1L;
+
 	public static final BasicArrayTypeInfo<String[], String> STRING_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<String[], String>(String[].class, BasicTypeInfo.STRING_TYPE_INFO);
 	
 	public static final BasicArrayTypeInfo<Boolean[], Boolean> BOOLEAN_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Boolean[], Boolean>(Boolean[].class, BasicTypeInfo.BOOLEAN_TYPE_INFO);

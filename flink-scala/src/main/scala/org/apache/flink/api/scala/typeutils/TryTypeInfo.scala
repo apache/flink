@@ -20,7 +20,8 @@ package org.apache.flink.api.scala.typeutils
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
+
+import scala.collection.JavaConverters._
 
 import scala.util.Try
 
@@ -36,6 +37,7 @@ class TryTypeInfo[A, T <: Try[A]](elemTypeInfo: TypeInformation[A])
   override def getTotalFields: Int = 1
   override def getArity: Int = 1
   override def getTypeClass = classOf[Try[_]].asInstanceOf[Class[T]]
+  override def getGenericParameters = List[TypeInformation[_]](elemTypeInfo).asJava
 
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
     if (elemTypeInfo == null) {

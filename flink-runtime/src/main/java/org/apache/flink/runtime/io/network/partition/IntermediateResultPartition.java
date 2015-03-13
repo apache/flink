@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import akka.actor.ActorRef;
+import akka.dispatch.OnFailure;
+import akka.pattern.Patterns;
 import com.google.common.base.Optional;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
@@ -36,10 +39,11 @@ import org.apache.flink.runtime.io.network.partition.queue.PipelinedPartitionQue
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
+import org.apache.flink.runtime.messages.TaskManagerMessages.FailTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
+import scala.concurrent.Future;
 
 import java.io.IOException;
 
@@ -80,7 +84,9 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 
 	private BufferPool bufferPool;
 
-	public IntermediateResultPartition(RuntimeEnvironment environment, int partitionIndex, JobID jobId, ExecutionAttemptID executionId, IntermediateResultPartitionID partitionId, IntermediateResultPartitionType partitionType, IntermediateResultPartitionQueue[] partitionQueues, NetworkEnvironment networkEnvironment) {
+	public IntermediateResultPartition(RuntimeEnvironment environment, int partitionIndex, JobID jobId,
+			ExecutionAttemptID executionId, IntermediateResultPartitionID partitionId, IntermediateResultPartitionType partitionType,
+			IntermediateResultPartitionQueue[] partitionQueues, NetworkEnvironment networkEnvironment) {
 		this.environment = environment;
 		this.partitionIndex = partitionIndex;
 		this.jobId = jobId;
@@ -96,7 +102,8 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	// ------------------------------------------------------------------------
 
 	public void setBufferPool(BufferPool bufferPool) {
-		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() == getNumberOfQueues(), "Buffer pool has not enough buffers for this intermediate result.");
+		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() == getNumberOfQueues(),
+				"Buffer pool has not enough buffers for this intermediate result.");
 		checkState(this.bufferPool == null, "Buffer pool has already been set for intermediate result partition.");
 
 		this.bufferPool = checkNotNull(bufferPool);
@@ -180,6 +187,8 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 
 	public void releaseAllResources() throws IOException {
 		synchronized (queues) {
+			LOG.debug("Release all resources of {}.", this);
+
 			if (!isReleased) {
 				try {
 					for (IntermediateResultPartitionQueue queue : queues) {
@@ -206,7 +215,8 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	// Consume
 	// ------------------------------------------------------------------------
 
-	public IntermediateResultPartitionQueueIterator getQueueIterator(int queueIndex, Optional<BufferProvider> bufferProvider) throws IOException {
+	public IntermediateResultPartitionQueueIterator getQueueIterator(int queueIndex, Optional<BufferProvider> bufferProvider)
+			throws IOException {
 		synchronized (queues) {
 			if (isReleased) {
 				throw new IllegalQueueIteratorRequestException("Intermediate result partition has already been released.");
@@ -221,11 +231,6 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	}
 
 	// ------------------------------------------------------------------------
-
-	@Override
-	public String toString() {
-		return "Intermediate result partition " + partitionId + " [num queues: " + queues.length + ", " + (isFinished ? "finished" : "not finished") + "]";
-	}
 
 	private void checkInProducePhase() {
 		checkState(!isReleased, "Partition has already been discarded.");
@@ -243,28 +248,26 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 	}
 
 	private void scheduleOrUpdateConsumers() throws IOException {
-		while (!isReleased) {
-			final JobManagerMessages.ConsumerNotificationResult result = AkkaUtils.ask(
-					networkEnvironment.getJobManager(),
-					new JobManagerMessages.ScheduleOrUpdateConsumers(jobId, producerExecutionId, partitionIndex),
+		if(!isReleased){
+			ScheduleOrUpdateConsumers msg = new ScheduleOrUpdateConsumers(jobId,
+					producerExecutionId, partitionIndex);
+
+			Future<Object> futureResponse = Patterns.ask(networkEnvironment.getJobManager(), msg,
 					networkEnvironment.getJobManagerTimeout());
 
-			if (result.success()) {
-				return;
-			}
-			else {
-				Option<Throwable> error = result.error();
-				if (error.isDefined()) {
-					throw new IOException(error.get().getMessage(), error.get());
-				}
-			}
+			futureResponse.onFailure(new OnFailure(){
+				@Override
+				public void onFailure(Throwable failure) throws Throwable {
+					LOG.error("Could not schedule or update consumers at the JobManager.", failure);
 
-			try {
-				Thread.sleep(10);
-			}
-			catch (InterruptedException e) {
-				throw new IOException("Unexpected interruption during consumer schedule or update.", e);
-			}
+					// Fail task at the TaskManager
+					FailTask failMsg = new FailTask(producerExecutionId,
+							new RuntimeException("Could not schedule or update consumers at " +
+									"the JobManager.", failure));
+
+					networkEnvironment.getTaskManager().tell(failMsg, ActorRef.noSender());
+				}
+			}, AkkaUtils.globalExecutionContext());
 		}
 	}
 
@@ -291,7 +294,8 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 
 	// ------------------------------------------------------------------------
 
-	public static IntermediateResultPartition create(RuntimeEnvironment environment, int partitionIndex, JobID jobId, ExecutionAttemptID executionId, NetworkEnvironment networkEnvironment, PartitionDeploymentDescriptor desc) {
+	public static IntermediateResultPartition create(RuntimeEnvironment environment, int partitionIndex, JobID jobId,
+			ExecutionAttemptID executionId, NetworkEnvironment networkEnvironment, PartitionDeploymentDescriptor desc) {
 		final IntermediateResultPartitionID partitionId = checkNotNull(desc.getPartitionId());
 		final IntermediateResultPartitionType partitionType = checkNotNull(desc.getPartitionType());
 
@@ -302,6 +306,14 @@ public class IntermediateResultPartition implements BufferPoolOwner {
 			partitionQueues[i] = new PipelinedPartitionQueue();
 		}
 
-		return new IntermediateResultPartition(environment, partitionIndex, jobId, executionId, partitionId, partitionType, partitionQueues, networkEnvironment);
+		return new IntermediateResultPartition(environment, partitionIndex, jobId, executionId, partitionId, partitionType,
+				partitionQueues, networkEnvironment);
+	}
+
+	@Override
+	public String toString() {
+		return String.format("IntermediateResultPartition(JobID: %s, ExecutionID: %s, " +
+				"PartitionID: %s, PartitionType: %s, [num queues: %d, (isFinished: %b)",
+				jobId, producerExecutionId, partitionId, partitionType, queues.length, isFinished);
 	}
 }

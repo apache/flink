@@ -58,12 +58,32 @@ object TaskManagerMessages {
   case class UnregisterTask(executionID: ExecutionAttemptID)
 
   /**
-   * Updates the reader identified by [[resultId]] of the task identified by
-   * [[executionId]] from the task manager.
+   * Updates the reader of the task identified by
+   * [[executionID]] from the task manager.
    */
-  case class UpdateTask(executionId: ExecutionAttemptID,
+  sealed trait UpdateTask{
+    def executionID: ExecutionAttemptID
+  }
+
+  case class UpdateTaskSinglePartitionInfo(executionID: ExecutionAttemptID,
                         resultId: IntermediateDataSetID,
-                        partitionInfo: PartitionInfo)
+                        partitionInfo: PartitionInfo) extends UpdateTask
+
+  case class UpdateTaskMultiplePartitionInfos(executionID: ExecutionAttemptID,
+                                              partitionInfos: Seq[(IntermediateDataSetID,
+                                                PartitionInfo)]) extends UpdateTask
+
+  def createUpdateTaskMultiplePartitionInfos(executionID: ExecutionAttemptID,
+                                             resultIDs: java.util.List[IntermediateDataSetID],
+                                             partitionInfos: java.util.List[PartitionInfo]):
+  UpdateTaskMultiplePartitionInfos = {
+    require(resultIDs.size() == partitionInfos.size(), "ResultIDs must have the same length as" +
+      "partitionInfos.")
+
+    import scala.collection.JavaConverters.asScalaBufferConverter
+    new UpdateTaskMultiplePartitionInfos(executionID,
+      resultIDs.asScala.zip(partitionInfos.asScala))
+  }
 
   /**
    * Fails all intermediate result partitions identified by [[executionID]] from the task manager.
@@ -95,6 +115,15 @@ object TaskManagerMessages {
   case class Heartbeat(instanceID: InstanceID)
 
   /**
+   * Sends StackTrace Message of an instance with [[instanceID]]. This message is a response to
+   * [[org.apache.flink.runtime.messages.TaskManagerMessages.SendStackTrace]].
+   *
+   * @param instanceID
+   * @param stackTrace
+   */
+  case class StackTrace(instanceID: InstanceID, stackTrace: String)
+
+  /**
    * Requests a notification from the task manager as soon as the task manager has been
    * registered at the job manager. Once the task manager is registered at the job manager a
    * [[RegisteredAtJobManager]] message will be sent to the sender.
@@ -121,6 +150,11 @@ object TaskManagerMessages {
    * Logs the current memory usage as debug level output.
    */
   case object LogMemoryUsage
+
+  /**
+   * Makes the task manager sending a stack trace message to the sender.
+   */
+  case object SendStackTrace
 
   /**
    * Fail the specified task externally

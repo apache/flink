@@ -142,7 +142,7 @@ public class TextInputFormatTest {
 				result = inputFormat.nextRecord(result);
 				assertNull("The input file is over", result);
 				
-			}else{
+			} else {
 				result = inputFormat.nextRecord("");
 				assertNotNull("Expecting first record here", result);
 				assertEquals(CONTENT, result);

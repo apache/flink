@@ -28,7 +28,6 @@ import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
@@ -55,6 +54,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -486,7 +486,8 @@ public class TaskManagerTest {
 		public void onReceive(Object message) throws Exception {
 			if(message instanceof RegistrationMessages.RegisterTaskManager){
 				final InstanceID iid = new InstanceID();
-				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(iid, -1),
+				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(iid, -1,
+								Option.<ActorRef>apply(null)),
 						getSelf());
 			}else if(message instanceof JobManagerMessages.UpdateTaskExecutionState){
 				getSender().tell(true, getSelf());
@@ -510,9 +511,9 @@ public class TaskManagerTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception{
-			if(message instanceof JobManagerMessages.UpdateTaskExecutionState){
+			if (message instanceof JobManagerMessages.UpdateTaskExecutionState) {
 				getSender().tell(false, getSelf());
-			}else{
+			} else {
 				super.onReceive(message);
 			}
 		}
@@ -537,7 +538,7 @@ public class TaskManagerTest {
 	public static ActorRef createTaskManager(ActorRef jm) {
 		Configuration cfg = new Configuration();
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
-		GlobalConfiguration.includeConfiguration(cfg);
+
 		String jobManagerURL = jm.path().toString();
 
 		ActorRef taskManager = TestingUtils.startTestingTaskManagerWithConfiguration("localhost",
@@ -549,7 +550,8 @@ public class TaskManagerTest {
 		try {
 			FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);
 			Await.ready(response, d);
-		}catch(Exception e){
+		}
+		catch(Exception e) {
 			throw new RuntimeException("Exception while waiting for the task manager registration.", e);
 		}
 

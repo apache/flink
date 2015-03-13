@@ -1519,7 +1519,7 @@ public final class Record implements Value, CopyableValue<Record> {
 
 		@Override
 		public void skipBytesToRead(int numBytes) throws IOException {
-			if(this.end - this.position < numBytes) {
+			if (this.end - this.position < numBytes) {
 				throw new EOFException("Could not skip " + numBytes + ".");
 			}
 			skipBytes(numBytes);
@@ -1527,26 +1527,26 @@ public final class Record implements Value, CopyableValue<Record> {
 
 		@Override
 		public int read(byte[] b, int off, int len) throws IOException {
-			if(b == null){
+			if (b == null) {
 				throw new NullPointerException("Byte array b cannot be null.");
 			}
 
-			if(off < 0){
+			if (off < 0) {
 				throw new IndexOutOfBoundsException("Offset cannot be negative.");
 			}
 
-			if(len < 0){
+			if (len < 0) {
 				throw new IndexOutOfBoundsException("Length cannot be negative.");
 			}
 
-			if(b.length - off < len){
+			if (b.length - off < len) {
 				throw new IndexOutOfBoundsException("Byte array does not provide enough space to store requested data" +
 						".");
 			}
 
-			if(this.position >= this.end){
+			if (this.position >= this.end) {
 				return -1;
-			}else{
+			} else {
 				int toRead = Math.min(this.end-this.position, len);
 				System.arraycopy(this.memory,this.position,b,off,toRead);
 				this.position += toRead;
@@ -1790,14 +1790,14 @@ public final class Record implements Value, CopyableValue<Record> {
 		public void skipBytesToWrite(int numBytes) throws IOException {
 			int skippedBytes = skipBytes(numBytes);
 
-			if(skippedBytes != numBytes){
+			if (skippedBytes != numBytes) {
 				throw new EOFException("Could not skip " + numBytes + " bytes.");
 			}
 		}
 
 		@Override
 		public void write(DataInputView source, int numBytes) throws IOException {
-			if(numBytes > this.end - this.position){
+			if (numBytes > this.end - this.position) {
 				throw new IOException("Could not write " + numBytes + " bytes since the buffer is full.");
 			}
 

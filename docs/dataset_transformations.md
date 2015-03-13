@@ -1224,6 +1224,41 @@ val out = in.partitionByHash(0).mapPartition { ... }
 </div>
 </div>
 
+### Sort Partition
+
+Locally sorts all partitions of a DataSet on a specified field in a specified order.
+Fields can be specified as field expressions or field positions (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
+Partitions can be sorted on multiple fields by chaining `sortPartition()` calls.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<Tuple2<String, Integer>> in = // [...]
+// Locally sort partitions in ascending order on the second String field and 
+// in descending order on the first String field.
+// Apply a MapPartition transformation on the sorted partitions.
+DataSet<Tuple2<String, String>> out = in.sortPartition(1, Order.ASCENDING)
+                                          .sortPartition(0, Order.DESCENDING)
+                                        .mapPartition(new PartitionMapper());
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val in: DataSet[(String, Int)] = // [...]
+// Locally sort partitions in ascending order on the second String field and 
+// in descending order on the first String field.
+// Apply a MapPartition transformation on the sorted partitions.
+val out = in.sortPartition(1, Order.ASCENDING)
+              .sortPartition(0, Order.DESCENDING)
+            .mapPartition { ... }
+~~~
+
+</div>
+</div>
+
 ### First-n
 
 Returns the first n (arbitrary) elements of a DataSet. First-n can be applied on a regular DataSet, a grouped DataSet, or a grouped-sorted DataSet. Grouping keys can be specified as key-selector functions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).

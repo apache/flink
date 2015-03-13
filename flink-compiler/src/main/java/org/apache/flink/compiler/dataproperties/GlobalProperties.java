@@ -183,6 +183,14 @@ public class GlobalProperties implements Cloneable {
 			return false;
 		}
 	}
+
+	public boolean isExactlyPartitionedOnFields(FieldList fields) {
+		if (this.partitioning.isPartitionedOnKey() && fields.isExactMatch(this.partitioningFields)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
 	
 	public boolean matchesOrderedPartitioning(Ordering o) {
 		if (this.partitioning == PartitioningProperty.RANGE_PARTITIONED) {

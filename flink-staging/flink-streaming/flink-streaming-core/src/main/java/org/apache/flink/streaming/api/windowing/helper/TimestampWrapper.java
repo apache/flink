@@ -41,4 +41,20 @@ public class TimestampWrapper<T> implements Serializable {
 	public boolean isDefaultTimestamp() {
 		return timestamp instanceof SystemTimestamp;
 	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof TimestampWrapper)) {
+			return false;
+		} else {
+			try {
+				@SuppressWarnings("unchecked")
+				TimestampWrapper<T> otherTSW = (TimestampWrapper<T>) other;
+				return startTime == otherTSW.startTime
+						&& timestamp.getClass() == otherTSW.timestamp.getClass();
+			} catch (ClassCastException e) {
+				return false;
+			}
+		}
+	}
 }

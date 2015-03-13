@@ -16,14 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.Nothing;
 
+/**
+ * Placeholder type information for the {@link Nothing} type.
+ */
 public class NothingTypeInfo extends TypeInformation<Nothing> {
+	
+	private static final long serialVersionUID = 1L;
+	
 	@Override
 	public boolean isBasicType() {
 		return false;

@@ -47,8 +47,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,8 +84,9 @@ public class Client {
 	public Client(InetSocketAddress jobManagerAddress, Configuration config, ClassLoader userCodeClassLoader) {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
-		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
-				jobManagerAddress.getHostName());
+		
+		// using the host string instead of the host name saves a reverse name lookup
+		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
@@ -151,7 +150,7 @@ public class Client {
 			}
 			env.setAsContext();
 			
-			// temporarily write syser and sysout to bytearray.
+			// temporarily write syserr and sysout to a byte array.
 			PrintStream originalOut = System.out;
 			PrintStream originalErr = System.err;
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -219,8 +218,7 @@ public class Client {
 	}
 	
 	private JobGraph getJobGraph(FlinkPlan optPlan, List<File> jarFiles) {
-		JobGraph job = null;
-
+		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
 		} else {
@@ -283,16 +281,18 @@ public class Client {
 	}
 	
 	/**
-	 * Runs a program on the nephele system whose job-manager is configured in this client's configuration.
+	 * Runs a program on Flink cluster whose job-manager is configured in this client's configuration.
 	 * This method involves all steps, from compiling, job-graph generation to submission.
 	 * 
 	 * @param prog The program to be executed.
+	 * @param parallelism The default parallelism to use when running the program. The default parallelism is used
+	 *                    when the program does not set a parallelism by itself.
 	 * @param wait A flag that indicates whether this function call should block until the program execution is done.
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
 	 *                                    or if the submission failed. That might be either due to an I/O problem,
-	 *                                    i.e. the job-manager is unreachable, or due to the fact that the execution
-	 *                                    on the nephele system failed.
+	 *                                    i.e. the job-manager is unreachable, or due to the fact that the
+	 *                                    parallel execution failed.
 	 */
 	public JobExecutionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
 		return run((OptimizedPlan) getOptimizedPlan(prog, parallelism), prog.getJarFiles(), wait);
@@ -305,53 +305,55 @@ public class Client {
 	}
 
 	public JobExecutionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
-		Tuple2<ActorSystem, ActorRef> pair = JobClient.startActorSystemAndActor(configuration,
-				false);
 
-		ActorRef client = pair._2();
-
-		String hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		final String hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		if (hostname == null) {
+			throw new ProgramInvocationException("Could not find hostname of job manager.");
+		}
 
 		FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
 
-		if(hostname == null){
-			throw new ProgramInvocationException("Could not find hostname of job manager.");
+		final ActorSystem actorSystem;
+		final ActorRef client;
+
+		try {
+			Tuple2<ActorSystem, ActorRef> pair = JobClient.startActorSystemAndActor(configuration, false);
+			actorSystem = pair._1();
+			client = pair._2();
+		}
+		catch (Exception e) {
+			throw new ProgramInvocationException("Could not build up connection to JobManager.", e);
 		}
 
 		try {
 			JobClient.uploadJarFiles(jobGraph, hostname, client, timeout);
-		}catch(IOException e){
-			throw new ProgramInvocationException("Could not upload blobs.", e);
+		}
+		catch (IOException e) {
+			throw new ProgramInvocationException("Could not upload the program's JAR files to the JobManager.", e);
 		}
 
-		try {
+		try{
 			if (wait) {
 				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client, timeout);
 			}
 			else {
-				SubmissionResponse response = JobClient.submitJobDetached(jobGraph, client, timeout);
-
-				if(response instanceof SubmissionFailure){
-					SubmissionFailure failure = (SubmissionFailure) response;
-					throw new ProgramInvocationException("The job was not successfully submitted " +
-							"to the flink job manager", failure.cause());
-				}
+				JobClient.submitJobDetached(jobGraph, client, timeout);
 			}
 		}
-		catch (JobExecutionException jex) {
-			if(jex.isJobCanceledByUser()) {
-				throw new ProgramInvocationException("The program has been canceled");
-			} else {
-				throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
-			}
-		}finally{
-			pair._1().shutdown();
-			pair._1().awaitTermination();
+		catch (JobExecutionException e) {
+			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
+		}
+		catch (Exception e) {
+			throw new ProgramInvocationException("Exception during program execution.", e);
+		}
+		finally {
+			actorSystem.shutdown();
+			actorSystem.awaitTermination();
 		}
 
 		return new JobExecutionResult(-1, null);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class OptimizerPlanEnvironment extends ExecutionEnvironment {
@@ -398,7 +400,13 @@ public class Client {
 			this.optimizerPlan = plan;
 		}
 	}
-	
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * A special exception used to abort programs when the caller is only interested in the
+	 * program plan, rather than in the full execution.
+	 */
 	public static final class ProgramAbortException extends Error {
 		private static final long serialVersionUID = 1L;
 	}

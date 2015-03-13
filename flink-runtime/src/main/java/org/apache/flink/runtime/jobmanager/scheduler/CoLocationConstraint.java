@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.runtime.instance.Instance;
 
 import com.google.common.base.Preconditions;

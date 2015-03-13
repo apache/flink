@@ -209,6 +209,9 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
 						return false;
 					}
+					else if (bufferProvider.isDestroyed()) {
+						return false;
+					}
 				}
 			}
 			else {
@@ -264,7 +267,6 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		private NettyMessage.BufferResponse stagedBufferResponse;
 
 		private boolean waitForBuffer(BufferProvider bufferProvider, NettyMessage.BufferResponse bufferResponse) {
-
 
 			stagedBufferResponse = bufferResponse;
 

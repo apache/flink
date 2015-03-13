@@ -299,6 +299,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	
 	// --------------------------------------------------------------------------------------------
 	
+	@SuppressWarnings("unchecked")
 	protected void executeOnCollections(List<IN> inputData, ExecutionConfig executionConfig) throws Exception {
 		OutputFormat<IN> format = this.formatWrapper.getUserCodeObject();
 		TypeInformation<IN> inputType = getInput().getOperatorInfo().getOutputType();
@@ -311,7 +312,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 			if (inputType instanceof CompositeType) {
 				sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0, executionConfig);
 			} else if (inputType instanceof AtomicType) {
-				sortComparator = ((AtomicType) inputType).createComparator(sortOrderings[0], executionConfig);
+				sortComparator = ((AtomicType<IN>) inputType).createComparator(sortOrderings[0], executionConfig);
 			} else {
 				throw new UnsupportedOperationException("Local output sorting does not support type "+inputType+" yet.");
 			}

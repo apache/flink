@@ -130,12 +130,16 @@ public class FlumeSource<OUT> extends ConnectorSource<OUT> {
 	 *            The Collector for sending data to the datastream
 	 */
 	@Override
-	public void invoke(Collector<OUT> collector) throws Exception {
+	public void run(Collector<OUT> collector) throws Exception {
 		configureAvroSource(collector);
 		avroSource.start();
 		while (!finished) {
 			this.wait();
 		}
+	}
+
+	@Override
+	public void cancel() {
 	}
 
 }

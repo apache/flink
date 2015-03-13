@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapreduce;
 
 import java.io.IOException;
@@ -29,6 +28,8 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 public class HadoopInputFormat<K, V> extends HadoopInputFormatBase<K, V, Tuple2<K, V>> implements ResultTypeQueryable<Tuple2<K,V>> {
+
+	private static final long serialVersionUID = 1L;
 
 	public HadoopInputFormat(org.apache.hadoop.mapreduce.InputFormat<K,V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
 		super(mapreduceInputFormat, key, value, job);

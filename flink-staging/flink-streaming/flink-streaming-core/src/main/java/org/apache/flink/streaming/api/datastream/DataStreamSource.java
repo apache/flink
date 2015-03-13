@@ -35,6 +35,9 @@ public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataS
 			TypeInformation<OUT> outTypeInfo, StreamInvokable<?, ?> invokable, boolean isParallel) {
 		super(environment, operatorType, outTypeInfo, invokable);
 		this.isParallel = isParallel;
+		if (!isParallel) {
+			setParallelism(1);
+		}
 	}
 
 	@Override

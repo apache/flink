@@ -17,32 +17,37 @@
 
 package org.apache.flink.streaming.io;
 
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.concurrent.LinkedBlockingDeque;
+
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.event.task.TaskEvent;
-import org.apache.flink.runtime.io.network.api.reader.BufferReaderBase;
+import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
-import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.util.event.EventListener;
-
-import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import org.apache.flink.streaming.api.streamvertex.StreamingSuperstep;
 
 /**
  * A CoRecordReader wraps {@link MutableRecordReader}s of two different input
  * types to read records effectively.
  */
 @SuppressWarnings("rawtypes")
-public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> implements ReaderBase, EventListener<BufferReaderBase> {
+public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> extends
+		AbstractReader implements EventListener<InputGate> {
 
-	private final BufferReaderBase bufferReader1;
+	private final InputGate bufferReader1;
 
-	private final BufferReaderBase bufferReader2;
+	private final InputGate bufferReader2;
 
-	private final BlockingQueue<Integer> availableRecordReaders = new LinkedBlockingQueue<Integer>();
+	private final LinkedBlockingDeque<Integer> availableRecordReaders = new LinkedBlockingDeque<Integer>();
+
+	private LinkedList<Integer> processed = new LinkedList<Integer>();
 
 	private AdaptiveSpanningRecordDeserializer[] reader1RecordDeserializers;
 
@@ -57,12 +62,19 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	private boolean hasRequestedPartitions;
 
-	public CoRecordReader(BufferReaderBase bufferReader1, BufferReaderBase bufferReader2) {
-		this.bufferReader1 = bufferReader1;
-		this.bufferReader2 = bufferReader2;
+	protected CoBarrierBuffer barrierBuffer1;
+	protected CoBarrierBuffer barrierBuffer2;
 
-		this.reader1RecordDeserializers = new AdaptiveSpanningRecordDeserializer[bufferReader1.getNumberOfInputChannels()];
-		this.reader2RecordDeserializers = new AdaptiveSpanningRecordDeserializer[bufferReader2.getNumberOfInputChannels()];
+	public CoRecordReader(InputGate inputgate1, InputGate inputgate2) {
+		super(new UnionInputGate(inputgate1, inputgate2));
+
+		this.bufferReader1 = inputgate1;
+		this.bufferReader2 = inputgate2;
+
+		this.reader1RecordDeserializers = new AdaptiveSpanningRecordDeserializer[inputgate1
+				.getNumberOfInputChannels()];
+		this.reader2RecordDeserializers = new AdaptiveSpanningRecordDeserializer[inputgate2
+				.getNumberOfInputChannels()];
 
 		for (int i = 0; i < reader1RecordDeserializers.length; i++) {
 			reader1RecordDeserializers[i] = new AdaptiveSpanningRecordDeserializer<T1>();
@@ -72,14 +84,20 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 			reader2RecordDeserializers[i] = new AdaptiveSpanningRecordDeserializer<T2>();
 		}
 
-		bufferReader1.subscribeToReader(this);
-		bufferReader2.subscribeToReader(this);
+		inputgate1.registerListener(this);
+		inputgate2.registerListener(this);
+
+		barrierBuffer1 = new CoBarrierBuffer(inputgate1, this);
+		barrierBuffer2 = new CoBarrierBuffer(inputgate2, this);
+
+		barrierBuffer1.setOtherBarrierBuffer(barrierBuffer2);
+		barrierBuffer2.setOtherBarrierBuffer(barrierBuffer1);
 	}
 
-	public void requestPartitionsOnce() throws IOException {
+	public void requestPartitionsOnce() throws IOException, InterruptedException {
 		if (!hasRequestedPartitions) {
-			bufferReader1.requestPartitionsOnce();
-			bufferReader2.requestPartitionsOnce();
+			bufferReader1.requestPartitions();
+			bufferReader2.requestPartitions();
 
 			hasRequestedPartitions = true;
 		}
@@ -97,12 +115,14 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 				}
 
 				currentReaderIndex = getNextReaderIndexBlocking();
+
 			}
 
 			if (currentReaderIndex == 1) {
 				while (true) {
 					if (reader1currentRecordDeserializer != null) {
-						RecordDeserializer.DeserializationResult result = reader1currentRecordDeserializer.getNextRecord(target1);
+						RecordDeserializer.DeserializationResult result = reader1currentRecordDeserializer
+								.getNextRecord(target1);
 
 						if (result.isBufferConsumed()) {
 							reader1currentRecordDeserializer.getCurrentBuffer().recycle();
@@ -114,25 +134,31 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 						if (result.isFullRecord()) {
 							return 1;
 						}
+					} else {
+
+						final BufferOrEvent boe = barrierBuffer1.getNextNonBlocked();
+
+						if (boe.isBuffer()) {
+							reader1currentRecordDeserializer = reader1RecordDeserializers[boe
+									.getChannelIndex()];
+							reader1currentRecordDeserializer.setNextBuffer(boe.getBuffer());
+						} else if (boe.getEvent() instanceof StreamingSuperstep) {
+							barrierBuffer1.processSuperstep(boe);
+							currentReaderIndex = 0;
+
+							break;
+						} else if (handleEvent(boe.getEvent())) {
+							currentReaderIndex = 0;
+
+							break;
+						}
 					}
-
-					final Buffer nextBuffer = bufferReader1.getNextBufferBlocking();
-					final int channelIndex = bufferReader1.getChannelIndexOfLastBuffer();
-
-					if (nextBuffer == null) {
-						currentReaderIndex = 0;
-
-						break;
-					}
-
-					reader1currentRecordDeserializer = reader1RecordDeserializers[channelIndex];
-					reader1currentRecordDeserializer.setNextBuffer(nextBuffer);
 				}
-			}
-			else if (currentReaderIndex == 2) {
+			} else if (currentReaderIndex == 2) {
 				while (true) {
 					if (reader2currentRecordDeserializer != null) {
-						RecordDeserializer.DeserializationResult result = reader2currentRecordDeserializer.getNextRecord(target2);
+						RecordDeserializer.DeserializationResult result = reader2currentRecordDeserializer
+								.getNextRecord(target2);
 
 						if (result.isBufferConsumed()) {
 							reader2currentRecordDeserializer.getCurrentBuffer().recycle();
@@ -144,29 +170,58 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 						if (result.isFullRecord()) {
 							return 2;
 						}
+					} else {
+						final BufferOrEvent boe = barrierBuffer2.getNextNonBlocked();
+
+						if (boe.isBuffer()) {
+							reader2currentRecordDeserializer = reader2RecordDeserializers[boe
+									.getChannelIndex()];
+							reader2currentRecordDeserializer.setNextBuffer(boe.getBuffer());
+						} else if (boe.getEvent() instanceof StreamingSuperstep) {
+							barrierBuffer2.processSuperstep(boe);
+							currentReaderIndex = 0;
+
+							break;
+						} else if (handleEvent(boe.getEvent())) {
+							currentReaderIndex = 0;
+
+							break;
+						}
 					}
-
-					final Buffer nextBuffer = bufferReader2.getNextBufferBlocking();
-					final int channelIndex = bufferReader2.getChannelIndexOfLastBuffer();
-
-					if (nextBuffer == null) {
-						currentReaderIndex = 0;
-
-						break;
-					}
-
-					reader2currentRecordDeserializer = reader2RecordDeserializers[channelIndex];
-					reader2currentRecordDeserializer.setNextBuffer(nextBuffer);
 				}
-			}
-			else {
+			} else {
 				throw new IllegalStateException("Bug: unexpected current reader index.");
 			}
 		}
 	}
 
-	private int getNextReaderIndexBlocking() throws InterruptedException {
-		return availableRecordReaders.take();
+	protected int getNextReaderIndexBlocking() throws InterruptedException {
+
+		Integer nextIndex = 0;
+
+		while (processed.contains(nextIndex = availableRecordReaders.take())) {
+			processed.remove(nextIndex);
+		}
+
+		if (nextIndex == 1) {
+			if (barrierBuffer1.isAllBlocked()) {
+				availableRecordReaders.addFirst(1);
+				processed.add(2);
+				return 2;
+			} else {
+				return 1;
+			}
+		} else {
+			if (barrierBuffer2.isAllBlocked()) {
+				availableRecordReaders.addFirst(2);
+				processed.add(1);
+				return 1;
+			} else {
+				return 2;
+			}
+
+		}
+
 	}
 
 	// ------------------------------------------------------------------------
@@ -174,48 +229,53 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void onEvent(BufferReaderBase bufferReader) {
+	public void onEvent(InputGate bufferReader) {
+		addToAvailable(bufferReader);
+	}
+	
+	protected void addToAvailable(InputGate bufferReader){
 		if (bufferReader == bufferReader1) {
 			availableRecordReaders.add(1);
-		}
-		else if (bufferReader == bufferReader2) {
+		} else if (bufferReader == bufferReader2) {
 			availableRecordReaders.add(2);
 		}
 	}
 
-	// ------------------------------------------------------------------------
-
-	@Override
-	public boolean isFinished() {
-		return bufferReader1.isFinished() && bufferReader2.isFinished();
+	public void clearBuffers() {
+		for (RecordDeserializer<?> deserializer : reader1RecordDeserializers) {
+			Buffer buffer = deserializer.getCurrentBuffer();
+			if (buffer != null && !buffer.isRecycled()) {
+				buffer.recycle();
+			}
+		}
+		for (RecordDeserializer<?> deserializer : reader2RecordDeserializers) {
+			Buffer buffer = deserializer.getCurrentBuffer();
+			if (buffer != null && !buffer.isRecycled()) {
+				buffer.recycle();
+			}
+		}
 	}
 
-	@Override
-	public void subscribeToTaskEvent(EventListener<TaskEvent> eventListener, Class<? extends TaskEvent> eventType) {
-		bufferReader1.subscribeToTaskEvent(eventListener, eventType);
-		bufferReader2.subscribeToTaskEvent(eventListener, eventType);
+	private class CoBarrierBuffer extends BarrierBuffer {
+
+		private CoBarrierBuffer otherBuffer;
+
+		public CoBarrierBuffer(InputGate inputGate, AbstractReader reader) {
+			super(inputGate, reader);
+		}
+
+		public void setOtherBarrierBuffer(CoBarrierBuffer other) {
+			this.otherBuffer = other;
+		}
+
+		@Override
+		protected void actOnAllBlocked() {
+			if (otherBuffer.isAllBlocked()) {
+				super.actOnAllBlocked();
+				otherBuffer.releaseBlocks();
+			}
+		}
+
 	}
 
-	@Override
-	public void sendTaskEvent(TaskEvent event) throws IOException, InterruptedException {
-		bufferReader1.sendTaskEvent(event);
-		bufferReader2.sendTaskEvent(event);
-	}
-
-	@Override
-	public void setIterativeReader() {
-		bufferReader1.setIterativeReader();
-		bufferReader2.setIterativeReader();
-	}
-
-	@Override
-	public void startNextSuperstep() {
-		bufferReader1.startNextSuperstep();
-		bufferReader2.startNextSuperstep();
-	}
-
-	@Override
-	public boolean hasReachedEndOfSuperstep() {
-		return bufferReader1.hasReachedEndOfSuperstep() && bufferReader2.hasReachedEndOfSuperstep();
-	}
 }

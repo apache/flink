@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.net.URL;
 
 import akka.actor.ActorRef;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +42,6 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import scala.concurrent.duration.FiniteDuration;
-
 
 /**
  * This class sets up a web-server that contains a web frontend to display information about running jobs.
@@ -64,29 +65,37 @@ public class WebInfoServer {
 	private final Server server;
 
 	/**
-	 * Port for info server
+	 * The assigned port where jetty is running.
 	 */
-	private int port;
+	private int assignedPort;
 
 	/**
 	 * Creates a new web info server. The server runs the servlets that implement the logic
 	 * to list all present information concerning the job manager
 	 *
-	 * @param config
-	 *        The configuration for the flink job manager.
+	 * @param config The Flink configuration.
+	 * @param jobmanager The ActorRef to the JobManager actor
+	 * @param archive The ActorRef to the archive for old jobs
+	 *
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
-	public WebInfoServer(Configuration config, ActorRef jobmanager,
-						ActorRef archive, FiniteDuration timeout) throws IOException {
-		
-		// if no explicit configuration is given, use the global configuration
+	public WebInfoServer(Configuration config, ActorRef jobmanager, ActorRef archive) throws IOException {
 		if (config == null) {
 			throw new IllegalArgumentException("No Configuration has been passed to the web server");
 		}
-		
-		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+		if (jobmanager == null || archive == null) {
+			throw new NullPointerException();
+		}
+
+		// if port == 0, jetty will assign an available port.
+		int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		if (port < 0) {
+			throw new IllegalArgumentException("Invalid port for the webserver: " + port);
+		}
+
+		final FiniteDuration timeout = AkkaUtils.getTimeout(config);
 
 		// get base path of Flink installation
 		final String basePath = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");
@@ -96,7 +105,7 @@ public class WebInfoServer {
 		URL webRootDir = this.getClass().getClassLoader().getResource(WEB_ROOT_DIR);
 
 		if(webRootDir == null) {
-			throw new FileNotFoundException("Cannot start jobmanager web info server. The " +
+			throw new FileNotFoundException("Cannot start JobManager web info server. The " +
 					"resource " + WEB_ROOT_DIR + " is not included in the jar.");
 		}
 
@@ -107,13 +116,9 @@ public class WebInfoServer {
 		}
 
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Setting up web info server, using web-root directory" +
+			LOG.info("Setting up web info server, using web-root directory " +
 					webRootDir.toExternalForm()	+ ".");
 
-			LOG.info("Web info server will display information about flink job-manager on "
-				+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
-				+ port
-				+ ".");
 		}
 
 		server = new Server(port);
@@ -186,8 +191,14 @@ public class WebInfoServer {
 	 *         Thrown, if the start fails.
 	 */
 	public void start() throws Exception {
-		LOG.info("Starting web info server for JobManager on port " + this.port);
 		server.start();
+		final Connector connector = server.getConnectors()[0];
+		assignedPort = connector.getLocalPort(); // we have to use getLocalPort() instead of getPort() http://stackoverflow.com/questions/8884865/how-to-discover-jetty-7-running-port
+		String host = connector.getHost();
+		if(host == null) { // as per method documentation
+			host = "0.0.0.0";
+		}
+		LOG.info("Started web info server for JobManager on {}:{}", host, assignedPort);
 	}
 
 	/**
@@ -195,10 +206,10 @@ public class WebInfoServer {
 	 */
 	public void stop() throws Exception {
 		server.stop();
+		assignedPort = 0;
 	}
 
-	public Server getServer() {
-		return server;
+	public int getServerPort() {
+		return this.assignedPort;
 	}
-
 }

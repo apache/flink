@@ -28,7 +28,8 @@ This documentation provides instructions on how to setup Flink fully
 automatically with Hadoop 1 or Hadoop 2 on top of a
 [Google Compute Engine](https://cloud.google.com/compute/) cluster. This is made
 possible by Google's [bdutil](https://cloud.google.com/hadoop/bdutil) which
-starts a cluster and deploys Flink with Hadoop.
+starts a cluster and deploys Flink with Hadoop. To get started, just follow the
+steps below:
 
 # Prerequisites
 
@@ -39,9 +40,14 @@ Please follow the instructions on how to setup the
 
 ## Install bdutil
 
-Please follow the instructions on how to setup
-[bdutil](https://cloud.google.com/hadoop/bdutil).
+At the moment, there is no bdutil release yet which includes the Flink
+extension. However, you can get the latest version of bdutil with Flink support
+from [GitHub](https://github.com/GoogleCloudPlatform/bdutil):
 
+    git clone https://github.com/GoogleCloudPlatform/bdutil.git
+
+After you have downloaded the source, change into the newly created `bdutil`
+directory and continue with the next steps.
 
 # Deploying Flink on Google Compute Engine
 

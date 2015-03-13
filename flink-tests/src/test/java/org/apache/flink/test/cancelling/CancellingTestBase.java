@@ -28,7 +28,7 @@ import akka.util.Timeout;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
@@ -123,12 +123,10 @@ public abstract class CancellingTestBase {
 
 			try {
 				Await.result(result, AkkaUtils.getDefaultTimeout());
-			} catch (JobExecutionException exception) {
-				if (!exception.isJobCanceledByUser()) {
-					throw new IllegalStateException("Job Failed.");
-				}
-
+			} catch (JobCancellationException exception) {
 				jobSuccessfullyCancelled = true;
+			} catch (Exception e) {
+				throw new IllegalStateException("Job failed.", e);
 			}
 
 			if (!jobSuccessfullyCancelled) {

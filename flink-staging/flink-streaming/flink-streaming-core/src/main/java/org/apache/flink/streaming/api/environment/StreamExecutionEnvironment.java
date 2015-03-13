@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 
 import com.esotericsoftware.kryo.Serializer;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
@@ -150,6 +151,19 @@ public abstract class StreamExecutionEnvironment {
 		this.bufferTimeout = timeoutMillis;
 		return this;
 	}
+	
+	public StreamExecutionEnvironment enableMonitoring(long interval)
+	{
+		streamGraph.setMonitoringEnabled(true);
+		streamGraph.setMonitoringInterval(interval);
+		return this;
+	}
+	
+	public StreamExecutionEnvironment enableMonitoring()
+	{
+		streamGraph.setMonitoringEnabled(true);
+		return this;
+	}
 
 	/**
 	 * Sets the maximum time frequency (milliseconds) for the flushing of the
@@ -178,9 +192,9 @@ public abstract class StreamExecutionEnvironment {
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
 
+
 	/**
-	 * Registers the given Serializer as a default serializer for the given type at the
-	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
+	 * Adds a new Kryo default serializer to the Runtime.
 	 *
 	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
 	 * because it may be distributed to the worker nodes by java serialization.
@@ -188,19 +202,41 @@ public abstract class StreamExecutionEnvironment {
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializer The serializer to use.
 	 */
-	public void registerKryoSerializer(Class<?> type, Serializer<?> serializer) {
-		config.registerKryoSerializer(type, serializer);
+	public void addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer) {
+		config.addDefaultKryoSerializer(type, serializer);
 	}
 
 	/**
-	 * Registers the given Serializer via its class as a serializer for the given type at the
-	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
+	 * Adds a new Kryo default serializer to the Runtime.
 	 *
 	 * @param type The class of the types serialized with the given serializer.
 	 * @param serializerClass The class of the serializer to use.
 	 */
-	public void registerKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-		config.registerKryoSerializer(type, serializerClass);
+	public void addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		config.addDefaultKryoSerializer(type, serializerClass);
+	}
+
+	/**
+	 * Registers the given type with a Kryo Serializer.
+	 *
+	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
+	 * because it may be distributed to the worker nodes by java serialization.
+	 *
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializer The serializer to use.
+	 */
+	public void registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer) {
+		config.registerTypeWithKryoSerializer(type, serializer);
+	}
+
+	/**
+	 * Registers the given Serializer via its class as a serializer for the given type at the KryoSerializer
+	 *
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializerClass The class of the serializer to use.
+	 */
+	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		config.registerTypeWithKryoSerializer(type, serializerClass);
 	}
 
 	/**
@@ -349,7 +385,37 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Creates a new DataStream that contains the strings received infinitely
 	 * from socket. Received strings are decoded by the system's default
-	 * character set.
+	 * character set. On the termination of the socket server connection retries
+	 * can be initiated.
+	 *
+	 *  <p>Let us note that the socket itself does not report on abort and
+	 * as a consequence retries are only initiated when the socket was gracefully
+	 * terminated.</p>
+	 *
+	 * @param hostname
+	 *            The host name which a server socket bind.
+	 * @param port
+	 *            The port number which a server socket bind. A port number of 0
+	 *            means that the port number is automatically allocated.
+	 * @param delimiter
+	 *            A character which split received strings into records.
+	 * @param maxRetry
+	 *            The maximal retry interval in seconds while the program waits for
+	 *            a socket that is temporarily down. Reconnection is initiated every
+	 *            second. A number of 0 means that the reader is immediately
+	 *            terminated, while a negative value ensures retrying forever.
+	 * @return A DataStream, containing the strings received from socket.
+	 *
+	 */
+	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, long maxRetry) {
+		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry), null,
+			"Socket Stream");
+	}
+
+	/**
+	 * Creates a new DataStream that contains the strings received infinitely
+	 * from socket. Received strings are decoded by the system's default
+	 * character set. The reader is terminated immediately when socket is down.
 	 * 
 	 * @param hostname
 	 *            The host name which a server socket bind.
@@ -361,14 +427,14 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A DataStream, containing the strings received from socket.
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
-		return addSource(new SocketTextStreamFunction(hostname, port, delimiter), null,
-				"Socket Stream");
+		return socketTextStream(hostname, port, delimiter, 0);
 	}
 
 	/**
 	 * Creates a new DataStream that contains the strings received infinitely
 	 * from socket. Received strings are decoded by the system's default
-	 * character set, uses '\n' as delimiter.
+	 * character set, uses '\n' as delimiter. The reader is terminated immediately
+	 * when socket is down.
 	 * 
 	 * @param hostname
 	 *            The host name which a server socket bind.
@@ -658,6 +724,11 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public String getExecutionPlan() {
 		return getStreamGraph().getStreamingPlanAsJSON();
+	}
+
+
+	protected static void initializeFromFactory(StreamExecutionEnvironmentFactory eef) {
+		currentEnvironment = eef.createExecutionEnvironment();
 	}
 
 }

@@ -88,13 +88,17 @@ public class DirectedOutputTest {
 			outputs.put(name, new ArrayList<Long>());
 			this.list = outputs.get(name);
 		}
+
+		@Override
+		public void cancel() {
+		}
 	}
 
 	private static Map<String, List<Long>> outputs = new HashMap<String, List<Long>>();
 
 	@Test
 	public void outputSelectorTest() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, 128);
+		StreamExecutionEnvironment env = new TestStreamEnvironment(1, 32);
 
 		SplitDataStream<Long> source = env.generateSequence(1, 11).split(new MyOutputSelector());
 		source.select(EVEN).addSink(new ListSink(EVEN));

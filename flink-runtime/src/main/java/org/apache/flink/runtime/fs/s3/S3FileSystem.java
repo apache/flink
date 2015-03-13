@@ -160,6 +160,9 @@ public final class S3FileSystem extends FileSystem {
 		return new Path(this.s3Uri);
 	}
 
+	public Path getHomeDirectory() {
+		return new Path(this.s3Uri);
+	}
 
 	@Override
 	public URI getUri() {

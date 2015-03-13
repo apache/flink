@@ -27,6 +27,6 @@ public class UtilsTests {
 
 		// ASSUMES DEFAULT Configuration values.
 		Assert.assertEquals(800, Utils.calculateHeapSize(1000) );
-		Assert.assertEquals(9500, Utils.calculateHeapSize(10000) );
+		Assert.assertEquals(9300, Utils.calculateHeapSize(10000) );
 	}
 }

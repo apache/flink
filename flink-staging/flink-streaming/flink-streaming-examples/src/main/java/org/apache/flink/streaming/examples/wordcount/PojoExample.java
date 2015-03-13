@@ -114,7 +114,7 @@ public class PojoExample {
 
 		@Override
 		public String toString() {
-			return "(" + word + ", " + frequency + ")";
+			return "(" + word + "," + frequency + ")";
 		}
 	}
 

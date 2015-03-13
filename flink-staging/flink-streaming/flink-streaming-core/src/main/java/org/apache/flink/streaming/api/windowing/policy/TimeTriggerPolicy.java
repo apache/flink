@@ -41,32 +41,8 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	private static final long serialVersionUID = -5122753802440196719L;
 
 	protected long startTime;
-	protected long granularity;
-	protected TimestampWrapper<DATA> timestampWrapper;
-	protected long delay;
-
-	/**
-	 * This trigger policy triggers with regard to the time. The is measured
-	 * using a given {@link Timestamp} implementation. A point in time is always
-	 * represented as long. Therefore, parameters such as granularity can be set
-	 * as long value as well. If this value for the granularity is set to 2 for
-	 * example, the policy will trigger at every second point in time.
-	 * 
-	 * @param granularity
-	 *            The granularity of the trigger. If this value is set to x the
-	 *            policy will trigger at every x-th time point
-	 * @param timestampWrapper
-	 *            The {@link TimestampWrapper} to measure the time with. This
-	 *            can be either user defined of provided by the API.
-	 * @param timeWrapper
-	 *            This policy creates fake elements to not miss windows in case
-	 *            no element arrived within the duration of the window. This
-	 *            extractor should wrap a long into such an element of type
-	 *            DATA.
-	 */
-	public TimeTriggerPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper) {
-		this(granularity, timestampWrapper, 0);
-	}
+	public long granularity;
+	public TimestampWrapper<DATA> timestampWrapper;
 
 	/**
 	 * This is mostly the same as
@@ -81,21 +57,16 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 * @param timestampWrapper
 	 *            The {@link TimestampWrapper} to measure the time with. This
 	 *            can be either user defined of provided by the API.
-	 * @param delay
-	 *            A delay for the first trigger. If the start time given by the
-	 *            timestamp is x, the delay is y, and the granularity is z, the
-	 *            first trigger will happen at x+y+z.
 	 * @param timeWrapper
 	 *            This policy creates fake elements to not miss windows in case
 	 *            no element arrived within the duration of the window. This
 	 *            extractor should wrap a long into such an element of type
 	 *            DATA.
 	 */
-	public TimeTriggerPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper, long delay) {
-		this.startTime = timestampWrapper.getStartTime() + delay;
+	public TimeTriggerPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper) {
+		this.startTime = timestampWrapper.getStartTime();
 		this.timestampWrapper = timestampWrapper;
 		this.granularity = granularity;
-		this.delay = delay;
 	}
 
 	/**
@@ -141,13 +112,17 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 * @param callback
 	 *            The callback object.
 	 */
-	private synchronized void activeFakeElementEmission(ActiveTriggerCallback callback) {
+	public synchronized Object activeFakeElementEmission(ActiveTriggerCallback callback) {
 
 		// start time is excluded, but end time is included: >=
 		if (System.currentTimeMillis() >= startTime + granularity) {
 			startTime += granularity;
-			callback.sendFakeElement(startTime - 1);
+			if (callback != null) {
+				callback.sendFakeElement(startTime - 1);
+			}
+			return startTime - 1;
 		}
+		return null;
 
 	}
 
@@ -190,7 +165,37 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 	@Override
 	public TimeTriggerPolicy<DATA> clone() {
-		return new TimeTriggerPolicy<DATA>(granularity, timestampWrapper, delay);
+		return new TimeTriggerPolicy<DATA>(granularity, timestampWrapper);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof TimeTriggerPolicy)) {
+			return false;
+		} else {
+			try {
+				@SuppressWarnings("unchecked")
+				TimeTriggerPolicy<DATA> otherPolicy = (TimeTriggerPolicy<DATA>) other;
+				return startTime == otherPolicy.startTime && granularity == otherPolicy.granularity
+						&& timestampWrapper.equals(otherPolicy.timestampWrapper);
+			} catch (ClassCastException e) {
+				return false;
+			}
+		}
+	}
+
+	public long getSlideSize() {
+		return granularity;
+	}
+
+	@Override
+	public String toString() {
+		return "TimePolicy(" + granularity + ", " + timestampWrapper.getClass().getSimpleName()
+				+ ")";
+	}
+	
+	public TimestampWrapper<DATA> getTimeStampWrapper() {
+		return timestampWrapper;
 	}
 
 }

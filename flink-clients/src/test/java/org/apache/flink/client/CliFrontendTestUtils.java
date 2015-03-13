@@ -81,6 +81,7 @@ public class CliFrontendTestUtils {
 	
 	public static void pipeSystemOutToNull() {
 		System.setOut(new PrintStream(new BlackholeOutputSteam()));
+		System.setErr(new PrintStream(new BlackholeOutputSteam()));
 	}
 	
 	public static void clearGlobalConfiguration() {
@@ -107,20 +108,6 @@ public class CliFrontendTestUtils {
 			fail("Test initialization caused an exception: " + e.getMessage());
 		}
 		
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static class TestingCliFrontend extends CliFrontend {
-		
-
-		public TestingCliFrontend() {
-			this(getConfigDir());
-		}
-		
-		public TestingCliFrontend(String configDir) {
-			this.configurationDirectory = configDir;
-		}
 	}
 	
 	private static final class BlackholeOutputSteam extends java.io.OutputStream {

@@ -59,7 +59,7 @@ public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>> extends Sin
 		
 		ArrayList<T> result = new ArrayList<T>(inputData.size());
 		ListCollector<T> collector = new ListCollector<T>(result);
-		
+
 		for (T element : inputData) {
 			function.flatMap(element, collector);
 		}

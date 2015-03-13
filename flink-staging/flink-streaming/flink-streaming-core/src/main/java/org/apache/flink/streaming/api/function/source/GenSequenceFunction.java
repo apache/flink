@@ -37,7 +37,7 @@ public class GenSequenceFunction extends RichParallelSourceFunction<Long> {
 	}
 
 	@Override
-	public void invoke(Collector<Long> collector) throws Exception {
+	public void run(Collector<Long> collector) throws Exception {
 		while (splitIterator.hasNext()) {
 			collector.collect(splitIterator.next());
 		}
@@ -48,6 +48,10 @@ public class GenSequenceFunction extends RichParallelSourceFunction<Long> {
 		int splitNumber = getRuntimeContext().getIndexOfThisSubtask();
 		int numOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
 		splitIterator = fullIterator.split(numOfSubTasks)[splitNumber];
+	}
+
+	@Override
+	public void cancel() {
 	}
 
 }

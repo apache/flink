@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.hadoop.mapreduce.wrapper;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -30,8 +30,13 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapreduce.JobContext;
 
-
+/**
+ * A wrapper that represents an input split from the Hadoop mapreduce API as
+ * a Flink {@link InputSplit}.
+ */
 public class HadoopInputSplit extends LocatableInputSplit {
+	
+	private static final long serialVersionUID = 1L;
 	
 	public transient org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit;
 	public transient JobContext jobContext;
@@ -90,7 +95,6 @@ public class HadoopInputSplit extends LocatableInputSplit {
 
 	}
 
-	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		this.splitNumber=in.readInt();
 		String className = in.readUTF();

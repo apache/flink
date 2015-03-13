@@ -78,7 +78,14 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils</artifactId>
@@ -99,6 +106,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -115,23 +123,36 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-		
-		<!--<dependency>-->
-			<!--<groupId>com.google.guava</groupId>-->
-			<!--<artifactId>guava</artifactId>-->
-			<!--<version>${guava.version}</version>-->
-			<!--<scope>test</scope>-->
-		<!--</dependency>-->
-		
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.scalatest</groupId>
 			<artifactId>scalatest_2.10</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-testkit_2.10</artifactId>
+		</dependency>
 		
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
 			<scope>test</scope>
 		</dependency>
 		
@@ -294,7 +315,6 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
-					<reuseForks>false</reuseForks>
 				</configuration>
 			</plugin>
 			
@@ -330,13 +350,32 @@ under the License.
 						<configuration>
 							<archive>
 								<manifest>
-									<mainClass>org.apache.flink.test.classloading.jar.CustomInputSpitProgram</mainClass>
+									<mainClass>org.apache.flink.test.classloading.jar.CustomInputSplitProgram</mainClass>
 								</manifest>
 							</archive>
 							<finalName>customsplit</finalName>
 							<attach>false</attach>
 							<descriptors>
 								<descriptor>src/test/assembly/test-custominput-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>create-streamingclassloader-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.test.classloading.jar.StreamingProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>streamingclassloader</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-streamingclassloader-assembly.xml</descriptor>
 							</descriptors>
 						</configuration>
 					</execution>
@@ -369,7 +408,7 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
-						<id>remove-custominputformat-test-dependencies</id>
+						<id>remove-classloading-test-dependencies</id>
 						<phase>process-test-classes</phase>
 						<goals>
 							<goal>clean</goal>
@@ -439,35 +478,4 @@ under the License.
 			</plugins>
 		</pluginManagement>
 	</build>
-
-	<!-- See main pom.xml for explanation of profiles -->
-	<profiles>
-		<profile>
-			<id>hadoop-1</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
-				</property>
-			</activation>
-			<dependencies>
-				<!-- Add this here, for hadoop-2 we don't need it since we get guava transitively -->
-				<dependency>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-					<version>${guava.version}</version>
-					<scope>test</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hadoop-2</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-		</profile>
-	</profiles>
 </project>

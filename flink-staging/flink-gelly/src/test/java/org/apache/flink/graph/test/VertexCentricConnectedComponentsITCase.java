@@ -30,6 +30,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -64,7 +65,8 @@ public class VertexCentricConnectedComponentsITCase extends JavaProgramTestBase 
 		DataSet<Vertex<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
 		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env); 
 		
-		Graph<Long, Long, NullValue> result = graph.runVertexCentricIteration(new CCUpdater(), new CCMessager(), 100);
+		VertexCentricIteration<Long, Long, Long, NullValue> iteration = graph.createVertexCentricIteration(new CCUpdater(), new CCMessager(), 100);
+		Graph<Long, Long, NullValue> result = graph.runVertexCentricIteration(iteration);
 		
 		result.getVertices().writeAsCsv(resultPath, "\n", " ");
 		env.execute();

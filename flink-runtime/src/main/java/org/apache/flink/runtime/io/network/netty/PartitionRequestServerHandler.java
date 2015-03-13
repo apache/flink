@@ -60,6 +60,8 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 			if (msgClazz == PartitionRequest.class) {
 				PartitionRequest request = (PartitionRequest) msg;
 
+				LOG.debug("Read channel on {}: {}.",ctx.channel().localAddress(), request);
+
 				IntermediateResultPartitionQueueIterator queueIterator =
 						partitionProvider.getIntermediateResultPartitionIterator(
 								request.producerExecutionId,

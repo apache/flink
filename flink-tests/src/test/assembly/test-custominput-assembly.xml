@@ -30,7 +30,8 @@ under the License.
 			<outputDirectory>/</outputDirectory>
 			<!--modify/add include to match your package(s) -->
 			<includes>
-				<include>org/apache/flink/test/classloading/jar/**</include>
+				<include>org/apache/flink/test/classloading/jar/CustomInputSplitProgram.class</include>
+				<include>org/apache/flink/test/classloading/jar/CustomInputSplitProgram$*.class</include>
 			</includes>
 		</fileSet>
 	</fileSets>

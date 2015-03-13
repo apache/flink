@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
 import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.api.reader.MockIteratorBufferReader;
+import org.apache.flink.runtime.io.network.api.reader.IteratorWrappingMockSingleInputGate;
 import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
 import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
@@ -72,61 +72,55 @@ public class DataSinkTaskTest extends TaskTestBase
 
 	@Test
 	public void testDataSinkTask() {
-
-		int keyCnt = 100;
-		int valCnt = 20;
-
-		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
-
-		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
-
-		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
-
-		try {
-			testTask.invoke();
-		} catch (Exception e) {
-			LOG.debug("Exception while invoking the test task.", e);
-			Assert.fail("Invoke method caused exception.");
-		}
-
-		File tempTestFile = new File(this.tempTestPath);
-
-		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
-
 		FileReader fr = null;
 		BufferedReader br = null;
 		try {
+			int keyCnt = 100;
+			int valCnt = 20;
+
+			super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+			super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
+
+			DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+
+			super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
+
+			testTask.invoke();
+
+			File tempTestFile = new File(this.tempTestPath);
+
+			Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
 
-			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
+			HashMap<Integer, HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
 
-			while(br.ready()) {
+			while (br.ready()) {
 				String line = br.readLine();
 
-				Integer key = Integer.parseInt(line.substring(0,line.indexOf("_")));
-				Integer val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
+				Integer key = Integer.parseInt(line.substring(0, line.indexOf("_")));
+				Integer val = Integer.parseInt(line.substring(line.indexOf("_") + 1, line.length()));
 
-				if(!keyValueCountMap.containsKey(key)) {
-					keyValueCountMap.put(key,new HashSet<Integer>());
+				if (!keyValueCountMap.containsKey(key)) {
+					keyValueCountMap.put(key, new HashSet<Integer>());
 				}
 				keyValueCountMap.get(key).add(val);
 			}
 
-			Assert.assertTrue("Invalid key count in out file. Expected: "+keyCnt+" Actual: "+keyValueCountMap.keySet().size(),
-				keyValueCountMap.keySet().size() == keyCnt);
+			Assert.assertTrue("Invalid key count in out file. Expected: " + keyCnt + " Actual: " + keyValueCountMap.keySet().size(),
+					keyValueCountMap.keySet().size() == keyCnt);
 
-			for(Integer key : keyValueCountMap.keySet()) {
-				Assert.assertTrue("Invalid value count for key: "+key+". Expected: "+valCnt+" Actual: "+keyValueCountMap.get(key).size(),
-					keyValueCountMap.get(key).size() == valCnt);
+			for (Integer key : keyValueCountMap.keySet()) {
+				Assert.assertTrue("Invalid value count for key: " + key + ". Expected: " + valCnt + " Actual: " + keyValueCountMap.get(key).size(),
+						keyValueCountMap.get(key).size() == valCnt);
 			}
-
-		} catch (FileNotFoundException e) {
-			Assert.fail("Out file got lost...");
-		} catch (IOException ioe) {
-			Assert.fail("Caught IOE while reading out file");
-		} finally {
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+		finally {
 			if (br != null) {
 				try { br.close(); } catch (Throwable t) {}
 			}
@@ -139,12 +133,12 @@ public class DataSinkTaskTest extends TaskTestBase
 	@Test
 	public void testUnionDataSinkTask() {
 
-		int keyCnt = 100;
+		int keyCnt = 10;
 		int valCnt = 20;
 
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 
-		MockIteratorBufferReader<?>[] readers = new MockIteratorBufferReader[4];
+		IteratorWrappingMockSingleInputGate<?>[] readers = new IteratorWrappingMockSingleInputGate[4];
 		readers[0] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, 0, 0, false), 0, false);
 		readers[1] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0, false);
 		readers[2] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 2, 0, false), 0, false);
@@ -157,7 +151,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		try {
 			// For the union reader to work, we need to start notifications *after* the union reader
 			// has been initialized.
-			for (MockIteratorBufferReader<?> reader : readers) {
+			for (IteratorWrappingMockSingleInputGate<?> reader : readers) {
 				reader.read();
 			}
 
@@ -230,8 +224,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
-				new RecordComparatorFactory(new int[]{1},((Class<? extends Key<?>>[])new Class[]{IntValue.class})),
-				0);
+				new RecordComparatorFactory(new int[]{1},((Class<? extends Key<?>>[])new Class[]{IntValue.class})), 0);
 		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);

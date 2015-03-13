@@ -18,13 +18,10 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import static org.junit.Assert.assertEquals;
@@ -41,43 +38,5 @@ public class EventSerializerTest {
 		AbstractEvent actual = EventSerializer.fromSerializedEvent(serializedEvent, getClass().getClassLoader());
 
 		assertEquals(expected, actual);
-	}
-
-	public static class TestTaskEvent extends TaskEvent {
-
-		private double val0;
-
-		private long val1;
-
-		public TestTaskEvent() {
-		}
-
-		public TestTaskEvent(double val0, long val1) {
-			this.val0 = val0;
-			this.val1 = val1;
-		}
-
-		@Override
-		public void write(DataOutputView out) throws IOException {
-			out.writeDouble(val0);
-			out.writeLong(val1);
-		}
-
-		@Override
-		public void read(DataInputView in) throws IOException {
-			val0 = in.readDouble();
-			val1 = in.readLong();
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof TestTaskEvent) {
-				TestTaskEvent other = (TestTaskEvent) obj;
-
-				return val0 == other.val0 && val1 == other.val1;
-			}
-
-			return false;
-		}
 	}
 }

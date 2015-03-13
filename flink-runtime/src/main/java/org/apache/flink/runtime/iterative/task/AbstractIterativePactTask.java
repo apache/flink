@@ -54,7 +54,7 @@ import org.apache.flink.util.MutableObjectIterator;
 import java.io.IOException;
 
 /**
- * The base class for all tasks able to participate in an iteration.
+ * The abstract base class for all tasks able to participate in an iteration.
  */
 public abstract class AbstractIterativePactTask<S extends Function, OT> extends RegularPactTask<S, OT>
 		implements Terminable

@@ -108,4 +108,9 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		closeChannel();
 	}
 
+	@Override
+	public void cancel() {
+		close();
+	}
+
 }

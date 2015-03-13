@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common;
 
 /**
@@ -44,6 +43,12 @@ public class InvalidProgramException extends RuntimeException {
 		super(message);
 	}
 
+	/**
+	 * Creates a new exception with the given message and cause.
+	 * 
+	 * @param message The exception message.
+	 * @param e The exception cause.
+	 */
 	public InvalidProgramException(String message, Throwable e) {
 		super(message, e);
 	}

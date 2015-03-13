@@ -29,8 +29,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamTaskContext;
+import org.apache.flink.streaming.io.IndexedReaderIterator;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,14 +51,14 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	protected ExecutionConfig executionConfig = null;
 
-	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
+	protected IndexedReaderIterator<StreamRecord<IN>> recordIterator;
 	protected StreamRecordSerializer<IN> inSerializer;
 	protected TypeSerializer<IN> objectSerializer;
 	protected StreamRecord<IN> nextRecord;
 	protected IN nextObject;
 	protected boolean isMutable;
 
-	protected Collector<OUT> collector;
+	public Collector<OUT> collector;
 	protected Function userFunction;
 	protected volatile boolean isRunning;
 
@@ -70,21 +70,20 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	/**
 	 * Initializes the {@link StreamInvokable} for input and output handling
-	 *
+	 * 
 	 * @param taskContext
 	 *            StreamTaskContext representing the vertex
-	 * @param executionConfig
 	 */
-	public void setup(StreamTaskContext<OUT> taskContext, ExecutionConfig executionConfig) {
+	public void setup(StreamTaskContext<OUT> taskContext) {
 		this.collector = taskContext.getOutputCollector();
-		this.recordIterator = taskContext.getInput(0);
+		this.recordIterator = taskContext.getIndexedInput(0);
 		this.inSerializer = taskContext.getInputSerializer(0);
 		if (this.inSerializer != null) {
 			this.nextRecord = inSerializer.createInstance();
 			this.objectSerializer = inSerializer.getObjectSerializer();
 		}
 		this.taskContext = taskContext;
-		this.executionConfig = executionConfig;
+		this.executionConfig = taskContext.getExecutionConfig();
 	}
 
 	/**
@@ -97,7 +96,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	 * Reads the next record from the reader iterator and stores it in the
 	 * nextRecord variable
 	 */
-	protected StreamRecord<IN> readNext() {
+	protected StreamRecord<IN> readNext() throws IOException {
 		this.nextRecord = inSerializer.createInstance();
 		try {
 			nextRecord = recordIterator.next(nextRecord);
@@ -108,7 +107,21 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 			}
 			return nextRecord;
 		} catch (IOException e) {
-			throw new RuntimeException("Could not read next record.");
+			if (isRunning) {
+				throw new RuntimeException("Could not read next record due to: "
+						+ StringUtils.stringifyException(e));
+			} else {
+				// Task already cancelled do nothing
+				return null;
+			}
+		}  catch (IllegalStateException e) {
+			if (isRunning) {
+				throw new RuntimeException("Could not read next record due to: "
+						+ StringUtils.stringifyException(e));
+			} else {
+				// Task already cancelled do nothing
+				return null;
+			}
 		}
 	}
 
@@ -129,6 +142,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 				LOG.error("Calling user function failed due to: {}",
 						StringUtils.stringifyException(e));
 			}
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -157,6 +171,10 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 		} catch (Exception e) {
 			throw new RuntimeException("Error when closing the function: " + e.getMessage());
 		}
+	}
+
+	public void cancel() {
+		isRunning = false;
 	}
 
 	public void setRuntimeContext(RuntimeContext t) {

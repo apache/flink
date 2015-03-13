@@ -17,7 +17,8 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import java.io.IOException;
+
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
@@ -47,7 +48,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 	protected TypeSerializer<IN2> serializer2;
 
 	@Override
-	public void setup(StreamTaskContext<OUT> taskContext, ExecutionConfig executionConfig) {
+	public void setup(StreamTaskContext<OUT> taskContext) {
 		this.collector = taskContext.getOutputCollector();
 
 		this.recordIterator = taskContext.getCoReader();
@@ -77,8 +78,26 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 
 	@Override
 	public void invoke() throws Exception {
-		while (true) {
-			int next = recordIterator.next(reuse1, reuse2);
+		while (isRunning) {
+			int next;
+			try {
+				next = recordIterator.next(reuse1, reuse2);
+			} catch (IOException e) {
+				if (isRunning) {
+					throw new RuntimeException("Could not read next record.", e);
+				} else {
+					// Task already cancelled do nothing
+					next = 0;
+				}
+			} catch (IllegalStateException e) {
+				if (isRunning) {
+					throw new RuntimeException("Could not read next record.", e);
+				} else {
+					// Task already cancelled do nothing
+					next = 0;
+				}
+			}
+
 			if (next == 0) {
 				break;
 			} else if (next == 1) {

@@ -63,7 +63,7 @@ public class SourceTest {
 		when(socket.isClosed()).thenReturn(false);
 		when(socket.isConnected()).thenReturn(true);
 
-		new SocketTextStreamFunction("", 0, '\n').streamFromSocket(new MockCollector<String>(
+		new SocketTextStreamFunction("", 0, '\n', 0).streamFromSocket(new MockCollector<String>(
 				actualList), socket);
 		assertEquals(expectedList, actualList);
 	}

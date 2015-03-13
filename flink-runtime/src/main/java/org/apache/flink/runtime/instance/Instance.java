@@ -26,7 +26,7 @@ import java.util.Queue;
 import java.util.Set;
 
 import akka.actor.ActorRef;
-import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroupAssignment;
@@ -329,7 +329,7 @@ public class Instance {
 	
 	@Override
 	public String toString() {
-		return instanceId + " @ " + (taskManager != null ? taskManager.path() : "ActorRef.noSender") + " - " +
-				numberOfSlots + " slots" + " - " + hashCode();
+		return String.format("%s @ %s - %d slots - URL: %s", instanceId, connectionInfo.getHostname(),
+				numberOfSlots, (taskManager != null ? taskManager.path() : "ActorRef.noSender"));
 	}
 }

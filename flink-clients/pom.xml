@@ -60,12 +60,10 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
-			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
@@ -99,8 +97,6 @@ under the License.
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
-			<version>2.4</version>
-			<scope>compile</scope>
 		</dependency>
 
 		<dependency>

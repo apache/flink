@@ -88,7 +88,7 @@ class NettyClient {
 		bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
 
 		// Timeout for new connections
-		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getClientConnectTimeoutMs() * 1000);
+		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getClientConnectTimeoutSeconds() * 1000);
 
 		// Pooled allocator for Netty's ByteBuf instances
 		bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);

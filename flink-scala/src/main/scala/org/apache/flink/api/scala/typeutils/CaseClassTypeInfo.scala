@@ -30,15 +30,22 @@ import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.typeutils.{TupleTypeInfoBase, PojoTypeInfo}
 import PojoTypeInfo.NamedFlatFieldDescriptor
 
+import scala.collection.JavaConverters._
+
 /**
  * TypeInformation for Case Classes. Creation and access is different from
  * our Java Tuples so we have to treat them differently.
  */
 abstract class CaseClassTypeInfo[T <: Product](
     clazz: Class[T],
+    typeParamTypeInfos: Array[TypeInformation[_]],
     fieldTypes: Seq[TypeInformation[_]],
     val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
+
+  override def getGenericParameters: java.util.List[TypeInformation[_]] = {
+    typeParamTypeInfos.toList.asJava
+  }
 
   private val REGEX_INT_FIELD: String = "[0-9]+"
   private val REGEX_STR_FIELD: String = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*"
@@ -207,7 +214,18 @@ abstract class CaseClassTypeInfo[T <: Product](
       "\" in type " + this + ".")
   }
 
-  override def toString = clazz.getSimpleName + "(" + fieldNames.zip(types).map {
+  override def getFieldNames: Array[String] = fieldNames.toArray
+
+  override def getFieldIndex(fieldName: String): Int = {
+    val result = fieldNames.indexOf(fieldName)
+    if (result != fieldNames.lastIndexOf(fieldName)) {
+      -2
+    } else {
+      result
+    }
+  }
+
+  override def toString = clazz.getName + "(" + fieldNames.zip(types).map {
     case (n, t) => n + ": " + t}
     .mkString(", ") + ")"
 }

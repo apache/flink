@@ -37,12 +37,12 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
-import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -76,7 +76,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The abstract base class for all tasks. Encapsulated common behavior and implements the main life-cycle
+ * The base class for all tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
 public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
@@ -254,7 +254,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			initOutputs();
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the output handlers failed" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -272,6 +272,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Start task code."));
 		}
+
+		this.runtimeUdfContext = createRuntimeContext(getEnvironment().getTaskName());
 
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
@@ -337,7 +339,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Initializing the input processing failed" +
-					e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+						(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 			}
 
 			if (!this.running) {
@@ -409,8 +411,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				"' , caused an error: " + t.getMessage(), t);
 		}
 		
-		this.runtimeUdfContext = createRuntimeContext(getEnvironment().getTaskName());
-		
 		// instantiate the UDF
 		try {
 			final Class<? super S> userCodeFunctionType = this.driver.getStubType();
@@ -420,7 +420,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the UDF" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 	}
 	
@@ -719,15 +719,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 			if (groupSize == 1) {
 				// non-union case
-				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getReader(currentReaderOffset));
+				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getInputGate(currentReaderOffset));
 			} else if (groupSize > 1){
 				// union case
-				BufferReader[] readers = new BufferReader[groupSize];
+				InputGate[] readers = new InputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
-					readers[j] = getEnvironment().getReader(currentReaderOffset + j);
+					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
-				UnionBufferReader reader = new UnionBufferReader(readers);
-				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(reader);
+				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(new UnionInputGate(readers));
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
@@ -759,15 +758,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			final int groupSize = this.config.getBroadcastGroupSize(i);
 			if (groupSize == 1) {
 				// non-union case
-				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getReader(currentReaderOffset));
+				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getInputGate(currentReaderOffset));
 			} else if (groupSize > 1){
 				// union case
-				BufferReader[] readers = new BufferReader[groupSize];
+				InputGate[] readers = new InputGate[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
-					readers[j] = getEnvironment().getReader(currentReaderOffset + j);
+					readers[j] = getEnvironment().getInputGate(currentReaderOffset + j);
 				}
-				UnionBufferReader reader = new UnionBufferReader(readers);
-				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(reader);
+				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(new UnionInputGate(readers));
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
@@ -1004,7 +1002,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					localStub = initStub(userCodeFunctionType);
 				} catch (Exception e) {
 					throw new RuntimeException("Initializing the user code and the configuration failed" +
-						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+							(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 				}
 				
 				if (!(localStub instanceof FlatCombineFunction)) {

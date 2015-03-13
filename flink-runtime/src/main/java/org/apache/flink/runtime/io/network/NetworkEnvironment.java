@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.io.network;
 
 import akka.actor.ActorRef;
+import akka.util.Timeout;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.api.reader.BufferReader;
 import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.io.network.partition.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -47,6 +48,8 @@ public class NetworkEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetworkEnvironment.class);
 
+	private final ActorRef taskManager;
+
 	private final ActorRef jobManager;
 
 	private final FiniteDuration jobManagerTimeout;
@@ -64,7 +67,10 @@ public class NetworkEnvironment {
 	/**
 	 * Initializes all network I/O components.
 	 */
-	public NetworkEnvironment(ActorRef jobManager, FiniteDuration jobManagerTimeout, NetworkEnvironmentConfiguration config) throws IOException {
+	public NetworkEnvironment(ActorRef taskManager, ActorRef jobManager,
+							FiniteDuration jobManagerTimeout,
+							NetworkEnvironmentConfiguration config) throws IOException {
+		this.taskManager = checkNotNull(taskManager);
 		this.jobManager = checkNotNull(jobManager);
 		this.jobManagerTimeout = checkNotNull(jobManagerTimeout);
 
@@ -96,12 +102,16 @@ public class NetworkEnvironment {
 		}
 	}
 
+	public ActorRef getTaskManager() {
+		return taskManager;
+	}
+
 	public ActorRef getJobManager() {
 		return jobManager;
 	}
 
-	public FiniteDuration getJobManagerTimeout() {
-		return jobManagerTimeout;
+	public Timeout getJobManagerTimeout() {
+		return new Timeout(jobManagerTimeout);
 	}
 
 	public void registerTask(Task task) throws IOException {
@@ -144,14 +154,14 @@ public class NetworkEnvironment {
 		}
 
 		// Setup the buffer pool for each buffer reader
-		final BufferReader[] readers = task.getReaders();
+		final SingleInputGate[] inputGates = task.getInputGates();
 
-		for (BufferReader reader : readers) {
+		for (SingleInputGate gate : inputGates) {
 			BufferPool bufferPool = null;
 
 			try {
-				bufferPool = networkBufferPool.createBufferPool(reader.getNumberOfInputChannels(), false);
-				reader.setBufferPool(bufferPool);
+				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(), false);
+				gate.setBufferPool(bufferPool);
 			}
 			catch (Throwable t) {
 				if (bufferPool != null) {
@@ -169,9 +179,8 @@ public class NetworkEnvironment {
 	}
 
 	public void unregisterTask(Task task) {
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Unregistering task {} ({}) from network environment (state: {}).", task.getTaskNameWithSubtasks(), task.getExecutionId(), task.getExecutionState());
-		}
+		LOG.debug("Unregistering task {} ({}) from network environment (state: {}).",
+					task.getTaskNameWithSubtasks(), task.getExecutionState());
 
 		final ExecutionAttemptID executionId = task.getExecutionId();
 
@@ -181,13 +190,13 @@ public class NetworkEnvironment {
 
 		taskEventDispatcher.unregisterWriters(executionId);
 
-		final BufferReader[] readers = task.getReaders();
+		final SingleInputGate[] inputGates = task.getInputGates();
 
-		if (readers != null) {
-			for (BufferReader reader : readers) {
+		if (inputGates != null) {
+			for (SingleInputGate gate : inputGates) {
 				try {
-					if (reader != null) {
-						reader.releaseAllResources();
+					if (gate != null) {
+						gate.releaseAllResources();
 					}
 				}
 				catch (IOException e) {
