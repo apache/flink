@@ -302,6 +302,7 @@ The Apache Flink project bundles the following components under
 BSD-style licenses:
  
 [3-clause BSD license]
+ - core (com.github.fommil.netlib:core:1.1.2 - https://github.com/fommil/netlib-java/core)
  - Kryo (https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
  - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
  - LevelDB JNI (https://github.com/fusesource/leveldbjni/) - Copyright (c) 2011, FuseSource Corp.

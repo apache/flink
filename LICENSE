@@ -228,7 +228,6 @@ The Apache Flink project bundles the following files under the MIT License:
  - normalize.css v3.0.0 (http://git.io/normalize) - Copyright (c) Nicolas Gallagher and Jonathan Neal
  - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
  - D3 dagre renderer (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2012-2013 Chris Pettitt
- - scopt (http://github.com/scopt/scopt)
 
 All rights reserved.
 
