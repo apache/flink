@@ -20,11 +20,10 @@ package org.apache.flink.ml.regression
 
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
-import org.jblas.DoubleMatrix
 
 object RegressionData {
 
-  val expectedWeights: DoubleMatrix = new DoubleMatrix(1, 1, 3.0094)
+  val expectedWeights = Array[Double](3.0094)
   val expectedWeight0: Double = 9.8158
   val expectedSquaredResidualSum: Double = 49.7596
 

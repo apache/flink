@@ -18,7 +18,7 @@
 
 package org.apache.flink.ml.recommendation
 
-import java.lang
+import java.{util, lang}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.operators.Order
@@ -29,7 +29,9 @@ import org.apache.flink.types.Value
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.{Partitioner => FlinkPartitioner, GroupReduceFunction, CoGroupFunction}
 
-import org.jblas.{Solve, SimpleBlas, DoubleMatrix}
+import com.github.fommil.netlib.BLAS.{ getInstance => blas }
+import com.github.fommil.netlib.LAPACK.{ getInstance => lapack }
+import org.netlib.util.intW
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -324,10 +326,10 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
 
         // in order to save space, store only the upper triangle of the XtX matrix
         val triangleSize = (factors*factors - factors)/2 + factors
-        val matrix = DoubleMatrix.zeros(triangleSize)
-        val fullMatrix = DoubleMatrix.zeros(factors, factors)
-        val userXtX = new ArrayBuffer[DoubleMatrix]()
-        val userXy = new ArrayBuffer[DoubleMatrix]()
+        val matrix = Array.fill(triangleSize)(0.0)
+        val fullMatrix = Array.fill(factors * factors)(0.0)
+        val userXtX = new ArrayBuffer[Array[Double]]()
+        val userXy = new ArrayBuffer[Array[Double]]()
         val numRatings = new ArrayBuffer[Int]()
 
         override def coGroup(left: lang.Iterable[(Int, Int, Array[Array[Double]])],
@@ -347,8 +349,8 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
             val oldLength = userXtX.length
 
             while(i < (numUsers - oldLength)) {
-              userXtX += DoubleMatrix.zeros(triangleSize)
-              userXy += DoubleMatrix.zeros(factors)
+              userXtX += Array.fill(triangleSize)(0.0)
+              userXy += Array.fill(factors)(0.0)
               numRatings.+=(0)
 
               i += 1
@@ -362,8 +364,9 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
           i = 0
           while(i  < matricesToClear){
             numRatings(i) = 0
-            userXtX(i).fill(0.0f)
-            userXy(i).fill(0.0f)
+
+            util.Arrays.fill(userXtX(i), 0.0)
+            util.Arrays.fill(userXy(i), 0.0)
 
             i += 1
           }
@@ -378,7 +381,8 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
 
             var p = 0
             while(p < blockFactors.length){
-              val vector = new DoubleMatrix(blockFactors(p))
+              val vector = blockFactors(p)
+
               outerProduct(vector, matrix, factors)
 
               val (users, ratings) = inInfo.ratingsForBlock(itemBlock)(p)
@@ -386,8 +390,8 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
               var i = 0
               while (i < users.length) {
                 numRatings(users(i)) += 1
-                userXtX(users(i)).addi(matrix)
-                SimpleBlas.axpy(ratings(i), vector, userXy(users(i)))
+                blas.daxpy(matrix.length, 1, matrix, 1, userXtX(users(i)), 1)
+                blas.daxpy(vector.length, ratings(i), vector, 1, userXy(users(i)), 1)
 
                 i += 1
               }
@@ -407,12 +411,14 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
 
             // add regularization constant
             while(f < factors){
-              fullMatrix.data(f*factors + f) += lambda * numRatings(i)
+              fullMatrix(f*factors + f) += lambda * numRatings(i)
               f += 1
             }
 
             // calculate new user vector
-            array(i) = Solve.solvePositive(fullMatrix, userXy(i)).data
+            val result = new intW(0)
+            lapack.dposv("U", factors, 1, fullMatrix, factors , userXy(i), factors, result)
+            array(i) = userXy(i)
 
             i += 1
           }
@@ -702,16 +708,13 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
 
   // ================================ Math helper functions ========================================
 
-  def outerProduct(vector: DoubleMatrix, matrix: DoubleMatrix, factors: Int): Unit = {
-    val vd =  vector.data
-    val md = matrix.data
-
+  def outerProduct(vector: Array[Double], matrix: Array[Double], factors: Int): Unit = {
     var row = 0
     var pos = 0
     while(row < factors){
       var col = 0
       while(col <= row){
-        md(pos) = vd(row) * vd(col)
+        matrix(pos) = vector(row) * vector(col)
         col += 1
         pos += 1
       }
@@ -720,24 +723,22 @@ class ALS extends Learner[(Int, Int, Double), ALSModel] with Serializable {
     }
   }
 
-  def generateFullMatrix(triangularMatrix: DoubleMatrix, fullMatrix: DoubleMatrix,
+  def generateFullMatrix(triangularMatrix: Array[Double], fullMatrix: Array[Double],
                          factors: Int): Unit = {
     var row = 0
     var pos = 0
-    val fmd = fullMatrix.data
-    val tmd = triangularMatrix.data
 
     while(row < factors){
       var col = 0
       while(col < row){
-        fmd(row*factors + col) = tmd(pos)
-        fmd(col*factors + row) = tmd(pos)
+        fullMatrix(row*factors + col) = triangularMatrix(pos)
+        fullMatrix(col*factors + row) = triangularMatrix(pos)
 
         pos += 1
         col += 1
       }
 
-      fmd(row*factors + row) = tmd(pos)
+      fullMatrix(row*factors + row) = triangularMatrix(pos)
 
       pos += 1
       row += 1
@@ -912,10 +913,10 @@ Serializable{
       triple => {
         val (((uID, iID), uFactors), iFactors) = triple
 
-        val uFactorsVector = new DoubleMatrix(uFactors.factors)
-        val iFactorsVector = new DoubleMatrix(iFactors.factors)
+        val uFactorsVector = uFactors.factors
+        val iFactorsVector = iFactors.factors
 
-        val prediction = SimpleBlas.dot(uFactorsVector, iFactorsVector)
+        val prediction = blas.ddot(uFactorsVector.length, uFactorsVector, 1, iFactorsVector, 1)
 
         (uID, iID, prediction)
       }
@@ -932,13 +933,13 @@ Serializable{
       triple => {
         val (((uID, iID), uFactors), iFactors) = triple
 
-        val uFactorsVector = new DoubleMatrix(uFactors.factors)
-        val iFactorsVector = new DoubleMatrix(iFactors.factors)
+        val uFactorsVector = uFactors.factors
+        val iFactorsVector = iFactors.factors
 
-        val squaredUNorm2 = uFactorsVector.dot(uFactorsVector)
-        val squaredINorm2 = iFactorsVector.dot(iFactorsVector)
+        val squaredUNorm2 = blas.ddot(uFactorsVector.length, uFactorsVector, 1, uFactorsVector, 1)
+        val squaredINorm2 = blas.ddot(iFactorsVector.length, iFactorsVector, 1, iFactorsVector, 1)
 
-        val prediction = SimpleBlas.dot(uFactorsVector, iFactorsVector)
+        val prediction = blas.ddot(uFactorsVector.length, uFactorsVector, 1, iFactorsVector, 1)
 
         (uID, iID, prediction, squaredUNorm2, squaredINorm2)
       }

@@ -38,4 +38,10 @@ package object math {
       }
     }
   }
+
+  implicit def vector2Array(vector: Vector): Array[Double] = {
+    vector match {
+      case dense: DenseVector => dense.values
+    }
+  }
 }

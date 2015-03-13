@@ -54,7 +54,7 @@ class MultipleLinearRegressionITCase extends ShouldMatchers {
 
     val (weights, weight0) = weightList(0)
 
-    expectedWeights.data zip weights.data foreach {
+    expectedWeights zip weights foreach {
       case (expectedWeight, weight) =>
         weight should be (expectedWeight +- 1)
     }
@@ -91,7 +91,7 @@ class MultipleLinearRegressionITCase extends ShouldMatchers {
 
     val (weights, weight0) = weightList(0)
 
-    RegressionData.expectedPolynomialWeights.zip(weights.data) foreach {
+    RegressionData.expectedPolynomialWeights.zip(weights) foreach {
       case (expectedWeight, weight) =>
         weight should be(expectedWeight +- 0.1)
     }
