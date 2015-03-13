@@ -424,6 +424,19 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
+   * Creates a new [[DataStream]] by folding the elements of this DataStream
+   * using an associative reduce function and an initial value.
+   */
+  def fold[R: TypeInformation: ClassTag](folder: FoldFunction[R,T], initialValue: R): DataStream[R] = {
+    if (folder == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    javaStream.transform("fold", implicitly[TypeInformation[R]],
+        new StreamFoldInvokable[T,R](folder, initialValue))
+  }
+
+
+  /**
    * Creates a new [[DataStream]] by reducing the elements of this DataStream
    * using an associative reduce function.
    */
