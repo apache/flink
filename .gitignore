@@ -18,3 +18,5 @@ tmp
 .DS_Store
 _site
 docs/api
+
+atlassian-ide-plugin.xml
