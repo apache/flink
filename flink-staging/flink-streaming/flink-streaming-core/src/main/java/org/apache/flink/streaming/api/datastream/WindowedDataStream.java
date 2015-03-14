@@ -293,11 +293,11 @@ public class WindowedDataStream<OUT> {
 	 *            The output type of the operator
 	 * @return The transformed DataStream
 	 */
-	public <R> DiscretizedStream<R> foldWindow(FoldFunction<R, OUT> foldFunction, R initialValue,
+	public <R> DiscretizedStream<R> foldWindow(R initialValue, FoldFunction<OUT, R> foldFunction,
 			TypeInformation<R> outType) {
 
 		return discretize(WindowTransformation.FOLDWINDOW.with(clean(foldFunction)),
-				new BasicWindowBuffer<OUT>()).foldWindow(foldFunction, initialValue, outType);
+				new BasicWindowBuffer<OUT>()).foldWindow(initialValue, foldFunction, outType);
 
 	}
 
@@ -313,11 +313,11 @@ public class WindowedDataStream<OUT> {
 	 *            Initial value given to foldFunction
 	 * @return The transformed DataStream
 	 */
-	public <R> DiscretizedStream<R> foldWindow(FoldFunction<R, OUT> foldFunction, R initialValue) {
+	public <R> DiscretizedStream<R> foldWindow(R initialValue, FoldFunction<OUT, R> foldFunction) {
 
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(foldFunction),
 				getType());
-		return foldWindow(foldFunction, initialValue, outType);
+		return foldWindow(initialValue, foldFunction, outType);
 	}
 
 	/**

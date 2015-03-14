@@ -32,7 +32,8 @@ public class GroupedFoldInvokable<IN, OUT> extends StreamFoldInvokable<IN, OUT> 
 	private OUT folded;
 	private OUT initialValue;
 
-	public GroupedFoldInvokable(FoldFunction<OUT, IN> folder, KeySelector<IN, ?> keySelector, OUT initialValue, TypeInformation<OUT> outTypeInformation) {
+	public GroupedFoldInvokable(FoldFunction<IN, OUT> folder, KeySelector<IN, ?> keySelector,
+			OUT initialValue, TypeInformation<OUT> outTypeInformation) {
 		super(folder, initialValue, outTypeInformation);
 		this.keySelector = keySelector;
 		this.initialValue = initialValue;
@@ -49,8 +50,9 @@ public class GroupedFoldInvokable<IN, OUT> extends StreamFoldInvokable<IN, OUT> 
 			values.put(key, folded);
 			collector.collect(folded);
 		} else {
-			values.put(key, initialValue);
-			collector.collect(initialValue);
+			OUT first = folded = folder.fold(outTypeSerializer.copy(initialValue), nextValue);
+			values.put(key, first);
+			collector.collect(first);
 		}
 	}
 

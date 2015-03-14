@@ -91,7 +91,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 */
 
 	@Override
-	public <R> SingleOutputStreamOperator<R, ?> fold(FoldFunction<R, OUT> folder, R initialValue) {
+	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<OUT, R> folder) {
 
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType());
 

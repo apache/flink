@@ -25,12 +25,12 @@ import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	protected FoldFunction<OUT, IN> folder;
+	protected FoldFunction<IN, OUT> folder;
 	protected OUT accumulator;
 	protected IN nextValue;
 	protected TypeSerializer<OUT> outTypeSerializer;
 
-	public StreamFoldInvokable(FoldFunction<OUT, IN> folder, OUT initialValue, TypeInformation<OUT> outTypeInformation) {
+	public StreamFoldInvokable(FoldFunction<IN, OUT> folder, OUT initialValue, TypeInformation<OUT> outTypeInformation) {
 		super(folder);
 		this.folder = folder;
 		this.accumulator = initialValue;

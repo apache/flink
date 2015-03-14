@@ -102,12 +102,12 @@ public class TypeExtractor {
 		return getUnaryOperatorReturnType((Function) flatMapInterface, FlatMapFunction.class, false, true, inType, functionName, allowMissing);
 	}
 
-	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<OUT, IN> foldInterface, TypeInformation<IN> inType)
+	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType)
 	{
 		return getFoldReturnTypes(foldInterface, inType, null, false);
 	}
 
-	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<OUT, IN> foldInterface, TypeInformation<IN> inType, String functionName, boolean allowMissing)
+	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType, String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) foldInterface, FoldFunction.class, false, false, inType, functionName, allowMissing);
 	}

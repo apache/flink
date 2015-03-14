@@ -442,7 +442,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new [[DataStream]] by folding the elements of this DataStream
    * using an associative fold function and an initial value.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[R,T]): 
+  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[T,R]): 
   DataStream[R] = {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
@@ -460,11 +460,11 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new [[DataStream]] by folding the elements of this DataStream
    * using an associative fold function and an initial value.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, fun: (R,T) => R): DataStream[R] = {
+  def fold[R: TypeInformation: ClassTag](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
-    val folder = new FoldFunction[R,T] {
+    val folder = new FoldFunction[T,R] {
       val cleanFun = clean(fun)
 
       def fold(acc: R, v: T) = {
