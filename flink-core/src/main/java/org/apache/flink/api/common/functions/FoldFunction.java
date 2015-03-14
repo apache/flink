@@ -37,7 +37,7 @@ import java.io.Serializable;
  * @param <T> Type of the initial input and the returned element
  * @param <O> Type of the elements that the group/list/stream contains
  */
-public interface FoldFunction<T, O> extends Function, Serializable {
+public interface FoldFunction<O,T> extends Function, Serializable {
 	/**
 	 * The core method of FoldFunction, combining two values into one value of the same type.
 	 * The fold function is consecutively applied to all values of a group until only a single value remains.

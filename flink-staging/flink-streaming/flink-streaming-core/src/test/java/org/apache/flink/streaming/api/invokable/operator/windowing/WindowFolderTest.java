@@ -33,7 +33,7 @@ public class WindowFolderTest {
 	@Test
 	public void test() {
 		StreamInvokable<StreamWindow<Integer>, StreamWindow<String>> windowReducer = new WindowFolder<Integer,String>(
-				new FoldFunction<String,Integer>() {
+				new FoldFunction<Integer, String>() {
 
 					private static final long serialVersionUID = 1L;
 

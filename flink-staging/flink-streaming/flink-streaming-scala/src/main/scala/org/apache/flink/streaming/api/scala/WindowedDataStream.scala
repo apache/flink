@@ -138,12 +138,12 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * the current window at every trigger.
    *
    */
-  def foldWindow[R: TypeInformation: ClassTag](folder: FoldFunction[R,T], initialValue: R): 
+  def foldWindow[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[T,R]): 
   WindowedDataStream[R] = {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
-    javaStream.foldWindow(folder, initialValue, implicitly[TypeInformation[R]])
+    javaStream.foldWindow(initialValue, folder, implicitly[TypeInformation[R]])
   }
 
   /**
@@ -151,16 +151,16 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
    * the current window at every trigger.
    *
    */
-  def foldWindow[R: TypeInformation: ClassTag](initialValue: R, fun: (R, T) => R): 
+  def foldWindow[R: TypeInformation: ClassTag](initialValue: R)(fun: (R, T) => R): 
   WindowedDataStream[R] = {
     if (fun == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
-    val folder = new FoldFunction[R,T] {
+    val folder = new FoldFunction[T,R] {
       val cleanFun = clean(fun)
       def fold(acc: R, v: T) = { cleanFun(acc, v) }
     }
-    foldWindow(folder, initialValue)
+    foldWindow(initialValue, folder)
   }
 
   /**

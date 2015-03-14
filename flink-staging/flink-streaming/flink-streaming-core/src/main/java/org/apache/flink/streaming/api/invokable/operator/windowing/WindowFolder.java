@@ -30,9 +30,9 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
 public class WindowFolder<IN, OUT> extends MapInvokable<StreamWindow<IN>, StreamWindow<OUT>> {
 
 	private static final long serialVersionUID = 1L;
-	FoldFunction<OUT, IN> folder;
+	FoldFunction<IN, OUT> folder;
 
-	public WindowFolder(FoldFunction<OUT, IN> folder, OUT initialValue) {
+	public WindowFolder(FoldFunction<IN, OUT> folder, OUT initialValue) {
 		super(new WindowFoldFunction<IN, OUT>(folder, initialValue));
 		this.folder = folder;
 	}
@@ -42,9 +42,9 @@ public class WindowFolder<IN, OUT> extends MapInvokable<StreamWindow<IN>, Stream
 
 		private static final long serialVersionUID = 1L;
 		private OUT initialValue;
-		FoldFunction<OUT, IN> folder;
+		FoldFunction<IN, OUT> folder;
 
-		public WindowFoldFunction(FoldFunction<OUT, IN> folder, OUT initialValue) {
+		public WindowFoldFunction(FoldFunction<IN, OUT> folder, OUT initialValue) {
 			this.folder = folder;
 			this.initialValue = initialValue;
 		}

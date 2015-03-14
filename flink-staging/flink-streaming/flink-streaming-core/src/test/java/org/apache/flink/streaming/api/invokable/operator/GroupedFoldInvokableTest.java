@@ -32,7 +32,7 @@ import org.junit.Test;
 
 public class GroupedFoldInvokableTest {
 
-	private static class MyFolder implements FoldFunction<String, Integer> {
+	private static class MyFolder implements FoldFunction<Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -58,7 +58,7 @@ public class GroupedFoldInvokableTest {
 			}
 		}, "100", outType);
 
-		List<String> expected = Arrays.asList("100", "1001", "100", "1002", "100");
+		List<String> expected = Arrays.asList("1001","10011", "1002", "10022", "1003");
 		List<String> actual = MockContext.createAndExecute(invokable1,
 				Arrays.asList(1, 1, 2, 2, 3));
 

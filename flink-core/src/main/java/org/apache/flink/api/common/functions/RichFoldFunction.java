@@ -31,7 +31,7 @@ import org.apache.flink.api.common.functions.RichFunction;
  * @param <T> Type of the initial input and the returned element
  * @param <O> Type of the elements that the group/list/stream contains
  */
-public abstract class RichFoldFunction<T, O> extends AbstractRichFunction implements FoldFunction<T, O> {
+public abstract class RichFoldFunction<O, T> extends AbstractRichFunction implements FoldFunction<O, T> {
 
 	private static final long serialVersionUID = 1L;
 

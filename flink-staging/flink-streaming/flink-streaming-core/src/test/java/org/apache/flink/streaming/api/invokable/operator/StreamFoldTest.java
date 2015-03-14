@@ -30,7 +30,7 @@ import org.junit.Test;
 
 public class StreamFoldTest {
 
-	private static class MyFolder implements FoldFunction<String, Integer> {
+	private static class MyFolder implements FoldFunction<Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
