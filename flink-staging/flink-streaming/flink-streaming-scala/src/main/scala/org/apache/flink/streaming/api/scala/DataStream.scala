@@ -432,7 +432,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new NullPointerException("Fold function must not be null.")
     }
     javaStream.transform("fold", implicitly[TypeInformation[R]],
-        new StreamFoldInvokable[T,R](folder, initialValue))
+        new StreamFoldInvokable[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
   }
 
 
@@ -461,9 +461,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     javaStream match {
       case ds: GroupedDataStream[_] => javaStream.transform("fold",
-        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), initialValue))
+        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), initialValue, implicitly[TypeInformation[R]]))
       case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
-        new StreamFoldInvokable[T,R](folder, initialValue))
+        new StreamFoldInvokable[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
     }
   }
 
