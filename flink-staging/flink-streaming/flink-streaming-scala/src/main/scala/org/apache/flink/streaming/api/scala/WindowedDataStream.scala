@@ -142,7 +142,7 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
-    javaStream.foldWindow(folder, initialValue)
+    javaStream.foldWindow(folder, initialValue, implicitly[TypeInformation[R]])
   }
 
   /**

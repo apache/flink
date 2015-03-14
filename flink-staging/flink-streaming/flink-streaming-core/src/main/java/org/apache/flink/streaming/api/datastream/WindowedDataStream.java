@@ -286,10 +286,11 @@ public class WindowedDataStream<OUT> {
 	 *            Initial value given to foldFunction
 	 * @return The transformed DataStream
 	 */
-	public <R> DiscretizedStream<R> foldWindow(FoldFunction<R, OUT> foldFunction, R initialValue) {
+	public <R> DiscretizedStream<R> foldWindow(
+			FoldFunction<R, OUT> foldFunction, R initialValue, TypeInformation<R> outType) {
 
 		return discretize(WindowTransformation.FOLDWINDOW.with(clean(foldFunction)),
-				new BasicWindowBuffer<OUT>()).foldWindow(foldFunction, initialValue);
+				new BasicWindowBuffer<OUT>()).foldWindow(foldFunction, initialValue, outType);
 
 	}
 

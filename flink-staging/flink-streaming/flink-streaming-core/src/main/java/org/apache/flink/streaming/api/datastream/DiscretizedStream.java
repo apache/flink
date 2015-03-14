@@ -109,8 +109,8 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	}
 
 	@Override
-	public <R> DiscretizedStream<R> foldWindow(FoldFunction<R, OUT> foldFunction, R initialValue) {
-		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(foldFunction, getType());
+	public <R> DiscretizedStream<R> foldWindow(FoldFunction<R, OUT> foldFunction, R initialValue,
+							TypeInformation<R> outType) {
 
 		DiscretizedStream<R> out = partition(transformation).transform(
 				WindowTransformation.FOLDWINDOW, "Fold Window", outType,
