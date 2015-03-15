@@ -353,7 +353,6 @@ public class TestGraphUtils {
 	 */
 	public static void pipeSystemOutToNull() {
 		System.setOut(new PrintStream(new BlackholeOutputSteam()));
-		System.setErr(new PrintStream(new BlackholeOutputSteam()));
 	}
 
 	private static final class BlackholeOutputSteam extends java.io.OutputStream {

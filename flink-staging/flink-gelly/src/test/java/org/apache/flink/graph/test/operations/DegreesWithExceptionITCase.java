@@ -35,6 +35,8 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public class DegreesWithExceptionITCase {
 
+	private static final int PARALLELISM = 4;
+
 	private static ForkableFlinkMiniCluster cluster;
 
 	@BeforeClass
@@ -45,11 +47,8 @@ public class DegreesWithExceptionITCase {
 	@BeforeClass
 	public static void setupCluster() {
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
-
-		cluster = new ForkableFlinkMiniCluster(config, false);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
+		cluster = new ForkableFlinkMiniCluster(config, true);
 	}
 
 	@AfterClass
@@ -64,17 +63,16 @@ public class DegreesWithExceptionITCase {
 		}
 	}
 
+	/**
+	 * Test outDegrees() with an edge having a srcId that does not exist in the vertex DataSet
+	 */
 	@Test
 	public void testOutDegreesInvalidEdgeSrcId() throws Exception {
-		/*
-		* Test outDegrees() with an edge having a srcId that does not exist in the vertex DataSet
-		*/
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(4);
-		env.setNumberOfExecutionRetries(0);
+		env.setDegreeOfParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
@@ -97,8 +95,7 @@ public class DegreesWithExceptionITCase {
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(4);
-		env.setNumberOfExecutionRetries(0);
+		env.setDegreeOfParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
@@ -121,8 +118,7 @@ public class DegreesWithExceptionITCase {
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(4);
-		env.setNumberOfExecutionRetries(0);
+		env.setDegreeOfParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
@@ -145,8 +141,7 @@ public class DegreesWithExceptionITCase {
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(4);
-		env.setNumberOfExecutionRetries(0);
+		env.setDegreeOfParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
@@ -169,8 +164,7 @@ public class DegreesWithExceptionITCase {
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(4);
-		env.setNumberOfExecutionRetries(0);
+		env.setDegreeOfParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidSrcTrgData(env), env);
