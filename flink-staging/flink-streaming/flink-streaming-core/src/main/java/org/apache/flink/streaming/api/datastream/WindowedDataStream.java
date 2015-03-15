@@ -318,7 +318,7 @@ public class WindowedDataStream<OUT> {
 	public <R> DiscretizedStream<R> foldWindow( FoldFunction<R, OUT> foldFunction, R initialValue) {
 
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(foldFunction), getType());
-		foldWindow(foldFunction, initialValue, outType);
+		return foldWindow(foldFunction, initialValue, outType);
 	}
 
 

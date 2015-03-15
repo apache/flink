@@ -427,12 +427,12 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new [[DataStream]] by folding the elements of this DataStream
    * using an associative reduce function and an initial value.
    */
-  def fold[R: TypeInformation: ClassTag](folder: FoldFunction[R,T], initialValue: R): DataStream[R] = {
+  def fold[R: TypeInformation: ClassTag](folder: FoldFunction[R,T], initVal: R): DataStream[R] = {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
     javaStream.transform("fold", implicitly[TypeInformation[R]],
-        new StreamFoldInvokable[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
+        new StreamFoldInvokable[T,R](folder, initVal, implicitly[TypeInformation[R]]))
   }
 
 
@@ -455,15 +455,17 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new [[DataStream]] by folding the elements of this DataStream
    * using an associative fold function and an initial value.
    */
-  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[R,T]): DataStream[R] = {
+  def fold[R: TypeInformation: ClassTag](initVal: R, folder: FoldFunction[R,T]): DataStream[R] = {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
     javaStream match {
       case ds: GroupedDataStream[_] => javaStream.transform("fold",
-        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), initialValue, implicitly[TypeInformation[R]]))
+        implicitly[TypeInformation[R]],
+        new GroupedFoldInvokable[T,R](
+          folder, ds.getKeySelector(), initVal, implicitly[TypeInformation[R]]))
       case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
-        new StreamFoldInvokable[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
+        new StreamFoldInvokable[T,R](folder, initVal, implicitly[TypeInformation[R]]))
     }
   }
 
