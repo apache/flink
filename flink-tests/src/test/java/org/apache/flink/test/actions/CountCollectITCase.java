@@ -22,35 +22,29 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import static org.junit.Assert.*;
 
-import org.junit.BeforeClass;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /**
  * Tests the methods that bring elements back to the client driver program.
  */
-public class CountCollectITCase {
+@RunWith(Parameterized.class)
+public class CountCollectITCase extends MultipleProgramsTestBase {
 
-	@BeforeClass
-	public static void suppressStandardOut() {
-		java.io.OutputStream blackhole = new java.io.OutputStream() {
-			@Override
-			public void write(int b){}
-		};
-
-		System.setOut(new PrintStream(blackhole));
-		System.setErr(new PrintStream(blackhole));
+	public CountCollectITCase(ExecutionMode mode) {
+		super(mode);
 	}
 
 	@Test
 	public void testSimple() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(5);
 
 		Integer[] input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
@@ -68,7 +62,6 @@ public class CountCollectITCase {
 	@Test
 	public void testAdvanced() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(5);
 		env.getConfig().disableObjectReuse();
 
 
