@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -29,6 +30,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.function.WindowMapFunction;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowFlattener;
+import org.apache.flink.streaming.api.invokable.operator.windowing.WindowFolder;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMapper;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMerger;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowPartitioner;
@@ -41,8 +43,8 @@ import org.apache.flink.streaming.api.windowing.WindowUtils.WindowTransformation
 /**
  * A {@link DiscretizedStream} represents a data stream that has been divided
  * into windows (predefined chunks). User defined function such as
- * {@link #reduceWindow(ReduceFunction)}, {@link #mapWindow()} or aggregations
- * can be applied to the windows.
+ * {@link #reduceWindow(ReduceFunction)}, {@link #mapWindow()}, {@link #foldWindow(FoldFunction, initialValue)}
+ * or aggregations can be applied to the windows.
  * 
  * @param <OUT>
  *            The output type of the {@link DiscretizedStream}
@@ -103,6 +105,16 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 				WindowTransformation.MAPWINDOW, "Window Map", returnType,
 				new WindowMapper<OUT, R>(discretizedStream.clean(windowMapFunction))).merge();
 
+		return out;
+	}
+
+	@Override
+	public <R> DiscretizedStream<R> foldWindow(FoldFunction<R, OUT> foldFunction, R initialValue,
+							TypeInformation<R> outType) {
+
+		DiscretizedStream<R> out = partition(transformation).transform(
+				WindowTransformation.FOLDWINDOW, "Fold Window", outType,
+				new WindowFolder<OUT, R>(discretizedStream.clean(foldFunction), initialValue));
 		return out;
 	}
 
