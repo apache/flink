@@ -19,16 +19,20 @@
 package org.apache.flink.api.scala.actions
 
 import org.apache.flink.api.scala._
+import org.apache.flink.test.util.MultipleProgramsTestBase
+import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
 
 import org.junit.Test
 import org.junit.Assert._
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class CountCollectITCase {
+@RunWith(classOf[Parameterized])
+class CountCollectITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
 
   @Test
-  def testCountCollectOnSimpleJob: Unit = {
+  def testCountCollectOnSimpleJob(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(5)
 
     val input = 1 to 10
 
@@ -44,9 +48,8 @@ class CountCollectITCase {
   }
 
   @Test
-  def testCountCollectOnAdvancedJob: Unit = {
+  def testCountCollectOnAdvancedJob(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(5)
     env.getConfig.disableObjectReuse()
 
     val input1 = 1 to 10
@@ -69,5 +72,4 @@ class CountCollectITCase {
       marker(x-1)(y-1) = true
     }
   }
-
 }
