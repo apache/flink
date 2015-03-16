@@ -18,6 +18,26 @@
 
 package org.apache.flink.compiler;
 
+import org.apache.flink.compiler.costs.CostEstimator;
+import org.apache.flink.compiler.costs.DefaultCostEstimator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.flink.api.common.operators.base.BulkIterationBase;
+import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
+import org.apache.flink.api.common.operators.base.CrossOperatorBase;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase;
+import org.apache.flink.api.common.operators.base.FilterOperatorBase;
+import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
+import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.common.operators.base.GroupCombineOperatorBase;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
+import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
+import org.apache.flink.api.common.operators.base.SortPartitionOperatorBase;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -28,33 +48,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.flink.api.common.operators.base.SortPartitionOperatorBase;
-import org.apache.flink.compiler.dag.SortPartitionNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Union;
-import org.apache.flink.api.common.operators.base.BulkIterationBase;
-import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
-import org.apache.flink.api.common.operators.base.CrossOperatorBase;
-import org.apache.flink.api.common.operators.base.DeltaIterationBase;
-import org.apache.flink.api.common.operators.base.FilterOperatorBase;
-import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
-import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase;
-import org.apache.flink.api.common.operators.base.MapOperatorBase;
-import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
-import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
-import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
-import org.apache.flink.compiler.costs.CostEstimator;
-import org.apache.flink.compiler.costs.DefaultCostEstimator;
+
 import org.apache.flink.compiler.dag.BinaryUnionNode;
 import org.apache.flink.compiler.dag.BulkIterationNode;
 import org.apache.flink.compiler.dag.BulkPartialSolutionNode;
@@ -66,16 +69,18 @@ import org.apache.flink.compiler.dag.DataSourceNode;
 import org.apache.flink.compiler.dag.FilterNode;
 import org.apache.flink.compiler.dag.FlatMapNode;
 import org.apache.flink.compiler.dag.GroupReduceNode;
+import org.apache.flink.compiler.dag.GroupCombineNode;
 import org.apache.flink.compiler.dag.IterationNode;
+import org.apache.flink.compiler.dag.JoinNode;
 import org.apache.flink.compiler.dag.MapNode;
 import org.apache.flink.compiler.dag.MapPartitionNode;
-import org.apache.flink.compiler.dag.JoinNode;
 import org.apache.flink.compiler.dag.OptimizerNode;
 import org.apache.flink.compiler.dag.PactConnection;
 import org.apache.flink.compiler.dag.PartitionNode;
 import org.apache.flink.compiler.dag.ReduceNode;
 import org.apache.flink.compiler.dag.SinkJoiner;
 import org.apache.flink.compiler.dag.SolutionSetNode;
+import org.apache.flink.compiler.dag.SortPartitionNode;
 import org.apache.flink.compiler.dag.TempMode;
 import org.apache.flink.compiler.dag.WorksetIterationNode;
 import org.apache.flink.compiler.dag.WorksetNode;
@@ -95,11 +100,14 @@ import org.apache.flink.compiler.plan.SourcePlanNode;
 import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
 import org.apache.flink.compiler.plan.WorksetPlanNode;
 import org.apache.flink.compiler.postpass.OptimizerPostPass;
+
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Visitor;
 
@@ -694,6 +702,9 @@ public class PactCompiler {
 			}
 			else if (c instanceof GroupReduceOperatorBase) {
 				n = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) c);
+			}
+			else if (c instanceof GroupCombineOperatorBase) {
+				n = new GroupCombineNode((GroupCombineOperatorBase<?, ?, ?>) c);
 			}
 			else if (c instanceof JoinOperatorBase) {
 				n = new JoinNode((JoinOperatorBase<?, ?, ?, ?>) c);
