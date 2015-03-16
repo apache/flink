@@ -21,16 +21,20 @@ package org.apache.flink.graph.test.operations;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.test.TestGraphUtils;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.junit.Assert.fail;
+import java.util.NoSuchElementException;
+
+import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
 public class DegreesWithExceptionITCase {
@@ -48,7 +52,7 @@ public class DegreesWithExceptionITCase {
 	public static void setupCluster() {
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
-		cluster = new ForkableFlinkMiniCluster(config, true);
+		cluster = new ForkableFlinkMiniCluster(config, false);
 	}
 
 	@AfterClass
@@ -83,7 +87,9 @@ public class DegreesWithExceptionITCase {
 
 			fail("graph.outDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
-			// expected
+			assertTrue("Root exception has to be of type ProgramInvocationException.", e instanceof ProgramInvocationException);
+			assertTrue("ProgramInvocationException's cause has to be of type JobExecutionException.", e.getCause() instanceof JobExecutionException);
+			assertTrue("JobExecutionException's cause has to be of type NoSuchElementException.", e.getCause().getCause() instanceof NoSuchElementException);
 		}
 	}
 
@@ -106,7 +112,9 @@ public class DegreesWithExceptionITCase {
 
 			fail("graph.inDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
-			// expected
+			assertTrue("Root exception has to be of type ProgramInvocationException.", e instanceof ProgramInvocationException);
+			assertTrue("ProgramInvocationException's cause has to be of type JobExecutionException.", e.getCause() instanceof JobExecutionException);
+			assertTrue("JobExecutionException's cause has to be of type NoSuchElementException.", e.getCause().getCause() instanceof NoSuchElementException);
 		}
 	}
 
@@ -129,7 +137,9 @@ public class DegreesWithExceptionITCase {
 
 			fail("graph.getDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
-			// expected
+			assertTrue("Root exception has to be of type ProgramInvocationException.", e instanceof ProgramInvocationException);
+			assertTrue("ProgramInvocationException's cause has to be of type JobExecutionException.", e.getCause() instanceof JobExecutionException);
+			assertTrue("JobExecutionException's cause has to be of type NoSuchElementException.", e.getCause().getCause() instanceof NoSuchElementException);
 		}
 	}
 
@@ -152,7 +162,9 @@ public class DegreesWithExceptionITCase {
 
 			fail("graph.getDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
-			// expected
+			assertTrue("Root exception has to be of type ProgramInvocationException.", e instanceof ProgramInvocationException);
+			assertTrue("ProgramInvocationException's cause has to be of type JobExecutionException.", e.getCause() instanceof JobExecutionException);
+			assertTrue("JobExecutionException's cause has to be of type NoSuchElementException.", e.getCause().getCause() instanceof NoSuchElementException);
 		}
 	}
 
@@ -175,7 +187,9 @@ public class DegreesWithExceptionITCase {
 
 			fail("graph.getDegrees() did not throw NoSuchElementException");
 		} catch (Exception e) {
-			// expected
+			assertTrue("Root exception has to be of type ProgramInvocationException.", e instanceof ProgramInvocationException);
+			assertTrue("ProgramInvocationException's cause has to be of type JobExecutionException.", e.getCause() instanceof JobExecutionException);
+			assertTrue("JobExecutionException's cause has to be of type NoSuchElementException.", e.getCause().getCause() instanceof NoSuchElementException);
 		}
 	}
 }
