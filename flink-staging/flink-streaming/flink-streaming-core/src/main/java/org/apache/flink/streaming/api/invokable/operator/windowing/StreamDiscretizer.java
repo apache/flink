@@ -25,13 +25,11 @@ import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerCallback;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
-import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
 /**
  * This invokable represents the discretization step of a window transformation.
  * The user supplied eviction and trigger policies are applied to create the
  * {@link StreamWindow} that will be further transformed in the next stages.
- * </p> To allow pre-aggregations supply an appropriate {@link WindowBuffer}
  */
 public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> {
 
@@ -129,11 +127,6 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> 
 		emitWindow();
 	}
 
-	protected synchronized void externalTriggerOnFakeElement(Object input) {
-		emitWindow();
-		activeEvict(input);
-	}
-
 	/**
 	 * This method emits the content of the buffer as a new {@link StreamWindow}
 	 * if not empty
@@ -175,7 +168,7 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> 
 			ActiveTriggerPolicy<IN> tp = (ActiveTriggerPolicy<IN>) triggerPolicy;
 
 			Runnable runnable = tp.createActiveTriggerRunnable(new WindowingCallback());
-			if (activePolicyThread != null) {
+			if (runnable != null) {
 				activePolicyThread = new Thread(runnable);
 				activePolicyThread.start();
 			}
@@ -216,7 +209,7 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> 
 
 	@Override
 	public String toString() {
-		return "Discretizer(Trigger: " + triggerPolicy.toString() + ", Eviction: " + evictionPolicy.toString()
-				+ ")";
+		return "Discretizer(Trigger: " + triggerPolicy.toString() + ", Eviction: "
+				+ evictionPolicy.toString() + ")";
 	}
 }

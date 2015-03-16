@@ -58,7 +58,7 @@ import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBuffer;
-import org.apache.flink.streaming.api.windowing.windowbuffer.CompletePreAggregator;
+import org.apache.flink.streaming.api.windowing.windowbuffer.PreAggregator;
 import org.apache.flink.streaming.api.windowing.windowbuffer.SlidingCountGroupedPreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.SlidingCountPreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.SlidingTimeGroupedPreReducer;
@@ -262,17 +262,25 @@ public class WindowedDataStream<OUT> {
 	 */
 	public DiscretizedStream<OUT> reduceWindow(ReduceFunction<OUT> reduceFunction) {
 
-		WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
-				.with(clean(reduceFunction));
-
-		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation);
-
-		DiscretizedStream<OUT> discretized = discretize(transformation, windowBuffer);
-
-		if (windowBuffer instanceof CompletePreAggregator) {
-			return discretized;
+		// We check whether we should apply parallel time discretization, which
+		// is a more complex exploiting the monotonic properties of time
+		// policies
+		if (WindowUtils.isTimeOnly(getTrigger(), getEviction()) && discretizerKey == null
+				&& dataStream.getParallelism() > 1) {
+			return timeReduce(reduceFunction);
 		} else {
-			return discretized.reduceWindow(reduceFunction);
+			WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
+					.with(clean(reduceFunction));
+
+			WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation);
+
+			DiscretizedStream<OUT> discretized = discretize(transformation, windowBuffer);
+
+			if (windowBuffer instanceof PreAggregator) {
+				return discretized;
+			} else {
+				return discretized.reduceWindow(reduceFunction);
+			}
 		}
 	}
 
@@ -377,25 +385,76 @@ public class WindowedDataStream<OUT> {
 		int parallelism = getDiscretizerParallelism(transformation);
 
 		return new DiscretizedStream<OUT>(dataStream
-				.transform("Stream Discretizer", bufferEventType, discretizer)
+				.transform(discretizer.getClass().getSimpleName(), bufferEventType, discretizer)
 				.setParallelism(parallelism)
-				.transform("WindowBuffer", new StreamWindowTypeInfo<OUT>(getType()),
-						bufferInvokable).setParallelism(parallelism), groupByKey, transformation,
-				false);
+				.transform(windowBuffer.getClass().getSimpleName(),
+						new StreamWindowTypeInfo<OUT>(getType()), bufferInvokable)
+				.setParallelism(parallelism), groupByKey, transformation, false);
 
 	}
 
+	/**
+	 * Returns the degree of parallelism for the stream discretizer. The
+	 * returned parallelism is either 1 for for non-parallel global policies (or
+	 * when the input stream is non-parallel), environment parallelism for the
+	 * policies that can run in parallel (such as, any ditributed policy, reduce
+	 * by count or time).
+	 * 
+	 * @param transformation
+	 *            The applied transformation
+	 * @return The parallelism for the stream discretizer
+	 */
 	private int getDiscretizerParallelism(WindowTransformation transformation) {
 		return isLocal
 				|| (transformation == WindowTransformation.REDUCEWINDOW && WindowUtils
 						.isParallelPolicy(getTrigger(), getEviction(), dataStream.getParallelism()))
 				|| (discretizerKey != null) ? dataStream.environment.getDegreeOfParallelism() : 1;
+
 	}
 
+	/**
+	 * Dedicated method for applying parallel time reduce transformations on
+	 * windows
+	 * 
+	 * @param reduceFunction
+	 *            Reduce function to apply
+	 * @return The transformed stream
+	 */
+	protected DiscretizedStream<OUT> timeReduce(ReduceFunction<OUT> reduceFunction) {
+
+		WindowTransformation transformation = WindowTransformation.REDUCEWINDOW
+				.with(clean(reduceFunction));
+
+		// We get the windowbuffer and set it to emit empty windows with
+		// sequential IDs. This logic is necessarry to merge windows created in
+		// parallel.
+		WindowBuffer<OUT> windowBuffer = getWindowBuffer(transformation).emitEmpty().sequentialID();
+
+		// If there is a groupby for the reduce operation we apply it before the
+		// discretizers, because we will forward everything afterwards to
+		// exploit task chaining
+		if (groupByKey != null) {
+			dataStream = dataStream.groupBy(groupByKey);
+		}
+
+		// We discretize the stream and call the timeReduce function of the
+		// discretized stream, we also pass the type of the windowbuffer
+		DiscretizedStream<OUT> discretized = discretize(transformation, windowBuffer);
+
+		return discretized
+				.timeReduce(reduceFunction, windowBuffer instanceof PreAggregator);
+
+	}
+
+	/**
+	 * Based on the defined policies, returns the stream discretizer to be used
+	 */
 	private StreamInvokable<OUT, WindowEvent<OUT>> getDiscretizer() {
 		if (discretizerKey == null) {
 			return new StreamDiscretizer<OUT>(getTrigger(), getEviction());
 		} else if (WindowUtils.isSystemTimeTrigger(getTrigger())) {
+			// We return a special more efficient grouped discretizer for system
+			// time policies to avoid lunching multiple threads
 			return new GroupedTimeDiscretizer<OUT>(discretizerKey,
 					(TimeTriggerPolicy<OUT>) getTrigger(),
 					(CloneableEvictionPolicy<OUT>) getEviction());
@@ -416,6 +475,13 @@ public class WindowedDataStream<OUT> {
 		}
 	}
 
+	/**
+	 * Based on the given policies returns the WindowBuffer used to store the
+	 * elements in the window. This is the module that also encapsulates the
+	 * pre-aggregator logic when it is applicable, reducing the space cost, and
+	 * trigger latency.
+	 * 
+	 */
 	@SuppressWarnings("unchecked")
 	private WindowBuffer<OUT> getWindowBuffer(WindowTransformation transformation) {
 		TriggerPolicy<OUT> trigger = getTrigger();
@@ -704,7 +770,7 @@ public class WindowedDataStream<OUT> {
 
 		if (evictionHelper != null) {
 			return evictionHelper.toEvict();
-		} else if (userEvicter == null) {
+		} else if (userEvicter == null || userEvicter instanceof TumblingEvictionPolicy) {
 			if (triggerHelper instanceof Time) {
 				return triggerHelper.toEvict();
 			} else {

@@ -25,7 +25,7 @@ import org.apache.flink.util.Collector;
 /**
  * Non-grouped pre-reducer for tumbling eviction policy.
  */
-public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
+public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
 
 	private static final long serialVersionUID = 1L;
 
@@ -39,15 +39,14 @@ public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggreg
 		this.serializer = serializer;
 	}
 
-	public boolean emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamWindow<T>> collector) {
 		if (reduced != null) {
-			StreamWindow<T> currentWindow = new StreamWindow<T>();
+			StreamWindow<T> currentWindow = createEmptyWindow();
 			currentWindow.add(reduced);
 			collector.collect(currentWindow);
 			reduced = null;
-			return true;
-		} else {
-			return false;
+		} else if (emitEmpty) {
+			collector.collect(createEmptyWindow());
 		}
 	}
 
@@ -70,6 +69,12 @@ public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggreg
 	@Override
 	public String toString() {
 		return reduced.toString();
+	}
+
+	@Override
+	public WindowBuffer<T> emitEmpty() {
+		emitEmpty = true;
+		return this;
 	}
 
 }
