@@ -27,6 +27,7 @@ import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.EdgeDirection;
 
 /**
  * This class is used to configure a vertex-centric iteration.
@@ -59,6 +60,15 @@ public class IterationConfiguration {
 
 	/** flag that defines whether the solution set is kept in managed memory **/
 	private boolean unmanagedSolutionSet = false;
+
+	/** flag that defines whether the degrees option is set **/
+	private boolean optDegrees = false;
+
+	/** flag that defines whether the number of vertices option is set **/
+	private boolean optNumVertices = false;
+
+	/** the direction in which the messages should be sent **/
+	private EdgeDirection direction = EdgeDirection.OUT;
 	
 	public IterationConfiguration() {}
 
@@ -188,5 +198,34 @@ public class IterationConfiguration {
 	 */
 	public List<Tuple2<String, DataSet<?>>> getMessagingBcastVars() {
 		return this.bcVarsMessaging;
+	}
+
+	// ----------------------------------------------------------------------------------
+	// The direction, degrees and the total number of vertices should be optional.
+	// The user can access them by setting the direction, degrees or the numVertices options.
+	// ----------------------------------------------------------------------------------
+
+	public boolean isOptDegrees() {
+		return optDegrees;
+	}
+
+	public void setOptDegrees(boolean optDegrees) {
+		this.optDegrees = optDegrees;
+	}
+
+	public boolean isOptNumVertices() {
+		return optNumVertices;
+	}
+
+	public void setOptNumVertices(boolean optNumVertices) {
+		this.optNumVertices = optNumVertices;
+	}
+
+	public EdgeDirection getDirection() {
+		return direction;
+	}
+
+	public void setDirection(EdgeDirection direction) {
+		this.direction = direction;
 	}
 }

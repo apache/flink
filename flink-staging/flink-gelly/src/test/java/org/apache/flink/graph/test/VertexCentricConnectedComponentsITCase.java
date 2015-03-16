@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
@@ -72,12 +73,12 @@ public class VertexCentricConnectedComponentsITCase extends JavaProgramTestBase 
 	
 	public static final class CCUpdater extends VertexUpdateFunction<Long, Long, Long> {
 		@Override
-		public void updateVertex(Long vertexKey, Long vertexValue, MessageIterator<Long> inMessages) {
+		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
 			long min = Long.MAX_VALUE;
 			for (long msg : inMessages) {
 				min = Math.min(min, msg);
 			}
-			if (min < vertexValue) {
+			if (min < vertex.getValue()) {
 				setNewVertexValue(min);
 			}
 		}
@@ -85,8 +86,8 @@ public class VertexCentricConnectedComponentsITCase extends JavaProgramTestBase 
 	
 	public static final class CCMessager extends MessagingFunction<Long, Long, Long, NullValue> {
 		@Override
-		public void sendMessages(Long vertexId, Long componentId) {
-			sendMessageToAllNeighbors(componentId);
+		public void sendMessages(Vertex<Long, Long> vertex) {
+			sendMessageToAllNeighbors(vertex.getValue());
 		}
 	}
 	

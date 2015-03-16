@@ -77,7 +77,7 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 			extends VertexUpdateFunction<K, Double, Double> {
 
 		@Override
-		public void updateVertex(K vertexKey, Double vertexValue,
+		public void updateVertex(Vertex<K, Double> vertex,
 				MessageIterator<Double> inMessages) {
 
 			Double minDistance = Double.MAX_VALUE;
@@ -88,7 +88,7 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 				}
 			}
 
-			if (vertexValue > minDistance) {
+			if (vertex.getValue() > minDistance) {
 				setNewVertexValue(minDistance);
 			}
 		}
@@ -104,10 +104,10 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 			extends MessagingFunction<K, Double, Double, Double> {
 
 		@Override
-		public void sendMessages(K vertexKey, Double newDistance)
+		public void sendMessages(Vertex<K, Double> vertex)
 				throws Exception {
-			for (Edge<K, Double> edge : getOutgoingEdges()) {
-				sendMessageTo(edge.getTarget(), newDistance + edge.getValue());
+			for (Edge<K, Double> edge : getEdges()) {
+				sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
 			}
 		}
 	}
