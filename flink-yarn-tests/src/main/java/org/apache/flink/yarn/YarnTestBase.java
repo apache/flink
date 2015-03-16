@@ -251,24 +251,24 @@ public abstract class YarnTestBase {
 		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
+				// scan each file for prohibited strings.
 				File f = new File(dir.getAbsolutePath()+ "/" + name);
-				// scan each file for 'Exception'.
-				Scanner scanner =  null;
 				try {
-					scanner = new Scanner(f);
+					Scanner scanner = new Scanner(f);
+					while (scanner.hasNextLine()) {
+						final String lineFromFile = scanner.nextLine();
+						for (String aProhibited : prohibited) {
+							if (lineFromFile.contains(aProhibited)) {
+								LOG.warn("Prohibited String '{}' in line '{}'", aProhibited, lineFromFile);
+								return true;
+							}
+						}
+
+					}
 				} catch (FileNotFoundException e) {
 					LOG.warn("Unable to locate file: "+e.getMessage()+" file: "+f.getAbsolutePath());
 				}
-				while (scanner.hasNextLine()) {
-					final String lineFromFile = scanner.nextLine();
-					for(int i = 0; i < prohibited.length; i++) {
-						if(lineFromFile.contains(prohibited[i])) {
-							LOG.warn("Prohibited String '{}' in line '{}'", prohibited[i], lineFromFile);
-							return true;
-						}
-					}
 
-				}
 				return false;
 			}
 		});
