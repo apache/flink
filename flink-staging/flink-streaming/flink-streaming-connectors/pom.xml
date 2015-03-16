@@ -35,6 +35,13 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<!-- Allow users to pass custom kafka versions -->
+	<properties>
+		<kafka.version>0.8.1</kafka.version>
+		<rabbitmq.version>3.3.1</rabbitmq.version>
+		<flume-ng.version>1.5.0</flume-ng.version>
+	</properties>
+
 	<dependencies>
 
 		<dependency>
@@ -46,8 +53,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka_2.10</artifactId>
-			<version>0.8.1</version>
+			<version>${kafka.version}</version>
 			<exclusions>
+				<exclusion>
+					<groupId>org.apache.zookeeper</groupId>
+					<artifactId>zookeeper</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jmx</groupId>
 					<artifactId>jmxri</artifactId>
@@ -90,13 +101,13 @@ under the License.
 		<dependency>
 			<groupId>com.rabbitmq</groupId>
 			<artifactId>amqp-client</artifactId>
-			<version>3.3.1</version>
+			<version>${rabbitmq.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flume</groupId>
 			<artifactId>flume-ng-core</artifactId>
-			<version>1.5.0</version>
+			<version>${flume-ng.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
@@ -202,11 +213,25 @@ under the License.
 			<artifactId>spymemcached</artifactId>
 			<version>2.8.4</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.sling</groupId>
 			<artifactId>org.apache.sling.commons.json</artifactId>
 			<version>2.0.6</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-core</artifactId>
+			<version>0.9-SNAPSHOT</version>
+		</dependency>
+
+		<!-- Curator provides a Zookeeper test cluster, needed to test Kafka -->
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>2.5.0</version>
+			<scope>test</scope>
 		</dependency>
 
 	</dependencies>

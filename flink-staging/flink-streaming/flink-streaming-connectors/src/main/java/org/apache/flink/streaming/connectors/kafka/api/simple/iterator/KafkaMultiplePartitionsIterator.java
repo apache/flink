@@ -30,11 +30,11 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaMultiplePartitionsIterator.class);
 
-	protected List<KafkaOnePartitionIterator> partitions;
+	protected List<KafkaSinglePartitionIterator> partitions;
 	protected final int waitOnEmptyFetch;
 
 	public KafkaMultiplePartitionsIterator(String hostName, String topic, Map<Integer, KafkaOffset> partitionsWithOffset, int waitOnEmptyFetch) {
-		partitions = new ArrayList<KafkaOnePartitionIterator>(partitionsWithOffset.size());
+		partitions = new ArrayList<KafkaSinglePartitionIterator>(partitionsWithOffset.size());
 
 		String[] hostAndPort = hostName.split(":");
 
@@ -44,7 +44,7 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 		this.waitOnEmptyFetch = waitOnEmptyFetch;
 
 		for (Map.Entry<Integer, KafkaOffset> partitionWithOffset : partitionsWithOffset.entrySet()) {
-			partitions.add(new KafkaOnePartitionIterator(
+			partitions.add(new KafkaSinglePartitionIterator(
 					host,
 					port,
 					topic,
@@ -55,7 +55,7 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 
 	@Override
 	public void initialize() throws InterruptedException {
-		for (KafkaOnePartitionIterator partition : partitions) {
+		for (KafkaSinglePartitionIterator partition : partitions) {
 			partition.initialize();
 		}
 	}
@@ -71,26 +71,33 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 	}
 
 	protected int lastCheckedPartitionIndex = -1;
+	private boolean gotNewMessage = false;
 
 	@Override
 	public MessageWithMetadata nextWithOffset() throws InterruptedException {
-		KafkaOnePartitionIterator partition;
+		KafkaSinglePartitionIterator partition;
 
 		while (true) {
 			for (int i = nextPartition(lastCheckedPartitionIndex); i < partitions.size(); i = nextPartition(i)) {
 				partition = partitions.get(i);
 
 				if (partition.fetchHasNext()) {
+					gotNewMessage = true;
 					lastCheckedPartitionIndex = i;
 					return partition.nextWithOffset();
 				}
 			}
 
-			try {
-				Thread.sleep(waitOnEmptyFetch);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+			// do not wait if a new message has been fetched
+			if (!gotNewMessage) {
+				try {
+					Thread.sleep(waitOnEmptyFetch);
+				} catch (InterruptedException e) {
+					LOG.warn("Interrupted while waiting for new messages", e);
+				}
 			}
+
+			gotNewMessage = false;
 		}
 	}
 
