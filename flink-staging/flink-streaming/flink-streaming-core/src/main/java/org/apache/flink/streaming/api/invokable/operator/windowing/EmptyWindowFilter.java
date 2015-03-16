@@ -15,43 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator;
+package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 
-public class FilterInvokable<IN> extends ChainableInvokable<IN, IN> {
+public class EmptyWindowFilter<OUT> implements FilterFunction<StreamWindow<OUT>> {
 
 	private static final long serialVersionUID = 1L;
 
-	FilterFunction<IN> filterFunction;
-	private boolean collect;
-
-	public FilterInvokable(FilterFunction<IN> filterFunction) {
-		super(filterFunction);
-		this.filterFunction = filterFunction;
-	}
-
 	@Override
-	public void invoke() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
+	public boolean filter(StreamWindow<OUT> value) throws Exception {
+		return !value.isEmpty();
 	}
 
-	@Override
-	protected void callUserFunction() throws Exception {
-		collect = filterFunction.filter(copy(nextObject));
-		if (collect) {
-			collector.collect(nextObject);
-		}
-	}
-
-	@Override
-	public void collect(IN record) {
-		if (isRunning) {
-			nextObject = copyInput(record);
-			callUserFunctionAndLogException();
-		}
-	}
 }

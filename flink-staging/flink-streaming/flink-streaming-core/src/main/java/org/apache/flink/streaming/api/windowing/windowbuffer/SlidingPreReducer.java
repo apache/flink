@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
-public abstract class SlidingPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
+public abstract class SlidingPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
 
 	private static final long serialVersionUID = 1L;
 
@@ -45,18 +45,14 @@ public abstract class SlidingPreReducer<T> implements WindowBuffer<T>, CompleteP
 		this.serializer = serializer;
 	}
 
-	public boolean emitWindow(Collector<StreamWindow<T>> collector) {
-		StreamWindow<T> currentWindow = new StreamWindow<T>();
+	public void emitWindow(Collector<StreamWindow<T>> collector) {
+		StreamWindow<T> currentWindow = createEmptyWindow();
 
 		try {
-			if (addFinalAggregate(currentWindow)) {
+			if (addFinalAggregate(currentWindow) || emitEmpty) {
 				collector.collect(currentWindow);
-				afterEmit();
-				return true;
-			} else {
-				afterEmit();
-				return false;
-			}
+			} 
+			afterEmit();
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

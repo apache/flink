@@ -194,10 +194,12 @@ public class StreamingJobGraphGenerator {
 			for (StreamEdge chainable : chainedOutputs) {
 				outputChainedNames.add(chainedNames.get(chainable.getTargetVertex()));
 			}
-			String returnOperatorName = operatorName + " -> (" + StringUtils.join(outputChainedNames, ", ") + ")";
+			String returnOperatorName = operatorName + " -> ("
+					+ StringUtils.join(outputChainedNames, ", ") + ")";
 			return returnOperatorName;
 		} else if (chainedOutputs.size() == 1) {
-			String returnOperatorName = operatorName + " -> " + chainedNames.get(chainedOutputs.get(0).getTargetVertex());
+			String returnOperatorName = operatorName + " -> "
+					+ chainedNames.get(chainedOutputs.get(0).getTargetVertex());
 			return returnOperatorName;
 		} else {
 			return operatorName;
@@ -215,8 +217,7 @@ public class StreamingJobGraphGenerator {
 		}
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Parallelism set: {} for {}", streamGraph.getParallelism(vertexID),
-					vertexID);
+			LOG.debug("Parallelism set: {} for {}", streamGraph.getParallelism(vertexID), vertexID);
 		}
 
 		if (streamGraph.getInputFormat(vertexID) != null) {
@@ -263,7 +264,8 @@ public class StreamingJobGraphGenerator {
 		allOutputs.addAll(nonChainableOutputs);
 
 		for (StreamEdge output : allOutputs) {
-			config.setSelectedNames(output.getTargetVertex(), streamGraph.getEdge(vertexID, output.getTargetVertex()).getSelectedNames());
+			config.setSelectedNames(output.getTargetVertex(),
+					streamGraph.getEdge(vertexID, output.getTargetVertex()).getSelectedNames());
 		}
 
 		vertexConfigs.put(vertexID, config);
@@ -302,15 +304,15 @@ public class StreamingJobGraphGenerator {
 		StreamInvokable<?, ?> headInvokable = streamGraph.getInvokable(vertexID);
 		StreamInvokable<?, ?> outInvokable = streamGraph.getInvokable(outName);
 
-		return
-				streamGraph.getInEdges(outName).size() == 1
-						&& outInvokable != null
-						&& outInvokable.getChainingStrategy() == ChainingStrategy.ALWAYS
-						&& (headInvokable.getChainingStrategy() == ChainingStrategy.HEAD || headInvokable
+		return streamGraph.getInEdges(outName).size() == 1
+				&& outInvokable != null
+				&& outInvokable.getChainingStrategy() == ChainingStrategy.ALWAYS
+				&& (headInvokable.getChainingStrategy() == ChainingStrategy.HEAD || headInvokable
 						.getChainingStrategy() == ChainingStrategy.ALWAYS)
-						&& edge.getPartitioner().getStrategy() == PartitioningStrategy.FORWARD
-						&& streamGraph.getParallelism(vertexID) == streamGraph.getParallelism(outName)
-						&& streamGraph.chaining;
+				&& (edge.getPartitioner().getStrategy() == PartitioningStrategy.FORWARD || streamGraph
+						.getParallelism(outName) == 1)
+				&& streamGraph.getParallelism(vertexID) == streamGraph.getParallelism(outName)
+				&& streamGraph.chaining;
 	}
 
 	private void setSlotSharing() {
