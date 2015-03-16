@@ -23,12 +23,15 @@ import java.util.Map;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.ConnectorSource;
 import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaConsumerIterator;
 import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaIdleConsumerIterator;
 import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaMultiplePartitionsIterator;
+import org.apache.flink.streaming.connectors.kafka.api.simple.offset.BeginningOffset;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.CurrentOffset;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.GivenOffset;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.KafkaOffset;
+import org.apache.flink.streaming.connectors.kafka.api.simple.offset.Offset;
 import org.apache.flink.streaming.connectors.util.DeserializationSchema;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
@@ -42,39 +45,48 @@ import org.slf4j.LoggerFactory;
  * @param <OUT>
  * 		Type of the messages on the topic.
  */
-public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
+public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(PersistentKafkaSource.class);
 
-	protected transient OperatorState<Map<Integer, KafkaOffset>> kafkaOffSet;
-	protected transient Map<Integer, KafkaOffset> partitions;
+	private final String topicId;
+	private final String zookeeperServerAddress;
+	private final int zookeeperSyncTimeMillis;
+	private final int waitOnEmptyFetchMillis;
+	private final KafkaOffset startingOffset;
 
-	private int partition;
+	private transient KafkaConsumerIterator iterator;
+	private transient OperatorState<Map<Integer, KafkaOffset>> kafkaOffSet;
 
-	private int zookeeperSyncTimeMillis;
-	private int waitOnEmptyFetchMillis;
+	private transient Map<Integer, KafkaOffset> partitions;
 
 	/**
 	 * Creates a persistent Kafka source that consumes a topic.
+	 * If there is are no new messages on the topic, this consumer will wait
+	 * 100 milliseconds before trying to fetch messages again.
+	 * The consumer will start consuming from the latest messages in the topic.
 	 *
-	 * @param zookeeperHost
+	 * @param zookeeperAddress
 	 * 		Address of the Zookeeper host (with port number).
 	 * @param topicId
 	 * 		ID of the Kafka topic.
 	 * @param deserializationSchema
 	 * 		User defined deserialization schema.
 	 */
-	public PersistentKafkaSource(String zookeeperHost, String topicId,
+	public PersistentKafkaSource(String zookeeperAddress, String topicId,
 			DeserializationSchema<OUT> deserializationSchema) {
-		this(zookeeperHost, topicId, deserializationSchema, 5000, 500);
+		this(zookeeperAddress, topicId, deserializationSchema, KafkaTopicUtils.DEFAULT_ZOOKEEPER_CONNECTION_TIMEOUT_MS, 100);
 	}
 
 	/**
 	 * Creates a persistent Kafka source that consumes a topic.
+	 * If there is are no new messages on the topic, this consumer will wait
+	 * waitOnEmptyFetchMillis milliseconds before trying to fetch messages again.
+	 * The consumer will start consuming from the latest messages in the topic.
 	 *
-	 * @param zookeeperHost
+	 * @param zookeeperAddress
 	 * 		Address of the Zookeeper host (with port number).
 	 * @param topicId
 	 * 		ID of the Kafka topic.
@@ -85,9 +97,49 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 	 * @param waitOnEmptyFetchMillis
 	 * 		Time to wait before fetching for new message.
 	 */
-	public PersistentKafkaSource(String zookeeperHost, String topicId,
+	public PersistentKafkaSource(String zookeeperAddress, String topicId,
 			DeserializationSchema<OUT> deserializationSchema, int zookeeperSyncTimeMillis, int waitOnEmptyFetchMillis) {
-		super(topicId, zookeeperHost, deserializationSchema);
+		this(zookeeperAddress, topicId, deserializationSchema, zookeeperSyncTimeMillis, waitOnEmptyFetchMillis, Offset.FROM_CURRENT);
+	}
+
+	/**
+	 * Creates a persistent Kafka source that consumes a topic.
+	 * If there is are no new messages on the topic, this consumer will wait
+	 * waitOnEmptyFetchMillis milliseconds before trying to fetch messages again.
+	 *
+	 * @param zookeeperAddress
+	 * 		Address of the Zookeeper host (with port number).
+	 * @param topicId
+	 * 		ID of the Kafka topic.
+	 * @param deserializationSchema
+	 * 		User defined deserialization schema.
+	 * @param zookeeperSyncTimeMillis
+	 * 		Synchronization time with zookeeper.
+	 * @param waitOnEmptyFetchMillis
+	 * 		Time to wait before fetching for new message.
+	 * @param startOffsetType
+	 * 		The offset to start from (beginning or current).
+	 */
+	public PersistentKafkaSource(String zookeeperAddress, String topicId,
+			DeserializationSchema<OUT> deserializationSchema, int zookeeperSyncTimeMillis,
+			int waitOnEmptyFetchMillis, Offset startOffsetType) {
+		super(deserializationSchema);
+
+		this.topicId = topicId;
+		this.zookeeperServerAddress = zookeeperAddress;
+
+		switch (startOffsetType) {
+			case FROM_BEGINNING:
+				this.startingOffset = new BeginningOffset();
+				break;
+			case FROM_CURRENT:
+				this.startingOffset = new CurrentOffset();
+				break;
+			default:
+				this.startingOffset = new CurrentOffset();
+				break;
+		}
+
 		this.zookeeperSyncTimeMillis = zookeeperSyncTimeMillis;
 		this.waitOnEmptyFetchMillis = waitOnEmptyFetchMillis;
 	}
@@ -116,10 +168,8 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 			} else {
 				partitions = new HashMap<Integer, KafkaOffset>();
 
-				partition = indexOfSubtask;
-
 				for (int partitionIndex = indexOfSubtask; partitionIndex < numberOfPartitions; partitionIndex += numberOfSubtasks) {
-					partitions.put(partitionIndex, new CurrentOffset());
+					partitions.put(partitionIndex, startingOffset);
 				}
 
 				kafkaOffSet = new OperatorState<Map<Integer, KafkaOffset>>(partitions);
@@ -159,5 +209,9 @@ public class PersistentKafkaSource<OUT> extends SimpleKafkaSource<OUT> {
 			partitions.put(msg.getPartition(), new GivenOffset(msg.getOffset()));
 			kafkaOffSet.update(partitions);
 		}
+	}
+
+	@Override
+	public void cancel() {
 	}
 }

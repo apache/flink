@@ -14,33 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.streaming.connectors.kafka.partitioner;
 
-package org.apache.flink.streaming.connectors.kafka.config;
+import kafka.producer.Partitioner;
+import java.io.Serializable;
 
-import org.apache.flink.streaming.connectors.util.SerializationSchema;
-
-import kafka.serializer.Encoder;
-import kafka.utils.VerifiableProperties;
-
-/**
- * Wraps an arbitrary SerializationScheme to use as a Kafka Encoder.
- *
- * @param <T>
- * 		Type to serialize
- */
-public class EncoderWrapper<T> extends KafkaConfigWrapper<SerializationSchema<T, byte[]>> implements Encoder<T> {
-
-	public EncoderWrapper(SerializationSchema<T, byte[]> wrapped) {
-		super(wrapped);
-	}
-
-	public EncoderWrapper(VerifiableProperties properties) {
-		super(properties);
-	}
-
-	@Override
-	public byte[] toBytes(T element) {
-		return wrapped.serialize(element);
-	}
+public interface SerializableKafkaPartitioner extends Serializable, Partitioner {
 
 }

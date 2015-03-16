@@ -15,27 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.partitioner;
+package org.apache.flink.streaming.connectors.kafka.api.simple.offset;
 
 /**
- * Kafka partitioner that distributes the data equally by cycling through the output
- * channels.
- *
- * @param <T>
- *     Type to partition.
+ * Enum controlling the offset behavior of the PersistentKafkaSource.
  */
-public class KafkaDistributePartitioner<T> implements KafkaPartitioner<T> {
-
-	private static final long serialVersionUID = 1L;
-	int currentPartition;
-
-	public KafkaDistributePartitioner() {
-		currentPartition = 0;
-	}
-
-	@Override
-	public int partition(T value, int numberOfPartitions) {
-		return currentPartition++ % numberOfPartitions;
-	}
-
+public enum Offset {
+	/**
+	 * Read the Kafka topology from the beginning
+	 */
+	FROM_BEGINNING,
+	/**
+	 * Read the topology from the current offset. (Default).
+	 */
+	FROM_CURRENT
 }

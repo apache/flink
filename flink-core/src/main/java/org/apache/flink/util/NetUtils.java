@@ -18,6 +18,9 @@
 package org.apache.flink.util;
 
 
+import java.net.MalformedURLException;
+import java.net.URL;
+
 public class NetUtils {
 	
 	/**
@@ -36,6 +39,27 @@ public class NetUtils {
 			return fqdn;
 		} else {
 			return fqdn.substring(0, dotPos);
+		}
+	}
+
+	/**
+	 * Method to validate if the given String represents a hostname:port.
+	 *
+	 * Works also for ipv6.
+	 *
+	 * See: http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
+	 */
+	public static void ensureCorrectHostnamePort(String hostPort) {
+		try {
+			URL u = new URL("http://"+hostPort);
+			if(u.getHost() == null) {
+				throw new IllegalArgumentException("The given host:port ('"+hostPort+"') doesn't contain a valid host");
+			}
+			if(u.getPort() == -1) {
+				throw new IllegalArgumentException("The given host:port ('"+hostPort+"') doesn't contain a valid port");
+			}
+		} catch (MalformedURLException e) {
+			throw new IllegalArgumentException("The given host:port ('"+hostPort+"') is invalid", e);
 		}
 	}
 }

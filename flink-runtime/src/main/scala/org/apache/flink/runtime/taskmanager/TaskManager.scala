@@ -451,7 +451,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
       // register the task with the network stack and profiles
       networkEnvironment match {
         case Some(ne) =>
-          log.debug("Register task {} on {}.", task, connectionInfo)
+          log.info("Register task {} on {}.", task, connectionInfo)
           ne.registerTask(task)
         case None => throw new RuntimeException(
           "Network environment has not been properly instantiated.")

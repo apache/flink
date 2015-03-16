@@ -24,6 +24,8 @@ import java.util.Properties;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.exception.ZkMarshallingError;
 import org.I0Itec.zkclient.serialize.ZkSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import kafka.admin.AdminUtils;
 import kafka.api.PartitionMetadata;
@@ -38,32 +40,33 @@ import scala.collection.Seq;
  */
 public class KafkaTopicUtils {
 
-	public static void main(String[] args) {
-		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils("localhost:2181", 5000, 5000);
-//		TopicMetadata para4 = kafkaTopicUtils.getTopicInfo("para4");
-//		PartitionMetadata next = JavaConversions.asJavaCollection(para4.partitionsMetadata()).iterator().next();
-//		next.
-		System.out.println(kafkaTopicUtils.getLeaderBrokerAddressForTopic("para4"));
-	}
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaTopicUtils.class);
 
 	private final ZkClient zkClient;
 
+	public static final int DEFAULT_ZOOKEEPER_SESSION_TIMEOUT_MS = 10000;
+	public static final int DEFAULT_ZOOKEEPER_CONNECTION_TIMEOUT_MS = 10000;
+
 	public KafkaTopicUtils(String zookeeperServer) {
-		this(zookeeperServer, 10000, 10000);
+		this(zookeeperServer, DEFAULT_ZOOKEEPER_SESSION_TIMEOUT_MS, DEFAULT_ZOOKEEPER_CONNECTION_TIMEOUT_MS);
 	}
 
-	public KafkaTopicUtils(String zookeeperServer, int sessionTimeoutMs, int connectionTimeoutMs) {
-		zkClient = new ZkClient(zookeeperServer, sessionTimeoutMs, connectionTimeoutMs,
+	public KafkaTopicUtils(String zookeeperAddress, int sessionTimeoutMs, int connectionTimeoutMs) {
+		zkClient = new ZkClient(zookeeperAddress, sessionTimeoutMs, connectionTimeoutMs,
 				new KafkaZKStringSerializer());
+		zkClient.waitUntilConnected();
 	}
 
 	public void createTopic(String topicName, int numOfPartitions, int replicationFactor) {
-		createTopic(topicName, numOfPartitions, replicationFactor, new Properties());
-	}
-
-	public void createTopic(String topicName, int numOfPartitions, int replicationFactor, Properties topicProperties) {
+		LOG.info("Creating Kafka topic '{}'", topicName);
 		Properties topicConfig = new Properties();
-		AdminUtils.createTopic(zkClient, topicName, numOfPartitions, replicationFactor, topicConfig);
+		if (topicExists(topicName)) {
+			if (LOG.isWarnEnabled()) {
+				LOG.warn("Kafka topic \"{}\" already exists. Returning without action.", topicName);
+			}
+		} else {
+			AdminUtils.createTopic(zkClient, topicName, numOfPartitions, replicationFactor, topicConfig);
+		}
 	}
 
 	public int getNumberOfPartitions(String topicName) {

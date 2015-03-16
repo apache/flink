@@ -43,11 +43,11 @@ import kafka.message.MessageAndOffset;
 /**
  * Iterates the records received from a partition of a Kafka topic as byte arrays.
  */
-public class KafkaOnePartitionIterator implements KafkaConsumerIterator, Serializable {
+public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(KafkaOnePartitionIterator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaSinglePartitionIterator.class);
 
 	private static final long DEFAULT_WAIT_ON_EMPTY_FETCH = 10000L;
 
@@ -74,7 +74,7 @@ public class KafkaOnePartitionIterator implements KafkaConsumerIterator, Seriali
 	 * @param topic Name of the topic to listen to
 	 * @param partition Partition in the chosen topic
 	 */
-	public KafkaOnePartitionIterator(String hostName, int port, String topic, int partition, KafkaOffset initialOffset) {
+	public KafkaSinglePartitionIterator(String hostName, int port, String topic, int partition, KafkaOffset initialOffset) {
 		this.hosts = new ArrayList<String>();
 		hosts.add(hostName);
 		this.port = port;

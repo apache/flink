@@ -257,7 +257,7 @@ public class DataStream<OUT> {
 
 	/**
 	 * Creates a new {@link ConnectedDataStream} by connecting
-	 * {@link DataStream} outputs of (possible) different typea with each other.
+	 * {@link DataStream} outputs of (possible) different types with each other.
 	 * The DataStreams connected using this operator can be used with
 	 * CoFunctions to apply joint transformations.
 	 * 
