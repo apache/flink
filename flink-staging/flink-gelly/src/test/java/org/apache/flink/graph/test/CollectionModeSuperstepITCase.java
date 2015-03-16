@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
@@ -58,20 +59,20 @@ public class CollectionModeSuperstepITCase {
 	
 	public static final class UpdateFunction extends VertexUpdateFunction<Long, Long, Long> {
 		@Override
-		public void updateVertex(Long vertexKey, Long vertexValue, MessageIterator<Long> inMessages) {
+		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
 			long superstep = getSuperstepNumber();
-			Assert.assertEquals(true, vertexValue == superstep);
-			setNewVertexValue(vertexValue + 1);
+			Assert.assertEquals(true, vertex.getValue() == superstep);
+			setNewVertexValue(vertex.getValue() + 1);
 		}
 	}
 	
 	public static final class MessageFunction extends MessagingFunction<Long, Long, Long, Long> {
 		@Override
-		public void sendMessages(Long vertexId, Long vertexValue) {
+		public void sendMessages(Vertex<Long, Long> vertex) {
 			long superstep = getSuperstepNumber();
-			Assert.assertEquals(true, vertexValue == superstep);
+			Assert.assertEquals(true, vertex.getValue() == superstep);
 			//send message to keep vertices active
-			sendMessageToAllNeighbors(vertexValue);
+			sendMessageToAllNeighbors(vertex.getValue());
 		}
 	}
 
