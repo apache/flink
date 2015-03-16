@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
-public class KafkaConstantPartitioner<T> implements KafkaPartitioner<T> {
+public class KafkaConstantPartitioner implements SerializableKafkaPartitioner {
 
 	private static final long serialVersionUID = 1L;
 	private int partition;
@@ -27,8 +27,7 @@ public class KafkaConstantPartitioner<T> implements KafkaPartitioner<T> {
 	}
 
 	@Override
-	public int partition(T value, int numberOfPartitions) {
+	public int partition(Object value, int numberOfPartitions) {
 		return partition;
 	}
-
 }

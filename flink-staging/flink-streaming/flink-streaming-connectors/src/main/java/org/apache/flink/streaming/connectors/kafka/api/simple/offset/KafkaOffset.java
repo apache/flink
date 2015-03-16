@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.api.simple.offset;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,7 +26,7 @@ import kafka.common.TopicAndPartition;
 import kafka.javaapi.OffsetResponse;
 import kafka.javaapi.consumer.SimpleConsumer;
 
-public abstract class KafkaOffset {
+public abstract class KafkaOffset implements Serializable {
 
 	public abstract long getOffset(SimpleConsumer consumer, String topic, int partition,
 			String clientName);

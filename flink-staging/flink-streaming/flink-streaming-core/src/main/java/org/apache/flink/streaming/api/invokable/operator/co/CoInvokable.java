@@ -136,6 +136,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 				LOG.error("Calling user function failed due to: {}",
 						StringUtils.stringifyException(e));
 			}
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -147,6 +148,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 				LOG.error("Calling user function failed due to: {}",
 						StringUtils.stringifyException(e));
 			}
+			throw new RuntimeException(e);
 		}
 	}
 

@@ -35,6 +35,6 @@ public interface StateHandle extends Serializable{
 	 * 
 	 * @return
 	 */
-	public Map<String,OperatorState<?>> getState();
+	public Map<String,OperatorState<?>> getState(ClassLoader userClassloader);
 	
 }

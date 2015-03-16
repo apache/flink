@@ -75,17 +75,17 @@ class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
     case InitBarrierScheduler =>
       context.system.scheduler.schedule(interval,interval,self,BarrierTimeout)
       context.system.scheduler.schedule(2 * interval,2 * interval,self,CompactAndUpdate)
-      log.debug("[FT-MONITOR] Started Stream State Monitor for job {}{}",
+      log.info("Started Stream State Monitor for job {}{}",
         executionGraph.getJobID,executionGraph.getJobName)
       
     case BarrierTimeout =>
       executionGraph.getState match {
         case FAILED | CANCELED | FINISHED =>
-          log.debug("[FT-MONITOR] Stopping monitor for terminated job {}", executionGraph.getJobID)
+          log.info("Stopping monitor for terminated job {}", executionGraph.getJobID)
           self ! PoisonPill
         case _ =>
           curId += 1
-          log.debug("[FT-MONITOR] Sending Barrier to vertices of Job " + executionGraph.getJobName)
+          log.debug("Sending Barrier to vertices of Job " + executionGraph.getJobName)
           vertices.filter(v => v.getJobVertex.getJobVertex.isInputVertex &&
                   v.getExecutionState == RUNNING).foreach(vertex
           => vertex.getCurrentAssignedResource.getInstance.getTaskManager
