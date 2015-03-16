@@ -23,6 +23,7 @@ import java.util.Collection;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
@@ -39,7 +40,34 @@ import org.apache.flink.util.Collector;
 public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	
+
+	// --------------------------------------------------------------------------------------------
+	//  Attributes that allow vertices to access their in/out degrees and the total number of vertices
+	//  inside an iteration.
+	// --------------------------------------------------------------------------------------------
+
+	private long numberOfVertices;
+
+	public long getNumberOfVertices() {
+		return numberOfVertices;
+	}
+
+	void setNumberOfVertices(long numberOfVertices) {
+		this.numberOfVertices = numberOfVertices;
+	}
+
+	//---------------------------------------------------------------------------------------------
+
+	private boolean optDegrees;
+
+	public boolean isOptDegrees() {
+		return optDegrees;
+	}
+
+	void setOptDegrees(boolean optDegrees) {
+		this.optDegrees = optDegrees;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
@@ -49,13 +77,12 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	 * the incoming messages. It may set a new vertex state via {@link #setNewVertexValue(Object)}. If the vertex
 	 * state is changed, it will trigger the sending of messages via the {@link MessagingFunction}.
 	 * 
-	 * @param vertexKey The key (identifier) of the vertex.
-	 * @param vertexValue The value (state) of the vertex.
+	 * @param vertex The vertex.
 	 * @param inMessages The incoming messages to this vertex.
 	 * 
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
-	public abstract void updateVertex(VertexKey vertexKey, VertexValue vertexValue, MessageIterator<Message> inMessages) throws Exception;
+	public abstract void updateVertex(Vertex<VertexKey, VertexValue> vertex, MessageIterator<Message> inMessages) throws Exception;
 	
 	/**
 	 * This method is executed one per superstep before the vertex update function is invoked for each vertex.
@@ -77,8 +104,13 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	 * @param newValue The new vertex value.
 	 */
 	public void setNewVertexValue(VertexValue newValue) {
-		outVal.f1 = newValue;
-		out.collect(outVal);
+		if(isOptDegrees()) {
+			outValWithDegrees.f1.f0 = newValue;
+			outWithDegrees.collect(outValWithDegrees);
+		} else {
+			outVal.setValue(newValue);
+			out.collect(outVal);
+		}
 	}
 	
 	/**
@@ -128,18 +160,51 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	// --------------------------------------------------------------------------------------------
 	
 	private IterationRuntimeContext runtimeContext;
-	
+
 	private Collector<Vertex<VertexKey, VertexValue>> out;
 	
+	private Collector<Vertex<VertexKey, Tuple3<VertexValue, Long, Long>>> outWithDegrees;
+
 	private Vertex<VertexKey, VertexValue> outVal;
-	
-	
+
+	private Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> outValWithDegrees;
+
+
 	void init(IterationRuntimeContext context) {
 		this.runtimeContext = context;
 	}
-	
-	void setOutput(Vertex<VertexKey, VertexValue> val, Collector<Vertex<VertexKey, VertexValue>> out) {
+
+
+
+	void setOutputWithDegrees(Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> outValWithDegrees,
+							Collector<Vertex<VertexKey, Tuple3<VertexValue, Long, Long>>> outWithDegrees) {
+		this.outValWithDegrees = outValWithDegrees;
+		this.outWithDegrees = outWithDegrees;
+	}
+
+	void setOutput(Vertex<VertexKey, VertexValue> outVal, Collector<Vertex<VertexKey, VertexValue>> out) {
+		this.outVal = outVal;
 		this.out = out;
-		this.outVal = val;
+	}
+
+	/**
+	 * In order to hide the Tuple3(actualValue, inDegree, OutDegree) vertex value from the user,
+	 * another function will be called from {@link org.apache.flink.graph.spargel.VertexCentricIteration}.
+	 *
+	 * This function will retrieve the vertex from the vertexState and will set its degrees, afterwards calling
+	 * the regular updateVertex function.
+	 *
+	 * @param vertexState
+	 * @param inMessages
+	 * @throws Exception
+	 */
+	void updateVertexFromVertexCentricIteration(Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> vertexState,
+												MessageIterator<Message> inMessages) throws Exception {
+		Vertex<VertexKey, VertexValue> vertex = new Vertex<VertexKey, VertexValue>(vertexState.getId(),
+				vertexState.getValue().f0);
+		vertex.setInDegree(vertexState.getValue().f1);
+		vertex.setOutDegree(vertexState.getValue().f2);
+
+		updateVertex(vertex, inMessages);
 	}
 }

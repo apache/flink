@@ -64,8 +64,8 @@ public class CommunityDetection implements ProgramDescription {
 		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
 		Graph<Long, Long, Double> graph = Graph.fromDataSet(edges,
 				new MapFunction<Long, Long>() {
-					@Override
-					public Long map(Long label) throws Exception {
+
+					public Long map(Long label) {
 						return label;
 					}
 				}, env);

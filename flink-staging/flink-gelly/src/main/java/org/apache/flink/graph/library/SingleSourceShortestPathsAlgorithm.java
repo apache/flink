@@ -75,7 +75,7 @@ public class SingleSourceShortestPathsAlgorithm<K extends Comparable<K> & Serial
 	public static final class VertexDistanceUpdater<K> extends VertexUpdateFunction<K, Double, Double> {
 
 		@Override
-		public void updateVertex(K vertexKey, Double vertexValue,
+		public void updateVertex(Vertex<K, Double> vertex,
 				MessageIterator<Double> inMessages) {
 
 			Double minDistance = Double.MAX_VALUE;
@@ -86,7 +86,7 @@ public class SingleSourceShortestPathsAlgorithm<K extends Comparable<K> & Serial
 				}
 			}
 
-			if (vertexValue > minDistance) {
+			if (vertex.getValue() > minDistance) {
 				setNewVertexValue(minDistance);
 			}
 		}
@@ -101,10 +101,10 @@ public class SingleSourceShortestPathsAlgorithm<K extends Comparable<K> & Serial
 	public static final class MinDistanceMessenger<K> extends MessagingFunction<K, Double, Double, Double> {
 
 		@Override
-		public void sendMessages(K vertexKey, Double newDistance)
+		public void sendMessages(Vertex<K, Double> vertex)
 				throws Exception {
-			for (Edge<K, Double> edge : getOutgoingEdges()) {
-				sendMessageTo(edge.getTarget(), newDistance + edge.getValue());
+			for (Edge<K, Double> edge : getEdges()) {
+				sendMessageTo(edge.getTarget(), vertex.getValue() + edge.getValue());
 			}
 		}
 	}

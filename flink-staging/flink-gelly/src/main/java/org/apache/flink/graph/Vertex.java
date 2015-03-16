@@ -31,11 +31,19 @@ public class Vertex<K, V> extends Tuple2<K, V> {
 
 	private static final long serialVersionUID = 1L;
 
-	public Vertex(){}
+	private Long inDegree;
+	private Long outDegree;
+
+	public Vertex(){
+		inDegree = 0L;
+		outDegree = 0L;
+	}
 
 	public Vertex(K k, V val) {
 		this.f0 = k;
 		this.f1 = val;
+		inDegree = 0L;
+		outDegree = 0L;
 	}
 
 	public K getId() {
@@ -52,5 +60,21 @@ public class Vertex<K, V> extends Tuple2<K, V> {
 
 	public void setValue(V val) {
 		this.f1 = val;
+	}
+
+	public Long getInDegree() {
+		return inDegree;
+	}
+
+	public void setInDegree(Long inDegree) {
+		this.inDegree = inDegree;
+	}
+
+	public Long getOutDegree() {
+		return outDegree;
+	}
+
+	public void setOutDegree(Long outDegree) {
+		this.outDegree = outDegree;
 	}
 }
