@@ -20,6 +20,7 @@ package org.apache.flink.graph.library;
 
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
@@ -66,12 +67,12 @@ public class LabelPropagationAlgorithm<K extends Comparable<K> & Serializable>
 	 */
 	public static final class UpdateVertexLabel<K> extends VertexUpdateFunction<K, Long, Long> {
 
-		public void updateVertex(K vertexKey, Long vertexValue,
+		public void updateVertex(Vertex<K, Long> vertex,
 				MessageIterator<Long> inMessages) {
 			Map<Long, Long> labelsWithFrequencies = new HashMap<Long, Long>();
 
 			long maxFrequency = 1;
-			long mostFrequentLabel = vertexValue;
+			long mostFrequentLabel = vertex.getValue();
 
 			// store the labels with their frequencies
 			for (Long msg : inMessages) {
@@ -107,8 +108,8 @@ public class LabelPropagationAlgorithm<K extends Comparable<K> & Serializable>
 	 */
 	public static final class SendNewLabelToNeighbors<K> extends MessagingFunction<K, Long, Long, NullValue> {
 
-		public void sendMessages(K vertexKey, Long newLabel) {
-			sendMessageToAllNeighbors(newLabel);
+		public void sendMessages(Vertex<K, Long> vertex) {
+			sendMessageToAllNeighbors(vertex.getValue());
 		}
 	}
 }

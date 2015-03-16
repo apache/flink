@@ -438,6 +438,68 @@ public static final class Messenger extends MessagingFunction {...}
 
 {% endhighlight %}
 
+### Vertex-Centric Iteration Extensions
+A vertex-centric iteration can be extended with information such as the total number of vertices,
+the in degree and out degree. Additionally, the  neighborhood type (in/out/all) over which to
+run the vertex-centric iteration can be specified. By default, the updates from the in-neighbors are used
+to modify the current vertex's state and messages are sent to out-neighbors.
+
+In order to activate these options, the following parameters must be set to true:
+
+<strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property
+can be set using the `setOptNumVertices()` method.
+
+The number of vertices can then be accessed in the vertex update function and in the messaging function
+using the `getNumberOfVertices()` method.
+
+<strong>Degrees</strong>: Accessing the in/out degree for a vertex within an iteration. This property can be set
+using the `setOptDegrees()` method.
+
+The in/out degrees can then be accessed in the vertex update function and in the messaging function, per vertex
+using `vertex.getInDegree()` or `vertex.getOutDegree()`.
+
+<strong>Messaging Direction</strong>: The direction in which messages are sent. This can be either EdgeDirection.IN,
+EdgeDirection.OUT, EdgeDirection.ALL. The messaging direction also dictates the update direction which would be
+EdgeDirection.OUT, EdgeDirection.IN and EdgeDirection.ALL, respectively. This property can be set using the
+`setDirection()` method.
+
+{% highlight java %}
+Graph<Long, Double, Double> graph = ...
+
+// create the vertex-centric iteration
+VertexCentricIteration<Long, Double, Double, Double> iteration =
+			graph.createVertexCentricIteration(
+			new VertexDistanceUpdater(), new MinDistanceMessenger(), maxIterations);
+
+// set the messaging direction
+iteration.setDirection(EdgeDirection.IN);
+
+// set the number of vertices option to true
+iteration.setOptNumVertices(true);
+
+// set the degree option to true
+iteration.setOptDegrees(true);
+
+// run the computation
+graph.runVertexCentricIteration(iteration);
+
+// user-defined functions
+public static final class VertexDistanceUpdater {
+	...
+	// get the number of vertices
+	long numVertices = getNumberOfVertices();
+	...
+}
+
+public static final class MinDistanceMessenger {
+	...
+	// decrement the number of out-degrees
+	outDegree = vertex.getOutDegree() - 1;
+	...
+}
+
+{% endhighlight %}
+
 [Back to top](#top)
 
 

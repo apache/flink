@@ -1143,7 +1143,7 @@ public class Graph<K, VV, EV> {
 	/**
 	 * Runs a Vertex-Centric iteration on the graph.
 	 * No configuration options are provided.
-
+	 *
 	 * @param vertexUpdateFunction the vertex update function
 	 * @param messagingFunction the messaging function
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
@@ -1181,7 +1181,7 @@ public class Graph<K, VV, EV> {
 
 		iteration.configure(parameters);
 
-		DataSet<Vertex<K, VV>> newVertices = vertices.runOperation(iteration);
+		DataSet<Vertex<K, VV>> newVertices = this.getVertices().runOperation(iteration);
 
 		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
 	}

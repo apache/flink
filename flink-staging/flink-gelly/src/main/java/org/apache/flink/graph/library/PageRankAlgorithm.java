@@ -21,6 +21,7 @@ package org.apache.flink.graph.library;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
@@ -63,8 +64,7 @@ public class PageRankAlgorithm<K extends Comparable<K> & Serializable> implement
 		}
 
 		@Override
-		public void updateVertex(K vertexKey, Double vertexValue,
-				MessageIterator<Double> inMessages) {
+		public void updateVertex(Vertex<K, Double> vertex, MessageIterator<Double> inMessages) {
 			double rankSum = 0.0;
 			for (double msg : inMessages) {
 				rankSum += msg;
@@ -91,13 +91,14 @@ public class PageRankAlgorithm<K extends Comparable<K> & Serializable> implement
 		}
 
 		@Override
-		public void sendMessages(K vertexId, Double newRank) {
+		public void sendMessages(Vertex<K, Double> vertex) {
 			if (getSuperstepNumber() == 1) {
 				// initialize vertex ranks
-				newRank = 1.0 / numVertices;
+				vertex.setValue(new Double(1.0 / numVertices));
 			}
-			for (Edge<K, Double> edge : getOutgoingEdges()) {
-				sendMessageTo(edge.getTarget(), newRank * edge.getValue());
+
+			for (Edge<K, Double> edge : getEdges()) {
+				sendMessageTo(edge.getTarget(), vertex.getValue() * edge.getValue());
 			}
 		}
 	}

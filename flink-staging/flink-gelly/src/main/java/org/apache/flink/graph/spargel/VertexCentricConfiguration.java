@@ -20,6 +20,7 @@ package org.apache.flink.graph.spargel;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.IterationConfiguration;
 
 import java.util.ArrayList;
@@ -42,6 +43,15 @@ public class VertexCentricConfiguration extends IterationConfiguration {
 
 	/** the broadcast variables for the messaging function **/
 	private List<Tuple2<String, DataSet<?>>> bcVarsMessaging = new ArrayList<Tuple2<String,DataSet<?>>>();
+
+	/** flag that defines whether the degrees option is set **/
+	private boolean optDegrees = false;
+
+	/** flag that defines whether the number of vertices option is set **/
+	private boolean optNumVertices = false;
+
+	/** the direction in which the messages should be sent **/
+	private EdgeDirection direction = EdgeDirection.OUT;
 
 	public VertexCentricConfiguration() {}
 
@@ -85,5 +95,33 @@ public class VertexCentricConfiguration extends IterationConfiguration {
 		return this.bcVarsMessaging;
 	}
 
+	// ----------------------------------------------------------------------------------
+	// The direction, degrees and the total number of vertices should be optional.
+	// The user can access them by setting the direction, degrees or the numVertices options.
+	// ----------------------------------------------------------------------------------
+
+	public boolean isOptDegrees() {
+		return optDegrees;
+	}
+
+	public void setOptDegrees(boolean optDegrees) {
+		this.optDegrees = optDegrees;
+	}
+
+	public boolean isOptNumVertices() {
+		return optNumVertices;
+	}
+
+	public void setOptNumVertices(boolean optNumVertices) {
+		this.optNumVertices = optNumVertices;
+	}
+
+	public EdgeDirection getDirection() {
+		return direction;
+	}
+
+	public void setDirection(EdgeDirection direction) {
+		this.direction = direction;
+	}
 
 }

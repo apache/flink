@@ -79,7 +79,7 @@ public class CommunityDetectionAlgorithm implements GraphAlgorithm<Long, Long, D
 		}
 
 		@Override
-		public void updateVertex(Long vertexKey, Tuple2<Long, Double> labelScore,
+		public void updateVertex(Vertex<Long, Tuple2<Long, Double>> vertex,
 								MessageIterator<Tuple2<Long, Double>> inMessages) throws Exception {
 
 			// we would like these two maps to be ordered
@@ -116,7 +116,7 @@ public class CommunityDetectionAlgorithm implements GraphAlgorithm<Long, Long, D
 			if(receivedLabelsWithScores.size() > 0) {
 				// find the label with the highest score from the ones received
 				Double maxScore = -Double.MAX_VALUE;
-				Long maxScoreLabel = labelScore.f0;
+				Long maxScoreLabel = vertex.getValue().f0;
 				for (Long curLabel : receivedLabelsWithScores.keySet()) {
 
 					if (receivedLabelsWithScores.get(curLabel) > maxScore) {
@@ -128,7 +128,7 @@ public class CommunityDetectionAlgorithm implements GraphAlgorithm<Long, Long, D
 				// find the highest score of maxScoreLabel
 				Double highestScore = labelsWithHighestScore.get(maxScoreLabel);
 				// re-score the new label
-				if (maxScoreLabel != labelScore.f0) {
+				if (maxScoreLabel != vertex.getValue().f0) {
 					highestScore -= delta / getSuperstepNumber();
 				}
 				// else delta = 0
@@ -143,10 +143,11 @@ public class CommunityDetectionAlgorithm implements GraphAlgorithm<Long, Long, D
 			Tuple2<Long, Double>, Double> {
 
 		@Override
-		public void sendMessages(Long vertexKey, Tuple2<Long, Double> vertexValue) throws Exception {
+		public void sendMessages(Vertex<Long, Tuple2<Long, Double>> vertex) throws Exception {
 
-			for(Edge<Long, Double> edge : getOutgoingEdges()) {
-				sendMessageTo(edge.getTarget(), new Tuple2<Long, Double>(vertexValue.f0, vertexValue.f1 * edge.getValue()));
+			for(Edge<Long, Double> edge : getEdges()) {
+				sendMessageTo(edge.getTarget(), new Tuple2<Long, Double>(vertex.getValue().f0,
+						vertex.getValue().f1 * edge.getValue()));
 			}
 
 		}

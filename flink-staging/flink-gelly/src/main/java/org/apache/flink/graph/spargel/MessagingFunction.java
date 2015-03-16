@@ -26,7 +26,10 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.EdgeDirection;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
@@ -41,21 +44,50 @@ import org.apache.flink.util.Collector;
 public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	
+
+	// --------------------------------------------------------------------------------------------
+	//  Attributes that allow vertices to access their in/out degrees and the total number of vertices
+	//  inside an iteration.
+	// --------------------------------------------------------------------------------------------
+
+	private long numberOfVertices;
+
+	public long getNumberOfVertices() {
+		return numberOfVertices;
+	}
+
+	void setNumberOfVertices(long numberOfVertices) {
+		this.numberOfVertices = numberOfVertices;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Attribute that allows the user to choose the neighborhood type(in/out/all) on which to run
+	//  the vertex centric iteration.
+	// --------------------------------------------------------------------------------------------
+
+	private EdgeDirection direction;
+
+	public EdgeDirection getDirection() {
+		return direction;
+	}
+
+	public void setDirection(EdgeDirection direction) {
+		this.direction = direction;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * This method is invoked once per superstep for each vertex that was changed in that superstep.
 	 * It needs to produce the messages that will be received by vertices in the next superstep.
 	 * 
-	 * @param vertexKey The key of the vertex that was changed.
-	 * @param vertexValue The value (state) of the vertex that was changed.
+	 * @param vertex The vertex that was changed.
 	 * 
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
-	public abstract void sendMessages(VertexKey vertexKey, VertexValue vertexValue) throws Exception;
+	public abstract void sendMessages(Vertex<VertexKey, VertexValue> vertex) throws Exception;
 	
 	/**
 	 * This method is executed one per superstep before the vertex update function is invoked for each vertex.
@@ -73,30 +105,30 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 	
 	
 	/**
-	 * Gets an {@link java.lang.Iterable} with all outgoing edges. This method is mutually exclusive with
+	 * Gets an {@link java.lang.Iterable} with all edges. This method is mutually exclusive with
 	 * {@link #sendMessageToAllNeighbors(Object)} and may be called only once.
 	 * 
 	 * @return An iterator with all outgoing edges.
 	 */
 	@SuppressWarnings("unchecked")
-	public Iterable<Edge<VertexKey, EdgeValue>> getOutgoingEdges() {
+	public Iterable<Edge<VertexKey, EdgeValue>> getEdges() {
 		if (edgesUsed) {
-			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()' exactly once.");
+			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllTargets()' exactly once.");
 		}
 		edgesUsed = true;
 		this.edgeIterator.set((Iterator<Edge<VertexKey, EdgeValue>>) edges);
 		return this.edgeIterator;
 	}
-	
+
 	/**
 	 * Sends the given message to all vertices that are targets of an outgoing edge of the changed vertex.
-	 * This method is mutually exclusive to the method {@link #getOutgoingEdges()} and may be called only once.
+	 * This method is mutually exclusive to the method {@link #getEdges()} and may be called only once.
 	 * 
 	 * @param m The message to send.
 	 */
 	public void sendMessageToAllNeighbors(Message m) {
 		if (edgesUsed) {
-			throw new IllegalStateException("Can use either 'getOutgoingEdges()' or 'sendMessageToAllTargets()' exactly once.");
+			throw new IllegalStateException("Can use either 'getEdges()' or 'sendMessageToAllTargets()' exactly once.");
 		}
 		
 		edgesUsed = true;
@@ -216,6 +248,7 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 		@Override
 		public Edge<VertexKey, EdgeValue> next() {
 			Edge<VertexKey, EdgeValue> next = input.next();
+			edge.setSource(next.f0);
 			edge.setTarget(next.f1);
 			edge.setValue(next.f2);
 			return edge;
@@ -229,5 +262,25 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 		public Iterator<Edge<VertexKey, EdgeValue>> iterator() {
 			return this;
 		}
+	}
+
+	/**
+	 * In order to hide the Tuple3(actualValue, inDegree, outDegree) vertex value from the user,
+	 * another function will be called from {@link org.apache.flink.graph.spargel.VertexCentricIteration}.
+	 *
+	 * This function will retrieve the vertex from the vertexState and will set its degrees, afterwards calling
+	 * the regular sendMessages function.
+	 *
+	 * @param newVertexState
+	 * @throws Exception
+	 */
+	void sendMessagesFromVertexCentricIteration(Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> newVertexState)
+			throws Exception {
+		Vertex<VertexKey, VertexValue> vertex = new Vertex<VertexKey, VertexValue>(newVertexState.getId(),
+				newVertexState.getValue().f0);
+		vertex.setInDegree(newVertexState.getValue().f1);
+		vertex.setOutDegree(newVertexState.getValue().f2);
+
+		sendMessages(vertex);
 	}
 }

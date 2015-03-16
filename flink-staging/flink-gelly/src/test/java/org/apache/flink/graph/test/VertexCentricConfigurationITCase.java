@@ -150,10 +150,10 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		}
 
 		@Override
-		public void updateVertex(Long vertexKey, Long vertexValue, MessageIterator<Long> inMessages) {
+		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
 			long superstep = getSuperstepNumber();
 			aggregator.aggregate(superstep);
-			setNewVertexValue(vertexValue + 1);
+			setNewVertexValue(vertex.getValue() + 1);
 		}
 	}
 	
@@ -178,9 +178,9 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		}
 
 		@Override
-		public void sendMessages(Long vertexId, Long vertexValue) {
+		public void sendMessages(Vertex<Long, Long> vertex) {
 			//send message to keep vertices active
-			sendMessageToAllNeighbors(vertexValue);
+			sendMessageToAllNeighbors(vertex.getValue());
 		}
 	}
 
@@ -188,8 +188,8 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 	public static final class DummyUpdateFunction extends VertexUpdateFunction<Long, Long, Long> {
 
 		@Override
-		public void updateVertex(Long vertexKey, Long vertexValue, MessageIterator<Long> inMessages) {
-			setNewVertexValue(vertexValue + 1);
+		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
+			setNewVertexValue(vertex.getValue() + 1);
 		}
 	}
 	
@@ -197,9 +197,9 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 	public static final class DummyMessageFunction extends MessagingFunction<Long, Long, Long, Long> {
 
 		@Override
-		public void sendMessages(Long vertexId, Long vertexValue) {
+		public void sendMessages(Vertex<Long, Long> vertex) {
 			//send message to keep vertices active
-			sendMessageToAllNeighbors(vertexValue);
+			sendMessageToAllNeighbors(vertex.getValue());
 		}
 	}
 
