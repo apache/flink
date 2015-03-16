@@ -28,7 +28,7 @@ under the License.
 
 The polynomial base feature mapper maps a vector into the polynomial feature space of degree $d$.
 The dimension of the input vector determines the number of polynomial factors whose values are the respective vector entries.
-Given a vector $(x, y, z, \ldots)^T$ the resulting feature vector looks the following:
+Given a vector $(x, y, z, \ldots)^T$ the resulting feature vector looks like:
 
 $$\left(x, y, z, x^2, xy, y^2, yz, z^2, x^3, x^2y, x^2z, xy^2, xyz, xz^2, y^3, \ldots\right)^T$$
 
@@ -38,7 +38,7 @@ Given the vector $\left(3,2\right)^T$, the polynomial base feature vector of deg
  
  $$\left(3^3, 3^2\cdot2, 3\cdot2^2, 2^3, 3^2, 3\cdot2, 2^2, 3, 2\right)^T$$
 
-This transformer can be prepended to all `Transformer` and `Learner` implmeentations which expec an input of type `LabeledVector`.
+This transformer can be prepended to all `Transformer` and `Learner` implementations which expect an input of type `LabeledVector`.
 
 ## Parameters
 

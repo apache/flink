@@ -93,7 +93,7 @@ The alternating least squares implementation can be controlled by the following 
         <td><strong>Blocks</strong></td>
         <td>
           <p>
-            The number of blocks into which the user and item matrix a grouped. 
+            The number of blocks into which the user and item matrix are grouped.
             The fewer blocks one uses, the less data is sent redundantly. 
             However, bigger blocks entail bigger update messages which have to be stored on the heap. 
             If the algorithm fails because of an OutOfMemoryException, then try to increase the number of blocks. 
@@ -117,9 +117,9 @@ The alternating least squares implementation can be controlled by the following 
             Path to a temporary directory into which intermediate results are stored. 
             If this value is set, then the algorithm is split into two preprocessing steps, the ALS iteration  and a post-processing step which calculates a last ALS half-step. 
             The preprocessing steps calculate the <code>OutBlockInformation</code> and <code>InBlockInformation</code> for the given rating matrix. 
-            The result of the individual steps are stored in the specified directory. 
+            The results of the individual steps are stored in the specified directory.
             By splitting the algorithm into multiple smaller steps, Flink does not have to split the available memory amongst too many operators. 
-            This allows the system to process bigger individual messasges and improves the overall performance. 
+            This allows the system to process bigger individual messages and improves the overall performance.
             (Default value: <strong>None</strong>)
           </p>
         </td>
