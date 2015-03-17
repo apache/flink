@@ -34,12 +34,12 @@ public enum DataExchangeMode {
 
 	/**
 	 * The data exchange is decoupled. The sender first produces its entire result and finishes.
-	 * After that, the receiver is stated and may consume the data.
+	 * After that, the receiver is started and may consume the data.
 	 */
 	BATCH,
 
 	/**
-	 * The data exchange starts like ine {@link #PIPELINED} and falls back to {@link #BATCH}
+	 * The data exchange starts like in {@link #PIPELINED} and falls back to {@link #BATCH}
 	 * for recovery runs.
 	 */
 	PIPELINE_WITH_BATCH_FALLBACK;
@@ -59,7 +59,7 @@ public enum DataExchangeMode {
 	}
 
 	/**
-	 * Computes the mode of data exchange to be used for a, given an execution mode and ship strategy.
+	 * Computes the mode of data exchange to be used for a given execution mode and ship strategy.
 	 * The type of the data exchange depends also on whether this connection has been identified to require
 	 * pipeline breaking for deadlock avoidance.
 	 * <ul>
