@@ -76,8 +76,7 @@ public class SpilledSubpartitionViewTest {
 	public static Collection<Object[]> ioMode() {
 		return Arrays.asList(new Object[][]{
 				{IOMode.SYNC},
-				{IOMode.ASYNC}
-		});
+				{IOMode.ASYNC}});
 	}
 
 	@Test

@@ -20,11 +20,10 @@ package org.apache.flink.test.recovery;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.apache.commons.io.FileUtils;
-
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -37,12 +36,11 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-
 import org.junit.Test;
-
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -54,14 +52,17 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
 /**
  * This test verifies the behavior of the recovery in the case when a TaskManager
@@ -77,12 +78,26 @@ import static org.junit.Assert.*;
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
 @SuppressWarnings("serial")
+@RunWith(Parameterized.class)
 public class ProcessFailureBatchRecoveryITCase {
 
 	private static final String READY_MARKER_FILE_PREFIX = "ready_";
 	private static final String PROCEED_MARKER_FILE = "proceed";
 
 	private static final int PARALLELISM = 4;
+
+	private ExecutionMode executionMode;
+
+	public ProcessFailureBatchRecoveryITCase(ExecutionMode executionMode) {
+		this.executionMode = executionMode;
+	}
+
+	@Parameterized.Parameters
+	public static Collection<Object[]> executionMode() {
+		return Arrays.asList(new Object[][]{
+				{ExecutionMode.PIPELINED},
+				{ExecutionMode.BATCH}});
+	}
 
 	@Test
 	public void testTaskManagerProcessFailure() {
@@ -161,6 +176,7 @@ public class ProcessFailureBatchRecoveryITCase {
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
 			env.setDegreeOfParallelism(PARALLELISM);
 			env.setNumberOfExecutionRetries(1);
+			env.getConfig().setExecutionMode(executionMode);
 
 			final long NUM_ELEMENTS = 100000L;
 			final DataSet<Long> result = env.generateSequence(1, NUM_ELEMENTS)
