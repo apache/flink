@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.hadoopcompatibility.mapred.record;
 
 import java.util.Collections;
@@ -24,11 +23,9 @@ import java.util.List;
 
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.java.record.operators.GenericDataSink;
-import org.apache.flink.optimizer.contextcheck.Validatable;
 import org.apache.flink.hadoopcompatibility.mapred.record.datatypes.DefaultFlinkTypeConverter;
 import org.apache.flink.hadoopcompatibility.mapred.record.datatypes.FlinkTypeConverter;
 import org.apache.flink.types.Record;
-import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
 
@@ -45,7 +42,7 @@ import org.apache.hadoop.mapred.OutputFormat;
  *
  * The HadoopDataSink provides a default converter: {@link org.apache.flink.hadoopcompatibility.mapred.record.datatypes.DefaultFlinkTypeConverter}
  **/
-public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable {
+public class HadoopDataSink<K,V> extends GenericDataSink {
 
 	private static String DEFAULT_NAME = "<Unnamed Hadoop Data Sink>";
 
@@ -97,13 +94,5 @@ public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable 
 
 	public JobConf getJobConf() {
 		return this.jobConf;
-	}
-
-	@Override
-	public void check() {
-		// see for more details https://github.com/stratosphere/stratosphere/pull/531
-		if (FileOutputFormat.getOutputPath(jobConf) == null) {
-			throw new NullPointerException("The HadoopDataSink currently expects a correct outputPath.");
-		}
 	}
 }
