@@ -50,4 +50,5 @@ public class BufferTest {
 			// OK => expected exception
 		}
 	}
+
 }

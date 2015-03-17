@@ -89,6 +89,10 @@ public class Buffer {
 			return memorySegment.wrap(0, currentSize).duplicate();
 		}
 	}
+	
+	public BufferRecycler getRecycler(){
+		return recycler;
+	}
 
 	public int getSize() {
 		synchronized (recycleLock) {

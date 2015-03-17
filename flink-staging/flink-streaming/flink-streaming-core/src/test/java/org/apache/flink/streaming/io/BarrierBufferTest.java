@@ -110,26 +110,34 @@ public class BarrierBufferTest {
 		BarrierBuffer bb = new BarrierBuffer(mockIG1, mockAR1);
 		BufferOrEvent nextBoe;
 
-		assertEquals(input.get(0), nextBoe = bb.getNextNonBlocked());
-		assertEquals(input.get(1), nextBoe = bb.getNextNonBlocked());
-		assertEquals(input.get(2), nextBoe = bb.getNextNonBlocked());
+		check(input.get(0), nextBoe = bb.getNextNonBlocked());
+		check(input.get(1), nextBoe = bb.getNextNonBlocked());
+		check(input.get(2), nextBoe = bb.getNextNonBlocked());
 		bb.processSuperstep(nextBoe);
-		assertEquals(input.get(7), nextBoe = bb.getNextNonBlocked());
-		assertEquals(input.get(8), nextBoe = bb.getNextNonBlocked());
+		check(input.get(7), nextBoe = bb.getNextNonBlocked());
+		check(input.get(8), nextBoe = bb.getNextNonBlocked());
 		bb.processSuperstep(nextBoe);
-		assertEquals(input.get(3), nextBoe = bb.getNextNonBlocked());
+		check(input.get(3), nextBoe = bb.getNextNonBlocked());
 		bb.processSuperstep(nextBoe);
-		assertEquals(input.get(10), nextBoe = bb.getNextNonBlocked());
-		assertEquals(input.get(11), nextBoe = bb.getNextNonBlocked());
+		check(input.get(10), nextBoe = bb.getNextNonBlocked());
+		check(input.get(11), nextBoe = bb.getNextNonBlocked());
 		bb.processSuperstep(nextBoe);
-		assertEquals(input.get(4), nextBoe = bb.getNextNonBlocked());
-		assertEquals(input.get(5), nextBoe = bb.getNextNonBlocked());
+		check(input.get(4), nextBoe = bb.getNextNonBlocked());
+		check(input.get(5), nextBoe = bb.getNextNonBlocked());
 		bb.processSuperstep(nextBoe);
-		assertEquals(input.get(12), nextBoe = bb.getNextNonBlocked());
+		check(input.get(12), nextBoe = bb.getNextNonBlocked());
 		bb.processSuperstep(nextBoe);
-		assertEquals(input.get(6), nextBoe = bb.getNextNonBlocked());
-		assertEquals(input.get(9), nextBoe = bb.getNextNonBlocked());
+		check(input.get(6), nextBoe = bb.getNextNonBlocked());
+		check(input.get(9), nextBoe = bb.getNextNonBlocked());
 
+	}
+
+	private static void check(BufferOrEvent expected, BufferOrEvent actual) {
+		assertEquals(expected.isBuffer(), actual.isBuffer());
+		assertEquals(expected.getChannelIndex(), actual.getChannelIndex());
+		if (expected.isEvent()) {
+			assertEquals(expected.getEvent(), actual.getEvent());
+		}
 	}
 
 	protected static class MockInputGate implements InputGate {
