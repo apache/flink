@@ -185,12 +185,11 @@
 	margin: 20px 0;
 }
 
-h1, h2, h3, h4, h5, h6 {
-    padding-top: 28px;
-    margin-top: -28px;
-}
-
 .navbar {
     padding-top: 10px;
     padding-bottom: 10px;
+}
+
+#flink-doc-sidenav {
+    margin-top: 25px;
 }
