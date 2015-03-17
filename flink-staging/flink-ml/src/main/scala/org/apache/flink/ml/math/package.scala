@@ -19,7 +19,8 @@
 package org.apache.flink.ml
 
 /**
- * Convenience to handle Flink's [[org.apache.flink.ml.math.Matrix]] and [[Vector]] abstraction.
+ * Convenience methods to handle Flink's [[org.apache.flink.ml.math.Matrix]] and [[Vector]]
+ * abstraction.
  */
 package object math {
   implicit class RichMatrix(matrix: Matrix) extends Iterable[Double] {
