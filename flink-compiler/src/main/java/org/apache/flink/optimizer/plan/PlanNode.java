@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.plan;
 
 import java.util.ArrayList;
@@ -73,7 +72,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	private double relativeMemoryPerSubTask;					// the amount of memory dedicated to each task, in bytes
 	
-	private int degreeOfParallelism;
+	private int parallelism;
 	
 	private boolean pFlag;							// flag for the internal pruning algorithm
 	
@@ -86,7 +85,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		this.nodeName = nodeName;
 		this.driverStrategy = strategy;
 		
-		this.degreeOfParallelism = template.getDegreeOfParallelism();
+		this.parallelism = template.getParallelism();
 
 		// check, if there is branch at this node. if yes, this candidate must be associated with
 		// the branching template node.
@@ -134,21 +133,21 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Gets the optimizer's pact node for which this plan candidate node was created.
+	 * Gets the node from the optimizer DAG for which this plan candidate node was created.
 	 * 
-	 * @return The template optimizer's node.
+	 * @return The optimizer's DAG node.
 	 */
 	public OptimizerNode getOriginalOptimizerNode() {
 		return this.template;
 	}
 	
 	/**
-	 * Gets the pact contract this node represents in the plan.
+	 * Gets the program operator that this node represents in the plan.
 	 * 
-	 * @return The pact contract this node represents in the plan.
+	 * @return The program operator this node represents in the plan.
 	 */
-	public Operator<?> getPactContract() {
-		return this.template.getPactContract();
+	public Operator<?> getProgramOperator() {
+		return this.template.getOperator();
 	}
 	
 	/**
@@ -252,7 +251,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 			return null;
 		} else {
 			Costs result = cumulativeCosts.clone();
-			if (this.template != null && this.template.getOutgoingConnections() != null) {
+			if (this.template.getOutgoingConnections() != null) {
 				int outDegree = this.template.getOutgoingConnections().size();
 				if (outDegree > 0) {
 					result.divideBy(outDegree);
@@ -302,12 +301,12 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		}
 	}
 	
-	public void setDegreeOfParallelism(int parallelism) {
-		this.degreeOfParallelism = parallelism;
+	public void setParallelism(int parallelism) {
+		this.parallelism = parallelism;
 	}
 	
-	public int getDegreeOfParallelism() {
-		return this.degreeOfParallelism;
+	public int getParallelism() {
+		return this.parallelism;
 	}
 	
 	public long getGuaranteedAvailableMemory() {
@@ -514,7 +513,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 
 	@Override
 	public String toString() {
-		return this.template.getName() + " \"" + getPactContract().getName() + "\" : " + this.driverStrategy +
+		return this.template.getName() + " \"" + getProgramOperator().getName() + "\" : " + this.driverStrategy +
 				" [[ " + this.globalProps + " ]] [[ " + this.localProps + " ]]";
 	}
 	

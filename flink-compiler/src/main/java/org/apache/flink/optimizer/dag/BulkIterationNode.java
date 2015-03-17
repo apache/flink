@@ -31,7 +31,7 @@ import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler.InterestingPropertyVisitor;
+import org.apache.flink.optimizer.Optimizer.InterestingPropertyVisitor;
 import org.apache.flink.optimizer.costs.CostEstimator;
 import org.apache.flink.optimizer.dag.WorksetIterationNode.SingleRootJoiner;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
@@ -62,9 +62,9 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	
 	private OptimizerNode nextPartialSolution;
 	
-	private PactConnection rootConnection;		// connection out of the next partial solution
+	private DagConnection rootConnection;		// connection out of the next partial solution
 	
-	private PactConnection terminationCriterionRootConnection;	// connection out of the term. criterion
+	private DagConnection terminationCriterionRootConnection;	// connection out of the term. criterion
 	
 	private OptimizerNode singleRoot;
 	
@@ -93,7 +93,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 	
 	public BulkIterationBase<?> getIterationContract() {
-		return (BulkIterationBase<?>) getPactContract();
+		return (BulkIterationBase<?>) getOperator();
 	}
 	
 	/**
@@ -133,14 +133,14 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		
 		// check if the root of the step function has the same DOP as the iteration
 		// or if the step function has any operator at all
-		if (nextPartialSolution.getDegreeOfParallelism() != getDegreeOfParallelism() ||
+		if (nextPartialSolution.getParallelism() != getParallelism() ||
 			nextPartialSolution == partialSolution || nextPartialSolution instanceof BinaryUnionNode)
 		{
 			// add a no-op to the root to express the re-partitioning
 			NoOpNode noop = new NoOpNode();
-			noop.setDegreeOfParallelism(getDegreeOfParallelism());
+			noop.setDegreeOfParallelism(getParallelism());
 
-			PactConnection noOpConn = new PactConnection(nextPartialSolution, noop, ExecutionMode.PIPELINED);
+			DagConnection noOpConn = new DagConnection(nextPartialSolution, noop, ExecutionMode.PIPELINED);
 			noop.setIncomingConnection(noOpConn);
 			nextPartialSolution.addOutgoingConnection(noOpConn);
 			
@@ -152,13 +152,13 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		
 		if (terminationCriterion == null) {
 			this.singleRoot = nextPartialSolution;
-			this.rootConnection = new PactConnection(nextPartialSolution, ExecutionMode.PIPELINED);
+			this.rootConnection = new DagConnection(nextPartialSolution, ExecutionMode.PIPELINED);
 		}
 		else {
 			// we have a termination criterion
 			SingleRootJoiner singleRootJoiner = new SingleRootJoiner();
-			this.rootConnection = new PactConnection(nextPartialSolution, singleRootJoiner, ExecutionMode.PIPELINED);
-			this.terminationCriterionRootConnection = new PactConnection(terminationCriterion, singleRootJoiner,
+			this.rootConnection = new DagConnection(nextPartialSolution, singleRootJoiner, ExecutionMode.PIPELINED);
+			this.terminationCriterionRootConnection = new DagConnection(terminationCriterion, singleRootJoiner,
 																		ExecutionMode.PIPELINED);
 
 			singleRootJoiner.setInputs(this.rootConnection, this.terminationCriterionRootConnection);
@@ -323,7 +323,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 					locPropsReq.parameterizeChannel(toNoOp);
 					
 					UnaryOperatorNode rebuildPropertiesNode = new UnaryOperatorNode("Rebuild Partial Solution Properties", FieldList.EMPTY_LIST);
-					rebuildPropertiesNode.setDegreeOfParallelism(candidate.getDegreeOfParallelism());
+					rebuildPropertiesNode.setDegreeOfParallelism(candidate.getParallelism());
 					
 					SingleInputPlanNode rebuildPropertiesPlanNode = new SingleInputPlanNode(rebuildPropertiesNode, "Rebuild Partial Solution Properties", toNoOp, DriverStrategy.UNARY_NO_OP);
 					rebuildPropertiesPlanNode.initProperties(toNoOp.getGlobalProperties(), toNoOp.getLocalProperties());
@@ -352,7 +352,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		// 5) Create a candidate for the Iteration Node for every remaining plan of the step function.
 		if (terminationCriterion == null) {
 			for (PlanNode candidate : candidates) {
-				BulkIterationPlanNode node = new BulkIterationPlanNode(this, "BulkIteration ("+this.getPactContract().getName()+")", in, pspn, candidate);
+				BulkIterationPlanNode node = new BulkIterationPlanNode(this, "BulkIteration ("+this.getOperator().getName()+")", in, pspn, candidate);
 				GlobalProperties gProps = candidate.getGlobalProperties().clone();
 				LocalProperties lProps = candidate.getLocalProperties().clone();
 				node.initProperties(gProps, lProps);
@@ -367,7 +367,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 			for (PlanNode candidate : candidates) {
 				for (PlanNode terminationCandidate : terminationCriterionCandidates) {
 					if (singleRoot.areBranchCompatible(candidate, terminationCandidate)) {
-						BulkIterationPlanNode node = new BulkIterationPlanNode(this, "BulkIteration ("+this.getPactContract().getName()+")", in, pspn, candidate, terminationCandidate);
+						BulkIterationPlanNode node = new BulkIterationPlanNode(this, "BulkIteration ("+this.getOperator().getName()+")", in, pspn, candidate, terminationCandidate);
 						GlobalProperties gProps = candidate.getGlobalProperties().clone();
 						LocalProperties lProps = candidate.getLocalProperties().clone();
 						node.initProperties(gProps, lProps);

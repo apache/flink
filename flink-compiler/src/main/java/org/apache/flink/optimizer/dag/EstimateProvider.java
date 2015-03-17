@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
 
-
+/**
+ * Methods for operators / connections that provide estimated about data size and
+ * characteristics.
+ */
 public interface EstimateProvider {
 	
 	/**

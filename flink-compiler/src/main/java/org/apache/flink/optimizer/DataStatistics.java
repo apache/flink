@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer;
 
 import java.util.HashMap;
@@ -60,11 +59,11 @@ public class DataStatistics {
 	 * Caches the given statistics. They are later retrievable under the given identifier.
 	 * 
 	 * @param statistics The statistics to cache.
-	 * @param identifyer The identifier which may be later used to retrieve the statistics.
+	 * @param identifier The identifier which may be later used to retrieve the statistics.
 	 */
-	public void cacheBaseStatistics(BaseStatistics statistics, String identifyer) {
+	public void cacheBaseStatistics(BaseStatistics statistics, String identifier) {
 		synchronized (this.baseStatisticsCache) {
-			this.baseStatisticsCache.put(identifyer, statistics);
+			this.baseStatisticsCache.put(identifier, statistics);
 		}
 	}
 }

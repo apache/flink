@@ -46,7 +46,7 @@ import org.apache.flink.util.Visitor;
  */
 public class DataSinkNode extends OptimizerNode {
 	
-	protected PactConnection input;			// The input edge
+	protected DagConnection input;			// The input edge
 	
 	/**
 	 * Creates a new DataSinkNode for the given sink operator.
@@ -64,7 +64,7 @@ public class DataSinkNode extends OptimizerNode {
 	 * 
 	 * @return The input connection.
 	 */
-	public PactConnection getInputConnection() {
+	public DagConnection getInputConnection() {
 		return this.input;
 	}
 	
@@ -87,8 +87,8 @@ public class DataSinkNode extends OptimizerNode {
 	 * @return The node's underlying operator.
 	 */
 	@Override
-	public GenericDataSinkBase<?> getPactContract() {
-		return (GenericDataSinkBase<?>) super.getPactContract();
+	public GenericDataSinkBase<?> getOperator() {
+		return (GenericDataSinkBase<?>) super.getOperator();
 	}
 
 	@Override
@@ -97,7 +97,7 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	@Override
-	public List<PactConnection> getIncomingConnections() {
+	public List<DagConnection> getIncomingConnections() {
 		return Collections.singletonList(this.input);
 	}
 
@@ -107,19 +107,19 @@ public class DataSinkNode extends OptimizerNode {
 	 * @return An empty list.
 	 */
 	@Override
-	public List<PactConnection> getOutgoingConnections() {
+	public List<DagConnection> getOutgoingConnections() {
 		return Collections.emptyList();
 	}
 
 	@Override
 	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode defaultExchangeMode) {
-		Operator<?> children = getPactContract().getInput();
+		Operator<?> children = getOperator().getInput();
 
 		final OptimizerNode pred;
-		final PactConnection conn;
+		final DagConnection conn;
 		
 		pred = contractToNode.get(children);
-		conn = new PactConnection(pred, this, defaultExchangeMode);
+		conn = new DagConnection(pred, this, defaultExchangeMode);
 			
 		// create the connection and add it
 		this.input = conn;
@@ -141,8 +141,8 @@ public class DataSinkNode extends OptimizerNode {
 		final InterestingProperties iProps = new InterestingProperties();
 		
 		{
-			final Ordering partitioning = getPactContract().getPartitionOrdering();
-			final DataDistribution dataDist = getPactContract().getDataDistribution();
+			final Ordering partitioning = getOperator().getPartitionOrdering();
+			final DataDistribution dataDist = getOperator().getDataDistribution();
 			final RequestedGlobalProperties partitioningProps = new RequestedGlobalProperties();
 			if (partitioning != null) {
 				if(dataDist != null) {
@@ -156,7 +156,7 @@ public class DataSinkNode extends OptimizerNode {
 		}
 		
 		{
-			final Ordering localOrder = getPactContract().getLocalOrder();
+			final Ordering localOrder = getOperator().getLocalOrder();
 			final RequestedLocalProperties orderProps = new RequestedLocalProperties();
 			if (localOrder != null) {
 				orderProps.setOrdering(localOrder);
@@ -184,7 +184,7 @@ public class DataSinkNode extends OptimizerNode {
 	}
 	
 	@Override
-	protected List<UnclosedBranchDescriptor> getBranchesForParent(PactConnection parent) {
+	protected List<UnclosedBranchDescriptor> getBranchesForParent(DagConnection parent) {
 		// return our own stack of open branches, because nothing is added
 		return this.openBranches;
 	}
@@ -204,8 +204,8 @@ public class DataSinkNode extends OptimizerNode {
 		List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
 		List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
-		final int dop = getDegreeOfParallelism();
-		final int inDop = getPredecessorNode().getDegreeOfParallelism();
+		final int dop = getParallelism();
+		final int inDop = getPredecessorNode().getParallelism();
 
 		final ExecutionMode executionMode = this.input.getDataExchangeMode();
 		final boolean dopChange = dop != inDop;
@@ -224,7 +224,7 @@ public class DataSinkNode extends OptimizerNode {
 					// no need to check whether the created properties meet what we need in case
 					// of ordering or global ordering, because the only interesting properties we have
 					// are what we require
-					outputPlans.add(new SinkPlanNode(this, "DataSink ("+this.getPactContract().getName()+")" ,c));
+					outputPlans.add(new SinkPlanNode(this, "DataSink ("+this.getOperator().getName()+")" ,c));
 				}
 			}
 		}

@@ -26,7 +26,7 @@ import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.operators.AllGroupReduceProperties;
 import org.apache.flink.optimizer.operators.AllGroupWithPartialPreGroupProperties;
 import org.apache.flink.optimizer.operators.GroupReduceProperties;
@@ -67,17 +67,17 @@ public class GroupReduceNode extends SingleInputNode {
 	
 	private List<OperatorDescriptorSingle> initPossibleProperties(Partitioner<?> customPartitioner) {
 		// see if an internal hint dictates the strategy to use
-		final Configuration conf = getPactContract().getParameters();
-		final String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+		final Configuration conf = getOperator().getParameters();
+		final String localStrategy = conf.getString(Optimizer.HINT_LOCAL_STRATEGY, null);
 
 		final boolean useCombiner;
 		if (localStrategy != null) {
-			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT.equals(localStrategy)) {
+			if (Optimizer.HINT_LOCAL_STRATEGY_SORT.equals(localStrategy)) {
 				useCombiner = false;
 			}
-			else if (PactCompiler.HINT_LOCAL_STRATEGY_COMBINING_SORT.equals(localStrategy)) {
+			else if (Optimizer.HINT_LOCAL_STRATEGY_COMBINING_SORT.equals(localStrategy)) {
 				if (!isCombineable()) {
-					PactCompiler.LOG.warn("Strategy hint for GroupReduce '" + getPactContract().getName() + 
+					Optimizer.LOG.warn("Strategy hint for GroupReduce '" + getOperator().getName() +
 						"' requires combinable reduce, but user function is not marked combinable.");
 				}
 				useCombiner = true;
@@ -90,8 +90,8 @@ public class GroupReduceNode extends SingleInputNode {
 		
 		// check if we can work with a grouping (simple reducer), or if we need ordering because of a group order
 		Ordering groupOrder = null;
-		if (getPactContract() instanceof GroupReduceOperatorBase) {
-			groupOrder = ((GroupReduceOperatorBase<?, ?, ?>) getPactContract()).getGroupOrder();
+		if (getOperator() instanceof GroupReduceOperatorBase) {
+			groupOrder = ((GroupReduceOperatorBase<?, ?, ?>) getOperator()).getGroupOrder();
 			if (groupOrder != null && groupOrder.getNumberOfFields() == 0) {
 				groupOrder = null;
 			}
@@ -112,8 +112,8 @@ public class GroupReduceNode extends SingleInputNode {
 	 * @return The operator represented by this optimizer node.
 	 */
 	@Override
-	public GroupReduceOperatorBase<?, ?, ?> getPactContract() {
-		return (GroupReduceOperatorBase<?, ?, ?>) super.getPactContract();
+	public GroupReduceOperatorBase<?, ?, ?> getOperator() {
+		return (GroupReduceOperatorBase<?, ?, ?>) super.getOperator();
 	}
 
 	/**
@@ -123,7 +123,7 @@ public class GroupReduceNode extends SingleInputNode {
 	 * @return True, if a combiner has been given, false otherwise.
 	 */
 	public boolean isCombineable() {
-		return getPactContract().isCombinable();
+		return getOperator().isCombinable();
 	}
 
 	@Override

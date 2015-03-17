@@ -38,7 +38,7 @@ import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties.EmptySemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.CostEstimator;
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
@@ -105,8 +105,8 @@ public class DataSourceNode extends OptimizerNode {
 	 * @return The contract.
 	 */
 	@Override
-	public GenericDataSourceBase<?, ?> getPactContract() {
-		return (GenericDataSourceBase<?, ?>) super.getPactContract();
+	public GenericDataSourceBase<?, ?> getOperator() {
+		return (GenericDataSourceBase<?, ?>) super.getOperator();
 	}
 
 	@Override
@@ -123,8 +123,8 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public List<PactConnection> getIncomingConnections() {
-		return Collections.<PactConnection>emptyList();
+	public List<DagConnection> getIncomingConnections() {
+		return Collections.<DagConnection>emptyList();
 	}
 
 	@Override
@@ -139,13 +139,13 @@ public class DataSourceNode extends OptimizerNode {
 			String inFormatDescription = "<unknown>";
 			
 			try {
-				format = getPactContract().getFormatWrapper().getUserCodeObject();
-				Configuration config = getPactContract().getParameters();
+				format = getOperator().getFormatWrapper().getUserCodeObject();
+				Configuration config = getOperator().getParameters();
 				format.configure(config);
 			}
 			catch (Throwable t) {
-				if (PactCompiler.LOG.isWarnEnabled()) {
-					PactCompiler.LOG.warn("Could not instantiate InputFormat to obtain statistics."
+				if (Optimizer.LOG.isWarnEnabled()) {
+					Optimizer.LOG.warn("Could not instantiate InputFormat to obtain statistics."
 						+ " Limited statistics will be available.", t);
 				}
 				return;
@@ -158,7 +158,7 @@ public class DataSourceNode extends OptimizerNode {
 			}
 			
 			// first of all, get the statistics from the cache
-			final String statisticsKey = getPactContract().getStatisticsKey();
+			final String statisticsKey = getOperator().getStatisticsKey();
 			final BaseStatistics cachedStatistics = statistics.getBaseStatistics(statisticsKey);
 			
 			BaseStatistics bs = null;
@@ -166,16 +166,16 @@ public class DataSourceNode extends OptimizerNode {
 				bs = format.getStatistics(cachedStatistics);
 			}
 			catch (Throwable t) {
-				if (PactCompiler.LOG.isWarnEnabled()) {
-					PactCompiler.LOG.warn("Error obtaining statistics from input format: " + t.getMessage(), t);
+				if (Optimizer.LOG.isWarnEnabled()) {
+					Optimizer.LOG.warn("Error obtaining statistics from input format: " + t.getMessage(), t);
 				}
 			}
 			
 			if (bs != null) {
 				final long len = bs.getTotalInputSize();
 				if (len == BaseStatistics.SIZE_UNKNOWN) {
-					if (PactCompiler.LOG.isInfoEnabled()) {
-						PactCompiler.LOG.info("Compiler could not determine the size of input '" + inFormatDescription + "'. Using default estimates.");
+					if (Optimizer.LOG.isInfoEnabled()) {
+						Optimizer.LOG.info("Compiler could not determine the size of input '" + inFormatDescription + "'. Using default estimates.");
 					}
 				}
 				else if (len >= 0) {
@@ -207,14 +207,14 @@ public class DataSourceNode extends OptimizerNode {
 			return this.cachedPlans;
 		}
 
-		SourcePlanNode candidate = new SourcePlanNode(this, "DataSource ("+this.getPactContract().getName()+")",
+		SourcePlanNode candidate = new SourcePlanNode(this, "DataSource ("+this.getOperator().getName()+")",
 				this.gprops, this.lprops);
 
 		if(!replicatedInput) {
 			candidate.updatePropertiesWithUniqueSets(getUniqueFields());
 
 			final Costs costs = new Costs();
-			if (FileInputFormat.class.isAssignableFrom(getPactContract().getFormatWrapper().getUserCodeClass()) &&
+			if (FileInputFormat.class.isAssignableFrom(getOperator().getFormatWrapper().getUserCodeClass()) &&
 					this.estimatedOutputSize >= 0) {
 				estimator.addFileInputCost(this.estimatedOutputSize, costs);
 			}
@@ -223,10 +223,10 @@ public class DataSourceNode extends OptimizerNode {
 			// replicated input
 			final Costs costs = new Costs();
 			InputFormat<?,?> inputFormat =
-					((ReplicatingInputFormat<?,?>)getPactContract().getFormatWrapper().getUserCodeObject()).getReplicatedInputFormat();
+					((ReplicatingInputFormat<?,?>) getOperator().getFormatWrapper().getUserCodeObject()).getReplicatedInputFormat();
 			if (FileInputFormat.class.isAssignableFrom(inputFormat.getClass()) &&
 					this.estimatedOutputSize >= 0) {
-				estimator.addFileInputCost(this.estimatedOutputSize * this.getDegreeOfParallelism(), costs);
+				estimator.addFileInputCost(this.estimatedOutputSize * this.getParallelism(), costs);
 			}
 			candidate.setCosts(costs);
 		}

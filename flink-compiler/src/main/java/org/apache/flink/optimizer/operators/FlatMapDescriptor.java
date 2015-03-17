@@ -42,7 +42,7 @@ public class FlatMapDescriptor extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, "FlatMap ("+node.getPactContract().getName()+")", in, DriverStrategy.FLAT_MAP);
+		return new SingleInputPlanNode(node, "FlatMap ("+node.getOperator().getName()+")", in, DriverStrategy.FLAT_MAP);
 	}
 
 	@Override

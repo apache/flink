@@ -61,7 +61,7 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 		if (in.getShipStrategy() == ShipStrategyType.FORWARD ||
 				(node.getBroadcastConnections() != null && !node.getBroadcastConnections().isEmpty()))
 		{
-			return new SingleInputPlanNode(node, "Reduce ("+node.getPactContract().getName()+")", in,
+			return new SingleInputPlanNode(node, "Reduce ("+node.getOperator().getName()+")", in,
 											DriverStrategy.SORTED_REDUCE, this.keyList);
 		}
 		else {
@@ -71,10 +71,10 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 			
 			// create an input node for combine with same DOP as input node
 			ReduceNode combinerNode = ((ReduceNode) node).getCombinerUtilityNode();
-			combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
+			combinerNode.setDegreeOfParallelism(in.getSource().getParallelism());
 
 			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode,
-								"Combine ("+node.getPactContract().getName()+")", toCombiner,
+								"Combine ("+node.getOperator().getName()+")", toCombiner,
 								DriverStrategy.SORTED_PARTIAL_REDUCE, this.keyList);
 
 			combiner.setCosts(new Costs(0, 0));
@@ -85,7 +85,7 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 										in.getShipStrategySortOrder(), in.getDataExchangeMode());
 			toReducer.setLocalStrategy(LocalStrategy.SORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
 
-			return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", toReducer,
+			return new SingleInputPlanNode(node, "Reduce("+node.getOperator().getName()+")", toReducer,
 											DriverStrategy.SORTED_REDUCE, this.keyList);
 		}
 	}

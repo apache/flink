@@ -30,7 +30,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.DummyInputFormat;
 import org.apache.flink.optimizer.util.DummyMatchStub;
 import org.apache.flink.optimizer.util.DummyOutputFormat;
@@ -317,7 +317,7 @@ public class DOPChangeTest extends CompilerTestBase {
 		
 		OptimizedPlan oPlan = compileNoStats(plan);
 		
-		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+		JobGraphGenerator jobGen = new JobGraphGenerator();
 		
 		//Compile plan to verify that no error is thrown
 		jobGen.compileJobGraph(oPlan);

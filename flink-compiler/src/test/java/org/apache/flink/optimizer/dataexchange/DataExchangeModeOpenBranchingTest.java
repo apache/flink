@@ -171,7 +171,7 @@ public class DataExchangeModeOpenBranchingTest extends CompilerTestBase {
 
 	private SinkPlanNode findSink(Collection<SinkPlanNode> collection, String name) {
 		for (SinkPlanNode node : collection) {
-			String nodeName = node.getOptimizerNode().getPactContract().getName();
+			String nodeName = node.getOptimizerNode().getOperator().getName();
 			if (nodeName != null && nodeName.equals(name)) {
 				return node;
 			}

@@ -32,7 +32,7 @@ import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
@@ -77,7 +77,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		OptimizedPlan plan = compileWithStats(p);
 		checkPlan(plan);
 		
-		new NepheleJobGraphGenerator().compileJobGraph(plan);
+		new JobGraphGenerator().compileJobGraph(plan);
 	}
 
 	@Test
@@ -89,7 +89,7 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		OptimizedPlan plan = compileNoStats(p);
 		checkPlan(plan);
 		
-		new NepheleJobGraphGenerator().compileJobGraph(plan);
+		new JobGraphGenerator().compileJobGraph(plan);
 	}
 	
 	private void checkPlan(OptimizedPlan plan) {

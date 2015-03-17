@@ -30,7 +30,7 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.NAryUnionPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
@@ -80,7 +80,7 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
 			assertEquals(0.5, mixedUnion.getInput1().getRelativeTempMemory(), 0.0);
 			assertEquals(0.0, mixedUnion.getInput2().getRelativeTempMemory(), 0.0);
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -133,7 +133,7 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
 				assertTrue(c.isOnDynamicPath());
 			}
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

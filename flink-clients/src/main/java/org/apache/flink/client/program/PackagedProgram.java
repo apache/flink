@@ -46,7 +46,7 @@ import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.util.InstantiationUtil;
@@ -255,7 +255,7 @@ public class PackagedProgram {
 		List<DataSinkNode> previewPlan;
 		
 		if (isUsingProgramEntryPoint()) {
-			previewPlan = PactCompiler.createPreOptimizedPlan(getPlan());
+			previewPlan = Optimizer.createPreOptimizedPlan(getPlan());
 		}
 		else if (isUsingInteractiveMode()) {
 			// temporary hack to support the web client
@@ -698,7 +698,7 @@ public class PackagedProgram {
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {
 			this.plan = createProgramPlan(jobName);
-			this.previewPlan = PactCompiler.createPreOptimizedPlan((Plan) plan);
+			this.previewPlan = Optimizer.createPreOptimizedPlan((Plan) plan);
 			
 			// do not go on with anything now!
 			throw new Client.ProgramAbortException();
@@ -707,7 +707,7 @@ public class PackagedProgram {
 		@Override
 		public String getExecutionPlan() throws Exception {
 			Plan plan = createProgramPlan("unused");
-			this.previewPlan = PactCompiler.createPreOptimizedPlan(plan);
+			this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
 			
 			// do not go on with anything now!
 			throw new Client.ProgramAbortException();

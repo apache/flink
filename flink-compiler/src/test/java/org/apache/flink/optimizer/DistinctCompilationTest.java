@@ -78,10 +78,10 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(new FieldList(0, 1), reduceNode.getInput().getLocalStrategyKeys());
 
 			// check DOP
-			assertEquals(6, sourceNode.getDegreeOfParallelism());
-			assertEquals(6, combineNode.getDegreeOfParallelism());
-			assertEquals(8, reduceNode.getDegreeOfParallelism());
-			assertEquals(8, sinkNode.getDegreeOfParallelism());
+			assertEquals(6, sourceNode.getParallelism());
+			assertEquals(6, combineNode.getParallelism());
+			assertEquals(8, reduceNode.getParallelism());
+			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -136,13 +136,13 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
 
 			// check DOP
-			assertEquals(6, sourceNode.getDegreeOfParallelism());
-			assertEquals(6, keyExtractor.getDegreeOfParallelism());
-			assertEquals(6, combineNode.getDegreeOfParallelism());
+			assertEquals(6, sourceNode.getParallelism());
+			assertEquals(6, keyExtractor.getParallelism());
+			assertEquals(6, combineNode.getParallelism());
 
-			assertEquals(8, reduceNode.getDegreeOfParallelism());
-			assertEquals(8, keyProjector.getDegreeOfParallelism());
-			assertEquals(8, sinkNode.getDegreeOfParallelism());
+			assertEquals(8, reduceNode.getParallelism());
+			assertEquals(8, keyProjector.getParallelism());
+			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -192,10 +192,10 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
 
 			// check DOP
-			assertEquals(6, sourceNode.getDegreeOfParallelism());
-			assertEquals(6, combineNode.getDegreeOfParallelism());
-			assertEquals(8, reduceNode.getDegreeOfParallelism());
-			assertEquals(8, sinkNode.getDegreeOfParallelism());
+			assertEquals(6, sourceNode.getParallelism());
+			assertEquals(6, combineNode.getParallelism());
+			assertEquals(8, reduceNode.getParallelism());
+			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

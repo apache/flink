@@ -114,7 +114,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 				traverseChannel(addMapper.getInput());
 			}
 
-			BulkIterationBase<?> operator = (BulkIterationBase<?>) iterationNode.getPactContract();
+			BulkIterationBase<?> operator = (BulkIterationBase<?>) iterationNode.getProgramOperator();
 
 			// set the serializer
 			iterationNode.setSerializerForIterationChannel(createSerializer(operator.getOperatorInfo().getOutputType()));
@@ -133,7 +133,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 				throw new CompilerException("Optimizer cannot compile a workset iteration step function where the solution set delta is produced by a Union node.");
 			}
 			
-			DeltaIterationBase<?, ?> operator = (DeltaIterationBase<?, ?>) iterationNode.getPactContract();
+			DeltaIterationBase<?, ?> operator = (DeltaIterationBase<?, ?>) iterationNode.getProgramOperator();
 			
 			// set the serializers and comparators for the workset iteration
 			iterationNode.setSolutionSetSerializer(createSerializer(operator.getOperatorInfo().getFirstInputType()));
@@ -152,10 +152,10 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		else if (node instanceof SingleInputPlanNode) {
 			SingleInputPlanNode sn = (SingleInputPlanNode) node;
 			
-			if (!(sn.getOptimizerNode().getPactContract() instanceof SingleInputOperator)) {
+			if (!(sn.getOptimizerNode().getOperator() instanceof SingleInputOperator)) {
 				
 				// Special case for delta iterations
-				if(sn.getOptimizerNode().getPactContract() instanceof NoOpUnaryUdfOp) {
+				if(sn.getOptimizerNode().getOperator() instanceof NoOpUnaryUdfOp) {
 					traverseChannel(sn.getInput());
 					return;
 				} else {
@@ -163,7 +163,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 				}
 			}
 			
-			SingleInputOperator<?, ?, ?> singleInputOperator = (SingleInputOperator<?, ?, ?>) sn.getOptimizerNode().getPactContract();
+			SingleInputOperator<?, ?, ?> singleInputOperator = (SingleInputOperator<?, ?, ?>) sn.getOptimizerNode().getOperator();
 			
 			// parameterize the node's driver strategy
 			for(int i=0;i<sn.getDriverStrategy().getNumRequiredComparators();i++) {
@@ -181,11 +181,11 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		else if (node instanceof DualInputPlanNode) {
 			DualInputPlanNode dn = (DualInputPlanNode) node;
 			
-			if (!(dn.getOptimizerNode().getPactContract() instanceof DualInputOperator)) {
+			if (!(dn.getOptimizerNode().getOperator() instanceof DualInputOperator)) {
 				throw new RuntimeException("Wrong operator type found in post pass.");
 			}
 			
-			DualInputOperator<?, ?, ?, ?> dualInputOperator = (DualInputOperator<?, ?, ?, ?>) dn.getOptimizerNode().getPactContract();
+			DualInputOperator<?, ?, ?, ?> dualInputOperator = (DualInputOperator<?, ?, ?, ?>) dn.getOptimizerNode().getOperator();
 			
 			// parameterize the node's driver strategy
 			if (dn.getDriverStrategy().getNumRequiredComparators() > 0) {
@@ -229,7 +229,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 	private void traverseChannel(Channel channel) {
 		
 		PlanNode source = channel.getSource();
-		Operator<?> javaOp = source.getPactContract();
+		Operator<?> javaOp = source.getProgramOperator();
 		
 //		if (!(javaOp instanceof BulkIteration) && !(javaOp instanceof JavaPlanNode)) {
 //			throw new RuntimeException("Wrong operator type found in post pass: " + javaOp);
@@ -271,7 +271,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 	
 	@SuppressWarnings("unchecked")
 	private static <T> TypeInformation<T> getTypeInfoFromSource(SourcePlanNode node) {
-		Operator<?> op = node.getOptimizerNode().getPactContract();
+		Operator<?> op = node.getOptimizerNode().getOperator();
 		
 		if (op instanceof GenericDataSourceBase) {
 			return ((GenericDataSourceBase<T, ?>) op).getOperatorInfo().getOutputType();

@@ -43,7 +43,7 @@ import org.apache.flink.optimizer.plan.NAryUnionPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.DummyInputFormat;
 import org.apache.flink.optimizer.util.DummyOutputFormat;
 import org.apache.flink.optimizer.util.IdentityReduce;
@@ -78,7 +78,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		
 		OptimizedPlan oPlan = compileNoStats(plan);
 		
-		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+		JobGraphGenerator jobGen = new JobGraphGenerator();
 		
 		// Compile plan to verify that no error is thrown
 		jobGen.compileJobGraph(oPlan);
@@ -87,7 +87,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 			
 			@Override
 			public boolean preVisit(PlanNode visitable) {
-				if (visitable instanceof SingleInputPlanNode && visitable.getPactContract() instanceof ReduceOperator) {
+				if (visitable instanceof SingleInputPlanNode && visitable.getProgramOperator() instanceof ReduceOperator) {
 					for (Channel inConn : visitable.getInputs()) {
 						Assert.assertTrue("Reduce should just forward the input if it is already partitioned",
 								inConn.getShipStrategy() == ShipStrategyType.FORWARD); 
@@ -126,7 +126,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 		// return the plan
 		Plan plan = env.createProgramPlan("Test union on new java-api");
 		OptimizedPlan oPlan = compileNoStats(plan);
-		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+		JobGraphGenerator jobGen = new JobGraphGenerator();
 		
 		// Compile plan to verify that no error is thrown
 		jobGen.compileJobGraph(oPlan);
@@ -139,7 +139,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 				/* Test on the union output connections
 				 * It must be under the GroupOperator and the strategy should be forward
 				 */
-				if (visitable instanceof SingleInputPlanNode && visitable.getPactContract() instanceof GroupReduceOperatorBase){
+				if (visitable instanceof SingleInputPlanNode && visitable.getProgramOperator() instanceof GroupReduceOperatorBase){
 					final Channel inConn = ((SingleInputPlanNode) visitable).getInput();
 					Assert.assertTrue("Union should just forward the Partitioning",
 							inConn.getShipStrategy() == ShipStrategyType.FORWARD ); 
@@ -156,7 +156,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
 						final Channel inConn = inputs.next();
 						PlanNode inNode = inConn.getSource();
 						Assert.assertTrue("Input of Union should be FlatMapOperators",
-								inNode.getPactContract() instanceof FlatMapOperatorBase);
+								inNode.getProgramOperator() instanceof FlatMapOperatorBase);
 						Assert.assertTrue("Shipment strategy under union should partition the data",
 								inConn.getShipStrategy() == ShipStrategyType.PARTITION_HASH); 
 					}

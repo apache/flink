@@ -81,10 +81,10 @@ public class DualInputPlanNode extends PlanNode {
 		this.sortOrders = driverSortOrders;
 		
 		if (this.input1.getShipStrategy() == ShipStrategyType.BROADCAST) {
-			this.input1.setReplicationFactor(getDegreeOfParallelism());
+			this.input1.setReplicationFactor(getParallelism());
 		}
 		if (this.input2.getShipStrategy() == ShipStrategyType.BROADCAST) {
-			this.input2.setReplicationFactor(getDegreeOfParallelism());
+			this.input2.setReplicationFactor(getParallelism());
 		}
 		
 		mergeBranchPlanMaps(input1.getSource(), input2.getSource());

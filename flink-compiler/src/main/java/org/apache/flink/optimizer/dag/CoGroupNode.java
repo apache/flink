@@ -50,8 +50,8 @@ public class CoGroupNode extends TwoInputNode {
 	 * @return The CoGroup operator.
 	 */
 	@Override
-	public CoGroupOperatorBase<?, ?, ?, ?> getPactContract() {
-		return (CoGroupOperatorBase<?, ?, ?, ?>) super.getPactContract();
+	public CoGroupOperatorBase<?, ?, ?, ?> getOperator() {
+		return (CoGroupOperatorBase<?, ?, ?, ?>) super.getOperator();
 	}
 
 	@Override
@@ -85,7 +85,7 @@ public class CoGroupNode extends TwoInputNode {
 		Ordering groupOrder1 = null;
 		Ordering groupOrder2 = null;
 		
-		CoGroupOperatorBase<?, ?, ?, ?> cgc = getPactContract();
+		CoGroupOperatorBase<?, ?, ?, ?> cgc = getOperator();
 		groupOrder1 = cgc.getGroupOrderForInputOne();
 		groupOrder2 = cgc.getGroupOrderForInputTwo();
 			

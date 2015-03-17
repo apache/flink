@@ -40,7 +40,7 @@ public final class AllGroupCombineProperties extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, "GroupCombine ("+node.getPactContract().getName()+")", in, DriverStrategy.ALL_GROUP_COMBINE);
+		return new SingleInputPlanNode(node, "GroupCombine ("+node.getOperator().getName()+")", in, DriverStrategy.ALL_GROUP_COMBINE);
 	}
 
 	@Override

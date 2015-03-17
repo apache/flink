@@ -37,7 +37,7 @@ import org.apache.flink.optimizer.CompilerTestBase;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -93,7 +93,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			assertTrue( (ss1 == ShipStrategyType.FORWARD && ss2 == ShipStrategyType.PARTITION_HASH) ||
 						(ss2 == ShipStrategyType.FORWARD && ss1 == ShipStrategyType.PARTITION_HASH) );
 		
-			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
+			new JobGraphGenerator().compileJobGraph(oPlan);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -137,7 +137,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			assertEquals(ShipStrategyType.PARTITION_HASH, joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy());
 			assertEquals(ShipStrategyType.PARTITION_HASH, joinWithSolutionSetNode.getOutgoingChannels().get(1).getShipStrategy());
 			
-			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
+			new JobGraphGenerator().compileJobGraph(oPlan);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -182,7 +182,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			assertEquals(1, joinWithSolutionSetNode.getOutgoingChannels().size());
 			assertEquals(ShipStrategyType.FORWARD, joinWithSolutionSetNode.getOutgoingChannels().get(0).getShipStrategy());
 			
-			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
+			new JobGraphGenerator().compileJobGraph(oPlan);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

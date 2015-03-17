@@ -38,9 +38,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -140,9 +140,9 @@ public abstract class CancellingTestBase {
 	}
 
 	private JobGraph getJobGraph(final Plan plan) throws Exception {
-		final PactCompiler pc = new PactCompiler(new DataStatistics());
+		final Optimizer pc = new Optimizer(new DataStatistics());
 		final OptimizedPlan op = pc.compile(plan);
-		final NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+		final JobGraphGenerator jgg = new JobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 

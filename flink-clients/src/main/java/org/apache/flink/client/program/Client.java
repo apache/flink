@@ -32,13 +32,13 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -66,7 +66,7 @@ public class Client {
 	
 	private final Configuration configuration;	// the configuration describing the job manager address
 	
-	private final PactCompiler compiler;		// the compiler to compile the jobs
+	private final Optimizer compiler;		// the compiler to compile the jobs
 	
 	private boolean printStatusDuringExecution = false;
 	
@@ -88,7 +88,7 @@ public class Client {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
-		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
+		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator());
 	}
 
 	/**
@@ -112,7 +112,7 @@ public class Client {
 			throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
 		}
 
-		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
+		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator());
 	}
 	
 	public void setPrintStatusDuringExecution(boolean print) {
@@ -219,7 +219,7 @@ public class Client {
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
 		} else {
-			NepheleJobGraphGenerator gen = new NepheleJobGraphGenerator();
+			JobGraphGenerator gen = new JobGraphGenerator();
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
 		}
 
@@ -355,12 +355,12 @@ public class Client {
 	
 	public static final class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		
-		private final PactCompiler compiler;
+		private final Optimizer compiler;
 		
 		private FlinkPlan optimizerPlan;
 		
 		
-		private OptimizerPlanEnvironment(PactCompiler compiler) {
+		private OptimizerPlanEnvironment(Optimizer compiler) {
 			this.compiler = compiler;
 		}
 		

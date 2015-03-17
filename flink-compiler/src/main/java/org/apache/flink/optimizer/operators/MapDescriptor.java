@@ -41,7 +41,7 @@ public class MapDescriptor extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, "Map ("+node.getPactContract().getName()+")", in, DriverStrategy.MAP);
+		return new SingleInputPlanNode(node, "Map ("+node.getOperator().getName()+")", in, DriverStrategy.MAP);
 	}
 
 	@Override

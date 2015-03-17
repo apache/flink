@@ -64,17 +64,17 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			SingleInputPlanNode balancer = (SingleInputPlanNode) partitioner.getInput().getSource();
 			
 			assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-			assertEquals(parallelism, sink.getDegreeOfParallelism());
+			assertEquals(parallelism, sink.getParallelism());
 			
 			assertEquals(ShipStrategyType.FORWARD, mapper.getInput().getShipStrategy());
-			assertEquals(parallelism, mapper.getDegreeOfParallelism());
+			assertEquals(parallelism, mapper.getParallelism());
 			
 			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner.getInput().getShipStrategy());
 			assertEquals(part, partitioner.getInput().getPartitioner());
-			assertEquals(parallelism, partitioner.getDegreeOfParallelism());
+			assertEquals(parallelism, partitioner.getParallelism());
 			
 			assertEquals(ShipStrategyType.PARTITION_FORCED_REBALANCE, balancer.getInput().getShipStrategy());
-			assertEquals(parallelism, balancer.getDegreeOfParallelism());
+			assertEquals(parallelism, balancer.getParallelism());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -134,17 +134,17 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			SingleInputPlanNode balancer = (SingleInputPlanNode) partitioner.getInput().getSource();
 			
 			assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-			assertEquals(parallelism, sink.getDegreeOfParallelism());
+			assertEquals(parallelism, sink.getParallelism());
 			
 			assertEquals(ShipStrategyType.FORWARD, mapper.getInput().getShipStrategy());
-			assertEquals(parallelism, mapper.getDegreeOfParallelism());
+			assertEquals(parallelism, mapper.getParallelism());
 			
 			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner.getInput().getShipStrategy());
 			assertEquals(part, partitioner.getInput().getPartitioner());
-			assertEquals(parallelism, partitioner.getDegreeOfParallelism());
+			assertEquals(parallelism, partitioner.getParallelism());
 			
 			assertEquals(ShipStrategyType.PARTITION_FORCED_REBALANCE, balancer.getInput().getShipStrategy());
-			assertEquals(parallelism, balancer.getDegreeOfParallelism());
+			assertEquals(parallelism, balancer.getParallelism());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -206,23 +206,23 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			SingleInputPlanNode balancer = (SingleInputPlanNode) keyExtractor.getInput().getSource();
 			
 			assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-			assertEquals(parallelism, sink.getDegreeOfParallelism());
+			assertEquals(parallelism, sink.getParallelism());
 			
 			assertEquals(ShipStrategyType.FORWARD, mapper.getInput().getShipStrategy());
-			assertEquals(parallelism, mapper.getDegreeOfParallelism());
+			assertEquals(parallelism, mapper.getParallelism());
 			
 			assertEquals(ShipStrategyType.FORWARD, keyRemover.getInput().getShipStrategy());
-			assertEquals(parallelism, keyRemover.getDegreeOfParallelism());
+			assertEquals(parallelism, keyRemover.getParallelism());
 			
 			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner.getInput().getShipStrategy());
 			assertEquals(part, partitioner.getInput().getPartitioner());
-			assertEquals(parallelism, partitioner.getDegreeOfParallelism());
+			assertEquals(parallelism, partitioner.getParallelism());
 			
 			assertEquals(ShipStrategyType.FORWARD, keyExtractor.getInput().getShipStrategy());
-			assertEquals(parallelism, keyExtractor.getDegreeOfParallelism());
+			assertEquals(parallelism, keyExtractor.getParallelism());
 			
 			assertEquals(ShipStrategyType.PARTITION_FORCED_REBALANCE, balancer.getInput().getShipStrategy());
-			assertEquals(parallelism, balancer.getDegreeOfParallelism());
+			assertEquals(parallelism, balancer.getParallelism());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -42,7 +42,7 @@ public class CollectorMapDescriptor extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, "Map ("+node.getPactContract().getName()+")", in, DriverStrategy.COLLECTOR_MAP);
+		return new SingleInputPlanNode(node, "Map ("+node.getOperator().getName()+")", in, DriverStrategy.COLLECTOR_MAP);
 	}
 
 	@Override

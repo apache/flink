@@ -19,42 +19,45 @@
 package org.apache.flink.optimizer.dataproperties;
 
 /**
- * An enumeration tracking the different types of sharding strategies.
+ * An enumeration of the the different types of distributing data across partitions or
+ * parallel workers.
  */
 public enum PartitioningProperty {
 
 	/**
-	 * Any data distribution, i.e., random partitioning or full replication.
+	 * Any possible way of data distribution, including random partitioning and full replication.
 	 */
 	ANY_DISTRIBUTION,
 
 	/**
-	 * Constant indicating no particular partitioning (i.e. random) data distribution.
+	 * A random disjunct (non-replicated) data distribution, where each datum is contained in one partition only.
+	 * This is for example the result of parallel scans of data in a file system like HDFS,
+	 * or the result of a round-robin data distribution.
 	 */
 	RANDOM_PARTITIONED,
 
 	/**
-	 * Constant indicating a hash partitioning.
+	 * A hash partitioning on a certain key.
 	 */
 	HASH_PARTITIONED,
 
 	/**
-	 * Constant indicating a range partitioning.
+	 * A range partitioning on a certain key.
 	 */
 	RANGE_PARTITIONED,
 
 	/**
-	 * Constant indicating any not further specified disjunct partitioning.
+	 * A not further specified partitioning on a key (hash-, or range partitioning, or some other scheme even).
 	 */
 	ANY_PARTITIONING,
 	
 	/**
-	 * Constant indicating full replication of the data to each parallel instance.
+	 *Full replication of the data to each parallel instance.
 	 */
 	FULL_REPLICATION,
 
 	/**
-	 * Constant indicating a forced even re-balancing.
+	 * A forced even re-balancing. All partitions are guaranteed to have almost the same number of records.
 	 */
 	FORCED_REBALANCED,
 	
@@ -95,10 +98,10 @@ public enum PartitioningProperty {
 
 	/**
 	 * Checks, if this property represents a partitioning that is computable.
-	 * Computable partitionings can be recreated through an algorithm. If two sets of data are to
+	 * A computable partitioning can be recreated through an algorithm. If two sets of data are to
 	 * be co-partitioned, it is crucial, that the partitioning schemes are computable.
 	 * <p>
-	 * Examples for computable partitioning schemes are hash- or range-partitionings. An example for a non-computable
+	 * Examples for computable partitioning schemes are hash- or range-partitioning. An example for a non-computable
 	 * partitioning is the implicit partitioning that exists though a globally unique key.
 	 * 
 	 * @return True, if this enum constant is a re-computable partitioning.
