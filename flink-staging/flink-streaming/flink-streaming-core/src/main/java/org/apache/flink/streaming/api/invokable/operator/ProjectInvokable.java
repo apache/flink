@@ -21,9 +21,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 
-public class ProjectInvokable<IN, OUT extends Tuple> extends StreamInvokable<IN, OUT> {
+public class ProjectInvokable<IN, OUT extends Tuple> extends ChainableInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	transient OUT outTuple;
@@ -49,7 +49,7 @@ public class ProjectInvokable<IN, OUT extends Tuple> extends StreamInvokable<IN,
 	@Override
 	protected void callUserFunction() throws Exception {
 		for (int i = 0; i < this.numFields; i++) {
-			outTuple.setField(nextRecord.getField(fields[i]), i);
+			outTuple.setField(((Tuple)nextObject).getField(fields[i]), i);
 		}
 		collector.collect(outTuple);
 	}
@@ -59,5 +59,13 @@ public class ProjectInvokable<IN, OUT extends Tuple> extends StreamInvokable<IN,
 		super.open(config);
 		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
 		outTuple = outTypeSerializer.createInstance();
+	}
+
+	@Override
+	public void collect(IN record) {
+		if (isRunning) {
+			nextObject = copy(record);
+			callUserFunctionAndLogException();
+		}
 	}
 }
