@@ -109,7 +109,7 @@ under the License.
 									<exclude>org.apache.flink:flink-java</exclude>
 									<exclude>org.apache.flink:flink-scala</exclude>
 									<exclude>org.apache.flink:flink-runtime</exclude>
-									<exclude>org.apache.flink:flink-compiler</exclude>
+									<exclude>org.apache.flink:flink-optimizer</exclude>
 									<exclude>org.apache.flink:flink-spargel</exclude>
 									<exclude>org.apache.flink:flink-avro</exclude>
 									<exclude>org.apache.flink:flink-java-examples</exclude>
