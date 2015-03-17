@@ -24,7 +24,7 @@ import java.util.List;
 
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.java.record.operators.GenericDataSink;
-import org.apache.flink.compiler.contextcheck.Validatable;
+import org.apache.flink.optimizer.contextcheck.Validatable;
 import org.apache.flink.hadoopcompatibility.mapred.record.datatypes.DefaultFlinkTypeConverter;
 import org.apache.flink.hadoopcompatibility.mapred.record.datatypes.FlinkTypeConverter;
 import org.apache.flink.types.Record;

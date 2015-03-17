@@ -24,11 +24,11 @@ import org.apache.flink.api.common.functions.Partitioner
 import org.apache.flink.api.scala._
 import org.apache.flink.test.compiler.util.CompilerTestBase
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType
-import org.apache.flink.compiler.plan.SingleInputPlanNode
+import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
-import org.apache.flink.compiler.plan.DualInputPlanNode
+import org.apache.flink.optimizer.plan.DualInputPlanNode
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase
 import org.junit.Ignore
 

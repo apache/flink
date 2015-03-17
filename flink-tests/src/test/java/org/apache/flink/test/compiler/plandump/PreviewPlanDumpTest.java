@@ -21,9 +21,9 @@ package org.apache.flink.test.compiler.plandump;
 import java.util.List;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.dag.DataSinkNode;
-import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.dag.DataSinkNode;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.test.recordJobs.graph.DeltaPageRankWithInitialDeltas;
 import org.apache.flink.test.recordJobs.kmeans.KMeansBroadcast;
 import org.apache.flink.test.recordJobs.kmeans.KMeansSingleStep;
