@@ -280,7 +280,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @return The name of the class implementing the optimizer post-pass.
 	 */
 	public String getPostPassClassName() {
-		return "org.apache.flink.compiler.postpass.RecordModelPostPass";
+		return "org.apache.flink.optimizer.postpass.RecordModelPostPass";
 	}
 
 	/**
