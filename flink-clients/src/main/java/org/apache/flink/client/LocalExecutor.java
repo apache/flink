@@ -34,7 +34,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.PactCompiler;
-import org.apache.flink.optimizer.contextcheck.ContextChecker;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
@@ -135,9 +134,6 @@ public class LocalExecutor extends PlanExecutor {
 		if (plan == null) {
 			throw new IllegalArgumentException("The plan may not be null.");
 		}
-		
-		ContextChecker checker = new ContextChecker();
-		checker.check(plan);
 		
 		synchronized (this.lock) {
 			
