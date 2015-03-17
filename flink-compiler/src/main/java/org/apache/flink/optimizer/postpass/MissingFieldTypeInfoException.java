@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.postpass;
 
 public final class MissingFieldTypeInfoException extends Exception {
