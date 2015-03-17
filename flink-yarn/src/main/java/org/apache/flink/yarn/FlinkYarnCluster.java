@@ -402,7 +402,7 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 		private ApplicationId appId;
 
 		// ------- status information stored in the polling thread
-		private Object lock = new Object();
+		private final Object lock = new Object();
 		private ApplicationReport lastReport;
 
 
