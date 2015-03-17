@@ -99,7 +99,7 @@ public class SortMergeJoinDescriptor extends AbstractJoinDescriptor {
 			inputOrders = tmp;
 		}
 		
-		return new DualInputPlanNode(node, "Join("+node.getPactContract().getName()+")", in1, in2, DriverStrategy.MERGE, this.keys1, this.keys2, inputOrders);
+		return new DualInputPlanNode(node, "Join("+node.getOperator().getName()+")", in1, in2, DriverStrategy.MERGE, this.keys1, this.keys2, inputOrders);
 	}
 
 	@Override

@@ -32,7 +32,7 @@ import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.api.java.record.operators.CoGroupOperator;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
@@ -156,9 +156,9 @@ public class CoGroupITCase extends RecordAPITestBase {
 		CoGroupOperator testCoGrouper = CoGroupOperator.builder(new TestCoGrouper(), StringValue.class, 0, 0)
 			.build();
 		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
-		testCoGrouper.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+		testCoGrouper.getParameters().setString(Optimizer.HINT_LOCAL_STRATEGY,
 				config.getString("CoGroupTest#LocalStrategy", ""));
-		testCoGrouper.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
+		testCoGrouper.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY,
 				config.getString("CoGroupTest#ShipStrategy", ""));
 
 		FileDataSink output = new FileDataSink(new CoGroupOutFormat(), resultPath);
@@ -181,9 +181,9 @@ public class CoGroupITCase extends RecordAPITestBase {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE };
+		String[] localStrategies = { Optimizer.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE };
 
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH };
+		String[] shipStrategies = { Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH };
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

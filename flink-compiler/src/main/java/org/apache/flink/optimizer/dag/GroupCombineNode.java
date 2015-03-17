@@ -54,7 +54,7 @@ public class GroupCombineNode extends SingleInputNode {
 	private List<OperatorDescriptorSingle> initPossibleProperties() {
 
 		// check if we can work with a grouping (simple reducer), or if we need ordering because of a group order
-		Ordering groupOrder = getPactContract().getGroupOrder();
+		Ordering groupOrder = getOperator().getGroupOrder();
 		if (groupOrder != null && groupOrder.getNumberOfFields() == 0) {
 			groupOrder = null;
 		}
@@ -74,8 +74,8 @@ public class GroupCombineNode extends SingleInputNode {
 	 * @return The operator represented by this optimizer node.
 	 */
 	@Override
-	public GroupCombineOperatorBase<?, ?, ?> getPactContract() {
-		return (GroupCombineOperatorBase<?, ?, ?>) super.getPactContract();
+	public GroupCombineOperatorBase<?, ?, ?> getOperator() {
+		return (GroupCombineOperatorBase<?, ?, ?>) super.getOperator();
 	}
 
 	@Override

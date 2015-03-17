@@ -78,7 +78,7 @@ public final class HashJoinBuildSecondProperties extends AbstractJoinDescriptor 
 		else {
 			strategy = DriverStrategy.HYBRIDHASH_BUILD_SECOND;
 		}
-		return new DualInputPlanNode(node, "Join ("+node.getPactContract().getName()+")", in1, in2, strategy, this.keys1, this.keys2);
+		return new DualInputPlanNode(node, "Join ("+node.getOperator().getName()+")", in1, in2, strategy, this.keys1, this.keys2);
 	}
 	
 	@Override

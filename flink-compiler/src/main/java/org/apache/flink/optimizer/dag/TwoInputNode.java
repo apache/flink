@@ -36,7 +36,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.CompilerException;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.CostEstimator;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.InterestingProperties;
@@ -70,9 +70,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 	
 	protected final FieldList keys2; // The set of key fields for the second input
 	
-	protected PactConnection input1; // The first input edge
+	protected DagConnection input1; // The first input edge
 
-	protected PactConnection input2; // The second input edge
+	protected DagConnection input2; // The second input edge
 	
 	private List<OperatorDescriptorDual> cachedDescriptors;
 	
@@ -109,8 +109,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public DualInputOperator<?, ?, ?, ?> getPactContract() {
-		return (DualInputOperator<?, ?, ?, ?>) super.getPactContract();
+	public DualInputOperator<?, ?, ?, ?> getOperator() {
+		return (DualInputOperator<?, ?, ?, ?>) super.getOperator();
 	}
 
 	/**
@@ -118,7 +118,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	 * 
 	 * @return The first input connection.
 	 */
-	public PactConnection getFirstIncomingConnection() {
+	public DagConnection getFirstIncomingConnection() {
 		return this.input1;
 	}
 
@@ -127,7 +127,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 	 * 
 	 * @return The second input connection.
 	 */
-	public PactConnection getSecondIncomingConnection() {
+	public DagConnection getSecondIncomingConnection() {
 		return this.input2;
 	}
 	
@@ -148,8 +148,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 	}
 
 	@Override
-	public List<PactConnection> getIncomingConnections() {
-		ArrayList<PactConnection> inputs = new ArrayList<PactConnection>(2);
+	public List<DagConnection> getIncomingConnections() {
+		ArrayList<DagConnection> inputs = new ArrayList<DagConnection>(2);
 		inputs.add(input1);
 		inputs.add(input2);
 		return inputs;
@@ -159,21 +159,21 @@ public abstract class TwoInputNode extends OptimizerNode {
 	@Override
 	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode defaultExecutionMode) {
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
-		final Configuration conf = getPactContract().getParameters();
+		final Configuration conf = getOperator().getParameters();
 		ShipStrategyType preSet1 = null;
 		ShipStrategyType preSet2 = null;
 		
-		String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
+		String shipStrategy = conf.getString(Optimizer.HINT_SHIP_STRATEGY, null);
 		if (shipStrategy != null) {
-			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
+			if (Optimizer.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
 				preSet1 = preSet2 = ShipStrategyType.FORWARD;
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
+			} else if (Optimizer.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
 				preSet1 = preSet2 = ShipStrategyType.BROADCAST;
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
+			} else if (Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
 				preSet1 = preSet2 = ShipStrategyType.PARTITION_HASH;
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
+			} else if (Optimizer.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
 				preSet1 = preSet2 = ShipStrategyType.PARTITION_RANGE;
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+			} else if (shipStrategy.equalsIgnoreCase(Optimizer.HINT_SHIP_STRATEGY_REPARTITION)) {
 				preSet1 = preSet2 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy: " + shipStrategy);
@@ -181,17 +181,17 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 
 		// see if there is a hint that dictates which shipping strategy to use for the FIRST input
-		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT, null);
+		shipStrategy = conf.getString(Optimizer.HINT_SHIP_STRATEGY_FIRST_INPUT, null);
 		if (shipStrategy != null) {
-			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
+			if (Optimizer.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
 				preSet1 = ShipStrategyType.FORWARD;
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
+			} else if (Optimizer.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
 				preSet1 = ShipStrategyType.BROADCAST;
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
+			} else if (Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
 				preSet1 = ShipStrategyType.PARTITION_HASH;
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
+			} else if (Optimizer.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
 				preSet1 = ShipStrategyType.PARTITION_RANGE;
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+			} else if (shipStrategy.equalsIgnoreCase(Optimizer.HINT_SHIP_STRATEGY_REPARTITION)) {
 				preSet1 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input one: " + shipStrategy);
@@ -199,17 +199,17 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 
 		// see if there is a hint that dictates which shipping strategy to use for the SECOND input
-		shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT, null);
+		shipStrategy = conf.getString(Optimizer.HINT_SHIP_STRATEGY_SECOND_INPUT, null);
 		if (shipStrategy != null) {
-			if (PactCompiler.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
+			if (Optimizer.HINT_SHIP_STRATEGY_FORWARD.equals(shipStrategy)) {
 				preSet2 = ShipStrategyType.FORWARD;
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
+			} else if (Optimizer.HINT_SHIP_STRATEGY_BROADCAST.equals(shipStrategy)) {
 				preSet2 = ShipStrategyType.BROADCAST;
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
+			} else if (Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH.equals(shipStrategy)) {
 				preSet2 = ShipStrategyType.PARTITION_HASH;
-			} else if (PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
+			} else if (Optimizer.HINT_SHIP_STRATEGY_REPARTITION_RANGE.equals(shipStrategy)) {
 				preSet2 = ShipStrategyType.PARTITION_RANGE;
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+			} else if (shipStrategy.equalsIgnoreCase(Optimizer.HINT_SHIP_STRATEGY_REPARTITION)) {
 				preSet2 = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unknown hint for shipping strategy of input two: " + shipStrategy);
@@ -217,18 +217,18 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 		
 		// get the predecessors
-		DualInputOperator<?, ?, ?, ?> contr = getPactContract();
+		DualInputOperator<?, ?, ?, ?> contr = getOperator();
 		
 		Operator<?> leftPred = contr.getFirstInput();
 		Operator<?> rightPred = contr.getSecondInput();
 		
 		OptimizerNode pred1;
-		PactConnection conn1;
+		DagConnection conn1;
 		if (leftPred == null) {
-			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for first input.");
+			throw new CompilerException("Error: Node for '" + getOperator().getName() + "' has no input set for first input.");
 		} else {
 			pred1 = contractToNode.get(leftPred);
-			conn1 = new PactConnection(pred1, this, defaultExecutionMode);
+			conn1 = new DagConnection(pred1, this, defaultExecutionMode);
 			if (preSet1 != null) {
 				conn1.setShipStrategy(preSet1);
 			}
@@ -239,12 +239,12 @@ public abstract class TwoInputNode extends OptimizerNode {
 		pred1.addOutgoingConnection(conn1);
 		
 		OptimizerNode pred2;
-		PactConnection conn2;
+		DagConnection conn2;
 		if (rightPred == null) {
-			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for second input.");
+			throw new CompilerException("Error: Node for '" + getOperator().getName() + "' has no input set for second input.");
 		} else {
 			pred2 = contractToNode.get(rightPred);
-			conn2 = new PactConnection(pred2, this, defaultExecutionMode);
+			conn2 = new DagConnection(pred2, this, defaultExecutionMode);
 			if (preSet2 != null) {
 				conn2.setShipStrategy(preSet2);
 			}
@@ -290,7 +290,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		this.input1.setInterestingProperties(props1);
 		this.input2.setInterestingProperties(props2);
 		
-		for (PactConnection conn : getBroadcastConnections()) {
+		for (DagConnection conn : getBroadcastConnections()) {
 			conn.setInterestingProperties(new InterestingProperties());
 		}
 	}
@@ -314,11 +314,11 @@ public abstract class TwoInputNode extends OptimizerNode {
 		
 		// calculate alternative sub-plans for broadcast inputs
 		final List<Set<? extends NamedChannel>> broadcastPlanChannels = new ArrayList<Set<? extends NamedChannel>>();
-		List<PactConnection> broadcastConnections = getBroadcastConnections();
+		List<DagConnection> broadcastConnections = getBroadcastConnections();
 		List<String> broadcastConnectionNames = getBroadcastConnectionNames();
 
 		for (int i = 0; i < broadcastConnections.size(); i++ ) {
-			PactConnection broadcastConnection = broadcastConnections.get(i);
+			DagConnection broadcastConnection = broadcastConnections.get(i);
 			String broadcastConnectionName = broadcastConnectionNames.get(i);
 			List<PlanNode> broadcastPlanCandidates = broadcastConnection.getSource().getAlternativePlans(estimator);
 
@@ -352,9 +352,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 		final ExecutionMode input1Mode = this.input1.getDataExchangeMode();
 		final ExecutionMode input2Mode = this.input2.getDataExchangeMode();
 
-		final int dop = getDegreeOfParallelism();
-		final int inDop1 = getFirstPredecessorNode().getDegreeOfParallelism();
-		final int inDop2 = getSecondPredecessorNode().getDegreeOfParallelism();
+		final int dop = getParallelism();
+		final int inDop1 = getFirstPredecessorNode().getParallelism();
+		final int inDop2 = getSecondPredecessorNode().getParallelism();
 
 		final boolean dopChange1 = dop != inDop1;
 		final boolean dopChange2 = dop != inDop2;
@@ -720,7 +720,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 
 	@Override
 	public SemanticProperties getSemanticProperties() {
-		return getPactContract().getSemanticProperties();
+		return getOperator().getSemanticProperties();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -737,7 +737,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 			getFirstPredecessorNode().accept(visitor);
 			getSecondPredecessorNode().accept(visitor);
 			
-			for (PactConnection connection : getBroadcastConnections()) {
+			for (DagConnection connection : getBroadcastConnections()) {
 				connection.getSource().accept(visitor);
 			}
 			

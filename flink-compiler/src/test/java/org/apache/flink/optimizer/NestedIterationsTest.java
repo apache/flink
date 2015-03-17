@@ -27,7 +27,7 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.testfunctions.DummyFlatJoinFunction;
 import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
@@ -133,7 +133,7 @@ public class NestedIterationsTest extends CompilerTestBase {
 			OptimizedPlan op = compileNoStats(p);
 			
 			// job graph generator should be able to translate this
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -171,7 +171,7 @@ public class NestedIterationsTest extends CompilerTestBase {
 			OptimizedPlan op = compileNoStats(p);
 			
 			// job graph generator should be able to translate this
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

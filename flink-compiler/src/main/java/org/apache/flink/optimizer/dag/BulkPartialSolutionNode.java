@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
 
 import java.util.Collections;
@@ -49,7 +48,8 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode {
 		if (this.cachedPlans != null) {
 			throw new IllegalStateException();
 		} else {
-			this.cachedPlans = Collections.<PlanNode>singletonList(new BulkPartialSolutionPlanNode(this, "PartialSolution ("+this.getPactContract().getName()+")", gProps, lProps, initialInput));
+			this.cachedPlans = Collections.<PlanNode>singletonList(new BulkPartialSolutionPlanNode(this,
+					"PartialSolution ("+this.getOperator().getName()+")", gProps, lProps, initialInput));
 		}
 	}
 	
@@ -73,13 +73,14 @@ public class BulkPartialSolutionNode extends AbstractPartialSolutionNode {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Gets the contract object for this data source node.
+	 * Gets the operator (here the {@link PartialSolutionPlaceHolder}) that is represented by this
+	 * optimizer node.
 	 * 
-	 * @return The contract.
+	 * @return The operator represented by this optimizer node.
 	 */
 	@Override
-	public PartialSolutionPlaceHolder<?> getPactContract() {
-		return (PartialSolutionPlaceHolder<?>) super.getPactContract();
+	public PartialSolutionPlaceHolder<?> getOperator() {
+		return (PartialSolutionPlaceHolder<?>) super.getOperator();
 	}
 
 	@Override

@@ -28,7 +28,7 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
@@ -52,7 +52,7 @@ public class WorksetIterationCornerCasesTest extends CompilerTestBase {
 			WorksetIterationPlanNode wipn = (WorksetIterationPlanNode) op.getDataSinks().iterator().next().getInput().getSource();
 			assertTrue(wipn.getSolutionSetPlanNode().getOutgoingChannels().isEmpty());
 			
-			NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+			JobGraphGenerator jgg = new JobGraphGenerator();
 			jgg.compileJobGraph(op);
 		}
 		catch (Exception e) {

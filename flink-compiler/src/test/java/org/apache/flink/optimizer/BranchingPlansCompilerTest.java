@@ -47,7 +47,7 @@ import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.testfunctions.DummyFlatJoinFunction;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
@@ -101,7 +101,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	
 			// ---------- compile plan to nephele job graph to verify that no error is thrown ----------
 	
-			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			JobGraphGenerator jobGen = new JobGraphGenerator();
 			jobGen.compileJobGraph(oPlan);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -162,13 +162,13 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			allSinks.add(out3Path);
 			
 			for (SinkPlanNode n : oPlan.getDataSinks()) {
-				String path = ((FileDataSink) n.getSinkNode().getPactContract()).getFilePath();
+				String path = ((FileDataSink) n.getSinkNode().getOperator()).getFilePath();
 				Assert.assertTrue("Invalid data sink.", allSinks.remove(path));
 			}
 			
 			// ---------- compile plan to nephele job graph to verify that no error is thrown ----------
 			
-			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			JobGraphGenerator jobGen = new JobGraphGenerator();
 			jobGen.compileJobGraph(oPlan);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -262,7 +262,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
-			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			JobGraphGenerator jobGen = new JobGraphGenerator();
 			
 			//Compile plan to verify that no error is thrown
 			jobGen.compileJobGraph(oPlan);
@@ -350,13 +350,13 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			allSinks.add(out3Path);
 			
 			for (SinkPlanNode n : oPlan.getDataSinks()) {
-				String path = ((FileDataSink) n.getSinkNode().getPactContract()).getFilePath();
+				String path = ((FileDataSink) n.getSinkNode().getOperator()).getFilePath();
 				Assert.assertTrue("Invalid data sink.", allSinks.remove(path));
 			}
 			
 			// ---------- compile plan to nephele job graph to verify that no error is thrown ----------
 			
-			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			JobGraphGenerator jobGen = new JobGraphGenerator();
 			jobGen.compileJobGraph(oPlan);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -449,7 +449,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
-			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			JobGraphGenerator jobGen = new JobGraphGenerator();
 			
 			//Compile plan to verify that no error is thrown
 			jobGen.compileJobGraph(oPlan);
@@ -495,7 +495,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 				.input2(ma2)
 				.name("Match 2")
 				.build();
-			mat2.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_MERGE);
+			mat2.setParameter(Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_MERGE);
 			
 			FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, mat2);
 			
@@ -505,7 +505,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
-			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			JobGraphGenerator jobGen = new JobGraphGenerator();
 			
 			//Compile plan to verify that no error is thrown
 			jobGen.compileJobGraph(oPlan);
@@ -555,13 +555,13 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			allSinks.add(out2Path);
 			
 			for (SinkPlanNode n : oPlan.getDataSinks()) {
-				String path = ((FileDataSink) n.getSinkNode().getPactContract()).getFilePath();
+				String path = ((FileDataSink) n.getSinkNode().getOperator()).getFilePath();
 				Assert.assertTrue("Invalid data sink.", allSinks.remove(path));
 			}
 			
 			// ---------- compile plan to nephele job graph to verify that no error is thrown ----------
 			
-			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			JobGraphGenerator jobGen = new JobGraphGenerator();
 			jobGen.compileJobGraph(oPlan);
 		} catch (Exception e) {
 			e.printStackTrace();

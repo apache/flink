@@ -71,12 +71,12 @@ public final class GroupCombineProperties extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		node.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
+		node.setDegreeOfParallelism(in.getSource().getParallelism());
 		
 		// sorting key info
 		SingleInputPlanNode singleInputPlanNode = new SingleInputPlanNode(
 				node, 
-				"GroupCombine (" + node.getPactContract().getName() + ")",
+				"GroupCombine (" + node.getOperator().getName() + ")",
 				in, // reuse the combine strategy also used in the group reduce
 				DriverStrategy.SORTED_GROUP_COMBINE, this.keyList);
 

@@ -25,7 +25,7 @@ import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.{CrazyNested, POJO, MutableTuple3,
 CustomType}
-import org.apache.flink.optimizer.PactCompiler
+import org.apache.flink.optimizer.Optimizer
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -324,7 +324,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     val ds =  CollectionDataSets.get3TupleDataSet(env).map(t => t).setParallelism(4)
 
     val cfg: Configuration = new Configuration
-    cfg.setString(PactCompiler.HINT_SHIP_STRATEGY, PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)
+    cfg.setString(Optimizer.HINT_SHIP_STRATEGY, Optimizer.HINT_SHIP_STRATEGY_REPARTITION)
 
     val reduceDs =  ds.reduceGroup(new Tuple3AllGroupReduceWithCombine).withParameters(cfg)
 

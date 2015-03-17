@@ -73,9 +73,9 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(DriverStrategy.ALL_GROUP_REDUCE, reduceNode.getDriverStrategy());
 			
 			// check DOP
-			assertEquals(1, sourceNode.getDegreeOfParallelism());
-			assertEquals(1, reduceNode.getDegreeOfParallelism());
-			assertEquals(1, sinkNode.getDegreeOfParallelism());
+			assertEquals(1, sourceNode.getParallelism());
+			assertEquals(1, reduceNode.getParallelism());
+			assertEquals(1, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -121,10 +121,10 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(DriverStrategy.ALL_GROUP_REDUCE_COMBINE, combineNode.getDriverStrategy());
 			
 			// check DOP
-			assertEquals(8, sourceNode.getDegreeOfParallelism());
-			assertEquals(8, combineNode.getDegreeOfParallelism());
-			assertEquals(1, reduceNode.getDegreeOfParallelism());
-			assertEquals(1, sinkNode.getDegreeOfParallelism());
+			assertEquals(8, sourceNode.getParallelism());
+			assertEquals(8, combineNode.getParallelism());
+			assertEquals(1, reduceNode.getParallelism());
+			assertEquals(1, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -172,9 +172,9 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
-			assertEquals(6, sourceNode.getDegreeOfParallelism());
-			assertEquals(8, reduceNode.getDegreeOfParallelism());
-			assertEquals(8, sinkNode.getDegreeOfParallelism());
+			assertEquals(6, sourceNode.getParallelism());
+			assertEquals(8, reduceNode.getParallelism());
+			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -229,10 +229,10 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
-			assertEquals(6, sourceNode.getDegreeOfParallelism());
-			assertEquals(6, combineNode.getDegreeOfParallelism());
-			assertEquals(8, reduceNode.getDegreeOfParallelism());
-			assertEquals(8, sinkNode.getDegreeOfParallelism());
+			assertEquals(6, sourceNode.getParallelism());
+			assertEquals(6, combineNode.getParallelism());
+			assertEquals(8, reduceNode.getParallelism());
+			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -285,12 +285,12 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
-			assertEquals(6, sourceNode.getDegreeOfParallelism());
-			assertEquals(6, keyExtractor.getDegreeOfParallelism());
+			assertEquals(6, sourceNode.getParallelism());
+			assertEquals(6, keyExtractor.getParallelism());
 			
-			assertEquals(8, reduceNode.getDegreeOfParallelism());
-			assertEquals(8, keyProjector.getDegreeOfParallelism());
-			assertEquals(8, sinkNode.getDegreeOfParallelism());
+			assertEquals(8, reduceNode.getParallelism());
+			assertEquals(8, keyProjector.getParallelism());
+			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -351,13 +351,13 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
-			assertEquals(6, sourceNode.getDegreeOfParallelism());
-			assertEquals(6, keyExtractor.getDegreeOfParallelism());
-			assertEquals(6, combineNode.getDegreeOfParallelism());
+			assertEquals(6, sourceNode.getParallelism());
+			assertEquals(6, keyExtractor.getParallelism());
+			assertEquals(6, combineNode.getParallelism());
 			
-			assertEquals(8, reduceNode.getDegreeOfParallelism());
-			assertEquals(8, keyProjector.getDegreeOfParallelism());
-			assertEquals(8, sinkNode.getDegreeOfParallelism());
+			assertEquals(8, reduceNode.getParallelism());
+			assertEquals(8, keyProjector.getParallelism());
+			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

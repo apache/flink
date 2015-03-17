@@ -49,7 +49,7 @@ public class WorksetNode extends AbstractPartialSolutionNode {
 		if (this.cachedPlans != null) {
 			throw new IllegalStateException();
 		} else {
-			WorksetPlanNode wspn = new WorksetPlanNode(this, "Workset ("+this.getPactContract().getName()+")", gProps, lProps, initialInput);
+			WorksetPlanNode wspn = new WorksetPlanNode(this, "Workset ("+this.getOperator().getName()+")", gProps, lProps, initialInput);
 			this.cachedPlans = Collections.<PlanNode>singletonList(wspn);
 		}
 	}
@@ -79,8 +79,8 @@ public class WorksetNode extends AbstractPartialSolutionNode {
 	 * @return The contract.
 	 */
 	@Override
-	public WorksetPlaceHolder<?> getPactContract() {
-		return (WorksetPlaceHolder<?>) super.getPactContract();
+	public WorksetPlaceHolder<?> getOperator() {
+		return (WorksetPlaceHolder<?>) super.getOperator();
 	}
 
 	@Override
@@ -94,7 +94,7 @@ public class WorksetNode extends AbstractPartialSolutionNode {
 			return;
 		}
 
-		PactConnection worksetInput = this.iterationNode.getSecondIncomingConnection();
+		DagConnection worksetInput = this.iterationNode.getSecondIncomingConnection();
 		OptimizerNode worksetSource = worksetInput.getSource();
 		
 		addClosedBranches(worksetSource.closedBranchingNodes);

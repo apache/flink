@@ -48,10 +48,10 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle {
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		// create in input node for combine with same DOP as input node
-		GroupReduceNode combinerNode = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) node.getPactContract());
-		combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
+		GroupReduceNode combinerNode = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) node.getOperator());
+		combinerNode.setDegreeOfParallelism(in.getSource().getParallelism());
 
-		SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine("+node.getPactContract().getName()+")", in,
+		SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine("+node.getOperator().getName()+")", in,
 				DriverStrategy.SORTED_GROUP_COMBINE);
 		// sorting key info
 		combiner.setDriverKeyInfo(in.getLocalStrategyKeys(), in.getLocalStrategySortOrder(), 0);

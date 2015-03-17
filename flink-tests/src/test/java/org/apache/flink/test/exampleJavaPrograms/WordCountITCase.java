@@ -27,11 +27,6 @@ public class WordCountITCase extends JavaProgramTestBase {
 	protected String textPath;
 	protected String resultPath;
 
-	public WordCountITCase(){
-		setDegreeOfParallelism(4);
-		setNumTaskManagers(2);
-		setTaskManagerNumSlots(2);
-	}
 
 	@Override
 	protected void preSubmit() throws Exception {

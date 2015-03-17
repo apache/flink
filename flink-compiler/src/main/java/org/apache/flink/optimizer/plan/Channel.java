@@ -37,7 +37,30 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
 /**
- * A Channel is a data exchange between two operators.
+ * A Channel represents the result produced by an operator and the data exchange
+ * before the consumption by the target operator.
+ *
+ * The channel defines and tracks various properties and characteristics of the
+ * data set and data exchange.
+ *
+ * Data set characteristics:
+ * <ul>
+ *     <li>The "global properties" of the data, i.e., how the data is distributed across
+ *         partitions</li>
+ *     <li>The "required global properties" of the data, i.e., the global properties that, if absent,
+ *         would cause the program to return a wrong result.</li>
+ *     <li>The "local properties" of the data, i.e., how the data is organized within a partition</li>
+ *     <li>The "required local properties" of the data, i.e., the local properties that, if absent,
+ *         would cause the program to return a wrong result.</li>
+ * </ul>
+ *
+ * Data exchange parameters:
+ * <ul>
+ *     <li>The "ship strategy", i.e., whether to forward the data, shuffle it, broadcast it, ...</li>
+ *     <li>The "ship keys", which are the positions of the key fields in the exchanged records.</li>
+ *     <li>The "data exchange mode", which defines whether to pipeline or batch the exchange</li>
+ *     <li>Several more...</li>
+ * </ul>
  */
 public class Channel implements EstimateProvider, Cloneable, DumpableConnection<PlanNode> {
 	

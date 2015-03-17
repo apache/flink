@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
 
 import java.util.ArrayList;
@@ -48,8 +47,19 @@ import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;
 
 /**
- * This class represents a node in the optimizer's internal representation of the PACT plan. It contains
- * extra information about estimates, hints and data properties.
+ * The OptimizerNode is the base class of all nodes in the optimizer DAG. The optimizer DAG is the
+ * optimizer's representation of a program, created before the actual optimization (which creates different
+ * candidate plans and computes their cost).
+ * <p>>
+ * Nodes in the DAG correspond (almost) one-to-one to the operators in a program. The optimizer DAG is constructed
+ * to hold the additional information that the optimizer needs:
+ * <ul>
+ *     <li>Estimates of the data size processed by each operator</li>
+ *     <li>Helper structures to track where the data flow "splits" and "joins", to support flows that are
+ *         DAGs but not trees.</li>
+ *     <li>Tags and weights to differentiate between loop-variant and -invariant parts of an iteration</li>
+ *     <li>Interesting properties to be used during the enumeration of candidate plans</li>
+ * </ul>
  */
 public abstract class OptimizerNode implements Visitable<OptimizerNode>, EstimateProvider, DumpableNode<OptimizerNode> {
 	
@@ -59,13 +69,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	//                                      Members
 	// --------------------------------------------------------------------------------------------
 
-	private final Operator<?> pactContract; // The operator (Reduce / Join / DataSource / ...)
+	private final Operator<?> operator; // The operator (Reduce / Join / DataSource / ...)
 	
 	private List<String> broadcastConnectionNames = new ArrayList<String>(); // the broadcast inputs names of this node
 	
-	private List<PactConnection> broadcastConnections = new ArrayList<PactConnection>(); // the broadcast inputs of this node
+	private List<DagConnection> broadcastConnections = new ArrayList<DagConnection>(); // the broadcast inputs of this node
 	
-	private List<PactConnection> outgoingConnections; // The links to succeeding nodes
+	private List<DagConnection> outgoingConnections; // The links to succeeding nodes
 
 	private InterestingProperties intProps; // the interesting properties of this node
 	
@@ -88,7 +98,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 
 	// --------------------------------- General Parameters ---------------------------------------
 	
-	private int degreeOfParallelism = -1; // the number of parallel instances of this node
+	private int parallelism = -1; // the number of parallel instances of this node
 	
 	private long minimalMemoryPerSubTask = -1;
 
@@ -105,18 +115,17 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new node for the optimizer plan.
+	 * Creates a new optimizer node that represents the given program operator.
 	 * 
 	 * @param op The operator that the node represents.
 	 */
 	public OptimizerNode(Operator<?> op) {
-		this.pactContract = op;
+		this.operator = op;
 		readStubAnnotations();
 	}
 	
 	protected OptimizerNode(OptimizerNode toCopy) {
-		this.pactContract = toCopy.pactContract;
-		
+		this.operator = toCopy.operator;
 		this.intProps = toCopy.intProps;
 		
 		this.openBranches = toCopy.openBranches;
@@ -125,7 +134,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		this.estimatedOutputSize = toCopy.estimatedOutputSize;
 		this.estimatedNumRecords = toCopy.estimatedNumRecords;
 		
-		this.degreeOfParallelism = toCopy.degreeOfParallelism;
+		this.parallelism = toCopy.parallelism;
 		this.minimalMemoryPerSubTask = toCopy.minimalMemoryPerSubTask;
 		
 		this.id = toCopy.id;
@@ -156,7 +165,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 									ExecutionMode defaultExchangeMode);
 
 	/**
-	 * This function connects the predecessors to this operator.
+	 * This function connects the operators that produce the broadcast inputs to this operator.
 	 *
 	 * @param operatorToNode The map from program operators to optimizer nodes.
 	 * @param defaultExchangeMode The data exchange mode to use, if the operator does not
@@ -164,21 +173,19 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 *
 	 * @throws CompilerException
 	 */
-	public void setBroadcastInputs(Map<Operator<?>, OptimizerNode> operatorToNode, ExecutionMode defaultExchangeMode)
-			throws CompilerException
-	{
+	public void setBroadcastInputs(Map<Operator<?>, OptimizerNode> operatorToNode, ExecutionMode defaultExchangeMode) {
 		// skip for Operators that don't support broadcast variables 
-		if (!(getPactContract() instanceof AbstractUdfOperator<?, ?>)) {
+		if (!(getOperator() instanceof AbstractUdfOperator<?, ?>)) {
 			return;
 		}
 
 		// get all broadcast inputs
-		AbstractUdfOperator<?, ?> operator = ((AbstractUdfOperator<?, ?>) getPactContract());
+		AbstractUdfOperator<?, ?> operator = ((AbstractUdfOperator<?, ?>) getOperator());
 
 		// create connections and add them
 		for (Map.Entry<String, Operator<?>> input : operator.getBroadcastInputs().entrySet()) {
 			OptimizerNode predecessor = operatorToNode.get(input.getValue());
-			PactConnection connection = new PactConnection(predecessor, this,
+			DagConnection connection = new DagConnection(predecessor, this,
 															ShipStrategyType.BROADCAST, defaultExchangeMode);
 			addBroadcastConnection(input.getKey(), connection);
 			predecessor.addOutgoingConnection(connection);
@@ -186,11 +193,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 
 	/**
+	 * Gets all incoming connections of this node.
 	 * This method needs to be overridden by subclasses to return the children.
 	 * 
 	 * @return The list of incoming connections.
 	 */
-	public abstract List<PactConnection> getIncomingConnections();
+	public abstract List<DagConnection> getIncomingConnections();
 
 	/**
 	 * Tells the node to compute the interesting properties for its inputs. The interesting properties
@@ -215,7 +223,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 															List<UnclosedBranchDescriptor> branchesSoFar)
 	{
 		// handle the data flow branching for the broadcast inputs
-		for (PactConnection broadcastInput : getBroadcastConnections()) {
+		for (DagConnection broadcastInput : getBroadcastConnections()) {
 			OptimizerNode bcSource = broadcastInput.getSource();
 			addClosedBranches(bcSource.closedBranchingNodes);
 			
@@ -263,11 +271,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public Iterable<OptimizerNode> getPredecessors() {
 		List<OptimizerNode> allPredecessors = new ArrayList<OptimizerNode>();
 
-		for (PactConnection pactConnection : getIncomingConnections()) {
-			allPredecessors.add(pactConnection.getSource());
+		for (DagConnection dagConnection : getIncomingConnections()) {
+			allPredecessors.add(dagConnection.getSource());
 		}
 		
-		for (PactConnection conn : getBroadcastConnections()) {
+		for (DagConnection conn : getBroadcastConnections()) {
 			allPredecessors.add(conn.getSource());
 		}
 		
@@ -306,7 +314,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @param broadcastConnection The connection to add.
 	 */
-	public void addBroadcastConnection(String name, PactConnection broadcastConnection) {
+	public void addBroadcastConnection(String name, DagConnection broadcastConnection) {
 		this.broadcastConnectionNames.add(name);
 		this.broadcastConnections.add(broadcastConnection);
 	}
@@ -321,26 +329,26 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	/**
 	 * Return the list of inputs associated with broadcast variables for this node.
 	 */
-	public List<PactConnection> getBroadcastConnections() {
+	public List<DagConnection> getBroadcastConnections() {
 		return this.broadcastConnections;
 	}
 
 	/**
 	 * Adds a new outgoing connection to this node.
 	 * 
-	 * @param pactConnection
+	 * @param connection
 	 *        The connection to add.
 	 */
-	public void addOutgoingConnection(PactConnection pactConnection) {
+	public void addOutgoingConnection(DagConnection connection) {
 		if (this.outgoingConnections == null) {
-			this.outgoingConnections = new ArrayList<PactConnection>();
+			this.outgoingConnections = new ArrayList<DagConnection>();
 		} else {
 			if (this.outgoingConnections.size() == 64) {
 				throw new CompilerException("Cannot currently handle nodes with more than 64 outputs.");
 			}
 		}
 
-		this.outgoingConnections.add(pactConnection);
+		this.outgoingConnections.add(connection);
 	}
 
 	/**
@@ -348,7 +356,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return The list of outgoing connections.
 	 */
-	public List<PactConnection> getOutgoingConnections() {
+	public List<DagConnection> getOutgoingConnections() {
 		return this.outgoingConnections;
 	}
 
@@ -357,8 +365,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return This node's operator.
 	 */
-	public Operator<?> getPactContract() {
-		return this.pactContract;
+	public Operator<?> getOperator() {
+		return this.operator;
 	}
 
 	/**
@@ -369,8 +377,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * 
 	 * @return The parallelism of the operator.
 	 */
-	public int getDegreeOfParallelism() {
-		return this.degreeOfParallelism;
+	public int getParallelism() {
+		return this.parallelism;
 	}
 
 	/**
@@ -386,7 +394,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		if (parallelism < 1 && parallelism != -1) {
 			throw new IllegalArgumentException("Degree of parallelism of " + parallelism + " is invalid.");
 		}
-		this.degreeOfParallelism = parallelism;
+		this.parallelism = parallelism;
 	}
 	
 	/**
@@ -395,7 +403,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @return The total amount of memory across all subtasks.
 	 */
 	public long getMinimalMemoryAcrossAllSubTasks() {
-		return this.minimalMemoryPerSubTask == -1 ? -1 : this.minimalMemoryPerSubTask * this.degreeOfParallelism;
+		return this.minimalMemoryPerSubTask == -1 ? -1 : this.minimalMemoryPerSubTask * this.parallelism;
 	}
 	
 	public boolean isOnDynamicPath() {
@@ -406,13 +414,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		boolean anyDynamic = false;
 		boolean allDynamic = true;
 		
-		for (PactConnection conn : getIncomingConnections()) {
+		for (DagConnection conn : getIncomingConnections()) {
 			boolean dynamicIn = conn.isOnDynamicPath();
 			anyDynamic |= dynamicIn;
 			allDynamic &= dynamicIn;
 		}
 		
-		for (PactConnection conn : getBroadcastConnections()) {
+		for (DagConnection conn : getBroadcastConnections()) {
 			boolean dynamicIn = conn.isOnDynamicPath();
 			anyDynamic |= dynamicIn;
 			allDynamic &= dynamicIn;
@@ -424,7 +432,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			if (!allDynamic) {
 				// this node joins static and dynamic path.
 				// mark the connections where the source is not dynamic as cached
-				for (PactConnection conn : getIncomingConnections()) {
+				for (DagConnection conn : getIncomingConnections()) {
 					if (!conn.getSource().isOnDynamicPath()) {
 						conn.setMaterializationMode(conn.getMaterializationMode().makeCached());
 					}
@@ -442,10 +450,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	public int getMaxDepth() {
 		int maxDepth = 0;
-		for (PactConnection conn : getIncomingConnections()) {
+		for (DagConnection conn : getIncomingConnections()) {
 			maxDepth = Math.max(maxDepth, conn.getMaxDepth());
 		}
-		for (PactConnection conn : getBroadcastConnections()) {
+		for (DagConnection conn : getBroadcastConnections()) {
 			maxDepth = Math.max(maxDepth, conn.getMaxDepth());
 		}
 		
@@ -502,7 +510,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		if (this.outgoingConnections == null) {
 			throw new IllegalStateException("The outgoing connections have not yet been initialized.");
 		}
-		for (PactConnection conn : getOutgoingConnections()) {
+		for (DagConnection conn : getOutgoingConnections()) {
 			conn.markBreaksPipeline();
 		}
 	}
@@ -517,7 +525,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @return True, if on all outgoing connections, the interesting properties are set. False otherwise.
 	 */
 	public boolean haveAllOutputConnectionInterestingProperties() {
-		for (PactConnection conn : getOutgoingConnections()) {
+		for (DagConnection conn : getOutgoingConnections()) {
 			if (conn.getInterestingProperties() == null) {
 				return false;
 			}
@@ -535,7 +543,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * leaves the original objects, contained by the connections, unchanged.
 	 */
 	public void computeUnionOfInterestingPropertiesFromSuccessors() {
-		List<PactConnection> conns = getOutgoingConnections();
+		List<DagConnection> conns = getOutgoingConnections();
 		if (conns.size() == 0) {
 			// no incoming, we have none ourselves
 			this.intProps = new InterestingProperties();
@@ -550,10 +558,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	public void clearInterestingProperties() {
 		this.intProps = null;
-		for (PactConnection conn : getIncomingConnections()) {
+		for (DagConnection conn : getIncomingConnections()) {
 			conn.clearInterestingProperties();
 		}
-		for (PactConnection conn : getBroadcastConnections()) {
+		for (DagConnection conn : getBroadcastConnections()) {
 			conn.clearInterestingProperties();
 		}
 	}
@@ -570,7 +578,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	public void computeOutputEstimates(DataStatistics statistics) {
 		// sanity checking
-		for (PactConnection c : getIncomingConnections()) {
+		for (DagConnection c : getIncomingConnections()) {
 			if (c.getSource() == null) {
 				throw new CompilerException("Bug: Estimate computation called before inputs have been set.");
 			}
@@ -587,11 +595,11 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		}
 		
 		// overwrite default estimates with hints, if given
-		if (getPactContract() == null || getPactContract().getCompilerHints() == null) {
+		if (getOperator() == null || getOperator().getCompilerHints() == null) {
 			return ;
 		}
 		
-		CompilerHints hints = getPactContract().getCompilerHints();
+		CompilerHints hints = getOperator().getCompilerHints();
 		if (hints.getOutputSize() >= 0) {
 			this.estimatedOutputSize = hints.getOutputSize();
 		}
@@ -643,8 +651,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 	
 	protected void readUniqueFieldsAnnotation() {
-		if (this.pactContract.getCompilerHints() != null) {
-			Set<FieldSet> uniqueFieldSets = pactContract.getCompilerHints().getUniqueFields();
+		if (this.operator.getCompilerHints() != null) {
+			Set<FieldSet> uniqueFieldSets = operator.getCompilerHints().getUniqueFields();
 			if (uniqueFieldSets != null) {
 				if (this.uniqueFields == null) {
 					this.uniqueFields = new HashSet<FieldSet>();
@@ -686,7 +694,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		
 		// for pruning, we are quasi AFTER the node, so in the presence of
 		// branches, we need form the per-branch-choice groups by the choice
-		// they made at the latest unjoined branching node. Note that this is
+		// they made at the latest un-joined branching node. Note that this is
 		// different from the check for branch compatibility of candidates, as
 		// this happens on the input sub-plans and hence BEFORE the node (therefore
 		// it is relevant to find the latest (partially) joined branch point.
@@ -708,12 +716,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 				
 				@Override
 				public int compare(PlanNode o1, PlanNode o2) {
-					for (int i = 0; i < branchDeterminers.length; i++) {
-						PlanNode n1 = o1.getCandidateAtBranchPoint(branchDeterminers[i]);
-						PlanNode n2 = o2.getCandidateAtBranchPoint(branchDeterminers[i]);
+					for (OptimizerNode branchDeterminer : branchDeterminers) {
+						PlanNode n1 = o1.getCandidateAtBranchPoint(branchDeterminer);
+						PlanNode n2 = o2.getCandidateAtBranchPoint(branchDeterminer);
 						int hash1 = System.identityHashCode(n1);
 						int hash2 = System.identityHashCode(n2);
-						
+
 						if (hash1 != hash2) {
 							return hash1 - hash2;
 						}
@@ -775,8 +783,10 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	
 	protected void prunePlanAlternativesWithCommonBranching(List<PlanNode> plans) {
 		// for each interesting property, which plans are cheapest
-		final RequestedGlobalProperties[] gps = (RequestedGlobalProperties[]) this.intProps.getGlobalProperties().toArray(new RequestedGlobalProperties[this.intProps.getGlobalProperties().size()]);
-		final RequestedLocalProperties[] lps = (RequestedLocalProperties[]) this.intProps.getLocalProperties().toArray(new RequestedLocalProperties[this.intProps.getLocalProperties().size()]);
+		final RequestedGlobalProperties[] gps = this.intProps.getGlobalProperties().toArray(
+							new RequestedGlobalProperties[this.intProps.getGlobalProperties().size()]);
+		final RequestedLocalProperties[] lps = this.intProps.getLocalProperties().toArray(
+							new RequestedLocalProperties[this.intProps.getLocalProperties().size()]);
 		
 		final PlanNode[][] toKeep = new PlanNode[gps.length][];
 		final PlanNode[] cheapestForGlobal = new PlanNode[gps.length];
@@ -831,14 +841,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 			plans.add(cheapest);
 			cheapest.setPruningMarker(); // remember that that plan is in the set
 		}
-		
-		// skip the top down delta cost check for now (TODO: implement this)
+
 		// add all others, which are optimal for some interesting properties
 		for (int i = 0; i < gps.length; i++) {
 			if (toKeep[i] != null) {
 				final PlanNode[] localMatches = toKeep[i];
-				for (int k = 0; k < localMatches.length; k++) {
-					final PlanNode n = localMatches[k];
+				for (final PlanNode n : localMatches) {
 					if (n != null && !n.isPruneMarkerSet()) {
 						n.setPruningMarker();
 						plans.add(n);
@@ -873,7 +881,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	}
 
 
-	protected List<UnclosedBranchDescriptor> getBranchesForParent(PactConnection toParent) {
+	protected List<UnclosedBranchDescriptor> getBranchesForParent(DagConnection toParent) {
 		if (this.outgoingConnections.size() == 1) {
 			// return our own stack of open branches, because nothing is added
 			if (this.openBranches == null || this.openBranches.isEmpty()) {
@@ -954,8 +962,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * a) There is no branch in the sub-plan of this node
 	 * b) Both candidates have the same candidate as the child at the last open branch. 
 	 * 
-	 * @param plan1
-	 * @param plan2
+	 * @param plan1 The root node of the first candidate plan.
+	 * @param plan2 The root node of the second candidate plan.
 	 * @return True if the nodes are branch compatible in the inputs.
 	 */
 	protected boolean areBranchCompatible(PlanNode plan1, PlanNode plan2) {
@@ -1086,39 +1094,6 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		Collections.reverse(result);
 		return didCloseABranch;
 	}
-	
-	/**
-	 *
-	 */
-	public static final class UnclosedBranchDescriptor
-	{
-		protected OptimizerNode branchingNode;
-
-		protected long joinedPathsVector;
-
-		/**
-		 * @param branchingNode
-		 * @param joinedPathsVector
-		 */
-		protected UnclosedBranchDescriptor(OptimizerNode branchingNode, long joinedPathsVector)
-		{
-			this.branchingNode = branchingNode;
-			this.joinedPathsVector = joinedPathsVector;
-		}
-
-		public OptimizerNode getBranchingNode() {
-			return this.branchingNode;
-		}
-
-		public long getJoinedPathsVector() {
-			return this.joinedPathsVector;
-		}
-		
-		@Override
-		public String toString() {
-			return "(" + this.branchingNode.getPactContract() + ") [" + this.joinedPathsVector + "]";
-		}
-	}
 
 	@Override
 	public OptimizerNode getOptimizerNode() {
@@ -1145,14 +1120,53 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		StringBuilder bld = new StringBuilder();
 
 		bld.append(getName());
-		bld.append(" (").append(getPactContract().getName()).append(") ");
+		bld.append(" (").append(getOperator().getName()).append(") ");
 
 		int i = 1; 
-		for (PactConnection conn : getIncomingConnections()) {
+		for (DagConnection conn : getIncomingConnections()) {
 			String shipStrategyName = conn.getShipStrategy() == null ? "null" : conn.getShipStrategy().name();
 			bld.append('(').append(i++).append(":").append(shipStrategyName).append(')');
 		}
 
 		return bld.toString();
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Description of an unclosed branch. An unclosed branch is when the data flow branched (one operator's
+	 * result is consumed by multiple targets), but these different branches (targets) have not been joined
+	 * together.
+	 */
+	public static final class UnclosedBranchDescriptor {
+
+		protected OptimizerNode branchingNode;
+
+		protected long joinedPathsVector;
+
+		/**
+		 * Creates a new branching descriptor.
+		 *
+		 * @param branchingNode The node where the branch occurred (teh node with multiple outputs).
+		 * @param joinedPathsVector A bit vector describing which branches are tracked by this descriptor.
+		 *                          The bit vector is one, where the branch is tracked, zero otherwise.
+		 */
+		protected UnclosedBranchDescriptor(OptimizerNode branchingNode, long joinedPathsVector) {
+			this.branchingNode = branchingNode;
+			this.joinedPathsVector = joinedPathsVector;
+		}
+
+		public OptimizerNode getBranchingNode() {
+			return this.branchingNode;
+		}
+
+		public long getJoinedPathsVector() {
+			return this.joinedPathsVector;
+		}
+
+		@Override
+		public String toString() {
+			return "(" + this.branchingNode.getOperator() + ") [" + this.joinedPathsVector + "]";
+		}
 	}
 }

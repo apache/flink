@@ -24,7 +24,7 @@ import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
 import org.apache.flink.optimizer.plan.BulkPartialSolutionPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -68,7 +68,7 @@ public class PageRankCompilerTest extends CompilerTestBase{
 			IterativeDataSet<Tuple2<Long, Double>> iteration = pagesWithRanks.iterate(10);
 			
 			Configuration cfg = new Configuration();
-			cfg.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
+			cfg.setString(Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
 			
 			DataSet<Tuple2<Long, Double>> newRanks = iteration
 					// join pages with outgoing edges and distribute rank

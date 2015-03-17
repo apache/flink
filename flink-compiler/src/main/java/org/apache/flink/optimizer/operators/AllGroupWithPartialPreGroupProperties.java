@@ -46,7 +46,7 @@ public final class AllGroupWithPartialPreGroupProperties extends OperatorDescrip
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
 		if (in.getShipStrategy() == ShipStrategyType.FORWARD) {
 			// locally connected, directly instantiate
-			return new SingleInputPlanNode(node, "GroupReduce ("+node.getPactContract().getName()+")",
+			return new SingleInputPlanNode(node, "GroupReduce ("+node.getOperator().getName()+")",
 											in, DriverStrategy.ALL_GROUP_REDUCE);
 		} else {
 			// non forward case.plug in a combiner
@@ -55,10 +55,10 @@ public final class AllGroupWithPartialPreGroupProperties extends OperatorDescrip
 			
 			// create an input node for combine with same DOP as input node
 			GroupReduceNode combinerNode = ((GroupReduceNode) node).getCombinerUtilityNode();
-			combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
+			combinerNode.setDegreeOfParallelism(in.getSource().getParallelism());
 
 			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode,
-					"Combine ("+node.getPactContract().getName()+")", toCombiner, DriverStrategy.ALL_GROUP_REDUCE_COMBINE);
+					"Combine ("+node.getOperator().getName()+")", toCombiner, DriverStrategy.ALL_GROUP_REDUCE_COMBINE);
 			combiner.setCosts(new Costs(0, 0));
 			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
 			
@@ -67,7 +67,7 @@ public final class AllGroupWithPartialPreGroupProperties extends OperatorDescrip
 										in.getShipStrategySortOrder(), in.getDataExchangeMode());
 
 			toReducer.setLocalStrategy(in.getLocalStrategy(), in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-			return new SingleInputPlanNode(node, "GroupReduce ("+node.getPactContract().getName()+")",
+			return new SingleInputPlanNode(node, "GroupReduce ("+node.getOperator().getName()+")",
 											toReducer, DriverStrategy.ALL_GROUP_REDUCE);
 		}
 	}

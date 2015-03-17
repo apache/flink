@@ -81,7 +81,7 @@ public class SingleInputPlanNode extends PlanNode {
 		}
 		
 		if (this.input.getShipStrategy() == ShipStrategyType.BROADCAST) {
-			this.input.setReplicationFactor(getDegreeOfParallelism());
+			this.input.setReplicationFactor(getParallelism());
 		}
 		
 		final PlanNode predNode = input.getSource();

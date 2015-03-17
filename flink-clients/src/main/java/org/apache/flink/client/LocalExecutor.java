@@ -33,11 +33,11 @@ import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 /**
@@ -158,10 +158,10 @@ public class LocalExecutor extends PlanExecutor {
 			}
 
 			try {
-				PactCompiler pc = new PactCompiler(new DataStatistics());
+				Optimizer pc = new Optimizer(new DataStatistics());
 				OptimizedPlan op = pc.compile(plan);
 				
-				NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+				JobGraphGenerator jgg = new JobGraphGenerator();
 				JobGraph jobGraph = jgg.compileJobGraph(op);
 
 				ActorRef jobClient = flink.getJobClient();
@@ -186,7 +186,7 @@ public class LocalExecutor extends PlanExecutor {
 	 * @throws Exception
 	 */
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		PactCompiler pc = new PactCompiler(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 	
@@ -242,7 +242,7 @@ public class LocalExecutor extends PlanExecutor {
 		LocalExecutor exec = new LocalExecutor();
 		try {
 			exec.start();
-			PactCompiler pc = new PactCompiler(new DataStatistics());
+			Optimizer pc = new Optimizer(new DataStatistics());
 			OptimizedPlan op = pc.compile(plan);
 			PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 
@@ -260,7 +260,7 @@ public class LocalExecutor extends PlanExecutor {
 	 */
 	public static String getPlanAsJSON(Plan plan) {
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
-		List<DataSinkNode> sinks = PactCompiler.createPreOptimizedPlan(plan);
+		List<DataSinkNode> sinks = Optimizer.createPreOptimizedPlan(plan);
 		return gen.getPactPlanAsJSON(sinks);
 	}
 

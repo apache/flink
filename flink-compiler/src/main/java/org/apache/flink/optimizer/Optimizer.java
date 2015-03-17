@@ -75,7 +75,7 @@ import org.apache.flink.optimizer.dag.MapNode;
 import org.apache.flink.optimizer.dag.MapPartitionNode;
 import org.apache.flink.optimizer.dag.JoinNode;
 import org.apache.flink.optimizer.dag.OptimizerNode;
-import org.apache.flink.optimizer.dag.PactConnection;
+import org.apache.flink.optimizer.dag.DagConnection;
 import org.apache.flink.optimizer.dag.PartitionNode;
 import org.apache.flink.optimizer.dag.ReduceNode;
 import org.apache.flink.optimizer.dag.SinkJoiner;
@@ -120,7 +120,7 @@ import org.apache.flink.util.Visitor;
  * The optimizer also assigns the memory to the individual tasks. This is currently done in a very simple fashion: All
  * sub-tasks that need memory (e.g. reduce or join) are given an equal share of memory.
  */
-public class PactCompiler {
+public class Optimizer {
 
 	// ------------------------------------------------------------------------
 	// Constants
@@ -329,7 +329,7 @@ public class PactCompiler {
 	/**
 	 * The log handle that is used by the compiler to log messages.
 	 */
-	public static final Logger LOG = LoggerFactory.getLogger(PactCompiler.class);
+	public static final Logger LOG = LoggerFactory.getLogger(Optimizer.class);
 
 	// ------------------------------------------------------------------------
 	// Members
@@ -362,7 +362,7 @@ public class PactCompiler {
 	 * unknown sizes and hence use only the heuristic cost functions, which result in the selection
 	 * of the most robust execution strategies.
 	 */
-	public PactCompiler() {
+	public Optimizer() {
 		this(null, new DefaultCostEstimator());
 	}
 
@@ -373,7 +373,7 @@ public class PactCompiler {
 	 * @param stats
 	 *        The statistics to be used to determine the input properties.
 	 */
-	public PactCompiler(DataStatistics stats) {
+	public Optimizer(DataStatistics stats) {
 		this(stats, new DefaultCostEstimator());
 	}
 
@@ -387,7 +387,7 @@ public class PactCompiler {
 	 * 
 	 * @param estimator The cost estimator to use to cost the individual operations.
 	 */
-	public PactCompiler(CostEstimator estimator) {
+	public Optimizer(CostEstimator estimator) {
 		this(null, estimator);
 	}
 
@@ -402,7 +402,7 @@ public class PactCompiler {
 	 * @param estimator
 	 *        The <tt>CostEstimator</tt> to use to cost the individual operations.
 	 */
-	public PactCompiler(DataStatistics stats, CostEstimator estimator) {
+	public Optimizer(DataStatistics stats, CostEstimator estimator) {
 		this.statistics = stats;
 		this.costEstimator = estimator;
 
@@ -727,7 +727,7 @@ public class PactCompiler {
 				
 				// catch this for the recursive translation of step functions
 				BulkPartialSolutionNode p = new BulkPartialSolutionNode(holder, containingIterationNode);
-				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
+				p.setDegreeOfParallelism(containingIterationNode.getParallelism());
 				n = p;
 			}
 			else if (c instanceof WorksetPlaceHolder) {
@@ -742,7 +742,7 @@ public class PactCompiler {
 				
 				// catch this for the recursive translation of step functions
 				WorksetNode p = new WorksetNode(holder, containingIterationNode);
-				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
+				p.setDegreeOfParallelism(containingIterationNode.getParallelism());
 				n = p;
 			}
 			else if (c instanceof SolutionSetPlaceHolder) {
@@ -757,7 +757,7 @@ public class PactCompiler {
 				
 				// catch this for the recursive translation of step functions
 				SolutionSetNode p = new SolutionSetNode(holder, containingIterationNode);
-				p.setDegreeOfParallelism(containingIterationNode.getDegreeOfParallelism());
+				p.setDegreeOfParallelism(containingIterationNode.getParallelism());
 				n = p;
 			}
 			else {
@@ -768,7 +768,7 @@ public class PactCompiler {
 			
 			// set the parallelism only if it has not been set before. some nodes have a fixed DOP, such as the
 			// key-less reducer (all-reduce)
-			if (n.getDegreeOfParallelism() < 1) {
+			if (n.getParallelism() < 1) {
 				// set the degree of parallelism
 				int par = c.getDegreeOfParallelism();
 				if (par > 0) {
@@ -806,7 +806,7 @@ public class PactCompiler {
 
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
-					iterNode.getDegreeOfParallelism(), defaultDataExchangeMode, closure);
+					iterNode.getParallelism(), defaultDataExchangeMode, closure);
 				
 				BulkPartialSolutionNode partialSolution;
 				
@@ -858,7 +858,7 @@ public class PactCompiler {
 
 				// first, recursively build the data flow for the step function
 				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(
-						this, true, iterNode.getDegreeOfParallelism(), defaultDataExchangeMode, closure);
+						this, true, iterNode.getParallelism(), defaultDataExchangeMode, closure);
 				
 				// descend from the solution set delta. check that it depends on both the workset
 				// and the solution set. If it does depend on both, this descend should create both nodes
@@ -879,7 +879,7 @@ public class PactCompiler {
 					solutionSetNode = new SolutionSetNode((SolutionSetPlaceHolder<?>) iter.getSolutionSet(), iterNode);
 				}
 				else {
-					for (PactConnection conn : solutionSetNode.getOutgoingConnections()) {
+					for (DagConnection conn : solutionSetNode.getOutgoingConnections()) {
 						OptimizerNode successor = conn.getTarget();
 					
 						if (successor.getClass() == JoinNode.class) {
@@ -975,10 +975,10 @@ public class PactCompiler {
 			visitable.initId(this.id++);
 			
 			// connections need to figure out their maximum path depths
-			for (PactConnection conn : visitable.getIncomingConnections()) {
+			for (DagConnection conn : visitable.getIncomingConnections()) {
 				conn.initMaxDepth();
 			}
-			for (PactConnection conn : visitable.getBroadcastConnections()) {
+			for (DagConnection conn : visitable.getBroadcastConnections()) {
 				conn.initMaxDepth();
 			}
 			
@@ -1098,7 +1098,7 @@ public class PactCompiler {
 						node.setRelativeMemoryPerSubtask(relativeMem);
 						if (LOG.isDebugEnabled()) {
 							LOG.debug("Assigned " + relativeMem + " of total memory to each subtask of " +
-								node.getPactContract().getName() + ".");
+								node.getProgramOperator().getName() + ".");
 						}
 					}
 					
@@ -1274,7 +1274,7 @@ public class PactCompiler {
 					newUnionNode = new NAryUnionPlanNode(unionNode.getOptimizerNode(), inputs, 
 							unionNode.getGlobalProperties(), unionNode.getCumulativeCosts());
 					
-					newUnionNode.setDegreeOfParallelism(unionNode.getDegreeOfParallelism());
+					newUnionNode.setParallelism(unionNode.getParallelism());
 
 					for (Channel c : inputs) {
 						c.setTarget(newUnionNode);

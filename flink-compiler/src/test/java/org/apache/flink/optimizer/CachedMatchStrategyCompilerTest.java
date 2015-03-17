@@ -33,7 +33,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
@@ -51,7 +51,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 	public void testRightSide() {
 		try {
 			
-			Plan plan = getTestPlanRightStatic(PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
+			Plan plan = getTestPlanRightStatic(Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 	
@@ -63,7 +63,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 			assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
 			assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
 		
-			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
+			new JobGraphGenerator().compileJobGraph(oPlan);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -79,7 +79,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 	public void testRightSideCountercheck() {
 		try {
 			
-			Plan plan = getTestPlanRightStatic(PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST);
+			Plan plan = getTestPlanRightStatic(Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST);
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 	
@@ -91,7 +91,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 			assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
 			assertEquals(TempMode.CACHED, innerJoin.getInput2().getTempMode());
 		
-			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
+			new JobGraphGenerator().compileJobGraph(oPlan);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -108,7 +108,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 	public void testLeftSide() {
 		try {
 			
-			Plan plan = getTestPlanLeftStatic(PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST);
+			Plan plan = getTestPlanLeftStatic(Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST);
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 	
@@ -120,7 +120,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 			assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
 			assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
 		
-			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
+			new JobGraphGenerator().compileJobGraph(oPlan);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -136,7 +136,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 	public void testLeftSideCountercheck() {
 		try {
 			
-			Plan plan = getTestPlanLeftStatic(PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
+			Plan plan = getTestPlanLeftStatic(Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
 			
 			OptimizedPlan oPlan = compileNoStats(plan);
 	
@@ -148,7 +148,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 			assertEquals(TempMode.CACHED, innerJoin.getInput1().getTempMode());
 			assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
 		
-			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
+			new JobGraphGenerator().compileJobGraph(oPlan);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -191,7 +191,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 			assertEquals(TempMode.NONE, innerJoin.getInput1().getTempMode());
 			assertEquals(TempMode.NONE, innerJoin.getInput2().getTempMode());
 		
-			new NepheleJobGraphGenerator().compileJobGraph(oPlan);
+			new JobGraphGenerator().compileJobGraph(oPlan);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -212,10 +212,10 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 		IterativeDataSet<Tuple3<Long, Long, Long>> iteration = bigInput.iterate(10);
 		
 		Configuration joinStrategy = new Configuration();
-		joinStrategy.setString(PactCompiler.HINT_SHIP_STRATEGY, PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH);
+		joinStrategy.setString(Optimizer.HINT_SHIP_STRATEGY, Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH);
 		
 		if(strategy != "") {
-			joinStrategy.setString(PactCompiler.HINT_LOCAL_STRATEGY, strategy);
+			joinStrategy.setString(Optimizer.HINT_LOCAL_STRATEGY, strategy);
 		}
 		
 		DataSet<Tuple3<Long, Long, Long>> inner = iteration.join(smallInput).where(0).equalTo(0).with(new DummyJoiner()).name("DummyJoiner").withParameters(joinStrategy);
@@ -243,7 +243,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 		IterativeDataSet<Tuple3<Long, Long, Long>> iteration = bigInput.iterate(10);
 		
 		Configuration joinStrategy = new Configuration();
-		joinStrategy.setString(PactCompiler.HINT_LOCAL_STRATEGY, strategy);
+		joinStrategy.setString(Optimizer.HINT_LOCAL_STRATEGY, strategy);
 		
 		DataSet<Tuple3<Long, Long, Long>> inner = smallInput.join(iteration).where(0).equalTo(0).with(new DummyJoiner()).name("DummyJoiner").withParameters(joinStrategy);
 

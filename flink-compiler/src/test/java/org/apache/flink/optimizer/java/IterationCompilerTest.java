@@ -34,7 +34,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.junit.Test;
 
@@ -53,7 +53,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -81,7 +81,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -120,7 +120,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 			assertTrue(union.getCostWeight() >= 1);
 			
 			// see that the jobgraph generator can translate this
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -179,7 +179,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 			assertTrue(solutionDeltaUnion.isOnDynamicPath());
 			assertTrue(solutionDeltaUnion.getCostWeight() >= 1);
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

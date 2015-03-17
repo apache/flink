@@ -89,7 +89,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			}
 			catch (ConflictingFieldTypeInfoException e) {
 				throw new CompilerPostPassException("Conflicting type infomation for the data sink '" +
-						sn.getSinkNode().getPactContract().getName() + "'.");
+						sn.getSinkNode().getOperator().getName() + "'.");
 			}
 			
 			// descend to the input channel
@@ -98,7 +98,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			}
 			catch (MissingFieldTypeInfoException ex) {
 				throw new CompilerPostPassException("Missing type infomation for the channel that inputs to the data sink '" +
-						sn.getSinkNode().getPactContract().getName() + "'.");
+						sn.getSinkNode().getOperator().getName() + "'.");
 			}
 		}
 		else if (node instanceof SourcePlanNode) {
@@ -122,7 +122,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			
 			// add the parent schema to the schema
 			if (propagateParentSchemaDown) {
-				addSchemaToSchema(parentSchema, schema, iterationNode.getPactContract().getName());
+				addSchemaToSchema(parentSchema, schema, iterationNode.getProgramOperator().getName());
 			}
 			
 			// check whether all outgoing channels have not yet contributed. come back later if not.
@@ -168,7 +168,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			
 			// take the schema from the partial solution node and add its fields to the iteration result schema.
 			// input and output schema need to be identical, so this is essentially a sanity check
-			addSchemaToSchema(pss, schema, iterationNode.getPactContract().getName());
+			addSchemaToSchema(pss, schema, iterationNode.getProgramOperator().getName());
 			
 			// set the serializer
 			if (createUtilities) {
@@ -180,7 +180,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 				propagateToChannel(schema, iterationNode.getInput(), createUtilities);
 			} catch (MissingFieldTypeInfoException e) {
 				throw new CompilerPostPassException("Could not set up runtime strategy for input channel to node '"
-					+ iterationNode.getPactContract().getName() + "'. Missing type information for key field " + 
+					+ iterationNode.getProgramOperator().getName() + "'. Missing type information for key field " +
 					e.getFieldNumber());
 			}
 		}
@@ -199,7 +199,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			
 			// add the parent schema to the schema (which refers to the solution set schema)
 			if (propagateParentSchemaDown) {
-				addSchemaToSchema(parentSchema, schema, iterationNode.getPactContract().getName());
+				addSchemaToSchema(parentSchema, schema, iterationNode.getProgramOperator().getName());
 			}
 			
 			// check whether all outgoing channels have not yet contributed. come back later if not.
@@ -242,7 +242,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 				}
 			} catch (ConflictingFieldTypeInfoException e) {
 				throw new CompilerPostPassException("Conflicting type information for field " + e.getFieldNumber()
-					+ " in node '" + iterationNode.getPactContract().getName() + "'. Contradicting types between the " +
+					+ " in node '" + iterationNode.getProgramOperator().getName() + "'. Contradicting types between the " +
 					"result of the iteration and the solution set schema: " + e.getPreviousType() + 
 					" and " + e.getNewType() + ". Most probable cause: Invalid constant field annotations.");
 			}
@@ -256,7 +256,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 					iterationNode.setSolutionSetComparator(createComparator(optNode.getSolutionSetKeyFields(), null, sss));
 				} catch (MissingFieldTypeInfoException ex) {
 					throw new CompilerPostPassException("Could not set up the solution set for workset iteration '" + 
-							optNode.getPactContract().getName() + "'. Missing type information for key field " + ex.getFieldNumber() + '.');
+							optNode.getOperator().getName() + "'. Missing type information for key field " + ex.getFieldNumber() + '.');
 				}
 			}
 			
@@ -266,7 +266,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 				propagateToChannel(wss, iterationNode.getInitialWorksetInput(), createUtilities);
 			} catch (MissingFieldTypeInfoException ex) {
 				throw new CompilerPostPassException("Could not set up runtime strategy for input channel to node '"
-					+ iterationNode.getPactContract().getName() + "'. Missing type information for key field " + 
+					+ iterationNode.getProgramOperator().getName() + "'. Missing type information for key field " +
 					ex.getFieldNumber());
 			}
 		}
@@ -298,7 +298,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			try {
 				getSingleInputNodeSchema(sn, schema);
 			} catch (ConflictingFieldTypeInfoException e) {
-				throw new CompilerPostPassException(getConflictingTypeErrorMessage(e, optNode.getPactContract().getName()));
+				throw new CompilerPostPassException(getConflictingTypeErrorMessage(e, optNode.getOperator().getName()));
 			}
 			
 			if (createUtilities) {
@@ -308,7 +308,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 						sn.setComparator(createComparator(sn.getKeys(i), sn.getSortOrders(i), schema),i);
 					} catch (MissingFieldTypeInfoException e) {
 						throw new CompilerPostPassException("Could not set up runtime strategy for node '" + 
-								optNode.getPactContract().getName() + "'. Missing type information for key field " +
+								optNode.getOperator().getName() + "'. Missing type information for key field " +
 								e.getFieldNumber());
 					}
 				}
@@ -319,7 +319,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 				propagateToChannel(schema, sn.getInput(), createUtilities);
 			} catch (MissingFieldTypeInfoException e) {
 				throw new CompilerPostPassException("Could not set up runtime strategy for input channel to node '" +
-					optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+					optNode.getOperator().getName() + "'. Missing type information for field " + e.getFieldNumber());
 			}
 			
 			// don't forget the broadcast inputs
@@ -328,7 +328,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 					propagateToChannel(createEmptySchema(), c, createUtilities);
 				} catch (MissingFieldTypeInfoException e) {
 					throw new CompilerPostPassException("Could not set up runtime strategy for broadcast channel in node '" +
-						optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+						optNode.getOperator().getName() + "'. Missing type information for field " + e.getFieldNumber());
 				}
 			}
 		}
@@ -367,7 +367,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			try {
 				getDualInputNodeSchema(dn, schema1, schema2);
 			} catch (ConflictingFieldTypeInfoException e) {
-				throw new CompilerPostPassException(getConflictingTypeErrorMessage(e, optNode.getPactContract().getName()));
+				throw new CompilerPostPassException(getConflictingTypeErrorMessage(e, optNode.getOperator().getName()));
 			}
 			
 			// parameterize the node's driver strategy
@@ -379,7 +379,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 						dn.setComparator2(createComparator(dn.getKeysForInput2(), dn.getSortOrders(), schema2));
 					} catch (MissingFieldTypeInfoException e) {
 						throw new CompilerPostPassException("Could not set up runtime strategy for node '" + 
-								optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+								optNode.getOperator().getName() + "'. Missing type information for field " + e.getFieldNumber());
 					}
 					
 					// set the pair comparator
@@ -388,7 +388,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 							dn.getSortOrders(), schema1, schema2));
 					} catch (MissingFieldTypeInfoException e) {
 						throw new CompilerPostPassException("Could not set up runtime strategy for node '" + 
-								optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+								optNode.getOperator().getName() + "'. Missing type information for field " + e.getFieldNumber());
 					}
 					
 				}
@@ -399,13 +399,13 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 				propagateToChannel(schema1, dn.getInput1(), createUtilities);
 			} catch (MissingFieldTypeInfoException e) {
 				throw new CompilerPostPassException("Could not set up runtime strategy for the first input channel to node '"
-					+ optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+					+ optNode.getOperator().getName() + "'. Missing type information for field " + e.getFieldNumber());
 			}
 			try {
 				propagateToChannel(schema2, dn.getInput2(), createUtilities);
 			} catch (MissingFieldTypeInfoException e) {
 				throw new CompilerPostPassException("Could not set up runtime strategy for the second input channel to node '"
-					+ optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+					+ optNode.getOperator().getName() + "'. Missing type information for field " + e.getFieldNumber());
 			}
 			
 			// don't forget the broadcast inputs
@@ -414,7 +414,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 					propagateToChannel(createEmptySchema(), c, createUtilities);
 				} catch (MissingFieldTypeInfoException e) {
 					throw new CompilerPostPassException("Could not set up runtime strategy for broadcast channel in node '" +
-						optNode.getPactContract().getName() + "'. Missing type information for field " + e.getFieldNumber());
+						optNode.getOperator().getName() + "'. Missing type information for field " + e.getFieldNumber());
 				}
 			}
 		}
@@ -446,7 +446,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 					schema = (T) psn.postPassHelper;
 				}
 				name = "partial solution of bulk iteration '" +
-					psn.getPartialSolutionNode().getIterationNode().getPactContract().getName() + "'";
+					psn.getPartialSolutionNode().getIterationNode().getOperator().getName() + "'";
 			}
 			else if (node instanceof SolutionSetPlanNode) {
 				SolutionSetPlanNode ssn = (SolutionSetPlanNode) node;
@@ -457,7 +457,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 					schema = (T) ssn.postPassHelper;
 				}
 				name = "solution set of workset iteration '" +
-						ssn.getSolutionSetNode().getIterationNode().getPactContract().getName() + "'";
+						ssn.getSolutionSetNode().getIterationNode().getOperator().getName() + "'";
 			}
 			else if (node instanceof WorksetPlanNode) {
 				WorksetPlanNode wsn = (WorksetPlanNode) node;
@@ -468,7 +468,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 					schema = (T) wsn.postPassHelper;
 				}
 				name = "workset of workset iteration '" +
-						wsn.getWorksetNode().getIterationNode().getPactContract().getName() + "'";
+						wsn.getWorksetNode().getIterationNode().getOperator().getName() + "'";
 			} else {
 				throw new CompilerException();
 			}
@@ -531,7 +531,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			}
 		} catch (ConflictingFieldTypeInfoException e) {
 			throw new CompilerPostPassException("Conflicting type information for field " + e.getFieldNumber()
-				+ " in node '" + optNode.getPactContract().getName() + "' propagated from successor node. " +
+				+ " in node '" + optNode.getOperator().getName() + "' propagated from successor node. " +
 				"Conflicting types: " + e.getPreviousType() + " and " + e.getNewType() +
 				". Most probable cause: Invalid constant field annotations.");
 		}
@@ -550,7 +550,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			return createSerializer(schema);
 		} catch (MissingFieldTypeInfoException e) {
 			throw new CompilerPostPassException("Missing type information while creating serializer for '" +
-					node.getPactContract().getName() + "'.");
+					node.getProgramOperator().getName() + "'.");
 		}
 	}
 	

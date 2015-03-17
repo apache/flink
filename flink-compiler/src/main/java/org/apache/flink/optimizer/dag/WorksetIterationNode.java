@@ -32,7 +32,7 @@ import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler.InterestingPropertyVisitor;
+import org.apache.flink.optimizer.Optimizer.InterestingPropertyVisitor;
 import org.apache.flink.optimizer.costs.CostEstimator;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.InterestingProperties;
@@ -80,9 +80,9 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	
 	private OptimizerNode nextWorkset;
 	
-	private PactConnection solutionSetDeltaRootConnection;
+	private DagConnection solutionSetDeltaRootConnection;
 	
-	private PactConnection nextWorksetRootConnection;
+	private DagConnection nextWorksetRootConnection;
 	
 	private SingleRootJoiner singleRoot;
 	
@@ -122,7 +122,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	// --------------------------------------------------------------------------------------------
 	
 	public DeltaIterationBase<?, ?> getIterationContract() {
-		return (DeltaIterationBase<?, ?>) getPactContract();
+		return (DeltaIterationBase<?, ?>) getOperator();
 	}
 	
 	public SolutionSetNode getSolutionSetNode() {
@@ -167,9 +167,9 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		// if the next workset is equal to the workset, we need to inject a no-op node
 		if (nextWorkset == worksetNode || nextWorkset instanceof BinaryUnionNode) {
 			NoOpNode noop = new NoOpNode();
-			noop.setDegreeOfParallelism(getDegreeOfParallelism());
+			noop.setDegreeOfParallelism(getParallelism());
 
-			PactConnection noOpConn = new PactConnection(nextWorkset, noop, executionMode);
+			DagConnection noOpConn = new DagConnection(nextWorkset, noop, executionMode);
 			noop.setIncomingConnection(noOpConn);
 			nextWorkset.addOutgoingConnection(noOpConn);
 			
@@ -179,9 +179,9 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		// attach an extra node to the solution set delta for the cases where we need to repartition
 		UnaryOperatorNode solutionSetDeltaUpdateAux = new UnaryOperatorNode("Solution-Set Delta", getSolutionSetKeyFields(),
 				new SolutionSetDeltaOperator(getSolutionSetKeyFields()));
-		solutionSetDeltaUpdateAux.setDegreeOfParallelism(getDegreeOfParallelism());
+		solutionSetDeltaUpdateAux.setDegreeOfParallelism(getParallelism());
 
-		PactConnection conn = new PactConnection(solutionSetDelta, solutionSetDeltaUpdateAux, executionMode);
+		DagConnection conn = new DagConnection(solutionSetDelta, solutionSetDeltaUpdateAux, executionMode);
 		solutionSetDeltaUpdateAux.setIncomingConnection(conn);
 		solutionSetDelta.addOutgoingConnection(conn);
 		
@@ -189,10 +189,10 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		this.nextWorkset = nextWorkset;
 		
 		this.singleRoot = new SingleRootJoiner();
-		this.solutionSetDeltaRootConnection = new PactConnection(solutionSetDeltaUpdateAux,
+		this.solutionSetDeltaRootConnection = new DagConnection(solutionSetDeltaUpdateAux,
 													this.singleRoot, executionMode);
 
-		this.nextWorksetRootConnection = new PactConnection(nextWorkset, this.singleRoot, executionMode);
+		this.nextWorksetRootConnection = new DagConnection(nextWorkset, this.singleRoot, executionMode);
 		this.singleRoot.setInputs(this.solutionSetDeltaRootConnection, this.nextWorksetRootConnection);
 		
 		solutionSetDeltaUpdateAux.addOutgoingConnection(this.solutionSetDeltaRootConnection);
@@ -371,7 +371,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 					UnaryOperatorNode rebuildWorksetPropertiesNode = new UnaryOperatorNode("Rebuild Workset Properties",
 																							FieldList.EMPTY_LIST);
 					
-					rebuildWorksetPropertiesNode.setDegreeOfParallelism(candidate.getDegreeOfParallelism());
+					rebuildWorksetPropertiesNode.setDegreeOfParallelism(candidate.getParallelism());
 					
 					SingleInputPlanNode rebuildWorksetPropertiesPlanNode = new SingleInputPlanNode(
 												rebuildWorksetPropertiesNode, "Rebuild Workset Properties",
@@ -454,7 +454,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 					}
 					
 					WorksetIterationPlanNode wsNode = new WorksetIterationPlanNode(this,
-							"WorksetIteration ("+this.getPactContract().getName()+")", solutionSetIn,
+							"WorksetIteration ("+this.getOperator().getName()+")", solutionSetIn,
 							worksetIn, sspn, wspn, worksetCandidate, solutionSetCandidate);
 					wsNode.setImmediateSolutionSetUpdate(immediateDeltaUpdate);
 					wsNode.initProperties(gp, lp);
@@ -566,7 +566,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 			setDegreeOfParallelism(1);
 		}
 		
-		public void setInputs(PactConnection input1, PactConnection input2) {
+		public void setInputs(DagConnection input1, DagConnection input2) {
 			this.input1 = input1;
 			this.input2 = input2;
 		}

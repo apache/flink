@@ -62,8 +62,8 @@ public class ReduceNode extends SingleInputNode {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public ReduceOperatorBase<?, ?> getPactContract() {
-		return (ReduceOperatorBase<?, ?>) super.getPactContract();
+	public ReduceOperatorBase<?, ?> getOperator() {
+		return (ReduceOperatorBase<?, ?>) super.getOperator();
 	}
 
 	@Override

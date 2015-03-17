@@ -25,7 +25,7 @@ import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.DummyInputFormat;
 import org.apache.flink.optimizer.util.DummyOutputFormat;
 import org.apache.flink.optimizer.util.IdentityReduce;
@@ -51,7 +51,7 @@ public class ReduceAllTest extends CompilerTestBase {
 		
 		try {
 			OptimizedPlan oPlan = compileNoStats(plan);
-			NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+			JobGraphGenerator jobGen = new JobGraphGenerator();
 			jobGen.compileJobGraph(oPlan);
 		} catch(CompilerException ce) {
 			ce.printStackTrace();

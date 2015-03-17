@@ -29,14 +29,16 @@ import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
 /**
- * This class represents local properties of the data. A local property is a property that exists
- * within the data of a single partition.
+ * This class represents the local properties of the data that are requested by an operator.
+ * Local properties are the properties within one partition.
+ * Operators request the local properties they need for correct execution. Here are some example local
+ * properties requested by certain operators:
+ * <ul>
+ *     <li>"groupBy/reduce" will request the data to be grouped on the key fields.</li>
+ *     <li>A sort-merge join will request the data from each input to be sorted on the respective join key.</li>
+ * </ul>
  */
 public class RequestedLocalProperties implements Cloneable {
-
-	public static final RequestedLocalProperties DEFAULT_PROPERTIES = null;
-	
-	// --------------------------------------------------------------------------------------------
 	
 	private Ordering ordering;			// order inside a partition, null if not ordered
 
@@ -205,9 +207,9 @@ public class RequestedLocalProperties implements Cloneable {
 	}
 	
 	/**
-	 * Parameterizes the local strategy fields of a channel such that the channel produces the desired local properties.
+	 * Parametrizes the local strategy fields of a channel such that the channel produces the desired local properties.
 	 * 
-	 * @param channel The channel to parameterize.
+	 * @param channel The channel to parametrize.
 	 */
 	public void parameterizeChannel(Channel channel) {
 		LocalProperties current = channel.getLocalProperties();

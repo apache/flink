@@ -39,7 +39,7 @@ import org.apache.flink.optimizer.dag.BulkIterationNode;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.dag.DataSourceNode;
 import org.apache.flink.optimizer.dag.OptimizerNode;
-import org.apache.flink.optimizer.dag.PactConnection;
+import org.apache.flink.optimizer.dag.DagConnection;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.dag.WorksetIterationNode;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
@@ -231,18 +231,18 @@ public class PlanJSONDumpGenerator {
 		String contents;
 		if (n instanceof DataSinkNode) {
 			type = "sink";
-			contents = n.getPactContract().toString();
+			contents = n.getOperator().toString();
 		} else if (n instanceof DataSourceNode) {
 			type = "source";
-			contents = n.getPactContract().toString();
+			contents = n.getOperator().toString();
 		}
 		else if (n instanceof BulkIterationNode) {
 			type = "bulk_iteration";
-			contents = n.getPactContract().getName();
+			contents = n.getOperator().getName();
 		}
 		else if (n instanceof WorksetIterationNode) {
 			type = "workset_iteration";
-			contents = n.getPactContract().getName();
+			contents = n.getOperator().getName();
 		}
 		else if (n instanceof BinaryUnionNode) {
 			type = "pact";
@@ -250,7 +250,7 @@ public class PlanJSONDumpGenerator {
 		}
 		else {
 			type = "pact";
-			contents = n.getPactContract().getName();
+			contents = n.getOperator().getName();
 		}
 		
 		contents = StringUtils.showControlCharacters(contents);
@@ -277,7 +277,7 @@ public class PlanJSONDumpGenerator {
 
 		// degree of parallelism
 		writer.print(",\n\t\t\"parallelism\": \""
-			+ (n.getDegreeOfParallelism() >= 1 ? n.getDegreeOfParallelism() : "default") + "\"");
+			+ (n.getParallelism() >= 1 ? n.getParallelism() : "default") + "\"");
 		
 		// output node predecessors
 		Iterator<? extends DumpableConnection<?>> inConns = node.getDumpableInputs().iterator();
@@ -294,10 +294,10 @@ public class PlanJSONDumpGenerator {
 				writer.print(inputNum == 0 ? "\n" : ",\n");
 				if (inputNum == 0) {
 					child1name += child1name.length() > 0 ? ", " : ""; 
-					child1name += source.getOptimizerNode().getPactContract().getName();
+					child1name += source.getOptimizerNode().getOperator().getName();
 				} else if (inputNum == 1) {
 					child2name += child2name.length() > 0 ? ", " : ""; 
-					child2name = source.getOptimizerNode().getPactContract().getName();
+					child2name = source.getOptimizerNode().getOperator().getName();
 				}
 
 				// output predecessor id
@@ -310,7 +310,7 @@ public class PlanJSONDumpGenerator {
 				// output shipping strategy and channel type
 				final Channel channel = (inConn instanceof Channel) ? (Channel) inConn : null; 
 				final ShipStrategyType shipType = channel != null ? channel.getShipStrategy() :
-						((PactConnection) inConn).getShipStrategy();
+						((DagConnection) inConn).getShipStrategy();
 					
 				String shipStrategy = null;
 				if (shipType != null) {
@@ -588,8 +588,8 @@ public class PlanJSONDumpGenerator {
 		}
 
 		// output the node compiler hints
-		if (n.getPactContract().getCompilerHints() != null) {
-			CompilerHints hints = n.getPactContract().getCompilerHints();
+		if (n.getOperator().getCompilerHints() != null) {
+			CompilerHints hints = n.getOperator().getCompilerHints();
 			CompilerHints defaults = new CompilerHints();
 
 			String size = hints.getOutputSize() == defaults.getOutputSize() ? "(none)" : String.valueOf(hints.getOutputSize());

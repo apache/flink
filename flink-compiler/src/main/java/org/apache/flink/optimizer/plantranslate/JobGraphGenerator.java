@@ -90,29 +90,29 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 /**
- * This component translates the optimizer's resulting plan a nephele job graph. The
- * translation is a one to one mapping. All decisions are made by the optimizer, this class
- * simply creates nephele data structures and descriptions corresponding to the optimizer's
- * result.
- * <p>
- * The basic method of operation is a top down traversal over the plan graph. On the way down, tasks are created
- * for the plan nodes, on the way back up, the nodes connect their predecessor.
+ * This component translates the optimizer's resulting {@link org.apache.flink.optimizer.plan.OptimizedPlan}
+ * to a {@link org.apache.flink.runtime.jobgraph.JobGraph}. The translation is not strictly a one-to-one,
+ * because some nodes from the OptimizedPlan are collapsed into one job vertex.
+ *
+ * This translation does not make any decisions or assumptions. All degrees-of-freedom in the execution
+ * of the job are made by the Optimizer, so that this translation becomes a deterministic mapping.
+ *
+ * The basic method of operation is a top down traversal over the plan graph. On the way down, job vertices
+ * are created for the plan nodes, on the way back up, the nodes connect their predecessors.
  */
-public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
+public class JobGraphGenerator implements Visitor<PlanNode> {
 	
 	public static final String MERGE_ITERATION_AUX_TASKS_KEY = "compiler.merge-iteration-aux";
 	
 	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, false);
 	
-//	private static final Logger LOG = LoggerFactory.getLogger(NepheleJobGraphGenerator.class);
-	
 	private static final TaskInChain ALREADY_VISITED_PLACEHOLDER = new TaskInChain(null, null, null);
 	
 	// ------------------------------------------------------------------------
 
-	private Map<PlanNode, AbstractJobVertex> vertices; // a map from optimizer nodes to nephele vertices
+	private Map<PlanNode, AbstractJobVertex> vertices; // a map from optimizer nodes to job vertices
 	
-	private Map<PlanNode, TaskInChain> chainedTasks; // a map from optimizer nodes to nephele vertices
+	private Map<PlanNode, TaskInChain> chainedTasks; // a map from optimizer nodes to job vertices
 	
 	private Map<IterationPlanNode, IterationDescriptor> iterations;
 	
@@ -137,12 +137,12 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	/**
 	 * Creates a new job graph generator that uses the default values for its resource configuration.
 	 */
-	public NepheleJobGraphGenerator() {
+	public JobGraphGenerator() {
 		this.defaultMaxFan = ConfigConstants.DEFAULT_SPILLING_MAX_FAN;
 		this.defaultSortSpillingThreshold = ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD;
 	}
 	
-	public NepheleJobGraphGenerator(Configuration config) {
+	public JobGraphGenerator(Configuration config) {
 		this.defaultMaxFan = config.getInteger(ConfigConstants.DEFAULT_SPILLING_MAX_FAN_KEY, 
 				ConfigConstants.DEFAULT_SPILLING_MAX_FAN);
 		this.defaultSortSpillingThreshold = config.getFloat(ConfigConstants.DEFAULT_SORT_SPILLING_THRESHOLD_KEY,
@@ -152,11 +152,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	/**
 	 * Translates a {@link org.apache.flink.optimizer.plan.OptimizedPlan} into a
 	 * {@link org.apache.flink.runtime.jobgraph.JobGraph}.
-	 * This is an 1-to-1 mapping. No optimization whatsoever is applied.
 	 * 
-	 * @param program
-	 *        Optimized PACT plan that is translated into a JobGraph.
-	 * @return JobGraph generated from PACT plan.
+	 * @param program Optimized plan that is translated into a JobGraph.
+	 * @return JobGraph generated frmo the plan.
 	 */
 	public JobGraph compileJobGraph(OptimizedPlan program) {
 		this.vertices = new HashMap<PlanNode, AbstractJobVertex>();
@@ -168,7 +166,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		this.sharingGroup = new SlotSharingGroup();
 		
-		// generate Nephele job graph
+		// this starts the traversal that generates the job graph
 		program.accept(this);
 		
 		// sanity check that we are not somehow in an iteration at the end
@@ -189,13 +187,12 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		// now that the traversal is done, we have the chained tasks write their configs into their
 		// parents' configurations
-		for (int i = 0; i < this.chainedTasksInSequence.size(); i++) {
-			TaskInChain tic = this.chainedTasksInSequence.get(i);
+		for (TaskInChain tic : this.chainedTasksInSequence) {
 			TaskConfig t = new TaskConfig(tic.getContainingVertex().getConfiguration());
 			t.addChainedTask(tic.getChainedTask(), tic.getTaskConfig(), tic.getTaskName());
 		}
 		
-		// create the jobgraph object
+		// create the job graph object
 		JobGraph graph = new JobGraph(program.getJobName());
 		graph.setNumberOfExecutionRetries(program.getOriginalPactPlan().getNumberOfExecutionRetries());
 		graph.setAllowQueuedScheduling(false);
@@ -272,7 +269,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				// operator with the tail, if they have the same DOP. not merging is currently not
 				// implemented
 				PlanNode root = iterationNode.getRootOfStepFunction();
-				if (root.getDegreeOfParallelism() != node.getDegreeOfParallelism())
+				if (root.getParallelism() != node.getParallelism())
 				{
 					throw new CompilerException("Error: The final operator of the step " +
 							"function has a different degree of parallelism than the iteration operator itself.");
@@ -289,12 +286,12 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				PlanNode nextWorkSet = iterationNode.getNextWorkSetPlanNode();
 				PlanNode solutionSetDelta  = iterationNode.getSolutionSetDeltaPlanNode();
 				
-				if (nextWorkSet.getDegreeOfParallelism() != node.getDegreeOfParallelism())
+				if (nextWorkSet.getParallelism() != node.getParallelism())
 				{
 					throw new CompilerException("It is currently not supported that the final operator of the step " +
 							"function has a different degree of parallelism than the iteration operator itself.");
 				}
-				if (solutionSetDelta.getDegreeOfParallelism() != node.getDegreeOfParallelism())
+				if (solutionSetDelta.getParallelism() != node.getParallelism())
 				{
 					throw new CompilerException("It is currently not supported that the final operator of the step " +
 							"function has a different degree of parallelism than the iteration operator itself.");
@@ -366,7 +363,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// check if a vertex was created, or if it was chained or skipped
 		if (vertex != null) {
 			// set degree of parallelism
-			int pd = node.getDegreeOfParallelism();
+			int pd = node.getParallelism();
 			vertex.setParallelism(pd);
 			
 			vertex.setSlotSharingGroup(sharingGroup);
@@ -375,7 +372,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			if (this.currentIteration != null) {
 				// check that the task has the same DOP as the iteration as such
 				PlanNode iterationNode = (PlanNode) this.currentIteration;
-				if (iterationNode.getDegreeOfParallelism() < pd) {
+				if (iterationNode.getParallelism() < pd) {
 					throw new CompilerException("Error: All functions that are part of an iteration must have the same, or a lower, degree-of-parallelism than the iteration operator.");
 				}
 
@@ -760,7 +757,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					inConn.getShipStrategy() == ShipStrategyType.FORWARD &&
 					inConn.getLocalStrategy() == LocalStrategy.NONE &&
 					pred.getOutgoingChannels().size() == 1 &&
-					node.getDegreeOfParallelism() == pred.getDegreeOfParallelism() && 
+					node.getParallelism() == pred.getParallelism() &&
 					node.getBroadcastInputs().isEmpty();
 			
 			// cannot chain the nodes that produce the next workset or the next solution set, if they are not the
@@ -803,8 +800,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		}
 		
 		// set user code
-		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
-		config.setStubParameters(node.getPactContract().getParameters());
+		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());
+		config.setStubParameters(node.getProgramOperator().getParameters());
 		
 		// set the driver strategy
 		config.setDriverStrategy(ds);
@@ -824,8 +821,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		vertex.setInvokableClass( (this.currentIteration != null && node.isOnDynamicPath()) ? IterationIntermediatePactTask.class : RegularPactTask.class);
 		
 		// set user code
-		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
-		config.setStubParameters(node.getPactContract().getParameters());
+		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());
+		config.setStubParameters(node.getProgramOperator().getParameters());
 		
 		// set the driver strategy
 		config.setDriver(ds.getDriverClass());
@@ -850,11 +847,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
 		vertex.setInvokableClass(DataSourceTask.class);
-		vertex.setFormatDescription(getDescriptionForUserCode(node.getPactContract().getUserCodeWrapper()));
+		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
 
 		// set user code
-		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
-		config.setStubParameters(node.getPactContract().getParameters());
+		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());
+		config.setStubParameters(node.getProgramOperator().getParameters());
 
 		config.setOutputSerializer(node.getSerializer());
 		return vertex;
@@ -865,11 +862,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
 		vertex.setInvokableClass(DataSinkTask.class);
-		vertex.setFormatDescription(getDescriptionForUserCode(node.getPactContract().getUserCodeWrapper()));
+		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
 		
 		// set user code
-		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
-		config.setStubParameters(node.getPactContract().getParameters());
+		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());
+		config.setStubParameters(node.getProgramOperator().getParameters());
 
 		return vertex;
 	}
@@ -896,7 +893,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
 					c.getLocalStrategy() == LocalStrategy.NONE &&
 					c.getTempMode() == TempMode.NONE &&
-					successor.getDegreeOfParallelism() == pspn.getDegreeOfParallelism() &&
+					successor.getParallelism() == pspn.getParallelism() &&
 					!(successor instanceof NAryUnionPlanNode) &&
 					successor != iteration.getRootOfStepFunction() &&
 					iteration.getInput().getLocalStrategy() == LocalStrategy.NONE;
@@ -964,7 +961,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			merge = c.getShipStrategy() == ShipStrategyType.FORWARD &&
 					c.getLocalStrategy() == LocalStrategy.NONE &&
 					c.getTempMode() == TempMode.NONE &&
-					successor.getDegreeOfParallelism() == wspn.getDegreeOfParallelism() &&
+					successor.getParallelism() == wspn.getParallelism() &&
 					!(successor instanceof NAryUnionPlanNode) &&
 					successor != iteration.getNextWorkSetPlanNode() &&
 					iteration.getInitialWorksetInput().getLocalStrategy() == LocalStrategy.NONE;

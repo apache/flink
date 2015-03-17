@@ -42,7 +42,7 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -79,7 +79,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(p);
 			
 			// check that the JobGraphGenerator accepts the plan
-			new NepheleJobGraphGenerator().compileJobGraph(p);
+			new JobGraphGenerator().compileJobGraph(p);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -116,7 +116,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
 			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -152,7 +152,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
 			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -188,7 +188,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			assertEquals(ShipStrategyType.FORWARD, wipn.getInput1().getShipStrategy());
 			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -222,7 +222,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 				assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
 			}
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -299,7 +299,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 			
-			new NepheleJobGraphGenerator().compileJobGraph(op);
+			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

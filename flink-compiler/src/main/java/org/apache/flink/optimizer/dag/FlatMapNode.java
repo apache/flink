@@ -40,8 +40,8 @@ public class FlatMapNode extends SingleInputNode {
 	}
 
 	@Override
-	public FlatMapOperatorBase<?, ?, ?> getPactContract() {
-		return (FlatMapOperatorBase<?, ?, ?>) super.getPactContract();
+	public FlatMapOperatorBase<?, ?, ?> getOperator() {
+		return (FlatMapOperatorBase<?, ?, ?>) super.getOperator();
 	}
 
 	@Override

@@ -27,7 +27,7 @@ import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
@@ -122,20 +122,20 @@ public class JoinITCase extends RecordAPITestBase {
 		JoinOperator testMatcher = JoinOperator.builder(new TestMatcher(), StringValue.class, 0, 0)
 			.build();
 		testMatcher.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
-		testMatcher.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+		testMatcher.getParameters().setString(Optimizer.HINT_LOCAL_STRATEGY,
 				config.getString("MatchTest#LocalStrategy", ""));
 		if (config.getString("MatchTest#ShipStrategy", "").equals("BROADCAST_FIRST")) {
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
-					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
-					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
+			testMatcher.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY_FIRST_INPUT,
+					Optimizer.HINT_SHIP_STRATEGY_BROADCAST);
+			testMatcher.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY_SECOND_INPUT,
+					Optimizer.HINT_SHIP_STRATEGY_FORWARD);
 		} else if (config.getString("MatchTest#ShipStrategy", "").equals("BROADCAST_SECOND")) {
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
-					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
-					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
+			testMatcher.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY_FIRST_INPUT,
+					Optimizer.HINT_SHIP_STRATEGY_FORWARD);
+			testMatcher.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY_SECOND_INPUT,
+					Optimizer.HINT_SHIP_STRATEGY_BROADCAST);
 		} else {
-			testMatcher.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
+			testMatcher.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY,
 					config.getString("MatchTest#ShipStrategy", ""));
 		}
 
@@ -160,10 +160,10 @@ public class JoinITCase extends RecordAPITestBase {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE,
-				PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND };
+		String[] localStrategies = { Optimizer.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE,
+				Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST, Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND };
 
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH, "BROADCAST_FIRST", "BROADCAST_SECOND"};
+		String[] shipStrategies = { Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH, "BROADCAST_FIRST", "BROADCAST_SECOND"};
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

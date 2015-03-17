@@ -31,8 +31,9 @@ import org.apache.flink.optimizer.util.NoOpBinaryUdfOp;
 import org.apache.flink.types.Nothing;
 
 /**
- * This class represents a utility node that is not part of the actual plan. It is used for plans with multiple data sinks to
- * transform it into a plan with a single root node. That way, the code that makes sure no costs are double-counted and that 
+ * This class represents a utility node that is not part of the actual plan.
+ * It is used for plans with multiple data sinks to transform it into a plan with
+ * a single root node. That way, the code that makes sure no costs are double-counted and that
  * candidate selection works correctly with nodes that have multiple outputs is transparently reused.
  */
 public class SinkJoiner extends TwoInputNode {
@@ -40,8 +41,8 @@ public class SinkJoiner extends TwoInputNode {
 	public SinkJoiner(OptimizerNode input1, OptimizerNode input2) {
 		super(new NoOpBinaryUdfOp<Nothing>(new NothingTypeInfo()));
 
-		PactConnection conn1 = new PactConnection(input1, this, null, ExecutionMode.PIPELINED);
-		PactConnection conn2 = new PactConnection(input2, this, null, ExecutionMode.PIPELINED);
+		DagConnection conn1 = new DagConnection(input1, this, null, ExecutionMode.PIPELINED);
+		DagConnection conn2 = new DagConnection(input2, this, null, ExecutionMode.PIPELINED);
 		
 		this.input1 = conn1;
 		this.input2 = conn2;
@@ -55,7 +56,7 @@ public class SinkJoiner extends TwoInputNode {
 	}
 	
 	@Override
-	public List<PactConnection> getOutgoingConnections() {
+	public List<DagConnection> getOutgoingConnections() {
 		return Collections.emptyList();
 	}
 	
