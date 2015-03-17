@@ -425,7 +425,8 @@ Transformer[ Vector, LabeledVector ] {
 
     @throws(classOf[Exception])
     override def open(configuration: Configuration): Unit = {
-      val t = getRuntimeContext.getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
+      val t = getRuntimeContext
+        .getBroadcastVariable[(Array[Double], Double)](WEIGHTVECTOR_BROADCAST)
 
       val weightsPair = t.get(0)
 
