@@ -17,7 +17,6 @@
  */
 package org.apache.flink.runtime.security;
 
-import org.apache.flink.runtime.operators.MapPartitionDriver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
@@ -27,7 +26,7 @@ import java.security.PrivilegedExceptionAction;
 
 public class SecurityUtils {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SecurityUtils.class);
 
 	// load Hadoop configuration when loading the security utils.
 	private static Configuration hdConf = new Configuration();
