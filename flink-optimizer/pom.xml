@@ -29,8 +29,8 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-compiler</artifactId>
-	<name>flink-compiler</name>
+	<artifactId>flink-optimizer</artifactId>
+	<name>flink-optimizer</name>
 
 	<packaging>jar</packaging>
 
