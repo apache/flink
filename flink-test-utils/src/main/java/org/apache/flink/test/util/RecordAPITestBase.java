@@ -23,10 +23,10 @@ import akka.actor.ActorRef;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -72,14 +72,14 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 			Assert.fail("Error: Cannot obtain Pact plan. Did the thest forget to override either 'getPactPlan()' or 'getJobGraph()' ?");
 		}
 		
-		PactCompiler pc = new PactCompiler(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics());
 		OptimizedPlan op = pc.compile(p);
 		
 		if (printPlan) {
 			System.out.println(new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(op)); 
 		}
 
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+		JobGraphGenerator jgg = new JobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 	

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dag;
 
 import java.util.Collections;
@@ -62,8 +61,8 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	}
 
 	@Override
-	public List<PactConnection> getIncomingConnections() {
-		return Collections.<PactConnection>emptyList();
+	public List<DagConnection> getIncomingConnections() {
+		return Collections.emptyList();
 	}
 
 	@Override

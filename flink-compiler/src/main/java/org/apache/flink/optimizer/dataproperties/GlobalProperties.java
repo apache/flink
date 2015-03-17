@@ -185,11 +185,7 @@ public class GlobalProperties implements Cloneable {
 	}
 
 	public boolean isExactlyPartitionedOnFields(FieldList fields) {
-		if (this.partitioning.isPartitionedOnKey() && fields.isExactMatch(this.partitioningFields)) {
-			return true;
-		} else {
-			return false;
-		}
+		return this.partitioning.isPartitionedOnKey() && fields.isExactMatch(this.partitioningFields);
 	}
 	
 	public boolean matchesOrderedPartitioning(Ordering o) {

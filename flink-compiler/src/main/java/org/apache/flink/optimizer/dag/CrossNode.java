@@ -26,7 +26,7 @@ import org.apache.flink.api.common.operators.base.CrossOperatorBase;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.operators.CrossBlockOuterFirstDescriptor;
 import org.apache.flink.optimizer.operators.CrossBlockOuterSecondDescriptor;
 import org.apache.flink.optimizer.operators.CrossStreamOuterFirstDescriptor;
@@ -50,7 +50,7 @@ public class CrossNode extends TwoInputNode {
 		super(operation);
 		
 		Configuration conf = operation.getParameters();
-		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+		String localStrategy = conf.getString(Optimizer.HINT_LOCAL_STRATEGY, null);
 	
 		CrossHint hint = operation.getCrossHint();
 		
@@ -60,13 +60,13 @@ public class CrossNode extends TwoInputNode {
 			final boolean allowBCsecond = hint != CrossHint.FIRST_IS_SMALL;
 			
 			final OperatorDescriptorDual fixedDriverStrat;
-			if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST.equals(localStrategy)) {
+			if (Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST.equals(localStrategy)) {
 				fixedDriverStrat = new CrossBlockOuterFirstDescriptor(allowBCfirst, allowBCsecond);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND.equals(localStrategy)) {
+			} else if (Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND.equals(localStrategy)) {
 				fixedDriverStrat = new CrossBlockOuterSecondDescriptor(allowBCfirst, allowBCsecond);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST.equals(localStrategy)) {
+			} else if (Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST.equals(localStrategy)) {
 				fixedDriverStrat = new CrossStreamOuterFirstDescriptor(allowBCfirst, allowBCsecond);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND.equals(localStrategy)) {
+			} else if (Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND.equals(localStrategy)) {
 				fixedDriverStrat = new CrossStreamOuterSecondDescriptor(allowBCfirst, allowBCsecond);
 			} else {
 				throw new CompilerException("Invalid local strategy hint for cross contract: " + localStrategy);
@@ -99,8 +99,8 @@ public class CrossNode extends TwoInputNode {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CrossOperatorBase<?, ?, ?, ?> getPactContract() {
-		return (CrossOperatorBase<?, ?, ?, ?>) super.getPactContract();
+	public CrossOperatorBase<?, ?, ?, ?> getOperator() {
+		return (CrossOperatorBase<?, ?, ?, ?>) super.getOperator();
 	}
 
 	@Override

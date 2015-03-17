@@ -16,19 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer;
 
 /**
- * An exception that is thrown by the pact compiler when encountering
+ * An exception that is thrown by the Optimizer when encountering
  * a problem during the optimizer post pass. This is a dedicated exception
  * because it is thrown by user-specified optimizer extensions.
  */
 public class CompilerPostPassException extends CompilerException {
-	
-	/**
-	 * Serial version UID for serialization interoperability.
-	 */
+
 	private static final long serialVersionUID = -322650826288034623L;
 
 	/**

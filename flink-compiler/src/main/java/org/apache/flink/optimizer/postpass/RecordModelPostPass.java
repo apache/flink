@@ -54,7 +54,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 	
 	@Override
 	protected void getSinkSchema(SinkPlanNode sinkPlanNode, SparseKeySchema schema) throws CompilerPostPassException {
-		GenericDataSinkBase<?> sink = sinkPlanNode.getSinkNode().getPactContract();
+		GenericDataSinkBase<?> sink = sinkPlanNode.getSinkNode().getOperator();
 		Ordering partitioning = sink.getPartitionOrdering();
 		Ordering sorting = sink.getLocalOrder();
 		
@@ -76,7 +76,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 			throws CompilerPostPassException, ConflictingFieldTypeInfoException
 	{
 		// check that we got the right types
-		SingleInputOperator<?, ?, ?> contract = (SingleInputOperator<?, ?, ?>) node.getSingleInputNode().getPactContract();
+		SingleInputOperator<?, ?, ?> contract = (SingleInputOperator<?, ?, ?>) node.getSingleInputNode().getOperator();
 		if (! (contract instanceof RecordOperator)) {
 			throw new CompilerPostPassException("Error: Operator is not a Record based contract. Wrong compiler invokation.");
 		}
@@ -103,7 +103,7 @@ public class RecordModelPostPass extends GenericFlatTypePostPass<Class<? extends
 			throws CompilerPostPassException, ConflictingFieldTypeInfoException
 	{
 		// add the nodes local information. this automatically consistency checks
-		DualInputOperator<?, ?, ?, ?> contract = node.getTwoInputNode().getPactContract();
+		DualInputOperator<?, ?, ?, ?> contract = node.getTwoInputNode().getOperator();
 		if (! (contract instanceof RecordOperator)) {
 			throw new CompilerPostPassException("Error: Operator is not a Pact Record based contract. Wrong compiler invokation.");
 		}

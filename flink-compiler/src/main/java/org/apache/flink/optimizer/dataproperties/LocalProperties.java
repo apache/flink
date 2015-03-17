@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
- * within the data of a single partition.
+ * within the data of a single partition, such as sort order, or data grouping.
  */
 public class LocalProperties implements Cloneable {
 

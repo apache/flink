@@ -149,7 +149,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 				DataSet<Long> initialSource = env.generateSequence(1, 10);
 				
 				Configuration conf= new Configuration();
-				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST);
+				conf.setString(Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST);
 				initialSource
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)
@@ -171,7 +171,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 				DataSet<Long> initialSource = env.generateSequence(1, 10);
 				
 				Configuration conf= new Configuration();
-				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND);
+				conf.setString(Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND);
 				initialSource
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)
@@ -194,7 +194,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 				DataSet<Long> initialSource = env.generateSequence(1, 10);
 				
 				Configuration conf= new Configuration();
-				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST);
+				conf.setString(Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST);
 				initialSource
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)
@@ -217,7 +217,7 @@ public class PipelineBreakerTest extends CompilerTestBase {
 				DataSet<Long> initialSource = env.generateSequence(1, 10);
 				
 				Configuration conf= new Configuration();
-				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND);
+				conf.setString(Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND);
 				initialSource
 					.map(new IdentityMapper<Long>())
 					.cross(initialSource).withParameters(conf)

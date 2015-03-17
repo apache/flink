@@ -107,7 +107,7 @@ public class BinaryUnionNode extends TwoInputNode {
 		final List<? extends PlanNode> subPlans1 = getFirstPredecessorNode().getAlternativePlans(estimator);
 		final List<? extends PlanNode> subPlans2 = getSecondPredecessorNode().getAlternativePlans(estimator);
 
-		List<PactConnection> broadcastConnections = getBroadcastConnections();
+		List<DagConnection> broadcastConnections = getBroadcastConnections();
 		if (broadcastConnections != null && broadcastConnections.size() > 0) {
 			throw new CompilerException("Found BroadcastVariables on a Union operation");
 		}
@@ -122,9 +122,9 @@ public class BinaryUnionNode extends TwoInputNode {
 		final ExecutionMode input1Mode = this.input1.getDataExchangeMode();
 		final ExecutionMode input2Mode = this.input2.getDataExchangeMode();
 
-		final int dop = getDegreeOfParallelism();
-		final int inDop1 = getFirstPredecessorNode().getDegreeOfParallelism();
-		final int inDop2 = getSecondPredecessorNode().getDegreeOfParallelism();
+		final int dop = getParallelism();
+		final int inDop1 = getFirstPredecessorNode().getParallelism();
+		final int inDop2 = getSecondPredecessorNode().getParallelism();
 
 		final boolean dopChange1 = dop != inDop1;
 		final boolean dopChange2 = dop != inDop2;

@@ -46,7 +46,7 @@ public class SolutionSetNode extends AbstractPartialSolutionNode {
 	// --------------------------------------------------------------------------------------------
 	
 	public void setCandidateProperties(GlobalProperties gProps, LocalProperties lProps, Channel initialInput) {
-		this.cachedPlans = Collections.<PlanNode>singletonList(new SolutionSetPlanNode(this, "SolutionSet("+this.getPactContract().getName()+")", gProps, lProps, initialInput));
+		this.cachedPlans = Collections.<PlanNode>singletonList(new SolutionSetPlanNode(this, "SolutionSet("+this.getOperator().getName()+")", gProps, lProps, initialInput));
 	}
 	
 	public SolutionSetPlanNode getCurrentSolutionSetPlanNode() {
@@ -74,8 +74,8 @@ public class SolutionSetNode extends AbstractPartialSolutionNode {
 	 * @return The contract.
 	 */
 	@Override
-	public SolutionSetPlaceHolder<?> getPactContract() {
-		return (SolutionSetPlaceHolder<?>) super.getPactContract();
+	public SolutionSetPlaceHolder<?> getOperator() {
+		return (SolutionSetPlaceHolder<?>) super.getOperator();
 	}
 
 	@Override
@@ -89,7 +89,7 @@ public class SolutionSetNode extends AbstractPartialSolutionNode {
 			return;
 		}
 
-		PactConnection solutionSetInput = this.iterationNode.getFirstIncomingConnection();
+		DagConnection solutionSetInput = this.iterationNode.getFirstIncomingConnection();
 		OptimizerNode solutionSetSource = solutionSetInput.getSource();
 		
 		addClosedBranches(solutionSetSource.closedBranchingNodes);

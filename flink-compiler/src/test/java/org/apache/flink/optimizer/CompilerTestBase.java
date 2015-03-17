@@ -59,9 +59,9 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	
 	protected transient DataStatistics dataStats;
 	
-	protected transient PactCompiler withStatsCompiler;
+	protected transient Optimizer withStatsCompiler;
 	
-	protected transient PactCompiler noStatsCompiler;
+	protected transient Optimizer noStatsCompiler;
 	
 	private transient int statCounter;
 	
@@ -70,10 +70,10 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	@Before
 	public void setup() {
 		this.dataStats = new DataStatistics();
-		this.withStatsCompiler = new PactCompiler(this.dataStats, new DefaultCostEstimator());
+		this.withStatsCompiler = new Optimizer(this.dataStats, new DefaultCostEstimator());
 		this.withStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
 		
-		this.noStatsCompiler = new PactCompiler(null, new DefaultCostEstimator());
+		this.noStatsCompiler = new Optimizer(null, new DefaultCostEstimator());
 		this.noStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
 	}
 	
@@ -111,7 +111,7 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 			HashMap<String, ArrayList<PlanNode>> map = new HashMap<String, ArrayList<PlanNode>>();
 			
 			for (PlanNode n : p.getAllNodes()) {
-				Operator<?> c = n.getOriginalOptimizerNode().getPactContract();
+				Operator<?> c = n.getOriginalOptimizerNode().getOperator();
 				String name = c.getName();
 				
 				ArrayList<PlanNode> list = map.get(name);
@@ -124,7 +124,7 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 				boolean shouldAdd = true;
 				for (Iterator<PlanNode> iter = list.iterator(); iter.hasNext();) {
 					PlanNode in = iter.next();
-					if (in.getOriginalOptimizerNode().getPactContract() == c) {
+					if (in.getOriginalOptimizerNode().getOperator() == c) {
 						// is this the child or is our node the child
 						if (in instanceof SingleInputPlanNode && n instanceof SingleInputPlanNode) {
 							SingleInputPlanNode thisNode = (SingleInputPlanNode) n;

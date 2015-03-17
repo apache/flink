@@ -25,7 +25,7 @@ import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.MapOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.DummyCrossStub;
 import org.apache.flink.optimizer.util.DummyInputFormat;
 import org.apache.flink.optimizer.util.DummyOutputFormat;
@@ -74,7 +74,7 @@ public class HardPlansCompilationTest extends CompilerTestBase {
 		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		OptimizedPlan oPlan = compileNoStats(plan);
-		NepheleJobGraphGenerator jobGen = new NepheleJobGraphGenerator();
+		JobGraphGenerator jobGen = new JobGraphGenerator();
 		jobGen.compileJobGraph(oPlan);
 	}
 }

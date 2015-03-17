@@ -16,24 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer;
 
 /**
- * An exception that is thrown by the pact compiler when encountering an illegal condition.
+ * An exception that is thrown by the Optimizer when encountering an illegal condition.
  */
 public class CompilerException extends RuntimeException {
 
-	/**
-	 * Serial version UID for serialization interoperability.
-	 */
 	private static final long serialVersionUID = 3810067304570563755L;
 
 	/**
 	 * Creates a compiler exception with no message and no cause.
 	 */
-	public CompilerException() {
-	}
+	public CompilerException() {}
 
 	/**
 	 * Creates a compiler exception with the given message and no cause.

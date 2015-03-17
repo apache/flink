@@ -26,7 +26,7 @@ import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.operators.HashJoinBuildFirstProperties;
 import org.apache.flink.optimizer.operators.HashJoinBuildSecondProperties;
 import org.apache.flink.optimizer.operators.OperatorDescriptorDual;
@@ -58,8 +58,8 @@ public class MatchNode extends TwoInputNode {
 	 * @return The contract.
 	 */
 	@Override
-	public JoinOperatorBase<?, ?, ?, ?> getPactContract() {
-		return (JoinOperatorBase<?, ?, ?, ?>) super.getPactContract();
+	public JoinOperatorBase<?, ?, ?, ?> getOperator() {
+		return (JoinOperatorBase<?, ?, ?, ?>) super.getOperator();
 	}
 
 	@Override
@@ -110,19 +110,19 @@ public class MatchNode extends TwoInputNode {
 	private List<OperatorDescriptorDual> getDataProperties(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase, JoinHint joinHint) {
 		// see if an internal hint dictates the strategy to use
 		Configuration conf = joinOperatorBase.getParameters();
-		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+		String localStrategy = conf.getString(Optimizer.HINT_LOCAL_STRATEGY, null);
 
 		if (localStrategy != null) {
 			final OperatorDescriptorDual fixedDriverStrat;
-			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy) ||
-				PactCompiler.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy) ||
-				PactCompiler.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy) ||
-				PactCompiler.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy) )
+			if (Optimizer.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy) ||
+				Optimizer.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy) ||
+				Optimizer.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy) ||
+				Optimizer.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy) )
 			{
 				fixedDriverStrat = new SortMergeJoinDescriptor(this.keys1, this.keys2);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
+			} else if (Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
 				fixedDriverStrat = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
+			} else if (Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
 				fixedDriverStrat = new HashJoinBuildSecondProperties(this.keys1, this.keys2);
 			} else {
 				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);

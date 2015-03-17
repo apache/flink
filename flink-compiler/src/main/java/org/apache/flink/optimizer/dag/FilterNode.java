@@ -41,8 +41,8 @@ public class FilterNode extends SingleInputNode {
 	}
 
 	@Override
-	public FilterOperatorBase<?, ?> getPactContract() {
-		return (FilterOperatorBase<?, ?>) super.getPactContract();
+	public FilterOperatorBase<?, ?> getOperator() {
+		return (FilterOperatorBase<?, ?>) super.getOperator();
 	}
 
 	@Override

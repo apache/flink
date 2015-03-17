@@ -27,10 +27,10 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.CostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -69,8 +69,8 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 public class ClientTest {
 
 	private PackagedProgram program;
-	private PactCompiler compilerMock;
-	private NepheleJobGraphGenerator generatorMock;
+	private Optimizer compilerMock;
+	private JobGraphGenerator generatorMock;
 
 
 	private Configuration config;
@@ -89,8 +89,8 @@ public class ClientTest {
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
 
 		program = mock(PackagedProgram.class);
-		compilerMock = mock(PactCompiler.class);
-		generatorMock = mock(NepheleJobGraphGenerator.class);
+		compilerMock = mock(Optimizer.class);
+		generatorMock = mock(JobGraphGenerator.class);
 
 		JobWithJars planWithJarsMock = mock(JobWithJars.class);
 		Plan planMock = mock(Plan.class);
@@ -101,10 +101,10 @@ public class ClientTest {
 		when(program.getPlanWithJars()).thenReturn(planWithJarsMock);
 		when(planWithJarsMock.getPlan()).thenReturn(planMock);
 
-		whenNew(PactCompiler.class).withArguments(any(DataStatistics.class), any(CostEstimator.class)).thenReturn(this.compilerMock);
+		whenNew(Optimizer.class).withArguments(any(DataStatistics.class), any(CostEstimator.class)).thenReturn(this.compilerMock);
 		when(compilerMock.compile(planMock)).thenReturn(optimizedPlanMock);
 
-		whenNew(NepheleJobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
+		whenNew(JobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
 		when(generatorMock.compileJobGraph(optimizedPlanMock)).thenReturn(jobGraph);
 
 		try {

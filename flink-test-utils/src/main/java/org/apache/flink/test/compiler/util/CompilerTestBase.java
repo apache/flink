@@ -30,7 +30,7 @@ import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
@@ -57,9 +57,9 @@ public abstract class CompilerTestBase {
 	
 	protected DataStatistics dataStats;
 	
-	protected PactCompiler withStatsCompiler;
+	protected Optimizer withStatsCompiler;
 	
-	protected PactCompiler noStatsCompiler;
+	protected Optimizer noStatsCompiler;
 	
 	private int statCounter;
 	
@@ -68,10 +68,10 @@ public abstract class CompilerTestBase {
 	@Before
 	public void setup() {
 		this.dataStats = new DataStatistics();
-		this.withStatsCompiler = new PactCompiler(this.dataStats, new DefaultCostEstimator());
+		this.withStatsCompiler = new Optimizer(this.dataStats, new DefaultCostEstimator());
 		this.withStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
 		
-		this.noStatsCompiler = new PactCompiler(null, new DefaultCostEstimator());
+		this.noStatsCompiler = new Optimizer(null, new DefaultCostEstimator());
 		this.noStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
 	}
 	
@@ -113,7 +113,7 @@ public abstract class CompilerTestBase {
 			HashMap<String, ArrayList<PlanNode>> map = new HashMap<String, ArrayList<PlanNode>>();
 			
 			for (PlanNode n : p.getAllNodes()) {
-				Operator<?> c = n.getOriginalOptimizerNode().getPactContract();
+				Operator<?> c = n.getOriginalOptimizerNode().getOperator();
 				String name = c.getName();
 				
 				ArrayList<PlanNode> list = map.get(name);
@@ -126,7 +126,7 @@ public abstract class CompilerTestBase {
 				boolean shouldAdd = true;
 				for (Iterator<PlanNode> iter = list.iterator(); iter.hasNext();) {
 					PlanNode in = iter.next();
-					if (in.getOriginalOptimizerNode().getPactContract() == c) {
+					if (in.getOriginalOptimizerNode().getOperator() == c) {
 						// is this the child or is our node the child
 						if (in instanceof SingleInputPlanNode && n instanceof SingleInputPlanNode) {
 							SingleInputPlanNode thisNode = (SingleInputPlanNode) n;

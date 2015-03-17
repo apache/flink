@@ -63,7 +63,7 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
 		oPlan.accept(new Visitor<PlanNode>() {
 			@Override
 			public boolean preVisit(PlanNode visitable) {
-				if (visitable instanceof SingleInputPlanNode && visitable.getPactContract() instanceof ReduceOperatorBase) {
+				if (visitable instanceof SingleInputPlanNode && visitable.getProgramOperator() instanceof ReduceOperatorBase) {
 					for (Channel input: visitable.getInputs()) {
 						GlobalProperties gprops = visitable.getGlobalProperties();
 						LocalProperties lprops = visitable.getLocalProperties();
@@ -78,7 +78,7 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
 								lprops.getGroupedFields().contains(1));
 					}
 				}
-				if (visitable instanceof SingleInputPlanNode && visitable.getPactContract() instanceof MapOperatorBase) {
+				if (visitable instanceof SingleInputPlanNode && visitable.getProgramOperator() instanceof MapOperatorBase) {
 					for (Channel input: visitable.getInputs()) {
 						GlobalProperties gprops = visitable.getGlobalProperties();
 						LocalProperties lprops = visitable.getLocalProperties();
@@ -124,7 +124,7 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
 		oPlan.accept(new Visitor<PlanNode>() {
 			@Override
 			public boolean preVisit(PlanNode visitable) {
-				if (visitable instanceof DualInputPlanNode && visitable.getPactContract() instanceof JoinOperatorBase) {
+				if (visitable instanceof DualInputPlanNode && visitable.getProgramOperator() instanceof JoinOperatorBase) {
 					DualInputPlanNode node = ((DualInputPlanNode) visitable);
 
 					final Channel inConn1 = node.getInput1();

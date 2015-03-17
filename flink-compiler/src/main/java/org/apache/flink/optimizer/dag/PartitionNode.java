@@ -49,13 +49,13 @@ public class PartitionNode extends SingleInputNode {
 		super(operator);
 		
 		OperatorDescriptorSingle descr = new PartitionDescriptor(
-					this.getPactContract().getPartitionMethod(), this.keys, operator.getCustomPartitioner());
+					this.getOperator().getPartitionMethod(), this.keys, operator.getCustomPartitioner());
 		this.possibleProperties = Collections.singletonList(descr);
 	}
 
 	@Override
-	public PartitionOperatorBase<?> getPactContract() {
-		return (PartitionOperatorBase<?>) super.getPactContract();
+	public PartitionOperatorBase<?> getOperator() {
+		return (PartitionOperatorBase<?>) super.getOperator();
 	}
 
 	@Override

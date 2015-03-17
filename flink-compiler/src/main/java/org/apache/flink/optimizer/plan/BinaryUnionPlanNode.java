@@ -42,7 +42,7 @@ public class BinaryUnionPlanNode extends DualInputPlanNode {
 		this.nodeCosts = toSwapFrom.nodeCosts;
 		this.cumulativeCosts = toSwapFrom.cumulativeCosts;
 		
-		setDegreeOfParallelism(toSwapFrom.getDegreeOfParallelism());
+		setParallelism(toSwapFrom.getParallelism());
 	}
 	
 	public BinaryUnionNode getOptimizerNode() {

@@ -36,7 +36,7 @@ import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.CompilerException;
-import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.CostEstimator;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.InterestingProperties;
@@ -68,7 +68,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 	protected final FieldSet keys; 			// The set of key fields
 	
-	protected PactConnection inConn; 		// the input of the node
+	protected DagConnection inConn; 		// the input of the node
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -103,8 +103,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public SingleInputOperator<?, ?, ?> getPactContract() {
-		return (SingleInputOperator<?, ?, ?>) super.getPactContract();
+	public SingleInputOperator<?, ?, ?> getOperator() {
+		return (SingleInputOperator<?, ?, ?>) super.getOperator();
 	}
 	
 	/**
@@ -112,7 +112,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * 
 	 * @return The input.
 	 */
-	public PactConnection getIncomingConnection() {
+	public DagConnection getIncomingConnection() {
 		return this.inConn;
 	}
 
@@ -121,7 +121,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 	 * 
 	 * @param inConn The input connection to set.
 	 */
-	public void setIncomingConnection(PactConnection inConn) {
+	public void setIncomingConnection(DagConnection inConn) {
 		this.inConn = inConn;
 	}
 	
@@ -139,14 +139,14 @@ public abstract class SingleInputNode extends OptimizerNode {
 	}
 
 	@Override
-	public List<PactConnection> getIncomingConnections() {
+	public List<DagConnection> getIncomingConnections() {
 		return Collections.singletonList(this.inConn);
 	}
 	
 
 	@Override
 	public SemanticProperties getSemanticProperties() {
-		return getPactContract().getSemanticProperties();
+		return getOperator().getSemanticProperties();
 	}
 	
 
@@ -155,18 +155,18 @@ public abstract class SingleInputNode extends OptimizerNode {
 			throws CompilerException
 	{
 		// see if an internal hint dictates the strategy to use
-		final Configuration conf = getPactContract().getParameters();
-		final String shipStrategy = conf.getString(PactCompiler.HINT_SHIP_STRATEGY, null);
+		final Configuration conf = getOperator().getParameters();
+		final String shipStrategy = conf.getString(Optimizer.HINT_SHIP_STRATEGY, null);
 		final ShipStrategyType preSet;
 		
 		if (shipStrategy != null) {
-			if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH)) {
+			if (shipStrategy.equalsIgnoreCase(Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH)) {
 				preSet = ShipStrategyType.PARTITION_HASH;
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_RANGE)) {
+			} else if (shipStrategy.equalsIgnoreCase(Optimizer.HINT_SHIP_STRATEGY_REPARTITION_RANGE)) {
 				preSet = ShipStrategyType.PARTITION_RANGE;
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_FORWARD)) {
+			} else if (shipStrategy.equalsIgnoreCase(Optimizer.HINT_SHIP_STRATEGY_FORWARD)) {
 				preSet = ShipStrategyType.FORWARD;
-			} else if (shipStrategy.equalsIgnoreCase(PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)) {
+			} else if (shipStrategy.equalsIgnoreCase(Optimizer.HINT_SHIP_STRATEGY_REPARTITION)) {
 				preSet = ShipStrategyType.PARTITION_RANDOM;
 			} else {
 				throw new CompilerException("Unrecognized ship strategy hint: " + shipStrategy);
@@ -176,15 +176,15 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 		
 		// get the predecessor node
-		Operator<?> children = ((SingleInputOperator<?, ?, ?>) getPactContract()).getInput();
+		Operator<?> children = ((SingleInputOperator<?, ?, ?>) getOperator()).getInput();
 		
 		OptimizerNode pred;
-		PactConnection conn;
+		DagConnection conn;
 		if (children == null) {
-			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input.");
+			throw new CompilerException("Error: Node for '" + getOperator().getName() + "' has no input.");
 		} else {
 			pred = contractToNode.get(children);
-			conn = new PactConnection(pred, this, defaultExchangeMode);
+			conn = new DagConnection(pred, this, defaultExchangeMode);
 			if (preSet != null) {
 				conn.setShipStrategy(preSet);
 			}
@@ -230,7 +230,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 		}
 		this.inConn.setInterestingProperties(props);
 		
-		for (PactConnection conn : getBroadcastConnections()) {
+		for (DagConnection conn : getBroadcastConnections()) {
 			conn.setInterestingProperties(new InterestingProperties());
 		}
 	}
@@ -251,11 +251,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 		
 		// calculate alternative sub-plans for broadcast inputs
 		final List<Set<? extends NamedChannel>> broadcastPlanChannels = new ArrayList<Set<? extends NamedChannel>>();
-		List<PactConnection> broadcastConnections = getBroadcastConnections();
+		List<DagConnection> broadcastConnections = getBroadcastConnections();
 		List<String> broadcastConnectionNames = getBroadcastConnectionNames();
 
 		for (int i = 0; i < broadcastConnections.size(); i++ ) {
-			PactConnection broadcastConnection = broadcastConnections.get(i);
+			DagConnection broadcastConnection = broadcastConnections.get(i);
 			String broadcastConnectionName = broadcastConnectionNames.get(i);
 			List<PlanNode> broadcastPlanCandidates = broadcastConnection.getSource().getAlternativePlans(estimator);
 
@@ -283,8 +283,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 
 		final ExecutionMode executionMode = this.inConn.getDataExchangeMode();
 
-		final int dop = getDegreeOfParallelism();
-		final int inDop = getPredecessorNode().getDegreeOfParallelism();
+		final int dop = getParallelism();
+		final int inDop = getPredecessorNode().getParallelism();
 		final boolean dopChange = inDop != dop;
 
 		final boolean breaksPipeline = this.inConn.isBreakingPipeline();
@@ -509,7 +509,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 			} else {
 				throw new CompilerException();
 			}
-			for (PactConnection connection : getBroadcastConnections()) {
+			for (DagConnection connection : getBroadcastConnections()) {
 				connection.getSource().accept(visitor);
 			}
 			visitor.postVisit(this);

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.dataproperties;
 
 import java.util.HashSet;
@@ -29,13 +28,16 @@ import org.apache.flink.optimizer.dag.SingleInputNode;
 import org.apache.flink.optimizer.dag.TwoInputNode;
 
 /**
- * The interesting properties that a node in the optimizer plan hands to its predecessors. It has the
- * purpose to tell the preceding nodes, which data properties might have the advantage, because they would
- * let the node fulfill its pact cheaper. More on optimization with interesting properties can be found
- * in the works on the volcano- and cascades optimizer framework.
+ * Interesting properties are propagated from parent operators to child operators. They tell the child
+ * what data properties would help the parent in operating in a cheaper fashion. A reduce operator, for
+ * example, tells its child that partitioned data would help. If the child is a join operator, it can use
+ * that knowledge to favor strategies that leave the data in a partitioned form.
+ *
+ * More on optimization with interesting properties can be found in the works on
+ * the volcano- and cascades optimizer framework.
  */
-public class InterestingProperties implements Cloneable
-{
+public class InterestingProperties implements Cloneable  {
+
 	private Set<RequestedGlobalProperties> globalProps; // the global properties, i.e. properties across partitions
 
 	private Set<RequestedLocalProperties> localProps; // the local properties, i.e. properties within partitions
@@ -91,8 +93,7 @@ public class InterestingProperties implements Cloneable
 		return this.globalProps;
 	}
 
-	public InterestingProperties filterByCodeAnnotations(OptimizerNode node, int input)
-	{
+	public InterestingProperties filterByCodeAnnotations(OptimizerNode node, int input) {
 		InterestingProperties iProps = new InterestingProperties();
 		SemanticProperties props;
 		if (node instanceof SingleInputNode || node instanceof TwoInputNode) {

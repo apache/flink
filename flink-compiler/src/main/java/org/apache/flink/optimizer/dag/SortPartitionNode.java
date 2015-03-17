@@ -51,8 +51,8 @@ public class SortPartitionNode extends SingleInputNode {
 	}
 
 	@Override
-	public SortPartitionOperatorBase<?> getPactContract() {
-		return (SortPartitionOperatorBase<?>) super.getPactContract();
+	public SortPartitionOperatorBase<?> getOperator() {
+		return (SortPartitionOperatorBase<?>) super.getOperator();
 	}
 
 	@Override
