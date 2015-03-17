@@ -30,7 +30,6 @@ import java.net.URISyntaxException;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.StringUtils;
 
 /**
@@ -278,9 +277,6 @@ public class Path implements IOReadableWritable, Serializable {
 	 * @return <code>true</code> if the path string contains a windows drive letter, <code>false</code> otherwise
 	 */
 	private boolean hasWindowsDrive(String path, boolean slashed) {
-		if (!OperatingSystem.isWindows()) {
-			return false;
-		}
 		final int start = slashed ? 1 : 0;
 		return path.length() >= start + 2
 			&& (!slashed || path.charAt(0) == '/')
@@ -316,7 +312,10 @@ public class Path implements IOReadableWritable, Serializable {
 	 */
 	public boolean isAbsolute() {
 		final int start = hasWindowsDrive(uri.getPath(), true) ? 3 : 0;
-		return uri.getPath().startsWith(SEPARATOR, start);
+		if (uri.getPath().length() > start) {
+			return uri.getPath().startsWith(SEPARATOR, start);
+		}
+		return true;
 	}
 
 	/**
