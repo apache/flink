@@ -27,7 +27,7 @@ import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.compiler.PactCompiler;
+import org.apache.flink.optimizer.PactCompiler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;

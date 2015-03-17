@@ -32,7 +32,7 @@ import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.api.java.record.operators.CoGroupOperator;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.compiler.PactCompiler;
+import org.apache.flink.optimizer.PactCompiler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;

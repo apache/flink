@@ -32,13 +32,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.contextcheck.ContextChecker;
-import org.apache.flink.compiler.dag.DataSinkNode;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.contextcheck.ContextChecker;
+import org.apache.flink.optimizer.dag.DataSinkNode;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.optimizer.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 /**

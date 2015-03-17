@@ -29,12 +29,12 @@ import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.costs.DefaultCostEstimator;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plan.PlanNode;
-import org.apache.flink.compiler.plan.SingleInputPlanNode;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.PactCompiler;
+import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plan.PlanNode;
+import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Before;
 
