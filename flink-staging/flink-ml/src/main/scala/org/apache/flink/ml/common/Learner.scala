@@ -19,7 +19,6 @@
 package org.apache.flink.ml.common
 
 import org.apache.flink.api.scala.DataSet
-import org.apache.flink.ml.common.WithParameters
 
 /** Base trait for an algorithm which trains a model based on some training data
   *
