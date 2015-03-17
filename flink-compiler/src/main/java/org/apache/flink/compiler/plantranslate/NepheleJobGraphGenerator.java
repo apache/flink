@@ -18,16 +18,6 @@
 
 package org.apache.flink.compiler.plantranslate;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
@@ -58,6 +48,8 @@ import org.apache.flink.compiler.plan.WorksetPlanNode;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
@@ -86,6 +78,16 @@ import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Visitor;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * This component translates the optimizer's resulting plan a nephele job graph. The
@@ -1069,7 +1071,33 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				throw new RuntimeException("Unknown runtime ship strategy: " + channel.getShipStrategy());
 		}
 
-		targetVertex.connectNewDataSetAsInput(sourceVertex, distributionPattern);
+		final ResultPartitionType resultType;
+
+		switch (channel.getDataExchangeMode()) {
+
+			case PIPELINED:
+				resultType = ResultPartitionType.PIPELINED;
+				break;
+
+			case BATCH:
+				// BLOCKING results are currently not supported in closed loop iterations
+				//
+				// See https://issues.apache.org/jira/browse/FLINK-1713 for details
+				resultType = channel.getSource().isOnDynamicPath()
+						? ResultPartitionType.PIPELINED
+						: ResultPartitionType.BLOCKING;
+				break;
+
+			case PIPELINE_WITH_BATCH_FALLBACK:
+				throw new UnsupportedOperationException("Data exchange mode " +
+						channel.getDataExchangeMode() + " currently not supported.");
+
+			default:
+				throw new UnsupportedOperationException("Unknown data exchange mode.");
+
+		}
+
+		targetVertex.connectNewDataSetAsInput(sourceVertex, distributionPattern, resultType);
 
 		// -------------- configure the source task's ship strategy strategies in task config --------------
 		final int outputIndex = sourceConfig.getNumOutputs();
@@ -1139,7 +1167,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 
 			boolean needsMemory = false;
 			// Don't add a pipeline breaker if the data exchange is already blocking.
-			if (tm.breaksPipeline()) {
+			if (tm.breaksPipeline() && channel.getDataExchangeMode() != DataExchangeMode.BATCH) {
 				config.setInputAsynchronouslyMaterialized(inputNum, true);
 				needsMemory = true;
 			}
