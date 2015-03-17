@@ -20,6 +20,7 @@ package org.apache.flink.graph.library;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
@@ -43,7 +44,12 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) {
 		VertexCentricIteration<K, Double, Double, Double> iteration = network.createVertexCentricIteration(
 				new VertexRankUpdater<K>(beta), new RankMessenger<K>(), maxIterations);
-		iteration.addBroadcastSetForUpdateFunction("numberOfVertices", network.numberOfVertices());
+		try {
+			iteration.addBroadcastSetForUpdateFunction("numberOfVertices",
+					ExecutionEnvironment.getExecutionEnvironment().fromElements(network.numberOfVertices()));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		return network.runVertexCentricIteration(iteration);
 	}
 

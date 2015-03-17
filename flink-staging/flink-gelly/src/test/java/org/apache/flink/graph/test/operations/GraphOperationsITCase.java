@@ -180,7 +180,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		graph.numberOfVertices().writeAsText(resultPath);
+		env.fromElements(graph.numberOfVertices()).writeAsText(resultPath);
 
 		env.execute();
 		expectedResult = "5";
@@ -195,7 +195,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		graph.numberOfEdges().writeAsText(resultPath);
+		env.fromElements(graph.numberOfEdges()).writeAsText(resultPath);
 
 		env.execute();
 		expectedResult = "7";

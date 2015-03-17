@@ -160,10 +160,10 @@ DataSet<Tuple2<K, Long>> outDegrees()
 DataSet<Tuple2<K, Long>> getDegrees()
 
 // get the number of vertices
-DataSet<Integer> numberOfVertices()
+long numberOfVertices()
 
 // get the number of edges
-DataSet<Integer> numberOfEdges()
+long numberOfEdges()
 
 {% endhighlight %}
 
@@ -386,7 +386,7 @@ List<Vertex<Long, Long>> vertices = ...
 // create a list of edges with IDs = {(1, 2) (1, 3), (2, 4), (5, 6)}
 List<Edge<Long, Long>> edges = ...
 
-Graph<Long, Long, Long> graph = Graph.fromcollection(vertices, edges, env);
+Graph<Long, Long, Long> graph = Graph.fromCollection(vertices, edges, env);
 
 // will return false: 6 is an invalid ID
 graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>()); 
