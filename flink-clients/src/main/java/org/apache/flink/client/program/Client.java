@@ -33,7 +33,6 @@ import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.PactCompiler;
-import org.apache.flink.optimizer.contextcheck.ContextChecker;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -194,9 +193,7 @@ public class Client {
 		if (parallelism > 0 && p.getDefaultParallelism() <= 0) {
 			p.setDefaultParallelism(parallelism);
 		}
-		
-		ContextChecker checker = new ContextChecker();
-		checker.check(p);
+
 		return this.compiler.compile(p);
 	}
 	
