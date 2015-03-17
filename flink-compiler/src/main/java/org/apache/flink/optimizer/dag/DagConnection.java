@@ -79,7 +79,7 @@ public class DagConnection implements EstimateProvider, DumpableConnection<Optim
 	 *        The data exchange mode (pipelined / batch / batch only for shuffles / ... )
 	 */
 	public DagConnection(OptimizerNode source, OptimizerNode target,
-						 ShipStrategyType shipStrategy, ExecutionMode exchangeMode)
+							ShipStrategyType shipStrategy, ExecutionMode exchangeMode)
 	{
 		if (source == null || target == null) {
 			throw new NullPointerException("Source and target must not be null.");

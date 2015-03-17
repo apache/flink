@@ -25,7 +25,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.dag.OptimizerNode;
 import org.apache.flink.optimizer.dag.SingleInputNode;
@@ -37,6 +36,9 @@ import org.apache.flink.optimizer.testfunctions.IdentityFlatMapper;
 import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
 import org.apache.flink.optimizer.testfunctions.Top1GroupReducer;
+import org.apache.flink.optimizer.traversals.BranchesVisitor;
+import org.apache.flink.optimizer.traversals.GraphCreatingVisitor;
+import org.apache.flink.optimizer.traversals.IdAndEstimatesVisitor;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -292,8 +294,8 @@ public class PipelineBreakingTest {
 	}
 
 	private static List<DataSinkNode> convertPlan(Plan p) {
-		Optimizer.GraphCreatingVisitor dagCreator =
-				new Optimizer.GraphCreatingVisitor(17, p.getExecutionConfig().getExecutionMode());
+		GraphCreatingVisitor dagCreator =
+				new GraphCreatingVisitor(17, p.getExecutionConfig().getExecutionMode());
 
 		// create the DAG
 		p.accept(dagCreator);
@@ -312,8 +314,8 @@ public class PipelineBreakingTest {
 				rootNode = new SinkJoiner(rootNode, iter.next());
 			}
 		}
-		rootNode.accept(new Optimizer.IdAndEstimatesVisitor(null));
-		rootNode.accept(new Optimizer.BranchesVisitor());
+		rootNode.accept(new IdAndEstimatesVisitor(null));
+		rootNode.accept(new BranchesVisitor());
 
 		return sinks;
 	}
