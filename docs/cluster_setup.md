@@ -258,7 +258,7 @@ commands
 
 ~~~bash
 cd hadoop-*
-binn/start-dfs.sh
+bin/start-dfs.sh
 ~~~
 
 If your HDFS setup is correct, you should be able to open the HDFS

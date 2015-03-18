@@ -49,15 +49,15 @@ under the License.
 	  <ul class="nav navbar-nav">
 
 	    <li>
-	      <a href="/index.html" class="{% if page.url contains 'index.html' %}active{% endif %}">Documentation</a>
+	      <a href="{{ site.baseurl }}/index.html" class="{% if page.url contains 'index.html' %}active{% endif %}">Documentation</a>
 	    </li>
 
 	    <li>
-	      <a href="/api/java/index.html">Javadoc</a>
+	      <a href="{{ site.baseurl }}/api/java/index.html">Javadoc</a>
 	    </li>
 
 	    <li>
-	      <a href="/api/scala/index.html#org.apache.flink.api.scala.package">Scaladoc</a>
+	      <a href="{{ site.baseurl }}/api/scala/index.html#org.apache.flink.api.scala.package">Scaladoc</a>
 	    </li>
 
 	  </ul>
