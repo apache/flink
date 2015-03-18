@@ -138,8 +138,8 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 			
 			po.setCombinable(combinable);
 			po.setInput(input);
-			// the degree of parallelism for a non grouped reduce can only be 1
-			po.setDegreeOfParallelism(1);
+			// the parallelism for a non grouped reduce can only be 1
+			po.setParallelism(1);
 			return po;
 		}
 	
@@ -165,14 +165,14 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 				}
 				po.setGroupOrder(o);
 
-				po.setDegreeOfParallelism(this.getParallelism());
+				po.setParallelism(this.getParallelism());
 				po.setCustomPartitioner(grouper.getCustomPartitioner());
 				return po;
 			} else {
 				PlanUnwrappingReduceGroupOperator<IN, OUT, ?> po = translateSelectorFunctionReducer(
 							selectorKeys, function, getInputType(), getResultType(), name, input, isCombinable());
 
-				po.setDegreeOfParallelism(this.getParallelism());
+				po.setParallelism(this.getParallelism());
 				po.setCustomPartitioner(grouper.getCustomPartitioner());
 				return po;
 			}
@@ -186,7 +186,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 
 			po.setCombinable(combinable);
 			po.setInput(input);
-			po.setDegreeOfParallelism(getParallelism());
+			po.setParallelism(getParallelism());
 			po.setCustomPartitioner(grouper.getCustomPartitioner());
 			
 			// set group order
@@ -233,7 +233,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		mapper.setInput(input);
 		
 		// set the mapper's parallelism to the input parallelism to make sure it is chained
-		mapper.setDegreeOfParallelism(input.getDegreeOfParallelism());
+		mapper.setParallelism(input.getParallelism());
 		
 		return reducer;
 	}
@@ -261,7 +261,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		mapper.setInput(input);
 
 		// set the mapper's parallelism to the input parallelism to make sure it is chained
-		mapper.setDegreeOfParallelism(input.getDegreeOfParallelism());
+		mapper.setParallelism(input.getParallelism());
 
 		return reducer;
 	}

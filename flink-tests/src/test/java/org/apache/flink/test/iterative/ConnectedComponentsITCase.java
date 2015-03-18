@@ -41,7 +41,7 @@ public class ConnectedComponentsITCase extends RecordAPITestBase {
 	protected String resultPath;
 
 	public ConnectedComponentsITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 	
@@ -55,7 +55,7 @@ public class ConnectedComponentsITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
-		return cc.getPlan(Integer.valueOf(DOP).toString(),  verticesPath, edgesPath, resultPath, "100");
+		return cc.getPlan(Integer.valueOf(parallelism).toString(),  verticesPath, edgesPath, resultPath, "100");
 	}
 
 	@Override

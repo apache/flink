@@ -27,11 +27,11 @@ import org.junit.Test;
 
 public abstract class StreamingProgramTestBase extends AbstractTestBase {
 
-	private static final int DEFAULT_DEGREE_OF_PARALLELISM = 4;
+	private static final int DEFAULT_PARALLELISM = 4;
 
 	private JobExecutionResult latestExecutionResult;
 
-	private int degreeOfParallelism = DEFAULT_DEGREE_OF_PARALLELISM;
+	private int parallelism = DEFAULT_PARALLELISM;
 
 
 	public StreamingProgramTestBase() {
@@ -40,16 +40,16 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 
 	public StreamingProgramTestBase(Configuration config) {
 		super(config);
-		setTaskManagerNumSlots(degreeOfParallelism);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
-	public void setDegreeOfParallelism(int degreeOfParallelism) {
-		this.degreeOfParallelism = degreeOfParallelism;
-		setTaskManagerNumSlots(degreeOfParallelism);
+	public void setParallelism(int parallelism) {
+		this.parallelism = parallelism;
+		setTaskManagerNumSlots(parallelism);
 	}
 	
-	public int getDegreeOfParallelism() {
-		return degreeOfParallelism;
+	public int getParallelism() {
+		return parallelism;
 	}
 	
 	public JobExecutionResult getLatestExecutionResult() {
@@ -86,7 +86,7 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 			}
 
 			// prepare the test environment
-			TestStreamEnvironment env = new TestStreamEnvironment(this.executor, this.degreeOfParallelism);
+			TestStreamEnvironment env = new TestStreamEnvironment(this.executor, this.parallelism);
 			env.setAsContext();
 
 			// call the test program

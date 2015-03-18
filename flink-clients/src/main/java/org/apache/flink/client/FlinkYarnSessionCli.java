@@ -408,9 +408,9 @@ public class FlinkYarnSessionCli {
 			Properties yarnProps = new Properties();
 			yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_JOBMANAGER_KEY, jobManagerAddress);
 			if (flinkYarnClient.getTaskManagerSlots() != -1) {
-				String degreeOfParallelism =
+				String parallelism =
 						Integer.toString(flinkYarnClient.getTaskManagerSlots() * flinkYarnClient.getTaskManagerCount());
-				yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_DOP, degreeOfParallelism);
+				yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_PARALLELISM, parallelism);
 			}
 			// add dynamic properties
 			if (flinkYarnClient.getDynamicPropertiesEncoded() != null) {

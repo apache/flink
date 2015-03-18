@@ -45,7 +45,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 	public void testIdentityIteration() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(43);
+			env.setParallelism(43);
 			
 			IterativeDataSet<Long> iteration = env.generateSequence(-4, 1000).iterate(100);
 			iteration.closeWith(iteration).print();
@@ -65,7 +65,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 	public void testEmptyWorksetIteration() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(43);
+			env.setParallelism(43);
 			
 			DataSet<Tuple2<Long, Long>> input = env.generateSequence(1, 20)
 					.map(new MapFunction<Long, Tuple2<Long, Long>>() {
@@ -93,7 +93,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 	public void testIterationWithUnionRoot() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(43);
+			env.setParallelism(43);
 			
 			IterativeDataSet<Long> iteration = env.generateSequence(-4, 1000).iterate(100);
 			
@@ -132,7 +132,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 	public void testWorksetIterationWithUnionRoot() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(43);
+			env.setParallelism(43);
 			
 			DataSet<Tuple2<Long, Long>> input = env.generateSequence(1, 20)
 					.map(new MapFunction<Long, Tuple2<Long, Long>>() {

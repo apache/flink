@@ -75,7 +75,7 @@ public class DataSourceNode extends OptimizerNode {
 		}
 		
 		if (NonParallelInput.class.isAssignableFrom(pactContract.getUserCodeWrapper().getUserCodeClass())) {
-			setDegreeOfParallelism(1);
+			setParallelism(1);
 			this.sequentialInput = true;
 		} else {
 			this.sequentialInput = false;
@@ -115,10 +115,10 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public void setDegreeOfParallelism(int degreeOfParallelism) {
+	public void setParallelism(int parallelism) {
 		// if unsplittable, parallelism remains at 1
 		if (!this.sequentialInput) {
-			super.setDegreeOfParallelism(degreeOfParallelism);
+			super.setParallelism(parallelism);
 		}
 	}
 

@@ -289,7 +289,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
       .where("nestedPojo.longNumber", "number", "str")
       .equalTo("_7", "_1", "_2")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One," +
       "10000)\n" + "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two," +
@@ -307,7 +307,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val joinDs = ds1.join(ds2).where("nestedPojo.longNumber", "number",
       "nestedTupleWithCustom._1").equalTo("_7", "_1", "_3")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One," +
       "10000)\n" + "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two," +
@@ -328,7 +328,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
         "nestedTupleWithCustom._2.myLong")
       .equalTo("_3", "_4", "_5")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One," +
       "10000)\n" + "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two," +
@@ -345,7 +345,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.getSmallNestedTupleDataSet(env)
     val joinDs = ds1.join(ds2).where(0).equalTo("_1._1", "_1._2")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "((1,1),one),((1,1),one)\n" + "((2,2),two),((2,2),two)\n" + "((3,3),three),((3,3)," +
       "three)\n"
@@ -362,7 +362,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.getSmallNestedTupleDataSet(env)
     val joinDs = ds1.join(ds2).where("_1._1").equalTo("_1._1")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "((1,1),one),((1,1),one)\n" + "((2,2),two),((2,2),two)\n" + "((3,3),three),((3,3)," +
       "three)\n"
@@ -378,7 +378,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
     val ds2 = CollectionDataSets.getSmallTuplebasedDataSetMatchingPojo(env)
     val joinDs = ds1.join(ds2).where("*").equalTo("*")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "1 First (10,100,1000,One) 10000,(10000,10,100,1000,One,1,First)\n" +
       "2 Second (20,200,2000,Two) 20000,(20000,20,200,2000,Two,2,Second)\n" +

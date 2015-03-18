@@ -57,13 +57,13 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 		PlanFilterOperator<T> po = new PlanFilterOperator<T>(function, name, getInputType());
 		po.setInput(input);
 		
-		// set dop
+		// set parallelism
 		if (getParallelism() > 0) {
-			// use specified dop
-			po.setDegreeOfParallelism(getParallelism());
+			// use specified parallelism
+			po.setParallelism(getParallelism());
 		} else {
-			// if no dop has been specified, use dop of input operator to enable chaining
-			po.setDegreeOfParallelism(input.getDegreeOfParallelism());
+			// if no parallelism has been specified, use parallelism of input operator to enable chaining
+			po.setParallelism(input.getParallelism());
 		}
 		
 		return po;

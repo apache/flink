@@ -103,7 +103,7 @@ public class DataStream<OUT> {
 	protected final StreamExecutionEnvironment environment;
 	protected final Integer id;
 	protected final String type;
-	protected int degreeOfParallelism;
+	protected int parallelism;
 	protected List<String> userDefinedNames;
 	protected StreamPartitioner<OUT> partitioner;
 	@SuppressWarnings("rawtypes")
@@ -133,7 +133,7 @@ public class DataStream<OUT> {
 		this.id = counter;
 		this.type = operatorType;
 		this.environment = environment;
-		this.degreeOfParallelism = environment.getDegreeOfParallelism();
+		this.parallelism = environment.getParallelism();
 		this.streamGraph = environment.getStreamGraph();
 		this.userDefinedNames = new ArrayList<String>();
 		this.partitioner = new DistributePartitioner<OUT>(true);
@@ -152,7 +152,7 @@ public class DataStream<OUT> {
 		this.environment = dataStream.environment;
 		this.id = dataStream.id;
 		this.type = dataStream.type;
-		this.degreeOfParallelism = dataStream.degreeOfParallelism;
+		this.parallelism = dataStream.parallelism;
 		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
 		this.partitioner = dataStream.partitioner;
 		this.streamGraph = dataStream.streamGraph;
@@ -177,12 +177,12 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Gets the degree of parallelism for this operator.
+	 * Gets the parallelism for this operator.
 	 * 
 	 * @return The parallelism set for this operator.
 	 */
 	public int getParallelism() {
-		return this.degreeOfParallelism;
+		return this.parallelism;
 	}
 
 	/**

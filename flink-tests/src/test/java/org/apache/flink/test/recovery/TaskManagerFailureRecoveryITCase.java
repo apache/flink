@@ -85,7 +85,7 @@ public class TaskManagerFailureRecoveryITCase {
 			final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getJobManagerRPCPort());
 
-			env.setDegreeOfParallelism(PARALLELISM);
+			env.setParallelism(PARALLELISM);
 			env.setNumberOfExecutionRetries(1);
 
 			env.generateSequence(1, 10)

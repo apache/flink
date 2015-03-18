@@ -399,24 +399,24 @@ public class PairwiseSP implements Program, ProgramDescription {
 		} else {
 			pathsInput = new FileDataSource(new PathInFormat(), paths, "Paths");
 		}
-		pathsInput.setDegreeOfParallelism(numSubTasks);
+		pathsInput.setParallelism(numSubTasks);
 
 		JoinOperator concatPaths = 
 				JoinOperator.builder(new ConcatPaths(), StringValue.class, 0, 1)
 			.name("Concat Paths")
 			.build();
 
-		concatPaths.setDegreeOfParallelism(numSubTasks);
+		concatPaths.setParallelism(numSubTasks);
 
 		CoGroupOperator findShortestPaths = 
 				CoGroupOperator.builder(new FindShortestPath(), StringValue.class, 0, 0)
 			.keyField(StringValue.class, 1, 1)
 			.name("Find Shortest Paths")
 			.build();
-		findShortestPaths.setDegreeOfParallelism(numSubTasks);
+		findShortestPaths.setParallelism(numSubTasks);
 
 		FileDataSink result = new FileDataSink(new PathOutFormat(),output, "New Paths");
-		result.setDegreeOfParallelism(numSubTasks);
+		result.setParallelism(numSubTasks);
 
 		result.setInput(findShortestPaths);
 		findShortestPaths.setFirstInput(pathsInput);

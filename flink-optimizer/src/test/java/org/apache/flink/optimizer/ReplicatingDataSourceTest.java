@@ -53,7 +53,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	public void checkJoinWithReplicatedSourceInput() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -89,7 +89,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	public void checkJoinWithReplicatedSourceInputBehindMap() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -126,7 +126,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	public void checkJoinWithReplicatedSourceInputBehindFilter() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -163,7 +163,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	public void checkJoinWithReplicatedSourceInputBehindFlatMap() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -200,7 +200,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	public void checkJoinWithReplicatedSourceInputBehindMapPartition() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -237,7 +237,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	public void checkJoinWithReplicatedSourceInputBehindMultiMaps() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -277,7 +277,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	public void checkCrossWithReplicatedSourceInput() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -313,7 +313,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	public void checkCrossWithReplicatedSourceInputBehindMap() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -345,13 +345,13 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	}
 
 	/**
-	 * Tests compiler fail for join program with replicated data source and changing DOP.
+	 * Tests compiler fail for join program with replicated data source and changing parallelism.
 	 */
 	@Test(expected = CompilerException.class)
-	public void checkJoinWithReplicatedSourceInputChangingDOP() {
+	public void checkJoinWithReplicatedSourceInputChangingparallelism() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -370,13 +370,13 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	}
 
 	/**
-	 * Tests compiler fail for join program with replicated data source behind map and changing DOP.
+	 * Tests compiler fail for join program with replicated data source behind map and changing parallelism.
 	 */
 	@Test(expected = CompilerException.class)
-	public void checkJoinWithReplicatedSourceInputBehindMapChangingDOP() {
+	public void checkJoinWithReplicatedSourceInputBehindMapChangingparallelism() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -402,7 +402,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	@Test(expected = CompilerException.class)
 	public void checkJoinWithReplicatedSourceInputBehindReduce() {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));
@@ -427,7 +427,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 	@Test(expected = CompilerException.class)
 	public void checkJoinWithReplicatedSourceInputBehindRebalance() {
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
 				new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(new CsvInputFormat<Tuple1<String>>(new Path("/some/path"), String.class));

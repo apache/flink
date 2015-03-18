@@ -61,13 +61,13 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 				new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
 		// set input
 		po.setInput(input);
-		// set dop
+		// set parallelism
 		if(this.getParallelism() > 0) {
-			// use specified dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			// use specified parallelism
+			po.setParallelism(this.getParallelism());
 		} else {
-			// if no dop has been specified, use dop of input operator to enable chaining
-			po.setDegreeOfParallelism(input.getDegreeOfParallelism());
+			// if no parallelism has been specified, use parallelism of input operator to enable chaining
+			po.setParallelism(input.getParallelism());
 		}
 		
 		return po;

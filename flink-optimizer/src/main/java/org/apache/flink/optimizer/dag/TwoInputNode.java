@@ -352,12 +352,12 @@ public abstract class TwoInputNode extends OptimizerNode {
 		final ExecutionMode input1Mode = this.input1.getDataExchangeMode();
 		final ExecutionMode input2Mode = this.input2.getDataExchangeMode();
 
-		final int dop = getParallelism();
-		final int inDop1 = getFirstPredecessorNode().getParallelism();
-		final int inDop2 = getSecondPredecessorNode().getParallelism();
+		final int parallelism = getParallelism();
+		final int inParallelism1 = getFirstPredecessorNode().getParallelism();
+		final int inParallelism2 = getSecondPredecessorNode().getParallelism();
 
-		final boolean dopChange1 = dop != inDop1;
-		final boolean dopChange2 = dop != inDop2;
+		final boolean dopChange1 = parallelism != inParallelism1;
+		final boolean dopChange2 = parallelism != inParallelism2;
 
 		final boolean input1breaksPipeline = this.input1.isBreakingPipeline();
 		final boolean input2breaksPipeline = this.input2.isBreakingPipeline();
@@ -369,7 +369,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		for (PlanNode child1 : subPlans1) {
 
 			if (child1.getGlobalProperties().isFullyReplicated()) {
-				// fully replicated input is always locally forwarded if DOP is not changed
+				// fully replicated input is always locally forwarded if parallelism is not changed
 				if (dopChange1) {
 					// can not continue with this child
 					childrenSkippedDueToReplicatedInput = true;
@@ -382,7 +382,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 			for (PlanNode child2 : subPlans2) {
 
 				if (child2.getGlobalProperties().isFullyReplicated()) {
-					// fully replicated input is always locally forwarded if DOP is not changed
+					// fully replicated input is always locally forwarded if parallelism is not changed
 					if (dopChange2) {
 						// can not continue with this child
 						childrenSkippedDueToReplicatedInput = true;
@@ -405,8 +405,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 						// free to choose the ship strategy
 						igps1.parameterizeChannel(c1, dopChange1, input1Mode, input1breaksPipeline);
 						
-						// if the DOP changed, make sure that we cancel out properties, unless the
-						// ship strategy preserves/establishes them even under changing DOPs
+						// if the parallelism changed, make sure that we cancel out properties, unless the
+						// ship strategy preserves/establishes them even under changing parallelisms
 						if (dopChange1 && !c1.getShipStrategy().isNetworkStrategy()) {
 							c1.getGlobalProperties().reset();
 						}
@@ -434,8 +434,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 							// free to choose the ship strategy
 							igps2.parameterizeChannel(c2, dopChange2, input2Mode, input2breaksPipeline);
 							
-							// if the DOP changed, make sure that we cancel out properties, unless the
-							// ship strategy preserves/establishes them even under changing DOPs
+							// if the parallelism changed, make sure that we cancel out properties, unless the
+							// ship strategy preserves/establishes them even under changing parallelisms
 							if (dopChange2 && !c2.getShipStrategy().isNetworkStrategy()) {
 								c2.getGlobalProperties().reset();
 							}

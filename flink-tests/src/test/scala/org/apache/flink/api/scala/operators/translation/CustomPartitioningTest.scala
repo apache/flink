@@ -37,7 +37,7 @@ class CustomPartitioningTest extends CompilerTestBase {
       val parallelism = 4
       
       val env = ExecutionEnvironment.getExecutionEnvironment
-      env.setDegreeOfParallelism(parallelism)
+      env.setParallelism(parallelism)
 
       val data = env.fromElements( (0,0) ).rebalance()
       
@@ -80,7 +80,7 @@ class CustomPartitioningTest extends CompilerTestBase {
       val parallelism = 4
       
       val env = ExecutionEnvironment.getExecutionEnvironment
-      env.setDegreeOfParallelism(parallelism)
+      env.setParallelism(parallelism)
       
       val data = env.fromElements( (0,0) ).rebalance()
       try {
@@ -106,7 +106,7 @@ class CustomPartitioningTest extends CompilerTestBase {
       val parallelism = 4
       
       val env = ExecutionEnvironment.getExecutionEnvironment
-      env.setDegreeOfParallelism(parallelism)
+      env.setParallelism(parallelism)
       
       val data = env.fromElements(new Pojo()).rebalance()
       
@@ -150,7 +150,7 @@ class CustomPartitioningTest extends CompilerTestBase {
       val parallelism = 4
       
       val env = ExecutionEnvironment.getExecutionEnvironment
-      env.setDegreeOfParallelism(parallelism)
+      env.setParallelism(parallelism)
       
       val data = env.fromElements(new Pojo()).rebalance()
       
@@ -177,7 +177,7 @@ class CustomPartitioningTest extends CompilerTestBase {
       val parallelism = 4
       
       val env = ExecutionEnvironment.getExecutionEnvironment
-      env.setDegreeOfParallelism(parallelism)
+      env.setParallelism(parallelism)
       
       val data = env.fromElements(new Pojo()).rebalance()
       

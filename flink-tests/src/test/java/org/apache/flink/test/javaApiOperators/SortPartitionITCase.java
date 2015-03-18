@@ -72,7 +72,7 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(4);
+		env.setParallelism(4);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		ds
@@ -94,7 +94,7 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(2);
+		env.setParallelism(2);
 
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 		ds
@@ -117,7 +117,7 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(4);
+		env.setParallelism(4);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		ds
@@ -139,7 +139,7 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(2);
+		env.setParallelism(2);
 
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 		ds
@@ -162,7 +162,7 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(3);
+		env.setParallelism(3);
 
 		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
 		ds
@@ -185,7 +185,7 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(3);
+		env.setParallelism(3);
 
 		DataSet<POJO> ds = CollectionDataSets.getMixedPojoDataSet(env);
 		ds
@@ -202,17 +202,17 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testSortPartitionDOPChange() throws Exception {
+	public void testSortPartitionParallelismChange() throws Exception {
 		/*
-		 * Test sort partition with DOP change
+		 * Test sort partition with parallelism change
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(3);
+		env.setParallelism(3);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		ds
-				.sortPartition(1, Order.DESCENDING).setParallelism(3) // change DOP
+				.sortPartition(1, Order.DESCENDING).setParallelism(3) // change parallelism
 				.mapPartition(new OrderCheckMapper<Tuple3<Integer, Long, String>>(new Tuple3Checker()))
 				.distinct()
 				.writeAsText(resultPath);

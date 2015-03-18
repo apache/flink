@@ -69,9 +69,9 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 			Channel toCombiner = new Channel(in.getSource());
 			toCombiner.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 			
-			// create an input node for combine with same DOP as input node
+			// create an input node for combine with same parallelism as input node
 			ReduceNode combinerNode = ((ReduceNode) node).getCombinerUtilityNode();
-			combinerNode.setDegreeOfParallelism(in.getSource().getParallelism());
+			combinerNode.setParallelism(in.getSource().getParallelism());
 
 			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode,
 								"Combine ("+node.getOperator().getName()+")", toCombiner,

@@ -38,15 +38,15 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	private ForkableFlinkMiniCluster executor;
 	private boolean internalExecutor;
 
-	public TestStreamEnvironment(int degreeOfParallelism, long memorySize){
-		setDegreeOfParallelism(degreeOfParallelism);
+	public TestStreamEnvironment(int parallelism, long memorySize){
+		setParallelism(parallelism);
 		this.memorySize = memorySize;
 		internalExecutor = true;
 	}
 
-	public TestStreamEnvironment(ForkableFlinkMiniCluster executor, int dop){
+	public TestStreamEnvironment(ForkableFlinkMiniCluster executor, int parallelism){
 		this.executor = executor;
-		setDefaultLocalParallelism(dop);
+		setDefaultLocalParallelism(parallelism);
 	}
 
 	@Override
@@ -62,7 +62,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 			Configuration configuration = jobGraph.getJobConfiguration();
 
 			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
-					getDegreeOfParallelism());
+					getParallelism());
 			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
 
 			executor = new ForkableFlinkMiniCluster(configuration);

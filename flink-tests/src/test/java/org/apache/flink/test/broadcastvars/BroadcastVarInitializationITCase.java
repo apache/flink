@@ -40,7 +40,7 @@ public class BroadcastVarInitializationITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(4);
+		env.setParallelism(4);
 		
 		DataSet<Integer> data = env.fromElements(1, 2, 3, 4, 5, 6, 7, 8);
 		

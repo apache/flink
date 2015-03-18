@@ -25,8 +25,8 @@ import org.apache.flink.api.common.PlanExecutor;
 /**
  * An {@link ExecutionEnvironment} that sends programs 
  * to a cluster for execution. Note that all file paths used in the program must be accessible from the
- * cluster. The execution will use the cluster's default degree of parallelism, unless the parallelism is
- * set explicitly via {@link ExecutionEnvironment#setDegreeOfParallelism(int)}.
+ * cluster. The execution will use the cluster's default parallelism, unless the parallelism is
+ * set explicitly via {@link ExecutionEnvironment#setParallelism(int)}.
  */
 public class RemoteEnvironment extends ExecutionEnvironment {
 	
@@ -72,7 +72,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	@Override
 	public String getExecutionPlan() throws Exception {
 		Plan p = createProgramPlan("unnamed", false);
-		p.setDefaultParallelism(getDegreeOfParallelism());
+		p.setDefaultParallelism(getParallelism());
 		registerCachedFilesWithPlan(p);
 		
 		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
@@ -81,7 +81,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String toString() {
-		return "Remote Environment (" + this.host + ":" + this.port + " - DOP = " + 
-				(getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism()) + ") : " + getIdString();
+		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = " +
+				(getParallelism() == -1 ? "default" : getParallelism()) + ") : " + getIdString();
 	}
 }

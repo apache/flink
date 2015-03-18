@@ -33,8 +33,8 @@ class ReduceTranslationTest {
   @Test
   def translateNonGroupedReduce(): Unit = {
     try {
-      val DOP = 8
-      val env = ExecutionEnvironment.createLocalEnvironment(DOP)
+      val parallelism = 8
+      val env = ExecutionEnvironment.createLocalEnvironment(parallelism)
 
       val initialData = env.fromElements((3.141592, "foobar", 77L)).setParallelism(1)
 
@@ -50,7 +50,7 @@ class ReduceTranslationTest {
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getInputType)
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getOutputType)
       assertTrue(reducer.getKeyColumns(0) == null || reducer.getKeyColumns(0).length == 0)
-      assertTrue(reducer.getDegreeOfParallelism == 1 || reducer.getDegreeOfParallelism == -1)
+      assertTrue(reducer.getParallelism == 1 || reducer.getParallelism == -1)
       assertTrue(reducer.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
     }
     catch {
@@ -65,8 +65,8 @@ class ReduceTranslationTest {
   @Test
   def translateGroupedReduceNoMapper(): Unit = {
     try {
-      val DOP: Int = 8
-      val env = ExecutionEnvironment.createLocalEnvironment(DOP)
+      val parallelism: Int = 8
+      val env = ExecutionEnvironment.createLocalEnvironment(parallelism)
 
       val initialData = env.fromElements((3.141592, "foobar", 77L)).setParallelism(1)
 
@@ -78,7 +78,7 @@ class ReduceTranslationTest {
       val reducer: ReduceOperatorBase[_, _] = sink.getInput.asInstanceOf[ReduceOperatorBase[_, _]]
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getInputType)
       assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getOutputType)
-      assertTrue(reducer.getDegreeOfParallelism == DOP || reducer.getDegreeOfParallelism == -1)
+      assertTrue(reducer.getParallelism == parallelism || reducer.getParallelism == -1)
       assertArrayEquals(Array[Int](2), reducer.getKeyColumns(0))
       assertTrue(reducer.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
     }
@@ -94,8 +94,8 @@ class ReduceTranslationTest {
   @Test
   def translateGroupedReduceWithKeyExtractor(): Unit = {
     try {
-      val DOP: Int = 8
-      val env = ExecutionEnvironment.createLocalEnvironment(DOP)
+      val parallelism: Int = 8
+      val env = ExecutionEnvironment.createLocalEnvironment(parallelism)
 
       val initialData = env.fromElements((3.141592, "foobar", 77L)).setParallelism(1)
 
@@ -109,9 +109,9 @@ class ReduceTranslationTest {
         .asInstanceOf[PlanUnwrappingReduceOperator[_, _]]
       val keyExtractor: MapOperatorBase[_, _, _] = reducer.getInput
         .asInstanceOf[MapOperatorBase[_, _, _]]
-      assertEquals(1, keyExtractor.getDegreeOfParallelism)
-      assertEquals(4, reducer.getDegreeOfParallelism)
-      assertEquals(4, keyProjector.getDegreeOfParallelism)
+      assertEquals(1, keyExtractor.getParallelism)
+      assertEquals(4, reducer.getParallelism)
+      assertEquals(4, keyProjector.getParallelism)
       val keyValueInfo = new TupleTypeInfo(
         BasicTypeInfo.STRING_TYPE_INFO,
         createTypeInformation[(Double, String, Long)])

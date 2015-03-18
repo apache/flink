@@ -138,7 +138,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
@@ -346,7 +346,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		org.junit.Assume.assumeTrue(mode != TestExecutionMode.COLLECTION);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(2); // important because it determines how often the combiner is called
+		env.setParallelism(2); // important because it determines how often the combiner is called
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple2<Integer, String>> reduceDs = ds.
@@ -394,7 +394,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * check correctness of groupReduce with descending group sort
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
@@ -456,7 +456,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 	 	 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
@@ -590,7 +590,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * check correctness of groupReduce with descending group sort
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
@@ -613,7 +613,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * Test int-based definition on group sort, for (full) nested Tuple
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
 		DataSet<String> reduceDs = ds.groupBy("f1").sortGroup(0, Order.DESCENDING).reduceGroup(new NestedTupleReducer());
@@ -631,7 +631,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * Test int-based definition on group sort, for (partial) nested Tuple ASC
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
 		// f0.f0 is first integer
@@ -653,7 +653,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * Test string-based definition on group sort, for (partial) nested Tuple DESC
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
 		// f0.f0 is first integer
@@ -672,7 +672,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * Test string-based definition on group sort, for two grouping keys
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
 		// f0.f0 is first integer
@@ -691,7 +691,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * Test string-based definition on group sort, for two grouping keys with Pojos
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<PojoContainingTupleAndWritable> ds = CollectionDataSets.getGroupSortedPojoContainingTupleAndWritable(env);
 		// f0.f0 is first integer
@@ -711,7 +711,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds
@@ -830,7 +830,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple2<Integer, String>> reduceDs = ds.
@@ -870,7 +870,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds
@@ -915,7 +915,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * Test grouping with pojo containing multiple pojos (was a bug)
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<CollectionDataSets.PojoWithMultiplePojos> ds = CollectionDataSets.getPojoWithMultiplePojos(env);
 
@@ -947,7 +947,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * Test Java collections within pojos ( == test kryo)
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithCollection(env);
 		// f0.f0 is first integer
@@ -982,7 +982,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		 * Group by generic type
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithCollection(env);
 

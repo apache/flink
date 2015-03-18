@@ -102,7 +102,7 @@ public class CliFrontend {
 	// YARN-session related constants
 	public static final String YARN_PROPERTIES_FILE = ".yarn-properties";
 	public static final String YARN_PROPERTIES_JOBMANAGER_KEY = "jobManager";
-	public static final String YARN_PROPERTIES_DOP = "degreeOfParallelism";
+	public static final String YARN_PROPERTIES_PARALLELISM = "parallelism";
 	public static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
 
 	public static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
@@ -175,18 +175,18 @@ public class CliFrontend {
 				throw new Exception("Cannot read the YARN properties file", e);
 			}
 
-			// configure the default degree of parallelism from YARN
-			String propDegree = yarnProperties.getProperty(YARN_PROPERTIES_DOP);
-			if (propDegree != null) { // maybe the property is not set
+			// configure the default parallelism from YARN
+			String propParallelism = yarnProperties.getProperty(YARN_PROPERTIES_PARALLELISM);
+			if (propParallelism != null) { // maybe the property is not set
 				try {
-					int paraDegree = Integer.parseInt(propDegree);
-					this.config.setInteger(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY, paraDegree);
+					int parallelism = Integer.parseInt(propParallelism);
+					this.config.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, parallelism);
 
-					logAndSysout("YARN properties set default parallelism to " + paraDegree);
+					logAndSysout("YARN properties set default parallelism to " + parallelism);
 				}
 				catch (NumberFormatException e) {
 					throw new Exception("Error while parsing the YARN properties: " +
-							"Property " + YARN_PROPERTIES_DOP + " is not an integer.");
+							"Property " + YARN_PROPERTIES_PARALLELISM + " is not an integer.");
 				}
 			}
 

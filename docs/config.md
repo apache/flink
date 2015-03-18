@@ -80,8 +80,8 @@ This value is typically proportional to the number of physical CPU cores that
 the TaskManager's machine has (e.g., equal to the number of cores, or half the
 number of cores). [More about task slots](config.html#configuring-taskmanager-processing-slots).
 
-- `parallelization.degree.default`: The default degree of parallelism to use for
-programs that have no degree of parallelism specified. (DEFAULT: 1). For
+- `parallelism.default`: The default parallelism to use for
+programs that have no parallelism specified. (DEFAULT: 1). For
 setups that have no concurrent jobs running, setting this value to
 NumTaskManagers * NumSlotsPerTaskManager will cause the system to use all
 available execution resources for the program's execution.

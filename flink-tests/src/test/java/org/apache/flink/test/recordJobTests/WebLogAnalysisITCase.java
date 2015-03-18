@@ -155,7 +155,7 @@ public class WebLogAnalysisITCase extends RecordAPITestBase {
 	private static final String expected = "87|url_24|39\n" + "59|url_28|41\n";
 
 	public WebLogAnalysisITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	@Override
@@ -169,7 +169,7 @@ public class WebLogAnalysisITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		WebLogAnalysis relOLAP = new WebLogAnalysis();
-		return relOLAP.getPlan(Integer.valueOf(DOP).toString(), docsPath, ranksPath, visitsPath, resultPath);
+		return relOLAP.getPlan(Integer.valueOf(parallelism).toString(), docsPath, ranksPath, visitsPath, resultPath);
 	}
 
 	@Override

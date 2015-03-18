@@ -404,7 +404,7 @@ public class ConnectedDataStream<IN1, IN2> {
 
 		dataStream1.streamGraph.addCoTask(returnStream.getId(), functionInvokable,
 				getInputType1(), getInputType2(), outTypeInfo, functionName,
-				environment.getDegreeOfParallelism());
+				environment.getParallelism());
 
 		dataStream1.connectGraph(dataStream1, returnStream.getId(), 1);
 		dataStream1.connectGraph(dataStream2, returnStream.getId(), 2);

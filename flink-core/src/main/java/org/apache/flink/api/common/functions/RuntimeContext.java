@@ -33,7 +33,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 /**
  * A RuntimeContext contains information about the context in which functions are executed. Each parallel instance
  * of the function will have a context through which it can access static contextual information (such as 
- * the current degree of parallelism) and other constructs like accumulators and broadcast variables.
+ * the current parallelism) and other constructs like accumulators and broadcast variables.
  * <p>
  * A function can, during runtime, obtain the RuntimeContext via a call to
  * {@link AbstractRichFunction#getRuntimeContext()}.
@@ -48,14 +48,14 @@ public interface RuntimeContext {
 	String getTaskName();
 
 	/**
-	 * Gets the degree of parallelism with which the parallel task runs.
+	 * Gets the parallelism with which the parallel task runs.
 	 * 
-	 * @return The degree of parallelism with which the parallel task runs.
+	 * @return The parallelism with which the parallel task runs.
 	 */
 	int getNumberOfParallelSubtasks();
 
 	/**
-	 * Gets the number of the parallel subtask. The numbering starts from 1 and goes up to the degree-of-parallelism,
+	 * Gets the number of the parallel subtask. The numbering starts from 1 and goes up to the parallelism,
 	 * as returned by {@link #getNumberOfParallelSubtasks()}.
 	 * 
 	 * @return The number of the parallel subtask.

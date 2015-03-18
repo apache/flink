@@ -41,7 +41,7 @@ import java.io.StringWriter;
 
 /**
  * This test should logically be located in the 'flink-runtime' tests. However, this project
- * has already all dependencies required (flink-java-examples). Also, the DOPOneExecEnv is here.
+ * has already all dependencies required (flink-java-examples). Also, the ParallelismOneExecEnv is here.
  */
 public class HDFSTest {
 

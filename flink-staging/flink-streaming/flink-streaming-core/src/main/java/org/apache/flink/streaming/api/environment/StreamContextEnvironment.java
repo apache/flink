@@ -32,15 +32,15 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	protected List<File> jars;
 	protected Client client;
 
-	protected StreamContextEnvironment(Client client, List<File> jars, int dop) {
+	protected StreamContextEnvironment(Client client, List<File> jars, int parallelism) {
 		this.client = client;
 		this.jars = jars;
-		if (dop > 0) {
-			setDegreeOfParallelism(dop);
+		if (parallelism > 0) {
+			setParallelism(parallelism);
 		} else {
-			setDegreeOfParallelism(GlobalConfiguration.getInteger(
-					ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
-					ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE));
+			setParallelism(GlobalConfiguration.getInteger(
+					ConfigConstants.DEFAULT_PARALLELISM_KEY,
+					ConfigConstants.DEFAULT_PARALLELISM));
 		}
 	}
 

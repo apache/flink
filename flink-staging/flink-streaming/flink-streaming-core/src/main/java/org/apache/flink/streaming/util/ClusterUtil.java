@@ -37,12 +37,12 @@ public class ClusterUtil {
 	 * 
 	 * @param jobGraph
 	 *            jobGraph
-	 * @param degreeOfParallelism
+	 * @param parallelism
 	 *            numberOfTaskTrackers
 	 * @param memorySize
 	 *            memorySize
 	 */
-	public static void runOnMiniCluster(JobGraph jobGraph, int degreeOfParallelism, long memorySize)
+	public static void runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize)
 			throws Exception {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
@@ -50,7 +50,7 @@ public class ClusterUtil {
 		LocalFlinkMiniCluster exec = null;
 
 		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, degreeOfParallelism);
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
 		}

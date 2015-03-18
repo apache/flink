@@ -165,19 +165,19 @@ public class DeltaIteration<ST, WT> {
 	}
 	
 	/**
-	 * Sets the degree of parallelism for the iteration.
+	 * Sets the parallelism for the iteration.
 	 *
-	 * @param parallelism The degree of parallelism.
+	 * @param parallelism The parallelism.
 	 * @return The iteration object, for function call chaining.
 	 */
 	public DeltaIteration<ST, WT> parallelism(int parallelism) {
-		Validate.isTrue(parallelism > 0 || parallelism == -1, "The degree of parallelism must be positive, or -1 (use default).");
+		Validate.isTrue(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
 		this.parallelism = parallelism;
 		return this;
 	}
 	
 	/**
-	 * Gets the iteration's degree of parallelism.
+	 * Gets the iteration's parallelism.
 	 * 
 	 * @return The iterations parallelism, or -1, if not set.
 	 */

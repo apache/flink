@@ -59,14 +59,14 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			final int[] ITERATION_KEYS = new int[] {2};
 			final int NUM_ITERATIONS = 13;
 			
-			final int DEFAULT_DOP= 133;
-			final int ITERATION_DOP = 77;
+			final int DEFAULT_parallelism= 133;
+			final int ITERATION_parallelism = 77;
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
 			// ------------ construct the test program ------------------
 			{
-				env.setDegreeOfParallelism(DEFAULT_DOP);
+				env.setParallelism(DEFAULT_parallelism);
 				
 				@SuppressWarnings("unchecked")
 				DataSet<Tuple3<Double, Long, String>> initialSolutionSet = env.fromElements(new Tuple3<Double, Long, String>(3.44, 5L, "abc"));
@@ -75,7 +75,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 				DataSet<Tuple2<Double, String>> initialWorkSet = env.fromElements(new Tuple2<Double, String>(1.23, "abc"));
 				
 				DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, NUM_ITERATIONS, ITERATION_KEYS);
-				iteration.name(ITERATION_NAME).parallelism(ITERATION_DOP);
+				iteration.name(ITERATION_NAME).parallelism(ITERATION_parallelism);
 				
 				iteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 				
@@ -100,7 +100,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			
 			// ------------- validate the plan ----------------
 			assertEquals(JOB_NAME, p.getJobName());
-			assertEquals(DEFAULT_DOP, p.getDefaultParallelism());
+			assertEquals(DEFAULT_parallelism, p.getDefaultParallelism());
 			
 			// validate the iteration
 			GenericDataSinkBase<?> sink1, sink2;
@@ -118,7 +118,7 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			// check the basic iteration properties
 			assertEquals(NUM_ITERATIONS, iteration.getMaximumNumberOfIterations());
 			assertArrayEquals(ITERATION_KEYS, iteration.getSolutionSetKeyFields());
-			assertEquals(ITERATION_DOP, iteration.getDegreeOfParallelism());
+			assertEquals(ITERATION_parallelism, iteration.getParallelism());
 			assertEquals(ITERATION_NAME, iteration.getName());
 			
 			MapOperatorBase<?, ?, ?> nextWorksetMapper = (MapOperatorBase<?, ?, ?>) iteration.getNextWorkset();

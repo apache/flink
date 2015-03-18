@@ -31,9 +31,9 @@ public final class ConfigConstants {
 	// ---------------------------- Parallelism -------------------------------
 
 	/**
-	 * The config parameter defining the default degree of parallelism for jobs.
+	 * The config parameter defining the default parallelism for jobs.
 	 */
-	public static final String DEFAULT_PARALLELIZATION_DEGREE_KEY = "parallelization.degree.default";
+	public static final String DEFAULT_PARALLELISM_KEY = "parallelism.default";
 	
 	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
@@ -399,9 +399,9 @@ public final class ConfigConstants {
 	// ---------------------------- Parallelism -------------------------------
 	
 	/**
-	 * The default degree of parallelism for operations.
+	 * The default parallelism for operations.
 	 */
-	public static final int DEFAULT_PARALLELIZATION_DEGREE = 1;
+	public static final int DEFAULT_PARALLELISM = 1;
 	
 	/**
 	 * The default number of execution retries.

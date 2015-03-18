@@ -204,11 +204,11 @@ public class DataSinkNode extends OptimizerNode {
 		List<? extends PlanNode> subPlans = getPredecessorNode().getAlternativePlans(estimator);
 		List<PlanNode> outputPlans = new ArrayList<PlanNode>();
 		
-		final int dop = getParallelism();
+		final int parallelism = getParallelism();
 		final int inDop = getPredecessorNode().getParallelism();
 
 		final ExecutionMode executionMode = this.input.getDataExchangeMode();
-		final boolean dopChange = dop != inDop;
+		final boolean dopChange = parallelism != inDop;
 		final boolean breakPipeline = this.input.isBreakingPipeline();
 
 		InterestingProperties ips = this.input.getInterestingProperties();

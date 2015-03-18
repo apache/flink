@@ -39,8 +39,8 @@ public class AggregateTranslationTest {
 	@Test
 	public void translateAggregate() {
 		try {
-			final int DOP = 8;
-			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(DOP);
+			final int parallelism = 8;
+			ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(parallelism);
 			
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple3<Double, StringValue, Long>> initialData = 
@@ -58,7 +58,7 @@ public class AggregateTranslationTest {
 			assertEquals(1, reducer.getKeyColumns(0).length);
 			assertEquals(0, reducer.getKeyColumns(0)[0]);
 			
-			assertEquals(-1, reducer.getDegreeOfParallelism());
+			assertEquals(-1, reducer.getParallelism());
 			assertTrue(reducer.isCombinable());
 			
 			assertTrue(reducer.getInput() instanceof GenericDataSourceBase<?, ?>);

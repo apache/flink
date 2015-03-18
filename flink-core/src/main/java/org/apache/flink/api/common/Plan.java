@@ -44,7 +44,7 @@ import org.apache.flink.util.Visitor;
 
 /**
  * This class encapsulates a single job (an instantiated data flow), together with some parameters.
- * Parameters include the name and a default degree of parallelism. The job is referenced by the data sinks,
+ * Parameters include the name and a default parallelism. The job is referenced by the data sinks,
  * from which a traversal reaches all connected nodes of the job.
  */
 public class Plan implements Visitable<Operator<?>> {
@@ -102,7 +102,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 *
 	 * @param sinks The collection will the sinks of the job's data flow.
 	 * @param jobName The name to display for the job.
-	 * @param defaultParallelism The default degree of parallelism for the job.
+	 * @param defaultParallelism The default parallelism for the job.
 	 */
 	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName, int defaultParallelism) {
 		this.sinks.addAll(sinks);
@@ -134,7 +134,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 *
 	 * @param sink The data sink of the data flow.
 	 * @param jobName The name to display for the job.
-	 * @param defaultParallelism The default degree of parallelism for the job.
+	 * @param defaultParallelism The default parallelism for the job.
 	 */
 	public Plan(GenericDataSinkBase<?> sink, String jobName, int defaultParallelism) {
 		this(Collections.<GenericDataSinkBase<?>>singletonList(sink), jobName, defaultParallelism);
@@ -163,7 +163,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * from the given data sinks.
 	 *
 	 * @param sinks The collection will the sinks of the data flow.
-	 * @param defaultParallelism The default degree of parallelism for the job.
+	 * @param defaultParallelism The default parallelism for the job.
 	 */
 	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, int defaultParallelism) {
 		this(sinks, "Flink Job at " + Calendar.getInstance().getTime(), defaultParallelism);
@@ -190,7 +190,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * not be translated entirely.
 	 *
 	 * @param sink The data sink of the data flow.
-	 * @param defaultParallelism The default degree of parallelism for the job.
+	 * @param defaultParallelism The default parallelism for the job.
 	 */
 	public Plan(GenericDataSinkBase<?> sink, int defaultParallelism) {
 		this(sink, "Flink Job at " + Calendar.getInstance().getTime(), defaultParallelism);
@@ -240,8 +240,8 @@ public class Plan implements Visitable<Operator<?>> {
 	}
 	
 	/**
-	 * Gets the default degree of parallelism for this job. That degree is always used when an operator
-	 * is not explicitly given a degree of parallelism.
+	 * Gets the default parallelism for this job. That degree is always used when an operator
+	 * is not explicitly given a parallelism.
 	 *
 	 * @return The default parallelism for the plan.
 	 */
@@ -250,14 +250,14 @@ public class Plan implements Visitable<Operator<?>> {
 	}
 	
 	/**
-	 * Sets the default degree of parallelism for this plan. That degree is always used when an operator
-	 * is not explicitly given a degree of parallelism.
+	 * Sets the default parallelism for this plan. That degree is always used when an operator
+	 * is not explicitly given a parallelism.
 	 *
 	 * @param defaultParallelism The default parallelism for the plan.
 	 */
 	public void setDefaultParallelism(int defaultParallelism) {
 		checkArgument(defaultParallelism >= 1 || defaultParallelism == -1,
-			"The default degree of parallelism must be positive, or -1 if the system should use the globally comfigured default.");
+			"The default parallelism must be positive, or -1 if the system should use the globally comfigured default.");
 		
 		this.defaultParallelism = defaultParallelism;
 	}
@@ -364,7 +364,7 @@ public class Plan implements Visitable<Operator<?>> {
 		
 		@Override
 		public boolean preVisit(Operator<?> visitable) {
-			this.maxDop = Math.max(this.maxDop, visitable.getDegreeOfParallelism());
+			this.maxDop = Math.max(this.maxDop, visitable.getParallelism());
 			return true;
 		}
 

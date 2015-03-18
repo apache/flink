@@ -344,7 +344,7 @@ Gelly wraps Flink's [Spargel API](spargel_guide.html) to provide methods for ver
 Like in Spargel, the user only needs to implement two functions: a `VertexUpdateFunction`, which defines how a vertex will update its value
 based on the received messages and a `MessagingFunction`, which allows a vertex to send out messages for the next superstep.
 These functions are given as parameters to Gelly's `createVertexCentricIteration`, which returns a `VertexCentricIteration`. 
-The user can configure this iteration (set the name, the degree of parallelism, aggregators, etc.) and then run the computation, using the `runVertexCentricIteration` method:
+The user can configure this iteration (set the name, the parallelism, aggregators, etc.) and then run the computation, using the `runVertexCentricIteration` method:
 
 {% highlight java %}
 Graph<Long, Double, Double> graph = ...
@@ -357,8 +357,8 @@ VertexCentricIteration<Long, Double, Double, Double> iteration =
 // set the iteration name
 iteration.setName("Single Source Shortest Paths");
 
-// set the degree of parallelism
-iteration.setDegreeOfParallelism(16);
+// set the parallelism
+iteration.setParallelism(16);
 
 // run the computation
 graph.runVertexCentricIteration(iteration);

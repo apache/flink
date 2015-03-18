@@ -36,7 +36,7 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;
 
-	private int degreeOfParallelism = 1;
+	private int parallelism = 1;
 	private String lineItemInputPath;
 	private String outputPath;
 	
@@ -45,28 +45,28 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 		
 		
 		if (args.length != 3) {
-			this.degreeOfParallelism = 1;
+			this.parallelism = 1;
 			this.lineItemInputPath = "";
 			this.outputPath = "";
 		} else {
-			this.degreeOfParallelism = Integer.parseInt(args[0]);
+			this.parallelism = Integer.parseInt(args[0]);
 			this.lineItemInputPath = args[1];
 			this.outputPath = args[2];
 		}
 		
 		FileDataSource lineItems =
 			new FileDataSource(new IntTupleDataInFormat(), this.lineItemInputPath, "LineItems");
-		lineItems.setDegreeOfParallelism(this.degreeOfParallelism);
+		lineItems.setParallelism(this.parallelism);
 		
 		FileDataSink result = 
 			new FileDataSink(new StringTupleDataOutFormat(), this.outputPath, "Output");
-		result.setDegreeOfParallelism(this.degreeOfParallelism);
+		result.setParallelism(this.parallelism);
 		
 		MapOperator lineItemFilter = 
 			MapOperator.builder(new LineItemFilter())
 			.name("LineItem Filter")
 			.build();
-		lineItemFilter.setDegreeOfParallelism(this.degreeOfParallelism);
+		lineItemFilter.setParallelism(this.parallelism);
 		
 		ReduceOperator groupByReturnFlag = 
 			ReduceOperator.builder(new GroupByReturnFlag(), StringValue.class, 0)
@@ -82,6 +82,6 @@ public class TPCHQuery1 implements Program, ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return "Parameters: [dop] [lineitem-input] [output]";
+		return "Parameters: [parallelism] [lineitem-input] [output]";
 	}
 }

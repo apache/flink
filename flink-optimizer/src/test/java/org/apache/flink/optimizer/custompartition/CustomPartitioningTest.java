@@ -45,7 +45,7 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			final int parallelism = 4;
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(parallelism);
+			env.setParallelism(parallelism);
 			
 			DataSet<Tuple2<Integer, Integer>> data = env.fromElements(new Tuple2<Integer,Integer>(0, 0))
 					.rebalance();
@@ -88,7 +88,7 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			final int parallelism = 4;
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(parallelism);
+			env.setParallelism(parallelism);
 			
 			DataSet<Tuple2<Integer, Integer>> data = env.fromElements(new Tuple2<Integer,Integer>(0, 0))
 					.rebalance();
@@ -115,7 +115,7 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			final int parallelism = 4;
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(parallelism);
+			env.setParallelism(parallelism);
 			
 			DataSet<Pojo> data = env.fromElements(new Pojo())
 					.rebalance();
@@ -158,7 +158,7 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			final int parallelism = 4;
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(parallelism);
+			env.setParallelism(parallelism);
 			
 			DataSet<Pojo> data = env.fromElements(new Pojo())
 					.rebalance();
@@ -185,7 +185,7 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			final int parallelism = 4;
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(parallelism);
+			env.setParallelism(parallelism);
 			
 			DataSet<Pojo> data = env.fromElements(new Pojo())
 					.rebalance();
@@ -237,7 +237,7 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			final int parallelism = 4;
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(parallelism);
+			env.setParallelism(parallelism);
 			
 			DataSet<Pojo> data = env.fromElements(new Pojo())
 					.rebalance();

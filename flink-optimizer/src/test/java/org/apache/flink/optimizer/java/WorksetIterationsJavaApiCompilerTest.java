@@ -196,7 +196,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 	public void testRejectPlanIfSolutionSetKeysAndJoinKeysDontMatch() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+			env.setParallelism(DEFAULT_PARALLELISM);
 			
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple3<Long, Long, Long>> solutionSetInput = env.fromElements(new Tuple3<Long, Long, Long>(1L, 2L, 3L)).name("Solution Set");
@@ -245,7 +245,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 	private Plan getJavaTestPlan(boolean joinPreservesSolutionSet, boolean mapBeforeSolutionDelta) {
 		
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 		
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, Long, Long>> solutionSetInput = env.fromElements(new Tuple3<Long, Long, Long>(1L, 2L, 3L)).name("Solution Set");

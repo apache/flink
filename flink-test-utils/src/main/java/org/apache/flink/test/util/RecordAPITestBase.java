@@ -35,7 +35,7 @@ import org.junit.Test;
 
 public abstract class RecordAPITestBase extends AbstractTestBase {
 
-	protected static final int DOP = 4;
+	protected static final int parallelism = 4;
 	
 	protected JobExecutionResult jobExecutionResult;
 	
@@ -48,7 +48,7 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 	
 	public RecordAPITestBase(Configuration config) {
 		super(config);
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 	

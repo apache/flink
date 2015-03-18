@@ -183,7 +183,7 @@ public class KafkaITCase {
 		stream.addSink(new KafkaSink<String>(zookeeperConnectionString, TOPIC, new JavaDefaultStringSchema()));
 
 		try {
-			env.setDegreeOfParallelism(1);
+			env.setParallelism(1);
 			env.execute();
 		} catch (JobExecutionException good) {
 			Throwable t = good.getCause();

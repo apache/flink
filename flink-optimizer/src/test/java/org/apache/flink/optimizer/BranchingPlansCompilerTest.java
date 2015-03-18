@@ -79,7 +79,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+			env.setParallelism(DEFAULT_PARALLELISM);
 
 			DataSet<Long> source = env.generateSequence(1, 10000);
 
@@ -120,7 +120,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchingWithMultipleDataSinks2() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+			env.setParallelism(DEFAULT_PARALLELISM);
 
 			DataSet<Long> source = env.generateSequence(1, 10000);
 
@@ -184,7 +184,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchingSourceMultipleTimes() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+			env.setParallelism(DEFAULT_PARALLELISM);
 
 			DataSet<Tuple2<Long, Long>> source = env.generateSequence(1, 10000000)
 				.map(new Duplicator<Long>());
@@ -267,7 +267,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchingWithMultipleDataSinks() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+			env.setParallelism(DEFAULT_PARALLELISM);
 
 			DataSet<Tuple2<Long, Long>> sourceA = env.generateSequence(1, 10000000)
 					.map(new Duplicator<Long>());
@@ -815,7 +815,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testIterationWithStaticInput() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(100);
+			env.setParallelism(100);
 
 			DataSet<Long> source = env.generateSequence(1, 1000000);
 
@@ -842,7 +842,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	@Test
 	public void testBranchingBroadcastVariable() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(100);
+		env.setParallelism(100);
 
 		DataSet<String> input1 = env.readTextFile(IN_FILE).name("source1");
 		DataSet<String> input2 = env.readTextFile(IN_FILE).name("source2");
@@ -914,7 +914,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	@Test
 	public void testMultipleIterations() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(100);
+		env.setParallelism(100);
 		
 		DataSet<String> input = env.readTextFile(IN_FILE).name("source1");
 		
@@ -943,7 +943,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	@Test
 	public void testMultipleIterationsWithClosueBCVars() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(100);
+		env.setParallelism(100);
 
 		DataSet<String> input = env.readTextFile(IN_FILE).name("source1");
 			
@@ -970,7 +970,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchesOnlyInBCVariables1() {
 		try{
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(100);
+			env.setParallelism(100);
 
 			DataSet<Long> input = env.generateSequence(1, 10);
 			DataSet<Long> bc_input = env.generateSequence(1, 10);
@@ -993,7 +993,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchesOnlyInBCVariables2() {
 		try{
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(100);
+			env.setParallelism(100);
 
 			DataSet<Tuple2<Long, Long>> input = env.generateSequence(1, 10).map(new Duplicator<Long>()).name("proper input");
 			

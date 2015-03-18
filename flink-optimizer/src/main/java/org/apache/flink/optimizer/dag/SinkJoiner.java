@@ -47,7 +47,7 @@ public class SinkJoiner extends TwoInputNode {
 		this.input1 = conn1;
 		this.input2 = conn2;
 		
-		setDegreeOfParallelism(1);
+		setParallelism(1);
 	}
 	
 	@Override

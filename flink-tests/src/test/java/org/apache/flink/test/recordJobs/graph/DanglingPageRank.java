@@ -44,7 +44,7 @@ public class DanglingPageRank implements Program, ProgramDescription {
 	public static final String NUM_VERTICES_CONFIG_PARAM = "pageRank.numVertices";
 		
 	public Plan getPlan(String ... args) {
-		int dop = 1;
+		int parallelism = 1;
 		String pageWithRankInputPath = "";
 		String adjacencyListInputPath = "";
 		String outputPath = "";
@@ -53,7 +53,7 @@ public class DanglingPageRank implements Program, ProgramDescription {
 		long numDanglingVertices = 1;
 
 		if (args.length >= 7) {
-			dop = Integer.parseInt(args[0]);
+			parallelism = Integer.parseInt(args[0]);
 			pageWithRankInputPath = args[1];
 			adjacencyListInputPath = args[2];
 			outputPath = args[3];
@@ -94,12 +94,12 @@ public class DanglingPageRank implements Program, ProgramDescription {
 		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 
 		Plan p = new Plan(out, "Dangling PageRank");
-		p.setDefaultParallelism(dop);
+		p.setDefaultParallelism(parallelism);
 		return p;
 	}
 
 	@Override
 	public String getDescription() {
-		return "Parameters: <degree-of-parallelism> <pages-input-path> <edges-input-path> <output-path> <max-iterations> <num-vertices> <num-dangling-vertices>";
+		return "Parameters: <parallelism> <pages-input-path> <edges-input-path> <output-path> <max-iterations> <num-vertices> <num-dangling-vertices>";
 	}
 }

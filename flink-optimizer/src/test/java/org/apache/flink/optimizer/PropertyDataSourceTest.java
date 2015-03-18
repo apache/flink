@@ -55,7 +55,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedSource1() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -88,7 +88,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedSource2() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -121,7 +121,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedSource3() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -153,7 +153,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedSource4() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -185,7 +185,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedSource5() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -217,7 +217,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedSource6() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -249,7 +249,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedSource7() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -283,7 +283,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedGroupedSource1() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -317,7 +317,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedGroupedSource2() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -352,7 +352,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedGroupedSource3() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -386,7 +386,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedGroupedSource4() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -420,7 +420,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedGroupedSource5() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -454,7 +454,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedGroupedSource6() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -488,7 +488,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedGroupedSource7() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -521,7 +521,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedGroupedSource8() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -555,7 +555,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedOrderedSource1() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -589,7 +589,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedOrderedSource2() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -624,7 +624,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedOrderedSource3() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -658,7 +658,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedOrderedSource4() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -692,7 +692,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedOrderedSource5() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -726,7 +726,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedOrderedSource6() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -759,7 +759,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkSinglePartitionedOrderedSource7() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple3<Long, SomePojo, String>> data = env.fromCollection(tuple3PojoData, tuple3PojoType);
 
@@ -793,7 +793,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkCoPartitionedSources1() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data1 =
 				env.readCsvFile("/some/path").types(Long.class, String.class);
@@ -841,7 +841,7 @@ public class PropertyDataSourceTest extends CompilerTestBase {
 	public void checkCoPartitionedSources2() {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 
 		DataSource<Tuple2<Long, String>> data1 =
 				env.readCsvFile("/some/path").types(Long.class, String.class);

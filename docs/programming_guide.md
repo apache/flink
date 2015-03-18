@@ -218,10 +218,10 @@ obtain one using these static methods on class `ExecutionEnvironment`:
 getExecutionEnvironment()
 
 createLocalEnvironment()
-createLocalEnvironment(int degreeOfParallelism)
+createLocalEnvironment(int parallelism)
 
 createRemoteEnvironment(String host, int port, String... jarFiles)
-createRemoteEnvironment(String host, int port, int degreeOfParallelism, String... jarFiles)
+createRemoteEnvironment(String host, int port, int parallelism, String... jarFiles)
 {% endhighlight %}
 
 Typically, you only need to use `getExecutionEnvironment()`, since this
@@ -318,10 +318,10 @@ obtain one using these static methods on class `ExecutionEnvironment`:
 {% highlight scala %}
 def getExecutionEnvironment
 
-def createLocalEnvironment(degreeOfParallelism: Int = Runtime.getRuntime.availableProcessors()))
+def createLocalEnvironment(parallelism: Int = Runtime.getRuntime.availableProcessors()))
 
 def createRemoteEnvironment(host: String, port: String, jarFiles: String*)
-def createRemoteEnvironment(host: String, port: String, degreeOfParallelism: Int, jarFiles: String*)
+def createRemoteEnvironment(host: String, port: String, parallelism: Int, jarFiles: String*)
 {% endhighlight %}
 
 Typically, you only need to use `getExecutionEnvironment()`, since this
@@ -2074,7 +2074,7 @@ val myLongs = env.fromCollection(longIt)
 </div>
 
 **Note:** Currently, the collection data source requires that data types and iterators implement
-`Serializable`. Furthermore, collection data sources can not be executed in parallel (degree of
+`Serializable`. Furthermore, collection data sources can not be executed in parallel (
 parallelism = 1).
 
 [Back to top](#top)
@@ -2704,15 +2704,15 @@ Parallel Execution
 This section describes how the parallel execution of programs can be configured in Flink. A Flink
 program consists of multiple tasks (operators, data sources, and sinks). A task is split into
 several parallel instances for execution and each parallel instance processes a subset of the task's
-input data. The number of parallel instances of a task is called its *parallelism* or *degree of
-parallelism (DOP)*.
+input data. The number of parallel instances of a task is called its *parallelism*.
 
-The degree of parallelism of a task can be specified in Flink on different levels.
+
+The parallelism of a task can be specified in Flink on different levels.
 
 ### Operator Level
 
 The parallelism of an individual operator, data source, or data sink can be defined by calling its
-`setParallelism()` method.  For example, the degree of parallelism of the `Sum` operator in the
+`setParallelism()` method.  For example, the parallelism of the `Sum` operator in the
 [WordCount](#example-program) example program can be set to `5` as follows :
 
 
@@ -2749,13 +2749,13 @@ env.execute("Word Count Example")
 
 ### Execution Environment Level
 
-Flink programs are executed in the context of an [execution environmentt](#program-skeleton). An
+Flink programs are executed in the context of an [execution environment](#program-skeleton). An
 execution environment defines a default parallelism for all operators, data sources, and data sinks
 it executes. Execution environment parallelism can be overwritten by explicitly configuring the
 parallelism of an operator.
 
 The default parallelism of an execution environment can be specified by calling the
-`setDegreeOfParallelism()` method. To execute all operators, data sources, and data sinks of the
+`setParallelism()` method. To execute all operators, data sources, and data sinks of the
 [WordCount](#example-program) example program with a parallelism of `3`, set the default parallelism of the
 execution environment as follows:
 
@@ -2763,7 +2763,7 @@ execution environment as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-env.setDegreeOfParallelism(3);
+env.setParallelism(3);
 
 DataSet<String> text = [...]
 DataSet<Tuple2<String, Integer>> wordCounts = [...]
@@ -2775,7 +2775,7 @@ env.execute("Word Count Example");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
-env.setDegreeOfParallelism(3)
+env.setParallelism(3)
 
 val text = [...]
 val wordCounts = text
@@ -2792,7 +2792,7 @@ env.execute("Word Count Example")
 ### System Level
 
 A system-wide default parallelism for all execution environments can be defined by setting the
-`parallelization.degree.default` property in `./conf/flink-conf.yaml`. See the
+`parallelism.default` property in `./conf/flink-conf.yaml`. See the
 [Configuration](config.html) documentation for details.
 
 [Back to top](#top)

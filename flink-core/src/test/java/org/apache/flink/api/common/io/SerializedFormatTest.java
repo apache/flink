@@ -35,8 +35,8 @@ public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 
 	private BlockInfo info;
 
-	public SerializedFormatTest(int numberOfRecords, long blockSize, int degreeOfParallelism){
-		super(numberOfRecords, blockSize, degreeOfParallelism);
+	public SerializedFormatTest(int numberOfRecords, long blockSize, int parallelism){
+		super(numberOfRecords, blockSize, parallelism);
 	}
 
 	@Before

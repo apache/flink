@@ -174,7 +174,7 @@ public class ProcessFailureBatchRecoveryITCase {
 			final Throwable[] errorRef = new Throwable[1];
 
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
-			env.setDegreeOfParallelism(PARALLELISM);
+			env.setParallelism(PARALLELISM);
 			env.setNumberOfExecutionRetries(1);
 			env.getConfig().setExecutionMode(executionMode);
 

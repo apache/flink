@@ -58,7 +58,7 @@ public class KMeansForTest implements Program {
 
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(4);
+		env.setParallelism(4);
 
 		// get input data
 		DataSet<Point> points = env.readCsvFile(pointsPath)

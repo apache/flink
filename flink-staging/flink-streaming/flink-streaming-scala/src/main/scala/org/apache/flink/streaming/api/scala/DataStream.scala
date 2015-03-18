@@ -57,11 +57,11 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def getJavaStream: JavaStream[T] = javaStream
 
   /**
-   * Sets the degree of parallelism of this operation. This must be greater than 1.
+   * Sets the parallelism of this operation. This must be greater than 1.
    */
-  def setParallelism(dop: Int): DataStream[T] = {
+  def setParallelism(parallelism: Int): DataStream[T] = {
     javaStream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.setParallelism(dop)
+      case ds: SingleOutputStreamOperator[_, _] => ds.setParallelism(parallelism)
       case _ =>
         throw new UnsupportedOperationException("Operator " + javaStream.toString +  " cannot " +
           "have " +
@@ -71,7 +71,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Returns the degree of parallelism of this operation.
+   * Returns the parallelism of this operation.
    */
   def getParallelism: Int = javaStream match {
     case op: SingleOutputStreamOperator[_, _] => op.getParallelism

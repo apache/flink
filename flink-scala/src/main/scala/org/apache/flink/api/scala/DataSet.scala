@@ -72,7 +72,7 @@ import scala.reflect.ClassTag
  * are named similarly. All functions are available in package
  * `org.apache.flink.api.common.functions`.
  *
- * The elements are partitioned depending on the degree of parallelism of the
+ * The elements are partitioned depending on the parallelism of the
  * [[ExecutionEnvironment]] or of one specific DataSet.
  *
  * Most of the operations have an implicit [[TypeInformation]] parameter. This is supplied by
@@ -149,13 +149,13 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Sets the degree of parallelism of this operation. This must be greater than 1.
+   * Sets the parallelism of this operation. This must be greater than 1.
    */
-  def setParallelism(dop: Int) = {
+  def setParallelism(parallelism: Int) = {
     javaSet match {
-      case ds: DataSource[_] => ds.setParallelism(dop)
-      case op: Operator[_, _] => op.setParallelism(dop)
-      case di: DeltaIterationResultSet[_, _] => di.getIterationHead.parallelism(dop)
+      case ds: DataSource[_] => ds.setParallelism(parallelism)
+      case op: Operator[_, _] => op.setParallelism(parallelism)
+      case di: DeltaIterationResultSet[_, _] => di.getIterationHead.parallelism(parallelism)
       case _ =>
         throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
           "parallelism.")
@@ -164,7 +164,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Returns the degree of parallelism of this operation.
+   * Returns the parallelism of this operation.
    */
   def getParallelism: Int = javaSet match {
     case ds: DataSource[_] => ds.getParallelism
