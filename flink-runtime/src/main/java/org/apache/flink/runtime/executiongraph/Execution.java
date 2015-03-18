@@ -880,8 +880,8 @@ public class Execution implements Serializable {
 			markTimestamp(targetState);
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} ({}) switched from {} to {}.",this.getVertex().getTaskName(),
-						getAttemptId(),  currentState, targetState);
+				LOG.debug("{} ({}) switched from {} to {}.",
+						getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
 			}
 
 			// make sure that the state transition completes normally.

@@ -156,6 +156,14 @@ public class ExecutionVertex implements Serializable {
 		return this.jobVertex.getJobVertex().getName();
 	}
 
+	public String getTaskNameWithSubtaskIndex() {
+		return String.format(
+				"%s (%d/%d)",
+				jobVertex.getJobVertex().getName(),
+				subTaskIndex + 1,
+				getTotalNumberOfParallelSubtasks());
+	}
+
 	public int getTotalNumberOfParallelSubtasks() {
 		return this.jobVertex.getParallelism();
 	}
