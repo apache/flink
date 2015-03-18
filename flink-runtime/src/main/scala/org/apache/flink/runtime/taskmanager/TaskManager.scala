@@ -1274,9 +1274,10 @@ object TaskManager {
         "' is missing (hostname/address of JobManager to connect to).")
     }
 
-    if (port <= 0) {
+    if (port <= 0 || port >= 65535) {
       throw new Exception("Invalid value for '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
-        "' (port of the JobManager actor system) : " + port)
+        "' (port of the JobManager actor system) : " + port +
+        ".  it must be great than 0 and less than 65536.")
     }
 
     (hostname, port)
