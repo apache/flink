@@ -677,6 +677,14 @@ object JobManager {
       System.exit(STARTUP_FAILURE_RETURN_CODE)
     }
 
+    // address and will not be reachable from anyone remote
+    if (listeningPort <= 0 || listeningPort >= 65536) {
+      val message = "Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
+        "' is invalid, it must be great than 0 and less than 65536."
+      LOG.error(message)
+      System.exit(STARTUP_FAILURE_RETURN_CODE)
+    }
+
     // run the job manager
     try {
       if (SecurityUtils.isSecurityEnabled) {
