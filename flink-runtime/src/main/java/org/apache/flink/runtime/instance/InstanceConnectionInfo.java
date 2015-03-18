@@ -31,7 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This class encapsulates all connection information necessary to connect to the instance's task manager.
+ * This class encapsulates the connection information of a TaskManager.
+ * It describes the host where the TaskManager operates and its server port
+ * for data exchange. This class also contains utilities to work with the
+ * TaskManager's host name, which is used to localize work assignments.
  */
 public class InstanceConnectionInfo implements IOReadableWritable, Comparable<InstanceConnectionInfo>, java.io.Serializable {
 
@@ -56,15 +59,9 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	private String fqdnHostName;
 	
 	/**
-	 * The hostname
+	 * The hostname, derived from the fully qualified host name.
 	 */
 	private String hostName;
-	
-	/**
-	 * This flag indicates if the FQDN hostname cound not be resolved and is represented
-	 * as an IP address (string).
-	 */
-	private boolean fqdnHostNameIsIP = false;
 
 
 	/**
@@ -90,14 +87,24 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		// get FQDN hostname on this TaskManager.
 		try {
 			this.fqdnHostName = this.inetAddress.getCanonicalHostName();
-		} catch (Throwable t) {
-			LOG.warn("Unable to determine hostname for TaskManager. The performance might be degraded since HDFS input split assignment is not possible");
-			if(LOG.isDebugEnabled()) {
-				LOG.debug("getCanonicalHostName() Exception", t);
-			}
-			// could not determine host name, so take IP textual representation
-			this.fqdnHostName = inetAddress.getHostAddress();
-			this.fqdnHostNameIsIP = true;
+		}
+		catch (Throwable t) {
+			LOG.warn("Unable to determine the canonical hostname. Input split assignment (such as " +
+					"for HDFS files) may be non-local when the canonical hostname is missing.");
+			LOG.debug("getCanonicalHostName() Exception:", t);
+			this.fqdnHostName = this.inetAddress.getHostAddress();
+		}
+
+		if (this.fqdnHostName.equals(this.inetAddress.getHostAddress())) {
+			// this happens when the name lookup fails, either due to an exception,
+			// or because no hostname can be found for the address
+			// take IP textual representation
+			this.hostName = this.fqdnHostName;
+			LOG.warn("No hostname could be resolved for the IP address {}, using IP address as host name. "
+					+ "Local input split assignment (such as for HDFS files) may be impacted.");
+		}
+		else {
+			this.hostName = NetUtils.getHostnameFromFQDN(this.fqdnHostName);
 		}
 	}
 
@@ -126,27 +133,37 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	}
 
 	/**
-	 * Returns the host name of the instance. If the host name could not be determined, the return value will be a
-	 * textual representation of the instance's IP address.
+	 * Returns the fully-qualified domain name the TaskManager. If the name could not be
+	 * determined, the return value will be a textual representation of the TaskManager's IP address.
 	 * 
-	 * @return the host name of the instance
+	 * @return The fully-qualified domain name of the TaskManager.
 	 */
 	public String getFQDNHostname() {
 		return this.fqdnHostName;
 	}
-	
+
+	/**
+	 * Gets the hostname of the TaskManager. The hostname derives from the fully qualified
+	 * domain name (FQDN, see {@link #getFQDNHostname()}):
+	 * <ul>
+	 *     <li>If the FQDN is the textual IP address, then the hostname is also the IP address</li>
+	 *     <li>If the FQDN has only one segment (such as "localhost", or "host17"), then this is
+	 *         used as the hostname.</li>
+	 *     <li>If the FQDN has multiple segments (such as "worker3.subgroup.company.net"), then the first
+	 *         segment (here "worker3") will be used as the hostname.</li>
+	 * </ul>
+	 *
+	 * @return The hostname of the TaskManager.
+	 */
 	public String getHostname() {
-		if(hostName == null) {
-			String fqdn = getFQDNHostname();
-			if(this.fqdnHostNameIsIP) { // fqdn to hostname translation is pointless if FQDN is an ip address.
-				hostName = fqdn;
-			} else {
-				hostName = NetUtils.getHostnameFromFQDN(fqdn);
-			}
-		}
 		return hostName;
 	}
 
+	/**
+	 * Gets the IP address where the TaskManager operates.
+	 *
+	 * @return The IP address.
+	 */
 	public String getInetAdress() {
 		return this.inetAddress.toString();
 	}
@@ -166,7 +183,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		
 		this.fqdnHostName = StringUtils.readNullableString(in);
 		this.hostName = StringUtils.readNullableString(in);
-		this.fqdnHostNameIsIP = in.readBoolean();
 
 		try {
 			this.inetAddress = InetAddress.getByAddress(address);
@@ -185,7 +201,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		
 		StringUtils.writeNullableString(fqdnHostName, out);
 		StringUtils.writeNullableString(hostName, out);
-		out.writeBoolean(fqdnHostNameIsIP);
 	}
 
 	// --------------------------------------------------------------------------------------------

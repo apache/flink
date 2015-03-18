@@ -41,7 +41,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
 
-	public HadoopMapFunctionITCase(ExecutionMode mode){
+	public HadoopMapFunctionITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

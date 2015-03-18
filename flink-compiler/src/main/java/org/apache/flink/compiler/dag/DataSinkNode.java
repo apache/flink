@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
@@ -24,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
@@ -69,7 +69,9 @@ public class DataSinkNode extends OptimizerNode {
 	}
 	
 	/**
-	 * 
+	 * Gets the predecessor of this node.
+	 *
+	 * @return The predecessor, or null, if no predecessor has been set.
 	 */
 	public OptimizerNode getPredecessorNode() {
 		if(this.input != null) {
@@ -80,9 +82,9 @@ public class DataSinkNode extends OptimizerNode {
 	}
 
 	/**
-	 * Gets the contract object for this data source node.
+	 * Gets the operator for which this optimizer sink node was created.
 	 * 
-	 * @return The contract.
+	 * @return The node's underlying operator.
 	 */
 	@Override
 	public GenericDataSinkBase<?> getPactContract() {
@@ -99,19 +101,25 @@ public class DataSinkNode extends OptimizerNode {
 		return Collections.singletonList(this.input);
 	}
 
+	/**
+	 * Gets all outgoing connections, which is an empty set for the data sink.
+	 *
+	 * @return An empty list.
+	 */
+	@Override
 	public List<PactConnection> getOutgoingConnections() {
 		return Collections.emptyList();
 	}
 
 	@Override
-	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) {
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode defaultExchangeMode) {
 		Operator<?> children = getPactContract().getInput();
 
 		final OptimizerNode pred;
 		final PactConnection conn;
 		
 		pred = contractToNode.get(children);
-		conn = new PactConnection(pred, this);
+		conn = new PactConnection(pred, this, defaultExchangeMode);
 			
 		// create the connection and add it
 		this.input = conn;
@@ -170,7 +178,7 @@ public class DataSinkNode extends OptimizerNode {
 		}
 
 		// we need to track open branches even in the sinks, because they get "closed" when
-		// we build a single "roor" for the data flow plan
+		// we build a single "root" for the data flow plan
 		addClosedBranches(getPredecessorNode().closedBranchingNodes);
 		this.openBranches = getPredecessorNode().getBranchesForParent(this.input);
 	}
@@ -199,14 +207,16 @@ public class DataSinkNode extends OptimizerNode {
 		final int dop = getDegreeOfParallelism();
 		final int inDop = getPredecessorNode().getDegreeOfParallelism();
 
+		final ExecutionMode executionMode = this.input.getDataExchangeMode();
 		final boolean dopChange = dop != inDop;
+		final boolean breakPipeline = this.input.isBreakingPipeline();
 
 		InterestingProperties ips = this.input.getInterestingProperties();
 		for (PlanNode p : subPlans) {
 			for (RequestedGlobalProperties gp : ips.getGlobalProperties()) {
 				for (RequestedLocalProperties lp : ips.getLocalProperties()) {
 					Channel c = new Channel(p);
-					gp.parameterizeChannel(c, dopChange);
+					gp.parameterizeChannel(c, dopChange, executionMode, breakPipeline);
 					lp.parameterizeChannel(c);
 					c.setRequiredLocalProps(lp);
 					c.setRequiredGlobalProps(gp);
@@ -214,7 +224,7 @@ public class DataSinkNode extends OptimizerNode {
 					// no need to check whether the created properties meet what we need in case
 					// of ordering or global ordering, because the only interesting properties we have
 					// are what we require
-					outputPlans.add(new SinkPlanNode(this, "DataSink("+this.getPactContract().getName()+")" ,c));
+					outputPlans.add(new SinkPlanNode(this, "DataSink ("+this.getPactContract().getName()+")" ,c));
 				}
 			}
 		}

@@ -50,7 +50,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class CoGroupITCase extends MultipleProgramsTestBase {
 
-	public CoGroupITCase(ExecutionMode mode){
+	public CoGroupITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

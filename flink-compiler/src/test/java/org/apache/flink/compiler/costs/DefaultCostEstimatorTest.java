@@ -21,9 +21,6 @@ package org.apache.flink.compiler.costs;
 
 import static org.junit.Assert.*;
 
-import org.apache.flink.compiler.costs.CostEstimator;
-import org.apache.flink.compiler.costs.Costs;
-import org.apache.flink.compiler.costs.DefaultCostEstimator;
 import org.apache.flink.compiler.dag.EstimateProvider;
 import org.junit.Test;
 

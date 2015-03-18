@@ -50,7 +50,6 @@ import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.EdgeToTuple3Map;
-import org.apache.flink.graph.utils.GraphUtils;
 import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
@@ -293,7 +292,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * 
 	 * @return true if the Graph is valid.
 	 */
-	public DataSet<Boolean> validate(GraphValidator<K, VV, EV> validator) {
+	public Boolean validate(GraphValidator<K, VV, EV> validator) throws Exception {
 		return validator.validate(this);
 	}
 
@@ -877,17 +876,17 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	/**
-	 * @return Singleton DataSet containing the vertex count
+	 * @return a long integer representing the number of vertices
 	 */
-	public DataSet<Integer> numberOfVertices() {
-		return GraphUtils.count(vertices, context);
+	public long numberOfVertices() throws Exception {
+		return vertices.count();
 	}
 
 	/**
-	 * @return Singleton DataSet containing the edge count
+	 * @return a long integer representing the number of edges
 	 */
-	public DataSet<Integer> numberOfEdges() {
-		return GraphUtils.count(edges, context);
+	public long numberOfEdges() throws Exception {
+		return edges.count();
 	}
 
 	/**
@@ -927,7 +926,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 *            the maximum number of iterations for the inner delta iteration
 	 * @return true if the graph is weakly connected.
 	 */
-	public DataSet<Boolean> isWeaklyConnected(int maxIterations) {
+	public boolean isWeaklyConnected(int maxIterations) throws Exception {
 		// first, convert to an undirected graph
 		Graph<K, VV, EV> graph = this.getUndirected();
 
@@ -948,9 +947,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 				.with(new VertexWithNewComponentJoin<K>());
 
 		DataSet<Tuple2<K, K>> components = iteration.closeWith(changes, changes);
-		DataSet<Boolean> result = GraphUtils.count(components.groupBy(1).reduceGroup(new EmitFirstReducer<K>()),
-				context).map(new CheckIfOneComponentMapper());
-		return result;
+		return components.groupBy(1).reduceGroup(new EmitFirstReducer<K>()).count() == 1;
 	}
 
 	private static final class DuplicateVertexIDMapper<K> implements MapFunction<K, Tuple2<K, K>> {
@@ -980,13 +977,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	private static final class EmitFirstReducer<K> implements GroupReduceFunction<Tuple2<K, K>, Tuple2<K, K>> {
 		public void reduce(Iterable<Tuple2<K, K>> values, Collector<Tuple2<K, K>> out) {
 			out.collect(values.iterator().next());
-		}
-	}
-
-	private static final class CheckIfOneComponentMapper implements	MapFunction<Integer, Boolean> {
-		@Override
-		public Boolean map(Integer n) {
-			return (n == 1);
 		}
 	}
 
@@ -1155,7 +1145,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
 	}
 
-	public Graph<K, VV, EV> run(GraphAlgorithm<K, VV, EV> algorithm) {
+	public Graph<K, VV, EV> run(GraphAlgorithm<K, VV, EV> algorithm) throws Exception {
 		return algorithm.run(this);
 	}
 

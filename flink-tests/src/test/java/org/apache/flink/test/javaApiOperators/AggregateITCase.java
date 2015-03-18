@@ -38,7 +38,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 public class AggregateITCase extends MultipleProgramsTestBase {
 
 
-	public AggregateITCase(ExecutionMode mode){
+	public AggregateITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

@@ -41,7 +41,7 @@ Use one of the following commands to __create a project__:
 <div class="tab-content">
     <div class="tab-pane active" id="quickstart-script">
     {% highlight bash %}
-    $ curl https://raw.githubusercontent.com/apache/flink/master/flink-quickstart/quickstart.sh | bash
+    $ curl http://flink.apache.org/q/quickstart.sh | bash
     {% endhighlight %}
     </div>
     <div class="tab-pane" id="maven-archetype">
@@ -68,7 +68,7 @@ A note to Mac OS X users: The default JVM heapsize for Java is too small for Fli
 
 ## Build Project
 
-If you want to __build your project__, go to your project directory and issue the`mvn clean package` command. You will __find a jar__ that runs on every Flink cluster in __target/your-artifact-id-1.0-SNAPSHOT.jar__. There is also a fat-jar,  __target/your-artifact-id-1.0-SNAPSHOT-flink-fat-jar.jar__. This
+If you want to __build your project__, go to your project directory and issue the`mvn clean install -Pbuild-jar` command. You will __find a jar__ that runs on every Flink cluster in __target/your-artifact-id-1.0-SNAPSHOT.jar__. There is also a fat-jar,  __target/your-artifact-id-1.0-SNAPSHOT-flink-fat-jar.jar__. This
 also contains all dependencies that get added to the maven project.
 
 ## Next Steps

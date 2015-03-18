@@ -25,14 +25,13 @@ import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.streaming.api.invokable.operator.MapInvokable
+import org.apache.flink.streaming.api.invokable.operator._
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.FlatMapFunction
-import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.streaming.api.invokable.StreamInvokable
-import org.apache.flink.streaming.api.invokable.operator.{ GroupedReduceInvokable, StreamReduceInvokable }
 import org.apache.flink.api.common.functions.ReduceFunction
+import org.apache.flink.api.common.functions.FoldFunction
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.streaming.api.function.sink.SinkFunction
@@ -425,7 +424,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Creates a new [[DataStream]] by reducing the elements of this DataStream
+  * Creates a new [[DataStream]] by reducing the elements of this DataStream
    * using an associative reduce function.
    */
   def reduce(fun: (T, T) => T): DataStream[T] = {
@@ -437,6 +436,42 @@ class DataStream[T](javaStream: JavaStream[T]) {
       def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
     }
     reduce(reducer)
+  }
+
+  /**
+   * Creates a new [[DataStream]] by folding the elements of this DataStream
+   * using an associative fold function and an initial value.
+   */
+  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[T,R]): 
+  DataStream[R] = {
+    if (folder == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    javaStream match {
+      case ds: GroupedDataStream[_] => javaStream.transform("fold",
+        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), 
+            initialValue, implicitly[TypeInformation[R]]))
+      case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
+        new StreamFoldInvokable[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
+    }
+  }
+
+  /**
+   * Creates a new [[DataStream]] by folding the elements of this DataStream
+   * using an associative fold function and an initial value.
+   */
+  def fold[R: TypeInformation: ClassTag](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    val folder = new FoldFunction[T,R] {
+      val cleanFun = clean(fun)
+
+      def fold(acc: R, v: T) = {
+        cleanFun(acc, v)
+      }
+    }
+    fold(initialValue, folder)
   }
 
   /**

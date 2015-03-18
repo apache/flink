@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 public class WindowUtils {
 
 	public enum WindowTransformation {
-		REDUCEWINDOW, MAPWINDOW, NONE;
+		REDUCEWINDOW, MAPWINDOW, FOLDWINDOW, NONE;
 		private Function UDF;
 
 		public WindowTransformation with(Function UDF) {

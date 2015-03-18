@@ -21,7 +21,7 @@ package org.apache.flink.api.scala.operators
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase}
 import org.junit.{Test, After, Before, Rule}
 import org.junit.rules.TemporaryFolder
@@ -32,7 +32,7 @@ import org.apache.flink.api.scala._
 
 
 @RunWith(classOf[Parameterized])
-class SumMinMaxITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
+class SumMinMaxITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
   private var expected: String = null
   private val _tempFolder = new TemporaryFolder()

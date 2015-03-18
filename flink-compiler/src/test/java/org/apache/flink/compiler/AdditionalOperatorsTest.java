@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
 
 import static org.junit.Assert.assertEquals;
@@ -28,7 +27,6 @@ import org.apache.flink.api.java.record.operators.CrossWithLargeOperator;
 import org.apache.flink.api.java.record.operators.CrossWithSmallOperator;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
@@ -37,7 +35,6 @@ import org.apache.flink.compiler.util.DummyInputFormat;
 import org.apache.flink.compiler.util.DummyOutputFormat;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
-
 
 /**
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution

@@ -103,9 +103,10 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-examples</artifactId>
+			<artifactId>flink-streaming-scala</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
 	</dependencies>
 
 	<!-- See main pom.xml for explanation of profiles -->

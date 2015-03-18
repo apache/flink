@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.jobmanager
 
-object ExecutionMode extends Enumeration{
-  type ExecutionMode = Value
-  val LOCAL = Value
-  val CLUSTER = Value
-}
-
-case class JobManagerCLIConfiguration(configDir: String = null, 
-          executionMode: ExecutionMode.ExecutionMode = null) {}
+/**
+ * Holder for command line parameters of the JobManager.
+ *
+ * @param configDir The directory to load the configuration from.
+ * @param executionMode Mode for the JobManager.
+ */
+case class JobManagerCLIConfiguration(configDir: String = null,
+                                      executionMode: JobManagerMode = null) {}

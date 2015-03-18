@@ -21,7 +21,7 @@ import org.apache.flink.api.common.functions.{RichFilterFunction, RichMapFunctio
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase}
 import org.junit.{Test, After, Before, Rule}
 import org.junit.rules.TemporaryFolder
@@ -31,7 +31,7 @@ import org.junit.runners.Parameterized
 import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
-class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
+class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
   private var expected: String = null
   private val _tempFolder = new TemporaryFolder()
@@ -153,7 +153,7 @@ class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
     count.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
 
-    expected = if (mode == ExecutionMode.COLLECTION) "(1)\n" else "(4)\n"
+    expected = if (mode == TestExecutionMode.COLLECTION) "(1)\n" else "(4)\n"
   }
 
   @Test
@@ -182,7 +182,7 @@ class PartitionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode
     count.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
 
-    expected = if (mode == ExecutionMode.COLLECTION) "(1)\n" else "(4)\n"
+    expected = if (mode == TestExecutionMode.COLLECTION) "(1)\n" else "(4)\n"
   }
 
   @Test

@@ -32,6 +32,7 @@ import org.apache.flink.compiler.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.compiler.dataproperties.RequestedLocalProperties;
 import org.apache.flink.compiler.plandump.DumpableConnection;
 import org.apache.flink.compiler.util.Utils;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
@@ -43,8 +44,10 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	private PlanNode source;
 	
 	private PlanNode target;
-	
+
 	private ShipStrategyType shipStrategy = ShipStrategyType.NONE;
+
+	private DataExchangeMode dataExchangeMode;
 	
 	private LocalStrategy localStrategy = LocalStrategy.NONE;
 	
@@ -77,8 +80,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	private TempMode tempMode;
 	
 	private double relativeTempMemory;
-	
-	private double relativeMemoryGlobalStrategy;
 	
 	private double relativeMemoryLocalStrategy;
 	
@@ -125,33 +126,46 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	public PlanNode getTarget() {
 		return this.target;
 	}
-	
-	public void setShipStrategy(ShipStrategyType strategy) {
-		setShipStrategy(strategy, null, null, null);
+
+	public void setShipStrategy(ShipStrategyType strategy, DataExchangeMode dataExchangeMode) {
+		setShipStrategy(strategy, null, null, null, dataExchangeMode);
 	}
 	
-	public void setShipStrategy(ShipStrategyType strategy, FieldList keys) {
-		setShipStrategy(strategy, keys, null, null);
+	public void setShipStrategy(ShipStrategyType strategy, FieldList keys, DataExchangeMode dataExchangeMode) {
+		setShipStrategy(strategy, keys, null, null, dataExchangeMode);
 	}
 	
-	public void setShipStrategy(ShipStrategyType strategy, FieldList keys, boolean[] sortDirection) {
-		setShipStrategy(strategy, keys, sortDirection, null);
+	public void setShipStrategy(ShipStrategyType strategy, FieldList keys,
+								boolean[] sortDirection, DataExchangeMode dataExchangeMode) {
+		setShipStrategy(strategy, keys, sortDirection, null, dataExchangeMode);
 	}
 	
-	public void setShipStrategy(ShipStrategyType strategy, FieldList keys, Partitioner<?> partitioner) {
-		setShipStrategy(strategy, keys, null, partitioner);
+	public void setShipStrategy(ShipStrategyType strategy, FieldList keys,
+								Partitioner<?> partitioner, DataExchangeMode dataExchangeMode) {
+		setShipStrategy(strategy, keys, null, partitioner, dataExchangeMode);
 	}
 	
-	public void setShipStrategy(ShipStrategyType strategy, FieldList keys, boolean[] sortDirection, Partitioner<?> partitioner) {
+	public void setShipStrategy(ShipStrategyType strategy, FieldList keys,
+								boolean[] sortDirection, Partitioner<?> partitioner,
+								DataExchangeMode dataExchangeMode) {
 		this.shipStrategy = strategy;
 		this.shipKeys = keys;
 		this.shipSortOrder = sortDirection;
 		this.partitioner = partitioner;
-		
+		this.dataExchangeMode = dataExchangeMode;
 		this.globalProps = null;		// reset the global properties
 	}
-	
-	
+
+	/**
+	 * Gets the data exchange mode (batch / streaming) to use for the data
+	 * exchange of this channel.
+	 *
+	 * @return The data exchange mode of this channel.
+	 */
+	public DataExchangeMode getDataExchangeMode() {
+		return dataExchangeMode;
+	}
+
 	public ShipStrategyType getShipStrategy() {
 		return this.shipStrategy;
 	}
@@ -166,10 +180,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	public void setLocalStrategy(LocalStrategy strategy) {
 		setLocalStrategy(strategy, null, null);
-	}
-	
-	public void setLocalStrategy(LocalStrategy strategy, FieldList keys) {
-		setLocalStrategy(strategy, keys, null);
 	}
 	
 	public void setLocalStrategy(LocalStrategy strategy, FieldList keys, boolean[] sortDirection) {
@@ -305,14 +315,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	 */
 	public void setLocalStrategyComparator(TypeComparatorFactory<?> localStrategyComparator) {
 		this.localStrategyComparator = localStrategyComparator;
-	}
-	
-	public double getRelativeMemoryGlobalStrategy() {
-		return relativeMemoryGlobalStrategy;
-	}
-	
-	public void setRelativeMemoryGlobalStrategy(double relativeMemoryGlobalStrategy) {
-		this.relativeMemoryGlobalStrategy = relativeMemoryGlobalStrategy;
 	}
 	
 	public double getRelativeMemoryLocalStrategy() {
@@ -477,8 +479,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	/**
 	 * Utility method used while swapping binary union nodes for n-ary union nodes.
-	 * 
-	 * @param newUnionNode
 	 */
 	public void swapUnionNodes(PlanNode newUnionNode) {
 		if (!(this.source instanceof BinaryUnionPlanNode)) {
@@ -493,16 +493,17 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	public int getMaxDepth() {
 		return this.source.getOptimizerNode().getMaxDepth() + 1;
 	}
+
 	// --------------------------------------------------------------------------------------------
 
-	
-
+	@Override
 	public String toString() {
 		return "Channel (" + this.source + (this.target == null ? ')' : ") -> (" + this.target + ')') +
 				'[' + this.shipStrategy + "] [" + this.localStrategy + "] " +
 				(this.tempMode == null || this.tempMode == TempMode.NONE ? "{NO-TEMP}" : this.tempMode);
 	}
-	
+
+	@Override
 	public Channel clone() {
 		try {
 			return (Channel) super.clone();

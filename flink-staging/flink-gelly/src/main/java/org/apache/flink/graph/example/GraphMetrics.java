@@ -18,16 +18,13 @@
 
 package org.apache.flink.graph.example;
 
-import java.util.Collection;
-
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.example.utils.ExampleUtils;
 import org.apache.flink.types.NullValue;
@@ -42,38 +39,36 @@ import org.apache.flink.types.NullValue;
  * - average node degree
  * - the vertex ids with the max/min in- and out-degrees
  *
+ * The input file is expected to contain one edge per line,
+ * with long IDs and no values, in the following format:
+ * "<sourceVertexID>\t<targetVertexID>".
+ * If no arguments are provided, the example runs with a random graph of 100 vertices.
+ *
  */
 public class GraphMetrics implements ProgramDescription {
 
-	static final int NUM_VERTICES = 100;
-	static final long SEED = 9876;
-	
-
-	@Override
-	public String getDescription() {
-		return "Graph Metrics Example";
-	}
-
 	public static void main(String[] args) throws Exception {
+
+		if (!parseParameters(args)) {
+			return;
+		}
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		/** create a random graph **/
-		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(ExampleUtils
-				.getRandomEdges(env, NUM_VERTICES), env);
+		/** create the graph **/
+		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(getEdgesDataSet(env), env);
 		
 		/** get the number of vertices **/
-		DataSet<Integer> numVertices = graph.numberOfVertices();
+		long numVertices = graph.numberOfVertices();
 		
 		/** get the number of edges **/
-		DataSet<Integer> numEdges = graph.numberOfEdges();
+		long numEdges = graph.numberOfEdges();
 		
 		/** compute the average node degree **/
 		DataSet<Tuple2<Long, Long>> verticesWithDegrees = graph.getDegrees();
 
 		DataSet<Double> avgNodeDegree = verticesWithDegrees
-				.aggregate(Aggregations.SUM, 1).map(new AvgNodeDegreeMapper())
-				.withBroadcastSet(numVertices, "numberOfVertices");
+				.aggregate(Aggregations.SUM, 1).map(new AvgNodeDegreeMapper(numVertices));
 		
 		/** find the vertex with the maximum in-degree **/
 		DataSet<Long> maxInDegreeVertex = graph.inDegrees().maxBy(1).map(new ProjectVertexId());
@@ -88,8 +83,8 @@ public class GraphMetrics implements ProgramDescription {
 		DataSet<Long> minOutDegreeVertex = graph.outDegrees().minBy(1).map(new ProjectVertexId());
 		
 		/** print the results **/
-		ExampleUtils.printResult(numVertices, "Total number of vertices");
-		ExampleUtils.printResult(numEdges, "Total number of edges");
+		ExampleUtils.printResult(env.fromElements(numVertices), "Total number of vertices");
+		ExampleUtils.printResult(env.fromElements(numEdges), "Total number of edges");
 		ExampleUtils.printResult(avgNodeDegree, "Average node degree");
 		ExampleUtils.printResult(maxInDegreeVertex, "Vertex with Max in-degree");
 		ExampleUtils.printResult(minInDegreeVertex, "Vertex with Min in-degree");
@@ -98,19 +93,16 @@ public class GraphMetrics implements ProgramDescription {
 
 		env.execute();
 	}
-	
-	@SuppressWarnings("serial")
-	private static final class AvgNodeDegreeMapper extends RichMapFunction<Tuple2<Long, Long>, Double> {
 
-		private int numberOfVertices;
-		
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			Collection<Integer> bCastSet = getRuntimeContext()
-					.getBroadcastVariable("numberOfVertices");
-			numberOfVertices = bCastSet.iterator().next();
+	@SuppressWarnings("serial")
+	private static final class AvgNodeDegreeMapper implements MapFunction<Tuple2<Long, Long>, Double> {
+
+		private long numberOfVertices;
+
+		public AvgNodeDegreeMapper(long numberOfVertices) {
+			this.numberOfVertices = numberOfVertices;
 		}
-		
+
 		public Double map(Tuple2<Long, Long> sumTuple) {
 			return (double) (sumTuple.f1 / numberOfVertices) ;
 		}
@@ -119,5 +111,59 @@ public class GraphMetrics implements ProgramDescription {
 	@SuppressWarnings("serial")
 	private static final class ProjectVertexId implements MapFunction<Tuple2<Long,Long>, Long> {
 		public Long map(Tuple2<Long, Long> value) { return value.f0; }
+	}
+
+	@Override
+	public String getDescription() {
+		return "Graph Metrics Example";
+	}
+
+	// ******************************************************************************************************************
+	// UTIL METHODS
+	// ******************************************************************************************************************
+
+	private static boolean fileOutput = false;
+
+	private static String edgesInputPath = null;
+
+	static final int NUM_VERTICES = 100;
+
+	static final long SEED = 9876;
+
+	private static boolean parseParameters(String[] args) {
+
+		if(args.length > 0) {
+			if(args.length != 1) {
+				System.err.println("Usage: GraphMetrics <input edges>");
+				return false;
+			}
+
+			fileOutput = true;
+			edgesInputPath = args[0];
+		} else {
+			System.out.println("Executing Graph Metrics example with default parameters and built-in default data.");
+			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
+			System.out.println("Usage: GraphMetrics <input edges>");
+		}
+		return true;
+	}
+
+	@SuppressWarnings("serial")
+	private static DataSet<Edge<Long, NullValue>> getEdgesDataSet(ExecutionEnvironment env) {
+		if (fileOutput) {
+			return env.readCsvFile(edgesInputPath)
+					.lineDelimiter("\n").fieldDelimiter("\t")
+					.types(Long.class, Long.class).map(
+							new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
+
+								public Edge<Long, NullValue> map(Tuple2<Long, Long> value) {
+									return new Edge<Long, NullValue>(value.f0, value.f1, 
+											NullValue.getInstance());
+								}
+					});
+		} else {
+			return ExampleUtils.getRandomEdges(env, NUM_VERTICES);
+		}
 	}
 }

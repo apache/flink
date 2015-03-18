@@ -39,7 +39,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class MapEdgesITCase extends MultipleProgramsTestBase {
 
-	public MapEdgesITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public MapEdgesITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

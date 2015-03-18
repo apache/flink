@@ -45,7 +45,7 @@ import java.util.Iterator;
 @RunWith(Parameterized.class)
 public class SortPartitionITCase extends MultipleProgramsTestBase {
 
-	public SortPartitionITCase(ExecutionMode mode){
+	public SortPartitionITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

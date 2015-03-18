@@ -18,8 +18,6 @@
 
 package org.apache.flink.examples.scala.ml
 
-import java.io.Serializable
-
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration

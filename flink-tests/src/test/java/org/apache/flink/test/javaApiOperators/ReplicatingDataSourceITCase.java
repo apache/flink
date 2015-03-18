@@ -33,7 +33,6 @@ import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,7 +47,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class ReplicatingDataSourceITCase extends MultipleProgramsTestBase {
 
-	public ReplicatingDataSourceITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public ReplicatingDataSourceITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

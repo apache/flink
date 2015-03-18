@@ -57,7 +57,7 @@ import scala.math.BigInt;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends MultipleProgramsTestBase {
 
-	public GroupReduceITCase(ExecutionMode mode){
+	public GroupReduceITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
@@ -309,7 +309,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		/*
 		 * check correctness of groupReduce on custom type with key extractor and combine
 		 */
-		org.junit.Assume.assumeTrue(mode != ExecutionMode.COLLECTION);
+		org.junit.Assume.assumeTrue(mode != TestExecutionMode.COLLECTION);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -343,7 +343,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		/*
 		 * check correctness of groupReduce on tuples with combine
 		 */
-		org.junit.Assume.assumeTrue(mode != ExecutionMode.COLLECTION);
+		org.junit.Assume.assumeTrue(mode != TestExecutionMode.COLLECTION);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setDegreeOfParallelism(2); // important because it determines how often the combiner is called
@@ -369,7 +369,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		/*
 		 * check correctness of all-groupreduce for tuples with combine
 		 */
-		org.junit.Assume.assumeTrue(mode != ExecutionMode.COLLECTION);
+		org.junit.Assume.assumeTrue(mode != TestExecutionMode.COLLECTION);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -842,7 +842,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		env.execute();
 
 		// return expected result
-		if (super.mode == ExecutionMode.COLLECTION) {
+		if (super.mode == TestExecutionMode.COLLECTION) {
 			expected = null;
 		} else {
 			expected = "1,Hi\n" +

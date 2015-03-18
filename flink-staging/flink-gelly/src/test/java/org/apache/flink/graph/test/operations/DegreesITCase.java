@@ -34,7 +34,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class DegreesITCase extends MultipleProgramsTestBase {
 
-	public DegreesITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public DegreesITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SemanticProperties;
@@ -51,6 +52,7 @@ import org.apache.flink.compiler.plan.NamedChannel;
 import org.apache.flink.compiler.plan.PlanNode;
 import org.apache.flink.compiler.plan.PlanNode.SourceAndDamReport;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DamBehavior;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -155,7 +157,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 
 
 	@Override
-	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode) {
+	public void setInput(Map<Operator<?>, OptimizerNode> contractToNode, ExecutionMode defaultExecutionMode) {
 		// see if there is a hint that dictates which shipping strategy to use for BOTH inputs
 		final Configuration conf = getPactContract().getParameters();
 		ShipStrategyType preSet1 = null;
@@ -215,7 +217,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 		
 		// get the predecessors
-		DualInputOperator<?, ?, ?, ?> contr = (DualInputOperator<?, ?, ?, ?>) getPactContract();
+		DualInputOperator<?, ?, ?, ?> contr = getPactContract();
 		
 		Operator<?> leftPred = contr.getFirstInput();
 		Operator<?> rightPred = contr.getSecondInput();
@@ -226,7 +228,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for first input.");
 		} else {
 			pred1 = contractToNode.get(leftPred);
-			conn1 = new PactConnection(pred1, this);
+			conn1 = new PactConnection(pred1, this, defaultExecutionMode);
 			if (preSet1 != null) {
 				conn1.setShipStrategy(preSet1);
 			}
@@ -242,7 +244,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 			throw new CompilerException("Error: Node for '" + getPactContract().getName() + "' has no input set for second input.");
 		} else {
 			pred2 = contractToNode.get(rightPred);
-			conn2 = new PactConnection(pred2, this);
+			conn2 = new PactConnection(pred2, this, defaultExecutionMode);
 			if (preSet2 != null) {
 				conn2.setShipStrategy(preSet2);
 			}
@@ -314,15 +316,19 @@ public abstract class TwoInputNode extends OptimizerNode {
 		final List<Set<? extends NamedChannel>> broadcastPlanChannels = new ArrayList<Set<? extends NamedChannel>>();
 		List<PactConnection> broadcastConnections = getBroadcastConnections();
 		List<String> broadcastConnectionNames = getBroadcastConnectionNames();
+
 		for (int i = 0; i < broadcastConnections.size(); i++ ) {
 			PactConnection broadcastConnection = broadcastConnections.get(i);
 			String broadcastConnectionName = broadcastConnectionNames.get(i);
 			List<PlanNode> broadcastPlanCandidates = broadcastConnection.getSource().getAlternativePlans(estimator);
-			// wrap the plan candidates in named channels 
+
+			// wrap the plan candidates in named channels
 			HashSet<NamedChannel> broadcastChannels = new HashSet<NamedChannel>(broadcastPlanCandidates.size());
 			for (PlanNode plan: broadcastPlanCandidates) {
 				final NamedChannel c = new NamedChannel(broadcastConnectionName, plan);
-				c.setShipStrategy(ShipStrategyType.BROADCAST);
+				DataExchangeMode exMode = DataExchangeMode.select(broadcastConnection.getDataExchangeMode(),
+											ShipStrategyType.BROADCAST, broadcastConnection.isBreakingPipeline());
+				c.setShipStrategy(ShipStrategyType.BROADCAST, exMode);
 				broadcastChannels.add(c);
 			}
 			broadcastPlanChannels.add(broadcastChannels);
@@ -337,12 +343,15 @@ public abstract class TwoInputNode extends OptimizerNode {
 				pairsGlob.addAll(ods.getPossibleGlobalProperties());
 				pairsLoc.addAll(ods.getPossibleLocalProperties());
 			}
-			allGlobalPairs = (GlobalPropertiesPair[]) pairsGlob.toArray(new GlobalPropertiesPair[pairsGlob.size()]);
-			allLocalPairs = (LocalPropertiesPair[]) pairsLoc.toArray(new LocalPropertiesPair[pairsLoc.size()]);
+			allGlobalPairs = pairsGlob.toArray(new GlobalPropertiesPair[pairsGlob.size()]);
+			allLocalPairs = pairsLoc.toArray(new LocalPropertiesPair[pairsLoc.size()]);
 		}
 		
 		final ArrayList<PlanNode> outputPlans = new ArrayList<PlanNode>();
-		
+
+		final ExecutionMode input1Mode = this.input1.getDataExchangeMode();
+		final ExecutionMode input2Mode = this.input2.getDataExchangeMode();
+
 		final int dop = getDegreeOfParallelism();
 		final int inDop1 = getFirstPredecessorNode().getDegreeOfParallelism();
 		final int inDop2 = getSecondPredecessorNode().getDegreeOfParallelism();
@@ -350,15 +359,18 @@ public abstract class TwoInputNode extends OptimizerNode {
 		final boolean dopChange1 = dop != inDop1;
 		final boolean dopChange2 = dop != inDop2;
 
+		final boolean input1breaksPipeline = this.input1.isBreakingPipeline();
+		final boolean input2breaksPipeline = this.input2.isBreakingPipeline();
+
 		// enumerate all pairwise combination of the children's plans together with
 		// all possible operator strategy combination
 		
 		// create all candidates
 		for (PlanNode child1 : subPlans1) {
 
-			if(child1.getGlobalProperties().isFullyReplicated()) {
+			if (child1.getGlobalProperties().isFullyReplicated()) {
 				// fully replicated input is always locally forwarded if DOP is not changed
-				if(dopChange1) {
+				if (dopChange1) {
 					// can not continue with this child
 					childrenSkippedDueToReplicatedInput = true;
 					continue;
@@ -369,9 +381,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 
 			for (PlanNode child2 : subPlans2) {
 
-				if(child2.getGlobalProperties().isFullyReplicated()) {
+				if (child2.getGlobalProperties().isFullyReplicated()) {
 					// fully replicated input is always locally forwarded if DOP is not changed
-					if(dopChange2) {
+					if (dopChange2) {
 						// can not continue with this child
 						childrenSkippedDueToReplicatedInput = true;
 						continue;
@@ -391,19 +403,23 @@ public abstract class TwoInputNode extends OptimizerNode {
 					final Channel c1 = new Channel(child1, this.input1.getMaterializationMode());
 					if (this.input1.getShipStrategy() == null) {
 						// free to choose the ship strategy
-						igps1.parameterizeChannel(c1, dopChange1);
+						igps1.parameterizeChannel(c1, dopChange1, input1Mode, input1breaksPipeline);
 						
 						// if the DOP changed, make sure that we cancel out properties, unless the
 						// ship strategy preserves/establishes them even under changing DOPs
 						if (dopChange1 && !c1.getShipStrategy().isNetworkStrategy()) {
 							c1.getGlobalProperties().reset();
 						}
-					} else {
+					}
+					else {
 						// ship strategy fixed by compiler hint
+						ShipStrategyType shipType = this.input1.getShipStrategy();
+						DataExchangeMode exMode = DataExchangeMode.select(input1Mode, shipType, input1breaksPipeline);
 						if (this.keys1 != null) {
-							c1.setShipStrategy(this.input1.getShipStrategy(), this.keys1.toFieldList());
-						} else {
-							c1.setShipStrategy(this.input1.getShipStrategy());
+							c1.setShipStrategy(shipType, this.keys1.toFieldList(), exMode);
+						}
+						else {
+							c1.setShipStrategy(shipType, exMode);
 						}
 						
 						if (dopChange1) {
@@ -416,7 +432,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 						final Channel c2 = new Channel(child2, this.input2.getMaterializationMode());
 						if (this.input2.getShipStrategy() == null) {
 							// free to choose the ship strategy
-							igps2.parameterizeChannel(c2, dopChange2);
+							igps2.parameterizeChannel(c2, dopChange2, input2Mode, input2breaksPipeline);
 							
 							// if the DOP changed, make sure that we cancel out properties, unless the
 							// ship strategy preserves/establishes them even under changing DOPs
@@ -425,10 +441,12 @@ public abstract class TwoInputNode extends OptimizerNode {
 							}
 						} else {
 							// ship strategy fixed by compiler hint
+							ShipStrategyType shipType = this.input2.getShipStrategy();
+							DataExchangeMode exMode = DataExchangeMode.select(input2Mode, shipType, input2breaksPipeline);
 							if (this.keys2 != null) {
-								c2.setShipStrategy(this.input2.getShipStrategy(), this.keys2.toFieldList());
+								c2.setShipStrategy(shipType, this.keys2.toFieldList(), exMode);
 							} else {
-								c2.setShipStrategy(this.input2.getShipStrategy());
+								c2.setShipStrategy(shipType, exMode);
 							}
 							
 							if (dopChange2) {
@@ -437,7 +455,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 						}
 						
 						/* ********************************************************************
-						 * NOTE: Depending on how we proceed with different partitionings,
+						 * NOTE: Depending on how we proceed with different partitioning,
 						 *       we might at some point need a compatibility check between
 						 *       the pairs of global properties.
 						 * *******************************************************************/
@@ -457,7 +475,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 										
 										// we form a valid combination, so create the local candidates
 										// for this
-										addLocalCandidates(c1Clone, c2, broadcastPlanChannels, igps1, igps2, outputPlans, allLocalPairs, estimator);
+										addLocalCandidates(c1Clone, c2, broadcastPlanChannels, igps1, igps2,
+																			outputPlans, allLocalPairs, estimator);
 										break outer;
 									}
 								}
@@ -484,9 +503,11 @@ public abstract class TwoInputNode extends OptimizerNode {
 
 		if(outputPlans.isEmpty()) {
 			if(childrenSkippedDueToReplicatedInput) {
-				throw new CompilerException("No plan meeting the requirements could be created @ " + this + ". Most likely reason: Invalid use of replicated input.");
+				throw new CompilerException("No plan meeting the requirements could be created @ " + this
+											+ ". Most likely reason: Invalid use of replicated input.");
 			} else {
-				throw new CompilerException("No plan meeting the requirements could be created @ " + this + ". Most likely reason: Too restrictive plan hints.");
+				throw new CompilerException("No plan meeting the requirements could be created @ " + this
+											+ ". Most likely reason: Too restrictive plan hints.");
 			}
 		}
 
@@ -535,9 +556,8 @@ public abstract class TwoInputNode extends OptimizerNode {
 								// all right, co compatible
 								instantiate(dps, in1Copy, in2Copy, broadcastPlanChannels, target, estimator, rgps1, rgps2, ilp1, ilp2);
 								break;
-							} else {
-								// cannot use this pair, fall through the loop and try the next one
 							}
+							// else cannot use this pair, fall through the loop and try the next one
 						}
 					}
 				}
@@ -675,17 +695,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 			}
 		}
 	}
-	
-	/**
-	 * Checks if the subPlan has a valid outputSize estimation.
-	 * 
-	 * @param subPlan The subPlan to check.
-	 * 
-	 * @return {@code True}, if all values are valid, {@code false} otherwise
-	 */
-	protected boolean haveValidOutputEstimates(OptimizerNode subPlan) {
-		return subPlan.getEstimatedOutputSize() != -1;
-	}
 
 	@Override
 	public void computeUnclosedBranchStack() {
@@ -701,7 +710,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		List<UnclosedBranchDescriptor> result2 = getSecondPredecessorNode().getBranchesForParent(getSecondIncomingConnection());
 
 		ArrayList<UnclosedBranchDescriptor> inputsMerged = new ArrayList<UnclosedBranchDescriptor>();
-		mergeLists(result1, result2, inputsMerged);
+		mergeLists(result1, result2, inputsMerged, true);
 		
 		// handle the data flow branching for the broadcast inputs
 		List<UnclosedBranchDescriptor> result = computeUnclosedBranchStackForBroadcastInputs(inputsMerged);
@@ -709,23 +718,9 @@ public abstract class TwoInputNode extends OptimizerNode {
 		this.openBranches = (result == null || result.isEmpty()) ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
 	}
 
-	/**
-	 * Returns the key fields of the given input.
-	 * 
-	 * @param input The input for which key fields must be returned.
-	 * @return the key fields of the given input.
-	 */
-	public FieldList getInputKeySet(int input) {
-		switch(input) {
-			case 0: return keys1;
-			case 1: return keys2;
-			default: throw new IndexOutOfBoundsException();
-		}
-	}
-
 	@Override
 	public SemanticProperties getSemanticProperties() {
-		return ((DualInputOperator<?, ?, ?, ?>) getPactContract()).getSemanticProperties();
+		return getPactContract().getSemanticProperties();
 	}
 	
 	// --------------------------------------------------------------------------------------------

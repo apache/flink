@@ -37,7 +37,7 @@ import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class FirstNITCase extends MultipleProgramsTestBase {
-	public FirstNITCase(ExecutionMode mode){
+	public FirstNITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
