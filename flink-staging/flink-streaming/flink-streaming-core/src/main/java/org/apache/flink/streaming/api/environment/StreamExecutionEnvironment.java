@@ -159,6 +159,17 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Sets the number of times that failed tasks are re-executed. A value of zero
+	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
+	 * default value (as defined in the configuration) should be used.
+	 *
+	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
+	 */
+	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
+		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
+	}
+
+	/**
 	 * Sets the maximum time frequency (milliseconds) for the flushing of the
 	 * output buffers. By default the output buffers flush frequently to provide
 	 * low latency and to aid smooth developer experience. Setting the parameter
