@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.io.DiscardingOutputFormat
-import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.test.javaApiOperators.GroupCombineITCase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -28,7 +28,6 @@ import org.apache.flink.util.Collector
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.apache.flink.api.scala._
 
 /**
  * Java interoperability tests. Main tests are in GroupCombineITCase Java.
