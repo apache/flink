@@ -28,9 +28,17 @@ import org.apache.flink.streaming.connectors.util.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Socket client that acts as a streaming sink. The data is sent to a Socket.
+ *
+ * @param <IN> data to be written into the Socket.
+ */
 public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
+    /**
+     * Class logger
+     */
 	private static final Logger LOG = LoggerFactory.getLogger(SocketClientSink.class);
 
 	private final String hostName;
@@ -39,6 +47,13 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	private transient Socket client;
 	private transient DataOutputStream dataOutputStream;
 
+    /**
+     * Default constructor.
+     *
+     * @param hostName Host of the Socket server.
+     * @param port Port of the Socket.
+     * @param schema Schema of the data.
+     */
 	public SocketClientSink(String hostName, int port, SerializationSchema<IN, byte[]> schema) {
 		this.hostName = hostName;
 		this.port = port;
@@ -48,7 +63,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	/**
 	 * Initializes the connection to Socket.
 	 */
-	public void initialize() {
+	public void intializeConnection() {
 		OutputStream outputStream;
 		try {
 			client = new Socket(hostName, port);
@@ -78,7 +93,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	}
 
 	/**
-	 * Closes the connection.
+	 * Closes the connection of the Socket client.
 	 */
 	private void closeConnection(){
 		try {
@@ -89,16 +104,26 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 		}
 	}
 
+    /**
+     * Initialize the connection with the Socket in the server.
+     * @param parameters Configuration.
+     */
 	@Override
 	public void open(Configuration parameters) {
-		initialize();
+        intializeConnection();
 	}
 
+    /**
+     * Closes the connection with the Socket server.
+     */
 	@Override
 	public void close() {
 		closeConnection();
 	}
 
+    /**
+     * Closes the connection with the Socket server.
+     */
 	@Override
 	public void cancel() {
 		close();
