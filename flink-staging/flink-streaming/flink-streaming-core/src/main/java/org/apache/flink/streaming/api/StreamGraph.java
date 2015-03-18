@@ -555,6 +555,10 @@ public class StreamGraph extends StreamingPlan {
 		return operatorNames.get(vertexID);
 	}
 
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
+	}
+
 	public void setMonitoringEnabled(boolean monitoringEnabled) {
 		this.monitoringEnabled = monitoringEnabled;
 	}

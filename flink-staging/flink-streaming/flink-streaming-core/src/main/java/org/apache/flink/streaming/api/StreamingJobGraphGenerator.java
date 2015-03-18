@@ -80,8 +80,15 @@ public class StreamingJobGraphGenerator {
 		jobGraph.setJobType(JobGraph.JobType.STREAMING);
 		jobGraph.setMonitoringEnabled(streamGraph.isMonitoringEnabled());
 		jobGraph.setMonitorInterval(streamGraph.getMonitoringInterval());
-		if (jobGraph.isMonitoringEnabled()) {
-			jobGraph.setNumberOfExecutionRetries(Integer.MAX_VALUE);
+
+		if(jobGraph.isMonitoringEnabled()) {
+			int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
+			if(executionRetries != -1) {
+				jobGraph.setNumberOfExecutionRetries(executionRetries);
+			}
+			else {
+				jobGraph.setNumberOfExecutionRetries(Integer.MAX_VALUE);	
+			}
 		}
 		init();
 
