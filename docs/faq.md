@@ -85,6 +85,27 @@ tracking the behavior of the parallel execution. They allow you to gather
 information inside the program's operations and show them after the program
 execution.
 
+### What is the parallelism? How do I set it?
+
+In Flink programs, the parallelism determines how operations are split into
+individual tasks which are assigned to task slots. Each node in a cluster has at
+least one task slot. The total number of task slots is the number of all task slots
+on all machines. If the parallelism is set to `N`, Flink tries to divide an
+operation into `N` parallel tasks which can be computed concurrently using the
+available task slots. The number of task slots should be equal to the
+parallelism to ensure that all tasks can be computed in a task slot concurrently.
+
+**Note**: Not all operations can be divided into multiple tasks. For example, a
+`GroupReduce` operation without a grouping has to be performed with a
+parallelism of 1 because the entire group needs to be present at exactly one
+node to perform the reduce operation. Flink will determine whether the
+parallelism has to be 1 and set it accordingly.
+
+The parallelism can be set in numerous ways to ensure a fine-grained control
+over the execution of a Flink program. See
+[Configuration](config.html#common-options) for detailed instructions on how to
+set the parallelism.
+
 ## Errors
 
 ### Why am I getting a "NonSerializableException" ?

@@ -80,11 +80,17 @@ This value is typically proportional to the number of physical CPU cores that
 the TaskManager's machine has (e.g., equal to the number of cores, or half the
 number of cores). [More about task slots](config.html#configuring-taskmanager-processing-slots).
 
-- `parallelism.default`: The default parallelism to use for
-programs that have no parallelism specified. (DEFAULT: 1). For
-setups that have no concurrent jobs running, setting this value to
-NumTaskManagers * NumSlotsPerTaskManager will cause the system to use all
-available execution resources for the program's execution.
+- `parallelism.default`: The default parallelism to use for programs that have
+no parallelism specified. (DEFAULT: 1). For setups that have no concurrent jobs
+running, setting this value to NumTaskManagers * NumSlotsPerTaskManager will
+cause the system to use all available execution resources for the program's
+execution. **Note**: The default parallelism can be overwriten for an entire
+job by calling `setParallelism(int parallelism)` on the `ExecutionEnvironment`
+or by passing `-p <parallelism>` to the Flink Command-line frontend. It can be
+overwritten for single transformations by calling `setParallelism(int
+parallelism)` on an operator. See the [programming
+guide](programming_guide.html#parallel-execution) for more information about the
+parallelism.
 
 - `fs.hdfs.hadoopconf`: The absolute path to the Hadoop File System's (HDFS)
 configuration directory (OPTIONAL VALUE).
