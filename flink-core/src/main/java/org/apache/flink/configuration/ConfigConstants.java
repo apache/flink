@@ -34,7 +34,14 @@ public final class ConfigConstants {
 	 * The config parameter defining the default parallelism for jobs.
 	 */
 	public static final String DEFAULT_PARALLELISM_KEY = "parallelism.default";
-	
+
+	/**
+	 * The deprecated config parameter defining the default parallelism for jobs.
+	 */
+	@Deprecated
+	public static final String DEFAULT_PARALLELISM_KEY_OLD = "parallelization.degree.default";
+
+
 	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.

@@ -348,10 +348,15 @@ public class Optimizer {
 		this.costEstimator = estimator;
 
 		// determine the default parallelism
+		// check for old key string first, then for new one
+		this.defaultParallelism = GlobalConfiguration.getInteger(
+				ConfigConstants.DEFAULT_PARALLELISM_KEY_OLD,
+				ConfigConstants.DEFAULT_PARALLELISM);
+		// now check for new one which overwrites old values
 		this.defaultParallelism = GlobalConfiguration.getInteger(
 				ConfigConstants.DEFAULT_PARALLELISM_KEY,
-				ConfigConstants.DEFAULT_PARALLELISM);
-		
+				this.defaultParallelism);
+
 		if (defaultParallelism < 1) {
 			LOG.warn("Config value " + defaultParallelism + " for option "
 					+ ConfigConstants.DEFAULT_PARALLELISM + " is invalid. Ignoring and using a value of 1.");
