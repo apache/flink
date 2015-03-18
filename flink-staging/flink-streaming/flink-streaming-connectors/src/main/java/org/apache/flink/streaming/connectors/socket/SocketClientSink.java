@@ -110,7 +110,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
      */
 	@Override
 	public void open(Configuration parameters) {
-        intializeConnection();
+		intializeConnection();
 	}
 
     /**
