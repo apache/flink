@@ -38,28 +38,33 @@ public class SpillReader {
 	 * 
 	 */
 	public Buffer readNextBuffer(int bufferSize, BufferPool bufferPool) throws IOException {
+		try {
+			Buffer buffer = null;
 
-		Buffer buffer = null;
+			// If available tries to request a new buffer from the pool
+			if (bufferPool != null) {
+				buffer = bufferPool.requestBuffer();
+			}
 
-		// If available tries to request a new buffer from the pool
-		if (bufferPool != null) {
-			buffer = bufferPool.requestBuffer();
+			// If no bufferpool provided or the pool was empty create a new
+			// buffer
+			if (buffer == null) {
+				buffer = new Buffer(new MemorySegment(new byte[bufferSize]), new BufferRecycler() {
+
+					@Override
+					public void recycle(MemorySegment memorySegment) {
+						memorySegment.free();
+					}
+				});
+			}
+
+			spillingChannel.read(buffer.getMemorySegment().wrap(0, bufferSize));
+
+			return buffer;
+		} catch (Exception e) {
+			close();
+			throw new IOException(e);
 		}
-
-		// If no bufferpool provided or the pool was empty create a new buffer
-		if (buffer == null) {
-			buffer = new Buffer(new MemorySegment(new byte[bufferSize]), new BufferRecycler() {
-
-				@Override
-				public void recycle(MemorySegment memorySegment) {
-					memorySegment.free();
-				}
-			});
-		}
-
-		spillingChannel.read(buffer.getMemorySegment().wrap(0, bufferSize));
-
-		return buffer;
 	}
 
 	@SuppressWarnings("resource")
@@ -71,6 +76,10 @@ public class SpillReader {
 		}
 		this.spillFile = nextSpillFile;
 		this.spillingChannel = new RandomAccessFile(spillFile, "rw").getChannel();
+	}
+
+	public File getSpillFile() {
+		return spillFile;
 	}
 
 	public void close() throws IOException {

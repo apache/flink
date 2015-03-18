@@ -191,7 +191,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	}
 
-	protected void clearBuffers() {
+	protected void clearBuffers() throws IOException {
 		if (outputHandler != null) {
 			outputHandler.clearWriters();
 		}

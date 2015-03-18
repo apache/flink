@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.io;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -223,6 +224,20 @@ public class BarrierBuffer {
 			startSuperstep(superstep);
 		}
 		blockChannel(bufferOrEvent.getChannelIndex());
+	}
+
+	public void cleanup() throws IOException {
+		bufferSpiller.close();
+		File spillfile1 = bufferSpiller.getSpillFile();
+		if (spillfile1 != null) {
+			spillfile1.delete();
+		}
+
+		spillReader.close();
+		File spillfile2 = spillReader.getSpillFile();
+		if (spillfile2 != null) {
+			spillfile2.delete();
+		}
 	}
 
 }
