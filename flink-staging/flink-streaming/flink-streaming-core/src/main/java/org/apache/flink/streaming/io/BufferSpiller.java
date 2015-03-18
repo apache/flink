@@ -51,8 +51,14 @@ public class BufferSpiller {
 	 * Dumps the contents of the buffer to disk and recycles the buffer.
 	 */
 	public void spill(Buffer buffer) throws IOException {
-		spillingChannel.write(buffer.getNioBuffer());
-		buffer.recycle();
+		try {
+			spillingChannel.write(buffer.getNioBuffer());
+			buffer.recycle();
+		} catch (IOException e) {
+			close();
+			throw new IOException(e);
+		}
+
 	}
 
 	@SuppressWarnings("resource")

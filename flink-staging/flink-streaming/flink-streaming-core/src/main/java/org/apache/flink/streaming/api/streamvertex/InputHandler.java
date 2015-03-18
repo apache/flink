@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.api.streamvertex;
 
+import java.io.IOException;
+
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -86,9 +88,10 @@ public class InputHandler<IN> {
 		return inputIter;
 	}
 
-	public void clearReaders() {
+	public void clearReaders() throws IOException {
 		if (inputs != null) {
 			inputs.clearBuffers();
 		}
+		inputs.cleanup();
 	}
 }

@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.streamvertex.StreamingSuperstep;
  */
 @SuppressWarnings("rawtypes")
 public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> extends
-		AbstractReader implements EventListener<InputGate> {
+		AbstractReader implements EventListener<InputGate>, StreamingReader {
 
 	private final InputGate bufferReader1;
 
@@ -232,8 +232,8 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 	public void onEvent(InputGate bufferReader) {
 		addToAvailable(bufferReader);
 	}
-	
-	protected void addToAvailable(InputGate bufferReader){
+
+	protected void addToAvailable(InputGate bufferReader) {
 		if (bufferReader == bufferReader1) {
 			availableRecordReaders.add(1);
 		} else if (bufferReader == bufferReader2) {
@@ -278,4 +278,12 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	}
 
+	public void cleanup() throws IOException {
+		try {
+			barrierBuffer1.cleanup();
+		} finally {
+			barrierBuffer2.cleanup();
+		}
+
+	}
 }

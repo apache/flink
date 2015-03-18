@@ -54,6 +54,7 @@ public class BarrierBufferTest {
 		assertEquals(input.get(1), bb.getNextNonBlocked());
 		assertEquals(input.get(2), bb.getNextNonBlocked());
 
+		bb.cleanup();
 	}
 
 	@Test
@@ -84,6 +85,7 @@ public class BarrierBufferTest {
 		bb.processSuperstep(nextBoe);
 		assertEquals(input.get(6), nextBoe = bb.getNextNonBlocked());
 
+		bb.cleanup();
 	}
 
 	@Test
@@ -130,6 +132,7 @@ public class BarrierBufferTest {
 		check(input.get(6), nextBoe = bb.getNextNonBlocked());
 		check(input.get(9), nextBoe = bb.getNextNonBlocked());
 
+		bb.cleanup();
 	}
 
 	private static void check(BufferOrEvent expected, BufferOrEvent actual) {

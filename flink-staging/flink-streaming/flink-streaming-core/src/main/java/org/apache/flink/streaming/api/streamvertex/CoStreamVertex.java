@@ -27,6 +27,7 @@ import org.apache.flink.streaming.io.CoRecordReader;
 import org.apache.flink.streaming.io.IndexedReaderIterator;
 import org.apache.flink.util.MutableObjectIterator;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
@@ -63,9 +64,10 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 	}
 
 	@Override
-	public void clearBuffers() {
+	public void clearBuffers() throws IOException {
 		outputHandler.clearWriters();
 		coReader.clearBuffers();
+		coReader.cleanup();
 	}
 
 	protected void setConfigInputs() throws StreamVertexException {
