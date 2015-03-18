@@ -114,9 +114,8 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 		if (configuration.getStateMonitoring() && !states.isEmpty()) {
 			getEnvironment().getJobManager().tell(
 					new StateBarrierAck(getEnvironment().getJobID(), getEnvironment()
-							.getJobVertexId(), context.getIndexOfThisSubtask(), barrierID, 
-							new LocalStateHandle(states)),
-					ActorRef.noSender());
+							.getJobVertexId(), context.getIndexOfThisSubtask(), barrierID,
+							new LocalStateHandle(states)), ActorRef.noSender());
 		} else {
 			getEnvironment().getJobManager().tell(
 					new BarrierAck(getEnvironment().getJobID(), getEnvironment().getJobVertexId(),
