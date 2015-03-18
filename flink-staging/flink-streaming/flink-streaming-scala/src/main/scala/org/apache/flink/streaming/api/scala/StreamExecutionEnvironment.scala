@@ -37,16 +37,36 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Setting a DOP of x here will cause all operators (such as join, map, reduce) to run with
    * x parallel instances. This value can be overridden by specific operations using
    * [[DataStream.setParallelism]].
+   * @deprecated Please use [[setParallelism]]
    */
+  @deprecated
   def setDegreeOfParallelism(degreeOfParallelism: Int): Unit = {
-    javaEnv.setDegreeOfParallelism(degreeOfParallelism)
+    javaEnv.setParallelism(degreeOfParallelism)
   }
 
   /**
-   * Returns the default degree of parallelism for this execution environment. Note that this
+   * Sets the parallelism for operations executed through this environment.
+   * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
+   * with x parallel instances. This value can be overridden by specific operations using
+   * [[DataStream.setParallelism]].
+   */
+  def setParallelism(parallelism: Int): Unit = {
+    javaEnv.setParallelism(parallelism)
+  }
+
+  /**
+   * Returns the default parallelism for this execution environment. Note that this
+   * value can be overridden by individual operations using [[DataStream.setParallelism]]
+   * @deprecated Please use [[getParallelism]]
+   */
+  @deprecated
+  def getDegreeOfParallelism = javaEnv.getParallelism
+
+  /**
+   * Returns the default parallelism for this execution environment. Note that this
    * value can be overridden by individual operations using [[DataStream.setParallelism]]
    */
-  def getDegreeOfParallelism = javaEnv.getDegreeOfParallelism
+  def getParallelism = javaEnv.getParallelism
 
   /**
    * Sets the maximum time frequency (milliseconds) for the flushing of the

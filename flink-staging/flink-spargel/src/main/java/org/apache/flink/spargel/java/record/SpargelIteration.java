@@ -127,9 +127,17 @@ public class SpargelIteration {
 	public Operator<?> getOutput() {
 		return this.iteration;
 	}
-	
-	public void setDegreeOfParallelism(int dop) {
-		this.iteration.setDegreeOfParallelism(dop);
+
+	/**
+	 * @deprecated Please use {@link #setParallelism}
+	 */
+	@Deprecated
+	public void setDegreeOfParallelism(int parallelism) {
+		setParallelism(parallelism);
+	}
+
+	public void setParallelism(int parallelism) {
+		this.iteration.setParallelism(parallelism);
 	}
 	
 	public void setNumberOfIterations(int iterations) {
