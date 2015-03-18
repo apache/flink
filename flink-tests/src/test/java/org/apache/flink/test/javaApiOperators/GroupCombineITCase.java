@@ -43,8 +43,6 @@ import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
 
 
 @SuppressWarnings("serial")
@@ -58,7 +56,7 @@ import java.util.List;
 */
 public class GroupCombineITCase extends MultipleProgramsTestBase {
 
-	public GroupCombineITCase(ExecutionMode mode) {
+	public GroupCombineITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
@@ -276,7 +274,7 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 	// check if no shuffle is being executed
 	public void testCheckPartitionShuffleGroupBy() throws Exception {
 
-		org.junit.Assume.assumeTrue(mode != ExecutionMode.COLLECTION);
+		org.junit.Assume.assumeTrue(mode != TestExecutionMode.COLLECTION);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
