@@ -57,7 +57,7 @@ under the License.
 		<module>flink-java</module>
 		<module>flink-scala</module>
 		<module>flink-runtime</module>
-		<module>flink-compiler</module>
+		<module>flink-optimizer</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
 		<module>flink-tests</module>

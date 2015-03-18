@@ -36,10 +36,10 @@ import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.compiler.plan.DualInputPlanNode;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plan.SolutionSetPlanNode;
-import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.plan.DualInputPlanNode;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plan.SolutionSetPlanNode;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 
 @SuppressWarnings("serial")
 public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
@@ -79,7 +79,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 			assertEquals(SolutionSetPlanNode.class, join1.getInput1().getSource().getClass());
 			assertEquals(SolutionSetPlanNode.class, join2.getInput2().getSource().getClass());
 			
-			new NepheleJobGraphGenerator().compileJobGraph(optPlan);
+			new JobGraphGenerator().compileJobGraph(optPlan);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
