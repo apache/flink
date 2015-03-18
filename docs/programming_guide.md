@@ -2789,6 +2789,60 @@ env.execute("Word Count Example")
 </div>
 </div>
 
+### Client Level
+
+The parallelism can be set at the Client when submitting jobs to Flink. The
+Client can either be a Java or a Scala program. One example of such a Client is
+Flink's Command-line Interface (CLI).
+
+For the CLI client, the parallelism parameter can be specified with `-p`. For
+exampple:
+
+    ./bin/flink run -p 10 ../examples/*WordCount-java*.jar
+
+
+In a Java/Scala program, the parallelism is set as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+try {
+    PackagedProgram program = new PackagedProgram(file, args);
+    InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport("localhost:6123");
+    Configuration config = new Configuration();
+
+    Client client = new Client(jobManagerAddress, config, program.getUserCodeClassLoader());
+
+    // set the parallelism to 10 here
+    client.run(program, 10, true);
+
+} catch (ProgramInvocationException e) {
+    e.printStackTrace();
+}
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+try {
+    PackagedProgram program = new PackagedProgram(file, args)
+    InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport("localhost:6123")
+    Configuration config = new Configuration()
+
+    Client client = new Client(jobManagerAddress, new Configuration(), program.getUserCodeClassLoader())
+
+    // set the parallelism to 10 here
+    client.run(program, 10, true)
+
+} catch {
+    case e: Exception => e.printStackTrace
+}
+{% endhighlight %}
+</div>
+</div>
+
+
 ### System Level
 
 A system-wide default parallelism for all execution environments can be defined by setting the
