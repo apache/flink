@@ -89,13 +89,13 @@ public class MergeOnlyJoin implements Program {
 		@SuppressWarnings("unchecked")
 		CsvInputFormat format2 = new CsvInputFormat('|', IntValue.class, IntValue.class);
 		FileDataSource input2 = new FileDataSource(format2, input2Path, "Input 2");
-		input2.setDegreeOfParallelism(numSubtasksInput2);
+		input2.setParallelism(numSubtasksInput2);
 
 		ReduceOperator aggInput2 = ReduceOperator.builder(DummyReduce.class, IntValue.class, 0)
 			.input(input2)
 			.name("AggLines")
 			.build();
-		aggInput2.setDegreeOfParallelism(numSubtasksInput2);
+		aggInput2.setParallelism(numSubtasksInput2);
 		
 		// create JoinOperator for joining Orders and LineItems
 		JoinOperator joinLiO = JoinOperator.builder(JoinInputs.class, IntValue.class, 0, 0)

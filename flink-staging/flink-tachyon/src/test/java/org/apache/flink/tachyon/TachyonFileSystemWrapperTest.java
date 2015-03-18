@@ -128,7 +128,7 @@ public class TachyonFileSystemWrapperTest {
 			addHDConfToFlinkConf.setString(ConfigConstants.HDFS_DEFAULT_CONFIG, HADOOP_CONFIG_PATH.toString());
 			GlobalConfiguration.includeConfiguration(addHDConfToFlinkConf);
 
-			new DopOneTestEnvironment(); // initialize DOP one
+			new DopOneTestEnvironment(); // initialize parallelism one
 
 			WordCount.main(new String[]{input, output});
 
@@ -157,7 +157,7 @@ public class TachyonFileSystemWrapperTest {
 				@Override
 				public ExecutionEnvironment createExecutionEnvironment() {
 					LocalEnvironment le = new LocalEnvironment();
-					le.setDegreeOfParallelism(1);
+					le.setParallelism(1);
 					return le;
 				}
 			});

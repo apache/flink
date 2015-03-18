@@ -273,12 +273,12 @@ public class TPCHQuery10 implements Program, ProgramDescription {
 		final String nationsPath;
 		final String resultPath;
 		
-		final int degreeOfParallelism;
+		final int parallelism;
 
 		if (args.length < 6) {
 			throw new IllegalArgumentException("Invalid number of parameters");
 		} else {
-			degreeOfParallelism = Integer.parseInt(args[0]);
+			parallelism = Integer.parseInt(args[0]);
 			ordersPath = args[1];
 			lineitemsPath = args[2];
 			customersPath = args[3];
@@ -359,7 +359,7 @@ public class TPCHQuery10 implements Program, ProgramDescription {
 
 		// return the PACT plan
 		Plan p = new Plan(result, "TPCH Q10");
-		p.setDefaultParallelism(degreeOfParallelism);
+		p.setDefaultParallelism(parallelism);
 		return p;
 	}
 }

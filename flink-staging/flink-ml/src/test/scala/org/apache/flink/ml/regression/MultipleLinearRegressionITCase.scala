@@ -33,7 +33,7 @@ class MultipleLinearRegressionITCase extends ShouldMatchers {
   def testEstimationOfLinearFunction(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    env.setDegreeOfParallelism(2)
+    env.setParallelism(2)
 
     val learner = MultipleLinearRegression()
 
@@ -69,7 +69,7 @@ class MultipleLinearRegressionITCase extends ShouldMatchers {
   def testEstimationOfCubicFunction(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    env.setDegreeOfParallelism(2)
+    env.setParallelism(2)
 
     val polynomialBase = PolynomialBase()
     val learner = MultipleLinearRegression()

@@ -67,7 +67,7 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 
 	private static final int NUM_FEATURES = 3;
 
-	private static final int DOP = 4;
+	private static final int parallelism = 4;
 
 	protected String pointsPath;
 
@@ -76,7 +76,7 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 	protected String resultPath;
 
 	public BroadcastVarsNepheleITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 
@@ -131,7 +131,7 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-		return createJobGraphV1(this.pointsPath, this.modelsPath, this.resultPath, DOP);
+		return createJobGraphV1(this.pointsPath, this.modelsPath, this.resultPath, parallelism);
 	}
 
 	@Override

@@ -75,7 +75,7 @@ public class DegreesWithExceptionITCase {
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(PARALLELISM);
+		env.setParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
@@ -100,7 +100,7 @@ public class DegreesWithExceptionITCase {
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(PARALLELISM);
+		env.setParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
@@ -125,7 +125,7 @@ public class DegreesWithExceptionITCase {
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(PARALLELISM);
+		env.setParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidTrgData(env), env);
@@ -150,7 +150,7 @@ public class DegreesWithExceptionITCase {
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(PARALLELISM);
+		env.setParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidSrcData(env), env);
@@ -175,7 +175,7 @@ public class DegreesWithExceptionITCase {
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"localhost", cluster.getJobManagerRPCPort());
 
-		env.setDegreeOfParallelism(PARALLELISM);
+		env.setParallelism(PARALLELISM);
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeInvalidSrcTrgData(env), env);

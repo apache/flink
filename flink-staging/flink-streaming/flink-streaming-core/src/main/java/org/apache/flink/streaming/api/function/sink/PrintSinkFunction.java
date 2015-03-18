@@ -68,7 +68,7 @@ public class PrintSinkFunction<IN> extends RichSinkFunction<IN> {
 		// get the target stream
 		stream = target == STD_OUT ? System.out : System.err;
 		
-		// set the prefix if we have a >1 DOP
+		// set the prefix if we have a >1 parallelism
 		prefix = (context.getNumberOfParallelSubtasks() > 1) ? 
 				((context.getIndexOfThisSubtask() + 1) + "> ") : null;
 	}

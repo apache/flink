@@ -106,7 +106,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * check correctness of groupReduce on tuples with key field selector and group sorting
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.get3TupleDataSet(env)
     val reduceDs =  ds.groupBy(1).sortGroup(2, Order.ASCENDING).reduceGroup {
       in =>
@@ -301,7 +301,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     // important because it determines how often the combiner is called
-    env.setDegreeOfParallelism(2)
+    env.setParallelism(2)
     val ds =  CollectionDataSets.get3TupleDataSet(env)
 
     val reduceDs =  ds.groupBy(1).reduceGroup(new Tuple3GroupReduceWithCombine)
@@ -341,7 +341,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * check correctness of groupReduce with descending group sort
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.get3TupleDataSet(env)
     val reduceDs =  ds.groupBy(1).sortGroup(2, Order.DESCENDING).reduceGroup {
       in =>
@@ -386,7 +386,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * sorting
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.get3TupleDataSet(env).map { t =>
       MutableTuple3(t._1, t._2, t._3)
     }
@@ -478,7 +478,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * check correctness of groupReduce with descending group sort
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.get3TupleDataSet(env)
     val reduceDs =  ds.groupBy(1)
       .sortGroup("_3", Order.DESCENDING)
@@ -500,7 +500,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * Test int-based definition on group sort, for (full) nested Tuple
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.getGroupSortedNestedTupleDataSet(env)
     val reduceDs =  ds.groupBy("_2").sortGroup(0, Order.DESCENDING)
       .reduceGroup(new NestedTupleReducer)
@@ -515,7 +515,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * Test int-based definition on group sort, for (partial) nested Tuple ASC
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.getGroupSortedNestedTupleDataSet(env)
     val reduceDs =  ds.groupBy("_2")
       .sortGroup("_1._1", Order.ASCENDING)
@@ -532,7 +532,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * Test string-based definition on group sort, for (partial) nested Tuple DESC
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.getGroupSortedNestedTupleDataSet(env)
     val reduceDs =  ds.groupBy("_2")
       .sortGroup("_1._1", Order.DESCENDING)
@@ -549,7 +549,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * Test string-based definition on group sort, for two grouping keys
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.getGroupSortedNestedTupleDataSet(env)
     val reduceDs =  ds.groupBy("_2")
       .sortGroup("_1._1", Order.DESCENDING)
@@ -566,7 +566,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * Test string-based definition on group sort, for two grouping keys with Pojos
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.getGroupSortedPojoContainingTupleAndWritable(env)
     val reduceDs =  ds.groupBy("hadoopFan")
       .sortGroup("theTuple._1", Order.DESCENDING)
@@ -601,7 +601,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * check correctness of sorted groupReduce on tuples with keyselector sorting
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.get3TupleDataSet(env)
     val reduceDs =  ds.groupBy(_._2).sortGroup(_._3, Order.DESCENDING).reduceGroup {
       in =>
@@ -658,7 +658,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * check correctness of sorted groupReduce with combine on tuples with keyselector sorting
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.get3TupleDataSet(env)
 
     val reduceDs =  ds.groupBy(_._2).sortGroup(_._3, Order.DESCENDING)
@@ -683,7 +683,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * check correctness of sorted groupReduceon with Tuple2 keyselector sorting
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.get5TupleDataSet(env)
 
     val reduceDs = ds.groupBy(_._1).sortGroup(t => (t._5, t._3), Order.DESCENDING).reduceGroup{
@@ -722,7 +722,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
      * Test grouping with pojo containing multiple pojos (was a bug)
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     val ds =  CollectionDataSets.getPojoWithMultiplePojos(env)
     val reduceDs =  ds.groupBy("p2.a2")
       .reduceGroup {

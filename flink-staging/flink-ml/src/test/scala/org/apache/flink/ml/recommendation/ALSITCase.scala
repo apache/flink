@@ -34,7 +34,7 @@ class ALSITCase extends ShouldMatchers {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    env.setDegreeOfParallelism(2)
+    env.setParallelism(2)
 
     val als = ALS()
       .setIterations(iterations)

@@ -60,7 +60,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends RecordAPITest
 	protected String resultPath;
 
 	public ConnectedComponentsWithSolutionSetFirstITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 	
@@ -73,7 +73,7 @@ public class ConnectedComponentsWithSolutionSetFirstITCase extends RecordAPITest
 	
 	@Override
 	protected Plan getTestJob() {
-		return getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(DOP, verticesPath, edgesPath,
+		return getPlanForWorksetConnectedComponentsWithSolutionSetAsFirstInput(parallelism, verticesPath, edgesPath,
 				resultPath, 100);
 	}
 

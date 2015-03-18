@@ -394,7 +394,7 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Returns the degree of parallelism for the stream discretizer. The
+	 * Returns the parallelism for the stream discretizer. The
 	 * returned parallelism is either 1 for for non-parallel global policies (or
 	 * when the input stream is non-parallel), environment parallelism for the
 	 * policies that can run in parallel (such as, any ditributed policy, reduce
@@ -408,7 +408,7 @@ public class WindowedDataStream<OUT> {
 		return isLocal
 				|| (transformation == WindowTransformation.REDUCEWINDOW && WindowUtils
 						.isParallelPolicy(getTrigger(), getEviction(), dataStream.getParallelism()))
-				|| (discretizerKey != null) ? dataStream.environment.getDegreeOfParallelism() : 1;
+				|| (discretizerKey != null) ? dataStream.environment.getParallelism() : 1;
 
 	}
 

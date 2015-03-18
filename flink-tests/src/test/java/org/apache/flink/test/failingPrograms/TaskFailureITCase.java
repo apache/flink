@@ -42,7 +42,7 @@ import org.apache.flink.util.Collector;
 @SuppressWarnings("deprecation")
 public class TaskFailureITCase extends FailingTestBase {
 
-	private static final int DOP = 4;
+	private static final int parallelism = 4;
 
 	// input for map tasks
 	private static final String MAP_IN = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n" +
@@ -57,7 +57,7 @@ public class TaskFailureITCase extends FailingTestBase {
 	private String resultPath;
 
 	public TaskFailureITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 	@Override
@@ -85,7 +85,7 @@ public class TaskFailureITCase extends FailingTestBase {
 
 		// generate plan
 		Plan plan = new Plan(output);
-		plan.setDefaultParallelism(DOP);
+		plan.setDefaultParallelism(parallelism);
 
 		// optimize and compile plan 
 		Optimizer pc = new Optimizer(new DataStatistics());

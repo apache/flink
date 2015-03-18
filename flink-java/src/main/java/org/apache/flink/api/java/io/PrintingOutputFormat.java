@@ -73,7 +73,7 @@ public class PrintingOutputFormat<T> implements OutputFormat<T> {
 		// get the target stream
 		this.stream = this.target == STD_OUT ? System.out : System.err;
 		
-		// set the prefix if we have a >1 DOP
+		// set the prefix if we have a >1 parallelism
 		this.prefix = (numTasks > 1) ? ((taskNumber+1) + "> ") : null;
 	}
 

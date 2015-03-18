@@ -86,7 +86,7 @@ public class LocalInputSplitsTest {
 				new TestLocatableInputSplit(3, "host3")
 		};
 		
-		// This should fail with an exception, since the DOP of 2 does not
+		// This should fail with an exception, since the parallelism of 2 does not
 		// support strictly local assignment onto 3 hosts
 		try {
 			runTests(numHosts, slotsPerHost, parallelism, splits);

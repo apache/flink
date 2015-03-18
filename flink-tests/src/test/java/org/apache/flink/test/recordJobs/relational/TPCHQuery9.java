@@ -81,11 +81,11 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({"serial", "deprecation"})
 public class TPCHQuery9 implements Program, ProgramDescription {
-	public final String ARGUMENTS = "dop partInputPath partSuppInputPath ordersInputPath lineItemInputPath supplierInputPath nationInputPath outputPath";
+	public final String ARGUMENTS = "parallelism partInputPath partSuppInputPath ordersInputPath lineItemInputPath supplierInputPath nationInputPath outputPath";
 
 	private static Logger LOG = LoggerFactory.getLogger(TPCHQuery9.class);
 
-	private int degreeOfParallelism = 1;
+	private int parallelism = 1;
 
 	private String partInputPath, partSuppInputPath, ordersInputPath, lineItemInputPath, supplierInputPath,
 			nationInputPath;
@@ -100,7 +100,7 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 		{
 			LOG.warn("number of arguments do not match!");
 			
-			this.degreeOfParallelism = 1;
+			this.parallelism = 1;
 			this.partInputPath = "";
 			this.partSuppInputPath = "";
 			this.ordersInputPath = "";
@@ -110,7 +110,7 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 			this.outputPath = "";
 		}else
 		{
-			this.degreeOfParallelism = Integer.parseInt(args[0]);
+			this.parallelism = Integer.parseInt(args[0]);
 			this.partInputPath = args[1];
 			this.partSuppInputPath = args[2];
 			this.ordersInputPath = args[3];
@@ -240,7 +240,7 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 		result.setInput(sumAmountAggregate);
 
 		Plan p = new Plan(result, "TPC-H query 9");
-		p.setDefaultParallelism(this.degreeOfParallelism);
+		p.setDefaultParallelism(this.parallelism);
 		return p;
 	}
 

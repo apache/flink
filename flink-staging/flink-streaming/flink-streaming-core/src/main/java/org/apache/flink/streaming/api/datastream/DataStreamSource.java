@@ -41,11 +41,11 @@ public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataS
 	}
 
 	@Override
-	public DataStreamSource<OUT> setParallelism(int dop) {
-		if (dop > 1 && !isParallel) {
+	public DataStreamSource<OUT> setParallelism(int parallelism) {
+		if (parallelism > 1 && !isParallel) {
 			throw new IllegalArgumentException("Source: " + this.id + " is not a parallel source");
 		} else {
-			return (DataStreamSource<OUT>) super.setParallelism(dop);
+			return (DataStreamSource<OUT>) super.setParallelism(parallelism);
 		}
 	}
 }

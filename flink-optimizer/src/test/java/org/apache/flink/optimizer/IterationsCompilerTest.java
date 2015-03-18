@@ -91,7 +91,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 	public void testTwoIterationsWithMapperInbetween() throws Exception {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 			
 			DataSet<Tuple2<Long, Long>> verticesWithInitialId = env.fromElements(new Tuple2<Long, Long>(1L, 2L));
 			
@@ -129,7 +129,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 	public void testTwoIterationsDirectlyChained() throws Exception {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 			
 			DataSet<Tuple2<Long, Long>> verticesWithInitialId = env.fromElements(new Tuple2<Long, Long>(1L, 2L));
 			
@@ -165,7 +165,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 	public void testTwoWorksetIterationsDirectlyChained() throws Exception {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 			
 			DataSet<Tuple2<Long, Long>> verticesWithInitialId = env.fromElements(new Tuple2<Long, Long>(1L, 2L));
 			
@@ -201,7 +201,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 	public void testIterationPushingWorkOut() throws Exception {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 			
 			DataSet<Tuple2<Long, Long>> input1 = env.readCsvFile("/some/file/path").types(Long.class).map(new DuplicateValue());
 			
@@ -235,7 +235,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 	public void testWorksetIterationPipelineBreakerPlacement() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 			
 			// the workset (input two of the delta iteration) is the same as what is consumed be the successive join
 			DataSet<Tuple2<Long, Long>> initialWorkset = env.readCsvFile("/some/file/path").types(Long.class).map(new DuplicateValue());

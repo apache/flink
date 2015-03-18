@@ -51,7 +51,7 @@ public class WordCountUnionReduceITCase extends RecordAPITestBase {
 	private String outputPath;
 
 	public WordCountUnionReduceITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 
@@ -69,7 +69,7 @@ public class WordCountUnionReduceITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		WordCountUnionReduce wc = new WordCountUnionReduce();
-		return wc.getPlan(this.inputPath, this.outputPath, DOP);
+		return wc.getPlan(this.inputPath, this.outputPath, parallelism);
 	}
 
 	@Override

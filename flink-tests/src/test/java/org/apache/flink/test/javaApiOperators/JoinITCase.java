@@ -527,7 +527,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				ds1.join(ds2).where("nestedPojo.longNumber", "number", "str").equalTo("f6","f0","f1");
 
 		joinDs.writeAsCsv(resultPath);
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 		env.execute();
 
 		expected = "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One,10000)\n" +
@@ -548,7 +548,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				ds1.join(ds2).where("nestedPojo.longNumber", "number","nestedTupleWithCustom.f0").equalTo("f6","f0","f2");
 
 		joinDs.writeAsCsv(resultPath);
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 		env.execute();
 
 		expected = "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One,10000)\n" +
@@ -569,7 +569,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				ds1.join(ds2).where("nestedTupleWithCustom.f0","nestedTupleWithCustom.f1.myInt","nestedTupleWithCustom.f1.myLong").equalTo("f2","f3","f4");
 
 		joinDs.writeAsCsv(resultPath);
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 		env.execute();
 
 		expected = "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One,10000)\n" +
@@ -590,7 +590,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				ds1.join(ds2).where(0).equalTo("f0.f0", "f0.f1"); // key is now Tuple2<Integer, Integer>
 
 		joinDs.writeAsCsv(resultPath);
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 		env.execute();
 
 		expected = "((1,1),one),((1,1),one)\n" +
@@ -612,7 +612,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				ds1.join(ds2).where("f0.f0").equalTo("f0.f0"); // key is now Integer from Tuple2<Integer, Integer>
 
 		joinDs.writeAsCsv(resultPath);
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 		env.execute();
 
 		expected = "((1,1),one),((1,1),one)\n" +
@@ -633,7 +633,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				ds1.join(ds2).where("*").equalTo("*");
 
 		joinDs.writeAsCsv(resultPath);
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 		env.execute();
 
 		expected = "1 First (10,100,1000,One) 10000,(10000,10,100,1000,One,1,First)\n"+
@@ -655,7 +655,7 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				ds2.join(ds2).where("f1.f0").equalTo("f0.f0");
 
 		joinDs.writeAsCsv(resultPath);
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 		env.execute();
 
 		expected = "((1,1,Hi),(1,1,Hi)),((1,1,Hi),(1,1,Hi))\n" +

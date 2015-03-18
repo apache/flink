@@ -473,7 +473,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	public void adjustGlobalPropertiesForFullParallelismChange() {
 		if (this.shipStrategy == null || this.shipStrategy == ShipStrategyType.NONE) {
-			throw new IllegalStateException("Cannot adjust channel for degree of parallelism " +
+			throw new IllegalStateException("Cannot adjust channel for parallelism " +
 					"change before the ship strategy is set.");
 		}
 		

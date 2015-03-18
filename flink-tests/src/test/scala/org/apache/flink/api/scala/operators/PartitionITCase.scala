@@ -103,20 +103,20 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
     countsInPartition.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
 
-    val numPerPartition : Int = 2220 / env.getDegreeOfParallelism / 10
+    val numPerPartition : Int = 2220 / env.getParallelism / 10
     expected = ""
-    for (i <- 0 until env.getDegreeOfParallelism) {
+    for (i <- 0 until env.getParallelism) {
       expected += "(" + i + "," + numPerPartition + ")\n"
     }
   }
 
   @Test
-  def testMapPartitionAfterRepartitionHasCorrectDOP(): Unit = {
+  def testMapPartitionAfterRepartitionHasCorrectParallelism(): Unit = {
     // Verify that mapPartition operation after repartition picks up correct
-    // DOP
+    // parallelism
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
 
     val unique = ds.partitionByHash(1)
       .setParallelism(4)
@@ -129,12 +129,12 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
   }
 
   @Test
-  def testMapAfterRepartitionHasCorrectDOP(): Unit = {
+  def testMapAfterRepartitionHasCorrectParallelism(): Unit = {
     // Verify that map operation after repartition picks up correct
-    // DOP
+    // parallelism
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
 
     val count = ds.partitionByHash(0).setParallelism(4).map(
       new RichMapFunction[(Int, Long, String), Tuple1[Int]] {
@@ -157,12 +157,12 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
   }
 
   @Test
-  def testFilterAfterRepartitionHasCorrectDOP(): Unit = {
+  def testFilterAfterRepartitionHasCorrectParallelism(): Unit = {
     // Verify that filter operation after repartition picks up correct
-    // DOP
+    // parallelism
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
 
     val count = ds.partitionByHash(0).setParallelism(4).filter(
       new RichFilterFunction[(Int, Long, String)] {
@@ -188,7 +188,7 @@ class PartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
   @Test
   def testPartitionNestedPojo(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(3)
+    env.setParallelism(3)
     val ds = CollectionDataSets.getDuplicatePojoDataSet(env)
     val uniqLongs = ds
       .partitionByHash("nestedPojo.longNumber")

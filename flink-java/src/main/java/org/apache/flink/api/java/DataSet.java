@@ -222,7 +222,7 @@ public abstract class DataSet<T> {
 	 * The function is called once per parallel partition of the data,
 	 * and the entire partition is available through the given Iterator.
 	 * The number of elements that each instance of the MapPartition function
-	 * sees is non deterministic and depends on the degree of parallelism of the operation.
+	 * sees is non deterministic and depends on the parallelism of the operation.
 	 *
 	 * This function is intended for operations that cannot transform individual elements,
 	 * requires no grouping of elements. To transform individual elements,

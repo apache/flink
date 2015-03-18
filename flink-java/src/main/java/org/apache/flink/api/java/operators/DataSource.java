@@ -65,7 +65,7 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 		this.inputFormat = inputFormat;
 		
 		if (inputFormat instanceof NonParallelInput) {
-			this.dop = 1;
+			this.parallelism = 1;
 		}
 	}
 
@@ -126,7 +126,7 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		GenericDataSourceBase<OUT, ?> source = new GenericDataSourceBase(this.inputFormat,
 				new OperatorInformation<OUT>(getType()), name);
-		source.setDegreeOfParallelism(dop);
+		source.setParallelism(parallelism);
 		if(this.parameters != null) {
 			source.getParameters().addAll(this.parameters);
 		}

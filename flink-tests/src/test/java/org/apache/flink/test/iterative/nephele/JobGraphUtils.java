@@ -40,20 +40,20 @@ public class JobGraphUtils {
 	private JobGraphUtils() {}
 	
 	public static <T extends FileInputFormat<?>> InputFormatVertex createInput(T stub, String path, String name, JobGraph graph,
-			int degreeOfParallelism)
+			int parallelism)
 	{
 		stub.setFilePath(path);
-		return createInput(new UserCodeObjectWrapper<T>(stub), name, graph, degreeOfParallelism);
+		return createInput(new UserCodeObjectWrapper<T>(stub), name, graph, parallelism);
 	}
 
 	private static <T extends InputFormat<?,?>> InputFormatVertex createInput(UserCodeWrapper<T> stub, String name, JobGraph graph,
-			int degreeOfParallelism)
+			int parallelism)
 	{
 		InputFormatVertex inputVertex = new InputFormatVertex(name);
 		graph.addVertex(inputVertex);
 		
 		inputVertex.setInvokableClass(DataSourceTask.class);
-		inputVertex.setParallelism(degreeOfParallelism);
+		inputVertex.setParallelism(parallelism);
 
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
 		inputConfig.setStubWrapper(stub);

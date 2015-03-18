@@ -264,15 +264,15 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				// for the bulk iteration, we skip creating anything for now. we create the graph
 				// for the step function in the post visit.
 				
-				// check that the root of the step function has the same DOP as the iteration.
-				// because the tail must have the same DOP as the head, we can only merge the last
-				// operator with the tail, if they have the same DOP. not merging is currently not
+				// check that the root of the step function has the same parallelism as the iteration.
+				// because the tail must have the same parallelism as the head, we can only merge the last
+				// operator with the tail, if they have the same parallelism. not merging is currently not
 				// implemented
 				PlanNode root = iterationNode.getRootOfStepFunction();
 				if (root.getParallelism() != node.getParallelism())
 				{
 					throw new CompilerException("Error: The final operator of the step " +
-							"function has a different degree of parallelism than the iteration operator itself.");
+							"function has a different parallelism than the iteration operator itself.");
 				}
 				
 				IterationDescriptor descr = new IterationDescriptor(iterationNode, this.iterationIdEnumerator++);
@@ -289,12 +289,12 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				if (nextWorkSet.getParallelism() != node.getParallelism())
 				{
 					throw new CompilerException("It is currently not supported that the final operator of the step " +
-							"function has a different degree of parallelism than the iteration operator itself.");
+							"function has a different parallelism than the iteration operator itself.");
 				}
 				if (solutionSetDelta.getParallelism() != node.getParallelism())
 				{
 					throw new CompilerException("It is currently not supported that the final operator of the step " +
-							"function has a different degree of parallelism than the iteration operator itself.");
+							"function has a different parallelism than the iteration operator itself.");
 				}
 				
 				IterationDescriptor descr = new IterationDescriptor(iterationNode, this.iterationIdEnumerator++);
@@ -362,7 +362,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		
 		// check if a vertex was created, or if it was chained or skipped
 		if (vertex != null) {
-			// set degree of parallelism
+			// set parallelism
 			int pd = node.getParallelism();
 			vertex.setParallelism(pd);
 			
@@ -370,10 +370,10 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			
 			// check whether this vertex is part of an iteration step function
 			if (this.currentIteration != null) {
-				// check that the task has the same DOP as the iteration as such
+				// check that the task has the same parallelism as the iteration as such
 				PlanNode iterationNode = (PlanNode) this.currentIteration;
 				if (iterationNode.getParallelism() < pd) {
-					throw new CompilerException("Error: All functions that are part of an iteration must have the same, or a lower, degree-of-parallelism than the iteration operator.");
+					throw new CompilerException("Error: All functions that are part of an iteration must have the same, or a lower, parallelism than the iteration operator.");
 				}
 
 				// store the id of the iterations the step functions participate in
@@ -725,7 +725,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					return 1;
 				}
 				else {
-					throw new CompilerException("Error: A changing degree of parallelism is currently " +
+					throw new CompilerException("Error: A changing parallelism is currently " +
 							"not supported between tasks within an iteration.");
 				}
 			} else {
@@ -880,7 +880,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// the step function, if
 		// 1) There is one parent that the partial solution connects to via a forward pattern and no
 		//    local strategy
-		// 2) DOP and the number of subtasks per instance does not change
+		// 2) parallelism and the number of subtasks per instance does not change
 		// 3) That successor is not a union
 		// 4) That successor is not itself the last node of the step function
 		// 5) There is no local strategy on the edge for the initial partial solution, as
@@ -948,7 +948,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// the step function, if
 		// 1) There is one parent that the partial solution connects to via a forward pattern and no
 		//    local strategy
-		// 2) DOP and the number of subtasks per instance does not change
+		// 2) parallelism and the number of subtasks per instance does not change
 		// 3) That successor is not a union
 		// 4) That successor is not itself the last node of the step function
 		// 5) There is no local strategy on the edge for the initial workset, as

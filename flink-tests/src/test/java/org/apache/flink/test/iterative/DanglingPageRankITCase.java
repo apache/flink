@@ -40,7 +40,7 @@ public class DanglingPageRankITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		DanglingPageRank pr = new DanglingPageRank();
 		Plan plan = pr.getPlan(
-			String.valueOf(DOP),
+			String.valueOf(parallelism),
 			pagesPath,
 			edgesPath,
 			resultPath,

@@ -99,7 +99,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	// --------------------------------- General Parameters ---------------------------------------
 	
 	private int parallelism = -1; // the number of parallel instances of this node
-	
+
 	private long minimalMemoryPerSubTask = -1;
 
 	protected int id = -1; 				// the id for this node.
@@ -390,9 +390,9 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 * @param parallelism The parallelism to set.
 	 * @throws IllegalArgumentException If the parallelism is smaller than one and not -1.
 	 */
-	public void setDegreeOfParallelism(int parallelism) {
+	public void setParallelism(int parallelism) {
 		if (parallelism < 1 && parallelism != -1) {
-			throw new IllegalArgumentException("Degree of parallelism of " + parallelism + " is invalid.");
+			throw new IllegalArgumentException("Parallelism of " + parallelism + " is invalid.");
 		}
 		this.parallelism = parallelism;
 	}

@@ -146,23 +146,23 @@ public class CoGroupITCase extends RecordAPITestBase {
 		FileDataSource input_left =  new FileDataSource(new CoGroupTestInFormat(), leftInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
-		input_left.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
+		input_left.setParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
 		FileDataSource input_right =  new FileDataSource(new CoGroupTestInFormat(), rightInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
-		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
+		input_right.setParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
 		CoGroupOperator testCoGrouper = CoGroupOperator.builder(new TestCoGrouper(), StringValue.class, 0, 0)
 			.build();
-		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
+		testCoGrouper.setParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 		testCoGrouper.getParameters().setString(Optimizer.HINT_LOCAL_STRATEGY,
 				config.getString("CoGroupTest#LocalStrategy", ""));
 		testCoGrouper.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY,
 				config.getString("CoGroupTest#ShipStrategy", ""));
 
 		FileDataSink output = new FileDataSink(new CoGroupOutFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 
 		output.setInput(testCoGrouper);
 		testCoGrouper.setFirstInput(input_left);

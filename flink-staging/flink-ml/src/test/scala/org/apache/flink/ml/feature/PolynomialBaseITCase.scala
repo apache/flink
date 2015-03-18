@@ -33,7 +33,7 @@ class PolynomialBaseITCase extends ShouldMatchers {
   def testMapElementToPolynomialVectorSpace (): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    env.setDegreeOfParallelism (2)
+    env.setParallelism (2)
 
     val input = Seq (
     LabeledVector (DenseVector (1), 1.0),
@@ -64,7 +64,7 @@ class PolynomialBaseITCase extends ShouldMatchers {
   def testMapVectorToPolynomialVectorSpace(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    env.setDegreeOfParallelism(2)
+    env.setParallelism(2)
 
     val input = Seq(
       LabeledVector(DenseVector(2, 3), 1.0),
@@ -96,7 +96,7 @@ class PolynomialBaseITCase extends ShouldMatchers {
   def testReturnEmptyVectorIfDegreeIsZero(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    env.setDegreeOfParallelism(2)
+    env.setParallelism(2)
 
     val input = Seq(
       LabeledVector(DenseVector(2, 3), 1.0),

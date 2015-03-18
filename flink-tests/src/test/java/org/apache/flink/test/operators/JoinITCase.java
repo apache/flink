@@ -111,17 +111,17 @@ public class JoinITCase extends RecordAPITestBase {
 				new ContractITCaseInputFormat(), leftInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
-		input_left.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
+		input_left.setParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
 		FileDataSource input_right = new FileDataSource(
 				new ContractITCaseInputFormat(), rightInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
-		input_right.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
+		input_right.setParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 
 		JoinOperator testMatcher = JoinOperator.builder(new TestMatcher(), StringValue.class, 0, 0)
 			.build();
-		testMatcher.setDegreeOfParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
+		testMatcher.setParallelism(config.getInteger("MatchTest#NoSubtasks", 1));
 		testMatcher.getParameters().setString(Optimizer.HINT_LOCAL_STRATEGY,
 				config.getString("MatchTest#LocalStrategy", ""));
 		if (config.getString("MatchTest#ShipStrategy", "").equals("BROADCAST_FIRST")) {
@@ -141,7 +141,7 @@ public class JoinITCase extends RecordAPITestBase {
 
 		FileDataSink output = new FileDataSink(
 				new ContractITCaseOutputFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 
 		output.setInput(testMatcher);
 		testMatcher.setFirstInput(input_left);

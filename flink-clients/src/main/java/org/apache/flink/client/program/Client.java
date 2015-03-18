@@ -145,7 +145,7 @@ public class Client {
 			// temporary hack to support the optimizer plan preview
 			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(this.compiler);
 			if (parallelism > 0) {
-				env.setDegreeOfParallelism(parallelism);
+				env.setParallelism(parallelism);
 			}
 			env.setAsContext();
 			

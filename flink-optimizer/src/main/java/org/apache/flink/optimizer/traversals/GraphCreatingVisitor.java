@@ -83,20 +83,20 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 
 	private final List<DataSinkNode> sinks; // all data sink nodes in the optimizer plan
 
-	private final int defaultParallelism; // the default degree of parallelism
+	private final int defaultParallelism; // the default parallelism
 
 	private final GraphCreatingVisitor parent;	// reference to enclosing creator, in case of a recursive translation
 
 	private final ExecutionMode defaultDataExchangeMode;
 
-	private final boolean forceDOP;
+	private final boolean forceParallelism;
 
 
 	public GraphCreatingVisitor(int defaultParallelism, ExecutionMode defaultDataExchangeMode) {
 		this(null, false, defaultParallelism, defaultDataExchangeMode, null);
 	}
 
-	private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceDOP, int defaultParallelism,
+	private GraphCreatingVisitor(GraphCreatingVisitor parent, boolean forceParallelism, int defaultParallelism,
 									ExecutionMode dataExchangeMode, HashMap<Operator<?>, OptimizerNode> closure) {
 		if (closure == null){
 			con2node = new HashMap<Operator<?>, OptimizerNode>();
@@ -108,7 +108,7 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 		this.defaultParallelism = defaultParallelism;
 		this.parent = parent;
 		this.defaultDataExchangeMode = dataExchangeMode;
-		this.forceDOP = forceDOP;
+		this.forceParallelism = forceParallelism;
 	}
 
 	public List<DataSinkNode> getSinks() {
@@ -194,7 +194,7 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 
 			// catch this for the recursive translation of step functions
 			BulkPartialSolutionNode p = new BulkPartialSolutionNode(holder, containingIterationNode);
-			p.setDegreeOfParallelism(containingIterationNode.getParallelism());
+			p.setParallelism(containingIterationNode.getParallelism());
 			n = p;
 		}
 		else if (c instanceof DeltaIterationBase.WorksetPlaceHolder) {
@@ -209,7 +209,7 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 
 			// catch this for the recursive translation of step functions
 			WorksetNode p = new WorksetNode(holder, containingIterationNode);
-			p.setDegreeOfParallelism(containingIterationNode.getParallelism());
+			p.setParallelism(containingIterationNode.getParallelism());
 			n = p;
 		}
 		else if (c instanceof DeltaIterationBase.SolutionSetPlaceHolder) {
@@ -224,7 +224,7 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 
 			// catch this for the recursive translation of step functions
 			SolutionSetNode p = new SolutionSetNode(holder, containingIterationNode);
-			p.setDegreeOfParallelism(containingIterationNode.getParallelism());
+			p.setParallelism(containingIterationNode.getParallelism());
 			n = p;
 		}
 		else {
@@ -233,13 +233,13 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 
 		this.con2node.put(c, n);
 
-		// set the parallelism only if it has not been set before. some nodes have a fixed DOP, such as the
+		// set the parallelism only if it has not been set before. some nodes have a fixed parallelism, such as the
 		// key-less reducer (all-reduce)
 		if (n.getParallelism() < 1) {
-			// set the degree of parallelism
-			int par = c.getDegreeOfParallelism();
+			// set the parallelism
+			int par = c.getParallelism();
 			if (par > 0) {
-				if (this.forceDOP && par != this.defaultParallelism) {
+				if (this.forceParallelism && par != this.defaultParallelism) {
 					par = this.defaultParallelism;
 					Optimizer.LOG.warn("The parallelism of nested dataflows (such as step functions in iterations) is " +
 						"currently fixed to the parallelism of the surrounding operator (the iteration).");
@@ -247,7 +247,7 @@ public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 			} else {
 				par = this.defaultParallelism;
 			}
-			n.setDegreeOfParallelism(par);
+			n.setParallelism(par);
 		}
 
 		return true;

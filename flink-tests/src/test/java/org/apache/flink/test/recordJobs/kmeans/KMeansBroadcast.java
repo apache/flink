@@ -54,7 +54,7 @@ public class KMeansBroadcast implements Program, ProgramDescription {
 	@Override
 	public Plan getPlan(String... args) {
 		// parse job parameters
-		int degreeOfParallelism = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
+		int parallelism = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String dataPointInput = (args.length > 1 ? args[1] : "");
 		String clusterInput = (args.length > 2 ? args[2] : "");
 		String output = (args.length > 3 ? args[3] : "");
@@ -99,7 +99,7 @@ public class KMeansBroadcast implements Program, ProgramDescription {
 		FileDataSink newClusterPoints = new FileDataSink(new PointOutFormat(), output, iter, "New Center Positions");
 
 		Plan plan = new Plan(newClusterPoints, "K-Means");
-		plan.setDefaultParallelism(degreeOfParallelism);
+		plan.setDefaultParallelism(parallelism);
 		return plan;
 	}
 

@@ -133,14 +133,14 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
-	 * Gets the degree of parallelism with which operation are executed by default. Operations can
-	 * individually override this value to use a specific degree of parallelism via
+	 * Gets the parallelism with which operation are executed by default. Operations can
+	 * individually override this value to use a specific parallelism via
 	 * {@link Operator#setParallelism(int)}. Other operations may need to run with a different
-	 * degree of parallelism - for example calling
+	 * parallelism - for example calling
 	 * {@link DataSet#reduce(org.apache.flink.api.common.functions.ReduceFunction)} over the entire
-	 * set will insert eventually an operation that runs non-parallel (degree of parallelism of one).
+	 * set will insert eventually an operation that runs non-parallel (parallelism of one).
 	 * 
-	 * @return The degree of parallelism used by operations, unless they override that value. This method
+	 * @return The parallelism used by operations, unless they override that value. This method
 	 *         returns {@code -1}, if the environments default parallelism should be used.
 	 * @deprecated Please use {@link #getParallelism}
 	 */
@@ -165,14 +165,14 @@ public abstract class ExecutionEnvironment {
 	}
 	
 	/**
-	 * Sets the degree of parallelism (DOP) for operations executed through this environment.
-	 * Setting a DOP of x here will cause all operators (such as join, map, reduce) to run with
+	 * Sets the parallelism for operations executed through this environment.
+	 * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run with
 	 * x parallel instances.
 	 * <p>
 	 * This method overrides the default parallelism for this environment.
 	 * The {@link LocalEnvironment} uses by default a value equal to the number of hardware
 	 * contexts (CPU cores / threads). When executing the program via the command line client 
-	 * from a JAR file, the default degree of parallelism is the one configured for that setup.
+	 * from a JAR file, the default parallelism is the one configured for that setup.
 	 * 
 	 * @param parallelism The parallelism
 	 * @deprecated Please use {@link #setParallelism}
@@ -592,7 +592,7 @@ public abstract class ExecutionEnvironment {
 	 * via {@link #fromCollection(Collection, TypeInformation)}.
 	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
-	 * a degree of parallelism of one.
+	 * a parallelism of one.
 	 * 
 	 * @param data The collection of elements to create the data set from.
 	 * @return A DataSet representing the given collection.
@@ -621,7 +621,7 @@ public abstract class ExecutionEnvironment {
 	 * if needed.
 	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
-	 * a degree of parallelism of one.
+	 * a parallelism of one.
 	 * <p>
 	 * The returned DataSet is typed to the given TypeInformation.
 	 *  
@@ -651,7 +651,7 @@ public abstract class ExecutionEnvironment {
 	 * framework may move it to a remote environment, if needed.
 	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
-	 * a degree of parallelism of one.
+	 * a parallelism of one.
 	 * 
 	 * @param data The collection of elements to create the data set from.
 	 * @param type The class of the data produced by the iterator. Must not be a generic class.
@@ -674,7 +674,7 @@ public abstract class ExecutionEnvironment {
 	 * framework may move it to a remote environment, if needed.
 	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
-	 * a degree of parallelism of one.
+	 * a parallelism of one.
 	 * 
 	 * @param data The collection of elements to create the data set from.
 	 * @param type The TypeInformation for the produced data set.
@@ -702,7 +702,7 @@ public abstract class ExecutionEnvironment {
 	 * via {@link #fromCollection(Collection, TypeInformation)}.
 	 * <p>
 	 * Note that this operation will result in a non-parallel data source, i.e. a data source with
-	 * a degree of parallelism of one.
+	 * a parallelism of one.
 	 * 
 	 * @param data The elements to make up the data set.
 	 * @return A DataSet representing the given list of elements.
@@ -924,8 +924,8 @@ public abstract class ExecutionEnvironment {
 		OperatorTranslation translator = new OperatorTranslation();
 		JavaPlan plan = translator.translateToPlan(this.sinks, jobName);
 
-		if (getDegreeOfParallelism() > 0) {
-			plan.setDefaultParallelism(getDegreeOfParallelism());
+		if (getParallelism() > 0) {
+			plan.setDefaultParallelism(getParallelism());
 		}
 		plan.setExecutionConfig(getConfig());
 		// Check plan for GenericTypeInfo's and register the types at the serializers.
@@ -1024,18 +1024,18 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a {@link CollectionEnvironment} that uses Java Collections underneath. This will execute in a
 	 * single thread in the current JVM. It is very fast but will fail if the data does not fit into
-	 * memory. Degree of parallelism will always be 1. This is useful during implementation and for debugging.
+	 * memory. parallelism will always be 1. This is useful during implementation and for debugging.
 	 * @return A Collection Environment
 	 */
 	public static CollectionEnvironment createCollectionsEnvironment(){
 		CollectionEnvironment ce = new CollectionEnvironment();
-		ce.setDegreeOfParallelism(1);
+		ce.setParallelism(1);
 		return ce;
 	}
 
 	/**
 	 * Creates a {@link LocalEnvironment}. The local execution environment will run the program in a
-	 * multi-threaded fashion in the same JVM as the environment was created in. The default degree of
+	 * multi-threaded fashion in the same JVM as the environment was created in. The default
 	 * parallelism of the local environment is the number of hardware contexts (CPU cores / threads),
 	 * unless it was specified differently by {@link #setDefaultLocalParallelism(int)}.
 	 * 
@@ -1048,22 +1048,22 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a {@link LocalEnvironment}. The local execution environment will run the program in a
 	 * multi-threaded fashion in the same JVM as the environment was created in. It will use the
-	 * degree of parallelism specified in the parameter.
+	 * parallelism specified in the parameter.
 	 * 
-	 * @param degreeOfParallelism The degree of parallelism for the local environment.
-	 * @return A local execution environment with the specified degree of parallelism.
+	 * @param parallelism The parallelism for the local environment.
+	 * @return A local execution environment with the specified parallelism.
 	 */
-	public static LocalEnvironment createLocalEnvironment(int degreeOfParallelism) {
+	public static LocalEnvironment createLocalEnvironment(int parallelism) {
 		LocalEnvironment lee = new LocalEnvironment();
-		lee.setDegreeOfParallelism(degreeOfParallelism);
+		lee.setParallelism(parallelism);
 		return lee;
 	}
 	
 	/**
 	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program 
 	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
-	 * cluster. The execution will use the cluster's default degree of parallelism, unless the parallelism is
-	 * set explicitly via {@link ExecutionEnvironment#setDegreeOfParallelism(int)}.
+	 * cluster. The execution will use the cluster's default parallelism, unless the parallelism is
+	 * set explicitly via {@link ExecutionEnvironment#setParallelism(int)}.
 	 * 
 	 * @param host The host name or address of the master (JobManager), where the program should be executed.
 	 * @param port The port of the master (JobManager), where the program should be executed. 
@@ -1079,19 +1079,19 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a {@link RemoteEnvironment}. The remote environment sends (parts of) the program 
 	 * to a cluster for execution. Note that all file paths used in the program must be accessible from the
-	 * cluster. The execution will use the specified degree of parallelism.
+	 * cluster. The execution will use the specified parallelism.
 	 * 
 	 * @param host The host name or address of the master (JobManager), where the program should be executed.
 	 * @param port The port of the master (JobManager), where the program should be executed. 
-	 * @param degreeOfParallelism The degree of parallelism to use during the execution.
+	 * @param parallelism The parallelism to use during the execution.
 	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
 	 *                 provided in the JAR files.
 	 * @return A remote environment that executes the program on a cluster.
 	 */
-	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, int degreeOfParallelism, String... jarFiles) {
+	public static ExecutionEnvironment createRemoteEnvironment(String host, int port, int parallelism, String... jarFiles) {
 		RemoteEnvironment rec = new RemoteEnvironment(host, port, jarFiles);
-		rec.setDegreeOfParallelism(degreeOfParallelism);
+		rec.setParallelism(parallelism);
 		return rec;
 	}
 	
@@ -1099,10 +1099,10 @@ public abstract class ExecutionEnvironment {
 	 * Sets the default parallelism that will be used for the local execution environment created by
 	 * {@link #createLocalEnvironment()}.
 	 * 
-	 * @param degreeOfParallelism The degree of parallelism to use as the default local parallelism.
+	 * @param parallelism The parallelism to use as the default local parallelism.
 	 */
-	public static void setDefaultLocalParallelism(int degreeOfParallelism) {
-		defaultLocalDop = degreeOfParallelism;
+	public static void setDefaultLocalParallelism(int parallelism) {
+		defaultLocalDop = parallelism;
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -42,7 +42,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 	public void testAllReduceNoCombiner() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 			
 			DataSet<Double> data = env.fromElements(0.2, 0.3, 0.4, 0.5).name("source");
 			
@@ -61,7 +61,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
 			
 			
-			// the all-reduce has no combiner, when the DOP of the input is one
+			// the all-reduce has no combiner, when the parallelism of the input is one
 			
 			SourcePlanNode sourceNode = resolver.getNode("source");
 			SingleInputPlanNode reduceNode = resolver.getNode("reducer");
@@ -71,7 +71,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(sourceNode, reduceNode.getInput().getSource());
 			assertEquals(reduceNode, sinkNode.getInput().getSource());
 			
-			// check DOP
+			// check parallelism
 			assertEquals(1, sourceNode.getParallelism());
 			assertEquals(1, reduceNode.getParallelism());
 			assertEquals(1, sinkNode.getParallelism());
@@ -87,7 +87,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 	public void testAllReduceWithCombiner() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 			
 			DataSet<Long> data = env.generateSequence(1, 8000000).name("source");
 			
@@ -121,7 +121,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(DriverStrategy.ALL_REDUCE, reduceNode.getDriverStrategy());
 			assertEquals(DriverStrategy.ALL_REDUCE, combineNode.getDriverStrategy());
 			
-			// check DOP
+			// check parallelism
 			assertEquals(8, sourceNode.getParallelism());
 			assertEquals(8, combineNode.getParallelism());
 			assertEquals(1, reduceNode.getParallelism());
@@ -138,7 +138,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 	public void testGroupedReduceWithFieldPositionKey() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 			
 			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
 				.name("source").setParallelism(6);
@@ -179,7 +179,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(new FieldList(1), combineNode.getKeys(0));
 			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
 			
-			// check DOP
+			// check parallelism
 			assertEquals(6, sourceNode.getParallelism());
 			assertEquals(6, combineNode.getParallelism());
 			assertEquals(8, reduceNode.getParallelism());
@@ -196,7 +196,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 	public void testGroupedReduceWithSelectorFunctionKey() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 			
 			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
 				.name("source").setParallelism(6);
@@ -243,7 +243,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(new FieldList(0), combineNode.getKeys(0));
 			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
 			
-			// check DOP
+			// check parallelism
 			assertEquals(6, sourceNode.getParallelism());
 			assertEquals(6, keyExtractor.getParallelism());
 			assertEquals(6, combineNode.getParallelism());

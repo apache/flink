@@ -47,7 +47,7 @@ public class IterationTerminationWithTwoTails extends RecordAPITestBase {
 	protected String resultPath;
 
 	public IterationTerminationWithTwoTails(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	@Override
@@ -63,7 +63,7 @@ public class IterationTerminationWithTwoTails extends RecordAPITestBase {
 
 	@Override
 	protected Plan getTestJob() {
-		return getTestPlanPlan(DOP, dataPath, resultPath);
+		return getTestPlanPlan(parallelism, dataPath, resultPath);
 	}
 	
 	private static Plan getTestPlanPlan(int numSubTasks, String input, String output) {

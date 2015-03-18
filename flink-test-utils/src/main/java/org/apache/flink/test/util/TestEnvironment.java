@@ -39,9 +39,9 @@ public class TestEnvironment extends ExecutionEnvironment {
 	protected JobExecutionResult latestResult;
 
 
-	public TestEnvironment(ForkableFlinkMiniCluster executor, int degreeOfParallelism) {
+	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism) {
 		this.executor = executor;
-		setDegreeOfParallelism(degreeOfParallelism);
+		setParallelism(parallelism);
 	}
 
 	@Override

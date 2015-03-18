@@ -39,7 +39,7 @@ public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
 	public void testDistinctPreservesPartitioningOfDistinctFields() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(4);
+			env.setParallelism(4);
 			
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple2<Long, Long>> data = env.fromElements(new Tuple2<Long, Long>(0L, 0L), new Tuple2<Long, Long>(1L, 1L))
@@ -75,7 +75,7 @@ public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
 	public void testDistinctDestroysPartitioningOfNonDistinctFields() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(4);
+			env.setParallelism(4);
 			
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple2<Long, Long>> data = env.fromElements(new Tuple2<Long, Long>(0L, 0L), new Tuple2<Long, Long>(1L, 1L))

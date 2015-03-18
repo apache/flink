@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector;
  * Interface for a stream data source.
  *
  * <p>Sources implementing this specific interface are executed with
- * degree of parallelism 1. To execute your sources in parallel
+ * parallelism 1. To execute your sources in parallel
  * see {@link ParallelSourceFunction}.</p>
  *
  * @param <OUT> The type of the records produced by this source.

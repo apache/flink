@@ -288,9 +288,9 @@ public class Optimizer {
 	private final CostEstimator costEstimator;
 
 	/**
-	 * The default degree of parallelism for jobs compiled by this compiler.
+	 * The default parallelism for jobs compiled by this compiler.
 	 */
-	private int defaultDegreeOfParallelism;
+	private int defaultParallelism;
 
 
 	// ------------------------------------------------------------------------
@@ -348,14 +348,14 @@ public class Optimizer {
 		this.costEstimator = estimator;
 
 		// determine the default parallelism
-		this.defaultDegreeOfParallelism = GlobalConfiguration.getInteger(
-				ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
-				ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
+		this.defaultParallelism = GlobalConfiguration.getInteger(
+				ConfigConstants.DEFAULT_PARALLELISM_KEY,
+				ConfigConstants.DEFAULT_PARALLELISM);
 		
-		if (defaultDegreeOfParallelism < 1) {
-			LOG.warn("Config value " + defaultDegreeOfParallelism + " for option "
-					+ ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE + " is invalid. Ignoring and using a value of 1.");
-			this.defaultDegreeOfParallelism = 1;
+		if (defaultParallelism < 1) {
+			LOG.warn("Config value " + defaultParallelism + " for option "
+					+ ConfigConstants.DEFAULT_PARALLELISM + " is invalid. Ignoring and using a value of 1.");
+			this.defaultParallelism = 1;
 		}
 	}
 	
@@ -363,13 +363,13 @@ public class Optimizer {
 	//                             Getters / Setters
 	// ------------------------------------------------------------------------
 	
-	public int getDefaultDegreeOfParallelism() {
-		return defaultDegreeOfParallelism;
+	public int getDefaultParallelism() {
+		return defaultParallelism;
 	}
 	
-	public void setDefaultDegreeOfParallelism(int defaultDegreeOfParallelism) {
-		if (defaultDegreeOfParallelism > 0) {
-			this.defaultDegreeOfParallelism = defaultDegreeOfParallelism;
+	public void setDefaultParallelism(int defaultParallelism) {
+		if (defaultParallelism > 0) {
+			this.defaultParallelism = defaultParallelism;
 		} else {
 			throw new IllegalArgumentException("Default parallelism cannot be zero or negative.");
 		}
@@ -435,7 +435,7 @@ public class Optimizer {
 		final ExecutionMode defaultDataExchangeMode = program.getExecutionConfig().getExecutionMode();
 
 		final int defaultParallelism = program.getDefaultParallelism() > 0 ?
-			program.getDefaultParallelism() : this.defaultDegreeOfParallelism;
+			program.getDefaultParallelism() : this.defaultParallelism;
 
 		// log the default settings
 		LOG.debug("Using a default parallelism of {}",  defaultParallelism);

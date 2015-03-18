@@ -45,7 +45,7 @@ public class GroupCombineNode extends SingleInputNode {
 
 		if (this.keys == null) {
 			// case of a key-less reducer. force a parallelism of 1
-			setDegreeOfParallelism(1);
+			setParallelism(1);
 		}
 
 		this.possibleProperties = initPossibleProperties();

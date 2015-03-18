@@ -59,7 +59,7 @@ public class EnumTrianglesRDFITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		EnumTrianglesRdfFoaf enumTriangles = new EnumTrianglesRdfFoaf();
 		return enumTriangles.getPlan(
-				String.valueOf(config.getInteger("NumSubtasks", DOP)), edgesPath, resultPath);
+				String.valueOf(config.getInteger("NumSubtasks", parallelism)), edgesPath, resultPath);
 	}
 
 	@Override
@@ -70,7 +70,7 @@ public class EnumTrianglesRDFITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("NumSubtasks", DOP);
+		config.setInteger("NumSubtasks", parallelism);
 		return toParameterList(config);
 	}
 }

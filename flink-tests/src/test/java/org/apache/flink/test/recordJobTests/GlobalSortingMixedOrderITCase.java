@@ -53,7 +53,7 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 	private String sortedRecords;
 
 	public GlobalSortingMixedOrderITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	@Override
@@ -91,7 +91,7 @@ public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		GlobalSort globalSort = new GlobalSort();
-		return globalSort.getPlan(Integer.valueOf(DOP).toString(), recordsPath, resultPath);
+		return globalSort.getPlan(Integer.valueOf(parallelism).toString(), recordsPath, resultPath);
 	}
 
 	@Override

@@ -410,7 +410,7 @@ public class FlinkYarnSessionCli {
 			if (flinkYarnClient.getTaskManagerSlots() != -1) {
 				String degreeOfParallelism =
 						Integer.toString(flinkYarnClient.getTaskManagerSlots() * flinkYarnClient.getTaskManagerCount());
-				yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_DOP, degreeOfParallelism);
+				yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_PARALLELISM, degreeOfParallelism);
 			}
 			// add dynamic properties
 			if (flinkYarnClient.getDynamicPropertiesEncoded() != null) {
