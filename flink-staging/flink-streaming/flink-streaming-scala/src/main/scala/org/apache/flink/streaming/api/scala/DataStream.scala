@@ -57,6 +57,11 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def getJavaStream: JavaStream[T] = javaStream
 
   /**
+   * Returns the TypeInformation for the elements of this DataStream.
+   */
+  def getType(): TypeInformation[T] = javaStream.getType
+
+  /**
    * Sets the parallelism of this operation. This must be greater than 1.
    */
   def setParallelism(parallelism: Int): DataStream[T] = {

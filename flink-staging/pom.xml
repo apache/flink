@@ -42,7 +42,7 @@ under the License.
 		<module>flink-hbase</module>
 		<module>flink-gelly</module>
 		<module>flink-hcatalog</module>
-		<module>flink-expressions</module>
+		<module>flink-table</module>
 		<module>flink-ml</module>
 	</modules>
 	

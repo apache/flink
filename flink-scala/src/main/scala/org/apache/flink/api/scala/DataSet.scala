@@ -90,7 +90,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Returns the TypeInformation for the elements of this DataSet.
    */
-  def getType: TypeInformation[T] = set.getType
+  def getType(): TypeInformation[T] = set.getType
 
   /**
    * Returns the execution environment associated with the current DataSet.
