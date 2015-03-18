@@ -91,7 +91,7 @@ public class InputHandler<IN> {
 	public void clearReaders() throws IOException {
 		if (inputs != null) {
 			inputs.clearBuffers();
+			inputs.cleanup();
 		}
-		inputs.cleanup();
 	}
 }
