@@ -83,6 +83,11 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
+	public int getMemorySegmentSize() {
+		return networkBufferPool.getMemorySegmentSize();
+	}
+
+	@Override
 	public int getNumberOfRequiredMemorySegments() {
 		return numberOfRequiredMemorySegments;
 	}
@@ -124,15 +129,17 @@ class LocalBufferPool implements BufferPool {
 		return requestBuffer(true);
 	}
 
-	private Buffer requestBuffer(boolean isBlocking) throws InterruptedException {
+	private Buffer requestBuffer(boolean isBlocking) throws InterruptedException, IOException {
 		synchronized (availableMemorySegments) {
-			if (isDestroyed) {
-				return null;
-			}
-
 			returnExcessMemorySegments();
 
+			boolean askToRecycle = owner != null;
+
 			while (availableMemorySegments.isEmpty()) {
+				if (isDestroyed) {
+					return null;
+				}
+
 				if (numberOfRequestedMemorySegments < currentPoolSize) {
 					final MemorySegment segment = networkBufferPool.requestMemorySegment();
 
@@ -142,6 +149,10 @@ class LocalBufferPool implements BufferPool {
 
 						continue;
 					}
+				}
+
+				if (askToRecycle) {
+					owner.releaseMemory(1);
 				}
 
 				if (isBlocking) {
@@ -186,7 +197,7 @@ class LocalBufferPool implements BufferPool {
 	 * Destroy is called after the produce or consume phase of a task finishes.
 	 */
 	@Override
-	public void destroy() throws IOException {
+	public void lazyDestroy() {
 		synchronized (availableMemorySegments) {
 			if (!isDestroyed) {
 				MemorySegment segment;
@@ -230,7 +241,7 @@ class LocalBufferPool implements BufferPool {
 			// If there is a registered owner and we have still requested more buffers than our
 			// size, trigger a recycle via the owner.
 			if (owner != null && numberOfRequestedMemorySegments > currentPoolSize) {
-				owner.recycleBuffers(numberOfRequestedMemorySegments - numBuffers);
+				owner.releaseMemory(numberOfRequestedMemorySegments - numBuffers);
 			}
 		}
 	}

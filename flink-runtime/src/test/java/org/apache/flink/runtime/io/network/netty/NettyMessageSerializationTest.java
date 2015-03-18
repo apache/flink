@@ -25,6 +25,7 @@ import org.apache.flink.runtime.event.task.IntegerTaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.junit.Test;
@@ -123,32 +124,30 @@ public class NettyMessageSerializationTest {
 		}
 
 		{
-			NettyMessage.PartitionRequest expected = new NettyMessage.PartitionRequest(new ExecutionAttemptID(), new IntermediateResultPartitionID(), random.nextInt(), new InputChannelID());
+			NettyMessage.PartitionRequest expected = new NettyMessage.PartitionRequest(new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID()), random.nextInt(), new InputChannelID());
 			NettyMessage.PartitionRequest actual = encodeAndDecode(expected);
 
-			assertEquals(expected.producerExecutionId, actual.producerExecutionId);
 			assertEquals(expected.partitionId, actual.partitionId);
 			assertEquals(expected.queueIndex, actual.queueIndex);
 			assertEquals(expected.receiverId, actual.receiverId);
 		}
 
 		{
-			NettyMessage.TaskEventRequest expected = new NettyMessage.TaskEventRequest(new IntegerTaskEvent(random.nextInt()), new ExecutionAttemptID(), new IntermediateResultPartitionID(), new InputChannelID());
+			NettyMessage.TaskEventRequest expected = new NettyMessage.TaskEventRequest(new IntegerTaskEvent(random.nextInt()), new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID()), new InputChannelID());
 			NettyMessage.TaskEventRequest actual = encodeAndDecode(expected);
 
-			assertEquals(expected.executionId, actual.executionId);
 			assertEquals(expected.event, actual.event);
 			assertEquals(expected.partitionId, actual.partitionId);
 			assertEquals(expected.receiverId, actual.receiverId);
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private <T extends NettyMessage> T encodeAndDecode(T msg) {
 		channel.writeOutbound(msg);
 		ByteBuf encoded = (ByteBuf) channel.readOutbound();
 
 		channel.writeInbound(encoded);
-
 
 		return (T) channel.readInbound();
 	}

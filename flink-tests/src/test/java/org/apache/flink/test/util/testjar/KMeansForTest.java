@@ -16,27 +16,27 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.util.testjar;
-
-import java.io.Serializable;
-import java.util.Collection;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.localDistributed.PackagedProgramEndToEndITCase;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.operators.IterativeDataSet;
+
+import java.io.Serializable;
+import java.util.Collection;
 
 /**
- * This class belongs to the @see {@link PackagedProgramEndToEndITCase} test
+ * This class belongs to the {@link PackagedProgramEndToEndITCase} test.
  *
+ * <p> It's removed by Maven from classpath, so other tests must not depend on it.
  */
 @SuppressWarnings("serial")
 public class KMeansForTest implements Program {
@@ -44,8 +44,6 @@ public class KMeansForTest implements Program {
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
-
-
 
 	@Override
 	public Plan getPlan(String... args) {
@@ -79,14 +77,14 @@ public class KMeansForTest implements Program {
 		IterativeDataSet<Centroid> loop = centroids.iterate(numIterations);
 
 		DataSet<Centroid> newCentroids = points
-			// compute closest centroid for each point
-			.map(new SelectNearestCenter()).withBroadcastSet(loop, "centroids")
-			// count and sum point coordinates for each centroid
-			.map(new CountAppender())
-			// !test if key expressions are working!
-			.groupBy("field0").reduce(new CentroidAccumulator())
-			// compute new centroids from point counts and coordinate sums
-			.map(new CentroidAverager());
+				// compute closest centroid for each point
+				.map(new SelectNearestCenter()).withBroadcastSet(loop, "centroids")
+						// count and sum point coordinates for each centroid
+				.map(new CountAppender())
+						// !test if key expressions are working!
+				.groupBy("field0").reduce(new CentroidAccumulator())
+						// compute new centroids from point counts and coordinate sums
+				.map(new CentroidAverager());
 
 		// feed new centroids back into next iteration
 		DataSet<Centroid> finalCentroids = loop.closeWith(newCentroids);

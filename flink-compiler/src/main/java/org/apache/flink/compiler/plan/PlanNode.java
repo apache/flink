@@ -381,8 +381,7 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	public List<Channel> getOutgoingChannels() {
 		return this.outChannels;
 	}
-	
-	
+
 	// --------------------------------------------------------------------------------------------
 	//                                Miscellaneous
 	// --------------------------------------------------------------------------------------------

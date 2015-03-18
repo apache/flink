@@ -34,6 +34,14 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	private JobExecutionResult latestExecutionResult;
 	
 	private int degreeOfParallelism = DEFAULT_DEGREE_OF_PARALLELISM;
+
+	/**
+	 * The number of times a test should be repeated.
+	 *
+	 * <p> This is useful for runtime changes, which affect resource management. Running certain
+	 * tests repeatedly might help to discover resource leaks, race conditions etc.
+	 */
+	private int numberOfTestRepetitions = 1;
 	
 	private boolean isCollectionExecution;
 
@@ -49,6 +57,10 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		this.degreeOfParallelism = degreeOfParallelism;
 		setTaskManagerNumSlots(degreeOfParallelism);
+	}
+
+	public void setNumberOfTestRepetitions(int numberOfTestRepetitions) {
+		this.numberOfTestRepetitions = numberOfTestRepetitions;
 	}
 	
 	public int getDegreeOfParallelism() {
@@ -101,19 +113,23 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			TestEnvironment env = new TestEnvironment(this.executor, this.degreeOfParallelism);
 			env.getConfig().enableObjectReuse();
 			env.setAsContext();
-			
-			// call the test program
-			try {
-				testProgram();
-				this.latestExecutionResult = env.latestResult;
+
+			// Possibly run the test multiple times
+			for (int i = 0; i < numberOfTestRepetitions; i++) {
+				// call the test program
+				try {
+					testProgram();
+					this.latestExecutionResult = env.latestResult;
+				}
+				catch (Exception e) {
+					System.err.println(e.getMessage());
+					e.printStackTrace();
+					Assert.fail("Error while calling the test program: " + e.getMessage());
+				}
+
+				Assert.assertNotNull("The test program never triggered an execution.",
+						this.latestExecutionResult);
 			}
-			catch (Exception e) {
-				System.err.println(e.getMessage());
-				e.printStackTrace();
-				Assert.fail("Error while calling the test program: " + e.getMessage());
-			}
-			
-			Assert.assertNotNull("The test program never triggered an execution.", this.latestExecutionResult);
 			
 			// post-submit
 			try {
@@ -150,18 +166,22 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			env.getConfig().disableObjectReuse();
 			env.setAsContext();
 
-			// call the test program
-			try {
-				testProgram();
-				this.latestExecutionResult = env.latestResult;
-			}
-			catch (Exception e) {
-				System.err.println(e.getMessage());
-				e.printStackTrace();
-				Assert.fail("Error while calling the test program: " + e.getMessage());
-			}
+			// Possibly run the test multiple times
+			for (int i = 0; i < numberOfTestRepetitions; i++) {
+				// call the test program
+				try {
+					testProgram();
+					this.latestExecutionResult = env.latestResult;
+				}
+				catch (Exception e) {
+					System.err.println(e.getMessage());
+					e.printStackTrace();
+					Assert.fail("Error while calling the test program: " + e.getMessage());
+				}
 
-			Assert.assertNotNull("The test program never triggered an execution.", this.latestExecutionResult);
+				Assert.assertNotNull("The test program never triggered an execution.",
+						this.latestExecutionResult);
+			}
 
 			// post-submit
 			try {
@@ -246,7 +266,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 						Assert.fail("Cannot compare tuple fields");
 					}
 					
-					int cmp = ((Comparable<Object>) obj1).compareTo((Comparable<Object>) obj2);
+					int cmp = ((Comparable<Object>) obj1).compareTo(obj2);
 					if (cmp != 0) {
 						return cmp;
 					}

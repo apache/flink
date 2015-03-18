@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.util.ArrayList;
@@ -59,8 +60,16 @@ public class IntermediateResultPartition {
 		return partitionId;
 	}
 
+	ResultPartitionType getResultType() {
+		return totalResult.getResultType();
+	}
+
 	public List<List<ExecutionEdge>> getConsumers() {
 		return consumers;
+	}
+
+	public boolean isConsumable() {
+		return totalResult.isConsumable();
 	}
 
 	int addConsumerGroup() {
@@ -77,5 +86,25 @@ public class IntermediateResultPartition {
 
 	void addConsumer(ExecutionEdge edge, int consumerNumber) {
 		consumers.get(consumerNumber).add(edge);
+	}
+
+	boolean markFinished() {
+		// Sanity check that this is only called on blocking partitions.
+		if (!getResultType().isBlocking()) {
+			throw new IllegalStateException("Tried to mark a non-blocking result partition as finished");
+		}
+
+		final int refCnt = totalResult.decrementNumberOfRunningProducersAndGetRemaining();
+
+		if (refCnt == 0) {
+			return true;
+		}
+		else if (refCnt  < 0) {
+			throw new IllegalStateException("Decremented number of unfinished producers below 0. "
+					+ "This is most likely a bug in the execution state/intermediate result "
+					+ "partition management.");
+		}
+
+		return false;
 	}
 }

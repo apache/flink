@@ -26,7 +26,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
 
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -49,47 +49,47 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final ExecutionAttemptID executionId;
 
 	/** The task's name. */
-	private String taskName;
+	private final String taskName;
 
 	/** The task's index in the subtask group. */
-	private int indexInSubtaskGroup;
+	private final int indexInSubtaskGroup;
 
 	/** The number of sub tasks. */
-	private int numberOfSubtasks;
+	private final int numberOfSubtasks;
 
 	/** The configuration of the job the task belongs to. */
-	private Configuration jobConfiguration;
+	private final Configuration jobConfiguration;
 
 	/** The task's configuration object. */
-	private Configuration taskConfiguration;
+	private final Configuration taskConfiguration;
 
 	/** The name of the class containing the task code to be executed. */
-	private String invokableClassName;
-
+	private final String invokableClassName;
 
 	/** The list of produced intermediate result partition deployment descriptors. */
-	private List<PartitionDeploymentDescriptor> producedPartitions;
+	private final List<ResultPartitionDeploymentDescriptor> producedPartitions;
 
 	/** The list of consumed intermediate result partitions. */
-	private List<PartitionConsumerDeploymentDescriptor> consumedPartitions;
+	private final List<InputGateDeploymentDescriptor> inputGates;
 
-	private int targetSlotNumber;
+	private final int targetSlotNumber;
 
 	/** The list of JAR files required to run this task. */
 	private final List<BlobKey> requiredJarFiles;
-	
+
 	private StateHandle operatorStates;
+
 
 	/**
 	 * Constructs a task deployment descriptor.
 	 */
 	public TaskDeploymentDescriptor(
-			JobID jobID, JobVertexID vertexID,  ExecutionAttemptID executionId,  String taskName,
-			int indexInSubtaskGroup,  int numberOfSubtasks, Configuration jobConfiguration,
+			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId, String taskName,
+			int indexInSubtaskGroup, int numberOfSubtasks, Configuration jobConfiguration,
 			Configuration taskConfiguration, String invokableClassName,
-			List<PartitionDeploymentDescriptor> producedPartitions,
-			List<PartitionConsumerDeploymentDescriptor> consumedPartitions,
-			List<BlobKey> requiredJarFiles, int targetSlotNumber){
+			List<ResultPartitionDeploymentDescriptor> producedPartitions,
+			List<InputGateDeploymentDescriptor> inputGates,
+			List<BlobKey> requiredJarFiles, int targetSlotNumber) {
 
 		this.jobID = checkNotNull(jobID);
 		this.vertexID = checkNotNull(vertexID);
@@ -103,37 +103,25 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.taskConfiguration = checkNotNull(taskConfiguration);
 		this.invokableClassName = checkNotNull(invokableClassName);
 		this.producedPartitions = checkNotNull(producedPartitions);
-		this.consumedPartitions = checkNotNull(consumedPartitions);
+		this.inputGates = checkNotNull(inputGates);
 		this.requiredJarFiles = checkNotNull(requiredJarFiles);
+		checkArgument(targetSlotNumber >= 0);
 		this.targetSlotNumber = targetSlotNumber;
-	}
-
-	/**
-	 * Default constructor for serialization/deserialization.
-	 */
-	public TaskDeploymentDescriptor() {
-		this.jobID = new JobID();
-		this.vertexID = new JobVertexID();
-		this.executionId = new ExecutionAttemptID();
-		this.jobConfiguration = new Configuration();
-		this.taskConfiguration = new Configuration();
-		this.producedPartitions = new ArrayList<PartitionDeploymentDescriptor>();
-		this.consumedPartitions = new ArrayList<PartitionConsumerDeploymentDescriptor>();
-		this.requiredJarFiles = new ArrayList<BlobKey>();
 	}
 
 	public TaskDeploymentDescriptor(
 			JobID jobID, JobVertexID vertexID, ExecutionAttemptID executionId, String taskName,
 			int indexInSubtaskGroup, int numberOfSubtasks, Configuration jobConfiguration,
 			Configuration taskConfiguration, String invokableClassName,
-			List<PartitionDeploymentDescriptor> producedPartitions,
-			List<PartitionConsumerDeploymentDescriptor> consumedPartitions,
-			List<BlobKey> requiredJarFiles, int targetSlotNumber, StateHandle operatorStates) {
+			List<ResultPartitionDeploymentDescriptor> producedPartitions,
+			List<InputGateDeploymentDescriptor> inputGates,
+			List<BlobKey> requiredJarFiles, int targetSlotNumber,
+			StateHandle operatorStates) {
 
 		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
-				consumedPartitions, requiredJarFiles, targetSlotNumber);
-		
+				inputGates, requiredJarFiles, targetSlotNumber);
+
 		setOperatorState(operatorStates);
 	}
 
@@ -164,7 +152,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/**
 	 * Returns the task's index in the subtask group.
-	 * 
+	 *
 	 * @return the task's index in the subtask group
 	 */
 	public int getIndexInSubtaskGroup() {
@@ -177,10 +165,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	public int getNumberOfSubtasks() {
 		return numberOfSubtasks;
 	}
-	
+
 	/**
 	 * Gets the number of the slot into which the task is to be deployed.
-	 * 
+	 *
 	 * @return The number of the target slot.
 	 */
 	public int getTargetSlotNumber() {
@@ -208,12 +196,12 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return invokableClassName;
 	}
 
-	public List<PartitionDeploymentDescriptor> getProducedPartitions() {
+	public List<ResultPartitionDeploymentDescriptor> getProducedPartitions() {
 		return producedPartitions;
 	}
 
-	public List<PartitionConsumerDeploymentDescriptor> getConsumedPartitions() {
-		return consumedPartitions;
+	public List<InputGateDeploymentDescriptor> getInputGates() {
+		return inputGates;
 	}
 
 	public List<BlobKey> getRequiredJarFiles() {
@@ -222,25 +210,26 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	@Override
 	public String toString() {
-		final StringBuilder pddBuilder = new StringBuilder("");
-		final StringBuilder pcddBuilder = new StringBuilder("");
+		return String.format("TaskDeploymentDescriptor [job id: %s, job vertex id: %s, " +
+						"execution id: %s, task name: %s (%d/%d), invokable: %s, " +
+						"produced partitions: %s, input gates: %s]",
+				jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
+				invokableClassName, collectionToString(producedPartitions),
+				collectionToString(inputGates));
+	}
 
-		for(PartitionDeploymentDescriptor pdd: producedPartitions) {
-			pddBuilder.append(pdd);
+	private String collectionToString(Collection<?> collection) {
+		final StringBuilder strBuilder = new StringBuilder();
+
+		strBuilder.append("[");
+
+		for (Object elem : collection) {
+			strBuilder.append(elem.toString());
 		}
 
-		for(PartitionConsumerDeploymentDescriptor pcdd: consumedPartitions) {
-			pcddBuilder.append(pcdd);
-		}
+		strBuilder.append("]");
 
-		final String strProducedPartitions = pddBuilder.toString();
-		final String strConsumedPartitions = pcddBuilder.toString();
-
-		return String.format("TaskDeploymentDescriptor(JobID: %s, JobVertexID: %s, " +
-				"ExecutionID: %s, Task name: %s, (%d/%d), Invokable: %s, " +
-				"Produced partitions: %s, Consumed partitions: %s", jobID, vertexID, executionId,
-				taskName, indexInSubtaskGroup, numberOfSubtasks, invokableClassName,
-				strProducedPartitions, strConsumedPartitions);
+		return strBuilder.toString();
 	}
 
 	public void setOperatorState(StateHandle operatorStates) {

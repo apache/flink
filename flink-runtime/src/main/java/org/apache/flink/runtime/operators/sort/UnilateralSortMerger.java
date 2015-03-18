@@ -1315,7 +1315,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				registerChannelToBeRemovedAtShudown(channel);
 
 				// create writer
-				final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+				final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 				registerOpenChannelToBeRemovedAtShudown(writer);
 				final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, this.writeMemory,
 																			this.memManager.getPageSize());
@@ -1493,7 +1493,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				final List<MemorySegment> segsForChannel = inputSegments.get(i);
 				
 				// create a reader. if there are multiple segments for the reader, issue multiple together per I/O request
-				final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel.getChannel());
+				final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channel.getChannel());
 					
 				readerList.add(reader);
 				registerOpenChannelToBeRemovedAtShudown(reader);
@@ -1578,7 +1578,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			// create a new channel writer
 			final FileIOChannel.ID mergedChannelID = this.ioManager.createChannel();
 			registerChannelToBeRemovedAtShudown(mergedChannelID);
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(mergedChannelID);
+			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(mergedChannelID);
 			registerOpenChannelToBeRemovedAtShudown(writer);
 			final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, 
 																			this.memManager.getPageSize());

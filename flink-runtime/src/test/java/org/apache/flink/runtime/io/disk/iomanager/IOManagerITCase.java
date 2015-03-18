@@ -79,13 +79,14 @@ public class IOManagerITCase {
 	 * parallel. It is designed to check the ability of the IO manager to correctly handle multiple threads.
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void parallelChannelsTest() throws Exception {
 		final Random rnd = new Random(SEED);
 		final AbstractInvokable memOwner = new DefaultMemoryManagerTest.DummyInvokable();
 		
 		FileIOChannel.ID[] ids = new FileIOChannel.ID[NUM_CHANNELS];
-		BlockChannelWriter[] writers = new BlockChannelWriter[NUM_CHANNELS];
-		BlockChannelReader[] readers = new BlockChannelReader[NUM_CHANNELS];
+		BlockChannelWriter<MemorySegment>[] writers = new BlockChannelWriter[NUM_CHANNELS];
+		BlockChannelReader<MemorySegment>[] readers = new BlockChannelReader[NUM_CHANNELS];
 		ChannelWriterOutputView[] outs = new ChannelWriterOutputView[NUM_CHANNELS];
 		ChannelReaderInputView[] ins = new ChannelReaderInputView[NUM_CHANNELS];
 		
@@ -126,7 +127,7 @@ public class IOManagerITCase {
 			
 			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(MAXIMUM_NUMBER_OF_SEGMENTS_PER_CHANNEL - 1) + 1);
 				
-			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(ids[i]);
+			final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(ids[i]);
 			final ChannelReaderInputView in = new ChannelReaderInputView(reader, memSegs, false);
 			int nextVal = 0;
 			

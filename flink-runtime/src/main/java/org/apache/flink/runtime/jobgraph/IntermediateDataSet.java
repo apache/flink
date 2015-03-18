@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An intermediate data set is the data set produced by an operator - either a
@@ -38,6 +42,9 @@ public class IntermediateDataSet implements java.io.Serializable {
 	private final AbstractJobVertex producer;		// the operation that produced this data set
 	
 	private final List<JobEdge> consumers = new ArrayList<JobEdge>();
+
+	// The type of partition to use at runtime
+	private final ResultPartitionType resultType;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -46,12 +53,13 @@ public class IntermediateDataSet implements java.io.Serializable {
 	}
 	
 	public IntermediateDataSet(IntermediateDataSetID id, AbstractJobVertex producer) {
-		if (id == null || producer == null) {
-			throw new NullPointerException();
-		}
-		
-		this.id = id;
-		this.producer = producer;
+		this(id, ResultPartitionType.PIPELINED, producer);
+	}
+
+	public IntermediateDataSet(IntermediateDataSetID id, ResultPartitionType resultType, AbstractJobVertex producer) {
+		this.id = checkNotNull(id);
+		this.producer = checkNotNull(producer);
+		this.resultType = checkNotNull(resultType);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -66,6 +74,10 @@ public class IntermediateDataSet implements java.io.Serializable {
 	
 	public List<JobEdge> getConsumers() {
 		return this.consumers;
+	}
+
+	public ResultPartitionType getResultType() {
+		return resultType;
 	}
 	
 	// --------------------------------------------------------------------------------------------

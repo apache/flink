@@ -27,7 +27,7 @@ import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.io.network.api.reader.IteratorWrappingMockSingleInputGate;
+import org.apache.flink.runtime.io.network.api.reader.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.PactDriver;
@@ -55,14 +55,14 @@ public abstract class TaskTestBase {
 		this.mockEnv = new MockEnvironment(this.memorySize, this.inputSplitProvider, bufferSize);
 	}
 
-	public IteratorWrappingMockSingleInputGate<Record> addInput(MutableObjectIterator<Record> input, int groupId) {
-		final IteratorWrappingMockSingleInputGate<Record> reader = addInput(input, groupId, true);
+	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> input, int groupId) {
+		final IteratorWrappingTestSingleInputGate<Record> reader = addInput(input, groupId, true);
 
 		return reader;
 	}
 
-	public IteratorWrappingMockSingleInputGate<Record> addInput(MutableObjectIterator<Record> input, int groupId, boolean read) {
-		final IteratorWrappingMockSingleInputGate<Record> reader = this.mockEnv.addInput(input);
+	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> input, int groupId, boolean read) {
+		final IteratorWrappingTestSingleInputGate<Record> reader = this.mockEnv.addInput(input);
 		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		conf.addInputToGroup(groupId);
 		conf.setInputSerializer(RecordSerializerFactory.get(), groupId);

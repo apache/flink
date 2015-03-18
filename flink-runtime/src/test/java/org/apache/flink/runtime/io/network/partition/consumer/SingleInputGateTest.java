@@ -20,7 +20,8 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.base.Optional;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.deployment.PartitionInfo;
+import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -28,8 +29,9 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.queue.IntermediateResultPartitionQueueIterator;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -45,16 +47,17 @@ import static org.mockito.Mockito.when;
 public class SingleInputGateTest {
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testBackwardsEventWithUninitializedChannel() throws Exception {
 		// Setup environment
 		final TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
-		when(taskEventDispatcher.publish(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), any(TaskEvent.class))).thenReturn(true);
+		when(taskEventDispatcher.publish(any(ResultPartitionID.class), any(TaskEvent.class))).thenReturn(true);
 
-		final IntermediateResultPartitionQueueIterator iterator = mock(IntermediateResultPartitionQueueIterator.class);
+		final ResultSubpartitionView iterator = mock(ResultSubpartitionView.class);
 		when(iterator.getNextBuffer()).thenReturn(new Buffer(new MemorySegment(new byte[1024]), mock(BufferRecycler.class)));
 
-		final IntermediateResultPartitionManager partitionManager = mock(IntermediateResultPartitionManager.class);
-		when(partitionManager.getIntermediateResultPartitionIterator(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), anyInt(), any(Optional.class))).thenReturn(iterator);
+		final ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+		when(partitionManager.getSubpartition(any(ResultPartitionID.class), anyInt(), any(Optional.class))).thenReturn(iterator);
 
 		// Setup reader with one local and one unknown input channel
 		final IntermediateDataSetID resultId = new IntermediateDataSetID();
@@ -66,38 +69,36 @@ public class SingleInputGateTest {
 		inputGate.setBufferPool(bufferPool);
 
 		// Local
-		ExecutionAttemptID localProducer = new ExecutionAttemptID();
-		IntermediateResultPartitionID localPartitionId = new IntermediateResultPartitionID();
+		ResultPartitionID localPartitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
 
-		InputChannel local = new LocalInputChannel(inputGate, 0, localProducer, localPartitionId, partitionManager, taskEventDispatcher);
+		InputChannel local = new LocalInputChannel(inputGate, 0, localPartitionId, partitionManager, taskEventDispatcher);
 
 		// Unknown
-		ExecutionAttemptID unknownProducer = new ExecutionAttemptID();
-		IntermediateResultPartitionID unknownPartitionId = new IntermediateResultPartitionID();
+		ResultPartitionID unknownPartitionId = new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID());
 
-		InputChannel unknown = new UnknownInputChannel(inputGate, 1, unknownProducer, unknownPartitionId, partitionManager, taskEventDispatcher, mock(ConnectionManager.class));
+		InputChannel unknown = new UnknownInputChannel(inputGate, 1, unknownPartitionId, partitionManager, taskEventDispatcher, mock(ConnectionManager.class));
 
 		// Set channels
-		inputGate.setInputChannel(localPartitionId, local);
-		inputGate.setInputChannel(unknownPartitionId, unknown);
+		inputGate.setInputChannel(localPartitionId.getPartitionId(), local);
+		inputGate.setInputChannel(unknownPartitionId.getPartitionId(), unknown);
 
 		// Request partitions
 		inputGate.requestPartitions();
 
 		// Only the local channel can request
-		verify(partitionManager, times(1)).getIntermediateResultPartitionIterator(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), anyInt(), any(Optional.class));
+		verify(partitionManager, times(1)).getSubpartition(any(ResultPartitionID.class), anyInt(), any(Optional.class));
 
 		// Send event backwards and initialize unknown channel afterwards
 		final TaskEvent event = new TestTaskEvent();
 		inputGate.sendTaskEvent(event);
 
 		// Only the local channel can send out the event
-		verify(taskEventDispatcher, times(1)).publish(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), any(TaskEvent.class));
+		verify(taskEventDispatcher, times(1)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
 
 		// After the update, the pending event should be send to local channel
-		inputGate.updateInputChannel(new PartitionInfo(unknownPartitionId, unknownProducer, PartitionInfo.PartitionLocation.LOCAL, null));
+		inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(new ResultPartitionID(unknownPartitionId.getPartitionId(), unknownPartitionId.getProducerId()), ResultPartitionLocation.createLocal()));
 
-		verify(partitionManager, times(2)).getIntermediateResultPartitionIterator(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), anyInt(), any(Optional.class));
-		verify(taskEventDispatcher, times(2)).publish(any(ExecutionAttemptID.class), any(IntermediateResultPartitionID.class), any(TaskEvent.class));
+		verify(partitionManager, times(2)).getSubpartition(any(ResultPartitionID.class), anyInt(), any(Optional.class));
+		verify(taskEventDispatcher, times(2)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
 	}
 }

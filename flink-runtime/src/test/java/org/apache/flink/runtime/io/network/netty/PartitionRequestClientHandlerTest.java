@@ -92,6 +92,7 @@ public class PartitionRequestClientHandlerTest {
 	/**
 	 * Returns a mocked input channel in a state as it was released during a decode.
 	 */
+	@SuppressWarnings("unchecked")
 	private RemoteInputChannel createMockReleasedInputChannel(InputChannelID channelId) throws IOException {
 		final BufferProvider bufferProvider = mock(BufferProvider.class);
 		when(bufferProvider.requestBuffer()).thenReturn(null);

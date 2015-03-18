@@ -1,0 +1,421 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.runtime.io.network.partition;
+
+import akka.actor.ActorRef;
+import akka.dispatch.OnFailure;
+import akka.pattern.Patterns;
+import com.google.common.base.Optional;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.concurrent.Future;
+
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
+import static org.apache.flink.runtime.messages.TaskManagerMessages.FailTask;
+
+/**
+ * A result partition for data produced by a single task.
+ *
+ * <p> This class is the runtime part of a logical {@link IntermediateResultPartition}. Essentially,
+ * a result partition is a collection of {@link Buffer} instances. The buffers are organized in one
+ * or more {@link ResultSubpartition} instances, which further partition the data depending on the
+ * number of consuming tasks and the data {@link DistributionPattern}.
+ *
+ * <p> Tasks, which consume a result partition have to request one of its subpartitions. The request
+ * happens either remotely (see {@link RemoteInputChannel}) or locally (see {@link LocalInputChannel})
+ *
+ * <h2>Life-cycle</h2>
+ *
+ * The life-cycle of each result partition has three (possibly overlapping) phases:
+ * <ol>
+ * <li><strong>Produce</strong>: </li>
+ * <li><strong>Consume</strong>: </li>
+ * <li><strong>Release</strong>: </li>
+ * </ol>
+ *
+ * <h2>Lazy deployment and updates of consuming tasks</h2>
+ *
+ * Before a consuming task can request the result, it has to be deployed. The time of deployment
+ * depends on the PIPELINED vs. BLOCKING characteristic of the result partition. With pipelined
+ * results, receivers are deployed as soon as the first buffer is added to the result partition.
+ * With blocking results on the other hand, receivers are deployed after the partition is finished.
+ *
+ * <h2>Buffer management</h2>
+ *
+ * <h2>State management</h2>
+ */
+public class ResultPartition implements BufferPoolOwner {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
+
+	private final JobID jobId;
+
+	private final ResultPartitionID partitionId;
+
+	/** Type of this partition. Defines the concrete subpartition implementation to use. */
+	private final ResultPartitionType partitionType;
+
+	/** The subpartitions of this partition. At least one. */
+	private final ResultSubpartition[] subpartitions;
+
+	private final NetworkEnvironment networkEnvironment;
+
+	// - Runtime state --------------------------------------------------------
+
+	private final AtomicBoolean isReleased = new AtomicBoolean();
+
+	/**
+	 * The total number of references to subpartitions of this result. The result partition can be
+	 * safely released, iff the reference count is zero. A reference count of -1 denotes that the
+	 * result partition has been released.
+	 */
+	private final AtomicInteger pendingReferences = new AtomicInteger();
+
+	private BufferPool bufferPool;
+
+	private boolean hasNotifiedPipelinedConsumers;
+
+	private boolean isFinished;
+
+	// - Statistics ----------------------------------------------------------
+
+	/** The total number of buffers (both data and event buffers) */
+	private int totalNumberOfBuffers;
+
+	/** The total number of bytes (both data and event buffers) */
+	private long totalNumberOfBytes;
+
+	public ResultPartition(
+			JobID jobId,
+			ResultPartitionID partitionId,
+			ResultPartitionType partitionType,
+			int numberOfSubpartitions,
+			NetworkEnvironment networkEnvironment,
+			IOManager ioManager) {
+
+		this.jobId = checkNotNull(jobId);
+		this.partitionId = checkNotNull(partitionId);
+		this.partitionType = checkNotNull(partitionType);
+		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
+		this.networkEnvironment = checkNotNull(networkEnvironment);
+
+		// Create the subpartitions.
+		switch (partitionType) {
+			case BLOCKING:
+				for (int i = 0; i < subpartitions.length; i++) {
+					subpartitions[i] = new SpillableSubpartition(
+							i, this, ioManager, networkEnvironment.getDefaultIOMode());
+				}
+
+				break;
+
+			case PIPELINED:
+				for (int i = 0; i < subpartitions.length; i++) {
+					subpartitions[i] = new PipelinedSubpartition(i, this);
+				}
+
+				break;
+
+			default:
+				throw new IllegalArgumentException("Unsupported result partition type.");
+		}
+
+		// Initially, partitions should be consumed once before release.
+		pin();
+
+		LOG.debug("Initialized {}", this);
+	}
+
+	/**
+	 * Registers a buffer pool with this result partition.
+	 * <p>
+	 * There is one pool for each result partition, which is shared by all its sub partitions.
+	 * <p>
+	 * The pool is registered with the partition *after* it as been constructed in order to conform
+	 * to the life-cycle of task registrations in the {@link TaskManager}.
+	 */
+	public void registerBufferPool(BufferPool bufferPool) {
+		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() == getNumberOfSubpartitions(),
+				"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
+
+		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
+
+		this.bufferPool = checkNotNull(bufferPool);
+
+		// If the partition type is back pressure-free, we register with the buffer pool for
+		// callbacks to release memory.
+		if (!partitionType.hasBackPressure()) {
+			bufferPool.setBufferPoolOwner(this);
+		}
+	}
+
+	public JobID getJobId() {
+		return jobId;
+	}
+
+	public ResultPartitionID getPartitionId() {
+		return partitionId;
+	}
+
+	public int getNumberOfSubpartitions() {
+		return subpartitions.length;
+	}
+
+	public BufferProvider getBufferProvider() {
+		return bufferPool;
+	}
+
+	public int getTotalNumberOfBuffers() {
+		return totalNumberOfBuffers;
+	}
+
+	public long getTotalNumberOfBytes() {
+		return totalNumberOfBytes;
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Adds a buffer to the subpartition with the given index.
+	 *
+	 * <p> For PIPELINED results, this will trigger the deployment of consuming tasks after the
+	 * first buffer has been added.
+	 */
+	public void add(Buffer buffer, int subpartitionIndex) throws IOException {
+		boolean success = false;
+
+		try {
+			checkInProduceState();
+
+			final ResultSubpartition subpartition = subpartitions[subpartitionIndex];
+
+			synchronized (subpartition) {
+				success = subpartition.add(buffer);
+
+				// Update statistics
+				totalNumberOfBuffers++;
+				totalNumberOfBytes += buffer.getSize();
+			}
+		}
+		finally {
+			if (success) {
+				notifyPipelinedConsumers();
+			}
+			else {
+				buffer.recycle();
+			}
+		}
+	}
+
+	/**
+	 * Finishes the result partition.
+	 *
+	 * <p> After this operation, it is not possible to add further data to the result partition.
+	 *
+	 * <p> For BLOCKING results, this will trigger the deployment of consuming tasks.
+	 */
+	public void finish() throws IOException {
+		boolean success = false;
+
+		try {
+			checkInProduceState();
+
+			for (ResultSubpartition subpartition : subpartitions) {
+				synchronized (subpartition) {
+					subpartition.finish();
+				}
+			}
+
+			success = true;
+		}
+		finally {
+			if (success) {
+				isFinished = true;
+
+				notifyPipelinedConsumers();
+			}
+		}
+	}
+
+	/**
+	 * Releases the result partition.
+	 */
+	public void release() {
+		if (isReleased.compareAndSet(false, true)) {
+			LOG.debug("Releasing {}", this);
+
+			try {
+				for (ResultSubpartition subpartition : subpartitions) {
+					try {
+						synchronized (subpartition) {
+							subpartition.release();
+						}
+					}
+					// Catch this in order to ensure that release is called on all subpartitions
+					catch (Throwable t) {
+						LOG.error("Error during release of result subpartition: " + t.getMessage(), t);
+					}
+				}
+			}
+			finally {
+				if (bufferPool != null) {
+					bufferPool.lazyDestroy();
+				}
+			}
+		}
+	}
+
+	/**
+	 * Returns the requested subpartition.
+	 */
+	public ResultSubpartitionView getSubpartition(int index, Optional<BufferProvider> bufferProvider) throws IOException {
+		int refCnt = pendingReferences.get();
+
+		checkState(refCnt != -1, "Partition released.");
+		checkState(refCnt > 0, "Partition not pinned.");
+
+		return subpartitions[index].getReadView(bufferProvider);
+	}
+
+	/**
+	 * Releases buffers held by this result partition.
+	 *
+	 * <p> This is a callback from the buffer pool, which is registered for result partitions, which
+	 * are back pressure-free.
+	 */
+	@Override
+	public void releaseMemory(int toRelease) throws IOException {
+		checkArgument(toRelease > 0);
+
+		for (ResultSubpartition subpartition : subpartitions) {
+			toRelease -= subpartition.releaseMemory();
+
+			// Only release as much memory as needed
+			if (toRelease <= 0) {
+				break;
+			}
+		}
+	}
+
+	@Override
+	public String toString() {
+		return "ResultPartition " + partitionId.toString() + " [" + partitionType + ", "
+				+ subpartitions.length + " subpartitions, "
+				+ pendingReferences + " pending references]";
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Pins the result partition.
+	 *
+	 * <p> The partition can only be released after each subpartition has been consumed once per pin
+	 * operation.
+	 */
+	void pin() {
+		while (true) {
+			int refCnt = pendingReferences.get();
+
+			if (refCnt >= 0) {
+				if (pendingReferences.compareAndSet(refCnt, refCnt + subpartitions.length)) {
+					break;
+				}
+			}
+			else {
+				throw new IllegalStateException("Released.");
+			}
+		}
+	}
+
+	/**
+	 * Notification when a subpartition is released.
+	 */
+	void onConsumedSubpartition(int subpartitionIndex) {
+
+		if (isReleased.get()) {
+			return;
+		}
+
+		int refCnt = pendingReferences.decrementAndGet();
+
+		if (refCnt == 0) {
+			networkEnvironment.getPartitionManager().onConsumedPartition(this);
+		}
+		else if (refCnt < 0) {
+			throw new IllegalStateException("All references released.");
+		}
+
+		LOG.debug("{}: Received release notification for subpartition {} (reference count now at: {}).",
+				this, subpartitionIndex, pendingReferences);
+	}
+
+	// ------------------------------------------------------------------------
+
+	private void checkInProduceState() {
+		checkState(!isFinished, "Partition already finished.");
+	}
+
+	/**
+	 * Notifies pipelined consumers of this result partition once.
+	 */
+	private void notifyPipelinedConsumers() throws IOException {
+		if (partitionType.isPipelined() && !hasNotifiedPipelinedConsumers) {
+			ScheduleOrUpdateConsumers msg = new ScheduleOrUpdateConsumers(jobId, partitionId);
+
+			Future<Object> futureResponse = Patterns.ask(networkEnvironment.getJobManager(), msg,
+					networkEnvironment.getJobManagerTimeout());
+
+			futureResponse.onFailure(new OnFailure() {
+				@Override
+				public void onFailure(Throwable failure) throws Throwable {
+					LOG.error("Could not schedule or update consumers at the JobManager.", failure);
+
+					// Fail task at the TaskManager
+					FailTask failMsg = new FailTask(partitionId.getProducerId(),
+							new RuntimeException("Could not schedule or update consumers at " +
+									"the JobManager.", failure));
+
+					networkEnvironment.getTaskManager().tell(failMsg, ActorRef.noSender());
+				}
+			}, AkkaUtils.globalExecutionContext());
+
+			hasNotifiedPipelinedConsumers = true;
+		}
+	}
+}
