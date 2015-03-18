@@ -36,9 +36,14 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 		if (parallelism > 0) {
 			setParallelism(parallelism);
 		} else {
+			// first check for old parallelism config key
+			setParallelism(GlobalConfiguration.getInteger(
+					ConfigConstants.DEFAULT_PARALLELISM_KEY_OLD,
+					ConfigConstants.DEFAULT_PARALLELISM));
+			// then for new
 			setParallelism(GlobalConfiguration.getInteger(
 					ConfigConstants.DEFAULT_PARALLELISM_KEY,
-					ConfigConstants.DEFAULT_PARALLELISM));
+					getParallelism()));
 		}
 	}
 
