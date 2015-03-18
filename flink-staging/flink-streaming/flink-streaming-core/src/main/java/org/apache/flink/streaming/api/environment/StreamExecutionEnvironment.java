@@ -97,16 +97,30 @@ public abstract class StreamExecutionEnvironment {
 	 * default. Operations can individually override this value to use a
 	 * specific degree of parallelism.
 	 * 
-	 * @return The degree of parallelism used by operations, unless they
+	 * @return The parallelism used by operations, unless they
 	 *         override that value.
+	 * @deprecated Please use {@link #getParallelism}
 	 */
+	@Deprecated
 	public int getDegreeOfParallelism() {
-		return config.getDegreeOfParallelism();
+		return getParallelism();
 	}
 
 	/**
-	 * Sets the degree of parallelism (DOP) for operations executed through this
-	 * environment. Setting a DOP of x here will cause all operators (such as
+	 * Gets the parallelism with which operation are executed by
+	 * default. Operations can individually override this value to use a
+	 * specific parallelism.
+	 *
+	 * @return The parallelism used by operations, unless they
+	 *         override that value.
+	 */
+	public int getParallelism() {
+		return config.getParallelism();
+	}
+
+	/**
+	 * Sets the parallelism for operations executed through this
+	 * environment. Setting a parallelism of x here will cause all operators (such as
 	 * map, batchReduce) to run with x parallel instances. This method overrides
 	 * the default parallelism for this environment. The
 	 * {@link LocalStreamEnvironment} uses by default a value equal to the
@@ -114,14 +128,32 @@ public abstract class StreamExecutionEnvironment {
 	 * program via the command line client from a JAR file, the default degree
 	 * of parallelism is the one configured for that setup.
 	 * 
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism
+	 * @param parallelism The parallelism
+	 * @deprecated Please use {@link #setParallelism}
 	 */
-	public StreamExecutionEnvironment setDegreeOfParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1) {
-			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
+	@Deprecated
+	public StreamExecutionEnvironment setDegreeOfParallelism(int parallelism) {
+		return setParallelism(parallelism);
+	}
+
+	/**
+	 * Sets the parallelism for operations executed through this
+	 * environment. Setting a parallelism of x here will cause all operators (such as
+	 * map, batchReduce) to run with x parallel instances. This method overrides
+	 * the default parallelism for this environment. The
+	 * {@link LocalStreamEnvironment} uses by default a value equal to the
+	 * number of hardware contexts (CPU cores / threads). When executing the
+	 * program via the command line client from a JAR file, the default degree
+	 * of parallelism is the one configured for that setup.
+	 *
+	 * @param parallelism
+	 *            The parallelism
+	 */
+	public StreamExecutionEnvironment setParallelism(int parallelism) {
+		if (parallelism < 1) {
+			throw new IllegalArgumentException("parallelism must be at least one.");
 		}
-		config.setDegreeOfParallelism(degreeOfParallelism);
+		config.setParallelism(parallelism);
 		return this;
 	}
 

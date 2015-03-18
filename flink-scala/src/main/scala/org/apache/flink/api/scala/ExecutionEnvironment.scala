@@ -82,17 +82,35 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * Setting a DOP of x here will cause all operators (such as join, map, reduce) to run with
    * x parallel instances. This value can be overridden by specific operations using
    * [[DataSet.setParallelism]].
+   * @deprecated Please use [[setParallelism]]
    */
-  def setDegreeOfParallelism(degreeOfParallelism: Int): Unit = {
-    javaEnv.setDegreeOfParallelism(degreeOfParallelism)
+  @deprecated
+  def setDegreeOfParallelism(parallelism: Int): Unit = {
+    setParallelism(parallelism)
   }
 
   /**
    * Returns the default degree of parallelism for this execution environment. Note that this
    * value can be overridden by individual operations using [[DataSet.setParallelism]
    */
-  def getDegreeOfParallelism = javaEnv.getDegreeOfParallelism
-  
+  def setParallelism(parallelism: Int): Unit = {
+    javaEnv.setParallelism(parallelism)
+  }
+
+  /**
+   * Returns the default parallelism for this execution environment. Note that this
+   * value can be overridden by individual operations using [[DataSet.setParallelism]]
+   * @deprecated Please use [[getParallelism]]
+   */
+  @deprecated
+  def getDegreeOfParallelism = javaEnv.getParallelism
+
+  /**
+   * Returns the default parallelism for this execution environment. Note that this
+   * value can be overridden by individual operations using [[DataSet.setParallelism]]
+   */
+  def getParallelism = javaEnv.getParallelism
+
   /**
    * Sets the number of times that failed tasks are re-executed. A value of zero
    * effectively disables fault tolerance. A value of "-1" indicates that the system
