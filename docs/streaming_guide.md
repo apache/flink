@@ -138,7 +138,7 @@ object WordCount {
 
 To run the example program start the input stream with netcat first from a terminal:
 
-~~~batch
+~~~bash
 nc -lk 9999
 ~~~
 
@@ -1391,7 +1391,7 @@ Remember to keep these pieces of information a secret and do not push them to pu
 #### Accessing the authentication information
 Create a properties file and pass its path in the constructor of `TwitterSource`. The content of the file should be similar to this:
 
-~~~batch
+~~~bash
 #properties file for my app
 secret=***
 consumerSecret=***
@@ -1461,23 +1461,23 @@ After installing Docker an image can be pulled for each connector. Containers ca
 #### Creating a jar with all the dependencies
 For the easiest set up create a jar with all the dependencies of the *flink-streaming-connectors* project.
 
-~~~batch
+~~~bash
 cd /PATH/TO/GIT/flink/flink-staging/flink-streaming-connectors
 mvn assembly:assembly
-~~~batch
+~~~bash
 
 This creates an assembly jar under *flink-streaming-connectors/target*. 
 
 #### RabbitMQ
 Pull the image:
 
-~~~batch
+~~~bash
 sudo docker pull flinkstreaming/flink-connectors-rabbitmq 
 ~~~
 
 To run the container type:
 
-~~~batch
+~~~bash
 sudo docker run -p 127.0.0.1:5672:5672 -t -i flinkstreaming/flink-connectors-rabbitmq
 ~~~
 
@@ -1485,13 +1485,13 @@ Now a terminal started running from the image with all the necessary configurati
 
 To start the RabbitMQ server:
 
-~~~batch
+~~~bash
 sudo /etc/init.d/rabbitmq-server start
 ~~~
 
 To launch the example on the host computer execute:
 
-~~~batch
+~~~bash
 java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.rabbitmq.RMQTopology \
 > log.txt 2> errorlog.txt
 ~~~
@@ -1510,13 +1510,13 @@ In the example there are two connectors. One that sends messages to RabbitMQ and
 
 Pull the image:
 
-~~~batch
+~~~bash
 sudo docker pull flinkstreaming/flink-connectors-kafka 
 ~~~
 
 To run the container type:
 
-~~~batch
+~~~bash
 sudo docker run -p 127.0.0.1:2181:2181 -p 127.0.0.1:9092:9092 -t -i \
 flinkstreaming/flink-connectors-kafka
 ~~~
@@ -1524,21 +1524,21 @@ flinkstreaming/flink-connectors-kafka
 Now a terminal started running from the image with all the necessary configurations to test run the Kafka connector. The -p flag binds the localhost's and the Docker container's ports so Kafka can communicate with the application through these.
 First start a zookeeper in the background:
 
-~~~batch
+~~~bash
 /kafka_2.9.2-0.8.1.1/bin/zookeeper-server-start.sh /kafka_2.9.2-0.8.1.1/config/zookeeper.properties \
 > zookeeperlog.txt &
 ~~~
 
 Then start the kafka server in the background:
 
-~~~batch
+~~~bash
 /kafka_2.9.2-0.8.1.1/bin/kafka-server-start.sh /kafka_2.9.2-0.8.1.1/config/server.properties \
  > serverlog.txt 2> servererr.txt &
 ~~~
 
 To launch the example on the host computer execute:
 
-~~~batch
+~~~bash
 java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.kafka.KafkaTopology \
 > log.txt 2> errorlog.txt
 ~~~
@@ -1565,34 +1565,34 @@ At the moment remote access for Flume connectors does not work. This example is 
 
 Pull the image:
 
-~~~batch
+~~~bash
 sudo docker pull flinkstreaming/flink-connectors-flume
 ~~~
 
 To run the container type:
 
-~~~batch
+~~~bash
 sudo docker run -t -i flinkstreaming/flink-connectors-flume
 ~~~
 
 Now a terminal started running from the image with all the necessary configurations to test run the Flume connector. The -p flag binds the localhost's and the Docker container's ports so flume can communicate with the application through these.
 
 To have the latest version of Flink type:
-~~~batch
+~~~bash
 cd /git/flink/
 git pull
 ~~~
 
 Then build the code with:
 
-~~~batch
+~~~bash
 cd /git/flink/flink-staging/flink-streaming/flink-streaming-connectors/
 mvn install -DskipTests
 ~~~
 
 First start the server in the background:
 
-~~~batch
+~~~bash
 /apache-flume-1.5.0-bin/bin/flume-ng agent \
 --conf conf --conf-file /apache-flume-1.5.0-bin/example.conf --name a1 \
 -Dflume.root.logger=INFO,console > /flumelog.txt 2> /flumeerr.txt &
@@ -1600,7 +1600,7 @@ First start the server in the background:
 
 Then press enter and launch the example with:
 
-~~~batch
+~~~bash
 java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.flume.FlumeTopology
 ~~~
 
