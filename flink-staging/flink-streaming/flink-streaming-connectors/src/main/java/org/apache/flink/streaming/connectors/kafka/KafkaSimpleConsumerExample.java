@@ -27,8 +27,6 @@ public class KafkaSimpleConsumerExample {
 	private static String host;
 	private static int port;
 	private static String topic;
-	private static int partition;
-	private static long offset;
 
 	public static void main(String[] args) throws Exception {
 
@@ -37,9 +35,8 @@ public class KafkaSimpleConsumerExample {
 		}
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment().setDegreeOfParallelism(4);
-
 		DataStream<String> kafkaStream = env
-				.addSource(new PersistentKafkaSource<String>(topic, host, port, partition, offset, new JavaDefaultStringSchema()));
+				.addSource(new PersistentKafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()));
 
 		kafkaStream.print();
 
@@ -47,15 +44,13 @@ public class KafkaSimpleConsumerExample {
 	}
 
 	private static boolean parseParameters(String[] args) {
-		if (args.length == 4) {
+		if (args.length == 3) {
 			host = args[0];
 			port = Integer.parseInt(args[1]);
 			topic = args[2];
-			partition = Integer.parseInt(args[3]);
-			offset = Long.parseLong(args[4]);
 			return true;
 		} else {
-			System.err.println("Usage: KafkaConsumerExample <host> <port> <topic> <partition> <offset>");
+			System.err.println("Usage: KafkaConsumerExample <host> <port> <topic>");
 			return false;
 		}
 	}

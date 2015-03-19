@@ -15,23 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.api.simple;
+package org.apache.flink.streaming.connectors.kafka.api.simple.offset;
 
-import org.apache.flink.streaming.connectors.util.DeserializationSchema;
+import kafka.api.OffsetRequest;
+import kafka.javaapi.consumer.SimpleConsumer;
 
-public class KafkaDeserializingConsumerIterator<IN> extends KafkaConsumerIterator {
+public class CurrentOffset extends KafkaOffset {
 
-	private static final long serialVersionUID = 1L;
-	private DeserializationSchema<IN> deserializationSchema;
-
-	public KafkaDeserializingConsumerIterator(String host, int port, String topic, int partition, long waitOnEmptyFetch,
-												DeserializationSchema<IN> deserializationSchema) {
-		super(host, port, topic, partition, waitOnEmptyFetch);
-		this.deserializationSchema = deserializationSchema;
-	}
-
-	public IN nextRecord() throws InterruptedException {
-		return deserializationSchema.deserialize(next());
+	@Override
+	public long getOffset(SimpleConsumer consumer, String topic, int partition, String clientName) {
+		return getLastOffset(consumer, topic, partition, OffsetRequest.LatestTime(), clientName);
 	}
 
 }
