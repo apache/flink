@@ -64,7 +64,7 @@ import java.util.concurrent.ConcurrentMap;
  * This class is located in a different package which is build after flink-dist. This way,
  * we can use the YARN uberjar of flink to start a Flink YARN session.
  *
- * The test is not threadsafe. Parallel execution of tests is not possible!
+ * The test is not thread-safe. Parallel execution of tests is not possible!
  */
 public abstract class YarnTestBase {
 	private static final Logger LOG = LoggerFactory.getLogger(YarnTestBase.class);
@@ -77,8 +77,8 @@ public abstract class YarnTestBase {
 	protected final static int NUM_NODEMANAGERS = 2;
 
 	// The tests are scanning for these strings in the final output.
-	protected final static String[] prohibtedStrings = {
-			"Exception", // we don't want any exceptions to happen
+	protected final static String[] PROHIBITED_STRINGS = {
+//			"Exception", // we don't want any exceptions to happen
 			"Started SelectChannelConnector@0.0.0.0:8081" // Jetty should start on a random port in YARN mode.
 	};
 
@@ -88,7 +88,6 @@ public abstract class YarnTestBase {
 	protected static MiniYARNCluster yarnCluster = null;
 
 	protected static File flinkUberjar;
-	private static File yarnConfFile;
 
 	protected static final Configuration yarnConfiguration;
 	static {
@@ -327,7 +326,7 @@ public abstract class YarnTestBase {
 			File flinkConfFilePath = findFile(flinkDistRootDir, new ContainsName("flink-conf.yaml"));
 			Assert.assertNotNull(flinkConfFilePath);
 			map.put("FLINK_CONF_DIR", flinkConfFilePath.getParent());
-			yarnConfFile = writeYarnSiteConfigXML(conf);
+			File yarnConfFile = writeYarnSiteConfigXML(conf);
 			map.put("YARN_CONF_DIR", yarnConfFile.getParentFile().getAbsolutePath());
 			map.put("IN_TESTS", "yes we are in tests"); // see FlinkYarnClient() for more infos
 			setEnv(map);
@@ -358,9 +357,6 @@ public abstract class YarnTestBase {
 
 	/**
 	 * This method returns once the "startedAfterString" has been seen.
-	 * @param args
-	 * @param startedAfterString
-	 * @param type
 	 */
 	protected Runner startWithArgs(String[] args, String startedAfterString, RunTypes type) {
 		LOG.info("Running with args {}", Arrays.toString(args));
@@ -399,9 +395,6 @@ public abstract class YarnTestBase {
 
 	/**
 	 * The test has been passed once the "terminateAfterString" has been seen.
-	 * @param args
-	 * @param terminateAfterString
-	 * @param type
 	 */
 	protected void runWithArgs(String[] args, String terminateAfterString, RunTypes type) {
 		LOG.info("Running with args {}", Arrays.toString(args));

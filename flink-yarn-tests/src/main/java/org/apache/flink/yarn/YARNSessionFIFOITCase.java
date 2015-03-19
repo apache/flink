@@ -41,6 +41,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
 import org.apache.log4j.Level;
 import org.codehaus.jettison.json.JSONObject;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -81,6 +82,11 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		startYARNWithConfig(yarnConfiguration);
 	}
 
+	@After
+	public void checkForProhibitedLogContents() {
+		ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS);
+	}
+
 	/**
 	 * Test regular operation, including command line parameter parsing.
 	 */
@@ -93,7 +99,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-tm", "1024"},
 				"Number of connected TaskManagers changed to 1. Slots available: 1", RunTypes.YARN_SESSION);
 		LOG.info("Finished testClientStartup()");
-		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 	/**
@@ -133,7 +138,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		}
 
 		LOG.info("Finished testDetachedMode()");
-		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 	/**
@@ -273,7 +277,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		remoteUgi.getTokenIdentifiers().remove(nmIdent);
 
 		LOG.info("Finished testTaskManagerFailure()");
-		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 	/**
@@ -286,7 +289,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Starting testQueryCluster()");
 		runWithArgs(new String[] {"-q"}, "Summary: totalMemory 8192 totalCores 1332", RunTypes.YARN_SESSION); // we have 666*2 cores.
 		LOG.info("Finished testQueryCluster()");
-		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 	/**
@@ -302,7 +304,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-tm", "1024",
 				"-qu", "doesntExist"}, "Number of connected TaskManagers changed to 1. Slots available: 1", RunTypes.YARN_SESSION);
 		LOG.info("Finished testNonexistingQueue()");
-		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 	/**
@@ -321,7 +322,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-tm", "1024"}, "Number of connected TaskManagers changed to", RunTypes.YARN_SESSION); // the number of TMs depends on the speed of the test hardware
 		LOG.info("Finished testMoreNodesThanAvailable()");
 		checkForLogString("This YARN session requires 10752MB of memory in the cluster. There are currently only 8192MB available.");
-		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 	/**
@@ -380,7 +380,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Finished testfullAlloc()");
 		checkForLogString("There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n" +
 				"After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]");
-		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 	/**
@@ -399,7 +398,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-yjm", "512",
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()}, "Job execution switched to status FINISHED.", RunTypes.CLI_FRONTEND);
 		LOG.info("Finished perJobYarnCluster()");
-		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 	/**
@@ -456,8 +454,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		// shutdown cluster
 		yarnCluster.shutdown();
 		LOG.info("Finished testJavaAPI()");
-
-		ensureNoProhibitedStringInLogFiles(prohibtedStrings);
 	}
 
 	public boolean ignoreOnTravis() {
