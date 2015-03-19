@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.util;
+package org.apache.flink.test.recovery;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -40,14 +40,11 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
-import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -58,7 +55,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 /**
- * This is a testbase for tests verifying the behavior of the recovery in the
+ * Abstract base for tests verifying the behavior of the recovery in the
  * case when a TaskManager fails (process is killed) in the middle of a job execution.
  *
  * The test works with multiple task managers processes by spawning JVMs.
@@ -70,7 +67,7 @@ import static org.junit.Assert.fail;
  * guaranteed to remain empty (all tasks are already deployed) and kills one of
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
-public abstract class ProcessFailureRecoveryTestBase {
+public abstract class AbstractProcessFailureRecoveryTest {
 
 	protected static final String READY_MARKER_FILE_PREFIX = "ready_";
 	protected static final String PROCEED_MARKER_FILE = "proceed";
@@ -96,7 +93,7 @@ public abstract class ProcessFailureRecoveryTestBase {
 			// is available on this machine
 			String javaCommand = getJavaCommandPath();
 			if (javaCommand == null) {
-				System.out.println("---- Skipping ProcessFailureBatchRecoveryITCase : Could not find java executable");
+				System.out.println("---- Skipping Process Failure test : Could not find java executable ----");
 				return;
 			}
 
@@ -118,12 +115,13 @@ public abstract class ProcessFailureRecoveryTestBase {
 			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "500 ms");
 			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
 			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 2);
+			jmConfig.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "2 s");
 
 			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<Tuple2<String, Object>>(localAddress));
 			ActorRef jmActor = JobManager.startJobManagerActors(jmConfig, jmActorSystem)._1();
 
 			// the TaskManager java command
-			String[] command = new String[]{
+			String[] command = new String[] {
 					javaCommand,
 					"-Dlog.level=DEBUG",
 					"-Dlog4j.configuration=file:" + tempLogFile.getAbsolutePath(),
@@ -150,8 +148,19 @@ public abstract class ProcessFailureRecoveryTestBase {
 			final File coordinateDirClosure = coordinateTempDir;
 			final Throwable[] errorRef = new Throwable[1];
 
-			// get a trigger for the test program implemented by a subclass
-			Thread programTrigger = testProgram(jobManagerPort, coordinateDirClosure, errorRef);
+			// we trigger program execution in a separate thread
+			Thread programTrigger = new Thread("Program Trigger") {
+				@Override
+				public void run() {
+					try {
+						testProgram(jobManagerPort, coordinateDirClosure);
+					}
+					catch (Throwable t) {
+						t.printStackTrace();
+						errorRef[0] = t;
+					}
+				}
+			};
 
 			//start the test program
 			programTrigger.start();
@@ -180,9 +189,6 @@ public abstract class ProcessFailureRecoveryTestBase {
 			// check that the program really finished
 			assertFalse("The program did not finish in time", programTrigger.isAlive());
 
-			// apply post submission checks specified by the subclass
-			postSubmit();
-
 			// check whether the program encountered an error
 			if (errorRef[0] != null) {
 				Throwable error = errorRef[0];
@@ -191,20 +197,22 @@ public abstract class ProcessFailureRecoveryTestBase {
 			}
 
 			// all seems well :-)
-
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			printProcessLog("TaskManager 1", processOutput1.toString());
 			printProcessLog("TaskManager 2", processOutput2.toString());
 			printProcessLog("TaskManager 3", processOutput3.toString());
 			fail(e.getMessage());
-		} catch (Error e) {
+		}
+		catch (Error e) {
 			e.printStackTrace();
 			printProcessLog("TaskManager 1", processOutput1.toString());
 			printProcessLog("TaskManager 2", processOutput2.toString());
 			printProcessLog("TaskManager 3", processOutput3.toString());
 			throw e;
-		} finally {
+		}
+		finally {
 			if (taskManagerProcess1 != null) {
 				taskManagerProcess1.destroy();
 			}
@@ -233,21 +241,10 @@ public abstract class ProcessFailureRecoveryTestBase {
 	 * This provides a solution for checking that it has been terminated.
 	 *
 	 * @param jobManagerPort The port for submitting the topology to the local cluster
-	 * @param coordinateDirClosure taskmanager failure will be triggered only after proccesses
+	 * @param coordinateDir TaskManager failure will be triggered only after processes
 	 *                             have successfully created file under this directory
-	 * @param errorRef Errors passed back to the superclass
-	 * @return thread containing the test program
 	 */
-	abstract public Thread testProgram(int jobManagerPort, final File coordinateDirClosure, final Throwable[] errorRef);
-
-	/**
-	 * Check to be carried out after the completion of the test program thread.
-	 * In case of failed checks {@link java.lang.AssertionError} should be thrown.
-	 *
-	 * @throws Error
-	 * @throws Exception
-	 */
-	abstract public void postSubmit() throws Error, Exception;
+	public abstract void testProgram(int jobManagerPort, File coordinateDir) throws Exception;
 
 
 	protected void waitUntilNumTaskManagersAreRegistered(ActorRef jobManager, int numExpected, long maxDelay)
@@ -276,40 +273,6 @@ public abstract class ProcessFailureRecoveryTestBase {
 			}
 			catch (ClassCastException e) {
 				fail("Wrong response: " + e.getMessage());
-			}
-		}
-	}
-
-	public static void fileBatchHasEveryNumberLower(int n, String path) throws IOException, AssertionError {
-
-		HashSet<Integer> set = new HashSet<Integer>(n);
-
-		int counter = 0;
-		File file = new File(path + "-" + counter);
-
-		while (file.exists()) {
-
-			BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
-
-			String line = bufferedReader.readLine();
-
-			while (line != null) {
-				int num = Integer.parseInt(line);
-
-				set.add(num);
-
-				line = bufferedReader.readLine();
-			}
-
-			bufferedReader.close();
-			file.delete();
-			counter++;
-			file = new File(path + "-" + counter);
-		}
-
-		for (int i = 0; i < n; i++) {
-			if (!set.contains(i)) {
-				throw new AssertionError("Missing number: " + i);
 			}
 		}
 	}

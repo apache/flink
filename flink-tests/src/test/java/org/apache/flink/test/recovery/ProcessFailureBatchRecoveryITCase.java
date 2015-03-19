@@ -18,24 +18,32 @@
 
 package org.apache.flink.test.recovery;
 
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.test.util.ProcessFailureRecoveryTestBase;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.Collection;
 
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test for streaming program behaviour in case of taskmanager failure
- * based on {@link ProcessFailureRecoveryTestBase}.
+ * Test the recovery of a simple batch program in the case of TaskManager process failure.
  */
 @SuppressWarnings("serial")
-public class ProcessFailureBatchRecoveryITCase extends ProcessFailureStreamingRecoveryITCase {
+@RunWith(Parameterized.class)
+public class ProcessFailureBatchRecoveryITCase extends AbstractProcessFailureRecoveryTest {
 
-	private ExecutionMode executionMode;
+	// --------------------------------------------------------------------------------------------
+	//  Parametrization (run pipelined and batch)
+	// --------------------------------------------------------------------------------------------
+
+	private final ExecutionMode executionMode;
 
 	public ProcessFailureBatchRecoveryITCase(ExecutionMode executionMode) {
 		this.executionMode = executionMode;
@@ -48,12 +56,17 @@ public class ProcessFailureBatchRecoveryITCase extends ProcessFailureStreamingRe
 				{ExecutionMode.BATCH}});
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Test the program
+	// --------------------------------------------------------------------------------------------
+
 	@Override
-	public Thread testProgram(int jobManagerPort, final File coordinateDirClosure, final Throwable[] errorRef) {
+	public void testProgram(int jobManagerPort, final File coordinateDir) throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", jobManagerPort);
-		env.setDegreeOfParallelism(PARALLELISM);
+		env.setParallelism(PARALLELISM);
 		env.setNumberOfExecutionRetries(1);
+		env.getConfig().setExecutionMode(executionMode);
 
 		final long NUM_ELEMENTS = 100000L;
 		final DataSet<Long> result = env.generateSequence(1, NUM_ELEMENTS)
@@ -63,7 +76,7 @@ public class ProcessFailureBatchRecoveryITCase extends ProcessFailureStreamingRe
 						// the majority of the behavior is in the MapFunction
 				.map(new RichMapFunction<Long, Long>() {
 
-					private final File proceedFile = new File(coordinateDirClosure, PROCEED_MARKER_FILE);
+					private final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
 
 					private boolean markerCreated = false;
 					private boolean checkForProceedFile = true;
@@ -72,7 +85,7 @@ public class ProcessFailureBatchRecoveryITCase extends ProcessFailureStreamingRe
 					public Long map(Long value) throws Exception {
 						if (!markerCreated) {
 							int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
-							touchFile(new File(coordinateDirClosure, READY_MARKER_FILE_PREFIX + taskIndex));
+							touchFile(new File(coordinateDir, READY_MARKER_FILE_PREFIX + taskIndex));
 							markerCreated = true;
 						}
 
@@ -95,24 +108,7 @@ public class ProcessFailureBatchRecoveryITCase extends ProcessFailureStreamingRe
 					}
 				});
 
-		// we trigger program execution in a separate thread
-		return new Thread("ProcessFailureBatchRecoveryITCase Program Trigger") {
-			@Override
-			public void run() {
-				try {
-					long sum = result.collect().get(0);
-					assertEquals(NUM_ELEMENTS * (NUM_ELEMENTS + 1L) / 2L, sum);
-				} catch (Throwable t) {
-					t.printStackTrace();
-					errorRef[0] = t;
-				}
-			}
-		};
+		long sum = result.collect().get(0);
+		assertEquals(NUM_ELEMENTS * (NUM_ELEMENTS + 1L) / 2L, sum);
 	}
-
-	@Override
-	public void postSubmit() throws Exception, Error {
-		// unnecessary
-	}
-
 }

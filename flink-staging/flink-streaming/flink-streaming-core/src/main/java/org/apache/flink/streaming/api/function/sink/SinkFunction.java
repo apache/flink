@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.Function;
 /**
  * Interface for implementing user defined sink functionality.
  *
- * @param <IN> INput type parameter.
+ * @param <IN> Input type parameter.
  */
 public interface SinkFunction<IN> extends Function, Serializable {
 
