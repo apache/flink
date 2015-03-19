@@ -31,7 +31,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.types.IntegerRecord;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -60,8 +60,8 @@ public class SlotCountExceedingParallelismTest {
 				flink.jobManagerActorSystem());
 	}
 
-	@After
-	public void tearDown() throws Exception {
+	@AfterClass
+	public static void tearDown() throws Exception {
 		flink.stop();
 	}
 
@@ -162,7 +162,7 @@ public class SlotCountExceedingParallelismTest {
 	 */
 	public static class SubtaskIndexReceiver extends AbstractInvokable {
 
-		private final static String CONFIG_KEY = "number-of-indexes-to-receive";
+		public final static String CONFIG_KEY = "number-of-indexes-to-receive";
 
 		private RecordReader<IntegerRecord> reader;
 
