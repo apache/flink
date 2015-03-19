@@ -123,7 +123,7 @@ class JobManager(val configuration: Configuration,
     archive ! PoisonPill
     profiler.foreach( ref => ref ! PoisonPill )
 
-    for((e,_) <- currentJobs.values){
+    for((e,_) <- currentJobs.values) {
       e.fail(new Exception("The JobManager is shutting down."))
     }
 
@@ -136,7 +136,7 @@ class JobManager(val configuration: Configuration,
       case e: IOException => log.error(e, "Could not properly shutdown the library cache manager.")
     }
 
-    if(log.isDebugEnabled) {
+    if (log.isDebugEnabled) {
       log.debug("Job manager {} is completely stopped.", self.path)
     }
   }
@@ -151,7 +151,7 @@ class JobManager(val configuration: Configuration,
     case RegisterTaskManager(connectionInfo, hardwareInformation, numberOfSlots) =>
       val taskManager = sender
 
-      if(instanceManager.isRegistered(taskManager)) {
+      if (instanceManager.isRegistered(taskManager)) {
         val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
         taskManager ! AlreadyRegistered(instanceID, libraryCacheManager.getBlobServerPort, profiler)
       } else {
@@ -200,7 +200,7 @@ class JobManager(val configuration: Configuration,
       }
 
     case UpdateTaskExecutionState(taskExecutionState) =>
-      if(taskExecutionState == null){
+      if (taskExecutionState == null) {
         sender ! false
       } else {
         currentJobs.get(taskExecutionState.getJobID) match {
@@ -224,16 +224,16 @@ class JobManager(val configuration: Configuration,
         case Some((executionGraph,_)) =>
           val execution = executionGraph.getRegisteredExecutions.get(executionAttempt)
 
-          if(execution == null){
+          if (execution == null) {
             log.error("Can not find Execution for attempt {}.", executionAttempt)
             null
-          }else{
+          } else {
             val slot = execution.getAssignedResource
             val taskId = execution.getVertex.getParallelSubtaskIndex
 
-            val host = if(slot != null){
+            val host = if (slot != null) {
               slot.getInstance().getInstanceConnectionInfo.getHostname
-            }else{
+            } else {
               null
             }
 
@@ -242,7 +242,7 @@ class JobManager(val configuration: Configuration,
                 case splitAssigner: InputSplitAssigner =>
                   val nextInputSplit = splitAssigner.getNextInputSplit(host, taskId)
 
-                  if(log.isDebugEnabled) {
+                  if (log.isDebugEnabled) {
                     log.debug("Send next input split {}.", nextInputSplit)
                   }
 
@@ -278,9 +278,9 @@ class JobManager(val configuration: Configuration,
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
           log.info("Status of job {} ({}) changed to {} {}.",
             jobID, executionGraph.getJobName, newJobStatus,
-            if(error == null) "" else error.getMessage)
+            if (error == null) "" else error.getMessage)
 
-          if(newJobStatus.isTerminalState) {
+          if (newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
 
           // is the client waiting for the job result?
@@ -321,7 +321,7 @@ class JobManager(val configuration: Configuration,
         case None =>
       }
       
-case ScheduleOrUpdateConsumers(jobId, partitionId) =>
+    case ScheduleOrUpdateConsumers(jobId, partitionId) =>
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
           sender ! Acknowledge
@@ -406,7 +406,7 @@ case ScheduleOrUpdateConsumers(jobId, partitionId) =>
       taskManager forward SendStackTrace
 
     case Terminated(taskManager) =>
-      if(instanceManager.isRegistered(taskManager)) {
+      if (instanceManager.isRegistered(taskManager)) {
         log.info("Task manager {} terminated.", taskManager.path)
 
         instanceManager.unregisterTaskManager(taskManager)
@@ -419,7 +419,7 @@ case ScheduleOrUpdateConsumers(jobId, partitionId) =>
     case Disconnect(msg) =>
       val taskManager = sender
 
-      if(instanceManager.isRegistered(taskManager)){
+      if (instanceManager.isRegistered(taskManager)) {
         log.info("Task manager {} wants to disconnect, because {}.", taskManager.path, msg)
 
         instanceManager.unregisterTaskManager(taskManager)
