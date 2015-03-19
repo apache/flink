@@ -18,6 +18,7 @@
 
 package org.apache.flink.ml.recommendation
 
+import org.apache.flink.api.common.ExecutionMode
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.client.CliFrontendTestUtils
 import org.junit.{BeforeClass, Test}
@@ -32,6 +33,10 @@ class ALSITCase extends ShouldMatchers {
     import ALSData._
 
     val env = ExecutionEnvironment.getExecutionEnvironment
+
+    // This a temporary workaround to force pipelined execution of this test. The default execution
+    // leads to a deadlock.
+    env.getConfig.setExecutionMode(ExecutionMode.PIPELINED_FORCED)
 
     env.setDegreeOfParallelism(2)
 
