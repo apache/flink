@@ -20,16 +20,14 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.IOException;
 
-import org.apache.flink.core.memory.MemorySegment;
+public interface BlockChannelWriterWithCallback<T> extends FileIOChannel {
 
-public interface BlockChannelWriterWithCallback extends FileIOChannel {
-	
 	/**
-	 * Writes the given memory segment. The request may be executed synchronously, or asynchronously, depending
+	 * Writes the given block. The request may be executed synchronously, or asynchronously, depending
 	 * on the implementation.
-	 * 
-	 * @param segment The segment to be written.
+	 *
+	 * @param block The segment to be written.
 	 * @throws IOException Thrown, when the writer encounters an I/O error.
 	 */
-	void writeBlock(MemorySegment segment) throws IOException;
+	void writeBlock(T block) throws IOException;
 }

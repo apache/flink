@@ -166,6 +166,7 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
 			this.buffer = buffer;
 		}
 		
+		@Override
 		public void run() {
 			final MutableObjectIterator<T> input = this.input;
 			final TypeSerializer<T> serializer = this.serializer;

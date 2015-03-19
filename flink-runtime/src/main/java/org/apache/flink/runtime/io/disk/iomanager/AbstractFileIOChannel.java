@@ -80,7 +80,7 @@ public abstract class AbstractFileIOChannel implements FileIOChannel {
 	
 	@Override
 	public abstract void close() throws IOException;
-	
+
 	@Override
 	public void deleteChannel() {
 		if (!isClosed() || this.fileChannel.isOpen()) {
@@ -103,5 +103,10 @@ public abstract class AbstractFileIOChannel implements FileIOChannel {
 		} finally {
 			deleteChannel();
 		}
+	}
+
+	@Override
+	public FileChannel getNioFileChannel() {
+		return fileChannel;
 	}
 }

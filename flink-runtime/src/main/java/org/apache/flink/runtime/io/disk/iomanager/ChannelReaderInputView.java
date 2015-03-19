@@ -35,7 +35,7 @@ import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
  */
 public class ChannelReaderInputView extends AbstractPagedInputView {
 	
-	protected final BlockChannelReader reader;		// the block reader that reads memory segments
+	protected final BlockChannelReader<MemorySegment> reader;		// the block reader that reads memory segments
 	
 	protected int numRequestsRemaining;				// the number of block requests remaining
 	
@@ -63,7 +63,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	 * @throws IOException Thrown, if the read requests for the first blocks fail to be
 	 *                     served by the reader.
 	 */
-	public ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, boolean waitForFirstBlock)
+	public ChannelReaderInputView(BlockChannelReader<MemorySegment> reader, List<MemorySegment> memory, boolean waitForFirstBlock)
 	throws IOException
 	{
 		this(reader, memory, -1, waitForFirstBlock);
@@ -89,7 +89,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	 * @throws IOException Thrown, if the read requests for the first blocks fail to be
 	 *                     served by the reader.
 	 */
-	public ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, 
+	public ChannelReaderInputView(BlockChannelReader<MemorySegment> reader, List<MemorySegment> memory,
 														int numBlocks, boolean waitForFirstBlock)
 	throws IOException
 	{
@@ -117,7 +117,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	 * 
 	 * @throws IOException
 	 */
-	ChannelReaderInputView(BlockChannelReader reader, List<MemorySegment> memory, 
+	ChannelReaderInputView(BlockChannelReader<MemorySegment> reader, List<MemorySegment> memory,
 				int numBlocks, int headerLen, boolean waitForFirstBlock)
 	throws IOException
 	{
@@ -225,7 +225,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 		}
 		
 		// get the next segment
-		final MemorySegment seg = this.reader.getNextReturnedSegment();
+		final MemorySegment seg = this.reader.getNextReturnedBlock();
 		
 		// check the header
 		if (seg.getShort(0) != ChannelWriterOutputView.HEADER_MAGIC_NUMBER) {

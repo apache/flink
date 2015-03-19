@@ -63,7 +63,12 @@ public class NettyConfig {
 
 	private final Configuration config; // optional configuration
 
-	public NettyConfig(InetAddress serverAddress, int serverPort, int memorySegmentSize, Configuration config) {
+	public NettyConfig(
+			InetAddress serverAddress,
+			int serverPort,
+			int memorySegmentSize,
+			Configuration config) {
+
 		this.serverAddress = checkNotNull(serverAddress);
 
 		checkArgument(serverPort > 0 && serverPort <= 65536, "Invalid port number.");
@@ -93,42 +98,42 @@ public class NettyConfig {
 	// Setters
 	// ------------------------------------------------------------------------
 
-	NettyConfig setServerConnectBacklog(int connectBacklog) {
+	public NettyConfig setServerConnectBacklog(int connectBacklog) {
 		checkArgument(connectBacklog >= 0);
 		config.setInteger(CONNECT_BACKLOG, connectBacklog);
 
 		return this;
 	}
 
-	NettyConfig setServerNumThreads(int numThreads) {
+	public NettyConfig setServerNumThreads(int numThreads) {
 		checkArgument(numThreads >= 0);
 		config.setInteger(NUM_THREADS_SERVER, numThreads);
 
 		return this;
 	}
 
-	NettyConfig setClientNumThreads(int numThreads) {
+	public NettyConfig setClientNumThreads(int numThreads) {
 		checkArgument(numThreads >= 0);
 		config.setInteger(NUM_THREADS_CLIENT, numThreads);
 
 		return this;
 	}
 
-	NettyConfig setClientConnectTimeoutSeconds(int connectTimeoutSeconds) {
+	public NettyConfig setClientConnectTimeoutSeconds(int connectTimeoutSeconds) {
 		checkArgument(connectTimeoutSeconds >= 0);
 		config.setInteger(CLIENT_CONNECT_TIMEOUT_SECONDS, connectTimeoutSeconds);
 
 		return this;
 	}
 
-	NettyConfig setSendAndReceiveBufferSize(int bufferSize) {
+	public NettyConfig setSendAndReceiveBufferSize(int bufferSize) {
 		checkArgument(bufferSize >= 0);
 		config.setInteger(SEND_RECEIVE_BUFFER_SIZE, bufferSize);
 
 		return this;
 	}
 
-	NettyConfig setTransportType(String transport) {
+	public NettyConfig setTransportType(String transport) {
 		if (transport.equals("nio") || transport.equals("epoll") || transport.equals("auto")) {
 			config.setString(TRANSPORT_TYPE, transport);
 		}
@@ -143,32 +148,32 @@ public class NettyConfig {
 	// Getters
 	// ------------------------------------------------------------------------
 
-	int getServerConnectBacklog() {
+	public int getServerConnectBacklog() {
 		// default: 0 => Netty's default
 		return config.getInteger(CONNECT_BACKLOG, 0);
 	}
 
-	int getServerNumThreads() {
+	public int getServerNumThreads() {
 		// default: 0 => Netty's default: 2 * #cores
 		return config.getInteger(NUM_THREADS_SERVER, 0);
 	}
 
-	int getClientNumThreads() {
+	public int getClientNumThreads() {
 		// default: 0 => Netty's default: 2 * #cores
 		return config.getInteger(NUM_THREADS_CLIENT, 0);
 	}
 
-	int getClientConnectTimeoutSeconds() {
+	public int getClientConnectTimeoutSeconds() {
 		// default: 120s = 2min
 		return config.getInteger(CLIENT_CONNECT_TIMEOUT_SECONDS, 120);
 	}
 
-	int getSendAndReceiveBufferSize() {
+	public int getSendAndReceiveBufferSize() {
 		// default: 0 => Netty's default
 		return config.getInteger(SEND_RECEIVE_BUFFER_SIZE, 0);
 	}
 
-	TransportType getTransportType() {
+	public TransportType getTransportType() {
 		String transport = config.getString(TRANSPORT_TYPE, "nio");
 
 		if (transport.equals("nio")) {

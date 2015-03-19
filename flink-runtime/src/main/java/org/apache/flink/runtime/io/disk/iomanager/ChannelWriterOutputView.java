@@ -61,7 +61,7 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final BlockChannelWriter writer;		// the writer to the channel
+	private final BlockChannelWriter<MemorySegment> writer;		// the writer to the channel
 	
 	private long bytesBeforeSegment;				// the number of bytes written before the current memory segment
 	
@@ -81,7 +81,7 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView {
 	 * @param memory The memory used to buffer data, or null, to utilize solely the return queue.
 	 * @param segmentSize The size of the memory segments.
 	 */
-	public ChannelWriterOutputView(BlockChannelWriter writer, List<MemorySegment> memory, int segmentSize) {
+	public ChannelWriterOutputView(BlockChannelWriter<MemorySegment> writer, List<MemorySegment> memory, int segmentSize) {
 		super(segmentSize, HEADER_LENGTH);
 		
 		if (writer == null) {
@@ -123,7 +123,7 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView {
 	 * @param writer The writer to write to.
 	 * @param segmentSize The size of the memory segments.
 	 */
-	public ChannelWriterOutputView(BlockChannelWriter writer, int segmentSize)
+	public ChannelWriterOutputView(BlockChannelWriter<MemorySegment> writer, int segmentSize)
 	{
 		this(writer, null, segmentSize);
 	}
@@ -203,7 +203,7 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView {
 			writeSegment(current, posInSegment, false);
 		}
 		
-		final MemorySegment next = this.writer.getNextReturnedSegment();
+		final MemorySegment next = this.writer.getNextReturnedBlock();
 		this.blockCount++;
 		return next;
 	}

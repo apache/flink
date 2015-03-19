@@ -260,7 +260,7 @@ class WC(val word: String, val count: Int) {
 }
 
 val words: DataSet[WC] = // [...]
-val wordCounts = words.groupBy { _.word } reduce { 
+val wordCounts = words.groupBy { _.word } reduce {
   (w1, w2) => new WC(w1.word, w1.count + w2.count)
 }
 ~~~
@@ -298,7 +298,7 @@ val reducedTuples = tuples.groupBy(0, 1).reduce { ... }
 
 #### Reduce on DataSet grouped by Case Class Fields
 
-When using Case Classes you can also specify the grouping key using the names of the fields: 
+When using Case Classes you can also specify the grouping key using the names of the fields:
 
 ~~~scala
 case class MyClass(val a: String, b: Int, c: Double)
@@ -334,7 +334,7 @@ public class DistinctReduce
 
     Set<String> uniqStrings = new HashSet<String>();
     Integer key = null;
-  
+
     // add all strings of the group to the set
     for (Tuple2<Integer, String> t : in) {
       key = t.f0;
@@ -524,6 +524,99 @@ class MyCombinableGroupReducer
 </div>
 </div>
 
+### GroupCombine on a Grouped DataSet
+
+The GroupCombine transformation is the generalized form of the combine step in
+the Combinable GroupReduceFunction. It is generalized in the sense that it
+allows combining of input type `I` to an arbitrary output type `O`. In contrast,
+the combine step in the GroupReduce only allows combining from input type `I` to
+output type `I`. This is because the reduce step in the GroupReduceFunction
+expects input type `I`.
+
+In some applications, it is desirable to combine a DataSet into an intermediate
+format before performing additional transformations (e.g. to reduce data
+size). This can be achieved with a ComineGroup transformation with very little
+costs.
+
+**Note:** The GroupCombine on a Grouped DataSet is performed in memory with a
+  greedy strategy which may not process all data at once but in multiple
+  steps. It is also performed on the individual partitions without a data
+  exchange like in a GroupReduce transformation. This may lead to partial
+  results.
+
+The following example demonstrates the use of a CombineGroup transformation for
+an alternative WordCount implementation. In the implementation,
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
+DataSet<String> input = [..] // The words received as input
+DataSet<String> groupedInput = input.groupBy(0); // group identical words
+
+DataSet<Tuple2<String, Integer>> combinedWords = groupedInput.combineGroup(new FlatCombineFunction<String, Tuple2<String, Integer>() {
+
+    public void combine(Iterable<String> words, Collector<Tuple2<String, Integer>>) { // combine
+        int count = 0;
+        for (String word : words) {
+            count++;
+        }
+        out.collect(new Tuple2(word, count));
+    }
+});
+
+DataSet<Tuple2<String, Integer>> groupedCombinedWords = combinedWords.groupBy(0); // group by words again
+
+DataSet<Tuple2<String, Integer>> output = combinedWords.groupReduce(new GroupReduceFunction() { // group reduce with full data exchange
+
+    public void reduce(Iterable<Tuple2<String, Integer>>, Collector<Tuple2<String, Integer>>) {
+        int count = 0;
+        for (Tuple2<String, Integer> word : words) {
+            count++;
+        }
+        out.collect(new Tuple2(word, count));
+    }
+});
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[String] = [..] // The words received as input
+val groupedInput: DataSet[String] = input.groupBy(0)
+
+val combinedWords: DataSet[(String, Int)] = groupedInput.groupCombine {
+    (words, out: Collector[(String, Int)]) =>
+        var count = 0
+        for (word <- words) {
+            count++
+        }
+        out.collect(word, count)
+}
+
+val groupedCombinedWords: DataSet[(String, Int)] = combinedWords.groupBy(0)
+
+val output: DataSet[(String, Int)] = groupedInput.groupCombine {
+    (words, out: Collector[(String, Int)]) =>
+        var count = 0
+        for ((word, Int) <- words) {
+            count++
+        }
+        out.collect(word, count)
+}
+
+~~~
+
+</div>
+</div>
+
+The above alternative WordCount implementation demonstrates how the GroupCombine
+combines words before performing the GroupReduce transformation. The above
+example is just a proof of concept. Note, how the combine step changes the type
+of the DataSet which would normally required an additional Map transformation
+before executing the GroupReduce.
+
 ### Aggregate on Grouped Tuple DataSet
 
 There are some common aggregation operations that are frequently used. The Aggregate transformation provides the following build-in aggregation functions:
@@ -558,7 +651,7 @@ val output = input.groupBy(1).aggregate(SUM, 0).and(MIN, 2)
 </div>
 </div>
 
-To apply multiple aggregations on a DataSet it is necessary to use the `.and()` function after the first aggregate, that means `.aggregate(SUM, 0).and(MIN, 2)` produces the sum of field 0 and the minimum of field 2 of the original DataSet. 
+To apply multiple aggregations on a DataSet it is necessary to use the `.and()` function after the first aggregate, that means `.aggregate(SUM, 0).and(MIN, 2)` produces the sum of field 0 and the minimum of field 2 of the original DataSet.
 In contrast to that `.aggregate(SUM, 0).aggregate(MIN, 2)` will apply an aggregation on an aggregation. In the given example it would produce the minimum of field 2 after calculating the sum of field 0 grouped by field 1.
 
 **Note:** The set of aggregation functions will be extended in the future.
@@ -631,6 +724,12 @@ val output = input.reduceGroup(new MyGroupReducer())
 group-reduce function is not combinable. Therefore, this can be a very compute intensive operation.
 See the paragraph on "Combineable Group-Reduce Functions" above to learn how to implement a
 combinable group-reduce function.
+
+### GroupCombine on a full DataSet
+
+The GroupCombine on a full DataSet works similar to the GroupCombine on a
+grouped DataSet. The data is partitioned on all nodes and then combined in a
+greedy fashion (i.e. only data fitting into memory is combined at once).
 
 ### Aggregate on full Tuple DataSet
 
@@ -898,7 +997,7 @@ to manually pick a strategy, in case you want to enforce a specific way of execu
 DataSet<SomeType> input1 = // [...]
 DataSet<AnotherType> input2 = // [...]
 
-DataSet<Tuple2<SomeType, AnotherType> result = 
+DataSet<Tuple2<SomeType, AnotherType> result =
       input1.join(input2, BROADCAST_HASH_FIRST)
             .where("id").equalTo("key");
 ~~~
@@ -1199,7 +1298,7 @@ val out = in.rebalance().map { ... }
 
 ### Hash-Partition
 
-Hash-partitions a DataSet on a given key. 
+Hash-partitions a DataSet on a given key.
 Keys can be specified as key expressions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
 
 <div class="codetabs" markdown="1">
@@ -1235,7 +1334,7 @@ Partitions can be sorted on multiple fields by chaining `sortPartition()` calls.
 
 ~~~java
 DataSet<Tuple2<String, Integer>> in = // [...]
-// Locally sort partitions in ascending order on the second String field and 
+// Locally sort partitions in ascending order on the second String field and
 // in descending order on the first String field.
 // Apply a MapPartition transformation on the sorted partitions.
 DataSet<Tuple2<String, String>> out = in.sortPartition(1, Order.ASCENDING)
@@ -1248,7 +1347,7 @@ DataSet<Tuple2<String, String>> out = in.sortPartition(1, Order.ASCENDING)
 
 ~~~scala
 val in: DataSet[(String, Int)] = // [...]
-// Locally sort partitions in ascending order on the second String field and 
+// Locally sort partitions in ascending order on the second String field and
 // in descending order on the first String field.
 // Apply a MapPartition transformation on the sorted partitions.
 val out = in.sortPartition(1, Order.ASCENDING)

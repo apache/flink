@@ -105,6 +105,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	 *
 	 * @return The source.
 	 */
+	@Override
 	public PlanNode getSource() {
 		return this.source;
 	}

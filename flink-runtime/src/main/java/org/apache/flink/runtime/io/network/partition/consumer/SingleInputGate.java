@@ -19,18 +19,19 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Maps;
-import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.PartitionInfo;
+import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.event.task.TaskEvent;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.RemoteAddress;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.util.event.EventListener;
@@ -39,11 +40,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -51,20 +54,23 @@ import static com.google.common.base.Preconditions.checkState;
 
 /**
  * An input gate consumes one or more partitions of a single produced intermediate result.
- * <p>
- * Each intermediate result is partitioned over its producing parallel subtasks; each of these
+ *
+ * <p> Each intermediate result is partitioned over its producing parallel subtasks; each of these
  * partitions is furthermore partitioned into one or more subpartitions.
- * <p>
- * As an example, consider a map-reduce program, where the map operator produces data and the reduce
- * operator consumes the produced data.
+ *
+ * <p> As an example, consider a map-reduce program, where the map operator produces data and the
+ * reduce operator consumes the produced data.
+ *
  * <pre>
  * +-----+              +---------------------+              +--------+
  * | Map | = produce => | Intermediate Result | <= consume = | Reduce |
  * +-----+              +---------------------+              +--------+
  * </pre>
- * When deploying such a program in parallel, the intermediate result will be partitioned over its
+ *
+ * <p> When deploying such a program in parallel, the intermediate result will be partitioned over its
  * producing parallel subtasks; each of these partitions is furthermore partitioned into one or more
  * subpartitions.
+ *
  * <pre>
  *                            Intermediate result
  *               +-----------------------------------------+
@@ -81,10 +87,10 @@ import static com.google.common.base.Preconditions.checkState;
  *               |                      +----------------+ |              +-----------------------+
  *               +-----------------------------------------+
  * </pre>
- * In the above example, two map subtasks produce the intermediate result in parallel, resulting
- * in two partitions (Partition 1 and 2). Each of these partitions is subpartitioned into two
+ *
+ * <p> In the above example, two map subtasks produce the intermediate result in parallel, resulting
+ * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
  * subpartitions -- one for each parallel reduce subtask.
- * <p>
  */
 public class SingleInputGate implements InputGate {
 
@@ -102,7 +108,7 @@ public class SingleInputGate implements InputGate {
 
 	/**
 	 * The index of the consumed subpartition of each consumed partition. This index depends on the
-	 * distribution pattern and both subtask indices of the producing and consuming task.
+	 * {@link DistributionPattern} and the subtask indices of the producing and consuming task.
 	 */
 	private final int consumedSubpartitionIndex;
 
@@ -128,7 +134,7 @@ public class SingleInputGate implements InputGate {
 	private boolean requestedPartitionsFlag;
 
 	/** Flag indicating whether all resources have been released. */
-	private boolean releasedResourcesFlag;
+	private volatile boolean isReleased;
 
 	/** Registered listener to forward buffer notifications to. */
 	private final List<EventListener<InputGate>> registeredListeners = new CopyOnWriteArrayList<EventListener<InputGate>>();
@@ -185,42 +191,48 @@ public class SingleInputGate implements InputGate {
 
 	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
 		synchronized (requestLock) {
-			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null &&
-					inputChannel.getClass() == UnknownInputChannel.class) {
+			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null
+					&& inputChannel.getClass() == UnknownInputChannel.class) {
+
 				numberOfUninitializedChannels++;
 			}
 		}
 	}
 
-	public void updateInputChannel(PartitionInfo partitionInfo) throws IOException, InterruptedException {
+	public void updateInputChannel(InputChannelDeploymentDescriptor icdd) throws IOException, InterruptedException {
 		synchronized (requestLock) {
-			if (releasedResourcesFlag) {
+			if (isReleased) {
 				// There was a race with a task failure/cancel
 				return;
 			}
 
-			final IntermediateResultPartitionID partitionId = partitionInfo.getPartitionId();
+			final IntermediateResultPartitionID partitionId = icdd.getConsumedPartitionId().getPartitionId();
 
 			InputChannel current = inputChannels.get(partitionId);
 
 			if (current.getClass() == UnknownInputChannel.class) {
+
 				UnknownInputChannel unknownChannel = (UnknownInputChannel) current;
 
 				InputChannel newChannel;
 
-				if (partitionInfo.getProducerLocation() == PartitionInfo.PartitionLocation.REMOTE) {
-					newChannel = unknownChannel.toRemoteInputChannel(partitionInfo.getProducerAddress());
-				}
-				else if (partitionInfo.getProducerLocation() == PartitionInfo.PartitionLocation.LOCAL) {
+				ResultPartitionLocation partitionLocation = icdd.getConsumedPartitionLocation();
+
+				if (partitionLocation.isLocal()) {
 					newChannel = unknownChannel.toLocalInputChannel();
+				}
+				else if (partitionLocation.isRemote()) {
+					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
 				}
 				else {
 					throw new IllegalStateException("Tried to update unknown channel with unknown channel.");
 				}
 
+				LOG.debug("Updated unknown input channel to {}.", newChannel);
+
 				inputChannels.put(partitionId, newChannel);
 
-				newChannel.requestIntermediateResultPartition(consumedSubpartitionIndex);
+				newChannel.requestSubpartition(consumedSubpartitionIndex);
 
 				for (TaskEvent event : pendingEvents) {
 					newChannel.sendTaskEvent(event);
@@ -235,7 +247,7 @@ public class SingleInputGate implements InputGate {
 
 	public void releaseAllResources() throws IOException {
 		synchronized (requestLock) {
-			if (!releasedResourcesFlag) {
+			if (!isReleased) {
 				try {
 					for (InputChannel inputChannel : inputChannels.values()) {
 						try {
@@ -249,11 +261,11 @@ public class SingleInputGate implements InputGate {
 					// The buffer pool can actually be destroyed immediately after the
 					// reader received all of the data from the input channels.
 					if (bufferPool != null) {
-						bufferPool.destroy();
+						bufferPool.lazyDestroy();
 					}
 				}
 				finally {
-					releasedResourcesFlag = true;
+					isReleased = true;
 				}
 			}
 		}
@@ -284,7 +296,7 @@ public class SingleInputGate implements InputGate {
 
 			synchronized (requestLock) {
 				for (InputChannel inputChannel : inputChannels.values()) {
-					inputChannel.requestIntermediateResultPartition(consumedSubpartitionIndex);
+					inputChannel.requestSubpartition(consumedSubpartitionIndex);
 				}
 			}
 
@@ -299,13 +311,16 @@ public class SingleInputGate implements InputGate {
 	@Override
 	public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
 
-		if (releasedResourcesFlag) {
+		if (isReleased) {
 			throw new IllegalStateException("The input has already been consumed. This indicates misuse of the input gate.");
 		}
 
 		requestPartitions();
 
-		final InputChannel currentChannel = inputChannelsWithData.take();
+		InputChannel currentChannel = null;
+		while (currentChannel == null) {
+			currentChannel = inputChannelsWithData.poll(2, TimeUnit.SECONDS);
+		}
 
 		final Buffer buffer = currentChannel.getNextBuffer();
 
@@ -322,6 +337,8 @@ public class SingleInputGate implements InputGate {
 			final AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
 
 			if (event.getClass() == EndOfPartitionEvent.class) {
+				currentChannel.notifySubpartitionConsumed();
+
 				currentChannel.releaseAllResources();
 			}
 
@@ -354,58 +371,63 @@ public class SingleInputGate implements InputGate {
 	public void onAvailableBuffer(InputChannel channel) {
 		inputChannelsWithData.add(channel);
 
-		for (int i = 0; i < registeredListeners.size(); i++) {
-			registeredListeners.get(i).onEvent(this);
+		for (EventListener<InputGate> registeredListener : registeredListeners) {
+			registeredListener.onEvent(this);
 		}
 	}
 
 	// ------------------------------------------------------------------------
 
-	public static SingleInputGate create(NetworkEnvironment networkEnvironment, PartitionConsumerDeploymentDescriptor desc) {
-		// The consumed intermediate data set (all partitions are part of this data set)
-		final IntermediateDataSetID resultId = desc.getResultId();
-		// The queue to request from each consumed partition
-		final int queueIndex = desc.getQueueIndex();
-		// There is one input channel for each consumed partition
-		final PartitionInfo[] partitions = desc.getPartitions();
-		final int numberOfInputChannels = partitions.length;
-		final SingleInputGate reader = new SingleInputGate(resultId, queueIndex, numberOfInputChannels);
-		// Create input channels
-		final InputChannel[] inputChannels = new InputChannel[numberOfInputChannels];
-		int channelIndex = 0;
-		for (PartitionInfo partition : partitions) {
-			final ExecutionAttemptID producerExecutionId = partition.getProducerExecutionId();
-			final IntermediateResultPartitionID partitionId = partition.getPartitionId();
-			final PartitionInfo.PartitionLocation producerLocation = partition.getProducerLocation();
-			switch (producerLocation) {
-				case LOCAL:
-					LOG.debug("Create LocalInputChannel for {}.", partition);
+	/**
+	 * Creates an input gate and all of its input channels.
+	 */
+	public static SingleInputGate create(
+			InputGateDeploymentDescriptor igdd,
+			NetworkEnvironment networkEnvironment) {
 
-					inputChannels[channelIndex] = new LocalInputChannel(reader, channelIndex, producerExecutionId, partitionId,
-							networkEnvironment.getPartitionManager(), networkEnvironment.getTaskEventDispatcher());
+		final IntermediateDataSetID consumedResultId = checkNotNull(igdd.getConsumedResultId());
 
-					break;
-				case REMOTE:
-					LOG.debug("Create RemoteInputChannel for {}.", partition);
+		final int consumedSubpartitionIndex = igdd.getConsumedSubpartitionIndex();
+		checkArgument(consumedSubpartitionIndex >= 0);
 
-					final RemoteAddress producerAddress = checkNotNull(partition.getProducerAddress(),
-							"Missing producer address for remote intermediate result partition.");
+		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
-					inputChannels[channelIndex] = new RemoteInputChannel(reader, channelIndex, producerExecutionId, partitionId,
-							producerAddress, networkEnvironment.getConnectionManager());
+		final SingleInputGate inputGate = new SingleInputGate(
+				consumedResultId, consumedSubpartitionIndex, icdd.length);
 
-					break;
-				case UNKNOWN:
-					LOG.debug("Create UnknownInputChannel for {}.", partition);
+		// Create the input channels. There is one input channel for each consumed partition.
+		final InputChannel[] inputChannels = new InputChannel[icdd.length];
 
-					inputChannels[channelIndex] = new UnknownInputChannel(reader, channelIndex, producerExecutionId, partitionId,
-							networkEnvironment.getPartitionManager(), networkEnvironment.getTaskEventDispatcher(), networkEnvironment.getConnectionManager());
+		for (int i = 0; i < inputChannels.length; i++) {
 
-					break;
+			final ResultPartitionID partitionId = icdd[i].getConsumedPartitionId();
+			final ResultPartitionLocation partitionLocation = icdd[i].getConsumedPartitionLocation();
+
+			if (partitionLocation.isLocal()) {
+				inputChannels[i] = new LocalInputChannel(inputGate, i, partitionId,
+						networkEnvironment.getPartitionManager(),
+						networkEnvironment.getTaskEventDispatcher());
 			}
-			reader.setInputChannel(partitionId, inputChannels[channelIndex]);
-			channelIndex++;
+			else if (partitionLocation.isRemote()) {
+				inputChannels[i] = new RemoteInputChannel(inputGate, i, partitionId,
+						partitionLocation.getConnectionId(),
+						networkEnvironment.getConnectionManager());
+			}
+			else if (partitionLocation.isUnknown()) {
+				inputChannels[i] = new UnknownInputChannel(inputGate, i, partitionId,
+						networkEnvironment.getPartitionManager(),
+						networkEnvironment.getTaskEventDispatcher(),
+						networkEnvironment.getConnectionManager());
+			}
+			else {
+				throw new IllegalStateException("Unexpected partition location.");
+			}
+
+			inputGate.setInputChannel(partitionId.getPartitionId(), inputChannels[i]);
 		}
-		return reader;
+
+		LOG.debug("Created input channels {} from {}.", Arrays.toString(inputChannels), igdd);
+
+		return inputGate;
 	}
 }

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -175,17 +176,14 @@ public class ExecutionGraph implements Serializable {
 	 * Once this value has reached the number of vertices, the job is done. */
 	private int nextVertexToFinish;
 
-
 	private ActorContext parentContext;
 
 	private  ActorRef stateMonitorActor;
-	
+
 	private boolean monitoringEnabled;
-	
+
 	private long monitoringInterval = 10000;
 
-
-	
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
 		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>());
 	}
@@ -446,6 +444,7 @@ public class ExecutionGraph implements Serializable {
 					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
 						ejv.scheduleAll(scheduler, allowQueuedScheduling);
 					}
+
 					break;
 
 				case BACKTRACKING:
@@ -623,24 +622,24 @@ public class ExecutionGraph implements Serializable {
 	
 	public void loadOperatorStates(Map<Tuple3<JobVertexID, Integer, Long> , StateHandle> states) {
 		synchronized (this.progressLock) {
-			for (Map.Entry<Tuple3<JobVertexID, Integer, Long>, StateHandle> state : states.entrySet()) {
+			for (Map.Entry<Tuple3<JobVertexID, Integer, Long>, StateHandle> state : states.entrySet())
 				tasks.get(state.getKey()._1()).getTaskVertices()[state.getKey()._2()].setOperatorState(state.getValue());
-			}
 		}
 	}
 
-	public void scheduleOrUpdateConsumers(ExecutionAttemptID executionId, int partitionIndex) {
-		Execution execution = currentExecutions.get(executionId);
+	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) {
+
+		final Execution execution = currentExecutions.get(partitionId.getProducerId());
 
 		if (execution == null) {
 			fail(new IllegalStateException("Cannot find execution for execution ID " +
-					executionId));
+					partitionId.getPartitionId()));
 		}
-		else if(execution.getVertex() == null){
-			fail(new IllegalStateException("Execution with execution ID " + executionId +
-				" has no vertex assigned."));
+		else if (execution.getVertex() == null){
+			fail(new IllegalStateException("Execution with execution ID " +
+					partitionId.getPartitionId() + " has no vertex assigned."));
 		} else {
-			execution.getVertex().scheduleOrUpdateConsumers(partitionIndex);
+			execution.getVertex().scheduleOrUpdateConsumers(partitionId);
 		}
 	}
 

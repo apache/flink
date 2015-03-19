@@ -18,15 +18,16 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * An abstract base class for a job vertex.
@@ -315,34 +316,45 @@ public class AbstractJobVertex implements java.io.Serializable {
 	
 	// --------------------------------------------------------------------------------------------
 
-	public IntermediateDataSet createAndAddResultDataSet() {
-		return createAndAddResultDataSet(new IntermediateDataSetID());
+	public IntermediateDataSet createAndAddResultDataSet(ResultPartitionType partitionType) {
+		return createAndAddResultDataSet(new IntermediateDataSetID(), partitionType);
 	}
-	
-	public IntermediateDataSet createAndAddResultDataSet(IntermediateDataSetID id) {
-		IntermediateDataSet result = new IntermediateDataSet(id, this);
+
+	public IntermediateDataSet createAndAddResultDataSet(
+			IntermediateDataSetID id,
+			ResultPartitionType partitionType) {
+
+		IntermediateDataSet result = new IntermediateDataSet(id, partitionType, this);
 		this.results.add(result);
 		return result;
 	}
-	
+
 	public void connectDataSetAsInput(IntermediateDataSet dataSet, DistributionPattern distPattern) {
 		JobEdge edge = new JobEdge(dataSet, this, distPattern);
 		this.inputs.add(edge);
 		dataSet.addConsumer(edge);
 	}
-	
+
 	public void connectNewDataSetAsInput(AbstractJobVertex input, DistributionPattern distPattern) {
-		IntermediateDataSet dataSet = input.createAndAddResultDataSet();
+		connectNewDataSetAsInput(input, distPattern, ResultPartitionType.PIPELINED);
+	}
+
+	public void connectNewDataSetAsInput(
+			AbstractJobVertex input,
+			DistributionPattern distPattern,
+			ResultPartitionType partitionType) {
+
+		IntermediateDataSet dataSet = input.createAndAddResultDataSet(partitionType);
 		JobEdge edge = new JobEdge(dataSet, this, distPattern);
 		this.inputs.add(edge);
 		dataSet.addConsumer(edge);
 	}
-	
+
 	public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
 		JobEdge edge = new JobEdge(dataSetId, this, distPattern);
 		this.inputs.add(edge);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	public boolean isInputVertex() {

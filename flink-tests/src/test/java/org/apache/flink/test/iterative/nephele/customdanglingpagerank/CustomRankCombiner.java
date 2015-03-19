@@ -28,7 +28,7 @@ import org.apache.flink.util.Collector;
 
 
 public class CustomRankCombiner extends AbstractRichFunction implements GroupReduceFunction<VertexWithRank, VertexWithRank>,
-		FlatCombineFunction<VertexWithRank>
+		FlatCombineFunction<VertexWithRank, VertexWithRank>
 {
 	private static final long serialVersionUID = 1L;
 	

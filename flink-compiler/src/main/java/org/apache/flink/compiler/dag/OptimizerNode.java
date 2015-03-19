@@ -460,12 +460,13 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	public InterestingProperties getInterestingProperties() {
 		return this.intProps;
 	}
-	
-	
+
+	@Override
 	public long getEstimatedOutputSize() {
 		return this.estimatedOutputSize;
 	}
 
+	@Override
 	public long getEstimatedNumRecords() {
 		return this.estimatedNumRecords;
 	}
@@ -478,6 +479,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		this.estimatedNumRecords = estimatedNumRecords;
 	}
 	
+	@Override
 	public float getEstimatedAvgWidthPerOutputRecord() {
 		if (this.estimatedOutputSize > 0 && this.estimatedNumRecords > 0) {
 			return ((float) this.estimatedOutputSize) / this.estimatedNumRecords;
@@ -941,6 +943,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 		if (this.closedBranchingNodes == null) { 
 			this.closedBranchingNodes = new HashSet<OptimizerNode>();
 		}
+
 		this.closedBranchingNodes.add(alreadyClosed);
 	}
 	

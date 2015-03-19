@@ -90,7 +90,7 @@ under the License.
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.0.24.Final</version>
+			<version>4.0.26.Final</version>
 		</dependency>
 
 		<dependency>

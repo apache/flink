@@ -27,6 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.junit.Test;
 import org.mockito.Matchers;
 
@@ -129,9 +130,9 @@ public class ExecutionGraphConstructionTest {
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 		
 		// create results for v2 and v3
-		IntermediateDataSet v2result = v2.createAndAddResultDataSet();
-		IntermediateDataSet v3result_1 = v3.createAndAddResultDataSet();
-		IntermediateDataSet v3result_2 = v3.createAndAddResultDataSet();
+		IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+		IntermediateDataSet v3result_1 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+		IntermediateDataSet v3result_2 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 		
 		
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
@@ -190,9 +191,9 @@ public class ExecutionGraphConstructionTest {
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 		
 		// create results for v2 and v3
-		IntermediateDataSet v2result = v2.createAndAddResultDataSet();
-		IntermediateDataSet v3result_1 = v3.createAndAddResultDataSet();
-		IntermediateDataSet v3result_2 = v3.createAndAddResultDataSet();
+		IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+		IntermediateDataSet v3result_1 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+		IntermediateDataSet v3result_2 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 		
 		
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
@@ -584,7 +585,7 @@ public class ExecutionGraphConstructionTest {
 			v2.setParallelism(7);
 			v3.setParallelism(2);
 
-			IntermediateDataSet result = v1.createAndAddResultDataSet();
+			IntermediateDataSet result = v1.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 			v2.connectDataSetAsInput(result, DistributionPattern.ALL_TO_ALL);
 			v3.connectDataSetAsInput(result, DistributionPattern.ALL_TO_ALL);
 			

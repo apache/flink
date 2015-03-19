@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.util.Collector;
 
 @Combinable
-public class FirstReducer<T> implements GroupReduceFunction<T, T>, FlatCombineFunction<T> {
+public class FirstReducer<T> implements GroupReduceFunction<T, T>, FlatCombineFunction<T, T> {
 	private static final long serialVersionUID = 1L;
 
 	private final int count;

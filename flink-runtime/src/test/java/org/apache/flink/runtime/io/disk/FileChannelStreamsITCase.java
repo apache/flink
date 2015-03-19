@@ -88,7 +88,7 @@ public class FileChannelStreamsITCase {
 			final FileIOChannel.ID channel = ioManager.createChannel();
 			
 			// create the writer output view
-			final BlockChannelWriter writer = ioManager.createBlockChannelWriter(channel);
+			final BlockChannelWriter<MemorySegment> writer = ioManager.createBlockChannelWriter(channel);
 			final FileChannelOutputView outView = new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 			
 			// write a number of pairs
@@ -102,7 +102,7 @@ public class FileChannelStreamsITCase {
 			// create the reader input view
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 			
-			final BlockChannelReader reader = ioManager.createBlockChannelReader(channel);
+			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 			
@@ -132,7 +132,7 @@ public class FileChannelStreamsITCase {
 			final FileIOChannel.ID channel = this.ioManager.createChannel();
 			
 			// create the writer output view
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 			final FileChannelOutputView outView = new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 			
 			// write a number of pairs
@@ -146,7 +146,7 @@ public class FileChannelStreamsITCase {
 			// create the reader input view
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 			
-			final BlockChannelReader reader = ioManager.createBlockChannelReader(channel);
+			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 			
@@ -176,7 +176,7 @@ public class FileChannelStreamsITCase {
 			final FileIOChannel.ID channel = this.ioManager.createChannel();
 			
 			// create the writer output view
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 			final FileChannelOutputView outView = new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 	
 			// write a number of pairs
@@ -190,7 +190,7 @@ public class FileChannelStreamsITCase {
 			// create the reader input view
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 			
-			final BlockChannelReader reader = ioManager.createBlockChannelReader(channel);
+			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 	
@@ -226,7 +226,7 @@ public class FileChannelStreamsITCase {
 			final FileIOChannel.ID channel = this.ioManager.createChannel();
 			
 			// create the writer output view
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 			final FileChannelOutputView outView = new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 			
 			// write a number of pairs
@@ -240,7 +240,7 @@ public class FileChannelStreamsITCase {
 			// create the reader input view
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), 1);
 			
-			final BlockChannelReader reader = ioManager.createBlockChannelReader(channel);
+			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 			
@@ -270,7 +270,7 @@ public class FileChannelStreamsITCase {
 			final FileIOChannel.ID channel = this.ioManager.createChannel();
 			
 			// create the writer output view
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 			final FileChannelOutputView outView = new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 			
 			// write a number of pairs
@@ -284,7 +284,7 @@ public class FileChannelStreamsITCase {
 			// create the reader input view
 			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 			
-			final BlockChannelReader reader = ioManager.createBlockChannelReader(channel);
+			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
 			generator.reset();
 			

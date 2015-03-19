@@ -50,7 +50,7 @@ public class SeekableFileChannelInputViewTest {
 			memMan.allocatePages(new DummyInvokable(), memory, 4);
 			
 			FileIOChannel.ID channel = ioManager.createChannel();
-			BlockChannelWriter writer = ioManager.createBlockChannelWriter(channel);
+			BlockChannelWriter<MemorySegment> writer = ioManager.createBlockChannelWriter(channel);
 			FileChannelOutputView out = new FileChannelOutputView(writer, memMan, memory, memMan.getPageSize());
 			
 			// write some integers across 7.5 pages (7 pages = 114.688 bytes, 8 pages = 131.072 bytes)

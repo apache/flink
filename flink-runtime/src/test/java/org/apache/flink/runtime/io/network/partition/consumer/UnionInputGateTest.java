@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.io.network.util.MockInputChannel;
+import org.apache.flink.runtime.io.network.util.TestInputChannel;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.junit.Test;
 
@@ -36,9 +36,9 @@ public class UnionInputGateTest {
 
 		assertEquals(ig1.getNumberOfInputChannels() + ig2.getNumberOfInputChannels(), union.getNumberOfInputChannels());
 
-		final MockInputChannel[][] inputChannels = new MockInputChannel[][]{
-				MockInputChannel.createInputChannels(ig1, 3),
-				MockInputChannel.createInputChannels(ig2, 5)
+		final TestInputChannel[][] inputChannels = new TestInputChannel[][]{
+				TestInputChannel.createInputChannels(ig1, 3),
+				TestInputChannel.createInputChannels(ig2, 5)
 		};
 
 		inputChannels[0][0].readBuffer(); // 0 => 0

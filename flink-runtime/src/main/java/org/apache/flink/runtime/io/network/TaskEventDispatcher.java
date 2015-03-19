@@ -18,59 +18,49 @@
 
 package org.apache.flink.runtime.io.network;
 
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
+import com.google.common.collect.Maps;
 import org.apache.flink.runtime.event.task.TaskEvent;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.util.event.EventListener;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 
 /**
- * The task event dispatcher dispatches events flowing backwards from a consumer
- * to a producer. It only supports programs, where the producer and consumer
- * are running at the same time.
- * <p>
- * The publish method is either called from the local input channel or the
- * network I/O thread.
+ * The task event dispatcher dispatches events flowing backwards from a consuming task to the task
+ * producing the consumed result.
+ *
+ * <p> Backwards events only work for tasks, which produce pipelined results, where both the
+ * producing and consuming task are running at the same time.
  */
 public class TaskEventDispatcher {
 
-	Table<ExecutionAttemptID, IntermediateResultPartitionID, BufferWriter> registeredWriters = HashBasedTable.create();
+	private final Map<ResultPartitionID, ResultPartitionWriter> registeredWriters = Maps.newHashMap();
 
-	public void registerWriterForIncomingTaskEvents(ExecutionAttemptID executionId, IntermediateResultPartitionID partitionId, BufferWriter listener) {
+	public void registerWriterForIncomingTaskEvents(ResultPartitionID partitionId, ResultPartitionWriter writer) {
 		synchronized (registeredWriters) {
-			if (registeredWriters.put(executionId, partitionId, listener) != null) {
-				throw new IllegalStateException("Event dispatcher already contains buffer writer.");
+			if (registeredWriters.put(partitionId, writer) != null) {
+				throw new IllegalStateException("Already registered at task event dispatcher.");
 			}
 		}
 	}
 
-	public void unregisterWriters(ExecutionAttemptID executionId) {
+	public void unregisterWriter(ResultPartitionWriter writer) {
 		synchronized (registeredWriters) {
-			List<IntermediateResultPartitionID> writersToUnregister = new ArrayList<IntermediateResultPartitionID>();
-
-			for (IntermediateResultPartitionID partitionId : registeredWriters.row(executionId).keySet()) {
-				writersToUnregister.add(partitionId);
-			}
-
-			for(IntermediateResultPartitionID partitionId : writersToUnregister) {
-				registeredWriters.remove(executionId, partitionId);
-			}
+			registeredWriters.remove(writer.getPartitionId());
 		}
 	}
 
 	/**
-	 * Publishes the event to the registered {@link EventListener} instance.
+	 * Publishes the event to the registered {@link ResultPartitionWriter} instances.
 	 * <p>
-	 * This method is either called from a local input channel or the network
-	 * I/O thread on behalf of a remote input channel.
+	 * This method is either called directly from a {@link LocalInputChannel} or the network I/O
+	 * thread on behalf of a {@link RemoteInputChannel}.
 	 */
-	public boolean publish(ExecutionAttemptID executionId, IntermediateResultPartitionID partitionId, TaskEvent event) {
-		EventListener<TaskEvent> listener = registeredWriters.get(executionId, partitionId);
+	public boolean publish(ResultPartitionID partitionId, TaskEvent event) {
+		EventListener<TaskEvent> listener = registeredWriters.get(partitionId);
 
 		if (listener != null) {
 			listener.onEvent(event);
@@ -80,6 +70,9 @@ public class TaskEventDispatcher {
 		return false;
 	}
 
+	/**
+	 * Returns the number of currently registered writers.
+	 */
 	int getNumberOfRegisteredWriters() {
 		synchronized (registeredWriters) {
 			return registeredWriters.size();

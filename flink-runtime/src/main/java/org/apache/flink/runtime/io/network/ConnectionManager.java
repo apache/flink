@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.io.network;
 
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
 import java.io.IOException;
 
@@ -29,20 +30,20 @@ import java.io.IOException;
  */
 public interface ConnectionManager {
 
-	void start(IntermediateResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher) throws IOException;
+	void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool) throws IOException;
 
 	/**
-	 * Creates a {@link PartitionRequestClient} instance for the given {@link RemoteAddress}.
+	 * Creates a {@link PartitionRequestClient} instance for the given {@link ConnectionID}.
 	 */
-	PartitionRequestClient createPartitionRequestClient(RemoteAddress remoteAddress) throws IOException, InterruptedException;
+	PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException, InterruptedException;
 
 	/**
 	 * Closes opened ChannelConnections in case of a resource release
-	 * @param remoteAddress
 	 */
-	void closeOpenChannelConnections(RemoteAddress remoteAddress);
+	void closeOpenChannelConnections(ConnectionID connectionId);
 
 	int getNumberOfActiveConnections();
 
 	void shutdown() throws IOException;
+
 }

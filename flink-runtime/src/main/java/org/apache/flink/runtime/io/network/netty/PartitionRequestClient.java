@@ -22,10 +22,9 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import org.apache.flink.runtime.event.task.TaskEvent;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.network.RemoteAddress;
+import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.util.AtomicDisposableReferenceCounter;
 
 import java.io.IOException;
@@ -38,7 +37,7 @@ import static org.apache.flink.runtime.io.network.netty.NettyMessage.TaskEventRe
  * Partition request client for remote partition requests.
  * <p>
  * This client is shared by all remote input channels, which request a partition
- * from the same {@link RemoteAddress}.
+ * from the same {@link ConnectionID}.
  */
 public class PartitionRequestClient {
 
@@ -46,17 +45,17 @@ public class PartitionRequestClient {
 
 	private final PartitionRequestClientHandler partitionRequestHandler;
 
-	private final RemoteAddress remoteAddress;
+	private final ConnectionID connectionId;
 
 	private final PartitionRequestClientFactory clientFactory;
 
 	// If zero, the underlying TCP channel can be safely closed
 	private final AtomicDisposableReferenceCounter closeReferenceCounter = new AtomicDisposableReferenceCounter();
 
-	PartitionRequestClient(Channel tcpChannel, PartitionRequestClientHandler partitionRequestHandler, RemoteAddress remoteAddress, PartitionRequestClientFactory clientFactory) {
+	PartitionRequestClient(Channel tcpChannel, PartitionRequestClientHandler partitionRequestHandler, ConnectionID connectionId, PartitionRequestClientFactory clientFactory) {
 		this.tcpChannel = checkNotNull(tcpChannel);
 		this.partitionRequestHandler = checkNotNull(partitionRequestHandler);
-		this.remoteAddress = checkNotNull(remoteAddress);
+		this.connectionId = checkNotNull(connectionId);
 		this.clientFactory = checkNotNull(clientFactory);
 	}
 
@@ -71,7 +70,7 @@ public class PartitionRequestClient {
 	 * instance of this client to ensure correct closing logic.
 	 */
 	boolean incrementReferenceCounter() {
-		return closeReferenceCounter.incrementReferenceCounter();
+		return closeReferenceCounter.increment();
 	}
 
 	/**
@@ -80,10 +79,10 @@ public class PartitionRequestClient {
 	 * The request goes to the remote producer, for which this partition
 	 * request client instance has been created.
 	 */
-	public void requestIntermediateResultPartition(ExecutionAttemptID producerExecutionId, final IntermediateResultPartitionID partitionId, final int requestedQueueIndex, final RemoteInputChannel inputChannel) throws IOException {
+	public void requestIntermediateResultPartition(final ResultPartitionID partitionId, int requestedQueueIndex, final RemoteInputChannel inputChannel) throws IOException {
 		partitionRequestHandler.addInputChannel(inputChannel);
 
-		tcpChannel.writeAndFlush(new PartitionRequest(producerExecutionId, partitionId, requestedQueueIndex, inputChannel.getInputChannelId()))
+		tcpChannel.writeAndFlush(new PartitionRequest(partitionId, requestedQueueIndex, inputChannel.getInputChannelId()))
 				.addListener(
 						new ChannelFutureListener() {
 							@Override
@@ -105,9 +104,9 @@ public class PartitionRequestClient {
 	 * guaranteed to be the case when both the respective producer and
 	 * consumer task run pipelined.
 	 */
-	public void sendTaskEvent(ExecutionAttemptID producerExecutionId, IntermediateResultPartitionID partitionId, TaskEvent event, final RemoteInputChannel inputChannel) throws IOException {
+	public void sendTaskEvent(ResultPartitionID partitionId, TaskEvent event, final RemoteInputChannel inputChannel) throws IOException {
 
-		tcpChannel.writeAndFlush(new TaskEventRequest(event, producerExecutionId, partitionId, inputChannel.getInputChannelId()))
+		tcpChannel.writeAndFlush(new TaskEventRequest(event, partitionId, inputChannel.getInputChannelId()))
 				.addListener(
 						new ChannelFutureListener() {
 							@Override
@@ -123,12 +122,12 @@ public class PartitionRequestClient {
 
 		partitionRequestHandler.removeInputChannel(inputChannel);
 
-		if (closeReferenceCounter.decrementReferenceCounter()) {
+		if (closeReferenceCounter.decrement()) {
 			// Close the TCP connection
 			tcpChannel.close();
 
 			// Make sure to remove the client from the factory
-			clientFactory.destroyPartitionRequestClient(remoteAddress, this);
+			clientFactory.destroyPartitionRequestClient(connectionId, this);
 		}
 	}
 }

@@ -18,21 +18,29 @@
 
 package org.apache.flink.compiler;
 
-import static org.junit.Assert.*;
-
-import org.apache.flink.compiler.testfunctions.IdentityMapper;
-import org.apache.flink.compiler.testfunctions.SelectOneReducer;
-import org.junit.Test;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.compiler.plan.BulkIterationPlanNode;
 import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plan.PlanNode;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.compiler.plan.SinkPlanNode;
+import org.apache.flink.compiler.plan.SourcePlanNode;
+import org.apache.flink.compiler.testfunctions.IdentityMapper;
+import org.apache.flink.compiler.testfunctions.SelectOneReducer;
 import org.apache.flink.configuration.Configuration;
+import org.junit.Test;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class PipelineBreakerTest extends CompilerTestBase {
@@ -42,21 +50,21 @@ public class PipelineBreakerTest extends CompilerTestBase {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setDegreeOfParallelism(64);
-			
+
 			DataSet<Long> source = env.generateSequence(1, 10).map(new IdentityMapper<Long>());
-			
+
 			DataSet<Long> result = source.map(new IdentityMapper<Long>())
-										.map(new IdentityMapper<Long>())
-											.withBroadcastSet(source, "bc");
-			
+					.map(new IdentityMapper<Long>())
+					.withBroadcastSet(source, "bc");
+
 			result.print();
-			
+
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
-			
+
 			SinkPlanNode sink = op.getDataSinks().iterator().next();
 			SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
-			
+
 			assertTrue(mapper.getInput().getTempMode().breaksPipeline());
 		}
 		catch (Exception e) {
@@ -64,33 +72,33 @@ public class PipelineBreakerTest extends CompilerTestBase {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testPipelineBreakerBroadcastedAllReduce() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setDegreeOfParallelism(64);
-			
+
 			DataSet<Long> sourceWithMapper = env.generateSequence(1, 10).map(new IdentityMapper<Long>());
-			
+
 			DataSet<Long> bcInput1 = sourceWithMapper
-										.map(new IdentityMapper<Long>())
-										.reduce(new SelectOneReducer<Long>());
+					.map(new IdentityMapper<Long>())
+					.reduce(new SelectOneReducer<Long>());
 			DataSet<Long> bcInput2 = env.generateSequence(1, 10);
-			
+
 			DataSet<Long> result = sourceWithMapper
 					.map(new IdentityMapper<Long>())
-							.withBroadcastSet(bcInput1, "bc1")
-							.withBroadcastSet(bcInput2, "bc2");
-			
+					.withBroadcastSet(bcInput1, "bc1")
+					.withBroadcastSet(bcInput2, "bc2");
+
 			result.print();
-			
+
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
-			
+
 			SinkPlanNode sink = op.getDataSinks().iterator().next();
 			SingleInputPlanNode mapper = (SingleInputPlanNode) sink.getInput().getSource();
-			
+
 			assertTrue(mapper.getInput().getTempMode().breaksPipeline());
 		}
 		catch (Exception e) {
@@ -98,39 +106,39 @@ public class PipelineBreakerTest extends CompilerTestBase {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testPipelineBreakerBroadcastedPartialSolution() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setDegreeOfParallelism(64);
-			
-			
+
+
 			DataSet<Long> initialSource = env.generateSequence(1, 10);
 			IterativeDataSet<Long> iteration = initialSource.iterate(100);
-			
-			
+
+
 			DataSet<Long> sourceWithMapper = env.generateSequence(1, 10).map(new IdentityMapper<Long>());
-			
+
 			DataSet<Long> bcInput1 = sourceWithMapper
-										.map(new IdentityMapper<Long>())
-										.reduce(new SelectOneReducer<Long>());
-			
+					.map(new IdentityMapper<Long>())
+					.reduce(new SelectOneReducer<Long>());
+
 			DataSet<Long> result = sourceWithMapper
 					.map(new IdentityMapper<Long>())
-							.withBroadcastSet(iteration, "bc2")
-							.withBroadcastSet(bcInput1, "bc1");
-							
-			
+					.withBroadcastSet(iteration, "bc2")
+					.withBroadcastSet(bcInput1, "bc1");
+
+
 			iteration.closeWith(result).print();
-			
+
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
-			
+
 			SinkPlanNode sink = op.getDataSinks().iterator().next();
 			BulkIterationPlanNode iterationPlanNode = (BulkIterationPlanNode) sink.getInput().getSource();
 			SingleInputPlanNode mapper = (SingleInputPlanNode) iterationPlanNode.getRootOfStepFunction();
-			
+
 			assertTrue(mapper.getInput().getTempMode().breaksPipeline());
 		}
 		catch (Exception e) {
@@ -138,98 +146,98 @@ public class PipelineBreakerTest extends CompilerTestBase {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testPilelineBreakerWithCross() {
 		try {
 			{
 				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				env.setDegreeOfParallelism(64);
-				
+
 				DataSet<Long> initialSource = env.generateSequence(1, 10);
-				
-				Configuration conf= new Configuration();
+
+				Configuration conf = new Configuration();
 				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST);
 				initialSource
-					.map(new IdentityMapper<Long>())
-					.cross(initialSource).withParameters(conf)
-					.print();
-				
-				
+						.map(new IdentityMapper<Long>())
+						.cross(initialSource).withParameters(conf)
+						.print();
+
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
 				SinkPlanNode sink = op.getDataSinks().iterator().next();
 				DualInputPlanNode mapper = (DualInputPlanNode) sink.getInput().getSource();
-				
+
 				assertTrue(mapper.getInput1().getTempMode().breaksPipeline());
 			}
-			
+
 			{
 				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				env.setDegreeOfParallelism(64);
-				
+
 				DataSet<Long> initialSource = env.generateSequence(1, 10);
-				
-				Configuration conf= new Configuration();
+
+				Configuration conf = new Configuration();
 				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND);
 				initialSource
-					.map(new IdentityMapper<Long>())
-					.cross(initialSource).withParameters(conf)
-					.print();
-				
-				
+						.map(new IdentityMapper<Long>())
+						.cross(initialSource).withParameters(conf)
+						.print();
+
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
-				
+
 				SinkPlanNode sink = op.getDataSinks().iterator().next();
 				DualInputPlanNode mapper = (DualInputPlanNode) sink.getInput().getSource();
-				
+
 				assertTrue(mapper.getInput2().getTempMode().breaksPipeline());
 			}
-			
+
 			{
 				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				env.setDegreeOfParallelism(64);
-				
+
 				DataSet<Long> initialSource = env.generateSequence(1, 10);
-				
-				Configuration conf= new Configuration();
+
+				Configuration conf = new Configuration();
 				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST);
 				initialSource
-					.map(new IdentityMapper<Long>())
-					.cross(initialSource).withParameters(conf)
-					.print();
-				
-				
+						.map(new IdentityMapper<Long>())
+						.cross(initialSource).withParameters(conf)
+						.print();
+
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
-				
+
 				SinkPlanNode sink = op.getDataSinks().iterator().next();
 				DualInputPlanNode mapper = (DualInputPlanNode) sink.getInput().getSource();
-				
+
 				assertTrue(mapper.getInput1().getTempMode().breaksPipeline());
 			}
-			
+
 			{
 				ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				env.setDegreeOfParallelism(64);
-				
+
 				DataSet<Long> initialSource = env.generateSequence(1, 10);
-				
-				Configuration conf= new Configuration();
+
+				Configuration conf = new Configuration();
 				conf.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND);
 				initialSource
-					.map(new IdentityMapper<Long>())
-					.cross(initialSource).withParameters(conf)
-					.print();
-				
-				
+						.map(new IdentityMapper<Long>())
+						.cross(initialSource).withParameters(conf)
+						.print();
+
+
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);
-				
+
 				SinkPlanNode sink = op.getDataSinks().iterator().next();
 				DualInputPlanNode mapper = (DualInputPlanNode) sink.getInput().getSource();
-				
+
 				assertTrue(mapper.getInput2().getTempMode().breaksPipeline());
 			}
 		}
