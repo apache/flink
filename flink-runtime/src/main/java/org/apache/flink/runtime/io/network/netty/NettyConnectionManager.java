@@ -18,10 +18,11 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.RemoteAddress;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionProvider;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
 import java.io.IOException;
 
@@ -41,21 +42,21 @@ public class NettyConnectionManager implements ConnectionManager {
 	}
 
 	@Override
-	public void start(IntermediateResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher) throws IOException {
-		PartitionRequestProtocol partitionRequestProtocol = new PartitionRequestProtocol(partitionProvider, taskEventDispatcher);
+	public void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool) throws IOException {
+		PartitionRequestProtocol partitionRequestProtocol = new PartitionRequestProtocol(partitionProvider, taskEventDispatcher, networkbufferPool);
 
 		client.init(partitionRequestProtocol);
 		server.init(partitionRequestProtocol);
 	}
 
 	@Override
-	public PartitionRequestClient createPartitionRequestClient(RemoteAddress remoteAddress) throws IOException, InterruptedException {
-		return partitionRequestClientFactory.createPartitionRequestClient(remoteAddress);
+	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException, InterruptedException {
+		return partitionRequestClientFactory.createPartitionRequestClient(connectionId);
 	}
 
 	@Override
-	public void closeOpenChannelConnections(RemoteAddress remoteAddress) {
-		partitionRequestClientFactory.closeOpenChannelConnections(remoteAddress);
+	public void closeOpenChannelConnections(ConnectionID connectionId) {
+		partitionRequestClientFactory.closeOpenChannelConnections(connectionId);
 	}
 
 	@Override

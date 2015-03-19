@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.core.memory.MemorySegment;
 
-public class AsynchronousBlockWriter extends AsynchronousBlockWriterWithCallback implements BlockChannelWriter {
+public class AsynchronousBlockWriter extends AsynchronousBlockWriterWithCallback implements BlockChannelWriter<MemorySegment> {
 	
 	private final LinkedBlockingQueue<MemorySegment> returnSegments;
 	
@@ -41,7 +41,7 @@ public class AsynchronousBlockWriter extends AsynchronousBlockWriterWithCallback
 			LinkedBlockingQueue<MemorySegment> returnSegments)
 	throws IOException
 	{
-		super(channelID, requestQueue, new QueuingCallback(returnSegments));
+		super(channelID, requestQueue, new QueuingCallback<MemorySegment>(returnSegments));
 		this.returnSegments = returnSegments;
 	}
 	
@@ -58,7 +58,7 @@ public class AsynchronousBlockWriter extends AsynchronousBlockWriterWithCallback
 	 * @throws IOException Thrown, if an I/O error occurs in the writer while waiting for the request to return.
 	 */
 	@Override
-	public MemorySegment getNextReturnedSegment() throws IOException {
+	public MemorySegment getNextReturnedBlock() throws IOException {
 		try {
 			while (true) {
 				final MemorySegment next = returnSegments.poll(1000, TimeUnit.MILLISECONDS);

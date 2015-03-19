@@ -174,6 +174,12 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 		longToByteArray(this.upperPart, ba, SIZE_OF_LONG);
 		return StringUtils.byteToHexString(ba);
 	}
+
+	public String toShortString() {
+		final byte[] ba = new byte[SIZE_OF_LONG];
+		longToByteArray(upperPart, ba, 0);
+		return StringUtils.byteToHexString(ba);
+	}
 	
 	@Override
 	public int compareTo(AbstractID o) {

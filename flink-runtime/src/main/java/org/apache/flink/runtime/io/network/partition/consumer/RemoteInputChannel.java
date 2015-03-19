@@ -19,13 +19,12 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.task.TaskEvent;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.RemoteAddress;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +46,7 @@ public class RemoteInputChannel extends InputChannel {
 
 	private final InputChannelID id;
 
-	private final RemoteAddress producerAddress;
+	private final ConnectionID producerAddress;
 
 	private final Queue<Buffer> receivedBuffers = new ArrayDeque<Buffer>();
 
@@ -64,12 +63,11 @@ public class RemoteInputChannel extends InputChannel {
 	public RemoteInputChannel(
 			SingleInputGate gate,
 			int channelIndex,
-			ExecutionAttemptID producerExecutionId,
-			IntermediateResultPartitionID partitionId,
-			RemoteAddress producerAddress,
+			ResultPartitionID partitionId,
+			ConnectionID producerAddress,
 			ConnectionManager connectionManager) {
 
-		super(gate, channelIndex, producerExecutionId, partitionId);
+		super(gate, channelIndex, partitionId);
 
 		/**
 		 * This ID is used by the {@link PartitionRequestClient} to distinguish
@@ -85,13 +83,13 @@ public class RemoteInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void requestIntermediateResultPartition(int queueIndex) throws IOException, InterruptedException {
+	public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		if (partitionRequestClient == null) {
-			LOG.debug("Requesting REMOTE queue {} from partition {} produced by {}.", queueIndex, partitionId, producerExecutionId);
+			LOG.debug("Requesting REMOTE queue {} from of partition {}.", subpartitionIndex, partitionId);
 
 			partitionRequestClient = connectionManager.createPartitionRequestClient(producerAddress);
 
-			partitionRequestClient.requestIntermediateResultPartition(producerExecutionId, partitionId, queueIndex, this);
+			partitionRequestClient.requestIntermediateResultPartition(partitionId, subpartitionIndex, this);
 		}
 	}
 
@@ -125,7 +123,7 @@ public class RemoteInputChannel extends InputChannel {
 
 		checkIoError();
 
-		partitionRequestClient.sendTaskEvent(producerExecutionId, partitionId, event, this);
+		partitionRequestClient.sendTaskEvent(partitionId, event, this);
 	}
 
 	// ------------------------------------------------------------------------
@@ -135,6 +133,11 @@ public class RemoteInputChannel extends InputChannel {
 	@Override
 	public boolean isReleased() {
 		return isReleased.get();
+	}
+
+	@Override
+	public void notifySubpartitionConsumed() {
+		// Nothing to do
 	}
 
 	/**
@@ -160,7 +163,7 @@ public class RemoteInputChannel extends InputChannel {
 
 	@Override
 	public String toString() {
-		return "REMOTE " + id + " " + producerAddress + " " + super.toString();
+		return "RemoteInputChannel [" + partitionId + " at " + producerAddress + "]";
 	}
 
 	// ------------------------------------------------------------------------

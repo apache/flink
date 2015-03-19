@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.api.reader;
 
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.util.MockSingleInputGate;
+import org.apache.flink.runtime.io.network.util.TestSingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.event.EventListener;
@@ -39,12 +39,13 @@ import static org.mockito.Mockito.verify;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Task.class)
+@SuppressWarnings("unchecked")
 public class BufferReaderTest {
 
 	@Test
 	public void testGetNextBufferOrEvent() throws IOException, InterruptedException {
 
-		final MockSingleInputGate inputGate = new MockSingleInputGate(1)
+		final TestSingleInputGate inputGate = new TestSingleInputGate(1)
 				.readBuffer().readBuffer().readEvent()
 				.readBuffer().readBuffer().readEvent()
 				.readBuffer().readEndOfPartitionEvent();
@@ -67,7 +68,7 @@ public class BufferReaderTest {
 	@Test
 	public void testIterativeGetNextBufferOrEvent() throws IOException, InterruptedException {
 
-		final MockSingleInputGate inputGate = new MockSingleInputGate(1)
+		final TestSingleInputGate inputGate = new TestSingleInputGate(1)
 				.readBuffer().readBuffer().readEvent()
 				.readBuffer().readBuffer().readEvent()
 				.readBuffer().readEndOfSuperstepEvent()

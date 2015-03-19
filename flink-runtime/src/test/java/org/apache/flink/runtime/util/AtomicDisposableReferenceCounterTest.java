@@ -37,13 +37,26 @@ public class AtomicDisposableReferenceCounterTest {
 	public void testSerialIncrementAndDecrement() {
 		AtomicDisposableReferenceCounter counter = new AtomicDisposableReferenceCounter();
 
-		assertTrue(counter.incrementReferenceCounter());
+		assertTrue(counter.increment());
 
-		assertTrue(counter.decrementReferenceCounter());
+		assertTrue(counter.decrement());
 
-		assertFalse(counter.incrementReferenceCounter());
+		assertFalse(counter.increment());
 
-		assertFalse(counter.decrementReferenceCounter());
+		assertFalse(counter.decrement());
+	}
+
+	@Test
+	public void testSerialIncrementAndDecrementWithCustomDisposeCount() {
+		AtomicDisposableReferenceCounter counter = new AtomicDisposableReferenceCounter(-2);
+
+		assertTrue(counter.increment());
+
+		assertFalse(counter.decrement());
+
+		assertFalse(counter.decrement());
+
+		assertTrue(counter.decrement());
 	}
 
 	@Test
@@ -63,7 +76,7 @@ public class AtomicDisposableReferenceCounterTest {
 				incrementer.setCounter(counter);
 				decrementer.setCounter(counter);
 
-				counter.incrementReferenceCounter();
+				counter.increment();
 
 				// Randomly decide which one should be first as the first task usually will win the race
 				boolean incrementFirst = random.nextBoolean();
@@ -90,7 +103,7 @@ public class AtomicDisposableReferenceCounterTest {
 
 		@Override
 		public Boolean call() throws Exception {
-			return counter.incrementReferenceCounter();
+			return counter.increment();
 		}
 	}
 
@@ -104,7 +117,7 @@ public class AtomicDisposableReferenceCounterTest {
 
 		@Override
 		public Boolean call() throws Exception {
-			return counter.decrementReferenceCounter();
+			return counter.decrement();
 		}
 	}
 }

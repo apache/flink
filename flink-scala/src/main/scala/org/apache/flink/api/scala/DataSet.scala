@@ -627,6 +627,62 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
+   *  Applies a CombineFunction on a grouped [[DataSet]].  A
+   *  CombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  the combine method once per partition for combining a group of
+   *  results. This operator is suitable for combining values into an
+   *  intermediate format before doing a proper groupReduce where the
+   *  data is shuffled across the node for further reduction. The
+   *  GroupReduce operator can also be supplied with a combiner by
+   *  implementing the RichGroupReduce function. The combine method of
+   *  the RichGroupReduce function demands input and output type to be
+   *  the same. The CombineFunction, on the other side, can have an
+   *  arbitrary output type.
+   */
+  def combineGroup[R: TypeInformation: ClassTag](
+      combiner: FlatCombineFunction[T, R]): DataSet[R] = {
+    if (combiner == null) {
+      throw new NullPointerException("Combine function must not be null.")
+    }
+    wrap(new GroupCombineOperator[T, R](javaSet,
+      implicitly[TypeInformation[R]],
+      combiner,
+      getCallLocationName()))
+  }
+
+  /**
+   *  Applies a CombineFunction on a grouped [[DataSet]].  A
+   *  CombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  the combine method once per partition for combining a group of
+   *  results. This operator is suitable for combining values into an
+   *  intermediate format before doing a proper groupReduce where the
+   *  data is shuffled across the node for further reduction. The
+   *  GroupReduce operator can also be supplied with a combiner by
+   *  implementing the RichGroupReduce function. The combine method of
+   *  the RichGroupReduce function demands input and output type to be
+   *  the same. The CombineFunction, on the other side, can have an
+   *  arbitrary output type.
+   */
+  def combineGroup[R: TypeInformation: ClassTag](
+      fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Combine function must not be null.")
+    }
+    val combiner = new FlatCombineFunction[T, R] {
+      val cleanFun = clean(fun)
+      def combine(in: java.lang.Iterable[T], out: Collector[R]) {
+        cleanFun(in.iterator().asScala, out)
+      }
+    }
+    wrap(new GroupCombineOperator[T, R](javaSet,
+      implicitly[TypeInformation[R]],
+      combiner,
+      getCallLocationName()))
+  }
+
+  /**
    * Creates a new DataSet containing the first `n` elements of this DataSet.
    */
   def first(n: Int): DataSet[T] = {

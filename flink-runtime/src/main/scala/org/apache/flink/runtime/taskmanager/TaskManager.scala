@@ -33,13 +33,14 @@ import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.BlobCache
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
-import org.apache.flink.runtime.deployment.{PartitionInfo, TaskDeploymentDescriptor}
+import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.execution.{CancelTaskException, ExecutionState, RuntimeEnvironment}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{HardwareDescription, InstanceConnectionInfo, InstanceID}
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
+import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
+import org.apache.flink.runtime.io.disk.iomanager.{IOManager, IOManagerAsync}
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
@@ -261,7 +262,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
       }
 
     case UnregisterTask(executionID) =>
-      unregisterTask(executionID)
+      unregisterTaskAndNotifyFinalState(executionID)
 
     case updateMsg:UpdateTaskExecutionState =>
       currentJobManager foreach {
@@ -348,7 +349,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
     case FailIntermediateResultPartitions(executionID) =>
       log.info("Fail intermediate result partitions associated with execution {}.", executionID)
       networkEnvironment foreach {
-        _.getPartitionManager.failIntermediateResultPartitions(executionID)
+        _.getPartitionManager.releasePartitionsProducedBy(executionID)
       }
 
     case BarrierReq(attemptID, checkpointID) =>
@@ -549,8 +550,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
     registrationDuration = 0 seconds
   }
 
-  private def updateTask(executionId: ExecutionAttemptID,
-                         partitionInfos: Seq[(IntermediateDataSetID, PartitionInfo)]): Unit = {
+  private def updateTask(
+    executionId: ExecutionAttemptID,
+    partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)]): Unit = {
 
     runningTasks.get(executionId) match {
       case Some(task) =>
@@ -685,17 +687,24 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       for (t <- runningTasks.values) {
         t.failExternally(cause)
-        unregisterTask(t.getExecutionId)
+        unregisterTaskAndNotifyFinalState(t.getExecutionId)
       }
     }
   }
 
-  private def unregisterTask(executionID: ExecutionAttemptID): Unit = {
+  private def unregisterTaskAndNotifyFinalState(executionID: ExecutionAttemptID): Unit = {
     runningTasks.remove(executionID) match {
       case Some(task) =>
         log.info("Unregister task with execution ID {}.", executionID)
         removeAllTaskResources(task)
         libraryCacheManager foreach { _.unregisterTask(task.getJobID, executionID) }
+
+        log.info("Updating FINAL execution state of {} ({}) to {}.", task.getTaskName,
+          task.getExecutionId, task.getExecutionState);
+
+        self ! UpdateTaskExecutionState(new TaskExecutionState(
+          task.getJobID, task.getExecutionId, task.getExecutionState, task.getFailureCause))
+
       case None =>
         if (log.isDebugEnabled) {
           log.debug("Cannot find task with ID {} to unregister.", executionID)
@@ -1194,7 +1203,19 @@ object TaskManager {
         connectionInfo.address(), connectionInfo.dataPort(), pageSize, configuration))
     }
 
-    val networkConfig = NetworkEnvironmentConfiguration(numNetworkBuffers, pageSize, nettyConfig)
+    // Default spill I/O mode for intermediate results
+    val syncOrAsync = configuration.getString(ConfigConstants.TASK_MANAGER_NETWORK_DEFAULT_IO_MODE,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE)
+
+    val ioMode : IOMode = if (syncOrAsync == "async") {
+      IOMode.ASYNC
+    }
+    else {
+      IOMode.SYNC
+    }
+
+    val networkConfig = NetworkEnvironmentConfiguration(numNetworkBuffers, pageSize, ioMode,
+      nettyConfig)
 
     val networkBufferMem = numNetworkBuffers * pageSize
 

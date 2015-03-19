@@ -27,10 +27,10 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.io.network.api.reader.IteratorWrappingMockSingleInputGate;
+import org.apache.flink.runtime.io.network.api.reader.IteratorWrappingTestSingleInputGate;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
-import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
@@ -71,7 +71,7 @@ public class MockEnvironment implements Environment {
 
 	private final List<InputGate> inputs;
 
-	private final List<BufferWriter> outputs;
+	private final List<ResultPartitionWriter> outputs;
 
 	private final JobID jobID = new JobID();
 
@@ -83,7 +83,7 @@ public class MockEnvironment implements Environment {
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
 		this.inputs = new LinkedList<InputGate>();
-		this.outputs = new LinkedList<BufferWriter>();
+		this.outputs = new LinkedList<ResultPartitionWriter>();
 
 		this.memManager = new DefaultMemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
@@ -91,9 +91,9 @@ public class MockEnvironment implements Environment {
 		this.bufferSize = bufferSize;
 	}
 
-	public IteratorWrappingMockSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
+	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
 		try {
-			final IteratorWrappingMockSingleInputGate<Record> reader = new IteratorWrappingMockSingleInputGate<Record>(bufferSize, Record.class, inputIterator);
+			final IteratorWrappingTestSingleInputGate<Record> reader = new IteratorWrappingTestSingleInputGate<Record>(bufferSize, Record.class, inputIterator);
 
 			inputs.add(reader.getInputGate());
 
@@ -118,7 +118,7 @@ public class MockEnvironment implements Environment {
 				}
 			});
 
-			BufferWriter mockWriter = mock(BufferWriter.class);
+			ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
 			when(mockWriter.getNumberOfOutputChannels()).thenReturn(1);
 			when(mockWriter.getBufferProvider()).thenReturn(mockBufferProvider);
 
@@ -225,13 +225,13 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public BufferWriter getWriter(int index) {
+	public ResultPartitionWriter getWriter(int index) {
 		return outputs.get(index);
 	}
 
 	@Override
-	public BufferWriter[] getAllWriters() {
-		return outputs.toArray(new BufferWriter[outputs.size()]);
+	public ResultPartitionWriter[] getAllWriters() {
+		return outputs.toArray(new ResultPartitionWriter[outputs.size()]);
 	}
 
 	@Override

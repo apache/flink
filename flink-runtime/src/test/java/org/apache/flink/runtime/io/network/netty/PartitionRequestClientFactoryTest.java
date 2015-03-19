@@ -24,7 +24,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.RemoteAddress;
+import org.apache.flink.runtime.io.network.ConnectionID;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -74,10 +74,10 @@ public class PartitionRequestClientFactoryTest {
 			final Thread connect = new Thread(new Runnable() {
 				@Override
 				public void run() {
-					RemoteAddress serverAddress = null;
+					ConnectionID serverAddress = null;
 
 					try {
-						serverAddress = createServerRemoteAddress(0);
+						serverAddress = createServerConnectionID(0);
 
 						// This triggers a connect
 						factory.createPartitionRequestClient(serverAddress);
@@ -176,7 +176,7 @@ public class PartitionRequestClientFactoryTest {
 		return new Tuple2<NettyServer, NettyClient>(server, client);
 	}
 
-	private static RemoteAddress createServerRemoteAddress(int connectionIndex) throws UnknownHostException {
-		return new RemoteAddress(new InetSocketAddress(InetAddress.getLocalHost(), SERVER_PORT), connectionIndex);
+	private static ConnectionID createServerConnectionID(int connectionIndex) throws UnknownHostException {
+		return new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), SERVER_PORT), connectionIndex);
 	}
 }

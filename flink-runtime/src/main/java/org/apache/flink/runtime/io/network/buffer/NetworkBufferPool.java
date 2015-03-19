@@ -185,14 +185,18 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	}
 
 	@Override
-	public void destroyBufferPool(BufferPool bufferPool) throws IOException {
+	public void destroyBufferPool(BufferPool bufferPool) {
 		synchronized (factoryLock) {
 			if (allBufferPools.remove(bufferPool)) {
 				managedBufferPools.remove(bufferPool);
 
 				numTotalRequiredBuffers -= bufferPool.getNumberOfRequiredMemorySegments();
 
-				redistributeBuffers();
+				try {
+					redistributeBuffers();
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
 			}
 		}
 	}
