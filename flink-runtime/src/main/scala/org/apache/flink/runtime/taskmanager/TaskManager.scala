@@ -840,14 +840,10 @@ object TaskManager {
     }
 
     // load the configuration
-    try {
-      LOG.info("Loading configuration from " + cliConfig.configDir)
-      GlobalConfiguration.loadConfiguration(cliConfig.configDir)
-      GlobalConfiguration.getConfiguration()
-    }
-    catch {
-      case e: Exception => throw new Exception("Could not load configuration", e)
-    }
+    LOG.info("Loading configuration from " + cliConfig.configDir)
+    GlobalConfiguration.loadConfiguration(cliConfig.configDir)
+    GlobalConfiguration.getConfiguration()
+
   }
 
   // --------------------------------------------------------------------------
