@@ -52,7 +52,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -587,20 +586,14 @@ public class Execution implements Serializable {
 
 				if (transitionState(current, FINISHED)) {
 					try {
-						if (getVertex().finishAllBlockingPartitions()) {
+						for (IntermediateResultPartition finishedPartition
+								: getVertex().finishAllBlockingPartitions()) {
 
-							IntermediateResult[] allResults = getVertex().getJobVertex()
-									.getProducedDataSets();
+							IntermediateResultPartition[] allPartitions = finishedPartition
+									.getIntermediateResult().getPartitions();
 
-							LOG.debug("Finished all produced partitions ({}). Scheduling all receivers " +
-									"of the following datasets: {}.", this, Arrays
-									.toString(allResults));
-
-							// Schedule next batch
-							for (IntermediateResult result : allResults) {
-								for (IntermediateResultPartition p : result.getPartitions()) {
-									scheduleOrUpdateConsumers(p.getConsumers());
-								}
+							for (IntermediateResultPartition partition : allPartitions) {
+								scheduleOrUpdateConsumers(partition.getConsumers());
 							}
 						}
 

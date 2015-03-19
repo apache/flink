@@ -34,10 +34,6 @@ class ALSITCase extends ShouldMatchers {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    // This a temporary workaround to force pipelined execution of this test. The default execution
-    // leads to a deadlock.
-    env.getConfig.setExecutionMode(ExecutionMode.PIPELINED_FORCED)
-
     env.setDegreeOfParallelism(2)
 
     val als = ALS()
