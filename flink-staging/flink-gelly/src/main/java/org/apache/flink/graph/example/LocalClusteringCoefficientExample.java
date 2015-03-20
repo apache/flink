@@ -19,6 +19,7 @@
 package org.apache.flink.graph.example;
 
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -31,6 +32,7 @@ import org.apache.flink.graph.NeighborsFunctionWithVertexValue;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.LocalClusteringCoefficientData;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.util.Collector;
 
 import java.util.HashSet;
 
@@ -48,7 +50,18 @@ public class LocalClusteringCoefficientExample implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Edge<Long, NullValue>> edges = getEdgeDataSet(env);
+		// Assume an undirected graph without multiple edges, so we create all reverse edges and call distinct
+		DataSet<Edge<Long, NullValue>> edges = getEdgeDataSet(env)
+				.flatMap(new FlatMapFunction<Edge<Long, NullValue>, Edge<Long, NullValue>>() {
+					@Override
+					public void flatMap(Edge<Long, NullValue> edge, Collector<Edge<Long, NullValue>> out)
+							throws Exception {
+						out.collect(edge);
+						out.collect(edge.reverse());
+					}
+				})
+				.distinct();
+
 		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(edges, env);
 
 		// Get the neighbors of each vertex in a HashSet
@@ -134,9 +147,6 @@ public class LocalClusteringCoefficientExample implements ProgramDescription {
 					}
 				}
 			}
-
-			// We assume an undirected graph, so we need to divide e here
-			e /= 2;
 
 			// Calculate clustering coefficient
 			double cc;

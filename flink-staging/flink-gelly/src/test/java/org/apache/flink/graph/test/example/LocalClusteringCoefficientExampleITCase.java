@@ -36,7 +36,7 @@ import java.io.File;
 @RunWith(Parameterized.class)
 public class LocalClusteringCoefficientExampleITCase extends MultipleProgramsTestBase {
 
-	public LocalClusteringCoefficientExampleITCase(ExecutionMode mode){
+	public LocalClusteringCoefficientExampleITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
@@ -66,10 +66,11 @@ public class LocalClusteringCoefficientExampleITCase extends MultipleProgramsTes
 
 		LocalClusteringCoefficientExample.main(new String[] {edgesPath, resultPath});
 
-		expectedResult = "1,0.5\n" +
-				"2,0.5\n" +
+		expectedResult = "1," + (2/3.0) + "\n" +
+				"2,1.0\n" +
 				"3,0.5\n" +
-				"4,0.5\n";
+				"4,1.0\n" +
+				"5," + (2/3.0) + "\n";
 	}
 
 	@Test
@@ -136,7 +137,6 @@ public class LocalClusteringCoefficientExampleITCase extends MultipleProgramsTes
 					String vertexB = component + Integer.toString(j);
 
 					edges += vertexA + " " + vertexB + "\n";
-					edges += vertexB + " " + vertexA + "\n";
 				}
 			}
 		}
@@ -158,7 +158,7 @@ public class LocalClusteringCoefficientExampleITCase extends MultipleProgramsTes
 
 		for (int i = 1; i <= 9; ++i) {
 			String vertex = Integer.toString(i);
-			expectedResult += vertex + "," + Double.toString(1.0/3.0) + "\n";
+			expectedResult += vertex + "," + Double.toString(2/3.0) + "\n";
 
 			// Connect to neighbors
 			if (i > 1) {
@@ -176,13 +176,11 @@ public class LocalClusteringCoefficientExampleITCase extends MultipleProgramsTes
 			}
 
 			// Connect to the central node
-			String centralVertex = "10";
 			edges += vertex + " 10\n";
-			edges += "10 " + vertex + "\n";
 		}
 
 		// Expected result for the central node
-		expectedResult += "10,0.125\n";
+		expectedResult += "10,0.25\n";
 
 		String edgesPath = createTempFile(edges);
 

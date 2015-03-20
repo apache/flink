@@ -29,35 +29,23 @@ import java.util.List;
 public class LocalClusteringCoefficientData {
 
 	public static final String EDGES = "1 2\n" +
-			"2 1\n" +
 			"1 3\n" +
-			"3 1\n" +
-			"1 4\n" +
-			"4 1\n" +
 			"2 3\n" +
-			"3 2\n" +
-			"2 4\n" +
-			"4 2\n" +
 			"3 4\n" +
-			"4 3\n";
+			"3 5\n" +
+			"4 5\n" +
+			"5 1\n";
 
 	public static final DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 
 		List<Edge<Long, NullValue>> edges = new ArrayList<Edge<Long, NullValue>>();
 		edges.add(new Edge<Long, NullValue>(1L, 2L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(2L, 1L, NullValue.getInstance()));
 		edges.add(new Edge<Long, NullValue>(1L, 3L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(3L, 1L, NullValue.getInstance()));
 		edges.add(new Edge<Long, NullValue>(2L, 3L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(3L, 2L, NullValue.getInstance()));
 		edges.add(new Edge<Long, NullValue>(3L, 4L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(4L, 3L, NullValue.getInstance()));
 		edges.add(new Edge<Long, NullValue>(3L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(5L, 3L, NullValue.getInstance()));
 		edges.add(new Edge<Long, NullValue>(4L, 5L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(5L, 4L, NullValue.getInstance()));
 		edges.add(new Edge<Long, NullValue>(5L, 1L, NullValue.getInstance()));
-		edges.add(new Edge<Long, NullValue>(1L, 5L, NullValue.getInstance()));
 
 		return env.fromCollection(edges);
 	}
