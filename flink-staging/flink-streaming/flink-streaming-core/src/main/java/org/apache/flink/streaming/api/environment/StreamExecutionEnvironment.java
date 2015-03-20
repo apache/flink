@@ -152,18 +152,57 @@ public abstract class StreamExecutionEnvironment {
 		this.bufferTimeout = timeoutMillis;
 		return this;
 	}
-	
-	public StreamExecutionEnvironment enableMonitoring(long interval)
-	{
+
+	/**
+	 * Method for enabling fault-tolerance. Activates monitoring and backup of streaming operator states.
+	 *
+	 * <p>
+	 * Setting this option assumes that the job is used in production and thus if not stated explicitly
+	 * otherwise with calling with the {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)}
+	 * method in case of failure the job will be resubmitted to the cluster indefinitely.
+	 *
+	 * @param interval Time interval between state checkpoints in millis
+	 */
+	public StreamExecutionEnvironment enableMonitoring(long interval) {
 		streamGraph.setMonitoringEnabled(true);
 		streamGraph.setMonitoringInterval(interval);
 		return this;
 	}
-	
-	public StreamExecutionEnvironment enableMonitoring()
-	{
+
+
+	/**
+	 * Method for enabling fault-tolerance. Activates monitoring and backup of streaming operator states.
+	 *
+	 * <p>
+	 * Setting this option assumes that the job is used in production and thus if not stated explicitly
+	 * otherwise with calling with the {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)}
+	 * method in case of failure the job will be resubmitted to the cluster indefinitely.
+	 */
+	public StreamExecutionEnvironment enableMonitoring() {
 		streamGraph.setMonitoringEnabled(true);
 		return this;
+	}
+
+	/**
+	 * Sets the number of times that failed tasks are re-executed. A value of zero
+	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
+	 * default value (as defined in the configuration) should be used.
+	 *
+	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
+	 */
+	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
+		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
+	}
+
+	/**
+	 * Gets the number of times the system will try to re-execute failed tasks. A value
+	 * of {@code -1} indicates that the system default value (as defined in the configuration)
+	 * should be used.
+	 *
+	 * @return The number of times the system will try to re-execute failed tasks.
+	 */
+	public int getNumberOfExecutionRetries() {
+		return config.getNumberOfExecutionRetries();
 	}
 
 	/**
