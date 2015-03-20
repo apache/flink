@@ -87,7 +87,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 			dataOutputStream.write(msg);
 		} catch (IOException e) {
 			if(LOG.isErrorEnabled()){
-				LOG.error("Cannot send message to socket server at {}:{}", hostName, port);
+				LOG.error("Cannot send message to socket server at " + hostName + ":" + port, e);
 			}
 		}
 	}
@@ -101,8 +101,17 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 		} catch (IOException e) {
 			throw new RuntimeException("Error while closing connection with socket server at "
 					+ hostName + ":" + port, e);
-		}
-	}
+		} finally {
+            if (client != null) {
+                try {
+                    client.close();
+                } catch (IOException e) {
+                    LOG.error("Cannot close connection with socket server at "
+                            + hostName + ":" + port, e);
+                }
+            }
+        }
+    }
 
     /**
      * Initialize the connection with the Socket in the server.
