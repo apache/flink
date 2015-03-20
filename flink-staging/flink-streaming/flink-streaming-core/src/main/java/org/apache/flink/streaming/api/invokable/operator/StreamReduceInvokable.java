@@ -24,8 +24,7 @@ public class StreamReduceInvokable<IN> extends ChainableInvokable<IN, IN> {
 	private static final long serialVersionUID = 1L;
 
 	protected ReduceFunction<IN> reducer;
-	protected IN currentValue;
-	protected IN nextValue;
+	private IN currentValue;
 
 	public StreamReduceInvokable(ReduceFunction<IN> reducer) {
 		super(reducer);
@@ -36,24 +35,17 @@ public class StreamReduceInvokable<IN> extends ChainableInvokable<IN, IN> {
 	@Override
 	public void invoke() throws Exception {
 		while (isRunning && readNext() != null) {
-			reduce();
+			callUserFunctionAndLogException();
 		}
-	}
-
-	protected void reduce() throws Exception {
-		callUserFunctionAndLogException();
-
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
 
-		nextValue = nextObject;
-
 		if (currentValue != null) {
-			currentValue = reducer.reduce(copy(currentValue), nextValue);
+			currentValue = reducer.reduce(copy(currentValue), nextObject);
 		} else {
-			currentValue = nextValue;
+			currentValue = nextObject;
 
 		}
 		collector.collect(currentValue);

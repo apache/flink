@@ -61,7 +61,7 @@ public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 	@Override
 	public void collect(IN record) {
 		if (isRunning) {
-			nextObject = copy(record);
+			nextObject = copyInput(record);
 			callUserFunctionAndLogException();
 		}
 	}

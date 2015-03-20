@@ -28,7 +28,6 @@ public class GroupedReduceInvokable<IN> extends StreamReduceInvokable<IN> {
 
 	private KeySelector<IN, ?> keySelector;
 	private Map<Object, IN> values;
-	private IN reduced;
 
 	public GroupedReduceInvokable(ReduceFunction<IN> reducer, KeySelector<IN, ?> keySelector) {
 		super(reducer);
@@ -37,23 +36,17 @@ public class GroupedReduceInvokable<IN> extends StreamReduceInvokable<IN> {
 	}
 
 	@Override
-	protected void reduce() throws Exception {
-		Object key = nextRecord.getKey(keySelector);
-		currentValue = values.get(key);
-		nextValue = nextObject;
+	protected void callUserFunction() throws Exception {
+		Object key = keySelector.getKey(nextObject);
+		IN currentValue = values.get(key);
 		if (currentValue != null) {
-			callUserFunctionAndLogException();
+			IN reduced = reducer.reduce(copy(currentValue), nextObject);
 			values.put(key, reduced);
 			collector.collect(reduced);
 		} else {
-			values.put(key, nextValue);
-			collector.collect(nextValue);
+			values.put(key, nextObject);
+			collector.collect(nextObject);
 		}
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		reduced = reducer.reduce(currentValue, nextValue);
 	}
 
 }

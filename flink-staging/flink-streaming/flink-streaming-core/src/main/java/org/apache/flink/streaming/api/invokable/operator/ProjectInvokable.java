@@ -64,7 +64,7 @@ public class ProjectInvokable<IN, OUT extends Tuple> extends ChainableInvokable<
 	@Override
 	public void collect(IN record) {
 		if (isRunning) {
-			nextObject = copy(record);
+			nextObject = copyInput(record);
 			callUserFunctionAndLogException();
 		}
 	}
