@@ -100,16 +100,21 @@ public class RecordWriter<T extends IOReadableWritable> {
 			RecordSerializer<T> serializer = serializers[targetChannel];
 
 			synchronized (serializer) {
-				Buffer buffer = serializer.getCurrentBuffer();
-				if (buffer == null) {
-					writer.writeEvent(event, targetChannel);
-				}
-				else {
+
+				if (serializer.hasData()) {
+					Buffer buffer = serializer.getCurrentBuffer();
+					if (buffer == null) {
+						throw new IllegalStateException("Serializer has data but no buffer.");
+					}
+
 					writer.writeBuffer(buffer, targetChannel);
 					writer.writeEvent(event, targetChannel);
 
 					buffer = writer.getBufferProvider().requestBufferBlocking();
 					serializer.setNextBuffer(buffer);
+				}
+				else {
+					writer.writeEvent(event, targetChannel);
 				}
 			}
 		}

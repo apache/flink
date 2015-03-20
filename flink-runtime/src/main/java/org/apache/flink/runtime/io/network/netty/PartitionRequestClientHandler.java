@@ -194,6 +194,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				// Early return for empty buffers. Otherwise Netty's readBytes() throws an
 				// IndexOutOfBoundsException.
 				if (bufferOrEvent.getSize() == 0) {
+					inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber);
 					return true;
 				}
 

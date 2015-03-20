@@ -490,7 +490,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					}
 				}
 			} catch (IllegalAccessException e) {
-				throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" + "before.");
+				throw new RuntimeException(
+						"Error during POJO copy, this should not happen since we check the fields before.");
 			}
 		} else {
 			if (subclassSerializer != null) {

@@ -211,6 +211,20 @@ public class RemoteInputChannel extends InputChannel {
 		}
 	}
 
+	public void onEmptyBuffer(int sequenceNumber) {
+		if (!isReleased.get()) {
+			synchronized (receivedBuffers) {
+				if (expectedSequenceNumber == sequenceNumber) {
+					expectedSequenceNumber++;
+				}
+				else {
+					IOException error = new BufferReorderingException(expectedSequenceNumber, sequenceNumber);
+					ioError.compareAndSet(null, error);
+				}
+			}
+		}
+	}
+
 	public void onError(Throwable error) {
 		if (ioError.compareAndSet(null, error instanceof IOException ? (IOException) error : new IOException(error))) {
 			notifyAvailableBuffer();
