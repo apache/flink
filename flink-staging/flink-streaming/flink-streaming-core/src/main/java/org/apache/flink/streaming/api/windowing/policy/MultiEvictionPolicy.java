@@ -148,10 +148,8 @@ public class MultiEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA> {
 		case SUM:
 			result = 0;
 			for (Integer item : items) {
-				System.out.print(item+":");
 				result += item;
 			}
-			System.out.println(result);
 			return result;
 
 		case PRIORITY:
