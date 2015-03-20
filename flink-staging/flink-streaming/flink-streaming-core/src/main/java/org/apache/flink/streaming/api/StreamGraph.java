@@ -92,9 +92,9 @@ public class StreamGraph extends StreamingPlan {
 
 	private ExecutionConfig executionConfig;
 	
-	private boolean monitoringEnabled;
+	private boolean checkpointingEnabled;
 	
-	private long monitoringInterval = 10000;
+	private long checkpointingInterval = 5000;
 
 	public StreamGraph(ExecutionConfig executionConfig) {
 
@@ -559,20 +559,20 @@ public class StreamGraph extends StreamingPlan {
 		return executionConfig;
 	}
 
-	public void setMonitoringEnabled(boolean monitoringEnabled) {
-		this.monitoringEnabled = monitoringEnabled;
+	public void setCheckpointingEnabled(boolean checkpointingEnabled) {
+		this.checkpointingEnabled = checkpointingEnabled;
 	}
 
-	public boolean isMonitoringEnabled() {
-		return monitoringEnabled;
+	public boolean isCheckpointingEnabled() {
+		return checkpointingEnabled;
 	}
 
-	public void setMonitoringInterval(long monitoringInterval) {
-		this.monitoringInterval = monitoringInterval;
+	public void setCheckpointingInterval(long checkpointingInterval) {
+		this.checkpointingInterval = checkpointingInterval;
 	}
 
-	public long getMonitoringInterval() {
-		return monitoringInterval;
+	public long getCheckpointingInterval() {
+		return checkpointingInterval;
 	}
 
 	@Override

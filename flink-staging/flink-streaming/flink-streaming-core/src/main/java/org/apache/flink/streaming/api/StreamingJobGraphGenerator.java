@@ -78,8 +78,8 @@ public class StreamingJobGraphGenerator {
 		// Turn lazy scheduling off
 		jobGraph.setScheduleMode(ScheduleMode.ALL);
 		jobGraph.setJobType(JobGraph.JobType.STREAMING);
-		jobGraph.setMonitoringEnabled(streamGraph.isMonitoringEnabled());
-		jobGraph.setMonitorInterval(streamGraph.getMonitoringInterval());
+		jobGraph.setMonitoringEnabled(streamGraph.isCheckpointingEnabled());
+		jobGraph.setMonitorInterval(streamGraph.getCheckpointingInterval());
 
 		if(jobGraph.isMonitoringEnabled()) {
 			int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
@@ -257,7 +257,7 @@ public class StreamingJobGraphGenerator {
 		config.setNumberOfOutputs(nonChainableOutputs.size());
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
-		config.setStateMonitoring(streamGraph.isMonitoringEnabled());
+		config.setStateMonitoring(streamGraph.isCheckpointingEnabled());
 
 		Class<? extends AbstractInvokable> vertexClass = streamGraph.getJobVertexClass(vertexID);
 

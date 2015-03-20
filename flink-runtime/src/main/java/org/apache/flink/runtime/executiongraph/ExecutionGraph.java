@@ -178,11 +178,11 @@ public class ExecutionGraph implements Serializable {
 
 	private ActorContext parentContext;
 
-	private  ActorRef stateMonitorActor;
+	private  ActorRef stateCheckpointerActor;
 
-	private boolean monitoringEnabled;
+	private boolean checkpointingEnabled;
 
-	private long monitoringInterval = 10000;
+	private long checkpointingInterval = 5000;
 
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
 		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>());
@@ -223,12 +223,12 @@ public class ExecutionGraph implements Serializable {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void setStateMonitorActor(ActorRef stateMonitorActor) {
-		this.stateMonitorActor = stateMonitorActor;
+	public void setStateCheckpointerActor(ActorRef stateCheckpointerActor) {
+		this.stateCheckpointerActor = stateCheckpointerActor;
 	}
 
-	public ActorRef getStateMonitorActor() {
-		return stateMonitorActor;
+	public ActorRef getStateCheckpointerActor() {
+		return stateCheckpointerActor;
 	}
 
 	public void setParentContext(ActorContext parentContext) {
@@ -289,12 +289,12 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-	public void setMonitoringEnabled(boolean monitoringEnabled) {
-		this.monitoringEnabled = monitoringEnabled;
+	public void setCheckpointingEnabled(boolean checkpointingEnabled) {
+		this.checkpointingEnabled = checkpointingEnabled;
 	}
 
-	public void setMonitoringInterval(long  monitoringInterval) {
-		this.monitoringInterval = monitoringInterval;
+	public void setCheckpointingInterval(long checkpointingInterval) {
+		this.checkpointingInterval = checkpointingInterval;
 	}
 
 	/**
@@ -451,9 +451,9 @@ public class ExecutionGraph implements Serializable {
 					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
 			}
 
-			if (monitoringEnabled) {
-				stateMonitorActor = StreamCheckpointCoordinator.spawn(parentContext, this,
-						Duration.create(monitoringInterval, TimeUnit.MILLISECONDS));
+			if (checkpointingEnabled) {
+				stateCheckpointerActor = StreamCheckpointCoordinator.spawn(parentContext, this,
+						Duration.create(checkpointingInterval, TimeUnit.MILLISECONDS));
 			}
 		}
 		else {
@@ -777,6 +777,6 @@ public class ExecutionGraph implements Serializable {
 		
 		scheduler = null;
 		parentContext = null;
-		stateMonitorActor = null;
+		stateCheckpointerActor = null;
 	}
 }
