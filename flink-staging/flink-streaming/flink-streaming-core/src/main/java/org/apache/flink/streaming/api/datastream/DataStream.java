@@ -34,6 +34,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -864,7 +865,7 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<Long, ?> count() {
-		TypeInformation<Long> outTypeInfo = TypeExtractor.getForObject(Long.valueOf(0));
+		TypeInformation<Long> outTypeInfo = BasicTypeInfo.LONG_TYPE_INFO;
 
 		return transform("Count", outTypeInfo, new CounterInvokable<OUT>());
 	}
