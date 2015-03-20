@@ -223,6 +223,12 @@ public class ResultPartition implements BufferPoolOwner {
 		try {
 			checkInProduceState();
 
+			// Skip empty buffers. Otherwise, dropping empty buffers at the Netty client handler
+			// results in buffer reordering exceptions.
+			if (buffer.getSize() == 0) {
+				return;
+			}
+
 			final ResultSubpartition subpartition = subpartitions[subpartitionIndex];
 
 			synchronized (subpartition) {
