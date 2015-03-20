@@ -43,8 +43,8 @@ import org.slf4j.LoggerFactory;
  * @param <T>
  *            The type of the record that can be read with this record reader.
  */
-public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable> extends AbstractReader implements
-		ReaderBase {
+public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable> extends
+		AbstractReader implements ReaderBase, StreamingReader {
 
 	@SuppressWarnings("unused")
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingAbstractRecordReader.class);
@@ -121,5 +121,9 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 				buffer.recycle();
 			}
 		}
+	}
+
+	public void cleanup() throws IOException {
+		barrierBuffer.cleanup();
 	}
 }

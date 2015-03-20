@@ -36,6 +36,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
   with TypeDescriptors[C] =>
 
   import c.universe._
+  import compat._
 
   // This value is controlled by the udtRecycling compiler option
   var enableMutableUDTs = false

@@ -97,6 +97,32 @@ public class TumblingGroupedPreReducerTest {
 
 	}
 
+	@Test
+	public void testEmitWindow2() throws Exception {
+
+		List<Tuple2<Integer, Integer>> inputs = new ArrayList<Tuple2<Integer, Integer>>();
+		inputs.add(new Tuple2<Integer, Integer>(1, 1));
+		inputs.add(new Tuple2<Integer, Integer>(0, 0));
+		inputs.add(new Tuple2<Integer, Integer>(1, -1));
+		inputs.add(new Tuple2<Integer, Integer>(1, -2));
+
+		TestCollector<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestCollector<StreamWindow<Tuple2<Integer, Integer>>>();
+		List<StreamWindow<Tuple2<Integer, Integer>>> collected = collector.getCollected();
+
+		WindowBuffer<Tuple2<Integer, Integer>> wb = new TumblingGroupedPreReducer<Tuple2<Integer, Integer>>(
+				reducer, key, serializer).sequentialID();
+
+		wb.store(serializer.copy(inputs.get(0)));
+		wb.store(serializer.copy(inputs.get(1)));
+		wb.emitWindow(collector);
+
+		System.out.println(collected);
+
+		wb.store(serializer.copy(inputs.get(0)));
+		wb.store(serializer.copy(inputs.get(1)));
+		wb.store(serializer.copy(inputs.get(2)));
+	}
+
 	private static <T> void assertSetEquals(Collection<T> first, Collection<T> second) {
 		assertEquals(new HashSet<T>(first), new HashSet<T>(second));
 	}

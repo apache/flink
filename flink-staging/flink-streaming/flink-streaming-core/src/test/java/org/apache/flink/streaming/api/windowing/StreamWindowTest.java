@@ -92,7 +92,7 @@ public class StreamWindowTest {
 			// good
 		}
 
-		List<StreamWindow<Integer>> wList = merged.split(3);
+		List<StreamWindow<Integer>> wList = StreamWindow.split(merged,3);
 
 		StreamWindow<Integer> merged2 = StreamWindow.merge(wList);
 
@@ -133,12 +133,12 @@ public class StreamWindowTest {
 		streamWindow.add(5);
 		streamWindow.add(6);
 
-		List<StreamWindow<Integer>> split = streamWindow.split(2);
+		List<StreamWindow<Integer>> split = StreamWindow.split(streamWindow,2);
 		assertEquals(2, split.size());
 		assertEquals(StreamWindow.fromElements(1, 2, 3), split.get(0));
 		assertEquals(StreamWindow.fromElements(4, 5, 6), split.get(1));
 
-		List<StreamWindow<Integer>> split2 = streamWindow.split(6);
+		List<StreamWindow<Integer>> split2 = StreamWindow.split(streamWindow,6);
 		assertEquals(6, split2.size());
 		assertEquals(StreamWindow.fromElements(1), split2.get(0));
 		assertEquals(StreamWindow.fromElements(2), split2.get(1));
@@ -147,7 +147,7 @@ public class StreamWindowTest {
 		assertEquals(StreamWindow.fromElements(5), split2.get(4));
 		assertEquals(StreamWindow.fromElements(6), split2.get(5));
 
-		List<StreamWindow<Integer>> split3 = streamWindow.split(10);
+		List<StreamWindow<Integer>> split3 = StreamWindow.split(streamWindow,10);
 		assertEquals(6, split3.size());
 		assertEquals(StreamWindow.fromElements(1), split3.get(0));
 		assertEquals(StreamWindow.fromElements(2), split3.get(1));

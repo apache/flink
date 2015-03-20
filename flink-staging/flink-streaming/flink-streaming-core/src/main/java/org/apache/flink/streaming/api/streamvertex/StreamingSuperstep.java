@@ -49,4 +49,12 @@ public class StreamingSuperstep extends TaskEvent {
 	public long getId() {
 		return id;
 	}
+
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof StreamingSuperstep)) {
+			return false;
+		} else {
+			return ((StreamingSuperstep) other).id == this.id;
+		}
+	}
 }

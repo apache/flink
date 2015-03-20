@@ -127,7 +127,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 					throw new IOException("Library cache could not register the user code libraries.", t);
 				}
 				
-				URLClassLoader classLoader = new URLClassLoader(urls);
+				URLClassLoader classLoader = new FlinkUserCodeClassLoader(urls);
 				cacheEntries.put(jobId, new LibraryCacheEntry(requiredJarFiles, classLoader, task));
 			}
 			else {
@@ -302,6 +302,16 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		
 		public int getNumberOfReferenceHolders() {
 			return referenceHolders.size();
+		}
+	}
+
+	/**
+	 * Give the URLClassLoader a nicer name for debugging purposes.
+	 */
+	private static class FlinkUserCodeClassLoader extends URLClassLoader {
+
+		public FlinkUserCodeClassLoader(URL[] urls) {
+			super(urls);
 		}
 	}
 }

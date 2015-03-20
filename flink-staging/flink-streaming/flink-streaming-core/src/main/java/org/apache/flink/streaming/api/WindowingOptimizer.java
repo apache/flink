@@ -54,13 +54,13 @@ public class WindowingOptimizer {
 
 		for (Integer flattener : flatteners) {
 			// Flatteners should have exactly one input
-			Integer input = streamGraph.getInEdges(flattener).get(0);
+			Integer input = streamGraph.getInEdges(flattener).get(0).getSourceVertex();
 
 			// Check whether the flatten is applied after a merge
 			if (streamGraph.getInvokable(input) instanceof WindowMerger) {
 
 				// Mergers should have exactly one input
-				Integer mergeInput = streamGraph.getInEdges(input).get(0);
+				Integer mergeInput = streamGraph.getInEdges(input).get(0).getSourceVertex();
 				streamGraph.setEdge(mergeInput, flattener, new DistributePartitioner(true), 0,
 						new ArrayList<String>());
 
@@ -97,9 +97,9 @@ public class WindowingOptimizer {
 			boolean inMatching = false;
 			for (Tuple2<StreamDiscretizer<?>, List<Integer>> matching : matchingDiscretizers) {
 				Set<Integer> discretizerInEdges = new HashSet<Integer>(
-						streamGraph.getInEdges(discretizer.f0));
+						streamGraph.getInEdgeIndices(discretizer.f0));
 				Set<Integer> matchingInEdges = new HashSet<Integer>(
-						streamGraph.getInEdges(matching.f1.get(0)));
+						streamGraph.getInEdgeIndices(matching.f1.get(0)));
 
 				if (discretizer.f1.equals(matching.f0)
 						&& discretizerInEdges.equals(matchingInEdges)) {
@@ -130,7 +130,7 @@ public class WindowingOptimizer {
 	private static void replaceDiscretizer(StreamGraph streamGraph, Integer toReplace,
 			Integer replaceWith) {
 		// Convert to array to create a copy
-		List<Integer> outEdges = new ArrayList<Integer>(streamGraph.getOutEdges(toReplace));
+		List<Integer> outEdges = new ArrayList<Integer>(streamGraph.getOutEdgeIndices(toReplace));
 
 		int numOutputs = outEdges.size();
 
@@ -139,11 +139,11 @@ public class WindowingOptimizer {
 			Integer output = outEdges.get(i);
 
 			streamGraph.setEdge(replaceWith, output,
-					streamGraph.getOutPartitioner(toReplace, output), 0, new ArrayList<String>());
+					streamGraph.getEdge(toReplace, output).getPartitioner(), 0, new ArrayList<String>());
 			streamGraph.removeEdge(toReplace, output);
 		}
 
-		List<Integer> inEdges = new ArrayList<Integer>(streamGraph.getInEdges(toReplace));
+		List<Integer> inEdges = new ArrayList<Integer>(streamGraph.getInEdgeIndices(toReplace));
 		// Remove inputs
 		for (Integer input : inEdges) {
 			streamGraph.removeEdge(input, toReplace);

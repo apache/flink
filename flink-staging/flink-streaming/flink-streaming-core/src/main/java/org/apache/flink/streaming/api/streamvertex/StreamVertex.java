@@ -109,14 +109,13 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	 * there is user state it also checkpoints the state to the jobmanager.
 	 */
 	@Override
-	public void confirmBarrier(long barrierID) {
+	public void confirmBarrier(long barrierID) throws IOException {
 
 		if (configuration.getStateMonitoring() && !states.isEmpty()) {
 			getEnvironment().getJobManager().tell(
 					new StateBarrierAck(getEnvironment().getJobID(), getEnvironment()
-							.getJobVertexId(), context.getIndexOfThisSubtask(), barrierID, 
-							new LocalStateHandle(states)),
-					ActorRef.noSender());
+							.getJobVertexId(), context.getIndexOfThisSubtask(), barrierID,
+							new LocalStateHandle(states)), ActorRef.noSender());
 		} else {
 			getEnvironment().getJobManager().tell(
 					new BarrierAck(getEnvironment().getJobID(), getEnvironment().getJobVertexId(),
@@ -191,7 +190,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	}
 
-	protected void clearBuffers() {
+	protected void clearBuffers() throws IOException {
 		if (outputHandler != null) {
 			outputHandler.clearWriters();
 		}
@@ -271,10 +270,8 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Superstep " + id + " processed: " + StreamVertex.this);
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+		} catch (Exception e) {
+			throw new RuntimeException("Error while confirming barrier", e);
 		}
 	}
 
@@ -288,7 +285,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	 */
 	@Override
 	public void injectState(StateHandle stateHandle) {
-		this.states.putAll(stateHandle.getState());
+		this.states.putAll(stateHandle.getState(userClassLoader));
 	}
 
 	private class SuperstepEventListener implements EventListener<TaskEvent> {

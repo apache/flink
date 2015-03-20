@@ -50,7 +50,7 @@ object TestingUtils {
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
       |akka.loglevel = $logLevel
       |akka.stdout-loglevel = OFF
-      |akka.jvm-exit-on-fata-error = off
+      |akka.jvm-exit-on-fatal-error = off
       |akka.log-config-on-start = off
     """.stripMargin
   }

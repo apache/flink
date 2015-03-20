@@ -52,7 +52,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -470,8 +469,11 @@ public class Execution implements Serializable {
 					@Override
 					public Boolean call() throws Exception {
 						try {
+							final ExecutionGraph consumerGraph = consumerVertex.getExecutionGraph();
+
 							consumerVertex.scheduleForExecution(
-								consumerVertex.getExecutionGraph().getScheduler(), false);
+									consumerVertex.getExecutionGraph().getScheduler(),
+									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());
 						} catch (Throwable t) {
 							fail(new IllegalStateException("Could not schedule consumer " +
 									"vertex " + consumerVertex, t));
@@ -584,20 +586,14 @@ public class Execution implements Serializable {
 
 				if (transitionState(current, FINISHED)) {
 					try {
-						if (getVertex().finishAllBlockingPartitions()) {
+						for (IntermediateResultPartition finishedPartition
+								: getVertex().finishAllBlockingPartitions()) {
 
-							IntermediateResult[] allResults = getVertex().getJobVertex()
-									.getProducedDataSets();
+							IntermediateResultPartition[] allPartitions = finishedPartition
+									.getIntermediateResult().getPartitions();
 
-							LOG.debug("Finished all produced partitions ({}). Scheduling all receivers " +
-									"of the following datasets: {}.", this, Arrays
-									.toString(allResults));
-
-							// Schedule next batch
-							for (IntermediateResult result : allResults) {
-								for (IntermediateResultPartition p : result.getPartitions()) {
-									scheduleOrUpdateConsumers(p.getConsumers());
-								}
+							for (IntermediateResultPartition partition : allPartitions) {
+								scheduleOrUpdateConsumers(partition.getConsumers());
 							}
 						}
 
@@ -880,8 +876,8 @@ public class Execution implements Serializable {
 			markTimestamp(targetState);
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} ({}) switched from {} to {}.",this.getVertex().getTaskName(),
-						getAttemptId(),  currentState, targetState);
+				LOG.debug("{} ({}) switched from {} to {}.",
+						getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
 			}
 
 			// make sure that the state transition completes normally.

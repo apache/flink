@@ -23,6 +23,7 @@ import java.io.IOException;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -33,6 +34,7 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 
 	private final TypeSerializer<T> typeSerializer;
 	TypeSerializer<Integer> intSerializer = IntSerializer.INSTANCE;
+	TypeSerializer<Boolean> boolSerializer = BooleanSerializer.INSTANCE;
 
 	public StreamWindowSerializer(TypeInformation<T> typeInfo, ExecutionConfig conf) {
 		this.typeSerializer = typeInfo.createSerializer(conf);
@@ -62,7 +64,6 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 		reuse.clear();
 		reuse.windowID = from.windowID;
 		reuse.numberOfParts = from.numberOfParts;
-
 		for (T element : from) {
 			reuse.add(typeSerializer.copy(element));
 		}
@@ -75,31 +76,21 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 	}
 
 	@Override
-	public void serialize(StreamWindow<T> value, DataOutputView target) throws IOException {
+	public void serialize(StreamWindow<T> window, DataOutputView target) throws IOException {
 
-		intSerializer.serialize(value.windowID, target);
-		intSerializer.serialize(value.numberOfParts, target);
-		intSerializer.serialize(value.size(), target);
+		intSerializer.serialize(window.windowID, target);
+		intSerializer.serialize(window.numberOfParts, target);
 
-		for (T element : value) {
+		intSerializer.serialize(window.size(), target);
+
+		for (T element : window) {
 			typeSerializer.serialize(element, target);
 		}
 	}
 
 	@Override
 	public StreamWindow<T> deserialize(DataInputView source) throws IOException {
-		StreamWindow<T> window = createInstance();
-
-		window.windowID = intSerializer.deserialize(source);
-		window.numberOfParts = intSerializer.deserialize(source);
-
-		int size = intSerializer.deserialize(source);
-
-		for (int i = 0; i < size; i++) {
-			window.add(typeSerializer.deserialize(source));
-		}
-
-		return window;
+		return deserialize(createInstance(), source);
 	}
 
 	@Override
@@ -109,10 +100,10 @@ public final class StreamWindowSerializer<T> extends TypeSerializer<StreamWindow
 		StreamWindow<T> window = reuse;
 		window.clear();
 
-		window.windowID = source.readInt();
-		window.numberOfParts = source.readInt();
+		window.windowID = intSerializer.deserialize(source);
+		window.numberOfParts = intSerializer.deserialize(source);
 
-		int size = source.readInt();
+		int size = intSerializer.deserialize(source);
 
 		for (int i = 0; i < size; i++) {
 			window.add(typeSerializer.deserialize(source));

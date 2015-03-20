@@ -42,12 +42,12 @@ public class WindowPartitionerTest {
 		StreamWindow<Integer> w2 = StreamWindow.fromElements(1, 2, 3, 4);
 
 		List<StreamWindow<Integer>> expected1 = new ArrayList<StreamWindow<Integer>>();
-		expected1.addAll(w1.split(2));
-		expected1.addAll(w2.split(2));
+		expected1.addAll(StreamWindow.split(w1,2));
+		expected1.addAll(StreamWindow.split(w2,2));
 
 		List<StreamWindow<Integer>> expected2 = new ArrayList<StreamWindow<Integer>>();
-		expected2.addAll(w1.partitionBy(new MyKey()));
-		expected2.addAll(w2.partitionBy(new MyKey()));
+		expected2.addAll(StreamWindow.partitionBy(w1,new MyKey(),false));
+		expected2.addAll(StreamWindow.partitionBy(w2,new MyKey(),false));
 
 		List<StreamWindow<Integer>> input = new ArrayList<StreamWindow<Integer>>();
 		input.add(w1);

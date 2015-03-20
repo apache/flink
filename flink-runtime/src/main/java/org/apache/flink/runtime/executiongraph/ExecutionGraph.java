@@ -606,7 +606,7 @@ public class ExecutionGraph implements Serializable {
 					attempt.cancelingComplete();
 					return true;
 				case FAILED:
-					attempt.markFailed(state.getError());
+					attempt.markFailed(state.getError(userClassLoader));
 					return true;
 				default:
 					// we mark as failed and return false, which triggers the TaskManager

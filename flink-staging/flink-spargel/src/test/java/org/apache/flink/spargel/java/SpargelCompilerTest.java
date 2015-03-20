@@ -29,14 +29,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.compiler.plan.DualInputPlanNode;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plan.PlanNode;
-import org.apache.flink.compiler.plan.SinkPlanNode;
-import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
+import org.apache.flink.optimizer.plan.DualInputPlanNode;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plan.PlanNode;
+import org.apache.flink.optimizer.plan.SinkPlanNode;
+import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.spargel.java.VertexCentricIteration;
 import org.apache.flink.spargel.java.examples.SpargelConnectedComponents.CCMessager;
 import org.apache.flink.spargel.java.examples.SpargelConnectedComponents.CCUpdater;
 import org.apache.flink.spargel.java.examples.SpargelConnectedComponents.IdAssigner;
@@ -69,24 +68,24 @@ public class SpargelCompilerTest extends CompilerTestBase {
 			// check the sink
 			SinkPlanNode sink = op.getDataSinks().iterator().next();
 			assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-			assertEquals(DEFAULT_PARALLELISM, sink.getDegreeOfParallelism());
+			assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
 			
 			// check the iteration
 			WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
-			assertEquals(DEFAULT_PARALLELISM, iteration.getDegreeOfParallelism());
+			assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
 			
 			// check the solution set join and the delta
 			PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
 			assertTrue(ssDelta instanceof DualInputPlanNode); // this is only true if the update functions preserves the partitioning
 			
 			DualInputPlanNode ssJoin = (DualInputPlanNode) ssDelta;
-			assertEquals(DEFAULT_PARALLELISM, ssJoin.getDegreeOfParallelism());
+			assertEquals(DEFAULT_PARALLELISM, ssJoin.getParallelism());
 			assertEquals(ShipStrategyType.PARTITION_HASH, ssJoin.getInput1().getShipStrategy());
 			assertEquals(new FieldList(0), ssJoin.getInput1().getShipStrategyKeys());
 			
 			// check the workset set join
 			DualInputPlanNode edgeJoin = (DualInputPlanNode) ssJoin.getInput1().getSource();
-			assertEquals(DEFAULT_PARALLELISM, edgeJoin.getDegreeOfParallelism());
+			assertEquals(DEFAULT_PARALLELISM, edgeJoin.getParallelism());
 			assertEquals(ShipStrategyType.PARTITION_HASH, edgeJoin.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, edgeJoin.getInput2().getShipStrategy());
 			assertTrue(edgeJoin.getInput1().getTempMode().isCached());
@@ -144,24 +143,24 @@ public class SpargelCompilerTest extends CompilerTestBase {
 			// check the sink
 			SinkPlanNode sink = op.getDataSinks().iterator().next();
 			assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-			assertEquals(DEFAULT_PARALLELISM, sink.getDegreeOfParallelism());
+			assertEquals(DEFAULT_PARALLELISM, sink.getParallelism());
 			
 			// check the iteration
 			WorksetIterationPlanNode iteration = (WorksetIterationPlanNode) sink.getInput().getSource();
-			assertEquals(DEFAULT_PARALLELISM, iteration.getDegreeOfParallelism());
+			assertEquals(DEFAULT_PARALLELISM, iteration.getParallelism());
 			
 			// check the solution set join and the delta
 			PlanNode ssDelta = iteration.getSolutionSetDeltaPlanNode();
 			assertTrue(ssDelta instanceof DualInputPlanNode); // this is only true if the update functions preserves the partitioning
 			
 			DualInputPlanNode ssJoin = (DualInputPlanNode) ssDelta;
-			assertEquals(DEFAULT_PARALLELISM, ssJoin.getDegreeOfParallelism());
+			assertEquals(DEFAULT_PARALLELISM, ssJoin.getParallelism());
 			assertEquals(ShipStrategyType.PARTITION_HASH, ssJoin.getInput1().getShipStrategy());
 			assertEquals(new FieldList(0), ssJoin.getInput1().getShipStrategyKeys());
 			
 			// check the workset set join
 			DualInputPlanNode edgeJoin = (DualInputPlanNode) ssJoin.getInput1().getSource();
-			assertEquals(DEFAULT_PARALLELISM, edgeJoin.getDegreeOfParallelism());
+			assertEquals(DEFAULT_PARALLELISM, edgeJoin.getParallelism());
 			assertEquals(ShipStrategyType.PARTITION_HASH, edgeJoin.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, edgeJoin.getInput2().getShipStrategy());
 			assertTrue(edgeJoin.getInput1().getTempMode().isCached());

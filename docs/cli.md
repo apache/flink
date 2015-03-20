@@ -65,29 +65,38 @@ The command line can be used to
                                ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
                                file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
+-   Run example program with a specific class as an entry point:
+
+        ./bin/flink run -c org.apache.flink.examples.java.wordcount.WordCount \
+                               ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
+                               file:///home/user/hamlet.txt file:///home/user/wordcount_out
+
 -   Run example program using a [per-job YARN cluster](yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster -yn 2 \
                                ./examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
                                hdfs:///user/hamlet.txt hdfs:///user/wordcount_out
 
--   Display the expected arguments for the WordCount example program:
-
-        ./bin/flink info -d ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar
-
 -   Display the optimized execution plan for the WordCount example program as JSON:
 
-        ./bin/flink info -e 
-                                ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
+        ./bin/flink info ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
                                 file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   List scheduled and running jobs (including their JobIDs):
 
-        ./bin/flink list -s -r
+        ./bin/flink list
+
+-   List scheduled jobs (including their JobIDs):
+
+        ./bin/flink list -s
+
+-   List running jobs (including their JobIDs):
+
+        ./bin/flink list -r
 
 -   Cancel a job:
 
-        ./bin/flink cancel -i <jobID>
+        ./bin/flink cancel <jobID>
 
 ## Usage
 
@@ -96,62 +105,86 @@ The command line syntax is as follows:
 ~~~
 ./flink <ACTION> [OPTIONS] [ARGUMENTS]
 
-General options:
-     -h,--help      Show the help for the CLI Frontend, or a specific action.
-     -v,--verbose   Print more detailed error messages.
+The following actions are available:
+
+Action "run" compiles and runs a program.
+
+  Syntax: run [OPTIONS] <jar-file> <arguments>
+  "run" action options:
+     -c,--class <classname>           Class with the program entry point ("main"
+                                      method or "getPlan()" method. Only needed
+                                      if the JAR file does not specify the class
+                                      in its manifest.
+     -m,--jobmanager <host:port>      Address of the JobManager (master) to
+                                      which to connect. Specify 'yarn-cluster'
+                                      as the JobManager to deploy a YARN cluster
+                                      for the job. Use this flag to connect to a
+                                      different JobManager than the one
+                                      specified in the configuration.
+     -p,--parallelism <parallelism>   The parallelism with which to run the
+                                      program. Optional flag to override the
+                                      default value specified in the
+                                      configuration.
+  Additional arguments if -m yarn-cluster is set:
+     -yD <arg>                            Dynamic properties
+     -yd,--yarndetached                   Start detached
+     -yj,--yarnjar <arg>                  Path to Flink jar file
+     -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container [in
+                                          MB]
+     -yn,--yarncontainer <arg>            Number of YARN container to allocate
+                                          (=Number of Task Managers)
+     -yq,--yarnquery                      Display available YARN resources
+                                          (memory, cores)
+     -yqu,--yarnqueue <arg>               Specify YARN queue.
+     -ys,--yarnslots <arg>                Number of slots per TaskManager
+     -yt,--yarnship <arg>                 Ship files in the specified directory
+                                          (t for transfer)
+     -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container [in
+                                          MB]
 
 
-Action "run" - compiles and submits a Flink program that is given in the form of a JAR file.
+Action "info" shows the optimized execution plan of the program (JSON).
 
-  "run" options:
-
-     -p,--parallelism <parallelism> The degree of parallelism for the execution. This value is used unless the program overrides the degree of parallelism on the execution environment or program plan. If this option is not set, then the execution will use the default parallelism specified in the flink-conf.yaml file.
-
-     -c,--class <classname>         The class with the entry point (main method, or getPlan() method). Needs only be specified if the JAR file has no manifest pointing to that class. See program packaging instructions for details.
-
-     -m,--jobmanager <host:port>    Option to submit the program to a different Flink master (JobManager).
-
-  "run" arguments:
-
-     - The first argument is the path to the JAR file of the program.
-     - All successive arguments are passed to the program's main method (or getPlan() method).
-
-
-Action "info" - displays information about a Flink program.
-
-  "info" action arguments:
-     -d,--description               Show description of the program, if the main class implements the 'ProgramDescription' interface.
-
-     -e,--executionplan             Show the execution data flow plan of the program, in JSON representation.
-
-     -p,--parallelism <parallelism> The degree of parallelism for the execution, see above. The parallelism is relevant for the execution plan. The option is only evaluated if used together with the -e option.
-
-     -c,--class <classname>         The class with the entry point (main method, or getPlan() method). Needs only be specified if the JAR file has no manifest pointing to that class. See program packaging instructions for details.
-
-     -m,--jobmanager <host:port>    Option to connect to a different Flink master (JobManager). Connecting to a master is relevant to compile the execution plan. The option is only evaluated if used together with the -e option.
-
-  "info" arguments:
-
-     - The first argument is the path to the JAR file of the program.
-     - All successive arguments are passed to the program's main method (or getPlan() method).
+  Syntax: info [OPTIONS] <jar-file> <arguments>
+  "info" action options:
+     -c,--class <classname>           Class with the program entry point ("main"
+                                      method or "getPlan()" method. Only needed
+                                      if the JAR file does not specify the class
+                                      in its manifest.
+     -m,--jobmanager <host:port>      Address of the JobManager (master) to
+                                      which to connect. Specify 'yarn-cluster'
+                                      as the JobManager to deploy a YARN cluster
+                                      for the job. Use this flag to connect to a
+                                      different JobManager than the one
+                                      specified in the configuration.
+     -p,--parallelism <parallelism>   The parallelism with which to run the
+                                      program. Optional flag to override the
+                                      default value specified in the
+                                      configuration.
 
 
-Action "list" lists submitted Flink programs.
+Action "list" lists running and scheduled programs.
 
-  "list" action arguments:
+  Syntax: list [OPTIONS]
+  "list" action options:
+     -m,--jobmanager <host:port>   Address of the JobManager (master) to which
+                                   to connect. Specify 'yarn-cluster' as the
+                                   JobManager to deploy a YARN cluster for the
+                                   job. Use this flag to connect to a different
+                                   JobManager than the one specified in the
+                                   configuration.
+     -r,--running                  Show only running programs and their JobIDs
+     -s,--scheduled                Show only scheduled programs and their JobIDs
 
-     -r,--running                   Show running programs and their JobIDs
 
-     -s,--scheduled                 Show scheduled programs and their JobIDs
+Action "cancel" cancels a running program.
 
-     -m,--jobmanager <host:port>    Option to connect to a different Flink master (JobManager).
-
-
-Action "cancel" cancels a submitted Flink program.
-
-  "cancel" action arguments:
-
-     -i,--jobid <jobID>             JobID of program to cancel
-     
-     -m,--jobmanager <host:port>    Option to connect to a different Flink master (JobManager).
+  Syntax: cancel [OPTIONS] <Job ID>
+  "cancel" action options:
+     -m,--jobmanager <host:port>   Address of the JobManager (master) to which
+                                   to connect. Specify 'yarn-cluster' as the
+                                   JobManager to deploy a YARN cluster for the
+                                   job. Use this flag to connect to a different
+                                   JobManager than the one specified in the
+                                   configuration.
 ~~~

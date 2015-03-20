@@ -27,10 +27,10 @@ import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
@@ -124,10 +124,10 @@ public class UnionSinkITCase extends RecordAPITestBase {
 		Plan plan = new Plan(output);
 		plan.setDefaultParallelism(DOP);
 
-		PactCompiler pc = new PactCompiler(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);
 
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+		JobGraphGenerator jgg = new JobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 
