@@ -163,9 +163,9 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @param interval Time interval between state checkpoints in millis
 	 */
-	public StreamExecutionEnvironment enableMonitoring(long interval) {
-		streamGraph.setMonitoringEnabled(true);
-		streamGraph.setMonitoringInterval(interval);
+	public StreamExecutionEnvironment enableCheckpointing(long interval) {
+		streamGraph.setCheckpointingEnabled(true);
+		streamGraph.setCheckpointingInterval(interval);
 		return this;
 	}
 
@@ -178,8 +178,8 @@ public abstract class StreamExecutionEnvironment {
 	 * otherwise with calling with the {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)}
 	 * method in case of failure the job will be resubmitted to the cluster indefinitely.
 	 */
-	public StreamExecutionEnvironment enableMonitoring() {
-		streamGraph.setMonitoringEnabled(true);
+	public StreamExecutionEnvironment enableCheckpointing() {
+		streamGraph.setCheckpointingEnabled(true);
 		return this;
 	}
 

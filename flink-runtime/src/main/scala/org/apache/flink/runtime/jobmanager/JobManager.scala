@@ -311,13 +311,13 @@ class JobManager(val configuration: Configuration,
     case msg: BarrierAck =>
       currentJobs.get(msg.jobID) match {
         case Some(jobExecution) =>
-          jobExecution._1.getStateMonitorActor forward  msg
+          jobExecution._1.getStateCheckpointerActor forward  msg
         case None =>
       }
     case msg: StateBarrierAck =>
       currentJobs.get(msg.jobID) match {
         case Some(jobExecution) =>
-          jobExecution._1.getStateMonitorActor forward  msg
+          jobExecution._1.getStateCheckpointerActor forward  msg
         case None =>
       }
       
@@ -487,8 +487,8 @@ class JobManager(val configuration: Configuration,
         executionGraph.setScheduleMode(jobGraph.getScheduleMode)
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
         
-        executionGraph.setMonitoringEnabled(jobGraph.isMonitoringEnabled)
-        executionGraph.setMonitoringInterval(jobGraph.getMonitorInterval)
+        executionGraph.setCheckpointingEnabled(jobGraph.isMonitoringEnabled)
+        executionGraph.setCheckpointingInterval(jobGraph.getMonitorInterval)
 
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits
