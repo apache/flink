@@ -20,7 +20,7 @@ package org.apache.flink.graph.test;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.graph.example.GSAGreedyGraphColoringExample;
+import org.apache.flink.graph.example.GSAConnectedComponentsExample;
 import org.apache.flink.graph.example.GSASingleSourceShortestPathsExample;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
@@ -68,17 +68,18 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Greedy Graph Coloring Test
+	//  Connected Components Test
 	// --------------------------------------------------------------------------------------------
 
 	@Test
 	public void testGreedyGraphColoring() throws Exception {
-		GSAGreedyGraphColoringExample.main(new String[] {verticesPath, edgesPath, resultPath, "16"});
-		expectedResult = "1 1.0\n" +
-				"2 1.0\n" +
-				"3 1.0\n" +
-				"4 1.0\n" +
-				"5 1.0\n";
+		GSAConnectedComponentsExample.main(new String[]{verticesPath, edgesPath, resultPath, "16"});
+		expectedResult = "1 1\n" +
+				"2 1\n" +
+				"3 1\n" +
+				"4 1\n" +
+				"5 1\n" +
+				"6 6\n";
 
 	}
 
@@ -93,7 +94,8 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 				"2 12.0\n" +
 				"3 13.0\n" +
 				"4 47.0\n" +
-				"5 48.0\n";
+				"5 48.0\n" +
+				"6 Infinity\n";
 	}
 
 
@@ -101,11 +103,12 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 	//  Sample data
 	// --------------------------------------------------------------------------------------------
 
-	private static final String VERTICES = "1 1.0\n" +
-			"2 2.0\n" +
-			"3 3.0\n" +
-			"4 4.0\n" +
-			"5 5.0\n";
+	private static final String VERTICES = "1 1\n" +
+			"2 2\n" +
+			"3 3\n" +
+			"4 4\n" +
+			"5 5\n" +
+			"6 6\n";
 
 	private static final String EDGES = "1 2 12.0\n" +
 			"1 3 13.0\n" +

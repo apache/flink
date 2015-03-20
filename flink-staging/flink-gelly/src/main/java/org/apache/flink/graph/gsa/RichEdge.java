@@ -23,7 +23,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import java.io.Serializable;
 
 /**
- * A wrapper around Tuple3<VV, EV, VV> for convenience in the GatherFunction
+ * This class represents a <sourceVertex, edge> pair
+ * This is a wrapper around Tuple2<VV, EV> for convenience in the GatherFunction
  * @param <VV> the vertex value type
  * @param <EV> the edge value type
  */
