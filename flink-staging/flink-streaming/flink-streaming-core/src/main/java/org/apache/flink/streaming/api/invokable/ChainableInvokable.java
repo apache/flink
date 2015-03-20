@@ -46,4 +46,12 @@ public abstract class ChainableInvokable<IN, OUT> extends StreamInvokable<IN, OU
 	protected IN copyInput(IN input) {
 		return copyInput ? copy(input) : input;
 	}
+
+	@Override
+	public void collect(IN record) {
+		if (isRunning) {
+			nextObject = copyInput(record);
+			callUserFunctionAndLogException();
+		}
+	}
 }

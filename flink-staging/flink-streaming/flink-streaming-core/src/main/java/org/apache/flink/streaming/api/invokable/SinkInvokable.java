@@ -42,12 +42,6 @@ public class SinkInvokable<IN> extends ChainableInvokable<IN, IN> {
 	}
 
 	@Override
-	public void collect(IN record) {
-		nextObject = copyInput(record);
-		callUserFunctionAndLogException();
-	}
-
-	@Override
 	public void cancel() {
 		super.cancel();
 		sinkFunction.cancel();

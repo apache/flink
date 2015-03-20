@@ -26,11 +26,11 @@ public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	protected FoldFunction<IN, OUT> folder;
-	protected OUT accumulator;
-	protected IN nextValue;
+	private OUT accumulator;
 	protected TypeSerializer<OUT> outTypeSerializer;
 
-	public StreamFoldInvokable(FoldFunction<IN, OUT> folder, OUT initialValue, TypeInformation<OUT> outTypeInformation) {
+	public StreamFoldInvokable(FoldFunction<IN, OUT> folder, OUT initialValue,
+			TypeInformation<OUT> outTypeInformation) {
 		super(folder);
 		this.folder = folder;
 		this.accumulator = initialValue;
@@ -40,29 +40,15 @@ public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 	@Override
 	public void invoke() throws Exception {
 		while (isRunning && readNext() != null) {
-			fold();
+			callUserFunctionAndLogException();
 		}
-	}
-
-	protected void fold() throws Exception {
-		callUserFunctionAndLogException();
-
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
 
-		nextValue = nextObject;
-		accumulator = folder.fold(outTypeSerializer.copy(accumulator), nextValue);
+		accumulator = folder.fold(outTypeSerializer.copy(accumulator), nextObject);
 		collector.collect(accumulator);
 
-	}
-
-	@Override
-	public void collect(IN record) {
-		if (isRunning) {
-			nextObject = copyInput(record);
-			callUserFunctionAndLogException();
-		}
 	}
 }

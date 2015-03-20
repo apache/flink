@@ -60,12 +60,5 @@ public class ProjectInvokable<IN, OUT extends Tuple> extends ChainableInvokable<
 		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
 		outTuple = outTypeSerializer.createInstance();
 	}
-
-	@Override
-	public void collect(IN record) {
-		if (isRunning) {
-			nextObject = copyInput(record);
-			callUserFunctionAndLogException();
-		}
-	}
+	
 }

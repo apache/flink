@@ -196,13 +196,10 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private DataStream<Tuple2<Integer, Integer>> extractPartsByID(DiscretizedStream<OUT> input) {
-		return input.discretizedStream
-				.transform(
-						"ExtractParts",
-						new TupleTypeInfo(Tuple2.class, BasicTypeInfo.INT_TYPE_INFO,
-								BasicTypeInfo.INT_TYPE_INFO),
-						new FlatMapInvokable<StreamWindow<OUT>, Tuple2<Integer, Integer>>(
-								new WindowPartExtractor<OUT>()).withoutInputCopy());
+		return input.discretizedStream.transform("ExtractParts", new TupleTypeInfo(Tuple2.class,
+				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
+				new FlatMapInvokable<StreamWindow<OUT>, Tuple2<Integer, Integer>>(
+						new WindowPartExtractor<OUT>()).withoutInputCopy());
 	}
 
 	private DiscretizedStream<OUT> partition(WindowTransformation transformation) {

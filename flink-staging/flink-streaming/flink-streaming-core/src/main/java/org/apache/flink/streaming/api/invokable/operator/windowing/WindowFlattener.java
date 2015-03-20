@@ -28,6 +28,7 @@ public class WindowFlattener<T> extends ChainableInvokable<StreamWindow<T>, T> {
 
 	public WindowFlattener() {
 		super(null);
+		withoutInputCopy();
 	}
 
 	private static final long serialVersionUID = 1L;
@@ -43,14 +44,6 @@ public class WindowFlattener<T> extends ChainableInvokable<StreamWindow<T>, T> {
 	protected void callUserFunction() throws Exception {
 		for (T element : nextObject) {
 			collector.collect(element);
-		}
-	}
-
-	@Override
-	public void collect(StreamWindow<T> record) {
-		if (isRunning) {
-			nextObject = record;
-			callUserFunctionAndLogException();
 		}
 	}
 

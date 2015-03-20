@@ -441,8 +441,7 @@ public class WindowedDataStream<OUT> {
 		// discretized stream, we also pass the type of the windowbuffer
 		DiscretizedStream<OUT> discretized = discretize(transformation, windowBuffer);
 
-		return discretized
-				.timeReduce(reduceFunction, windowBuffer instanceof PreAggregator);
+		return discretized.timeReduce(reduceFunction, windowBuffer instanceof PreAggregator);
 
 	}
 
