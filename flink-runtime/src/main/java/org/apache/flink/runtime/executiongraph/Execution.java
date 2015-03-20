@@ -470,8 +470,11 @@ public class Execution implements Serializable {
 					@Override
 					public Boolean call() throws Exception {
 						try {
+							final ExecutionGraph consumerGraph = consumerVertex.getExecutionGraph();
+
 							consumerVertex.scheduleForExecution(
-								consumerVertex.getExecutionGraph().getScheduler(), false);
+									consumerVertex.getExecutionGraph().getScheduler(),
+									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());
 						} catch (Throwable t) {
 							fail(new IllegalStateException("Could not schedule consumer " +
 									"vertex " + consumerVertex, t));
@@ -880,8 +883,8 @@ public class Execution implements Serializable {
 			markTimestamp(targetState);
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} ({}) switched from {} to {}.",this.getVertex().getTaskName(),
-						getAttemptId(),  currentState, targetState);
+				LOG.debug("{} ({}) switched from {} to {}.",
+						getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
 			}
 
 			// make sure that the state transition completes normally.

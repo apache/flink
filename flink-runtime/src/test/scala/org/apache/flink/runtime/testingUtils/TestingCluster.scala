@@ -68,6 +68,6 @@ class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolea
     val tmActorName = TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
 
     TaskManager.startTaskManagerActor(configuration, system, HOSTNAME, tmActorName,
-      singleActorSystem, true, classOf[TestingTaskManager])
+      singleActorSystem, numTaskManagers == 1, classOf[TestingTaskManager])
   }
 }

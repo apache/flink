@@ -416,6 +416,65 @@ under the License.
 			<id>docs-and-source</id>
 			<build>
 				<plugins>
+
+					<!-- We need to clean compiled classes to make sure that genjavadoc
+					is called to generate our fake Java source from Scala source. -->
+					<plugin>
+						<artifactId>maven-clean-plugin</artifactId>
+						<version>2.5</version><!--$NO-MVN-MAN-VER$-->
+						<executions>
+							<execution>
+								<id>clean-target</id>
+								<phase>generate-sources</phase>
+								<goals>
+									<goal>clean</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+
+					<plugin>
+						<groupId>net.alchim31.maven</groupId>
+						<artifactId>scala-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>doc</id>
+								<phase>generate-sources</phase>
+								<goals>
+									<goal>compile</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<args>
+								<arg>-P:genjavadoc:out=${project.build.directory}/genjavadoc</arg>
+							</args>
+							<compilerPlugins>
+								<compilerPlugin>
+									<groupId>com.typesafe.genjavadoc</groupId>
+									<artifactId>genjavadoc-plugin_${scala.version}</artifactId>
+									<version>0.8</version>
+								</compilerPlugin>
+							</compilerPlugins>
+						</configuration>
+					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<phase>generate-sources</phase>
+								<goals>
+									<goal>add-source</goal>
+								</goals>
+								<configuration>
+									<sources>
+										<source>${project.build.directory}/genjavadoc</source>
+									</sources>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-source-plugin</artifactId>

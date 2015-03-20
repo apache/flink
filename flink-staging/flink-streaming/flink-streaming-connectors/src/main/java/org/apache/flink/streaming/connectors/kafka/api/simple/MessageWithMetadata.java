@@ -18,13 +18,16 @@
 package org.apache.flink.streaming.connectors.kafka.api.simple;
 
 /**
- * POJO encapsulating records received from Kafka with their offset.
+ * POJO encapsulating records received from Kafka with their offset and partition.
  */
-public class MessageWithOffset {
+public class MessageWithMetadata {
+
+	private int partition;
 	private long offset;
 	private byte[] message;
 
-	public MessageWithOffset(long offset, byte[] message) {
+	public MessageWithMetadata(long offset, byte[] message, int partition) {
+		this.partition = partition;
 		this.offset = offset;
 		this.message = message;
 	}
@@ -33,15 +36,11 @@ public class MessageWithOffset {
 		return offset;
 	}
 
-	public void setOffset(long offset) {
-		this.offset = offset;
-	}
-
 	public byte[] getMessage() {
 		return message;
 	}
 
-	public void setMessage(byte[] message) {
-		this.message = message;
+	public int getPartition() {
+		return partition;
 	}
 }

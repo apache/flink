@@ -29,7 +29,7 @@ Introduction
 ------------
 
 
-Flink Streaming is an extension of the batch Flink API for high-throughput, low-latency data stream processing. The system can connect to and process data streams from many data sources like Apache Kafka RabbitMQ, Apache Flume, Twitter and also from any user defined data source. Data streams can be transformed and modified using high-level functions similar to the ones provided by the batch processing API. Flink Streaming provides native support for iterative stream processing. The processed data can be pushed to different output types.
+Flink Streaming is an extension of the batch Flink API for high-throughput, low-latency data stream processing. The system can connect to and process data streams from many data sources like Apache Kafka, RabbitMQ, Apache Flume, Twitter and also from any user defined data source. Data streams can be transformed and modified using high-level functions similar to the ones provided by the batch processing API. Flink Streaming provides native support for iterative stream processing. The processed data can be pushed to different output types.
 
 Flink Streaming API
 -----------
@@ -138,7 +138,7 @@ object WordCount {
 
 To run the example program start the input stream with netcat first from a terminal:
 
-~~~batch
+~~~bash
 nc -lk 9999
 ~~~
 
@@ -1159,19 +1159,16 @@ This connector provides access to data streams from [Apache Kafka](https://kafka
 #### Installing Apache Kafka
 * Follow the instructions from [Kafka's quickstart](https://kafka.apache.org/documentation.html#quickstart) to download the code and launch a server (launching a Zookeeper and a Kafka server is required every time before starting the application).
 * On 32 bit computers [this](http://stackoverflow.com/questions/22325364/unrecognized-vm-option-usecompressedoops-when-running-kafka-from-my-ubuntu-in) problem may occur. 
-* If the Kafka zookeeper and server are running on a remote machine then in the config/server.properties file the advertised.host.name must be set to the machine's IP address.
+* If the Kafka and Zookeeper servers are running on a remote machine, then the `advertised.host.name` setting in the `config/server.properties` file the  must be set to the machine's IP address.
 
 #### Kafka Source
-A class providing an interface for receiving data from Kafka.
+The standard `KafkaSource` is a Kafka consumer providing an access to one topic.
 
-The followings have to be provided for the `KafkaSource(…)` constructor in order:
+The following parameters have to be provided for the `KafkaSource(...)` constructor:
 
-1. The hostname
-2. The group name
-3. The topic name
-4. The parallelism
-5. Deserialisation schema
-
+1. Zookeeper hostname
+2. The topic name
+3. Deserialization schema
 
 Example:
 
@@ -1179,15 +1176,59 @@ Example:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 DataStream<String> stream = env
-	.addSource(new KafkaSource<String>("localhost:2181", "group", "test", new SimpleStringSchema()))
+	.addSource(new KafkaSource<String>("localhost:2181", "test", new SimpleStringSchema()))
 	.print();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 stream = env
-    .addSource(new KafkaSource[String]("localhost:2181", "group", "test", new SimpleStringSchema)
+    .addSource(new KafkaSource[String]("localhost:2181", "test", new SimpleStringSchema)
     .print
+{% endhighlight %}
+</div>
+</div>
+
+#### Persistent Kafka Source
+As Kafka persists all the data, a fault tolerant Kafka source can be provided.
+
+The PersistentKafkaSource can read a topic, and if the job fails for some reason, the source will
+continue on reading from where it left off after a restart.
+For example if there are 3 partitions in the topic with offsets 31, 122, 110 read at the time of job
+failure, then at the time of restart it will continue on reading from those offsets, no matter whether these partitions have new messages.
+
+To use fault tolerant Kafka Sources, monitoring of the topology needs to be enabled at the execution environment:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.enableMonitoring(5000);
+{% endhighlight %}
+</div>
+</div>
+
+Also note that Flink can only restart the topology if enough processing slots are available to restart the topology.
+So if the topology fails due to loss of a TaskManager, there must be still enough slots available afterwards.
+Flink on YARN supports automatic restart of lost YARN containers.
+
+The following arguments have to be provided for the `PersistentKafkaSource(...)` constructor:
+
+1. The topic name
+2. The hostname of a Kafka broker
+3. Deserialization schema
+
+Example:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+stream.addSink(new PersistentKafkaSource<String>("test", "localhost:9092", new SimpleStringSchema()));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+stream.addSink(new PersistentKafkaSource[String]("test", "localhost:9092", new SimpleStringSchema))
 {% endhighlight %}
 </div>
 </div>
@@ -1195,10 +1236,10 @@ stream = env
 #### Kafka Sink
 A class providing an interface for sending data to Kafka. 
 
-The followings have to be provided for the `KafkaSink()` constructor in order:
+The followings have to be provided for the `KafkaSink(…)` constructor in order:
 
 1. The topic name
-2. The hostname
+2. The hostname of a Kafka broker
 3. Serialisation schema
 
 Example: 
@@ -1206,12 +1247,12 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-stream.addSink(new KafkaSink<String, String>("test", "localhost:9092", new SimpleStringSchema()));
+stream.addSink(new KafkaSink<String>("test", "localhost:9092", new SimpleStringSchema()));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream.addSink(new KafkaSink[String, String]("test", "localhost:9092", new SimpleStringSchema))
+stream.addSink(new KafkaSink[String]("test", "localhost:9092", new SimpleStringSchema))
 {% endhighlight %}
 </div>
 </div>
@@ -1222,7 +1263,7 @@ More about Kafka can be found [here](https://kafka.apache.org/documentation.html
 
 ### Apache Flume
 
-This connector provides access to datastreams from [Apache Flume](http://flume.apache.org/).
+This connector provides access to data streams from [Apache Flume](http://flume.apache.org/).
 
 #### Installing Apache Flume
 [Download](http://flume.apache.org/download.html) Apache Flume. A configuration file is required for starting agents in Flume. A configuration file for running the example can be found [here](#config_file).
@@ -1234,7 +1275,7 @@ The followings have to be provided for the `FlumeSource(…)` constructor in ord
 
 1. The hostname
 2. The port number
-3. Deserialisation schema
+3. Deserialization schema
 
 Example:
 
@@ -1314,7 +1355,7 @@ More on Flume can be found [here](http://flume.apache.org).
 
 ### RabbitMQ
 
-This connector provides access to datastreams from [RabbitMQ](http://www.rabbitmq.com/).
+This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/).
 
 ##### Installing RabbitMQ
 Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts and the application connecting to RabbitMQ can be launched.
@@ -1327,7 +1368,7 @@ The followings have to be provided for the `RMQSource(…)` constructor in order
 
 1. The hostname
 2. The queue name
-3. Deserialisation schema
+3. Deserialization schema
 
 Example:
 
@@ -1391,7 +1432,7 @@ Remember to keep these pieces of information a secret and do not push them to pu
 #### Accessing the authentication information
 Create a properties file and pass its path in the constructor of `TwitterSource`. The content of the file should be similar to this:
 
-~~~batch
+~~~bash
 #properties file for my app
 secret=***
 consumerSecret=***
@@ -1461,23 +1502,23 @@ After installing Docker an image can be pulled for each connector. Containers ca
 #### Creating a jar with all the dependencies
 For the easiest set up create a jar with all the dependencies of the *flink-streaming-connectors* project.
 
-~~~batch
+~~~bash
 cd /PATH/TO/GIT/flink/flink-staging/flink-streaming-connectors
 mvn assembly:assembly
-~~~batch
+~~~bash
 
 This creates an assembly jar under *flink-streaming-connectors/target*. 
 
 #### RabbitMQ
-Pull the image:
+Pull the docker image:
 
-~~~batch
+~~~bash
 sudo docker pull flinkstreaming/flink-connectors-rabbitmq 
 ~~~
 
 To run the container type:
 
-~~~batch
+~~~bash
 sudo docker run -p 127.0.0.1:5672:5672 -t -i flinkstreaming/flink-connectors-rabbitmq
 ~~~
 
@@ -1485,13 +1526,13 @@ Now a terminal started running from the image with all the necessary configurati
 
 To start the RabbitMQ server:
 
-~~~batch
+~~~bash
 sudo /etc/init.d/rabbitmq-server start
 ~~~
 
 To launch the example on the host computer execute:
 
-~~~batch
+~~~bash
 java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.rabbitmq.RMQTopology \
 > log.txt 2> errorlog.txt
 ~~~
@@ -1510,13 +1551,13 @@ In the example there are two connectors. One that sends messages to RabbitMQ and
 
 Pull the image:
 
-~~~batch
+~~~bash
 sudo docker pull flinkstreaming/flink-connectors-kafka 
 ~~~
 
 To run the container type:
 
-~~~batch
+~~~bash
 sudo docker run -p 127.0.0.1:2181:2181 -p 127.0.0.1:9092:9092 -t -i \
 flinkstreaming/flink-connectors-kafka
 ~~~
@@ -1524,21 +1565,21 @@ flinkstreaming/flink-connectors-kafka
 Now a terminal started running from the image with all the necessary configurations to test run the Kafka connector. The -p flag binds the localhost's and the Docker container's ports so Kafka can communicate with the application through these.
 First start a zookeeper in the background:
 
-~~~batch
+~~~bash
 /kafka_2.9.2-0.8.1.1/bin/zookeeper-server-start.sh /kafka_2.9.2-0.8.1.1/config/zookeeper.properties \
 > zookeeperlog.txt &
 ~~~
 
 Then start the kafka server in the background:
 
-~~~batch
+~~~bash
 /kafka_2.9.2-0.8.1.1/bin/kafka-server-start.sh /kafka_2.9.2-0.8.1.1/config/server.properties \
  > serverlog.txt 2> servererr.txt &
 ~~~
 
 To launch the example on the host computer execute:
 
-~~~batch
+~~~bash
 java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.kafka.KafkaTopology \
 > log.txt 2> errorlog.txt
 ~~~
@@ -1565,34 +1606,34 @@ At the moment remote access for Flume connectors does not work. This example is 
 
 Pull the image:
 
-~~~batch
+~~~bash
 sudo docker pull flinkstreaming/flink-connectors-flume
 ~~~
 
 To run the container type:
 
-~~~batch
+~~~bash
 sudo docker run -t -i flinkstreaming/flink-connectors-flume
 ~~~
 
 Now a terminal started running from the image with all the necessary configurations to test run the Flume connector. The -p flag binds the localhost's and the Docker container's ports so flume can communicate with the application through these.
 
 To have the latest version of Flink type:
-~~~batch
+~~~bash
 cd /git/flink/
 git pull
 ~~~
 
 Then build the code with:
 
-~~~batch
+~~~bash
 cd /git/flink/flink-staging/flink-streaming/flink-streaming-connectors/
 mvn install -DskipTests
 ~~~
 
 First start the server in the background:
 
-~~~batch
+~~~bash
 /apache-flume-1.5.0-bin/bin/flume-ng agent \
 --conf conf --conf-file /apache-flume-1.5.0-bin/example.conf --name a1 \
 -Dflume.root.logger=INFO,console > /flumelog.txt 2> /flumeerr.txt &
@@ -1600,7 +1641,7 @@ First start the server in the background:
 
 Then press enter and launch the example with:
 
-~~~batch
+~~~bash
 java -cp /PATH/TO/JAR-WITH-DEPENDENCIES org.apache.flink.streaming.connectors.flume.FlumeTopology
 ~~~
 

@@ -15,33 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.config;
+package org.apache.flink.streaming.connectors.kafka.api.simple.offset;
 
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
+import kafka.api.OffsetRequest;
+import kafka.javaapi.consumer.SimpleConsumer;
 
-import kafka.producer.Partitioner;
-import kafka.utils.VerifiableProperties;
+public class CurrentOffset extends KafkaOffset {
 
-/**
- * Wraps an arbitrary partitioner to use as a Kafka partitioner.
- *
- * @param <T>
- * 		Type to partition
- */
-public class PartitionerWrapper<T> extends KafkaConfigWrapper<KafkaPartitioner<T>> implements Partitioner {
-
-	public PartitionerWrapper(KafkaPartitioner<T> wrapped) {
-		super(wrapped);
-	}
-
-	public PartitionerWrapper(VerifiableProperties properties) {
-		super(properties);
-	}
-
-	@SuppressWarnings("unchecked")
 	@Override
-	public int partition(Object key, int numPartitions) {
-		return wrapped.partition((T) key, numPartitions);
+	public long getOffset(SimpleConsumer consumer, String topic, int partition, String clientName) {
+		return getLastOffset(consumer, topic, partition, OffsetRequest.LatestTime(), clientName);
 	}
 
 }

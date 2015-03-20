@@ -15,23 +15,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.api.simple;
+package org.apache.flink.streaming.connectors.kafka.api.simple.iterator;
 
-import org.apache.flink.streaming.connectors.util.DeserializationSchema;
+import org.apache.flink.streaming.connectors.kafka.api.simple.MessageWithMetadata;
 
-public class KafkaDeserializingConsumerIterator<IN> extends KafkaConsumerIterator {
+/**
+ * Iterator interface for different types of Kafka consumers.
+ */
+public interface KafkaConsumerIterator {
 
-	private static final long serialVersionUID = 1L;
-	private DeserializationSchema<IN> deserializationSchema;
+	public void initialize() throws InterruptedException;
 
-	public KafkaDeserializingConsumerIterator(String host, int port, String topic, int partition, long waitOnEmptyFetch,
-												DeserializationSchema<IN> deserializationSchema) {
-		super(host, port, topic, partition, waitOnEmptyFetch);
-		this.deserializationSchema = deserializationSchema;
-	}
+	public boolean hasNext();
 
-	public IN nextRecord() throws InterruptedException {
-		return deserializationSchema.deserialize(next());
-	}
+	/**
+	 * Returns the next message received from Kafka as a
+	 * byte array.
+	 *
+	 * @return next message as a byte array.
+	 */
+	public byte[] next() throws InterruptedException;
 
+	/**
+	 * Returns the next message and its offset received from
+	 * Kafka encapsulated in a POJO.
+	 *
+	 * @return next message and its offset.
+	 */
+	public MessageWithMetadata nextWithOffset() throws InterruptedException;
 }

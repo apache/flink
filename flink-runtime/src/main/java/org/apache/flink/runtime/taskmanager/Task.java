@@ -332,6 +332,7 @@ public class Task {
 	 * Starts the execution of this task.
 	 */
 	public boolean startExecution() {
+		LOG.info("Starting execution of task {}", this.getTaskName());
 		if (STATE_UPDATER.compareAndSet(this, ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
 			final Thread thread = this.environment.getExecutingThread();
 			thread.start();

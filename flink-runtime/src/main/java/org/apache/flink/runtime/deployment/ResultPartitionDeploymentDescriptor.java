@@ -80,8 +80,8 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 	@Override
 	public String toString() {
-		return String.format("ResultPartitionDeploymentDescriptor [result id: %s," +
-						"partition id: %s,partition type: %s]",
+		return String.format("ResultPartitionDeploymentDescriptor [result id: %s, "
+						+ "partition id: %s, partition type: %s]",
 				resultId, partitionId, partitionType);
 	}
 

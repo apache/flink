@@ -29,6 +29,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -547,6 +548,7 @@ public abstract class StreamExecutionEnvironment {
 		boolean isParallel = function instanceof ParallelSourceFunction;
 		int dop = isParallel ? getDegreeOfParallelism() : 1;
 
+		ClosureCleaner.clean(function, true);
 		StreamInvokable<OUT, OUT> sourceInvokable = new SourceInvokable<OUT>(function);
 
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, sourceName,

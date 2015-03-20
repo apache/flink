@@ -15,32 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.config;
+package org.apache.flink.streaming.connectors.kafka.api.simple.offset;
 
-import org.apache.flink.streaming.connectors.util.SerializationSchema;
+import kafka.javaapi.consumer.SimpleConsumer;
 
-import kafka.serializer.Encoder;
-import kafka.utils.VerifiableProperties;
+public class GivenOffset extends KafkaOffset {
 
-/**
- * Wraps an arbitrary SerializationScheme to use as a Kafka Encoder.
- *
- * @param <T>
- * 		Type to serialize
- */
-public class EncoderWrapper<T> extends KafkaConfigWrapper<SerializationSchema<T, byte[]>> implements Encoder<T> {
+	private final long offset;
 
-	public EncoderWrapper(SerializationSchema<T, byte[]> wrapped) {
-		super(wrapped);
-	}
-
-	public EncoderWrapper(VerifiableProperties properties) {
-		super(properties);
+	public GivenOffset(long offset) {
+		this.offset = offset;
 	}
 
 	@Override
-	public byte[] toBytes(T element) {
-		return wrapped.serialize(element);
+	public long getOffset(SimpleConsumer consumer, String topic, int partition, String clientName) {
+		return offset;
 	}
 
 }

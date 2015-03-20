@@ -15,12 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.partitioner;
+package org.apache.flink.streaming.connectors.kafka.api.simple.offset;
 
-import java.io.Serializable;
+import kafka.api.OffsetRequest;
+import kafka.javaapi.consumer.SimpleConsumer;
 
-public interface KafkaPartitioner<T> extends Serializable {
+public class BeginningOffset extends KafkaOffset {
 
-	public int partition(T value, int numberOfPartitions);
+	@Override
+	public long getOffset(SimpleConsumer consumer, String topic, int partition, String clientName) {
+		return getLastOffset(consumer, topic, partition, OffsetRequest.EarliestTime(), clientName);
+	}
 
 }

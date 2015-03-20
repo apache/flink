@@ -14,31 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.streaming.connectors.kafka.partitioner;
 
-package org.apache.flink.streaming.connectors.kafka.config;
-
+import kafka.producer.Partitioner;
 import java.io.Serializable;
 
-import org.apache.commons.codec.binary.Base64;
-
-import org.apache.commons.lang3.SerializationUtils;
-
-/**
- * Serializer to serializer an arbitrary object to String.
- *
- * @param <T>
- * 		Type to serialize.
- */
-public class StringSerializer<T extends Serializable> {
-
-	public String serialize(T element) {
-		byte[] serialized = SerializationUtils.serialize(element);
-		return Base64.encodeBase64String(serialized);
-	}
-
-	public T deserialize(String stringSerialized) {
-		byte[] bytes = Base64.decodeBase64(stringSerialized);
-		return SerializationUtils.deserialize(bytes);
-	}
+public interface SerializableKafkaPartitioner extends Serializable, Partitioner {
 
 }
