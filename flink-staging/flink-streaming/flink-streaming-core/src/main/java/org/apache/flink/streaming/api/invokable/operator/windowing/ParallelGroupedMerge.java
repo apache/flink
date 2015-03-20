@@ -15,42 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable;
+package org.apache.flink.streaming.api.invokable.operator.windowing;
 
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 
-public class SinkInvokable<IN> extends ChainableInvokable<IN, IN> {
+/**
+ * The version of the ParallelMerge CoFlatMap that does not reduce the incoming
+ * elements only appends them to the current window. This is necessary for
+ * grouped reduces.
+ */
+public class ParallelGroupedMerge<OUT> extends ParallelMerge<OUT> {
+
 	private static final long serialVersionUID = 1L;
 
-	private SinkFunction<IN> sinkFunction;
-
-	public SinkInvokable(SinkFunction<IN> sinkFunction) {
-		super(sinkFunction);
-		this.sinkFunction = sinkFunction;
+	public ParallelGroupedMerge() {
+		super(null);
 	}
 
 	@Override
-	public void invoke() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		sinkFunction.invoke(nextObject);
-	}
-
-	@Override
-	public void collect(IN record) {
-		nextObject = copyInput(record);
-		callUserFunctionAndLogException();
-	}
-
-	@Override
-	public void cancel() {
-		super.cancel();
-		sinkFunction.cancel();
+	protected void updateCurrent(StreamWindow<OUT> current, StreamWindow<OUT> nextWindow)
+			throws Exception {
+		current.addAll(nextWindow);
 	}
 
 }

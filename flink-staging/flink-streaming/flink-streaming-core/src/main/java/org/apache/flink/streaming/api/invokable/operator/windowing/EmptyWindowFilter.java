@@ -15,33 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.collector;
+package org.apache.flink.streaming.api.invokable.operator.windowing;
 
-import org.apache.flink.streaming.api.StreamEdge;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
-import org.apache.flink.util.Collector;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
 
-public class CollectorWrapper<OUT> implements Collector<OUT> {
+public class EmptyWindowFilter<OUT> implements FilterFunction<StreamWindow<OUT>> {
 
-	private OutputSelectorWrapper<OUT> outputSelectorWrapper;
-
-	public CollectorWrapper(OutputSelectorWrapper<OUT> outputSelectorWrapper) {
-		this.outputSelectorWrapper = outputSelectorWrapper;
-	}
-
-	public void addCollector(Collector<?> output, StreamEdge edge) {
-		outputSelectorWrapper.addCollector(output, edge);
-	}
+	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void collect(OUT record) {
-		for (Collector<OUT> output : outputSelectorWrapper.getSelectedOutputs(record)) {
-			output.collect(record);
-		}
-	}
-
-	@Override
-	public void close() {
+	public boolean filter(StreamWindow<OUT> value) throws Exception {
+		return !value.isEmpty();
 	}
 
 }

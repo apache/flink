@@ -15,33 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.collector;
+package org.apache.flink.streaming.io;
 
-import org.apache.flink.streaming.api.StreamEdge;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
-import org.apache.flink.util.Collector;
+import java.util.Collection;
 
-public class CollectorWrapper<OUT> implements Collector<OUT> {
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 
-	private OutputSelectorWrapper<OUT> outputSelectorWrapper;
+public class InputGateFactory {
 
-	public CollectorWrapper(OutputSelectorWrapper<OUT> outputSelectorWrapper) {
-		this.outputSelectorWrapper = outputSelectorWrapper;
+	public static InputGate createInputGate(Collection<InputGate> inputGates) {
+		return createInputGate(inputGates.toArray(new InputGate[inputGates.size()]));
 	}
 
-	public void addCollector(Collector<?> output, StreamEdge edge) {
-		outputSelectorWrapper.addCollector(output, edge);
-	}
+	public static InputGate createInputGate(InputGate[] inputGates) {
+		if (inputGates.length <= 0) {
+			throw new RuntimeException("No such input gate.");
+		}
 
-	@Override
-	public void collect(OUT record) {
-		for (Collector<OUT> output : outputSelectorWrapper.getSelectedOutputs(record)) {
-			output.collect(record);
+		if (inputGates.length < 2) {
+			return inputGates[0];
+		} else {
+			return new UnionInputGate(inputGates);
 		}
 	}
-
-	@Override
-	public void close() {
-	}
-
 }

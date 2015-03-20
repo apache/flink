@@ -56,13 +56,14 @@ public class WindowPartitioner<T> extends ChainableInvokable<StreamWindow<T>, St
 			if (numberOfSplits <= 1) {
 				collector.collect(currentWindow);
 			} else {
-				for (StreamWindow<T> window : currentWindow.split(numberOfSplits)) {
+				for (StreamWindow<T> window : StreamWindow.split(currentWindow, numberOfSplits)) {
 					collector.collect(window);
 				}
 			}
 		} else {
 
-			for (StreamWindow<T> window : currentWindow.partitionBy(keySelector)) {
+			for (StreamWindow<T> window : StreamWindow
+					.partitionBy(currentWindow, keySelector, true)) {
 				collector.collect(window);
 			}
 
@@ -76,5 +77,4 @@ public class WindowPartitioner<T> extends ChainableInvokable<StreamWindow<T>, St
 			callUserFunctionAndLogException();
 		}
 	}
-
 }

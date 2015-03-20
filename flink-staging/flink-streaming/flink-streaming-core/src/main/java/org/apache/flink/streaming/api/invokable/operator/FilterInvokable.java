@@ -50,7 +50,7 @@ public class FilterInvokable<IN> extends ChainableInvokable<IN, IN> {
 	@Override
 	public void collect(IN record) {
 		if (isRunning) {
-			nextObject = copy(record);
+			nextObject = copyInput(record);
 			callUserFunctionAndLogException();
 		}
 	}

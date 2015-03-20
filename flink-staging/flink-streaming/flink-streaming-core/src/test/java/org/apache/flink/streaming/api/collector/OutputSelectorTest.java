@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.junit.Test;
 
 public class OutputSelectorTest {

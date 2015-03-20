@@ -25,6 +25,7 @@ public abstract class ChainableInvokable<IN, OUT> extends StreamInvokable<IN, OU
 		Collector<IN> {
 
 	private static final long serialVersionUID = 1L;
+	private boolean copyInput = true;
 
 	public ChainableInvokable(Function userFunction) {
 		super(userFunction);
@@ -35,5 +36,14 @@ public abstract class ChainableInvokable<IN, OUT> extends StreamInvokable<IN, OU
 		this.collector = collector;
 		this.inSerializer = inSerializer;
 		this.objectSerializer = inSerializer.getObjectSerializer();
+	}
+
+	public ChainableInvokable<IN, OUT> withoutInputCopy() {
+		copyInput = false;
+		return this;
+	}
+
+	protected IN copyInput(IN input) {
+		return copyInput ? copy(input) : input;
 	}
 }

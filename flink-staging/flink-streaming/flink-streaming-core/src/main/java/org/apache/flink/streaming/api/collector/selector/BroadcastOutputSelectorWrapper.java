@@ -15,42 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable;
+package org.apache.flink.streaming.api.collector.selector;
 
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import java.util.ArrayList;
+import java.util.List;
 
-public class SinkInvokable<IN> extends ChainableInvokable<IN, IN> {
+import org.apache.flink.streaming.api.StreamEdge;
+import org.apache.flink.util.Collector;
+
+public class BroadcastOutputSelectorWrapper<OUT> implements OutputSelectorWrapper<OUT> {
+
 	private static final long serialVersionUID = 1L;
+	private List<Collector<OUT>> outputs;
 
-	private SinkFunction<IN> sinkFunction;
+	public BroadcastOutputSelectorWrapper() {
+		outputs = new ArrayList<Collector<OUT>>();
+	}
 
-	public SinkInvokable(SinkFunction<IN> sinkFunction) {
-		super(sinkFunction);
-		this.sinkFunction = sinkFunction;
+	@SuppressWarnings("unchecked")
+	@Override
+	public void addCollector(Collector<?> output, StreamEdge edge) {
+		outputs.add((Collector<OUT>) output);
 	}
 
 	@Override
-	public void invoke() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
+	public Iterable<Collector<OUT>> getSelectedOutputs(OUT record) {
+		return outputs;
 	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		sinkFunction.invoke(nextObject);
-	}
-
-	@Override
-	public void collect(IN record) {
-		nextObject = copyInput(record);
-		callUserFunctionAndLogException();
-	}
-
-	@Override
-	public void cancel() {
-		super.cancel();
-		sinkFunction.cancel();
-	}
-
 }
