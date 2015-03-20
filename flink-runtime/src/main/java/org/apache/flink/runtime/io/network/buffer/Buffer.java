@@ -22,7 +22,6 @@ import org.apache.flink.core.memory.MemorySegment;
 
 import java.nio.ByteBuffer;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -86,6 +85,7 @@ public class Buffer {
 		synchronized (recycleLock) {
 			ensureNotRecycled();
 
+			// we need to return a copy here to guarantee thread-safety
 			return memorySegment.wrap(0, currentSize).duplicate();
 		}
 	}
@@ -104,8 +104,10 @@ public class Buffer {
 		synchronized (recycleLock) {
 			ensureNotRecycled();
 
-			checkArgument(newSize >= 0 && newSize <= memorySegment.size(), "Size of buffer must be >= 0 and <= " +
-					memorySegment.size() + ", but was " + newSize + ".");
+			if (newSize < 0 || newSize > memorySegment.size()) {
+				throw new IllegalArgumentException("Size of buffer must be >= 0 and <= " +
+													memorySegment.size() + ", but was " + newSize + ".");
+			}
 
 			currentSize = newSize;
 		}
