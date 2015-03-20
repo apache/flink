@@ -22,12 +22,12 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
 import org.apache.flink.graph.library.SingleSourceShortestPaths;
+import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
  * This example implements the Single Source Shortest Paths algorithm,
@@ -126,13 +126,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 					.lineDelimiter("\n")
 					.fieldDelimiter("\t")
 					.types(Long.class, Long.class, Double.class)
-					.map(new MapFunction<Tuple3<Long, Long, Double>, Edge<Long, Double>>() {
-
-						@Override
-						public Edge<Long, Double> map(Tuple3<Long, Long, Double> tuple3) throws Exception {
-							return new Edge<Long, Double>(tuple3.f0, tuple3.f1, tuple3.f2);
-						}
-					});
+					.map(new Tuple3ToEdgeMap<Long, Double>());
 		} else {
 			return SingleSourceShortestPathsData.getDefaultEdgeDataSet(env);
 		}
