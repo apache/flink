@@ -24,17 +24,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
+import org.apache.flink.streaming.api.StreamEdge;
 import org.apache.flink.streaming.api.collector.CollectorWrapper;
-import org.apache.flink.streaming.api.collector.DirectedCollectorWrapper;
 import org.apache.flink.streaming.api.collector.StreamOutput;
+import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.io.StreamRecordWriter;
+import org.apache.flink.streaming.io.RecordWriterFactory;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
@@ -50,9 +51,10 @@ public class OutputHandler<OUT> {
 
 	public List<ChainableInvokable<?, ?>> chainedInvokables;
 
-	private Map<Integer, StreamOutput<?>> outputMap;
+	private Map<StreamEdge, StreamOutput<?>> outputMap;
+
 	private Map<Integer, StreamConfig> chainedConfigs;
-	private List<Tuple2<Integer, Integer>> outEdgesInOrder;
+	private List<StreamEdge> outEdgesInOrder;
 
 	public OutputHandler(StreamVertex<?, OUT> vertex) {
 
@@ -60,7 +62,7 @@ public class OutputHandler<OUT> {
 		this.vertex = vertex;
 		this.configuration = new StreamConfig(vertex.getTaskConfiguration());
 		this.chainedInvokables = new ArrayList<ChainableInvokable<?, ?>>();
-		this.outputMap = new HashMap<Integer, StreamOutput<?>>();
+		this.outputMap = new HashMap<StreamEdge, StreamOutput<?>>();
 		this.cl = vertex.getUserCodeClassLoader();
 
 		// We read the chained configs, and the order of record writer
@@ -72,16 +74,18 @@ public class OutputHandler<OUT> {
 
 		// We iterate through all the out edges from this job vertex and create
 		// a stream output
-		for (Tuple2<Integer, Integer> outEdge : outEdgesInOrder) {
-			StreamOutput<?> streamOutput = createStreamOutput(outEdge.f1,
-					chainedConfigs.get(outEdge.f0), outEdgesInOrder.indexOf(outEdge));
-			outputMap.put(outEdge.f1, streamOutput);
+		for (StreamEdge outEdge : outEdgesInOrder) {
+			StreamOutput<?> streamOutput = createStreamOutput(
+					outEdge,
+					outEdge.getTargetVertex(),
+					chainedConfigs.get(outEdge.getSourceVertex()),
+					outEdgesInOrder.indexOf(outEdge));
+			outputMap.put(outEdge, streamOutput);
 		}
 
 		// We create the outer collector that will be passed to the first task
 		// in the chain
 		this.outerCollector = createChainedCollector(configuration);
-
 	}
 
 	public void broadcastBarrier(long id) throws IOException, InterruptedException {
@@ -99,45 +103,37 @@ public class OutputHandler<OUT> {
 	 * This method builds up a nested collector which encapsulates all the
 	 * chained operators and their network output. The result of this recursive
 	 * call will be passed as collector to the first invokable in the chain.
-	 * 
+	 *
 	 * @param chainedTaskConfig
-	 *            The configuration of the starting operator of the chain, we
-	 *            use this paramater to recursively build the whole chain
+	 * 		The configuration of the starting operator of the chain, we
+	 * 		use this paramater to recursively build the whole chain
 	 * @return Returns the collector for the chain starting from the given
-	 *         config
+	 * config
 	 */
-	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	private Collector<OUT> createChainedCollector(StreamConfig chainedTaskConfig) {
 
-		boolean isDirectEmit = chainedTaskConfig.isDirectedEmit();
 
 		// We create a wrapper that will encapsulate the chained operators and
 		// network outputs
-		CollectorWrapper<OUT> wrapper = isDirectEmit ? new DirectedCollectorWrapper(
-				chainedTaskConfig.getOutputSelectors(cl)) : new CollectorWrapper<OUT>();
+
+		OutputSelectorWrapper<OUT> outputSelectorWrapper = chainedTaskConfig.getOutputSelectorWrapper(cl);
+		CollectorWrapper<OUT> wrapper = new CollectorWrapper<OUT>(outputSelectorWrapper);
 
 		// Create collectors for the network outputs
-		for (Integer output : chainedTaskConfig.getOutputs(cl)) {
+		for (StreamEdge outputEdge : chainedTaskConfig.getNonChainedOutputs(cl)) {
+			Collector<?> outCollector = outputMap.get(outputEdge);
 
-			Collector<?> outCollector = outputMap.get(output);
-
-			if (isDirectEmit) {
-				((DirectedCollectorWrapper<OUT>) wrapper).addCollector(outCollector,
-						chainedTaskConfig.getSelectedNames(output));
-			} else {
-				wrapper.addCollector(outCollector);
-			}
+			wrapper.addCollector(outCollector, outputEdge);
 		}
 
 		// Create collectors for the chained outputs
-		for (Integer output : chainedTaskConfig.getChainedOutputs(cl)) {
+		for (StreamEdge outputEdge : chainedTaskConfig.getChainedOutputs(cl)) {
+			Integer output = outputEdge.getTargetVertex();
+
 			Collector<?> outCollector = createChainedCollector(chainedConfigs.get(output));
-			if (isDirectEmit) {
-				((DirectedCollectorWrapper<OUT>) wrapper).addCollector(outCollector,
-						chainedTaskConfig.getSelectedNames(output));
-			} else {
-				wrapper.addCollector(outCollector);
-			}
+
+			wrapper.addCollector(outCollector, outputEdge);
 		}
 
 		if (chainedTaskConfig.isChainStart()) {
@@ -165,17 +161,17 @@ public class OutputHandler<OUT> {
 	/**
 	 * We create the StreamOutput for the specific output given by the id, and
 	 * the configuration of its source task
-	 * 
+	 *
 	 * @param outputVertex
-	 *            Name of the output to which the streamoutput will be set up
-	 * @param configuration
-	 *            The config of upStream task
-	 * @return
+	 * 		Name of the output to which the streamoutput will be set up
+	 * @param upStreamConfig
+	 * 		The config of upStream task
+	 * @return The created StreamOutput
 	 */
-	private <T> StreamOutput<T> createStreamOutput(Integer outputVertex,
-			StreamConfig configuration, int outputIndex) {
+	private <T> StreamOutput<T> createStreamOutput(StreamEdge edge, Integer outputVertex,
+			StreamConfig upStreamConfig, int outputIndex) {
 
-		StreamRecordSerializer<T> outSerializer = configuration
+		StreamRecordSerializer<T> outSerializer = upStreamConfig
 				.getTypeSerializerOut1(vertex.userClassLoader);
 		SerializationDelegate<StreamRecord<T>> outSerializationDelegate = null;
 
@@ -184,28 +180,13 @@ public class OutputHandler<OUT> {
 			outSerializationDelegate.setInstance(outSerializer.createInstance());
 		}
 
-		StreamPartitioner<T> outputPartitioner = configuration.getPartitioner(cl, outputVertex);
+		@SuppressWarnings("unchecked")
+		StreamPartitioner<T> outputPartitioner = (StreamPartitioner<T>) edge.getPartitioner();
 
-		RecordWriter<SerializationDelegate<StreamRecord<T>>> output;
+		ResultPartitionWriter bufferWriter = vertex.getEnvironment().getWriter(outputIndex);
 
-		if (configuration.getBufferTimeout() >= 0) {
-
-			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<T>>>(vertex
-					.getEnvironment().getWriter(outputIndex), outputPartitioner,
-					configuration.getBufferTimeout());
-
-			if (LOG.isTraceEnabled()) {
-				LOG.trace("StreamRecordWriter initiated with {} bufferTimeout for {}",
-						configuration.getBufferTimeout(), vertex.getClass().getSimpleName());
-			}
-		} else {
-			output = new RecordWriter<SerializationDelegate<StreamRecord<T>>>(vertex
-					.getEnvironment().getWriter(outputIndex), outputPartitioner);
-
-			if (LOG.isTraceEnabled()) {
-				LOG.trace("RecordWriter initiated for {}", vertex.getClass().getSimpleName());
-			}
-		}
+		RecordWriter<SerializationDelegate<StreamRecord<T>>> output =
+				RecordWriterFactory.createRecordWriter(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 
 		StreamOutput<T> streamOutput = new StreamOutput<T>(output, vertex.instanceID,
 				outSerializationDelegate);
