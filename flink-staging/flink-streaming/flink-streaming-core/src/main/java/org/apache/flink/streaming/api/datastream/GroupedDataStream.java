@@ -223,7 +223,6 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 
 	@Override
 	protected DataStream<OUT> setConnectionType(StreamPartitioner<OUT> partitioner) {
-		System.out.println("Setting the partitioning after groupBy can affect the grouping");
 		return super.setConnectionType(partitioner);
 	}
 
