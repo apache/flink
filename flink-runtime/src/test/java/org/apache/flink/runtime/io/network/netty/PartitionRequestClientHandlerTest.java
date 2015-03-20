@@ -21,13 +21,12 @@ package org.apache.flink.runtime.io.network.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.junit.Test;
 
@@ -35,6 +34,8 @@ import java.io.IOException;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class PartitionRequestClientHandlerTest {
@@ -45,34 +46,76 @@ public class PartitionRequestClientHandlerTest {
 	 * <p> FLINK-1627 discovered a race condition, which could lead to an infinite loop when a
 	 * receiver was cancelled during a certain time of decoding a message. The test reproduces the
 	 * input, which lead to the infinite loop: when the handler gets a reference to the buffer
-	 * provider of the receiving input channel, but the respective input channel is released, the
-	 * handler did not notice this from the buffer provider.
+	 * provider of the receiving input channel, but the respective input channel is released (and
+	 * the corresponding buffer provider destroyed), the handler did not notice this.
 	 *
 	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-1627">FLINK-1627</a>
 	 */
-	@Test(timeout=60000)
+	@Test(timeout = 60000)
+	@SuppressWarnings("unchecked")
 	public void testReleaseInputChannelDuringDecode() throws Exception {
+		// Mocks an input channel in a state as it was released during a decode.
+		final BufferProvider bufferProvider = mock(BufferProvider.class);
+		when(bufferProvider.requestBuffer()).thenReturn(null);
+		when(bufferProvider.isDestroyed()).thenReturn(true);
+		when(bufferProvider.addListener(any(EventListener.class))).thenReturn(false);
 
-		final RemoteInputChannel mockInputChannel = createMockReleasedInputChannel(
-				new InputChannelID());
+		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
+		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
+		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
-		final BufferResponse mockReceivedBuffer = createMockReceivedBuffer(
-				mockInputChannel.getInputChannelId());
+		final BufferResponse ReceivedBuffer = createBufferResponse(
+				TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId());
 
 		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
-		client.addInputChannel(mockInputChannel);
+		client.addInputChannel(inputChannel);
 
-		client.channelRead(mock(ChannelHandlerContext.class), mockReceivedBuffer);
+		client.channelRead(mock(ChannelHandlerContext.class), ReceivedBuffer);
 	}
 
 	/**
-	 * Returns a mocked deserialized buffer message as it would be received during runtime.
+	 * Tests a fix for FLINK-1761.
+	 *
+	 * <p> FLINK-1761 discovered an IndexOutOfBoundsException, when receiving buffers of size 0.
 	 */
-	private BufferResponse createMockReceivedBuffer(InputChannelID channelId) throws IOException {
+	@Test
+	public void testReceiveEmptyBuffer() throws Exception {
+		// Minimal mock of a remote input channel
+		final BufferProvider bufferProvider = mock(BufferProvider.class);
+		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer());
+
+		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
+		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
+		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
+
+		// An empty buffer of size 0
+		final Buffer emptyBuffer = TestBufferFactory.createBuffer();
+		emptyBuffer.setSize(0);
+
+		final BufferResponse receivedBuffer = createBufferResponse(
+				emptyBuffer, 0, inputChannel.getInputChannelId());
+
+		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
+
+		client.addInputChannel(inputChannel);
+
+		// Read the empty buffer
+		client.channelRead(mock(ChannelHandlerContext.class), receivedBuffer);
+
+		// This should not throw an exception
+		verify(inputChannel, never()).onError(any(Throwable.class));
+	}
+
+	/**
+	 * Returns a deserialized buffer message as it would be received during runtime.
+	 */
+	private BufferResponse createBufferResponse(
+			Buffer buffer,
+			int sequenceNumber,
+			InputChannelID receivingChannelId) throws IOException {
 
 		// Mock buffer to serialize
-		Buffer buffer = new Buffer(new MemorySegment(new byte[1024]), mock(BufferRecycler.class));
-		BufferResponse resp = new BufferResponse(buffer, 0, channelId);
+		BufferResponse resp = new BufferResponse(buffer, sequenceNumber, receivingChannelId);
 
 		ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
 
@@ -87,22 +130,5 @@ public class PartitionRequestClientHandlerTest {
 		deserialized.readFrom(serialized);
 
 		return deserialized;
-	}
-
-	/**
-	 * Returns a mocked input channel in a state as it was released during a decode.
-	 */
-	@SuppressWarnings("unchecked")
-	private RemoteInputChannel createMockReleasedInputChannel(InputChannelID channelId) throws IOException {
-		final BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(bufferProvider.requestBuffer()).thenReturn(null);
-		when(bufferProvider.isDestroyed()).thenReturn(true);
-		when(bufferProvider.addListener(any(EventListener.class))).thenReturn(false);
-
-		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
-		when(inputChannel.getInputChannelId()).thenReturn(channelId);
-		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
-
-		return inputChannel;
 	}
 }
