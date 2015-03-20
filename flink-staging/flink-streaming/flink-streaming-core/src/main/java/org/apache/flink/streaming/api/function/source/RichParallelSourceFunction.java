@@ -19,9 +19,15 @@ package org.apache.flink.streaming.api.function.source;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 
-public abstract class RichParallelSourceFunction<OUT> extends AbstractRichFunction implements
-		ParallelSourceFunction<OUT> {
+/**
+ * Base class for implementing a data source that has access to context information
+ * (via {@link #getRuntimeContext()}) and additional life-cycle methods
+ * ({@link #open(org.apache.flink.configuration.Configuration)} and {@link #close()}.
+ *
+ * @param <OUT> The type of the records produced by this source.
+ */
+public abstract class RichParallelSourceFunction<OUT> extends AbstractRichFunction
+		implements ParallelSourceFunction<OUT> {
 
 	private static final long serialVersionUID = 1L;
-
 }

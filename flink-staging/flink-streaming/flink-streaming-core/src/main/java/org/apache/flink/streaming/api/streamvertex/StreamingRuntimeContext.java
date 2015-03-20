@@ -36,7 +36,7 @@ import org.apache.flink.runtime.state.OperatorState;
  */
 public class StreamingRuntimeContext extends RuntimeUDFContext {
 
-	public Environment env;
+	private final Environment env;
 	private final Map<String, OperatorState<?>> operatorStates;
 
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
@@ -85,7 +85,6 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	 *            The name of the operator state.
 	 * @param state
 	 *            The state to be registered for this name.
-	 * @return The data stream with state registered.
 	 */
 	public void registerState(String name, OperatorState<?> state) {
 		if (state == null) {
