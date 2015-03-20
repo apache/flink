@@ -24,7 +24,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
@@ -33,14 +32,13 @@ import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.gsa.RichEdge;
+import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
-import java.util.HashSet;
-
 /**
- * This is an implementation of the Greedy Graph Coloring algorithm, using a gather-sum-apply iteration
+ * This is an implementation of the connected components algorithm, using a gather-sum-apply iteration
  */
-public class GSAGreedyGraphColoringExample implements ProgramDescription {
+public class GSAConnectedComponentsExample implements ProgramDescription {
 
 	// --------------------------------------------------------------------------------------------
 	//  Program
@@ -54,27 +52,27 @@ public class GSAGreedyGraphColoringExample implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Vertex<Long, Double>> vertices = getVertexDataSet(env);
-		DataSet<Edge<Long, Double>> edges = getEdgeDataSet(env);
+		DataSet<Vertex<Long, Long>> vertices = getVertexDataSet(env);
+		DataSet<Edge<Long, NullValue>> edges = getEdgeDataSet(env);
 
-		Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
+		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(vertices, edges, env);
 
-		// Gather the target vertices into a one-element set
-		GatherFunction<Double, Double, HashSet<Double>> gather = new GreedyGraphColoringGather();
+		// Simply return the vertex value of each vertex
+		GatherFunction<Long, NullValue, Long> gather = new ConnectedComponentsGather();
 
-		// Merge the sets between neighbors
-		SumFunction<Double, Double, HashSet<Double>> sum = new GreedyGraphColoringSum();
+		// Select the lower value among neighbors
+		SumFunction<Long, NullValue, Long> sum = new ConnectedComponentsSum();
 
-		// Find the minimum vertex id in the set which will be propagated
-		ApplyFunction<Double, Double, HashSet<Double>> apply = new GreedyGraphColoringApply();
+		// Set the lower value for each vertex
+		ApplyFunction<Long, NullValue, Long> apply = new ConnectedComponentsApply();
 
 		// Execute the GSA iteration
-		GatherSumApplyIteration<Long, Double, Double, HashSet<Double>> iteration =
+		GatherSumApplyIteration<Long, Long, NullValue, Long> iteration =
 				graph.createGatherSumApplyIteration(gather, sum, apply, maxIterations);
-		Graph<Long, Double, Double> result = graph.runGatherSumApplyIteration(iteration);
+		Graph<Long, Long, NullValue> result = graph.runGatherSumApplyIteration(iteration);
 
 		// Extract the vertices as the result
-		DataSet<Vertex<Long, Double>> greedyGraphColoring = result.getVertices();
+		DataSet<Vertex<Long, Long>> greedyGraphColoring = result.getVertices();
 
 		// emit result
 		if (fileOutput) {
@@ -83,52 +81,38 @@ public class GSAGreedyGraphColoringExample implements ProgramDescription {
 			greedyGraphColoring.print();
 		}
 
-		env.execute("GSA Greedy Graph Coloring");
+		env.execute("GSA Connected Components");
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Greedy Graph Coloring UDFs
+	//  Connected Components UDFs
 	// --------------------------------------------------------------------------------------------
 
-	private static final class GreedyGraphColoringGather
-			extends GatherFunction<Double, Double, HashSet<Double>> {
+	private static final class ConnectedComponentsGather
+			extends GatherFunction<Long, NullValue, Long> {
 		@Override
-		public HashSet<Double> gather(RichEdge<Double, Double> richEdge) {
+		public Long gather(RichEdge<Long, NullValue> richEdge) {
 
-			HashSet<Double> result = new HashSet<Double>();
-			result.add(richEdge.getSrcVertexValue());
-
-			return result;
+			return richEdge.getSrcVertexValue();
 		}
 	};
 
-	private static final class GreedyGraphColoringSum
-			extends SumFunction<Double, Double, HashSet<Double>> {
+	private static final class ConnectedComponentsSum
+			extends SumFunction<Long, NullValue, Long> {
 		@Override
-		public HashSet<Double> sum(HashSet<Double> newValue, HashSet<Double> currentValue) {
+		public Long sum(Long newValue, Long currentValue) {
 
-			HashSet<Double> result = new HashSet<Double>();
-			result.addAll(newValue);
-			result.addAll(currentValue);
-
-			return result;
+			return Math.min(newValue, currentValue);
 		}
 	};
 
-	private static final class GreedyGraphColoringApply
-			extends ApplyFunction<Double, Double, HashSet<Double>> {
+	private static final class ConnectedComponentsApply
+			extends ApplyFunction<Long, NullValue, Long> {
 		@Override
-		public void apply(HashSet<Double> set, Double src) {
-			double minValue = src;
-			for (Double d : set) {
-				if (d < minValue) {
-					minValue = d;
-				}
-			}
+		public void apply(Long summedValue, Long origValue) {
 
-			// This is the condition that enables the termination of the iteration
-			if (minValue < src) {
-				setResult(minValue);
+			if (summedValue < origValue) {
+				setResult(summedValue);
 			}
 		}
 	};
@@ -151,7 +135,7 @@ public class GSAGreedyGraphColoringExample implements ProgramDescription {
 			fileOutput = true;
 
 			if(args.length != 4) {
-				System.err.println("Usage: GSAGreedyGraphColoringExample <vertex path> <edge path> " +
+				System.err.println("Usage: GSAConnectedComponentsExample <vertex path> <edge path> " +
 						"<result path> <max iterations>");
 				return false;
 			}
@@ -161,57 +145,57 @@ public class GSAGreedyGraphColoringExample implements ProgramDescription {
 			outputPath = args[2];
 			maxIterations = Integer.parseInt(args[3]);
 		} else {
-			System.out.println("Executing GSA Greedy Graph Coloring example with built-in default data.");
+			System.out.println("Executing GSA Connected Components example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: GSAGreedyGraphColoringExample <vertex path> <edge path> "
+			System.out.println("  Usage: GSAConnectedComponentsExample <vertex path> <edge path> "
 					+ "<result path> <max iterations>");
 		}
 		return true;
 	}
 
-	private static DataSet<Vertex<Long, Double>> getVertexDataSet(ExecutionEnvironment env) {
+	private static DataSet<Vertex<Long, Long>> getVertexDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return env
 					.readCsvFile(vertexInputPath)
 					.fieldDelimiter(" ")
 					.lineDelimiter("\n")
-					.types(Long.class, Double.class)
-					.map(new MapFunction<Tuple2<Long, Double>, Vertex<Long, Double>>() {
+					.types(Long.class, Long.class)
+					.map(new MapFunction<Tuple2<Long, Long>, Vertex<Long, Long>>() {
 						@Override
-						public Vertex<Long, Double> map(Tuple2<Long, Double> value) throws Exception {
-							return new Vertex<Long, Double>(value.f0, value.f1);
+						public Vertex<Long, Long> map(Tuple2<Long, Long> value) throws Exception {
+							return new Vertex<Long, Long>(value.f0, value.f1);
 						}
 					});
 		}
 
-		return env.generateSequence(0, 5).map(new MapFunction<Long, Vertex<Long, Double>>() {
+		return env.generateSequence(0, 5).map(new MapFunction<Long, Vertex<Long, Long>>() {
 			@Override
-			public Vertex<Long, Double> map(Long value) throws Exception {
-				return new Vertex<Long, Double>(value, (double) value);
+			public Vertex<Long, Long> map(Long value) throws Exception {
+				return new Vertex<Long, Long>(value, value);
 			}
 		});
 	}
 
-	private static DataSet<Edge<Long, Double>> getEdgeDataSet(ExecutionEnvironment env) {
+	private static DataSet<Edge<Long, NullValue>> getEdgeDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return env.readCsvFile(edgeInputPath)
 					.fieldDelimiter(" ")
 					.lineDelimiter("\n")
-					.types(Long.class, Long.class, Double.class)
-					.map(new MapFunction<Tuple3<Long, Long, Double>, Edge<Long, Double>>() {
+					.types(Long.class, Long.class)
+					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
 						@Override
-						public Edge<Long, Double> map(Tuple3<Long, Long, Double> value) throws Exception {
-							return new Edge<Long, Double>(value.f0, value.f1, value.f2);
+						public Edge<Long, NullValue> map(Tuple2<Long, Long> value) throws Exception {
+							return new Edge<Long, NullValue>(value.f0, value.f1, NullValue.getInstance());
 						}
 					});
 		}
 
-		return env.generateSequence(0, 5).flatMap(new FlatMapFunction<Long, Edge<Long, Double>>() {
+		// Generates 3 components of size 2
+		return env.generateSequence(0, 2).flatMap(new FlatMapFunction<Long, Edge<Long, NullValue>>() {
 			@Override
-			public void flatMap(Long value, Collector<Edge<Long, Double>> out) throws Exception {
-				out.collect(new Edge<Long, Double>(value, (value + 1) % 6, 0.0));
-				out.collect(new Edge<Long, Double>(value, (value + 2) % 6, 0.0));
+			public void flatMap(Long value, Collector<Edge<Long, NullValue>> out) throws Exception {
+				out.collect(new Edge<Long, NullValue>(value, value + 3, NullValue.getInstance()));
 			}
 		});
 	}
