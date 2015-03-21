@@ -50,6 +50,7 @@ public class WindowMapper<IN, OUT> extends MapInvokable<StreamWindow<IN>, Stream
 		@Override
 		public StreamWindow<R> map(StreamWindow<T> window) throws Exception {
 			StreamWindow<R> outputWindow = new StreamWindow<R>(window.windowID);
+			
 			outputWindow.numberOfParts = window.numberOfParts;
 
 			mapper.mapWindow(window, outputWindow);

@@ -17,27 +17,25 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import java.util.LinkedList;
-import java.util.List;
-
+import org.apache.flink.streaming.api.StreamEdge;
+import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
 import org.apache.flink.util.Collector;
 
 public class CollectorWrapper<OUT> implements Collector<OUT> {
 
-	private List<Collector<OUT>> outputs;
+	private OutputSelectorWrapper<OUT> outputSelectorWrapper;
 
-	public CollectorWrapper() {
-		this.outputs = new LinkedList<Collector<OUT>>();
+	public CollectorWrapper(OutputSelectorWrapper<OUT> outputSelectorWrapper) {
+		this.outputSelectorWrapper = outputSelectorWrapper;
 	}
 
-	@SuppressWarnings("unchecked")
-	public void addCollector(Collector<?> output) {
-		outputs.add((Collector<OUT>) output);
+	public void addCollector(Collector<?> output, StreamEdge edge) {
+		outputSelectorWrapper.addCollector(output, edge);
 	}
 
 	@Override
 	public void collect(OUT record) {
-		for(Collector<OUT> output: outputs){
+		for (Collector<OUT> output : outputSelectorWrapper.getSelectedOutputs(record)) {
 			output.collect(record);
 		}
 	}

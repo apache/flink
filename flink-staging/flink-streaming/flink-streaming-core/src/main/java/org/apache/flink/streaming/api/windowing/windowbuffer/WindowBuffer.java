@@ -23,17 +23,38 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
 /**
- * Interface for defining specialized buffers to store/emit window data.
+ * Class for defining specialized buffers to store/emit window data.
  * Pre-aggregators should be implemented using this interface.
  */
-public interface WindowBuffer<T> extends Serializable, Cloneable {
+public abstract class WindowBuffer<T> implements Serializable, Cloneable {
 
-	public void store(T element) throws Exception;
+	private static final long serialVersionUID = 1L;
 
-	public void evict(int n);
+	protected Integer nextID = 1;
+	protected boolean sequentialID = false;
+	protected boolean emitEmpty = false;
+	protected boolean emitPerGroup = false;
 
-	public boolean emitWindow(Collector<StreamWindow<T>> collector);
+	public abstract void store(T element) throws Exception;
 
-	public WindowBuffer<T> clone();
+	public abstract void evict(int n);
+
+	public abstract void emitWindow(Collector<StreamWindow<T>> collector);
+
+	public abstract WindowBuffer<T> clone();
+
+	public WindowBuffer<T> emitEmpty() {
+		emitEmpty = true;
+		return this;
+	}
+
+	public WindowBuffer<T> sequentialID() {
+		sequentialID = true;
+		return this;
+	}
+
+	protected StreamWindow<T> createEmptyWindow() {
+		return sequentialID ? new StreamWindow<T>(nextID++) : new StreamWindow<T>();
+	}
 
 }

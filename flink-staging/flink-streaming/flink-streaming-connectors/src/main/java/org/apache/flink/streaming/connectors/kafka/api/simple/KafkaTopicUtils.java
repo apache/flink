@@ -84,7 +84,7 @@ public class KafkaTopicUtils {
 
 		// TODO for Kafka version 8.2.0
 		//		return leader.connectionString();
-		return leader.getConnectionString();
+		return leader.connectionString();
 	}
 
 	public TopicMetadata getTopicInfo(String topicName) {

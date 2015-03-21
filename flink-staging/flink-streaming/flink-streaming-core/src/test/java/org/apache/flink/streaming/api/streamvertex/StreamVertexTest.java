@@ -134,11 +134,13 @@ public class StreamVertexTest {
 
 		@Override
 		public String map1(String value) {
+//			System.out.println(value);
 			return value;
 		}
 
 		@Override
 		public String map2(Long value) {
+//			System.out.println(value);
 			return value.toString();
 		}
 	}

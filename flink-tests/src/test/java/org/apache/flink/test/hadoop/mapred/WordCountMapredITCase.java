@@ -39,12 +39,6 @@ public class WordCountMapredITCase extends JavaProgramTestBase {
 	protected String textPath;
 	protected String resultPath;
 
-	public WordCountMapredITCase(){
-//		setDegreeOfParallelism(4);
-//		setNumTaskManagers(2);
-//		setTaskManagerNumSlots(2);
-	}
-
 	@Override
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);
@@ -59,7 +53,6 @@ public class WordCountMapredITCase extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-//		env.setDegreeOfParallelism(1);
 
 
 		DataSet<Tuple2<LongWritable, Text>> input = env.readHadoopFile(new TextInputFormat(),

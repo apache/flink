@@ -42,7 +42,6 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 	private static Random rnd = new Random();
 
 	public int windowID;
-
 	public int numberOfParts;
 
 	/**
@@ -104,27 +103,33 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 	 * Partitions the window using the given keyselector. A subwindow will be
 	 * created for each key.
 	 * 
+	 * @param streamWindow
+	 *            StreamWindow instance to partition
 	 * @param keySelector
 	 *            The keyselector used for extracting keys.
+	 * @param withKey
+	 *            Flag to decide whether the key object should be included in
+	 *            the created window
 	 * @return A list of the subwindows
 	 */
-	public List<StreamWindow<T>> partitionBy(KeySelector<T, ?> keySelector) throws Exception {
-		Map<Object, StreamWindow<T>> partitions = new HashMap<Object, StreamWindow<T>>();
+	public static <X> List<StreamWindow<X>> partitionBy(StreamWindow<X> streamWindow,
+			KeySelector<X, ?> keySelector, boolean withKey) throws Exception {
+		Map<Object, StreamWindow<X>> partitions = new HashMap<Object, StreamWindow<X>>();
 
-		for (T value : this) {
+		for (X value : streamWindow) {
 			Object key = keySelector.getKey(value);
-			StreamWindow<T> window = partitions.get(key);
+			StreamWindow<X> window = partitions.get(key);
 			if (window == null) {
-				window = new StreamWindow<T>(this.windowID, 0);
+				window = new StreamWindow<X>(streamWindow.windowID, 0);
 				partitions.put(key, window);
 			}
 			window.add(value);
 		}
 
-		List<StreamWindow<T>> output = new ArrayList<StreamWindow<T>>();
+		List<StreamWindow<X>> output = new ArrayList<StreamWindow<X>>();
 		int numkeys = partitions.size();
 
-		for (StreamWindow<T> window : partitions.values()) {
+		for (StreamWindow<X> window : partitions.values()) {
 			output.add(window.setNumberOfParts(numkeys));
 		}
 
@@ -134,30 +139,32 @@ public class StreamWindow<T> extends ArrayList<T> implements Collector<T> {
 	/**
 	 * Splits the window into n equal (if possible) sizes.
 	 * 
+	 * @param window
+	 *            Window to split
 	 * @param n
 	 *            Number of desired partitions
 	 * @return The list of subwindows.
 	 */
-	public List<StreamWindow<T>> split(int n) {
-		int numElements = size();
+	public static <X> List<StreamWindow<X>> split(StreamWindow<X> window, int n) {
+		int numElements = window.size();
 		if (n == 0) {
-			return new ArrayList<StreamWindow<T>>();
+			return new ArrayList<StreamWindow<X>>();
 		}
 		if (n > numElements) {
-			return split(numElements);
+			return split(window, numElements);
 		} else {
-			List<StreamWindow<T>> split = new ArrayList<StreamWindow<T>>();
+			List<StreamWindow<X>> split = new ArrayList<StreamWindow<X>>();
 			int splitSize = numElements / n;
 
 			int index = -1;
 
-			StreamWindow<T> currentSubWindow = new StreamWindow<T>(windowID, n);
+			StreamWindow<X> currentSubWindow = new StreamWindow<X>(window.windowID, n);
 			split.add(currentSubWindow);
 
-			for (T element : this) {
+			for (X element : window) {
 				index++;
 				if (index == splitSize && split.size() < n) {
-					currentSubWindow = new StreamWindow<T>(windowID, n);
+					currentSubWindow = new StreamWindow<X>(window.windowID, n);
 					split.add(currentSubWindow);
 					index = 0;
 				}

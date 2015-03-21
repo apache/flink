@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.io;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -43,8 +44,8 @@ public class BarrierBuffer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);
 
-	private Queue<BufferOrEvent> nonprocessed = new LinkedList<BufferOrEvent>();
-	private Queue<BufferOrEvent> blockedNonprocessed = new LinkedList<BufferOrEvent>();
+	private Queue<SpillingBufferOrEvent> nonprocessed = new LinkedList<SpillingBufferOrEvent>();
+	private Queue<SpillingBufferOrEvent> blockedNonprocessed = new LinkedList<SpillingBufferOrEvent>();
 
 	private Set<Integer> blockedChannels = new HashSet<Integer>();
 	private int totalNumberOfInputChannels;
@@ -56,10 +57,20 @@ public class BarrierBuffer {
 
 	private InputGate inputGate;
 
+	private SpillReader spillReader;
+	private BufferSpiller bufferSpiller;
+
 	public BarrierBuffer(InputGate inputGate, AbstractReader reader) {
 		this.inputGate = inputGate;
 		totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
 		this.reader = reader;
+		try {
+			this.bufferSpiller = new BufferSpiller();
+			this.spillReader = new SpillReader();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
 	}
 
 	/**
@@ -77,28 +88,23 @@ public class BarrierBuffer {
 	}
 
 	/**
-	 * Buffers a bufferOrEvent received from a blocked channel
-	 * 
-	 * @param bufferOrEvent
-	 *            bufferOrEvent to buffer
-	 */
-	protected void store(BufferOrEvent bufferOrEvent) {
-		nonprocessed.add(bufferOrEvent);
-	}
-
-	/**
 	 * Get then next non-blocked non-processed BufferOrEvent. Returns null if
 	 * not available.
+	 * 
+	 * @throws IOException
 	 */
-	protected BufferOrEvent getNonProcessed() {
-		BufferOrEvent nextNonprocessed;
+	protected BufferOrEvent getNonProcessed() throws IOException {
+		SpillingBufferOrEvent nextNonprocessed;
+
 		while ((nextNonprocessed = nonprocessed.poll()) != null) {
-			if (isBlocked(nextNonprocessed.getChannelIndex())) {
-				blockedNonprocessed.add(nextNonprocessed);
+			BufferOrEvent boe = nextNonprocessed.getBufferOrEvent();
+			if (isBlocked(boe.getChannelIndex())) {
+				blockedNonprocessed.add(new SpillingBufferOrEvent(boe, bufferSpiller, spillReader));
 			} else {
-				return nextNonprocessed;
+				return boe;
 			}
 		}
+
 		return null;
 	}
 
@@ -137,7 +143,8 @@ public class BarrierBuffer {
 				bufferOrEvent = inputGate.getNextBufferOrEvent();
 				if (isBlocked(bufferOrEvent.getChannelIndex())) {
 					// If channel blocked we just store it
-					blockedNonprocessed.add(bufferOrEvent);
+					blockedNonprocessed.add(new SpillingBufferOrEvent(bufferOrEvent, bufferSpiller,
+							spillReader));
 				} else {
 					return bufferOrEvent;
 				}
@@ -168,6 +175,8 @@ public class BarrierBuffer {
 
 	/**
 	 * Releases the blocks on all channels.
+	 * 
+	 * @throws IOException
 	 */
 	protected void releaseBlocks() {
 		if (!nonprocessed.isEmpty()) {
@@ -175,7 +184,15 @@ public class BarrierBuffer {
 			throw new RuntimeException("Error in barrier buffer logic");
 		}
 		nonprocessed = blockedNonprocessed;
-		blockedNonprocessed = new LinkedList<BufferOrEvent>();
+		blockedNonprocessed = new LinkedList<SpillingBufferOrEvent>();
+
+		try {
+			spillReader.setSpillFile(bufferSpiller.getSpillFile());
+			bufferSpiller.resetSpillFile();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
 		blockedChannels.clear();
 		superstepStarted = false;
 		if (LOG.isDebugEnabled()) {
@@ -207,6 +224,20 @@ public class BarrierBuffer {
 			startSuperstep(superstep);
 		}
 		blockChannel(bufferOrEvent.getChannelIndex());
+	}
+
+	public void cleanup() throws IOException {
+		bufferSpiller.close();
+		File spillfile1 = bufferSpiller.getSpillFile();
+		if (spillfile1 != null) {
+			spillfile1.delete();
+		}
+
+		spillReader.close();
+		File spillfile2 = spillReader.getSpillFile();
+		if (spillfile2 != null) {
+			spillfile2.delete();
+		}
 	}
 
 }

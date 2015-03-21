@@ -27,7 +27,7 @@ import org.apache.flink.util.Collector;
  * Basic window buffer that stores the elements in a simple list without any
  * pre-aggregation.
  */
-public class BasicWindowBuffer<T> implements WindowBuffer<T> {
+public class BasicWindowBuffer<T> extends WindowBuffer<T> {
 
 	private static final long serialVersionUID = 1L;
 	protected LinkedList<T> buffer;
@@ -36,15 +36,12 @@ public class BasicWindowBuffer<T> implements WindowBuffer<T> {
 		this.buffer = new LinkedList<T>();
 	}
 
-	public boolean emitWindow(Collector<StreamWindow<T>> collector) {
-		if (!buffer.isEmpty()) {
-			StreamWindow<T> currentWindow = new StreamWindow<T>();
+	public void emitWindow(Collector<StreamWindow<T>> collector) {
+		if (emitEmpty || !buffer.isEmpty()) {
+			StreamWindow<T> currentWindow = createEmptyWindow();
 			currentWindow.addAll(buffer);
 			collector.collect(currentWindow);
-			return true;
-		} else {
-			return false;
-		}
+		} 
 	}
 
 	public void store(T element) throws Exception {

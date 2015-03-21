@@ -49,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -510,22 +511,27 @@ public class ExecutionVertex implements Serializable {
 	}
 
 	/**
-	 * Returns whether to schedule the next batch of receiving tasks.
+	 * Returns all blocking result partitions whose receivers can be scheduled/updated.
 	 */
-	boolean finishAllBlockingPartitions() {
+	List<IntermediateResultPartition> finishAllBlockingPartitions() {
+		List<IntermediateResultPartition> finishedBlockingPartitions = null;
+
 		for (IntermediateResultPartition partition : resultPartitions.values()) {
-			// Nothing to do for pipelined results
-			if (partition.getResultType().isPipelined()) {
-				return false;
-			}
-			// It's a blocking partition, mark it as finished and return whether all blocking
-			// partitions have been produced.
-			else if (partition.markFinished()) {
-				return true;
+			if (partition.getResultType().isBlocking() && partition.markFinished()) {
+				if (finishedBlockingPartitions == null) {
+					finishedBlockingPartitions = new LinkedList<IntermediateResultPartition>();
+				}
+
+				finishedBlockingPartitions.add(partition);
 			}
 		}
 
-		return false;
+		if (finishedBlockingPartitions == null) {
+			return Collections.emptyList();
+		}
+		else {
+			return finishedBlockingPartitions;
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

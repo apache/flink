@@ -23,6 +23,11 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.nio.ByteBuffer;
+
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 public class BufferTest {
 
 	@Test
@@ -49,5 +54,21 @@ public class BufferTest {
 		} catch (IllegalArgumentException e) {
 			// OK => expected exception
 		}
+	}
+
+	@Test
+	public void testgetNioBufferThreadSafe() {
+		final MemorySegment segment = new MemorySegment(new byte[1024]);
+		final BufferRecycler recycler = Mockito.mock(BufferRecycler.class);
+
+		Buffer buffer = new Buffer(segment, recycler);
+
+		ByteBuffer buf1 = buffer.getNioBuffer();
+		ByteBuffer buf2 = buffer.getNioBuffer();
+
+		assertNotNull(buf1);
+		assertNotNull(buf2);
+
+		assertTrue("Repeated call to getNioBuffer() returns the same nio buffer", buf1 != buf2);
 	}
 }

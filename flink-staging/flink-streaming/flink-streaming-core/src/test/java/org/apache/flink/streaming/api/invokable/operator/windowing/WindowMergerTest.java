@@ -52,15 +52,15 @@ public class WindowMergerTest {
 		List<StreamWindow<Integer>> input = new ArrayList<StreamWindow<Integer>>();
 		input.add(w1);
 		input.add(w4_1);
-		input.addAll(w2.split(2));
-		input.addAll(w3.partitionBy(new KeySelector<Integer, Integer>() {
+		input.addAll(StreamWindow.split(w2, 2));
+		input.addAll(StreamWindow.partitionBy(w3, new KeySelector<Integer, Integer>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
 			public Integer getKey(Integer value) throws Exception {
 				return value % 2;
 			}
-		}));
+		}, false));
 		input.add(w4_2);
 
 		List<StreamWindow<Integer>> output = MockContext.createAndExecute(windowMerger, input);

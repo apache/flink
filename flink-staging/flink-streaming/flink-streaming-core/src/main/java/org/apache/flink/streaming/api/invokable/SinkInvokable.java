@@ -43,7 +43,7 @@ public class SinkInvokable<IN> extends ChainableInvokable<IN, IN> {
 
 	@Override
 	public void collect(IN record) {
-		nextObject = copy(record);
+		nextObject = copyInput(record);
 		callUserFunctionAndLogException();
 	}
 

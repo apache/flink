@@ -27,7 +27,6 @@ import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.InfoOptions;
 import org.apache.flink.client.cli.ProgramOptions;
@@ -35,7 +34,7 @@ import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.compiler.CompilerException;
+import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
