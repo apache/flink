@@ -449,7 +449,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     javaStream match {
       case ds: GroupedDataStream[_] => javaStream.transform("fold",
-        implicitly[TypeInformation[R]], new GroupedFoldStreamOperator[T,R](folder, ds.getKeySelector(),
+        implicitly[TypeInformation[R]], new GroupedFoldStreamOperator[T,R](
+            folder, ds.getKeySelector(),
             initialValue, implicitly[TypeInformation[R]]))
       case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
         new FoldStreamOperator[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
