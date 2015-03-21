@@ -41,10 +41,10 @@ public class FilterTest implements Serializable {
 
 	@Test 
 	public void test() {
-		FilterInvokable<Integer> invokable = new FilterInvokable<Integer>(new MyFilter());
+		FilterStreamOperator<Integer> operator = new FilterStreamOperator<Integer>(new MyFilter());
 
 		List<Integer> expected = Arrays.asList(2, 4, 6);
-		List<Integer> actual = MockContext.createAndExecute(invokable, Arrays.asList(1, 2, 3, 4, 5, 6, 7));
+		List<Integer> actual = MockContext.createAndExecute(operator, Arrays.asList(1, 2, 3, 4, 5, 6, 7));
 		
 		assertEquals(expected, actual);
 	}

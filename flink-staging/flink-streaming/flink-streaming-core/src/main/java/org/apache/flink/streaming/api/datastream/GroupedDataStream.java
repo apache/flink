@@ -24,8 +24,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
-import org.apache.flink.streaming.api.invokable.operator.GroupedFoldInvokable;
-import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.GroupedFoldStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.GroupedReduceStreamOperator;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 
 /**
@@ -70,7 +70,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 */
 	@Override
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return transform("Grouped Reduce", getType(), new GroupedReduceInvokable<OUT>(clean(reducer),
+		return transform("Grouped Reduce", getType(), new GroupedReduceStreamOperator<OUT>(clean(reducer),
 				keySelector));
 	}
 
@@ -95,7 +95,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType());
 
-		return transform("Grouped Fold", outType, new GroupedFoldInvokable<OUT, R>(clean(folder), keySelector,
+		return transform("Grouped Fold", outType, new GroupedFoldStreamOperator<OUT, R>(clean(folder), keySelector,
 				initialValue, outType));
 	}
 
@@ -212,11 +212,11 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	@Override
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
-		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(clean(aggregate),
+		GroupedReduceStreamOperator<OUT> operator = new GroupedReduceStreamOperator<OUT>(clean(aggregate),
 				keySelector);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Grouped Aggregation", getType(),
-				invokable);
+				operator);
 
 		return returnStream;
 	}

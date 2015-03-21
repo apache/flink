@@ -40,8 +40,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapperFactory;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.co.CoStreamOperator;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.CoStreamVertex;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationHead;
@@ -74,7 +74,7 @@ public class StreamGraph extends StreamingPlan {
 	private Map<Integer, List<OutputSelector<?>>> outputSelectors;
 
 	private Map<Integer, String> operatorNames;
-	private Map<Integer, StreamInvokable<?, ?>> invokableObjects;
+	private Map<Integer, StreamOperator<?, ?>> operatorObjects;
 	private Map<Integer, StreamRecordSerializer<?>> typeSerializersIn1;
 	private Map<Integer, StreamRecordSerializer<?>> typeSerializersIn2;
 	private Map<Integer, StreamRecordSerializer<?>> typeSerializersOut1;
@@ -118,8 +118,8 @@ public class StreamGraph extends StreamingPlan {
 
 		operatorNames = new HashMap<Integer, String>();
 		containingMaps.add(operatorNames);
-		invokableObjects = new HashMap<Integer, StreamInvokable<?, ?>>();
-		containingMaps.add(invokableObjects);
+		operatorObjects = new HashMap<Integer, StreamOperator<?, ?>>();
+		containingMaps.add(operatorObjects);
 		typeSerializersIn1 = new HashMap<Integer, StreamRecordSerializer<?>>();
 		containingMaps.add(typeSerializersIn1);
 		typeSerializersIn2 = new HashMap<Integer, StreamRecordSerializer<?>>();
@@ -150,7 +150,7 @@ public class StreamGraph extends StreamingPlan {
 	 * 
 	 * @param vertexID
 	 *            ID of the vertex
-	 * @param invokableObject
+	 * @param operatorObject
 	 *            User defined operator
 	 * @param inTypeInfo
 	 *            Input type for serialization
@@ -162,10 +162,10 @@ public class StreamGraph extends StreamingPlan {
 	 *            Number of parallel instances created
 	 */
 	public <IN, OUT> void addStreamVertex(Integer vertexID,
-			StreamInvokable<IN, OUT> invokableObject, TypeInformation<IN> inTypeInfo,
+			StreamOperator<IN, OUT> operatorObject, TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypeInfo, String operatorName, int parallelism) {
 
-		addVertex(vertexID, StreamVertex.class, invokableObject, operatorName, parallelism);
+		addVertex(vertexID, StreamVertex.class, operatorObject, operatorName, parallelism);
 
 		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
 				inTypeInfo, executionConfig) : null;
@@ -180,9 +180,9 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <IN, OUT> void addSourceVertex(Integer vertexID,
-			StreamInvokable<IN, OUT> invokableObject, TypeInformation<IN> inTypeInfo,
+			StreamOperator<IN, OUT> operatorObject, TypeInformation<IN> inTypeInfo,
 			TypeInformation<OUT> outTypeInfo, String operatorName, int parallelism) {
-		addStreamVertex(vertexID, invokableObject, inTypeInfo, outTypeInfo, operatorName,
+		addStreamVertex(vertexID, operatorObject, inTypeInfo, outTypeInfo, operatorName,
 				parallelism);
 		sources.add(vertexID);
 	}
@@ -267,11 +267,11 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <IN1, IN2, OUT> void addCoTask(Integer vertexID,
-			CoInvokable<IN1, IN2, OUT> taskInvokableObject, TypeInformation<IN1> in1TypeInfo,
+			CoStreamOperator<IN1, IN2, OUT> taskOperatorObject, TypeInformation<IN1> in1TypeInfo,
 			TypeInformation<IN2> in2TypeInfo, TypeInformation<OUT> outTypeInfo,
 			String operatorName, int parallelism) {
 
-		addVertex(vertexID, CoStreamVertex.class, taskInvokableObject, operatorName, parallelism);
+		addVertex(vertexID, CoStreamVertex.class, taskOperatorObject, operatorName, parallelism);
 
 		addTypeSerializers(vertexID, new StreamRecordSerializer<IN1>(in1TypeInfo, executionConfig),
 				new StreamRecordSerializer<IN2>(in2TypeInfo, executionConfig),
@@ -295,11 +295,11 @@ public class StreamGraph extends StreamingPlan {
 	 *            Number of parallel instances created
 	 */
 	private void addVertex(Integer vertexID, Class<? extends AbstractInvokable> vertexClass,
-			StreamInvokable<?, ?> invokableObject, String operatorName, int parallelism) {
+			StreamOperator<?, ?> operatorObject, String operatorName, int parallelism) {
 
 		jobVertexClasses.put(vertexID, vertexClass);
 		setParallelism(vertexID, parallelism);
-		invokableObjects.put(vertexID, invokableObject);
+		operatorObjects.put(vertexID, operatorObject);
 		operatorNames.put(vertexID, operatorName);
 
 		edges.addVertex(vertexID);
@@ -406,8 +406,8 @@ public class StreamGraph extends StreamingPlan {
 
 	}
 
-	public <IN, OUT> void setInvokable(Integer vertexID, StreamInvokable<IN, OUT> invokableObject) {
-		invokableObjects.put(vertexID, invokableObject);
+	public <IN, OUT> void setOperator(Integer vertexID, StreamOperator<IN, OUT> operatorObject) {
+		operatorObjects.put(vertexID, operatorObject);
 	}
 
 	public <OUT> void setOutType(Integer id, TypeInformation<OUT> outType) {
@@ -416,8 +416,8 @@ public class StreamGraph extends StreamingPlan {
 		typeSerializersOut1.put(id, serializer);
 	}
 
-	public StreamInvokable<?, ?> getInvokable(Integer vertexID) {
-		return invokableObjects.get(vertexID);
+	public StreamOperator<?, ?> getOperator(Integer vertexID) {
+		return operatorObjects.get(vertexID);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -491,8 +491,8 @@ public class StreamGraph extends StreamingPlan {
 		this.chaining = chaining;
 	}
 
-	public Set<Entry<Integer, StreamInvokable<?, ?>>> getInvokables() {
-		return invokableObjects.entrySet();
+	public Set<Entry<Integer, StreamOperator<?, ?>>> getOperators() {
+		return operatorObjects.entrySet();
 	}
 
 	public Collection<Integer> getSources() {
@@ -730,9 +730,9 @@ public class StreamGraph extends StreamingPlan {
 				node.put(PACT, "Data Stream");
 			}
 
-			if (getInvokable(vertexID) != null && getInvokable(vertexID).getUserFunction() != null) {
+			if (getOperator(vertexID) != null && getOperator(vertexID).getUserFunction() != null) {
 				node.put(CONTENTS, getOperatorName(vertexID) + " at "
-						+ getInvokable(vertexID).getUserFunction().getClass().getSimpleName());
+						+ getOperator(vertexID).getUserFunction().getClass().getSimpleName());
 			} else {
 				node.put(CONTENTS, getOperatorName(vertexID));
 			}

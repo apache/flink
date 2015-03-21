@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
@@ -32,7 +32,7 @@ public class WindowReducerTest {
 
 	@Test
 	public void test() {
-		StreamInvokable<StreamWindow<Integer>, StreamWindow<Integer>> windowReducer = new WindowReducer<Integer>(
+		StreamOperator<StreamWindow<Integer>, StreamWindow<Integer>> windowReducer = new WindowReducer<Integer>(
 				new ReduceFunction<Integer>() {
 
 					private static final long serialVersionUID = 1L;

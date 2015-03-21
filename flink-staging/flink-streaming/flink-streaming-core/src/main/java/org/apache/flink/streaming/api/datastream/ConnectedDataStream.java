@@ -30,12 +30,12 @@ import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.function.co.CoWindowFunction;
 import org.apache.flink.streaming.api.function.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.function.co.RichCoReduceFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedReduceInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
+import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedReduceStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.co.CoStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.co.CoMapStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.co.CoReduceStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.co.CoWindowStreamOperator;
 import org.apache.flink.streaming.api.windowing.helper.SystemTimestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
@@ -244,7 +244,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoMapFunction.class,
 				coMapper.getClass(), 2, null, null);
 
-		return addCoFunction("Co-Map", outTypeInfo, new CoMapInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Map", outTypeInfo, new CoMapStreamOperator<IN1, IN2, OUT>(
 				clean(coMapper)));
 
 	}
@@ -269,7 +269,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoFlatMapFunction.class,
 				coFlatMapper.getClass(), 2, null, null);
 
-		return addCoFunction("Co-Flat Map", outTypeInfo, new CoFlatMapInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Flat Map", outTypeInfo, new CoFlatMapStreamOperator<IN1, IN2, OUT>(
 				clean(coFlatMapper)));
 	}
 
@@ -294,7 +294,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoReduceFunction.class,
 				coReducer.getClass(), 2, null, null);
 
-		return addCoFunction("Co-Reduce", outTypeInfo, getReduceInvokable(clean(coReducer)));
+		return addCoFunction("Co-Reduce", outTypeInfo, getReduceOperator(clean(coReducer)));
 
 	}
 
@@ -361,21 +361,21 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoWindowFunction.class,
 				coWindowFunction.getClass(), 2, null, null);
 
-		return addCoFunction("Co-Window", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Window", outTypeInfo, new CoWindowStreamOperator<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 
 	}
 
-	protected <OUT> CoInvokable<IN1, IN2, OUT> getReduceInvokable(
+	protected <OUT> CoStreamOperator<IN1, IN2, OUT> getReduceOperator(
 			CoReduceFunction<IN1, IN2, OUT> coReducer) {
-		CoReduceInvokable<IN1, IN2, OUT> invokable;
+		CoReduceStreamOperator<IN1, IN2, OUT> operator;
 		if (isGrouped) {
-			invokable = new CoGroupedReduceInvokable<IN1, IN2, OUT>(clean(coReducer), keySelector1,
+			operator = new CoGroupedReduceStreamOperator<IN1, IN2, OUT>(clean(coReducer), keySelector1,
 					keySelector2);
 		} else {
-			invokable = new CoReduceInvokable<IN1, IN2, OUT>(clean(coReducer));
+			operator = new CoReduceStreamOperator<IN1, IN2, OUT>(clean(coReducer));
 		}
-		return invokable;
+		return operator;
 	}
 
 	public <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCombine(
@@ -390,19 +390,19 @@ public class ConnectedDataStream<IN1, IN2> {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
 
-		return addCoFunction("Co-Window", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Window", outTypeInfo, new CoWindowStreamOperator<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 
 	}
 
 	public <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(String functionName,
-			TypeInformation<OUT> outTypeInfo, CoInvokable<IN1, IN2, OUT> functionInvokable) {
+			TypeInformation<OUT> outTypeInfo, CoStreamOperator<IN1, IN2, OUT> functionOperator) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
-				environment, functionName, outTypeInfo, functionInvokable);
+				environment, functionName, outTypeInfo, functionOperator);
 
-		dataStream1.streamGraph.addCoTask(returnStream.getId(), functionInvokable,
+		dataStream1.streamGraph.addCoTask(returnStream.getId(), functionOperator,
 				getInputType1(), getInputType2(), outTypeInfo, functionName,
 				environment.getDegreeOfParallelism());
 

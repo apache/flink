@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.state.CircularFifoList;
 
-public class CoWindowInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
+public class CoWindowStreamOperator<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	protected CoWindowFunction<IN1, IN2, OUT> coWindowFunction;
@@ -43,8 +43,8 @@ public class CoWindowInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT>
 	protected long startTime;
 	protected long nextRecordTime;
 
-	public CoWindowInvokable(CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize,
-			long slideInterval, TimestampWrapper<IN1> timeStamp1, TimestampWrapper<IN2> timeStamp2) {
+	public CoWindowStreamOperator(CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize,
+								long slideInterval, TimestampWrapper<IN1> timeStamp1, TimestampWrapper<IN2> timeStamp2) {
 		super(coWindowFunction);
 		this.coWindowFunction = coWindowFunction;
 		this.windowSize = windowSize;

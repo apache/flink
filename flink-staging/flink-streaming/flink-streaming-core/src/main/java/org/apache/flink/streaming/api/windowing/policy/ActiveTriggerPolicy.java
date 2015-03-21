@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.windowing.helper.Timestamp;
  * This interface extends the {@link TriggerPolicy} interface with functionality
  * for active triggers. Active triggers can act in two ways:
  * 
- * 1) Whenever an element arrives at the invokable, the
+ * 1) Whenever an element arrives at the operator, the
  * {@link ActiveTriggerPolicy#preNotifyTrigger(Object)} method gets called
  * first. It can return zero ore more fake data points which will be added
  * before the currently arrived real element gets processed. This allows to
@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.windowing.helper.Timestamp;
  * datapoint is always considered as triggered.
  * 
  * 2) An active trigger has a factory method for a runnable. This factory method
- * gets called at the start up of the invokable. The returned runnable will be
+ * gets called at the start up of the operator. The returned runnable will be
  * executed in its own thread and can submit fake elements at any time threw an
  * {@link ActiveTriggerCallback}. This allows to have time based triggers based
  * on any system internal time measure. Triggers are not called on fake
@@ -44,7 +44,7 @@ import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 public interface ActiveTriggerPolicy<DATA> extends TriggerPolicy<DATA> {
 
 	/**
-	 * Whenever an element arrives at the invokable, the
+	 * Whenever an element arrives at the operator, the
 	 * {@link ActiveTriggerPolicy#preNotifyTrigger(Object)} method gets called
 	 * first. It can return zero ore more fake data points which will be added
 	 * before the the currently arrived real element gets processed. This allows
@@ -53,7 +53,7 @@ public interface ActiveTriggerPolicy<DATA> extends TriggerPolicy<DATA> {
 	 * datapoint is always considered as triggered.
 	 * 
 	 * @param datapoint
-	 *            the data point which arrived at the invokable
+	 *            the data point which arrived at the operator
 	 * @return zero ore more fake data points which will be added before the the
 	 *         currently arrived real element gets processed.
 	 */
@@ -61,7 +61,7 @@ public interface ActiveTriggerPolicy<DATA> extends TriggerPolicy<DATA> {
 
 	/**
 	 * This is the factory method for a runnable. This factory method gets
-	 * called at the start up of the invokable. The returned runnable will be
+	 * called at the start up of the operator. The returned runnable will be
 	 * executed in its own thread and can submit fake elements at any time threw
 	 * an {@link ActiveTriggerCallback}. This allows to have time based triggers
 	 * based on any system internal time measure. Triggers are not called on

@@ -39,10 +39,10 @@ import org.junit.Test;
 public class StreamDiscretizerTest {
 
 	/**
-	 * Test case equal to {@link WindowReduceInvokableTest}
+	 * Test case equal to {@link WindowReducerTest}
 	 */
 	@Test
-	public void testWindowInvokableWithTimePolicy() {
+	public void testWindowOperatorWithTimePolicy() {
 
 		List<Integer> inputs = new ArrayList<Integer>();
 		inputs.add(1);
@@ -80,7 +80,7 @@ public class StreamDiscretizerTest {
 		
 
 		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction);
-		WindowBufferInvokable<Integer> buffer = new WindowBufferInvokable<Integer>(new BasicWindowBuffer<Integer>());
+		WindowBufferStreamOperator<Integer> buffer = new WindowBufferStreamOperator<Integer>(new BasicWindowBuffer<Integer>());
 
 		List<WindowEvent<Integer>> bufferEvents = MockContext.createAndExecute(discretizer, inputs);
 		List<StreamWindow<Integer>> result = MockContext.createAndExecute(buffer, bufferEvents);
@@ -89,7 +89,7 @@ public class StreamDiscretizerTest {
 	}
 
 	@Test
-	public void testWindowInvokableWithCountPolicy() {
+	public void testWindowOperatorWithCountPolicy() {
 
 		List<Integer> inputs = new ArrayList<Integer>();
 		inputs.add(1);
@@ -108,7 +108,7 @@ public class StreamDiscretizerTest {
 		EvictionPolicy<Integer> eviction = new TumblingEvictionPolicy<Integer>();
 
 		StreamDiscretizer<Integer> discretizer = new StreamDiscretizer<Integer>(trigger, eviction);
-		WindowBufferInvokable<Integer> buffer = new WindowBufferInvokable<Integer>(new BasicWindowBuffer<Integer>());
+		WindowBufferStreamOperator<Integer> buffer = new WindowBufferStreamOperator<Integer>(new BasicWindowBuffer<Integer>());
 
 		List<WindowEvent<Integer>> bufferEvents = MockContext.createAndExecute(discretizer, inputs);
 		List<StreamWindow<Integer>> result = MockContext.createAndExecute(buffer, bufferEvents);

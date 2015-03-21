@@ -17,54 +17,38 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
-import org.apache.flink.streaming.api.function.co.CoReduceFunction;
+import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
 
-public class CoReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
+public class CoFlatMapStreamOperator<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	protected CoReduceFunction<IN1, IN2, OUT> coReducer;
-	protected IN1 currentValue1 = null;
-	protected IN2 currentValue2 = null;
-	protected IN1 nextValue1 = null;
-	protected IN2 nextValue2 = null;
+	private CoFlatMapFunction<IN1, IN2, OUT> flatMapper;
 
-	public CoReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer) {
-		super(coReducer);
-		this.coReducer = coReducer;
-		currentValue1 = null;
-		currentValue2 = null;
+	public CoFlatMapStreamOperator(CoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
+		super(flatMapper);
+		this.flatMapper = flatMapper;
 	}
 
 	@Override
 	public void handleStream1() throws Exception {
-		nextValue1 = reuse1.getObject();
 		callUserFunctionAndLogException1();
 	}
 
 	@Override
 	public void handleStream2() throws Exception {
-		nextValue2 = reuse2.getObject();
 		callUserFunctionAndLogException2();
 	}
 
 	@Override
 	protected void callUserFunction1() throws Exception {
-		if (currentValue1 != null) {
-			currentValue1 = coReducer.reduce1(currentValue1, nextValue1);
-		} else {
-			currentValue1 = nextValue1;
-		}
-		collector.collect(coReducer.map1(currentValue1));
+		flatMapper.flatMap1(reuse1.getObject(), collector);
+
 	}
 
 	@Override
 	protected void callUserFunction2() throws Exception {
-		if (currentValue2 != null) {
-			currentValue2 = coReducer.reduce2(currentValue2, nextValue2);
-		} else {
-			currentValue2 = nextValue2;
-		}
-		collector.collect(coReducer.map2(currentValue2));
+		flatMapper.flatMap2(reuse2.getObject(), collector);
+
 	}
 
 }

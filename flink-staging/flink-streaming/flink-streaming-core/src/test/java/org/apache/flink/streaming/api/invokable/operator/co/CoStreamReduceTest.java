@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
 import org.apache.flink.streaming.util.MockCoContext;
 import org.junit.Test;
 
@@ -58,7 +57,7 @@ public class CoStreamReduceTest {
 	@Test
 	public void coStreamReduceTest() {
 
-		CoReduceInvokable<Integer, String, Integer> coReduce = new CoReduceInvokable<Integer, String, Integer>(
+		CoReduceStreamOperator<Integer, String, Integer> coReduce = new CoReduceStreamOperator<Integer, String, Integer>(
 				new MyCoReduceFunction());
 
 		List<Integer> expected1 = Arrays.asList(1, 9, 2, 99, 6, 998, 24);

@@ -17,25 +17,28 @@
 
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
 /**
- * This invokable manages the window buffers attached to the discretizers.
+ * This operator flattens the results of the window transformations by
+ * outputing the elements of the {@link StreamWindow} one-by-one
  */
-public class WindowBufferInvokable<T> extends ChainableInvokable<WindowEvent<T>, StreamWindow<T>> {
-
-	protected WindowBuffer<T> buffer;
-
-	public WindowBufferInvokable(WindowBuffer<T> buffer) {
-		super(null);
-		this.buffer = buffer;
-		withoutInputCopy();
-	}
+public class GroupedWindowBufferStreamOperator<T> extends WindowBufferStreamOperator<T> {
 
 	private static final long serialVersionUID = 1L;
+	private Map<Object, WindowBuffer<T>> windowMap = new HashMap<Object, WindowBuffer<T>>();
+	private KeySelector<T, ?> keySelector;
+
+	public GroupedWindowBufferStreamOperator(WindowBuffer<T> buffer, KeySelector<T, ?> keySelector) {
+		super(buffer);
+		this.keySelector = keySelector;
+	}
 
 	@Override
 	public void invoke() throws Exception {
@@ -46,22 +49,25 @@ public class WindowBufferInvokable<T> extends ChainableInvokable<WindowEvent<T>,
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		handleWindowEvent(nextObject);
-	}
+		if (nextObject.getElement() != null) {
+			Object key = keySelector.getKey(nextObject.getElement());
+			WindowBuffer<T> currentWindow = windowMap.get(key);
 
-	protected void handleWindowEvent(WindowEvent<T> windowEvent, WindowBuffer<T> buffer)
-			throws Exception {
-		if (windowEvent.isElement()) {
-			buffer.store(windowEvent.getElement());
-		} else if (windowEvent.isEviction()) {
-			buffer.evict(windowEvent.getEviction());
-		} else if (windowEvent.isTrigger()) {
-			buffer.emitWindow(collector);
+			if (currentWindow == null) {
+				currentWindow = buffer.clone();
+				windowMap.put(key, currentWindow);
+			}
+
+			handleWindowEvent(nextObject, currentWindow);
 		}
 	}
 
-	private void handleWindowEvent(WindowEvent<T> windowEvent) throws Exception {
-		handleWindowEvent(windowEvent, buffer);
+	@Override
+	public void collect(WindowEvent<T> record) {
+		if (isRunning) {
+			nextObject = record;
+			callUserFunctionAndLogException();
+		}
 	}
 
 }

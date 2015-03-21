@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
@@ -31,7 +31,7 @@ public class WindowFlattenerTest {
 
 	@Test
 	public void test() {
-		StreamInvokable<StreamWindow<Integer>, Integer> flattener = new WindowFlattener<Integer>();
+		StreamOperator<StreamWindow<Integer>, Integer> flattener = new WindowFlattener<Integer>();
 
 		StreamWindow<Integer> w1 = StreamWindow.fromElements(1, 2, 3);
 		StreamWindow<Integer> w2 = new StreamWindow<Integer>();

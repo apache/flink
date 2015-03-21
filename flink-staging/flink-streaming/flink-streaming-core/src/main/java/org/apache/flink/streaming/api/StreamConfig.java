@@ -27,7 +27,7 @@ import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
 import org.apache.flink.util.InstantiationUtil;
@@ -159,21 +159,21 @@ public class StreamConfig implements Serializable {
 		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
 	}
 
-	public void setUserInvokable(StreamInvokable<?, ?> invokableObject) {
-		if (invokableObject != null) {
-			config.setClass(USER_FUNCTION, invokableObject.getClass());
+	public void setUserOperator(StreamOperator<?, ?> operatorObject) {
+		if (operatorObject != null) {
+			config.setClass(USER_FUNCTION, operatorObject.getClass());
 
 			try {
-				config.setBytes(SERIALIZEDUDF, SerializationUtils.serialize(invokableObject));
+				config.setBytes(SERIALIZEDUDF, SerializationUtils.serialize(operatorObject));
 			} catch (SerializationException e) {
-				throw new RuntimeException("Cannot serialize invokable object "
-						+ invokableObject.getClass(), e);
+				throw new RuntimeException("Cannot serialize operator object "
+						+ operatorObject.getClass(), e);
 			}
 		}
 	}
 
 	@SuppressWarnings({ "unchecked" })
-	public <T> T getUserInvokable(ClassLoader cl) {
+	public <T> T getUserOperator(ClassLoader cl) {
 		try {
 			return (T) InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
 		} catch (Exception e) {
@@ -376,9 +376,9 @@ public class StreamConfig implements Serializable {
 		builder.append("\nChained subtasks: " + getChainedOutputs(cl));
 
 		try {
-			builder.append("\nInvokable: " + getUserInvokable(cl).getClass().getSimpleName());
+			builder.append("\nOperator: " + getUserOperator(cl).getClass().getSimpleName());
 		} catch (Exception e) {
-			builder.append("\nInvokable: Missing");
+			builder.append("\nOperator: Missing");
 		}
 		builder.append("\nBuffer timeout: " + getBufferTimeout());
 		builder.append("\nState Monitoring: " + getStateMonitoring());

@@ -17,19 +17,24 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 
-public class FilterInvokable<IN> extends ChainableInvokable<IN, IN> {
-
+public class FoldStreamOperator<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	FilterFunction<IN> filterFunction;
-	private boolean collect;
+	protected FoldFunction<IN, OUT> folder;
+	private OUT accumulator;
+	protected TypeSerializer<OUT> outTypeSerializer;
 
-	public FilterInvokable(FilterFunction<IN> filterFunction) {
-		super(filterFunction);
-		this.filterFunction = filterFunction;
+	public FoldStreamOperator(FoldFunction<IN, OUT> folder, OUT initialValue,
+								TypeInformation<OUT> outTypeInformation) {
+		super(folder);
+		this.folder = folder;
+		this.accumulator = initialValue;
+		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
 	}
 
 	@Override
@@ -41,9 +46,9 @@ public class FilterInvokable<IN> extends ChainableInvokable<IN, IN> {
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		collect = filterFunction.filter(nextObject);
-		if (collect) {
-			collector.collect(nextObject);
-		}
+
+		accumulator = folder.fold(outTypeSerializer.copy(accumulator), nextObject);
+		collector.collect(accumulator);
+
 	}
 }

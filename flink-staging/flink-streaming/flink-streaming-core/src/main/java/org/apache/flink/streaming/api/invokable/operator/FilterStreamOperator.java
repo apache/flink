@@ -17,17 +17,19 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 
-public class MapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
+public class FilterStreamOperator<IN> extends ChainableStreamOperator<IN, IN> {
+
 	private static final long serialVersionUID = 1L;
 
-	private MapFunction<IN, OUT> mapper;
+	FilterFunction<IN> filterFunction;
+	private boolean collect;
 
-	public MapInvokable(MapFunction<IN, OUT> mapper) {
-		super(mapper);
-		this.mapper = mapper;
+	public FilterStreamOperator(FilterFunction<IN> filterFunction) {
+		super(filterFunction);
+		this.filterFunction = filterFunction;
 	}
 
 	@Override
@@ -39,7 +41,9 @@ public class MapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		collector.collect(mapper.map(nextObject));
+		collect = filterFunction.filter(nextObject);
+		if (collect) {
+			collector.collect(nextObject);
+		}
 	}
-
 }

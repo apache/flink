@@ -24,15 +24,15 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 
-public class GroupedFoldInvokable<IN, OUT> extends StreamFoldInvokable<IN, OUT> {
+public class GroupedFoldStreamOperator<IN, OUT> extends FoldStreamOperator<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private KeySelector<IN, ?> keySelector;
 	private Map<Object, OUT> values;
 	private OUT initialValue;
 
-	public GroupedFoldInvokable(FoldFunction<IN, OUT> folder, KeySelector<IN, ?> keySelector,
-			OUT initialValue, TypeInformation<OUT> outTypeInformation) {
+	public GroupedFoldStreamOperator(FoldFunction<IN, OUT> folder, KeySelector<IN, ?> keySelector,
+									OUT initialValue, TypeInformation<OUT> outTypeInformation) {
 		super(folder, initialValue, outTypeInformation);
 		this.keySelector = keySelector;
 		this.initialValue = initialValue;

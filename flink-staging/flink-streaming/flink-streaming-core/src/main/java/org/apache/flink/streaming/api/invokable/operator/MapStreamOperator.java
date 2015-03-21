@@ -17,36 +17,29 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.functions.KeySelector;
-
-public class GroupedReduceInvokable<IN> extends StreamReduceInvokable<IN> {
+public class MapStreamOperator<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private KeySelector<IN, ?> keySelector;
-	private Map<Object, IN> values;
+	private MapFunction<IN, OUT> mapper;
 
-	public GroupedReduceInvokable(ReduceFunction<IN> reducer, KeySelector<IN, ?> keySelector) {
-		super(reducer);
-		this.keySelector = keySelector;
-		values = new HashMap<Object, IN>();
+	public MapStreamOperator(MapFunction<IN, OUT> mapper) {
+		super(mapper);
+		this.mapper = mapper;
+	}
+
+	@Override
+	public void invoke() throws Exception {
+		while (isRunning && readNext() != null) {
+			callUserFunctionAndLogException();
+		}
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		Object key = keySelector.getKey(nextObject);
-		IN currentValue = values.get(key);
-		if (currentValue != null) {
-			IN reduced = reducer.reduce(copy(currentValue), nextObject);
-			values.put(key, reduced);
-			collector.collect(reduced);
-		} else {
-			values.put(key, nextObject);
-			collector.collect(nextObject);
-		}
+		collector.collect(mapper.map(nextObject));
 	}
 
 }

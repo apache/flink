@@ -15,39 +15,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.co;
+package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.streaming.api.function.co.CoMapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 
-public class CoMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
+public class ReduceStreamOperator<IN> extends ChainableStreamOperator<IN, IN> {
 	private static final long serialVersionUID = 1L;
 
-	private CoMapFunction<IN1, IN2, OUT> mapper;
+	protected ReduceFunction<IN> reducer;
+	private IN currentValue;
 
-	public CoMapInvokable(CoMapFunction<IN1, IN2, OUT> mapper) {
-		super(mapper);
-		this.mapper = mapper;
+	public ReduceStreamOperator(ReduceFunction<IN> reducer) {
+		super(reducer);
+		this.reducer = reducer;
+		currentValue = null;
 	}
 
 	@Override
-	public void handleStream1() throws Exception {
-		callUserFunctionAndLogException1();
+	public void invoke() throws Exception {
+		while (isRunning && readNext() != null) {
+			callUserFunctionAndLogException();
+		}
 	}
 
 	@Override
-	public void handleStream2() throws Exception {
-		callUserFunctionAndLogException2();
-	}
+	protected void callUserFunction() throws Exception {
 
-	@Override
-	protected void callUserFunction1() throws Exception {
-		collector.collect(mapper.map1(reuse1.getObject()));
+		if (currentValue != null) {
+			currentValue = reducer.reduce(copy(currentValue), nextObject);
+		} else {
+			currentValue = nextObject;
 
-	}
-
-	@Override
-	protected void callUserFunction2() throws Exception {
-		collector.collect(mapper.map2(reuse2.getObject()));
+		}
+		collector.collect(currentValue);
 
 	}
 

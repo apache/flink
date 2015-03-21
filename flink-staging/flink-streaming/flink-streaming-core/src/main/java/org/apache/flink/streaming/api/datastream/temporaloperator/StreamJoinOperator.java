@@ -31,7 +31,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.function.co.JoinWindowFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
+import org.apache.flink.streaming.api.invokable.operator.co.CoWindowStreamOperator;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 public class StreamJoinOperator<I1, I2> extends
@@ -241,11 +241,11 @@ public class StreamJoinOperator<I1, I2> extends
 			TypeInformation<OUT> outType = TypeExtractor.getJoinReturnTypes(joinFunction,
 					predicate.op.input1.getType(), predicate.op.input2.getType());
 
-			CoWindowInvokable<I1, I2, OUT> invokable = new CoWindowInvokable<I1, I2, OUT>(
+			CoWindowStreamOperator<I1, I2, OUT> operator = new CoWindowStreamOperator<I1, I2, OUT>(
 					getJoinWindowFunction(joinFunction, predicate), predicate.op.windowSize,
 					predicate.op.slideInterval, predicate.op.timeStamp1, predicate.op.timeStamp2);
 
-			streamGraph.setInvokable(id, invokable);
+			streamGraph.setOperator(id, operator);
 
 			return setType(outType);
 		}

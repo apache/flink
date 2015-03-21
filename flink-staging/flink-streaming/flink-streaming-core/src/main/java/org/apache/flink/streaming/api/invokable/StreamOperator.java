@@ -36,16 +36,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The StreamInvokable represents the base class for all invokables in the
+ * The StreamOperator represents the base class for all operators in the
  * streaming topology.
  * 
  * @param <OUT>
- *            The output type of the invokable
+ *            The output type of the operator
  */
-public abstract class StreamInvokable<IN, OUT> implements Serializable {
+public abstract class StreamOperator<IN, OUT> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	private static final Logger LOG = LoggerFactory.getLogger(StreamInvokable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamOperator.class);
 
 	protected StreamTaskContext<OUT> taskContext;
 
@@ -64,12 +64,12 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	private ChainingStrategy chainingStrategy = ChainingStrategy.HEAD;
 
-	public StreamInvokable(Function userFunction) {
+	public StreamOperator(Function userFunction) {
 		this.userFunction = userFunction;
 	}
 
 	/**
-	 * Initializes the {@link StreamInvokable} for input and output handling
+	 * Initializes the {@link StreamOperator} for input and output handling
 	 * 
 	 * @param taskContext
 	 *            StreamTaskContext representing the vertex
@@ -187,9 +187,9 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	public void setChainingStrategy(ChainingStrategy strategy) {
 		if (strategy == ChainingStrategy.ALWAYS) {
-			if (!(this instanceof ChainableInvokable)) {
+			if (!(this instanceof ChainableStreamOperator)) {
 				throw new RuntimeException(
-						"Invokable needs to extend ChainableInvokable to be chained");
+						"Operator needs to extend ChainableStreamOperator to be chained");
 			}
 		}
 		this.chainingStrategy = strategy;

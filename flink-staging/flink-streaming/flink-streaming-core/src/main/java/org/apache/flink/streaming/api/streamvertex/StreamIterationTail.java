@@ -108,6 +108,6 @@ public class StreamIterationTail<IN> extends StreamVertex<IN, IN> {
 	}
 
 	@Override
-	protected void setInvokable() {
+	protected void setOperator() {
 	}
 }

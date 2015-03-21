@@ -33,8 +33,8 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.StreamConfig;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.streaming.io.IndexedReaderIterator;
@@ -59,7 +59,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	private InputHandler<IN> inputHandler;
 	protected OutputHandler<OUT> outputHandler;
-	private StreamInvokable<IN, OUT> userInvokable;
+	private StreamOperator<IN, OUT> userOperator;
 
 	private StreamingRuntimeContext context;
 	private Map<String, OperatorState<?>> states;
@@ -69,7 +69,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	private EventListener<TaskEvent> superstepListener;
 
 	public StreamVertex() {
-		userInvokable = null;
+		userOperator = null;
 		numTasks = newVertex();
 		instanceID = numTasks;
 		superstepListener = new SuperstepEventListener();
@@ -84,7 +84,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	public void registerInputOutput() {
 		initialize();
 		setInputsOutputs();
-		setInvokable();
+		setOperator();
 	}
 
 	protected void initialize() {
@@ -129,9 +129,9 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 		outputHandler = new OutputHandler<OUT>(this);
 	}
 
-	protected void setInvokable() {
-		userInvokable = configuration.getUserInvokable(userClassLoader);
-		userInvokable.setup(this);
+	protected void setOperator() {
+		userOperator = configuration.getUserOperator(userClassLoader);
+		userOperator.setup(this);
 	}
 
 	public String getName() {
@@ -157,20 +157,20 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 		}
 
 		try {
-			userInvokable.setRuntimeContext(context);
-			userInvokable.open(getTaskConfiguration());
+			userOperator.setRuntimeContext(context);
+			userOperator.open(getTaskConfiguration());
 
-			for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
-				invokable.setRuntimeContext(context);
-				invokable.open(getTaskConfiguration());
+			for (ChainableStreamOperator<?, ?> operator : outputHandler.chainedOperators) {
+				operator.setRuntimeContext(context);
+				operator.open(getTaskConfiguration());
 			}
 
-			userInvokable.invoke();
+			userOperator.invoke();
 
-			userInvokable.close();
+			userOperator.close();
 
-			for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
-				invokable.close();
+			for (ChainableStreamOperator<?, ?> operator : outputHandler.chainedOperators) {
+				operator.close();
 			}
 
 			if (LOG.isDebugEnabled()) {
@@ -179,7 +179,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("StreamInvokable failed due to: {}", StringUtils.stringifyException(e));
+				LOG.error("StreamOperator failed due to: {}", StringUtils.stringifyException(e));
 			}
 			throw e;
 		} finally {
@@ -201,8 +201,8 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	@Override
 	public void cancel() {
-		if (userInvokable != null) {
-			userInvokable.cancel();
+		if (userOperator != null) {
+			userOperator.cancel();
 		}
 	}
 

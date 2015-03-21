@@ -21,9 +21,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 
-public class ProjectInvokable<IN, OUT extends Tuple> extends ChainableInvokable<IN, OUT> {
+public class ProjectStreamOperator<IN, OUT extends Tuple> extends ChainableStreamOperator<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	transient OUT outTuple;
@@ -32,7 +32,7 @@ public class ProjectInvokable<IN, OUT extends Tuple> extends ChainableInvokable<
 	int[] fields;
 	int numFields;
 
-	public ProjectInvokable(int[] fields, TypeInformation<OUT> outTypeInformation) {
+	public ProjectStreamOperator(int[] fields, TypeInformation<OUT> outTypeInformation) {
 		super(null);
 		this.fields = fields;
 		this.numFields = this.fields.length;

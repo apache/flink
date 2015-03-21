@@ -21,13 +21,13 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.Collector;
 
-public abstract class ChainableInvokable<IN, OUT> extends StreamInvokable<IN, OUT> implements
+public abstract class ChainableStreamOperator<IN, OUT> extends StreamOperator<IN, OUT> implements
 		Collector<IN> {
 
 	private static final long serialVersionUID = 1L;
 	private boolean copyInput = true;
 
-	public ChainableInvokable(Function userFunction) {
+	public ChainableStreamOperator(Function userFunction) {
 		super(userFunction);
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
@@ -38,7 +38,7 @@ public abstract class ChainableInvokable<IN, OUT> extends StreamInvokable<IN, OU
 		this.objectSerializer = inSerializer.getObjectSerializer();
 	}
 
-	public ChainableInvokable<IN, OUT> withoutInputCopy() {
+	public ChainableStreamOperator<IN, OUT> withoutInputCopy() {
 		copyInput = false;
 		return this;
 	}

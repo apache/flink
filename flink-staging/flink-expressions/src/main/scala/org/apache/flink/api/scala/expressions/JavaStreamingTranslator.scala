@@ -29,7 +29,7 @@ import org.apache.flink.api.expressions.tree._
 import org.apache.flink.api.expressions.typeinfo.RowTypeInfo
 import org.apache.flink.api.expressions.{ExpressionException, ExpressionOperation, Row}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.invokable.operator.MapInvokable
+import org.apache.flink.streaming.api.invokable.operator.MapStreamOperator
 
 /**
  * [[OperationTranslator]] for creating [[ExpressionOperation]]s from Java [[DataStream]]s and
@@ -158,7 +158,7 @@ class JavaStreamingTranslator extends OperationTranslator {
 
     val opName = s"select(${outputFields.mkString(",")})"
 
-    resultSet.transform(opName, outputType, new MapInvokable[Row, A](function))
+    resultSet.transform(opName, outputType, new MapStreamOperator[Row, A](function))
   }
 
   private def translateInternal(op: Operation): DataStream[Row] = {
@@ -261,7 +261,7 @@ class JavaStreamingTranslator extends OperationTranslator {
 
     val opName = s"select(${fields.mkString(",")})"
 
-    input.transform(opName, resultType, new MapInvokable[I, Row](function))
+    input.transform(opName, resultType, new MapStreamOperator[I, Row](function))
   }
 
   private def createJoin[L, R](

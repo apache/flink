@@ -19,12 +19,12 @@ package org.apache.flink.streaming.api.invokable;
 
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
-public class SinkInvokable<IN> extends ChainableInvokable<IN, IN> {
+public class SinkStreamOperator<IN> extends ChainableStreamOperator<IN, IN> {
 	private static final long serialVersionUID = 1L;
 
 	private SinkFunction<IN> sinkFunction;
 
-	public SinkInvokable(SinkFunction<IN> sinkFunction) {
+	public SinkStreamOperator(SinkFunction<IN> sinkFunction) {
 		super(sinkFunction);
 		this.sinkFunction = sinkFunction;
 	}

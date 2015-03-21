@@ -26,7 +26,6 @@ import java.util.Set;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.function.co.CoWindowFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.util.MockCoContext;
@@ -106,7 +105,7 @@ public class CoWindowTest {
 	@Test
 	public void coWindowGroupReduceTest2() throws Exception {
 
-		CoWindowInvokable<Integer, Integer, Integer> invokable1 = new CoWindowInvokable<Integer, Integer, Integer>(
+		CoWindowStreamOperator<Integer, Integer, Integer> operator1 = new CoWindowStreamOperator<Integer, Integer, Integer>(
 				new MyCoGroup1(), 2, 1, new TimestampWrapper<Integer>(new MyTS1(), 1),
 				new TimestampWrapper<Integer>(new MyTS1(), 1));
 
@@ -140,10 +139,10 @@ public class CoWindowTest {
 		expected1.add(0);
 		expected1.add(1);
 
-		List<Integer> actual1 = MockCoContext.createAndExecute(invokable1, input11, input12);
+		List<Integer> actual1 = MockCoContext.createAndExecute(operator1, input11, input12);
 		assertEquals(expected1, actual1);
 
-		CoWindowInvokable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer> invokable2 = new CoWindowInvokable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer>(
+		CoWindowStreamOperator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer> operator2 = new CoWindowStreamOperator<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer>(
 				new MyCoGroup2(), 2, 3, new TimestampWrapper<Tuple2<Integer, Integer>>(new MyTS2(),
 						1), new TimestampWrapper<Tuple2<Integer, Integer>>(new MyTS2(), 1));
 
@@ -176,7 +175,7 @@ public class CoWindowTest {
 		expected2.add(8);
 		expected2.add(7);
 
-		List<Integer> actual2 = MockCoContext.createAndExecute(invokable2, input21, input22);
+		List<Integer> actual2 = MockCoContext.createAndExecute(operator2, input21, input22);
 		assertEquals(expected2, actual2);
 	}
 }

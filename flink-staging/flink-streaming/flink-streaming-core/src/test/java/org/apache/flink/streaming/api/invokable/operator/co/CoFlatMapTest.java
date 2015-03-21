@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapInvokable;
 import org.apache.flink.streaming.util.MockCoContext;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -54,12 +53,12 @@ public class CoFlatMapTest implements Serializable {
 
 	@Test
 	public void coFlatMapTest() {
-		CoFlatMapInvokable<String, Integer, String> invokable = new CoFlatMapInvokable<String, Integer, String>(
+		CoFlatMapStreamOperator<String, Integer, String> operator = new CoFlatMapStreamOperator<String, Integer, String>(
 				new MyCoFlatMap());
 
 		List<String> expectedList = Arrays.asList("a", "b", "c", "1", "d", "e", "f", "2", "g", "h",
 				"e", "3", "4", "5");
-		List<String> actualList = MockCoContext.createAndExecute(invokable,
+		List<String> actualList = MockCoContext.createAndExecute(operator,
 				Arrays.asList("abc", "def", "ghe"), Arrays.asList(1, 2, 3, 4, 5));
 
 		assertEquals(expectedList, actualList);

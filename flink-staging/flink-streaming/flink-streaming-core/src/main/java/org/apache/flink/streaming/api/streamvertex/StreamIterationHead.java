@@ -104,6 +104,6 @@ public class StreamIterationHead<OUT> extends StreamVertex<OUT, OUT> {
 	}
 
 	@Override
-	protected void setInvokable() {
+	protected void setOperator() {
 	}
 }

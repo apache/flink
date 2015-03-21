@@ -42,7 +42,7 @@ public class GroupedReduceInvokableTest {
 
 	@Test
 	public void test() {
-		GroupedReduceInvokable<Integer> invokable1 = new GroupedReduceInvokable<Integer>(
+		GroupedReduceStreamOperator<Integer> operator = new GroupedReduceStreamOperator<Integer>(
 				new MyReducer(), new KeySelector<Integer, Integer>() {
 
 					private static final long serialVersionUID = 1L;
@@ -54,7 +54,7 @@ public class GroupedReduceInvokableTest {
 				});
 
 		List<Integer> expected = Arrays.asList(1, 2, 2, 4, 3);
-		List<Integer> actual = MockContext.createAndExecute(invokable1,
+		List<Integer> actual = MockContext.createAndExecute(operator,
 				Arrays.asList(1, 1, 2, 2, 3));
 
 		assertEquals(expected, actual);

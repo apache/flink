@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.streaming.api.function.WindowMapFunction;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.util.MockContext;
 import org.apache.flink.util.Collector;
@@ -33,7 +33,7 @@ public class WindowMapperTest {
 
 	@Test
 	public void test() {
-		StreamInvokable<StreamWindow<Integer>, StreamWindow<Integer>> windowMapper = new WindowMapper<Integer, Integer>(
+		StreamOperator<StreamWindow<Integer>, StreamWindow<Integer>> windowMapper = new WindowMapper<Integer, Integer>(
 				new WindowMapFunction<Integer, Integer>() {
 
 					private static final long serialVersionUID = 1L;

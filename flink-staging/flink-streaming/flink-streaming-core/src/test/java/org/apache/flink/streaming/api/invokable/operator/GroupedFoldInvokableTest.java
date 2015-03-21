@@ -47,7 +47,7 @@ public class GroupedFoldInvokableTest {
 	public void test() {
 		TypeInformation<String> outType = TypeExtractor.getForObject("A string");
 
-		GroupedFoldInvokable<Integer, String> invokable1 = new GroupedFoldInvokable<Integer, String>(
+		GroupedFoldStreamOperator<Integer, String> operator = new GroupedFoldStreamOperator<Integer, String>(
 				new MyFolder(), new KeySelector<Integer, String>() {
 
 			private static final long serialVersionUID = 1L;
@@ -59,7 +59,7 @@ public class GroupedFoldInvokableTest {
 		}, "100", outType);
 
 		List<String> expected = Arrays.asList("1001","10011", "1002", "10022", "1003");
-		List<String> actual = MockContext.createAndExecute(invokable1,
+		List<String> actual = MockContext.createAndExecute(operator,
 				Arrays.asList(1, 1, 2, 2, 3));
 
 		assertEquals(expected, actual);
