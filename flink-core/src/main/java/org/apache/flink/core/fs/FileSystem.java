@@ -107,6 +107,10 @@ public abstract class FileSystem {
 		@Override
 		public boolean equals(final Object obj) {
 
+            if(obj == this)
+            {
+                return  true;
+            }
 			if (obj instanceof FSKey) {
 				final FSKey key = (FSKey) obj;
 
