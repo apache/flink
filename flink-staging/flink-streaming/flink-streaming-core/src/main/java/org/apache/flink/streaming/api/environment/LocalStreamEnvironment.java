@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.streaming.util.ClusterUtil;
 
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
@@ -26,10 +27,12 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a
 	 * default name.
+	 *
+	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
 	@Override
-	public void execute() throws Exception {
-		ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(), getDegreeOfParallelism());
+	public JobExecutionResult execute() throws Exception {
+		return ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(), getDegreeOfParallelism());
 	}
 
 	/**
@@ -38,10 +41,11 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 * 
 	 * @param jobName
 	 *            name of the job
+	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
 	@Override
-	public void execute(String jobName) throws Exception {
-		ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(jobName),
+	public JobExecutionResult execute(String jobName) throws Exception {
+		return ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(jobName),
 				getDegreeOfParallelism());
 	}
 }
