@@ -42,12 +42,4 @@ public class FlatMapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 		flatMapper.flatMap(nextObject, collector);
 	}
 
-	@Override
-	public void collect(IN record) {
-		if (isRunning) {
-			nextObject = copyInput(record);
-			callUserFunctionAndLogException();
-		}
-	}
-
 }

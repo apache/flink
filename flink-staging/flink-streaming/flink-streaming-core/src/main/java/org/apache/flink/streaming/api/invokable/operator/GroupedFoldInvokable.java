@@ -29,7 +29,6 @@ public class GroupedFoldInvokable<IN, OUT> extends StreamFoldInvokable<IN, OUT> 
 
 	private KeySelector<IN, ?> keySelector;
 	private Map<Object, OUT> values;
-	private OUT folded;
 	private OUT initialValue;
 
 	public GroupedFoldInvokable(FoldFunction<IN, OUT> folder, KeySelector<IN, ?> keySelector,
@@ -41,24 +40,18 @@ public class GroupedFoldInvokable<IN, OUT> extends StreamFoldInvokable<IN, OUT> 
 	}
 
 	@Override
-	protected void fold() throws Exception {
+	protected void callUserFunction() throws Exception {
 		Object key = nextRecord.getKey(keySelector);
-		accumulator = values.get(key);
-		nextValue = nextObject;
+		OUT accumulator = values.get(key);
 		if (accumulator != null) {
-			callUserFunctionAndLogException();
+			OUT folded = folder.fold(outTypeSerializer.copy(accumulator), nextObject);
 			values.put(key, folded);
 			collector.collect(folded);
 		} else {
-			OUT first = folded = folder.fold(outTypeSerializer.copy(initialValue), nextValue);
+			OUT first = folder.fold(outTypeSerializer.copy(initialValue), nextObject);
 			values.put(key, first);
 			collector.collect(first);
 		}
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		folded = folder.fold(outTypeSerializer.copy(accumulator), nextValue);
 	}
 
 }

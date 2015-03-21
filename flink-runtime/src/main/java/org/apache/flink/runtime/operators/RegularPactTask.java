@@ -513,7 +513,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			if (this.stub != null) {
 				// collect the counters from the stub
 				if (FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext) != null) {
-					Map<String, Accumulator<?, ?>> accumulators = FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
+					Map<String, Accumulator<?, ?>> accumulators =
+							FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
 					RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
 				}
 			}

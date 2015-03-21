@@ -32,6 +32,7 @@ public class WindowBufferInvokable<T> extends ChainableInvokable<WindowEvent<T>,
 	public WindowBufferInvokable(WindowBuffer<T> buffer) {
 		super(null);
 		this.buffer = buffer;
+		withoutInputCopy();
 	}
 
 	private static final long serialVersionUID = 1L;
@@ -61,14 +62,6 @@ public class WindowBufferInvokable<T> extends ChainableInvokable<WindowEvent<T>,
 
 	private void handleWindowEvent(WindowEvent<T> windowEvent) throws Exception {
 		handleWindowEvent(windowEvent, buffer);
-	}
-
-	@Override
-	public void collect(WindowEvent<T> record) {
-		if (isRunning) {
-			nextObject = record;
-			callUserFunctionAndLogException();
-		}
 	}
 
 }

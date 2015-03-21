@@ -41,17 +41,9 @@ public class FilterInvokable<IN> extends ChainableInvokable<IN, IN> {
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		collect = filterFunction.filter(copy(nextObject));
+		collect = filterFunction.filter(nextObject);
 		if (collect) {
 			collector.collect(nextObject);
-		}
-	}
-
-	@Override
-	public void collect(IN record) {
-		if (isRunning) {
-			nextObject = copyInput(record);
-			callUserFunctionAndLogException();
 		}
 	}
 }

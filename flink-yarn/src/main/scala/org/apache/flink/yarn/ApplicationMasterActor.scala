@@ -311,10 +311,10 @@ trait ApplicationMasterActor extends ActorLogMessages {
   }
 
   private def runningContainerIds(): mutable.MutableList[ContainerId] = {
-    return runningContainersList map { runningCont => runningCont.getId}
+    runningContainersList map { runningCont => runningCont.getId}
   }
   private def allocatedContainerIds(): mutable.MutableList[ContainerId] = {
-    return allocatedContainersList map { runningCont => runningCont.getId}
+    allocatedContainersList map { runningCont => runningCont.getId}
   }
 
   private def startYarnSession(conf: Configuration,

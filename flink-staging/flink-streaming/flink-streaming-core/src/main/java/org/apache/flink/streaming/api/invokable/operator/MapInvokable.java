@@ -42,11 +42,4 @@ public class MapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 		collector.collect(mapper.map(nextObject));
 	}
 
-	@Override
-	public void collect(IN record) {
-		if (isRunning) {
-			nextObject = copyInput(record);
-			callUserFunctionAndLogException();
-		}
-	}
 }

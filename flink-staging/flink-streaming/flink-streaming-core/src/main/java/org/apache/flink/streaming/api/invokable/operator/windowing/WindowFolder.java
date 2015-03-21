@@ -35,6 +35,7 @@ public class WindowFolder<IN, OUT> extends MapInvokable<StreamWindow<IN>, Stream
 	public WindowFolder(FoldFunction<IN, OUT> folder, OUT initialValue) {
 		super(new WindowFoldFunction<IN, OUT>(folder, initialValue));
 		this.folder = folder;
+		withoutInputCopy();
 	}
 
 	private static class WindowFoldFunction<IN, OUT> implements
