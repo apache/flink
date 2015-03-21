@@ -26,6 +26,7 @@ import com.esotericsoftware.kryo.Serializer;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -759,10 +760,11 @@ public abstract class StreamExecutionEnvironment {
 	 * <p>
 	 * The program execution will be logged and displayed with a generated
 	 * default name.
-	 * 
+	 *
+	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception
 	 **/
-	public abstract void execute() throws Exception;
+	public abstract JobExecutionResult execute() throws Exception;
 
 	/**
 	 * Triggers the program execution. The environment will execute all parts of
@@ -773,10 +775,10 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param jobName
 	 *            Desired name of the job
-	 * 
+	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception
 	 **/
-	public abstract void execute(String jobName) throws Exception;
+	public abstract JobExecutionResult execute(String jobName) throws Exception;
 
 	/**
 	 * Getter of the {@link StreamGraph} of the streaming job.

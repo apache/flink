@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
@@ -41,8 +42,9 @@ public class ClusterUtil {
 	 *            numberOfTaskTrackers
 	 * @param memorySize
 	 *            memorySize
+	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	public static void runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize)
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize)
 			throws Exception {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
@@ -59,7 +61,7 @@ public class ClusterUtil {
 			exec = new LocalFlinkMiniCluster(configuration, true);
 			ActorRef jobClient = exec.getJobClient();
 
-			JobClient.submitJobAndWait(jobGraph, true, jobClient, exec.timeout());
+			return JobClient.submitJobAndWait(jobGraph, true, jobClient, exec.timeout());
 
 		} catch (Exception e) {
 			throw e;
@@ -70,7 +72,7 @@ public class ClusterUtil {
 		}
 	}
 
-	public static void runOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
-		runOnMiniCluster(jobGraph, numOfSlots, -1);
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
+		return runOnMiniCluster(jobGraph, numOfSlots, -1);
 	}
 }

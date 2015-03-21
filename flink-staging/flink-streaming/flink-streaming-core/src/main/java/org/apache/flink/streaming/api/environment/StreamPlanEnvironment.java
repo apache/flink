@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
@@ -48,12 +49,12 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public void execute() throws Exception {
-		execute("");
+	public JobExecutionResult execute() throws Exception {
+		return execute("");
 	}
 
 	@Override
-	public void execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName) throws Exception {
 		currentEnvironment = null;
 
 		streamGraph.setJobName(jobName);

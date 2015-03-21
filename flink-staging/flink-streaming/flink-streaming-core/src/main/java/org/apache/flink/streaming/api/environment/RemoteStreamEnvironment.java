@@ -23,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -79,17 +80,17 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public void execute() {
+	public JobExecutionResult execute() {
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
-		executeRemotely(jobGraph);
+		return executeRemotely(jobGraph);
 	}
 
 	@Override
-	public void execute(String jobName) {
+	public JobExecutionResult execute(String jobName) {
 
 		JobGraph jobGraph = streamGraph.getJobGraph(jobName);
-		executeRemotely(jobGraph);
+		return executeRemotely(jobGraph);
 	}
 
 	/**
@@ -97,8 +98,9 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * 
 	 * @param jobGraph
 	 *            jobGraph to execute
+	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	private void executeRemotely(JobGraph jobGraph) {
+	private JobExecutionResult executeRemotely(JobGraph jobGraph) {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
@@ -112,7 +114,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 				JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()));
 
 		try {
-			client.run(jobGraph, true);
+			return client.run(jobGraph, true);
 		} catch (ProgramInvocationException e) {
 			throw new RuntimeException("Cannot execute job due to ProgramInvocationException", e);
 		}
