@@ -17,13 +17,6 @@
  */
 package org.apache.flink.optimizer;
 
-import org.junit.Assert;
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -36,6 +29,13 @@ import org.apache.flink.optimizer.util.DummyMatchStub;
 import org.apache.flink.optimizer.util.DummyOutputFormat;
 import org.apache.flink.optimizer.util.IdentityMap;
 import org.apache.flink.optimizer.util.IdentityReduce;
+import org.junit.Assert;
+import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.java.record.operators.FileDataSink;
+import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.api.java.record.operators.JoinOperator;
+import org.apache.flink.api.java.record.operators.MapOperator;
+import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.types.IntValue;
@@ -45,17 +45,17 @@ import org.junit.Test;
 /**
  * Tests in this class:
  * <ul>
- *   <li>Tests that check the correct handling of the properties and strategies in the case where the degree of
+ *   <li>Tests that check the correct handling of the properties and strategies in the case where the
  *       parallelism between tasks is increased or decreased.
  * </ul>
  */
 @SuppressWarnings({"serial", "deprecation"})
-public class DOPChangeTest extends CompilerTestBase {
+public class ParallelismChangeTest extends CompilerTestBase {
 	
 	/**
 	 * Simple Job: Map -> Reduce -> Map -> Reduce. All functions preserve all fields (hence all properties).
 	 * 
-	 * Increases DOP between 1st reduce and 2nd map, so the hash partitioning from 1st reduce is not reusable.
+	 * Increases parallelism between 1st reduce and 2nd map, so the hash partitioning from 1st reduce is not reusable.
 	 * Expected to re-establish partitioning between reduce and map, via hash, because random is a full network
 	 * transit as well.
 	 */
@@ -65,29 +65,29 @@ public class DOPChangeTest extends CompilerTestBase {
 		
 		// construct the plan
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		source.setDegreeOfParallelism(degOfPar);
+		source.setParallelism(degOfPar);
 		
 		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
-		map1.setDegreeOfParallelism(degOfPar);
+		map1.setParallelism(degOfPar);
 		map1.setInput(source);
 		
 		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
-		reduce1.setDegreeOfParallelism(degOfPar);
+		reduce1.setParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
 		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
-		map2.setDegreeOfParallelism(degOfPar * 2);
+		map2.setParallelism(degOfPar * 2);
 		map2.setInput(reduce1);
 		
 		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
-		reduce2.setDegreeOfParallelism(degOfPar * 2);
+		reduce2.setParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
-		sink.setDegreeOfParallelism(degOfPar * 2);
+		sink.setParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
-		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
+		Plan plan = new Plan(sink, "Test Increasing parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -110,7 +110,7 @@ public class DOPChangeTest extends CompilerTestBase {
 	/**
 	 * Simple Job: Map -> Reduce -> Map -> Reduce. All functions preserve all fields (hence all properties).
 	 * 
-	 * Increases DOP between 2nd map and 2nd reduce, so the hash partitioning from 1st reduce is not reusable.
+	 * Increases parallelism between 2nd map and 2nd reduce, so the hash partitioning from 1st reduce is not reusable.
 	 * Expected to re-establish partitioning between map and reduce (hash).
 	 */
 	@Test
@@ -119,29 +119,29 @@ public class DOPChangeTest extends CompilerTestBase {
 		
 		// construct the plan
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		source.setDegreeOfParallelism(degOfPar);
+		source.setParallelism(degOfPar);
 		
 		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
-		map1.setDegreeOfParallelism(degOfPar);
+		map1.setParallelism(degOfPar);
 		map1.setInput(source);
 		
 		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
-		reduce1.setDegreeOfParallelism(degOfPar);
+		reduce1.setParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
 		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
-		map2.setDegreeOfParallelism(degOfPar);
+		map2.setParallelism(degOfPar);
 		map2.setInput(reduce1);
 		
 		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
-		reduce2.setDegreeOfParallelism(degOfPar * 2);
+		reduce2.setParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
-		sink.setDegreeOfParallelism(degOfPar * 2);
+		sink.setParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
-		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
+		Plan plan = new Plan(sink, "Test Increasing parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -164,7 +164,7 @@ public class DOPChangeTest extends CompilerTestBase {
 	/**
 	 * Simple Job: Map -> Reduce -> Map -> Reduce. All functions preserve all fields (hence all properties).
 	 * 
-	 * Increases DOP between 1st reduce and 2nd map, such that more tasks are on one instance.
+	 * Increases parallelism between 1st reduce and 2nd map, such that more tasks are on one instance.
 	 * Expected to re-establish partitioning between map and reduce via a local hash.
 	 */
 	@Test
@@ -173,29 +173,29 @@ public class DOPChangeTest extends CompilerTestBase {
 		
 		// construct the plan
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		source.setDegreeOfParallelism(degOfPar);
+		source.setParallelism(degOfPar);
 		
 		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
-		map1.setDegreeOfParallelism(degOfPar);
+		map1.setParallelism(degOfPar);
 		map1.setInput(source);
 		
 		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
-		reduce1.setDegreeOfParallelism(degOfPar);
+		reduce1.setParallelism(degOfPar);
 		reduce1.setInput(map1);
 		
 		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
-		map2.setDegreeOfParallelism(degOfPar * 2);
+		map2.setParallelism(degOfPar * 2);
 		map2.setInput(reduce1);
 		
 		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
-		reduce2.setDegreeOfParallelism(degOfPar * 2);
+		reduce2.setParallelism(degOfPar * 2);
 		reduce2.setInput(map2);
 		
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
-		sink.setDegreeOfParallelism(degOfPar * 2);
+		sink.setParallelism(degOfPar * 2);
 		sink.setInput(reduce2);
 		
-		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
+		Plan plan = new Plan(sink, "Test Increasing parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -219,34 +219,34 @@ public class DOPChangeTest extends CompilerTestBase {
 	
 	
 	@Test
-	public void checkPropertyHandlingWithDecreasingDegreeOfParallelism() {
+	public void checkPropertyHandlingWithDecreasingParallelism() {
 		final int degOfPar = DEFAULT_PARALLELISM;
 		
 		// construct the plan
 		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		source.setDegreeOfParallelism(degOfPar * 2);
+		source.setParallelism(degOfPar * 2);
 		
 		MapOperator map1 = MapOperator.builder(new IdentityMap()).name("Map1").build();
-		map1.setDegreeOfParallelism(degOfPar * 2);
+		map1.setParallelism(degOfPar * 2);
 		map1.setInput(source);
 		
 		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 1").build();
-		reduce1.setDegreeOfParallelism(degOfPar * 2);
+		reduce1.setParallelism(degOfPar * 2);
 		reduce1.setInput(map1);
 		
 		MapOperator map2 = MapOperator.builder(new IdentityMap()).name("Map2").build();
-		map2.setDegreeOfParallelism(degOfPar);
+		map2.setParallelism(degOfPar);
 		map2.setInput(reduce1);
 		
 		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce 2").build();
-		reduce2.setDegreeOfParallelism(degOfPar);
+		reduce2.setParallelism(degOfPar);
 		reduce2.setInput(map2);
 		
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
-		sink.setDegreeOfParallelism(degOfPar);
+		sink.setParallelism(degOfPar);
 		sink.setInput(reduce2);
 		
-		Plan plan = new Plan(sink, "Test Increasing Degree Of Parallelism");
+		Plan plan = new Plan(sink, "Test Increasing parallelism");
 		
 		// submit the plan to the compiler
 		OptimizedPlan oPlan = compileNoStats(plan);
@@ -269,7 +269,7 @@ public class DOPChangeTest extends CompilerTestBase {
 	}
 
 	/**
-	 * Checks that re-partitioning happens when the inputs of a two-input contract have different DOPs.
+	 * Checks that re-partitioning happens when the inputs of a two-input contract have different parallelisms.
 	 * 
 	 * Test Plan:
 	 * <pre>
@@ -302,14 +302,14 @@ public class DOPChangeTest extends CompilerTestBase {
 		
 		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, mat);
 		
-		sourceA.setDegreeOfParallelism(5);
-		sourceB.setDegreeOfParallelism(7);
-		redA.setDegreeOfParallelism(5);
-		redB.setDegreeOfParallelism(7);
+		sourceA.setParallelism(5);
+		sourceB.setParallelism(7);
+		redA.setParallelism(5);
+		redB.setParallelism(7);
 		
-		mat.setDegreeOfParallelism(5);
+		mat.setParallelism(5);
 		
-		sink.setDegreeOfParallelism(5);
+		sink.setParallelism(5);
 		
 		
 		// return the PACT plan

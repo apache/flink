@@ -131,14 +131,14 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	 */
 	public void setNextPartialSolution(OptimizerNode nextPartialSolution, OptimizerNode terminationCriterion) {
 		
-		// check if the root of the step function has the same DOP as the iteration
+		// check if the root of the step function has the same parallelism as the iteration
 		// or if the step function has any operator at all
 		if (nextPartialSolution.getParallelism() != getParallelism() ||
 			nextPartialSolution == partialSolution || nextPartialSolution instanceof BinaryUnionNode)
 		{
 			// add a no-op to the root to express the re-partitioning
 			NoOpNode noop = new NoOpNode();
-			noop.setDegreeOfParallelism(getParallelism());
+			noop.setParallelism(getParallelism());
 
 			DagConnection noOpConn = new DagConnection(nextPartialSolution, noop, ExecutionMode.PIPELINED);
 			noop.setIncomingConnection(noOpConn);
@@ -323,7 +323,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 					locPropsReq.parameterizeChannel(toNoOp);
 					
 					UnaryOperatorNode rebuildPropertiesNode = new UnaryOperatorNode("Rebuild Partial Solution Properties", FieldList.EMPTY_LIST);
-					rebuildPropertiesNode.setDegreeOfParallelism(candidate.getParallelism());
+					rebuildPropertiesNode.setParallelism(candidate.getParallelism());
 					
 					SingleInputPlanNode rebuildPropertiesPlanNode = new SingleInputPlanNode(rebuildPropertiesNode, "Rebuild Partial Solution Properties", toNoOp, DriverStrategy.UNARY_NO_OP);
 					rebuildPropertiesPlanNode.initProperties(toNoOp.getGlobalProperties(), toNoOp.getLocalProperties());

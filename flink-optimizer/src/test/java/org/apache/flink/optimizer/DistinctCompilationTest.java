@@ -42,7 +42,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 	public void testDistinctPlain() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 
 			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
 					.name("source").setParallelism(6);
@@ -77,7 +77,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(new FieldList(0, 1), combineNode.getKeys(0));
 			assertEquals(new FieldList(0, 1), reduceNode.getInput().getLocalStrategyKeys());
 
-			// check DOP
+			// check parallelism
 			assertEquals(6, sourceNode.getParallelism());
 			assertEquals(6, combineNode.getParallelism());
 			assertEquals(8, reduceNode.getParallelism());
@@ -94,7 +94,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 	public void testDistinctWithSelectorFunctionKey() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 
 			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
 					.name("source").setParallelism(6);
@@ -135,7 +135,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(new FieldList(0), combineNode.getKeys(0));
 			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
 
-			// check DOP
+			// check parallelism
 			assertEquals(6, sourceNode.getParallelism());
 			assertEquals(6, keyExtractor.getParallelism());
 			assertEquals(6, combineNode.getParallelism());
@@ -155,7 +155,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 	public void testDistinctWithFieldPositionKeyCombinable() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(8);
+			env.setParallelism(8);
 
 			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
 					.name("source").setParallelism(6);
@@ -191,7 +191,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(new FieldList(1), combineNode.getKeys(0));
 			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
 
-			// check DOP
+			// check parallelism
 			assertEquals(6, sourceNode.getParallelism());
 			assertEquals(6, combineNode.getParallelism());
 			assertEquals(8, reduceNode.getParallelism());

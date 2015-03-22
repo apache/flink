@@ -78,21 +78,41 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-   * Sets the degree of parallelism (DOP) for operations executed through this environment.
-   * Setting a DOP of x here will cause all operators (such as join, map, reduce) to run with
-   * x parallel instances. This value can be overridden by specific operations using
+   * Sets the parallelism (parallelism) for operations executed through this environment.
+   * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
+   * with x parallel instances. This value can be overridden by specific operations using
    * [[DataSet.setParallelism]].
+   * @deprecated Please use [[setParallelism]]
    */
-  def setDegreeOfParallelism(degreeOfParallelism: Int): Unit = {
-    javaEnv.setDegreeOfParallelism(degreeOfParallelism)
+  @deprecated
+  def setDegreeOfParallelism(parallelism: Int): Unit = {
+    setParallelism(parallelism)
   }
 
   /**
-   * Returns the default degree of parallelism for this execution environment. Note that this
-   * value can be overridden by individual operations using [[DataSet.setParallelism]
+   * Sets the parallelism (parallelism) for operations executed through this environment.
+   * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
+   * with x parallel instances. This value can be overridden by specific operations using
+   * [[DataSet.setParallelism]].
    */
-  def getDegreeOfParallelism = javaEnv.getDegreeOfParallelism
-  
+  def setParallelism(parallelism: Int): Unit = {
+    javaEnv.setParallelism(parallelism)
+  }
+
+  /**
+   * Returns the default parallelism for this execution environment. Note that this
+   * value can be overridden by individual operations using [[DataSet.setParallelism]]
+   * @deprecated Please use [[getParallelism]]
+   */
+  @deprecated
+  def getDegreeOfParallelism = javaEnv.getParallelism
+
+  /**
+   * Returns the default parallelism for this execution environment. Note that this
+   * value can be overridden by individual operations using [[DataSet.setParallelism]]
+   */
+  def getParallelism = javaEnv.getParallelism
+
   /**
    * Sets the number of times that failed tasks are re-executed. A value of zero
    * effectively disables fault tolerance. A value of "-1" indicates that the system
@@ -414,7 +434,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * because the framework may move the elements into the cluster if needed.
    *
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a degree of parallelism of one.
+   * a parallelism of one.
    */
   def fromCollection[T: ClassTag : TypeInformation](
       data: Seq[T]): DataSet[T] = {
@@ -435,7 +455,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * framework might move into the cluster if needed.
    *
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a degree of parallelism of one.
+   * a parallelism of one.
    */
   def fromCollection[T: ClassTag : TypeInformation] (
     data: Iterator[T]): DataSet[T] = {
@@ -455,7 +475,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * same type and must be serializable.
    *
    * * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a degree of parallelism of one.
+   * a parallelism of one.
    */
   def fromElements[T: ClassTag : TypeInformation](data: T*): DataSet[T] = {
     Validate.notNull(data, "Data must not be null.")
@@ -592,10 +612,10 @@ object ExecutionEnvironment {
    * of parallelism of the local environment is the number of hardware contexts (CPU cores/threads).
    */
   def createLocalEnvironment(
-      degreeOfParallelism: Int = Runtime.getRuntime.availableProcessors())
+      parallelism: Int = Runtime.getRuntime.availableProcessors())
       : ExecutionEnvironment = {
     val javaEnv = JavaEnv.createLocalEnvironment()
-    javaEnv.setDegreeOfParallelism(degreeOfParallelism)
+    javaEnv.setParallelism(parallelism)
     new ExecutionEnvironment(javaEnv)
   }
 
@@ -612,8 +632,8 @@ object ExecutionEnvironment {
   /**
    * Creates a remote execution environment. The remote environment sends (parts of) the program to
    * a cluster for execution. Note that all file paths used in the program must be accessible from
-   * the cluster. The execution will use the cluster's default degree of parallelism, unless the
-   * parallelism is set explicitly via [[ExecutionEnvironment.setDegreeOfParallelism()]].
+   * the cluster. The execution will use the cluster's default parallelism, unless the
+   * parallelism is set explicitly via [[ExecutionEnvironment.setParallelism()]].
    *
    * @param host The host name or address of the master (JobManager),
    *             where the program should be executed.
@@ -631,12 +651,12 @@ object ExecutionEnvironment {
   /**
    * Creates a remote execution environment. The remote environment sends (parts of) the program
    * to a cluster for execution. Note that all file paths used in the program must be accessible
-   * from the cluster. The execution will use the specified degree of parallelism.
+   * from the cluster. The execution will use the specified parallelism.
    *
    * @param host The host name or address of the master (JobManager),
    *             where the program should be executed.
    * @param port The port of the master (JobManager), where the program should be executed.
-   * @param degreeOfParallelism The degree of parallelism to use during the execution.
+   * @param parallelism The parallelism to use during the execution.
    * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the
    *                 program uses
    *                 user-defined functions, user-defined input formats, or any libraries,
@@ -646,10 +666,10 @@ object ExecutionEnvironment {
   def createRemoteEnvironment(
       host: String,
       port: Int,
-      degreeOfParallelism: Int,
+      parallelism: Int,
       jarFiles: String*): ExecutionEnvironment = {
     val javaEnv = JavaEnv.createRemoteEnvironment(host, port, jarFiles: _*)
-    javaEnv.setDegreeOfParallelism(degreeOfParallelism)
+    javaEnv.setParallelism(parallelism)
     new ExecutionEnvironment(javaEnv)
   }
 }

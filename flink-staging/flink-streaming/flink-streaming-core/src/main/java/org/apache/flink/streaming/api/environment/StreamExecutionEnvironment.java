@@ -64,7 +64,7 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
  */
 public abstract class StreamExecutionEnvironment {
 
-	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
+	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
 
 	private long bufferTimeout = 100;
 
@@ -93,20 +93,34 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Gets the degree of parallelism with which operation are executed by
+	 * Gets the parallelism with which operation are executed by
 	 * default. Operations can individually override this value to use a
-	 * specific degree of parallelism.
+	 * specific parallelism.
 	 * 
-	 * @return The degree of parallelism used by operations, unless they
+	 * @return The parallelism used by operations, unless they
 	 *         override that value.
+	 * @deprecated Please use {@link #getParallelism}
 	 */
+	@Deprecated
 	public int getDegreeOfParallelism() {
-		return config.getDegreeOfParallelism();
+		return getParallelism();
 	}
 
 	/**
-	 * Sets the degree of parallelism (DOP) for operations executed through this
-	 * environment. Setting a DOP of x here will cause all operators (such as
+	 * Gets the parallelism with which operation are executed by
+	 * default. Operations can individually override this value to use a
+	 * specific parallelism.
+	 *
+	 * @return The parallelism used by operations, unless they
+	 *         override that value.
+	 */
+	public int getParallelism() {
+		return config.getParallelism();
+	}
+
+	/**
+	 * Sets the parallelism for operations executed through this
+	 * environment. Setting a parallelism of x here will cause all operators (such as
 	 * map, batchReduce) to run with x parallel instances. This method overrides
 	 * the default parallelism for this environment. The
 	 * {@link LocalStreamEnvironment} uses by default a value equal to the
@@ -114,14 +128,32 @@ public abstract class StreamExecutionEnvironment {
 	 * program via the command line client from a JAR file, the default degree
 	 * of parallelism is the one configured for that setup.
 	 * 
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism
+	 * @param parallelism The parallelism
+	 * @deprecated Please use {@link #setParallelism}
 	 */
-	public StreamExecutionEnvironment setDegreeOfParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1) {
-			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
+	@Deprecated
+	public StreamExecutionEnvironment setDegreeOfParallelism(int parallelism) {
+		return setParallelism(parallelism);
+	}
+
+	/**
+	 * Sets the parallelism for operations executed through this
+	 * environment. Setting a parallelism of x here will cause all operators (such as
+	 * map, batchReduce) to run with x parallel instances. This method overrides
+	 * the default parallelism for this environment. The
+	 * {@link LocalStreamEnvironment} uses by default a value equal to the
+	 * number of hardware contexts (CPU cores / threads). When executing the
+	 * program via the command line client from a JAR file, the default degree
+	 * of parallelism is the one configured for that setup.
+	 *
+	 * @param parallelism
+	 *            The parallelism
+	 */
+	public StreamExecutionEnvironment setParallelism(int parallelism) {
+		if (parallelism < 1) {
+			throw new IllegalArgumentException("parallelism must be at least one.");
 		}
-		config.setDegreeOfParallelism(degreeOfParallelism);
+		config.setParallelism(parallelism);
 		return this;
 	}
 
@@ -220,12 +252,12 @@ public abstract class StreamExecutionEnvironment {
 	 * Sets the default parallelism that will be used for the local execution
 	 * environment created by {@link #createLocalEnvironment()}.
 	 * 
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism to use as the default local
+	 * @param parallelism
+	 *            The parallelism to use as the default local
 	 *            parallelism.
 	 */
-	public static void setDefaultLocalParallelism(int degreeOfParallelism) {
-		defaultLocalDop = degreeOfParallelism;
+	public static void setDefaultLocalParallelism(int parallelism) {
+		defaultLocalParallelism = parallelism;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -585,7 +617,7 @@ public abstract class StreamExecutionEnvironment {
 		}
 
 		boolean isParallel = function instanceof ParallelSourceFunction;
-		int dop = isParallel ? getDegreeOfParallelism() : 1;
+		int parallelism = isParallel ? getParallelism() : 1;
 
 		ClosureCleaner.clean(function, true);
 		StreamInvokable<OUT, OUT> sourceInvokable = new SourceInvokable<OUT>(function);
@@ -594,7 +626,7 @@ public abstract class StreamExecutionEnvironment {
 				outTypeInfo, sourceInvokable, isParallel);
 
 		streamGraph.addSourceVertex(returnStream.getId(), sourceInvokable, null, outTypeInfo,
-				sourceName, dop);
+				sourceName, parallelism);
 
 		return returnStream;
 	}
@@ -620,7 +652,7 @@ public abstract class StreamExecutionEnvironment {
 		if (env instanceof ContextEnvironment) {
 			ContextEnvironment ctx = (ContextEnvironment) env;
 			currentEnvironment = createContextEnvironment(ctx.getClient(), ctx.getJars(),
-					ctx.getDegreeOfParallelism());
+					ctx.getParallelism());
 		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
 			currentEnvironment = new StreamPlanEnvironment(env);
 		} else {
@@ -630,38 +662,38 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	private static StreamExecutionEnvironment createContextEnvironment(Client client,
-			List<File> jars, int dop) {
-		return new StreamContextEnvironment(client, jars, dop);
+			List<File> jars, int parallelism) {
+		return new StreamContextEnvironment(client, jars, parallelism);
 	}
 
 	/**
 	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
 	 * will run the program in a multi-threaded fashion in the same JVM as the
-	 * environment was created in. The default degree of parallelism of the
+	 * environment was created in. The default parallelism of the
 	 * local environment is the number of hardware contexts (CPU cores /
 	 * threads), unless it was specified differently by
-	 * {@link #setDegreeOfParallelism(int)}.
+	 * {@link #setParallelism(int)}.
 	 * 
 	 * @return A local execution environment.
 	 */
 	public static LocalStreamEnvironment createLocalEnvironment() {
-		return createLocalEnvironment(defaultLocalDop);
+		return createLocalEnvironment(defaultLocalParallelism);
 	}
 
 	/**
 	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
 	 * will run the program in a multi-threaded fashion in the same JVM as the
-	 * environment was created in. It will use the degree of parallelism
+	 * environment was created in. It will use the parallelism
 	 * specified in the parameter.
 	 * 
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism for the local environment.
-	 * @return A local execution environment with the specified degree of
+	 * @param parallelism
+	 *            The parallelism for the local environment.
+	 * @return A local execution environment with the specified
 	 *         parallelism.
 	 */
-	public static LocalStreamEnvironment createLocalEnvironment(int degreeOfParallelism) {
+	public static LocalStreamEnvironment createLocalEnvironment(int parallelism) {
 		currentEnvironment = new LocalStreamEnvironment();
-		currentEnvironment.setDegreeOfParallelism(degreeOfParallelism);
+		currentEnvironment.setParallelism(parallelism);
 		return (LocalStreamEnvironment) currentEnvironment;
 	}
 
@@ -671,7 +703,7 @@ public abstract class StreamExecutionEnvironment {
 	 * (parts of) the program to a cluster for execution. Note that all file
 	 * paths used in the program must be accessible from the cluster. The
 	 * execution will use no parallelism, unless the parallelism is set
-	 * explicitly via {@link #setDegreeOfParallelism}.
+	 * explicitly via {@link #setParallelism}.
 	 * 
 	 * @param host
 	 *            The host name or address of the master (JobManager), where the
@@ -696,7 +728,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a {@link RemoteStreamEnvironment}. The remote environment sends
 	 * (parts of) the program to a cluster for execution. Note that all file
 	 * paths used in the program must be accessible from the cluster. The
-	 * execution will use the specified degree of parallelism.
+	 * execution will use the specified parallelism.
 	 * 
 	 * @param host
 	 *            The host name or address of the master (JobManager), where the
@@ -704,8 +736,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @param port
 	 *            The port of the master (JobManager), where the program should
 	 *            be executed.
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism to use during the execution.
+	 * @param parallelism
+	 *            The parallelism to use during the execution.
 	 * @param jarFiles
 	 *            The JAR files with code that needs to be shipped to the
 	 *            cluster. If the program uses user-defined functions,
@@ -714,9 +746,9 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A remote environment that executes the program on a cluster.
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
-			int degreeOfParallelism, String... jarFiles) {
+			int parallelism, String... jarFiles) {
 		currentEnvironment = new RemoteStreamEnvironment(host, port, jarFiles);
-		currentEnvironment.setDegreeOfParallelism(degreeOfParallelism);
+		currentEnvironment.setParallelism(parallelism);
 		return currentEnvironment;
 	}
 

@@ -120,8 +120,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public String toString() {
-		return "Remote Environment (" + this.host + ":" + this.port + " - DOP = "
-				+ (getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism()) + ")";
+		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = "
+				+ (getParallelism() == -1 ? "default" : getParallelism()) + ")";
 	}
 
 }

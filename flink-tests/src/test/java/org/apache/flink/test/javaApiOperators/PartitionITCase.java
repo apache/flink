@@ -148,8 +148,8 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		env.execute();
 
 		StringBuilder result = new StringBuilder();
-		int numPerPartition = 2220 / env.getDegreeOfParallelism() / 10;
-		for (int i = 0; i < env.getDegreeOfParallelism(); i++) {
+		int numPerPartition = 2220 / env.getParallelism() / 10;
+		for (int i = 0; i < env.getParallelism(); i++) {
 			result.append('(').append(i).append(',').append(numPerPartition).append(")\n");
 		}
 
@@ -190,13 +190,13 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testHashPartitionByKeyFieldAndDifferentDOP() throws Exception {
+	public void testHashPartitionByKeyFieldAndDifferentParallelism() throws Exception {
 		/*
-		 * Test hash partition by key field and different DOP
+		 * Test hash partition by key field and different parallelism
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(3);
+		env.setParallelism(3);
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Long> uniqLongs = ds
@@ -221,7 +221,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(3);
+		env.setParallelism(3);
 
 		DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
 		DataSet<Long> uniqLongs = ds

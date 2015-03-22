@@ -30,7 +30,7 @@ public class WordCountITCase extends RecordAPITestBase {
 	protected String resultPath;
 
 	public WordCountITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	
@@ -43,7 +43,7 @@ public class WordCountITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		WordCount wc = new WordCount();
-		return wc.getPlan(Integer.valueOf(DOP).toString(), textPath, resultPath);
+		return wc.getPlan(Integer.valueOf(parallelism).toString(), textPath, resultPath);
 	}
 
 	@Override

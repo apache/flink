@@ -203,7 +203,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 	private Plan getTestPlanRightStatic(String strategy) {
 		
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 		
 		DataSet<Tuple3<Long, Long, Long>> bigInput = env.readCsvFile("file://bigFile").types(Long.class, Long.class, Long.class).name("bigFile");
 		
@@ -231,7 +231,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 	private Plan getTestPlanLeftStatic(String strategy) {
 		
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+		env.setParallelism(DEFAULT_PARALLELISM);
 		
 		@SuppressWarnings("unchecked")
 		DataSet<Tuple3<Long, Long, Long>> bigInput = env.fromElements(new Tuple3<Long, Long, Long>(1L, 2L, 3L),

@@ -321,12 +321,12 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	// check if dop 1 results in the same data like a shuffle
+	// check if parallelism of 1 results in the same data like a shuffle
 	public void testCheckPartitionShuffleDOP1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		env.setDegreeOfParallelism(1);
+		env.setParallelism(1);
 
 		// data
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);

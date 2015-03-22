@@ -40,7 +40,7 @@ public class SinkJoinerPlanNode extends DualInputPlanNode {
 	public void setCosts(Costs nodeCosts) {
 		// the plan enumeration logic works as for regular two-input-operators, which is important
 		// because of the branch handling logic. it does pick redistributing network channels
-		// between the sink and the sink joiner, because sinks joiner has a different DOP than the sink.
+		// between the sink and the sink joiner, because sinks joiner has a different parallelism than the sink.
 		// we discard any cost and simply use the sum of the costs from the two children.
 		
 		Costs totalCosts = getInput1().getSource().getCumulativeCosts().clone();

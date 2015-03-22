@@ -275,7 +275,7 @@ public class PlanJSONDumpGenerator {
 		// output node contents
 		writer.print(",\n\t\t\"contents\": \"" + contents + "\"");
 
-		// degree of parallelism
+		// parallelism
 		writer.print(",\n\t\t\"parallelism\": \""
 			+ (n.getParallelism() >= 1 ? n.getParallelism() : "default") + "\"");
 		

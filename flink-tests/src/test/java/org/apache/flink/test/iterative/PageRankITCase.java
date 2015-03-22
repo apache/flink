@@ -43,7 +43,7 @@ public class PageRankITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		SimplePageRank pr = new SimplePageRank();
 		Plan plan = pr.getPlan(
-			String.valueOf(DOP), 
+			String.valueOf(parallelism),
 			pagesPath,
 			edgesPath,
 			resultPath,

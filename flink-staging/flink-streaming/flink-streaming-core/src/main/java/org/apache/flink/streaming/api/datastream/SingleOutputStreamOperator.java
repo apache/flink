@@ -62,20 +62,20 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	/**
-	 * Sets the degree of parallelism for this operator. The degree must be 1 or
+	 * Sets the parallelism for this operator. The degree must be 1 or
 	 * more.
 	 * 
-	 * @param dop
-	 *            The degree of parallelism for this operator.
-	 * @return The operator with set degree of parallelism.
+	 * @param parallelism
+	 *            The parallelism for this operator.
+	 * @return The operator with set parallelism.
 	 */
-	public SingleOutputStreamOperator<OUT, O> setParallelism(int dop) {
-		if (dop < 1) {
+	public SingleOutputStreamOperator<OUT, O> setParallelism(int parallelism) {
+		if (parallelism < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
-		this.degreeOfParallelism = dop;
+		this.parallelism = parallelism;
 
-		streamGraph.setParallelism(id, degreeOfParallelism);
+		streamGraph.setParallelism(id, parallelism);
 
 		return this;
 	}

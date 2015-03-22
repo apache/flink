@@ -194,22 +194,22 @@ public class AbstractJobVertex implements java.io.Serializable {
 	}
 	
 	/**
-	 * Gets the degree of parallelism of the task.
+	 * Gets the parallelism of the task.
 	 * 
-	 * @return The degree of parallelism of the task.
+	 * @return The parallelism of the task.
 	 */
 	public int getParallelism() {
 		return parallelism;
 	}
 
 	/**
-	 * Sets the degree of parallelism for the task.
+	 * Sets the parallelism for the task.
 	 * 
-	 * @param parallelism The degree of parallelism for the task.
+	 * @param parallelism The parallelism for the task.
 	 */
 	public void setParallelism(int parallelism) {
 		if (parallelism < 1) {
-			throw new IllegalArgumentException("The degree of parallelism must be at least one.");
+			throw new IllegalArgumentException("The parallelism must be at least one.");
 		}
 		this.parallelism = parallelism;
 	}

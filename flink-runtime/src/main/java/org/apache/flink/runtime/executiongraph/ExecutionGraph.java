@@ -71,7 +71,7 @@ import static akka.dispatch.Futures.future;
  *         The ExecutionJobVertex is identified inside the graph by the {@link JobVertexID}, which it takes
  *         from the JobGraph's corresponding JobVertex.</li>
  *     <li>The {@link ExecutionVertex} represents one parallel subtask. For each ExecutionJobVertex, there are
- *         as many ExecutionVertices as the degree of parallelism. The ExecutionVertex is identified by
+ *         as many ExecutionVertices as the parallelism. The ExecutionVertex is identified by
  *         the ExecutionJobVertex and the number of the parallel subtask</li>
  *     <li>The {@link Execution} is one attempt to execute a ExecutionVertex. There may be multiple Executions
  *         for the ExecutionVertex, in case of a failure, or in the case where some data needs to be recomputed

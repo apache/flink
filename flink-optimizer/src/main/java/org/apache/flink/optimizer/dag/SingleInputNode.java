@@ -283,9 +283,10 @@ public abstract class SingleInputNode extends OptimizerNode {
 
 		final ExecutionMode executionMode = this.inConn.getDataExchangeMode();
 
-		final int dop = getParallelism();
-		final int inDop = getPredecessorNode().getParallelism();
-		final boolean dopChange = inDop != dop;
+		final int parallelism = getParallelism();
+		final int inParallelism = getPredecessorNode().getParallelism();
+
+		final boolean parallelismChange = inParallelism != parallelism;
 
 		final boolean breaksPipeline = this.inConn.isBreakingPipeline();
 
@@ -293,8 +294,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 		for (PlanNode child : subPlans) {
 
 			if (child.getGlobalProperties().isFullyReplicated()) {
-				// fully replicated input is always locally forwarded if DOP is not changed
-				if (dopChange) {
+				// fully replicated input is always locally forwarded if the parallelism is not changed
+				if (parallelismChange) {
 					// can not continue with this child
 					childrenSkippedDueToReplicatedInput = true;
 					continue;
@@ -307,11 +308,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 				// pick the strategy ourselves
 				for (RequestedGlobalProperties igps: intGlobal) {
 					final Channel c = new Channel(child, this.inConn.getMaterializationMode());
-					igps.parameterizeChannel(c, dopChange, executionMode, breaksPipeline);
+					igps.parameterizeChannel(c, parallelismChange, executionMode, breaksPipeline);
 					
-					// if the DOP changed, make sure that we cancel out properties, unless the
-					// ship strategy preserves/establishes them even under changing DOPs
-					if (dopChange && !c.getShipStrategy().isNetworkStrategy()) {
+					// if the parallelism changed, make sure that we cancel out properties, unless the
+					// ship strategy preserves/establishes them even under changing parallelisms
+					if (parallelismChange && !c.getShipStrategy().isNetworkStrategy()) {
 						c.getGlobalProperties().reset();
 					}
 					
@@ -339,7 +340,7 @@ public abstract class SingleInputNode extends OptimizerNode {
 					c.setShipStrategy(shipStrategy, exMode);
 				}
 				
-				if (dopChange) {
+				if (parallelismChange) {
 					c.adjustGlobalPropertiesForFullParallelismChange();
 				}
 

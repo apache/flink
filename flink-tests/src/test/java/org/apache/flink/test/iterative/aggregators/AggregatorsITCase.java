@@ -51,7 +51,7 @@ import org.junit.runners.Parameterized;
 public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 	private static final int MAX_ITERATIONS = 20;
-	private static final int DOP = 2;
+	private static final int parallelism = 2;
 	private static final String NEGATIVE_ELEMENTS_AGGR = "count.negative.elements";
 
 	public AggregatorsITCase(TestExecutionMode mode){
@@ -81,7 +81,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(DOP);
+		env.setParallelism(parallelism);
 
 		DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
 		IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
@@ -110,7 +110,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(DOP);
+		env.setParallelism(parallelism);
 
 		DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
 		IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
@@ -139,7 +139,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(DOP);
+		env.setParallelism(parallelism);
 
 		DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
 		IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
@@ -168,7 +168,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(DOP);
+		env.setParallelism(parallelism);
 
 		DataSet<Tuple2<Integer, Integer>> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env).map(new TupleMakerMap());
 
@@ -202,7 +202,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		 */
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(DOP);
+		env.setParallelism(parallelism);
 
 		DataSet<Tuple2<Integer, Integer>> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env).map(new TupleMakerMap());
 

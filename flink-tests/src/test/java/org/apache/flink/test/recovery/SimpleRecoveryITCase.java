@@ -79,7 +79,7 @@ public class SimpleRecoveryITCase {
 				ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 						"localhost", cluster.getJobManagerRPCPort());
 
-				env.setDegreeOfParallelism(4);
+				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
 
 				env.generateSequence(1, 10)
@@ -108,7 +108,7 @@ public class SimpleRecoveryITCase {
 				ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 						"localhost", cluster.getJobManagerRPCPort());
 
-				env.setDegreeOfParallelism(4);
+				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
 
 				env.generateSequence(1, 10)
@@ -154,7 +154,7 @@ public class SimpleRecoveryITCase {
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getJobManagerRPCPort());
 
-			env.setDegreeOfParallelism(4);
+			env.setParallelism(4);
 			env.setNumberOfExecutionRetries(1);
 
 			env.generateSequence(1, 10)
@@ -198,7 +198,7 @@ public class SimpleRecoveryITCase {
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getJobManagerRPCPort());
 
-			env.setDegreeOfParallelism(4);
+			env.setParallelism(4);
 			env.setNumberOfExecutionRetries(3);
 
 			env.generateSequence(1, 10)

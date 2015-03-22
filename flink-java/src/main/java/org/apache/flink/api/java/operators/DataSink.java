@@ -45,7 +45,7 @@ public class DataSink<T> {
 	
 	private String name;
 	
-	private int dop = -1;
+	private int parallelism = -1;
 
 	private Configuration parameters;
 
@@ -234,13 +234,13 @@ public class DataSink<T> {
 		if(this.parameters != null) {
 			sink.getParameters().addAll(this.parameters);
 		}
-		// set dop
-		if(this.dop > 0) {
-			// use specified dop
-			sink.setDegreeOfParallelism(this.dop);
+		// set parallelism
+		if(this.parallelism > 0) {
+			// use specified parallelism
+			sink.setParallelism(this.parallelism);
 		} else {
-			// if no dop has been specified, use dop of input operator to enable chaining
-			sink.setDegreeOfParallelism(input.getDegreeOfParallelism());
+			// if no parallelism has been specified, use parallelism of input operator to enable chaining
+			sink.setParallelism(input.getParallelism());
 		}
 
 		if(this.sortKeyPositions != null) {
@@ -263,27 +263,27 @@ public class DataSink<T> {
 	}
 	
 	/**
-	 * Returns the degree of parallelism of this data sink.
+	 * Returns the parallelism of this data sink.
 	 * 
-	 * @return The degree of parallelism of this data sink.
+	 * @return The parallelism of this data sink.
 	 */
 	public int getParallelism() {
-		return this.dop;
+		return this.parallelism;
 	}
 	
 	/**
-	 * Sets the degree of parallelism for this data sink.
+	 * Sets the parallelism for this data sink.
 	 * The degree must be 1 or more.
 	 * 
-	 * @param dop The degree of parallelism for this data sink.
-	 * @return This data sink with set degree of parallelism.
+	 * @param parallelism The parallelism for this data sink.
+	 * @return This data sink with set parallelism.
 	 */
-	public DataSink<T> setParallelism(int dop) {
+	public DataSink<T> setParallelism(int parallelism) {
 		
-		if(dop < 1) {
+		if(parallelism < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
-		this.dop = dop;
+		this.parallelism = parallelism;
 		
 		return this;
 	}

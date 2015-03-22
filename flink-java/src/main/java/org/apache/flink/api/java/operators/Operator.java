@@ -32,7 +32,7 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 
 	protected String name;
 	
-	protected int dop = -1;
+	protected int parallelism = -1;
 
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
 		super(context, resultType);
@@ -58,12 +58,12 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	}
 	
 	/**
-	 * Returns the degree of parallelism of this operator.
+	 * Returns the parallelism of this operator.
 	 * 
-	 * @return The degree of parallelism of this operator.
+	 * @return The parallelism of this operator.
 	 */
 	public int getParallelism() {
-		return this.dop;
+		return this.parallelism;
 	}
 
 	/**
@@ -82,17 +82,17 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	}
 	
 	/**
-	 * Sets the degree of parallelism for this operator.
+	 * Sets the parallelism for this operator.
 	 * The degree must be 1 or more.
 	 * 
-	 * @param dop The degree of parallelism for this operator.
-	 * @return The operator with set degree of parallelism.
+	 * @param parallelism The parallelism for this operator.
+	 * @return The operator with set parallelism.
 	 */
-	public O setParallelism(int dop) {
-		if(dop < 1) {
+	public O setParallelism(int parallelism) {
+		if(parallelism < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
-		this.dop = dop;
+		this.parallelism = parallelism;
 		
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;

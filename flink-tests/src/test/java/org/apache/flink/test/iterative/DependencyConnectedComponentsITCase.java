@@ -43,7 +43,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 	
 	private static final int MAX_ITERATIONS = 20;
-	private static final int DOP = 1;
+	private static final int parallelism = 1;
 
 	protected static List<Tuple2<Long, Long>> verticesInput = new ArrayList<Tuple2<Long, Long>>();
 	protected static List<Tuple2<Long, Long>> edgesInput = new ArrayList<Tuple2<Long, Long>>();
@@ -51,7 +51,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 	private String expectedResult;
 
 	public DependencyConnectedComponentsITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 	
@@ -113,7 +113,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		public static String runProgram(String resultPath) throws Exception {
 			
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(DOP);
+			env.setParallelism(parallelism);
 			
 			DataSet<Tuple2<Long, Long>> initialSolutionSet = env.fromCollection(verticesInput);
 			DataSet<Tuple2<Long, Long>> edges = env.fromCollection(edgesInput);

@@ -61,7 +61,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testIntSortingDOP1() throws Exception {
+	public void testIntSortingParallelism1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -76,7 +76,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testStringSortingDOP1() throws Exception {
+	public void testStringSortingParallelism1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -98,7 +98,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testTupleSortingSingleAscDOP1() throws Exception {
+	public void testTupleSortingSingleAscParallelism1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -134,7 +134,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testTupleSortingSingleDescDOP1() throws Exception {
+	public void testTupleSortingSingleDescParallelism1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -169,7 +169,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testTupleSortingDualDOP1() throws Exception {
+	public void testTupleSortingDualParallelism1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -204,7 +204,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testTupleSortingNestedDOP1() throws Exception {
+	public void testTupleSortingNestedParallelism1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -230,7 +230,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testTupleSortingNestedDOP1_2() throws Exception {
+	public void testTupleSortingNestedParallelism1_2() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -256,7 +256,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testPojoSortingSingleDOP1() throws Exception {
+	public void testPojoSortingSingleParallelism1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -279,7 +279,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testPojoSortingDualDOP1() throws Exception {
+	public void testPojoSortingDualParallelism1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -306,7 +306,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testPojoSortingNestedDOP1() throws Exception {
+	public void testPojoSortingNestedParallelism1() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -333,7 +333,7 @@ public class DataSinkITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testSortingDOP4() throws Exception {
+	public void testSortingParallelism4() throws Exception {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 

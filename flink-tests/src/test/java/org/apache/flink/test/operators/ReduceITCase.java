@@ -114,11 +114,11 @@ public class ReduceITCase extends RecordAPITestBase {
 				new ContractITCaseInputFormat(), inPath);
 		DelimitedInputFormat.configureDelimitedFormat(input)
 			.recordDelimiter('\n');
-		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
+		input.setParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
 		ReduceOperator testReducer = ReduceOperator.builder(new TestReducer(), StringValue.class, 0)
 			.build();
-		testReducer.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
+		testReducer.setParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 		testReducer.getParameters().setString(Optimizer.HINT_LOCAL_STRATEGY,
 				config.getString("ReduceTest#LocalStrategy", ""));
 		testReducer.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY,
@@ -126,7 +126,7 @@ public class ReduceITCase extends RecordAPITestBase {
 
 		FileDataSink output = new FileDataSink(
 				new ContractITCaseOutputFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 
 		output.setInput(testReducer);
 		testReducer.setInput(input);

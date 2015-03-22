@@ -126,7 +126,7 @@ public class TPCHQuery3ITCase extends RecordAPITestBase {
 
 	public TPCHQuery3ITCase(Configuration config) {
 		super(config);
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	@Override
@@ -141,7 +141,7 @@ public class TPCHQuery3ITCase extends RecordAPITestBase {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
 		return tpch3.getPlan(
-				String.valueOf(config.getInteger("dop", 1)), 
+				String.valueOf(config.getInteger("parallelism", 1)),
 				ordersPath,
 				lineitemsPath,
 				resultPath);
@@ -155,7 +155,7 @@ public class TPCHQuery3ITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("dop", DOP);
+		config.setInteger("parallelism", parallelism);
 		return toParameterList(config);
 	}
 }

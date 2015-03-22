@@ -32,13 +32,18 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 		super();
 		this.env = env;
 
-		int dop = env.getDegreeOfParallelism();
-		if (dop > 0) {
-			setDegreeOfParallelism(dop);
+		int parallelism = env.getParallelism();
+		if (parallelism > 0) {
+			setParallelism(parallelism);
 		} else {
-			setDegreeOfParallelism(GlobalConfiguration.getInteger(
-					ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
-					ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE));
+			// first check for old parallelism config key
+			setParallelism(GlobalConfiguration.getInteger(
+					ConfigConstants.DEFAULT_PARALLELISM_KEY_OLD,
+					ConfigConstants.DEFAULT_PARALLELISM));
+			// then for new
+			setParallelism(GlobalConfiguration.getInteger(
+					ConfigConstants.DEFAULT_PARALLELISM_KEY,
+					getParallelism()));
 		}
 	}
 

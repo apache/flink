@@ -61,7 +61,7 @@ public class IterationWithAllReducerITCase extends RecordAPITestBase {
 
 	@Override
 	protected Plan getTestJob() {
-		Plan plan = getTestPlanPlan(DOP, dataPath, resultPath);
+		Plan plan = getTestPlanPlan(parallelism, dataPath, resultPath);
 		return plan;
 	}
 

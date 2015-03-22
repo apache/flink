@@ -167,7 +167,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		// if the next workset is equal to the workset, we need to inject a no-op node
 		if (nextWorkset == worksetNode || nextWorkset instanceof BinaryUnionNode) {
 			NoOpNode noop = new NoOpNode();
-			noop.setDegreeOfParallelism(getParallelism());
+			noop.setParallelism(getParallelism());
 
 			DagConnection noOpConn = new DagConnection(nextWorkset, noop, executionMode);
 			noop.setIncomingConnection(noOpConn);
@@ -179,7 +179,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		// attach an extra node to the solution set delta for the cases where we need to repartition
 		UnaryOperatorNode solutionSetDeltaUpdateAux = new UnaryOperatorNode("Solution-Set Delta", getSolutionSetKeyFields(),
 				new SolutionSetDeltaOperator(getSolutionSetKeyFields()));
-		solutionSetDeltaUpdateAux.setDegreeOfParallelism(getParallelism());
+		solutionSetDeltaUpdateAux.setParallelism(getParallelism());
 
 		DagConnection conn = new DagConnection(solutionSetDelta, solutionSetDeltaUpdateAux, executionMode);
 		solutionSetDeltaUpdateAux.setIncomingConnection(conn);
@@ -371,7 +371,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 					UnaryOperatorNode rebuildWorksetPropertiesNode = new UnaryOperatorNode("Rebuild Workset Properties",
 																							FieldList.EMPTY_LIST);
 					
-					rebuildWorksetPropertiesNode.setDegreeOfParallelism(candidate.getParallelism());
+					rebuildWorksetPropertiesNode.setParallelism(candidate.getParallelism());
 					
 					SingleInputPlanNode rebuildWorksetPropertiesPlanNode = new SingleInputPlanNode(
 												rebuildWorksetPropertiesNode, "Rebuild Workset Properties",
@@ -563,7 +563,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		SingleRootJoiner() {
 			super(new NoOpBinaryUdfOp<Nothing>(new NothingTypeInfo()));
 			
-			setDegreeOfParallelism(1);
+			setParallelism(1);
 		}
 		
 		public void setInputs(DagConnection input1, DagConnection input2) {

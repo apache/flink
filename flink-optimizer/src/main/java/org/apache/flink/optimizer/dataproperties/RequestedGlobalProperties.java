@@ -340,7 +340,7 @@ public final class RequestedGlobalProperties implements Cloneable {
 	 * the desired global properties.
 	 * 
 	 * @param channel The channel to parametrize.
-	 * @param globalDopChange Flag indicating whether the degree of parallelism changes
+	 * @param globalDopChange Flag indicating whether the parallelism changes
 	 *                        between sender and receiver.
 	 * @param exchangeMode The mode of data exchange (pipelined, always batch,
 	 *                     batch only on shuffle, ...)

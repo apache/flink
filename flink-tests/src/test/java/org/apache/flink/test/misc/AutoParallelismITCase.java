@@ -78,7 +78,7 @@ public class AutoParallelismITCase {
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getJobManagerRPCPort());
 
-			env.setDegreeOfParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX);
+			env.setParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX);
 
 			DataSet<Integer> result = env
 					.createInput(new ParallelismDependentInputFormat())

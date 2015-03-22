@@ -40,7 +40,7 @@ public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTe
 	protected void testProgram() throws Exception {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(1);
+			env.setParallelism(1);
 
 			DataSet<Tuple2<Long, Long>> input = env.generateSequence(0, 9).map(new Duplicator<Long>());
 

@@ -122,16 +122,16 @@ public class CrossITCase extends RecordAPITestBase {
 				new ContractITCaseInputFormat(), leftInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
-		input_left.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
+		input_left.setParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
 		FileDataSource input_right = new FileDataSource(
 				new ContractITCaseInputFormat(), rightInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
-		input_right.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
+		input_right.setParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
 		CrossOperator testCross = CrossOperator.builder(new TestCross()).build();
-		testCross.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
+		testCross.setParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 		testCross.getParameters().setString(Optimizer.HINT_LOCAL_STRATEGY,
 				config.getString("CrossTest#LocalStrategy", ""));
 		if (config.getString("CrossTest#ShipStrategy", "").equals("BROADCAST_FIRST")) {
@@ -151,7 +151,7 @@ public class CrossITCase extends RecordAPITestBase {
 
 		FileDataSink output = new FileDataSink(
 				new ContractITCaseOutputFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 
 		output.setInput(testCross);
 		testCross.setFirstInput(input_left);

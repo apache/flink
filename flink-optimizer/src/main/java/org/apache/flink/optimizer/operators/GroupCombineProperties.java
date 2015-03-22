@@ -71,7 +71,7 @@ public final class GroupCombineProperties extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		node.setDegreeOfParallelism(in.getSource().getParallelism());
+		node.setParallelism(in.getSource().getParallelism());
 		
 		// sorting key info
 		SingleInputPlanNode singleInputPlanNode = new SingleInputPlanNode(

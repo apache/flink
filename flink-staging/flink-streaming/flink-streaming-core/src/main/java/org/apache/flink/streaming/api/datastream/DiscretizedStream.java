@@ -216,7 +216,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 			return out;
 		} else if (transformation == WindowTransformation.REDUCEWINDOW
 				&& parallelism != discretizedStream.getExecutionEnvironment()
-						.getDegreeOfParallelism()) {
+						.getParallelism()) {
 			DiscretizedStream<OUT> out = transform(transformation, "Window partitioner", getType(),
 					new WindowPartitioner<OUT>(parallelism)).setParallelism(parallelism);
 

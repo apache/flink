@@ -71,10 +71,10 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	public void setup() {
 		this.dataStats = new DataStatistics();
 		this.withStatsCompiler = new Optimizer(this.dataStats, new DefaultCostEstimator());
-		this.withStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
+		this.withStatsCompiler.setDefaultParallelism(DEFAULT_PARALLELISM);
 		
 		this.noStatsCompiler = new Optimizer(null, new DefaultCostEstimator());
-		this.noStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);
+		this.noStatsCompiler.setDefaultParallelism(DEFAULT_PARALLELISM);
 	}
 	
 	// ------------------------------------------------------------------------

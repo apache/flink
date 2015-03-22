@@ -52,14 +52,14 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.userCodeClassLoader);
 		
-		return this.client.run(toRun, getDegreeOfParallelism(), true);
+		return this.client.run(toRun, getParallelism(), true);
 	}
 
 	@Override
 	public String getExecutionPlan() throws Exception {
 		Plan p = createProgramPlan("unnamed job");
 		
-		OptimizedPlan op = (OptimizedPlan) this.client.getOptimizedPlan(p, getDegreeOfParallelism());
+		OptimizedPlan op = (OptimizedPlan) this.client.getOptimizedPlan(p, getParallelism());
 		
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 		return gen.getOptimizerPlanAsJSON(op);
@@ -68,7 +68,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	
 	@Override
 	public String toString() {
-		return "Context Environment (DOP = " + (getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism())
+		return "Context Environment (parallelism = " + (getParallelism() == -1 ? "default" : getParallelism())
 				+ ") : " + getIdString();
 	}
 	
@@ -118,7 +118,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		public ExecutionEnvironment createExecutionEnvironment() {
 			ContextEnvironment env = new ContextEnvironment(client, jarFilesToAttach, userCodeClassLoader);
 			if (defaultParallelism > 0) {
-				env.setDegreeOfParallelism(defaultParallelism);
+				env.setParallelism(defaultParallelism);
 			}
 			return env;
 		}

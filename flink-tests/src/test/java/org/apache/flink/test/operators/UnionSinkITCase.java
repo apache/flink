@@ -50,7 +50,7 @@ public class UnionSinkITCase extends RecordAPITestBase {
 	
 	public UnionSinkITCase(Configuration testConfig) {
 		super(testConfig);
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	private static final String MAP_IN = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n" +
@@ -122,7 +122,7 @@ public class UnionSinkITCase extends RecordAPITestBase {
 		output.addInput(testMapper2);
 		
 		Plan plan = new Plan(output);
-		plan.setDefaultParallelism(DOP);
+		plan.setDefaultParallelism(parallelism);
 
 		Optimizer pc = new Optimizer(new DataStatistics());
 		OptimizedPlan op = pc.compile(plan);

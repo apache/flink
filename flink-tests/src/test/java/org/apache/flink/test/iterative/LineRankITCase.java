@@ -59,7 +59,7 @@
 //
 //	public LineRankITCase(Configuration config) {
 //		super(config);
-//		setTaskManagerNumSlots(DOP);
+//		setTaskManagerNumSlots(parallelism);
 //	}
 //
 //	@Override
@@ -85,7 +85,7 @@
 //	@Parameters
 //	public static Collection<Object[]> getConfigurations() {
 //		Configuration config1 = new Configuration();
-//		config1.setInteger("NumSubtasks", DOP);
+//		config1.setInteger("NumSubtasks", parallelism);
 //		config1.setInteger("NumIterations", 5);
 //		return toParameterList(config1);
 //	}

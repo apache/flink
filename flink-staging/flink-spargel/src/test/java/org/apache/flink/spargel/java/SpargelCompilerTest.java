@@ -48,7 +48,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 	public void testSpargelCompiler() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+			env.setParallelism(DEFAULT_PARALLELISM);
 			// compose test program
 			{
 				DataSet<Long> vertexIds = env.generateSequence(1, 2);
@@ -116,7 +116,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 			
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setDegreeOfParallelism(DEFAULT_PARALLELISM);
+			env.setParallelism(DEFAULT_PARALLELISM);
 			// compose test program
 			{
 				DataSet<Long> bcVar = env.fromElements(1L);
