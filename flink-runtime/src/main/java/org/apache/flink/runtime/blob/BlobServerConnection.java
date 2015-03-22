@@ -56,7 +56,7 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 class BlobServerConnection extends Thread {
 
 	/** The log object used for debugging. */
-	private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
+	private static final Logger LOG = LoggerFactory.getLogger(BlobServerConnection.class);
 
 	/** The socket to communicate with the client. */
 	private final Socket clientSocket;
