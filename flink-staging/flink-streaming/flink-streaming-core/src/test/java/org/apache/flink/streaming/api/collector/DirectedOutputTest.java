@@ -88,9 +88,6 @@ public class DirectedOutputTest {
 			this.list = outputs.get(name);
 		}
 
-		@Override
-		public void cancel() {
-		}
 	}
 
 	private static Map<String, List<Long>> outputs = new HashMap<String, List<Long>>();
@@ -115,6 +112,7 @@ public class DirectedOutputTest {
 		assertEquals(Arrays.asList(1L, 3L, 5L, 7L, 9L, 10L, 11L), oddAndTenSink.getSortedResult());
 		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L),
 				evenAndOddSink.getSortedResult());
-		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L), allSink.getSortedResult());
+		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L),
+				allSink.getSortedResult());
 	}
 }

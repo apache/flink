@@ -21,6 +21,7 @@ import kafka.javaapi.consumer.SimpleConsumer;
 
 public class GivenOffset extends KafkaOffset {
 
+	private static final long serialVersionUID = 1L;
 	private final long offset;
 
 	public GivenOffset(long offset) {

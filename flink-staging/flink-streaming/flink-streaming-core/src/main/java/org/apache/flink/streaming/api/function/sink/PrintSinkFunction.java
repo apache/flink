@@ -93,10 +93,4 @@ public class PrintSinkFunction<IN> extends RichSinkFunction<IN> {
 	public String toString() {
 		return "Print to " + (target == STD_OUT ? "System.out" : "System.err");
 	}
-
-	@Override
-	public void cancel() {
-		close();
-	}
-
 }

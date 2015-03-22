@@ -28,6 +28,8 @@ import kafka.javaapi.consumer.SimpleConsumer;
 
 public abstract class KafkaOffset implements Serializable {
 
+	private static final long serialVersionUID = 1L;
+
 	public abstract long getOffset(SimpleConsumer consumer, String topic, int partition,
 			String clientName);
 

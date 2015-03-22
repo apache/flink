@@ -115,13 +115,4 @@ public abstract class FileSinkFunction<IN> extends RichSinkFunction<IN> {
 	 */
 	protected abstract void resetParameters();
 
-	@Override
-	public void cancel() {
-		try {
-			close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
 }

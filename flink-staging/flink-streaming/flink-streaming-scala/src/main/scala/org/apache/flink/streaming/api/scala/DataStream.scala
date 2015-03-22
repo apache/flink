@@ -634,7 +634,6 @@ class DataStream[T](javaStream: JavaStream[T]) {
     val sinkFunction = new SinkFunction[T] {
       val cleanFun = clean(fun)
       def invoke(in: T) = cleanFun(in)
-      def cancel() = {}
     }
     this.addSink(sinkFunction)
   }

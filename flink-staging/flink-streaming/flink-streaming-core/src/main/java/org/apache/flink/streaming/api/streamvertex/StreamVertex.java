@@ -29,9 +29,9 @@ import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.jobmanager.BarrierAck;
 import org.apache.flink.runtime.jobmanager.StateBarrierAck;
 import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.event.EventListener;
-import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
@@ -152,32 +152,36 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	@Override
 	public void invoke() throws Exception {
 
+		boolean operatorOpen = false;
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Task {} invoked with instance id {}", getName(), getInstanceID());
 		}
 
 		try {
 			userInvokable.setRuntimeContext(context);
-			userInvokable.open(getTaskConfiguration());
 
-			for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
-				invokable.setRuntimeContext(context);
-				invokable.open(getTaskConfiguration());
-			}
+			operatorOpen = true;
+			openOperator();
 
 			userInvokable.invoke();
 
-			userInvokable.close();
-
-			for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
-				invokable.close();
-			}
+			closeOperator();
+			operatorOpen = false;
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Task {} invoke finished instance id {}", getName(), getInstanceID());
 			}
 
 		} catch (Exception e) {
+
+			if (operatorOpen) {
+				try {
+					closeOperator();
+				} catch (Throwable t) {
+				}
+			}
+
 			if (LOG.isErrorEnabled()) {
 				LOG.error("StreamInvokable failed due to: {}", StringUtils.stringifyException(e));
 			}
@@ -188,6 +192,23 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 			clearBuffers();
 		}
 
+	}
+
+	protected void openOperator() throws Exception {
+		userInvokable.open(getTaskConfiguration());
+
+		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+			invokable.setRuntimeContext(context);
+			invokable.open(getTaskConfiguration());
+		}
+	}
+
+	protected void closeOperator() throws Exception {
+		userInvokable.close();
+
+		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+			invokable.close();
+		}
 	}
 
 	protected void clearBuffers() throws IOException {

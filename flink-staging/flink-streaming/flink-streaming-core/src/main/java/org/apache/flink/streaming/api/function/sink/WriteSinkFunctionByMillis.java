@@ -47,9 +47,4 @@ public class WriteSinkFunctionByMillis<IN> extends WriteSinkFunction<IN> {
 		lastTime = System.currentTimeMillis();
 	}
 
-	@Override
-	public void cancel() {
-		// No cleanup needed
-	}
-
 }

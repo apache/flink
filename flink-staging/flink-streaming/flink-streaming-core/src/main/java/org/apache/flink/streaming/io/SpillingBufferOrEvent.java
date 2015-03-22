@@ -40,6 +40,7 @@ public class SpillingBufferOrEvent {
 			throws IOException {
 
 		this.boe = boe;
+		this.channelIndex = boe.getChannelIndex();
 		this.spillReader = reader;
 
 		if (shouldSpill()) {

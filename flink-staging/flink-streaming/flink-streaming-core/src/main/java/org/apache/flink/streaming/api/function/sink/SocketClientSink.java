@@ -127,12 +127,4 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 		closeConnection();
 	}
 
-	/**
-	 * Closes the connection with the Socket server.
-	 */
-	@Override
-	public void cancel() {
-		close();
-	}
-
 }
