@@ -134,13 +134,6 @@ public class FlumeSink<IN> extends RichSinkFunction<IN> {
 	}
 
 	@Override
-	public void cancel() {
-		if (client != null) {
-			client.client.close();
-		}
-	}
-
-	@Override
 	public void open(Configuration config) {
 		client = new FlinkRpcClientFacade();
 		client.init(host, port);

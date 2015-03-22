@@ -47,10 +47,6 @@ public class TwitterStreaming {
 			System.out.println("");
 		}
 
-		@Override
-		public void cancel() {
-		}
-
 	}
 
 	public static class SelectDataFlatMap extends

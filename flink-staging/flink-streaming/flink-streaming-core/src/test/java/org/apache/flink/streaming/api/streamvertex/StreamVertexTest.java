@@ -83,9 +83,6 @@ public class StreamVertexTest {
 			data.put(k, v);
 		}
 
-		@Override
-		public void cancel() {
-		}
 	}
 
 	@SuppressWarnings("unused")
@@ -134,13 +131,13 @@ public class StreamVertexTest {
 
 		@Override
 		public String map1(String value) {
-//			System.out.println(value);
+			// System.out.println(value);
 			return value;
 		}
 
 		@Override
 		public String map2(Long value) {
-//			System.out.println(value);
+			// System.out.println(value);
 			return value.toString();
 		}
 	}
@@ -154,9 +151,6 @@ public class StreamVertexTest {
 			result.add(value);
 		}
 
-		@Override
-		public void cancel() {
-		}
 	}
 
 	@Test

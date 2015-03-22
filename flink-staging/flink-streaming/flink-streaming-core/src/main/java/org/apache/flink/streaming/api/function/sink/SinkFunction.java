@@ -35,11 +35,4 @@ public interface SinkFunction<IN> extends Function, Serializable {
 	 * @throws Exception
 	 */
 	public void invoke(IN value) throws Exception;
-
-	/**
-	 * In case another vertex in topology fails this method is called before terminating
-	 * the sink. Make sure to free up any allocated resources here.
-	 */
-	public void cancel();
-
 }

@@ -22,6 +22,8 @@ import kafka.javaapi.consumer.SimpleConsumer;
 
 public class BeginningOffset extends KafkaOffset {
 
+	private static final long serialVersionUID = 1L;
+
 	@Override
 	public long getOffset(SimpleConsumer consumer, String topic, int partition, String clientName) {
 		return getLastOffset(consumer, topic, partition, OffsetRequest.EarliestTime(), clientName);

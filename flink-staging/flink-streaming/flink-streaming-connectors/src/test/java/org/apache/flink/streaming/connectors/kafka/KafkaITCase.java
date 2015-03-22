@@ -154,14 +154,11 @@ public class KafkaITCase {
 					throw new SuccessException();
 				}
 			}
-
-			@Override
-			public void cancel() {
-			}
 		});
 
 		// add producing topology
 		DataStream<String> stream = env.addSource(new SourceFunction<String>() {
+			private static final long serialVersionUID = 1L;
 			boolean running = true;
 
 			@Override
@@ -246,6 +243,8 @@ public class KafkaITCase {
 	}
 
 	public static class SuccessException extends Exception {
+
+		private static final long serialVersionUID = 1L;
 
 	}
 

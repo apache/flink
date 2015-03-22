@@ -65,6 +65,7 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	 * @param serializationSchema
 	 * 		User defined serialization schema.
 	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public KafkaSink(String zookeeperAddress, String topicId,
 			SerializationSchema<IN, byte[]> serializationSchema) {
 		this(zookeeperAddress, topicId, serializationSchema, (Class) null);
@@ -159,11 +160,6 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 		if (producer != null) {
 			producer.close();
 		}
-	}
-
-	@Override
-	public void cancel() {
-		close();
 	}
 
 }

@@ -40,11 +40,4 @@ public class SinkInvokable<IN> extends ChainableInvokable<IN, IN> {
 	protected void callUserFunction() throws Exception {
 		sinkFunction.invoke(nextObject);
 	}
-
-	@Override
-	public void cancel() {
-		super.cancel();
-		sinkFunction.cancel();
-	}
-
 }

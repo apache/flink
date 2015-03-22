@@ -178,9 +178,7 @@ public class StreamCheckpointingITCase {
 							}
 						}
 
-						@Override
-						public void cancel() {}
-					});
+			});
 
 			env.execute();
 		}

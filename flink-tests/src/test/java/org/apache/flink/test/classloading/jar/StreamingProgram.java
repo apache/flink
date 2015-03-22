@@ -98,9 +98,5 @@ public class StreamingProgram {
 		@Override
 		public void invoke(Word value) throws Exception {
 		}
-
-		@Override
-		public void cancel() {
-		}
 	}
 }

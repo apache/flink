@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.util;
 
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
@@ -71,10 +70,5 @@ public class TestListResultSink<T> extends RichSinkFunction<T> {
 			ArrayList<T> sortedList = new ArrayList<T>(treeSet);
 			return sortedList;
 		}
-	}
-
-	@Override
-	public void cancel() {
-
 	}
 }
