@@ -106,7 +106,6 @@ public abstract class FileSystem {
 		 */
 		@Override
 		public boolean equals(final Object obj) {
-
 			if (obj == this) {
 				return true;
 			}
