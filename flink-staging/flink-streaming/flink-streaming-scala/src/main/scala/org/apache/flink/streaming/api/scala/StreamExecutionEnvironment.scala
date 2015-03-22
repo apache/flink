@@ -84,8 +84,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
    * failure the job will be resubmitted to the cluster indefinitely.
    */
-  def enableMonitoring(interval : Long) : StreamExecutionEnvironment = {
-    javaEnv.enableMonitoring(interval)
+  def enableCheckpointing(interval : Long) : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval)
     this
   }
 
@@ -98,8 +98,8 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
    * failure the job will be resubmitted to the cluster indefinitely.
    */
-  def enableMonitoring() : StreamExecutionEnvironment = {
-    javaEnv.enableMonitoring()
+  def enableCheckpointing() : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing()
     this
   }
 
