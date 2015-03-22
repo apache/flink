@@ -24,7 +24,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowFlattener;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMerger;
@@ -34,7 +34,7 @@ public class WindowingOptimizer {
 
 	public static void optimizeGraph(StreamGraph streamGraph) {
 
-		// Share common discrtizers
+		// Share common discretizers
 		setDiscretizerReuse(streamGraph);
 
 		// Remove unnecessary merges before flatten operators
@@ -43,10 +43,10 @@ public class WindowingOptimizer {
 
 	@SuppressWarnings("rawtypes")
 	private static void removeMergeBeforeFlatten(StreamGraph streamGraph) {
-		Set<Entry<Integer, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
+		Set<Entry<Integer, StreamOperator<?, ?>>> operators = streamGraph.getOperators();
 		List<Integer> flatteners = new ArrayList<Integer>();
 
-		for (Entry<Integer, StreamInvokable<?, ?>> entry : invokables) {
+		for (Entry<Integer, StreamOperator<?, ?>> entry : operators) {
 			if (entry.getValue() instanceof WindowFlattener) {
 				flatteners.add(entry.getKey());
 			}
@@ -57,7 +57,7 @@ public class WindowingOptimizer {
 			Integer input = streamGraph.getInEdges(flattener).get(0).getSourceVertex();
 
 			// Check whether the flatten is applied after a merge
-			if (streamGraph.getInvokable(input) instanceof WindowMerger) {
+			if (streamGraph.getOperator(input) instanceof WindowMerger) {
 
 				// Mergers should have exactly one input
 				Integer mergeInput = streamGraph.getInEdges(input).get(0).getSourceVertex();
@@ -80,11 +80,11 @@ public class WindowingOptimizer {
 
 	private static void setDiscretizerReuse(StreamGraph streamGraph) {
 
-		Set<Entry<Integer, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
+		Set<Entry<Integer, StreamOperator<?, ?>>> operators = streamGraph.getOperators();
 		List<Tuple2<Integer, StreamDiscretizer<?>>> discretizers = new ArrayList<Tuple2<Integer, StreamDiscretizer<?>>>();
 
 		// Get the discretizers
-		for (Entry<Integer, StreamInvokable<?, ?>> entry : invokables) {
+		for (Entry<Integer, StreamOperator<?, ?>> entry : operators) {
 			if (entry.getValue() instanceof StreamDiscretizer) {
 				discretizers.add(new Tuple2<Integer, StreamDiscretizer<?>>(entry.getKey(),
 						(StreamDiscretizer<?>) entry.getValue()));

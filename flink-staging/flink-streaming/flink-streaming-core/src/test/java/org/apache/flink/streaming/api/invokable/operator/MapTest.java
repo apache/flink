@@ -39,10 +39,10 @@ public class MapTest {
 	
 	@Test
 	public void mapInvokableTest() {
-		MapInvokable<Integer, String> invokable = new MapInvokable<Integer, String>(new Map());
+		MapStreamOperator<Integer, String> operator = new MapStreamOperator<Integer, String>(new Map());
 		
 		List<String> expectedList = Arrays.asList("+2", "+3", "+4");
-		List<String> actualList = MockContext.createAndExecute(invokable, Arrays.asList(1, 2, 3));
+		List<String> actualList = MockContext.createAndExecute(operator, Arrays.asList(1, 2, 3));
 		
 		assertEquals(expectedList, actualList);
 	}

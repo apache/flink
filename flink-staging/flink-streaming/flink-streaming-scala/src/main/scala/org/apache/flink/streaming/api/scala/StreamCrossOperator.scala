@@ -29,7 +29,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream}
 import org.apache.flink.streaming.api.function.co.CrossWindowFunction
-import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
+import org.apache.flink.streaming.api.invokable.operator.co.CoWindowStreamOperator
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.datastream.temporaloperator.TemporalWindow
 import java.util.concurrent.TimeUnit
@@ -83,12 +83,12 @@ object StreamCrossOperator {
      */
     def apply[R: TypeInformation: ClassTag](fun: (I1, I2) => R): DataStream[R] = {
 
-      val invokable = new CoWindowInvokable[I1, I2, R](
+      val operator = new CoWindowStreamOperator[I1, I2, R](
         clean(getCrossWindowFunction(op, fun)), op.windowSize, op.slideInterval, op.timeStamp1,
         op.timeStamp2)
 
-      javaStream.getExecutionEnvironment().getStreamGraph().setInvokable(javaStream.getId(),
-        invokable)
+      javaStream.getExecutionEnvironment().getStreamGraph().setOperator(javaStream.getId(),
+        operator)
 
       javaStream.setType(implicitly[TypeInformation[R]])
     }
@@ -99,8 +99,8 @@ object StreamCrossOperator {
 
     override def every(length: Long): CrossWindow[I1, I2] = {
       val builder = javaStream.getExecutionEnvironment().getStreamGraph()
-      val invokable = builder.getInvokable(javaStream.getId())
-      invokable.asInstanceOf[CoWindowInvokable[_,_,_]].setSlideSize(length)
+      val operator = builder.getOperator(javaStream.getId())
+      operator.asInstanceOf[CoWindowStreamOperator[_,_,_]].setSlideSize(length)
       this
     }
   }

@@ -54,8 +54,8 @@ import org.apache.flink.streaming.api.function.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.api.invokable.SourceInvokable;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.SourceStreamOperator;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -588,12 +588,12 @@ public abstract class StreamExecutionEnvironment {
 		int dop = isParallel ? getDegreeOfParallelism() : 1;
 
 		ClosureCleaner.clean(function, true);
-		StreamInvokable<OUT, OUT> sourceInvokable = new SourceInvokable<OUT>(function);
+		StreamOperator<OUT, OUT> sourceOperator = new SourceStreamOperator<OUT>(function);
 
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, sourceName,
-				outTypeInfo, sourceInvokable, isParallel);
+				outTypeInfo, sourceOperator, isParallel);
 
-		streamGraph.addSourceVertex(returnStream.getId(), sourceInvokable, null, outTypeInfo,
+		streamGraph.addSourceVertex(returnStream.getId(), sourceOperator, null, outTypeInfo,
 				sourceName, dop);
 
 		return returnStream;

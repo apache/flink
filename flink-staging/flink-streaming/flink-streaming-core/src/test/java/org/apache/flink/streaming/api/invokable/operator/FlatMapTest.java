@@ -44,10 +44,10 @@ public class FlatMapTest {
 
 	@Test
 	public void flatMapTest() {
-		FlatMapInvokable<Integer, Integer> invokable = new FlatMapInvokable<Integer, Integer>(new MyFlatMap());
+		FlatMapStreamOperator<Integer, Integer> operator = new FlatMapStreamOperator<Integer, Integer>(new MyFlatMap());
 		
 		List<Integer> expected = Arrays.asList(2, 4, 4, 16, 6, 36, 8, 64);
-		List<Integer> actual = MockContext.createAndExecute(invokable, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8));
+		List<Integer> actual = MockContext.createAndExecute(operator, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8));
 		
 		assertEquals(expected, actual);
 	}

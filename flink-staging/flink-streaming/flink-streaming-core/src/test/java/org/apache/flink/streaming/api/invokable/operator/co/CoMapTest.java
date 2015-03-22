@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
 import org.apache.flink.streaming.util.MockCoContext;
 import org.junit.Test;
 
@@ -47,10 +46,10 @@ public class CoMapTest implements Serializable {
 
 	@Test
 	public void coMapTest() {
-		CoMapInvokable<Double, Integer, String> invokable = new CoMapInvokable<Double, Integer, String>(new MyCoMap());
+		CoMapStreamOperator<Double, Integer, String> operator = new CoMapStreamOperator<Double, Integer, String>(new MyCoMap());
 
 		List<String> expectedList = Arrays.asList("1.1", "1", "1.2", "2", "1.3", "3", "1.4", "1.5");
-		List<String> actualList = MockCoContext.createAndExecute(invokable, Arrays.asList(1.1, 1.2, 1.3, 1.4, 1.5), Arrays.asList(1, 2, 3));
+		List<String> actualList = MockCoContext.createAndExecute(operator, Arrays.asList(1.1, 1.2, 1.3, 1.4, 1.5), Arrays.asList(1, 2, 3));
 		
 		assertEquals(expectedList, actualList);
 	}

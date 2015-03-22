@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.policy.ActiveEvictionPolicy;
@@ -27,11 +27,11 @@ import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 
 /**
- * This invokable represents the discretization step of a window transformation.
+ * This operator represents the discretization step of a window transformation.
  * The user supplied eviction and trigger policies are applied to create the
  * {@link StreamWindow} that will be further transformed in the next stages.
  */
-public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> {
+public class StreamDiscretizer<IN> extends StreamOperator<IN, WindowEvent<IN>> {
 
 	/**
 	 * Auto-generated serial version UID

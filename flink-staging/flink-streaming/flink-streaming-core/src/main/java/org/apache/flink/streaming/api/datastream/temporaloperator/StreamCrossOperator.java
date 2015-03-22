@@ -30,7 +30,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.function.co.CrossWindowFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
+import org.apache.flink.streaming.api.invokable.operator.co.CoWindowStreamOperator;
 
 public class StreamCrossOperator<I1, I2> extends
 		TemporalOperator<I1, I2, StreamCrossOperator.CrossWindow<I1, I2>> {
@@ -76,7 +76,7 @@ public class StreamCrossOperator<I1, I2> extends
 
 		@SuppressWarnings("unchecked")
 		public CrossWindow<I1, I2> every(long length) {
-			((CoWindowInvokable<I1, I2, ?>) streamGraph.getInvokable(id)).setSlideSize(length);
+			((CoWindowStreamOperator<I1, I2, ?>) streamGraph.getOperator(id)).setSlideSize(length);
 			return this;
 		}
 
@@ -95,11 +95,11 @@ public class StreamCrossOperator<I1, I2> extends
 			TypeInformation<R> outTypeInfo = TypeExtractor.getCrossReturnTypes(function,
 					op.input1.getType(), op.input2.getType());
 
-			CoWindowInvokable<I1, I2, R> invokable = new CoWindowInvokable<I1, I2, R>(
+			CoWindowStreamOperator<I1, I2, R> invokable = new CoWindowStreamOperator<I1, I2, R>(
 					new CrossWindowFunction<I1, I2, R>(clean(function)), op.windowSize,
 					op.slideInterval, op.timeStamp1, op.timeStamp2);
 
-			streamGraph.setInvokable(id, invokable);
+			streamGraph.setOperator(id, invokable);
 
 			return setType(outTypeInfo);
 

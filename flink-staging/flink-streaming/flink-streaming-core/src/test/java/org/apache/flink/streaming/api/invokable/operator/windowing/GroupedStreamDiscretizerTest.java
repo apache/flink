@@ -87,7 +87,7 @@ public class GroupedStreamDiscretizerTest {
 		GroupedStreamDiscretizer<Integer> discretizer = new GroupedStreamDiscretizer<Integer>(
 				keySelector, trigger, eviction);
 
-		WindowBufferInvokable<Integer> buffer = new GroupedWindowBufferInvokable<Integer>(
+		WindowBufferStreamOperator<Integer> buffer = new GroupedWindowBufferStreamOperator<Integer>(
 				new BasicWindowBuffer<Integer>(), keySelector);
 
 		List<WindowEvent<Integer>> bufferEvents = MockContext.createAndExecute(discretizer,

@@ -17,24 +17,17 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 
-public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
+public class FlatMapStreamOperator<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	protected FoldFunction<IN, OUT> folder;
-	private OUT accumulator;
-	protected TypeSerializer<OUT> outTypeSerializer;
+	private FlatMapFunction<IN, OUT> flatMapper;
 
-	public StreamFoldInvokable(FoldFunction<IN, OUT> folder, OUT initialValue,
-			TypeInformation<OUT> outTypeInformation) {
-		super(folder);
-		this.folder = folder;
-		this.accumulator = initialValue;
-		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
+	public FlatMapStreamOperator(FlatMapFunction<IN, OUT> flatMapper) {
+		super(flatMapper);
+		this.flatMapper = flatMapper;
 	}
 
 	@Override
@@ -46,9 +39,7 @@ public class StreamFoldInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 
 	@Override
 	protected void callUserFunction() throws Exception {
-
-		accumulator = folder.fold(outTypeSerializer.copy(accumulator), nextObject);
-		collector.collect(accumulator);
-
+		flatMapper.flatMap(nextObject, collector);
 	}
+
 }

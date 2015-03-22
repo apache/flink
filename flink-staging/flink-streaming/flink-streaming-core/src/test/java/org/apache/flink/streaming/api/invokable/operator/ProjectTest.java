@@ -45,7 +45,7 @@ public class ProjectTest implements Serializable {
 		Class<?>[] classes = new Class<?>[] { Integer.class, Integer.class, String.class };
 
 		@SuppressWarnings("unchecked")
-		ProjectInvokable<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> invokable = new ProjectInvokable<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(
+		ProjectStreamOperator<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> operator = new ProjectStreamOperator<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(
 				fields,
 				(TypeInformation<Tuple3<Integer, Integer, String>>) StreamProjection
 						.extractFieldTypes(fields, classes, inType));
@@ -62,6 +62,6 @@ public class ProjectTest implements Serializable {
 		expected.add(new Tuple3<Integer, Integer, String>(2, 2, "c"));
 		expected.add(new Tuple3<Integer, Integer, String>(7, 7, "a"));
 
-		assertEquals(expected, MockContext.createAndExecute(invokable, input));
+		assertEquals(expected, MockContext.createAndExecute(operator, input));
 	}
 }

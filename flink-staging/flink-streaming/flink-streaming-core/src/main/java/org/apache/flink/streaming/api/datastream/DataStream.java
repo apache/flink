@@ -59,14 +59,14 @@ import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.function.sink.FileSinkFunctionByMillis;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.api.invokable.SinkInvokable;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.operator.CounterInvokable;
-import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
-import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.StreamFoldInvokable;
-import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
+import org.apache.flink.streaming.api.invokable.SinkStreamOperator;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.CounterStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.FilterStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.FlatMapStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.MapStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.FoldStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.ReduceStreamOperator;
 import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
@@ -478,7 +478,7 @@ public class DataStream<OUT> {
 
 		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType());
 
-		return transform("Map", outType, new MapInvokable<OUT, R>(clean(mapper)));
+		return transform("Map", outType, new MapStreamOperator<OUT, R>(clean(mapper)));
 	}
 
 	/**
@@ -502,7 +502,7 @@ public class DataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
 				getType());
 
-		return transform("Flat Map", outType, new FlatMapInvokable<OUT, R>(clean(flatMapper)));
+		return transform("Flat Map", outType, new FlatMapStreamOperator<OUT, R>(clean(flatMapper)));
 
 	}
 
@@ -520,7 +520,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 
-		return transform("Reduce", getType(), new StreamReduceInvokable<OUT>(clean(reducer)));
+		return transform("Reduce", getType(), new ReduceStreamOperator<OUT>(clean(reducer)));
 
 	}
 
@@ -539,7 +539,7 @@ public class DataStream<OUT> {
 	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<OUT, R> folder) {
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType());
 
-		return transform("Fold", outType, new StreamFoldInvokable<OUT, R>(clean(folder), initialValue, outType));
+		return transform("Fold", outType, new FoldStreamOperator<OUT, R>(clean(folder), initialValue, outType));
 	}
 
 	/**
@@ -557,7 +557,7 @@ public class DataStream<OUT> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		return transform("Filter", getType(), new FilterInvokable<OUT>(clean(filter)));
+		return transform("Filter", getType(), new FilterStreamOperator<OUT>(clean(filter)));
 
 	}
 
@@ -867,7 +867,7 @@ public class DataStream<OUT> {
 	public SingleOutputStreamOperator<Long, ?> count() {
 		TypeInformation<Long> outTypeInfo = BasicTypeInfo.LONG_TYPE_INFO;
 
-		return transform("Count", outTypeInfo, new CounterInvokable<OUT>());
+		return transform("Count", outTypeInfo, new CounterStreamOperator<OUT>());
 	}
 
 	/**
@@ -1122,36 +1122,36 @@ public class DataStream<OUT> {
 
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
-		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
+		ReduceStreamOperator<OUT> operator = new ReduceStreamOperator<OUT>(aggregate);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Aggregation", getType(),
-				invokable);
+				operator);
 
 		return returnStream;
 	}
 
 	/**
-	 * Method for passing user defined invokables along with the type
+	 * Method for passing user defined operators along with the type
 	 * informations that will transform the DataStream.
 	 * 
 	 * @param operatorName
 	 *            name of the operator, for logging purposes
 	 * @param outTypeInfo
 	 *            the output type of the operator
-	 * @param invokable
+	 * @param operator
 	 *            the object containing the transformation logic
 	 * @param <R>
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, StreamInvokable<OUT, R> invokable) {
+			TypeInformation<R> outTypeInfo, StreamOperator<OUT, R> operator) {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
-				operatorName, outTypeInfo, invokable);
+				operatorName, outTypeInfo, operator);
 
-		streamGraph.addStreamVertex(returnStream.getId(), invokable, getType(), outTypeInfo,
+		streamGraph.addStreamVertex(returnStream.getId(), operator, getType(), outTypeInfo,
 				operatorName, returnStream.getParallelism());
 
 		connectGraph(inputStream, returnStream.getId(), 0);
@@ -1208,12 +1208,12 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> addSink(SinkFunction<OUT> sinkFunction) {
 
-		StreamInvokable<OUT, OUT> sinkInvokable = new SinkInvokable<OUT>(clean(sinkFunction));
+		StreamOperator<OUT, OUT> sinkOperator = new SinkStreamOperator<OUT>(clean(sinkFunction));
 
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
-				sinkInvokable);
+				sinkOperator);
 
-		streamGraph.addStreamVertex(returnStream.getId(), sinkInvokable, getType(), null,
+		streamGraph.addStreamVertex(returnStream.getId(), sinkOperator, getType(), null,
 				"Stream Sink", returnStream.getParallelism());
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);

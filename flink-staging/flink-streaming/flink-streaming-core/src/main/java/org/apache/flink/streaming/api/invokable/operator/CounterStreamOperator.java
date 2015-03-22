@@ -15,40 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator.co;
+package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 
-public class CoFlatMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
+public class CounterStreamOperator<IN> extends ChainableStreamOperator<IN, Long> {
 	private static final long serialVersionUID = 1L;
 
-	private CoFlatMapFunction<IN1, IN2, OUT> flatMapper;
+	Long count = 0L;
 
-	public CoFlatMapInvokable(CoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
-		super(flatMapper);
-		this.flatMapper = flatMapper;
+	public CounterStreamOperator() {
+		super(null);
 	}
 
 	@Override
-	public void handleStream1() throws Exception {
-		callUserFunctionAndLogException1();
+	public void invoke() throws Exception {
+		while (isRunning && readNext() != null) {
+			collector.collect(++count);
+		}
 	}
 
 	@Override
-	public void handleStream2() throws Exception {
-		callUserFunctionAndLogException2();
-	}
-
-	@Override
-	protected void callUserFunction1() throws Exception {
-		flatMapper.flatMap1(reuse1.getObject(), collector);
-
-	}
-
-	@Override
-	protected void callUserFunction2() throws Exception {
-		flatMapper.flatMap2(reuse2.getObject(), collector);
-
+	public void collect(IN record) {
+		if (isRunning) {
+			collector.collect(++count);
+		}
 	}
 
 }

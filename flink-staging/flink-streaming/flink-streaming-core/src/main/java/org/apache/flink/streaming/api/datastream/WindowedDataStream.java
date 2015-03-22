@@ -37,12 +37,12 @@ import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedStreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedTimeDiscretizer;
-import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedWindowBufferInvokable;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowBufferInvokable;
+import org.apache.flink.streaming.api.invokable.operator.windowing.WindowBufferStreamOperator;
+import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedWindowBufferStreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.StreamWindowTypeInfo;
 import org.apache.flink.streaming.api.windowing.WindowEvent;
@@ -374,9 +374,9 @@ public class WindowedDataStream<OUT> {
 	private DiscretizedStream<OUT> discretize(WindowTransformation transformation,
 			WindowBuffer<OUT> windowBuffer) {
 
-		StreamInvokable<OUT, WindowEvent<OUT>> discretizer = getDiscretizer();
+		StreamOperator<OUT, WindowEvent<OUT>> discretizer = getDiscretizer();
 
-		StreamInvokable<WindowEvent<OUT>, StreamWindow<OUT>> bufferInvokable = getBufferInvokable(windowBuffer);
+		StreamOperator<WindowEvent<OUT>, StreamWindow<OUT>> bufferOperator = getBufferOperator(windowBuffer);
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		TypeInformation<WindowEvent<OUT>> bufferEventType = new TupleTypeInfo(WindowEvent.class,
@@ -388,7 +388,7 @@ public class WindowedDataStream<OUT> {
 				.transform(discretizer.getClass().getSimpleName(), bufferEventType, discretizer)
 				.setParallelism(parallelism)
 				.transform(windowBuffer.getClass().getSimpleName(),
-						new StreamWindowTypeInfo<OUT>(getType()), bufferInvokable)
+						new StreamWindowTypeInfo<OUT>(getType()), bufferOperator)
 				.setParallelism(parallelism), groupByKey, transformation, false);
 
 	}
@@ -448,7 +448,7 @@ public class WindowedDataStream<OUT> {
 	/**
 	 * Based on the defined policies, returns the stream discretizer to be used
 	 */
-	private StreamInvokable<OUT, WindowEvent<OUT>> getDiscretizer() {
+	private StreamOperator<OUT, WindowEvent<OUT>> getDiscretizer() {
 		if (discretizerKey == null) {
 			return new StreamDiscretizer<OUT>(getTrigger(), getEviction());
 		} else if (WindowUtils.isSystemTimeTrigger(getTrigger())) {
@@ -465,12 +465,12 @@ public class WindowedDataStream<OUT> {
 
 	}
 
-	private StreamInvokable<WindowEvent<OUT>, StreamWindow<OUT>> getBufferInvokable(
+	private StreamOperator<WindowEvent<OUT>, StreamWindow<OUT>> getBufferOperator(
 			WindowBuffer<OUT> windowBuffer) {
 		if (discretizerKey == null) {
-			return new WindowBufferInvokable<OUT>(windowBuffer);
+			return new WindowBufferStreamOperator<OUT>(windowBuffer);
 		} else {
-			return new GroupedWindowBufferInvokable<OUT>(windowBuffer, discretizerKey);
+			return new GroupedWindowBufferStreamOperator<OUT>(windowBuffer, discretizerKey);
 		}
 	}
 

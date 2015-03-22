@@ -18,14 +18,14 @@
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 
 /**
- * This invokable applies either split or key partitioning depending on the
+ * This operator applies either split or key partitioning depending on the
  * transformation.
  */
-public class WindowPartitioner<T> extends ChainableInvokable<StreamWindow<T>, StreamWindow<T>> {
+public class WindowPartitioner<T> extends ChainableStreamOperator<StreamWindow<T>, StreamWindow<T>> {
 
 	private KeySelector<T, ?> keySelector;
 	private int numberOfSplits;

@@ -43,11 +43,11 @@ public class StreamFoldTest {
 	@Test
 	public void test() {
 		TypeInformation<String> outType = TypeExtractor.getForObject("A string");
-		StreamFoldInvokable<Integer, String> invokable1 = new StreamFoldInvokable<Integer, String>(
+		FoldStreamOperator<Integer, String> operator = new FoldStreamOperator<Integer, String>(
 				new MyFolder(), "", outType);
 
 		List<String> expected = Arrays.asList("1","11","112","1123","11233");
-		List<String> actual = MockContext.createAndExecute(invokable1,
+		List<String> actual = MockContext.createAndExecute(operator,
 				Arrays.asList(1, 1, 2, 3, 3));
 
 		assertEquals(expected, actual);

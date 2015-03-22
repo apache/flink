@@ -15,31 +15,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator;
+package org.apache.flink.streaming.api.invokable;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import java.io.Serializable;
 
-public class FlatMapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
+import org.apache.flink.streaming.api.function.source.SourceFunction;
+
+public class SourceStreamOperator<OUT> extends StreamOperator<OUT, OUT> implements Serializable {
+
 	private static final long serialVersionUID = 1L;
 
-	private FlatMapFunction<IN, OUT> flatMapper;
+	private SourceFunction<OUT> sourceFunction;
 
-	public FlatMapInvokable(FlatMapFunction<IN, OUT> flatMapper) {
-		super(flatMapper);
-		this.flatMapper = flatMapper;
+	public SourceStreamOperator(SourceFunction<OUT> sourceFunction) {
+		super(sourceFunction);
+		this.sourceFunction = sourceFunction;
 	}
 
 	@Override
-	public void invoke() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
+	public void invoke() {
+		callUserFunctionAndLogException();
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		flatMapper.flatMap(nextObject, collector);
+		sourceFunction.run(collector);
 	}
 
+	@Override
+	public void cancel() {
+		super.cancel();
+		sourceFunction.cancel();
+	}
 }

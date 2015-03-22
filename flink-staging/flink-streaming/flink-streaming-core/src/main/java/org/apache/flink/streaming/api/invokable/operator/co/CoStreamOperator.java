@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamTaskContext;
@@ -30,14 +30,14 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OUT> {
+public abstract class CoStreamOperator<IN1, IN2, OUT> extends StreamOperator<IN1, OUT> {
 
-	public CoInvokable(Function userFunction) {
+	public CoStreamOperator(Function userFunction) {
 		super(userFunction);
 	}
 
 	private static final long serialVersionUID = 1L;
-	private static final Logger LOG = LoggerFactory.getLogger(CoInvokable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CoStreamOperator.class);
 
 	protected CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator;
 	protected StreamRecord<IN1> reuse1;

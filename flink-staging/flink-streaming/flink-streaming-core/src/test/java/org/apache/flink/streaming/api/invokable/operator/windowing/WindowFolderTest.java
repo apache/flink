@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
@@ -32,7 +32,7 @@ public class WindowFolderTest {
 
 	@Test
 	public void test() {
-		StreamInvokable<StreamWindow<Integer>, StreamWindow<String>> windowReducer = new WindowFolder<Integer,String>(
+		StreamOperator<StreamWindow<Integer>, StreamWindow<String>> windowReducer = new WindowFolder<Integer,String>(
 				new FoldFunction<Integer, String>() {
 
 					private static final long serialVersionUID = 1L;

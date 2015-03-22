@@ -33,8 +33,8 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
+import org.apache.flink.streaming.api.invokable.StreamOperator.ChainingStrategy;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationHead;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationTail;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
@@ -251,7 +251,7 @@ public class StreamingJobGraphGenerator {
 		config.setTypeSerializerOut1(streamGraph.getOutSerializer1(vertexID));
 		config.setTypeSerializerOut2(streamGraph.getOutSerializer2(vertexID));
 
-		config.setUserInvokable(streamGraph.getInvokable(vertexID));
+		config.setUserOperator(streamGraph.getOperator(vertexID));
 		config.setOutputSelectorWrapper(streamGraph.getOutputSelectorWrapper(vertexID));
 
 		config.setNumberOfOutputs(nonChainableOutputs.size());
@@ -308,13 +308,13 @@ public class StreamingJobGraphGenerator {
 		int vertexID = edge.getSourceVertex();
 		int outName = edge.getTargetVertex();
 
-		StreamInvokable<?, ?> headInvokable = streamGraph.getInvokable(vertexID);
-		StreamInvokable<?, ?> outInvokable = streamGraph.getInvokable(outName);
+		StreamOperator<?, ?> headOperator = streamGraph.getOperator(vertexID);
+		StreamOperator<?, ?> outOperator = streamGraph.getOperator(outName);
 
 		return streamGraph.getInEdges(outName).size() == 1
-				&& outInvokable != null
-				&& outInvokable.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (headInvokable.getChainingStrategy() == ChainingStrategy.HEAD || headInvokable
+				&& outOperator != null
+				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
+				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD || headOperator
 						.getChainingStrategy() == ChainingStrategy.ALWAYS)
 				&& (edge.getPartitioner().getStrategy() == PartitioningStrategy.FORWARD || streamGraph
 						.getParallelism(outName) == 1)

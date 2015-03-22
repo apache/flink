@@ -24,7 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
@@ -33,7 +33,7 @@ public class WindowMergerTest {
 
 	@Test
 	public void test() throws Exception {
-		StreamInvokable<StreamWindow<Integer>, StreamWindow<Integer>> windowMerger = new WindowMerger<Integer>();
+		StreamOperator<StreamWindow<Integer>, StreamWindow<Integer>> windowMerger = new WindowMerger<Integer>();
 
 		StreamWindow<Integer> w1 = new StreamWindow<Integer>();
 		StreamWindow<Integer> w2 = StreamWindow.fromElements(1, 2, 3, 4);

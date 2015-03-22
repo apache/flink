@@ -29,10 +29,10 @@ public class CounterInvokableTest {
 
 	@Test
 	public void counterTest() {
-		CounterInvokable<String> invokable = new CounterInvokable<String>();
+		CounterStreamOperator<String> operator = new CounterStreamOperator<String>();
 
 		List<Long> expected = Arrays.asList(1L, 2L, 3L);
-		List<Long> actual = MockContext.createAndExecute(invokable, Arrays.asList("one", "two", "three"));
+		List<Long> actual = MockContext.createAndExecute(operator, Arrays.asList("one", "two", "three"));
 		
 		assertEquals(expected, actual);
 	}

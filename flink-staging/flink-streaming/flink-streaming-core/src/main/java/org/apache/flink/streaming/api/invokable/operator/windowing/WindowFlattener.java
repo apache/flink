@@ -17,14 +17,14 @@
 
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 
 /**
- * This invokable flattens the results of the window transformations by
+ * This operator flattens the results of the window transformations by
  * outputing the elements of the {@link StreamWindow} one-by-one
  */
-public class WindowFlattener<T> extends ChainableInvokable<StreamWindow<T>, T> {
+public class WindowFlattener<T> extends ChainableStreamOperator<StreamWindow<T>, T> {
 
 	public WindowFlattener() {
 		super(null);

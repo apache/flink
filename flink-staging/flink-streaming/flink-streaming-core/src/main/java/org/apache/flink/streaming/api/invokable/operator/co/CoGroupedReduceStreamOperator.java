@@ -23,7 +23,7 @@ import java.util.Map;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 
-public class CoGroupedReduceInvokable<IN1, IN2, OUT> extends CoReduceInvokable<IN1, IN2, OUT> {
+public class CoGroupedReduceStreamOperator<IN1, IN2, OUT> extends CoReduceStreamOperator<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	protected KeySelector<IN1, ?> keySelector1;
@@ -33,8 +33,8 @@ public class CoGroupedReduceInvokable<IN1, IN2, OUT> extends CoReduceInvokable<I
 	IN1 reduced1;
 	IN2 reduced2;
 
-	public CoGroupedReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer,
-			KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
+	public CoGroupedReduceStreamOperator(CoReduceFunction<IN1, IN2, OUT> coReducer,
+										KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
 		super(coReducer);
 		this.coReducer = coReducer;
 		this.keySelector1 = keySelector1;

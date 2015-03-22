@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
 /**
- * This invokable represents the grouped discretization step of a window
+ * This operator represents the grouped discretization step of a window
  * transformation. The user supplied eviction and trigger policies are applied
  * on a per group basis to create the {@link StreamWindow} that will be further
  * transformed in the next stages. </p> To allow pre-aggregations supply an

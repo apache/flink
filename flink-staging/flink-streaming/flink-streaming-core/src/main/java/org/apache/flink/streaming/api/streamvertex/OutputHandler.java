@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.StreamEdge;
 import org.apache.flink.streaming.api.collector.CollectorWrapper;
 import org.apache.flink.streaming.api.collector.StreamOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.invokable.ChainableStreamOperator;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.RecordWriterFactory;
@@ -49,7 +49,7 @@ public class OutputHandler<OUT> {
 	private ClassLoader cl;
 	private Collector<OUT> outerCollector;
 
-	public List<ChainableInvokable<?, ?>> chainedInvokables;
+	public List<ChainableStreamOperator<?, ?>> chainedOperators;
 
 	private Map<StreamEdge, StreamOutput<?>> outputMap;
 
@@ -61,7 +61,7 @@ public class OutputHandler<OUT> {
 		// Initialize some fields
 		this.vertex = vertex;
 		this.configuration = new StreamConfig(vertex.getTaskConfiguration());
-		this.chainedInvokables = new ArrayList<ChainableInvokable<?, ?>>();
+		this.chainedOperators = new ArrayList<ChainableStreamOperator<?, ?>>();
 		this.outputMap = new HashMap<StreamEdge, StreamOutput<?>>();
 		this.cl = vertex.getUserCodeClassLoader();
 
@@ -102,7 +102,7 @@ public class OutputHandler<OUT> {
 	/**
 	 * This method builds up a nested collector which encapsulates all the
 	 * chained operators and their network output. The result of this recursive
-	 * call will be passed as collector to the first invokable in the chain.
+	 * call will be passed as collector to the first operator in the chain.
 	 *
 	 * @param chainedTaskConfig
 	 * 		The configuration of the starting operator of the chain, we
@@ -142,14 +142,14 @@ public class OutputHandler<OUT> {
 			return wrapper;
 		} else {
 			// The current task is a part of the chain so we get the chainable
-			// invokable which will be returned and set it up using the wrapper
-			ChainableInvokable chainableInvokable = chainedTaskConfig.getUserInvokable(vertex
+			// stream operator which will be returned and set it up using the wrapper
+			ChainableStreamOperator chainableOperator = chainedTaskConfig.getUserOperator(vertex
 					.getUserCodeClassLoader());
-			chainableInvokable.setup(wrapper,
+			chainableOperator.setup(wrapper,
 					chainedTaskConfig.getTypeSerializerIn1(vertex.getUserCodeClassLoader()));
 
-			chainedInvokables.add(chainableInvokable);
-			return chainableInvokable;
+			chainedOperators.add(chainableOperator);
+			return chainableOperator;
 		}
 
 	}

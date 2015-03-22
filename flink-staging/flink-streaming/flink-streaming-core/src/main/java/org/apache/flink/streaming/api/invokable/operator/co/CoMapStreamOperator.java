@@ -15,31 +15,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable.operator;
+package org.apache.flink.streaming.api.invokable.operator.co;
 
-import org.apache.flink.streaming.api.invokable.ChainableInvokable;
+import org.apache.flink.streaming.api.function.co.CoMapFunction;
 
-public class CounterInvokable<IN> extends ChainableInvokable<IN, Long> {
+public class CoMapStreamOperator<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	Long count = 0L;
+	private CoMapFunction<IN1, IN2, OUT> mapper;
 
-	public CounterInvokable() {
-		super(null);
+	public CoMapStreamOperator(CoMapFunction<IN1, IN2, OUT> mapper) {
+		super(mapper);
+		this.mapper = mapper;
 	}
 
 	@Override
-	public void invoke() throws Exception {
-		while (isRunning && readNext() != null) {
-			collector.collect(++count);
-		}
+	public void handleStream1() throws Exception {
+		callUserFunctionAndLogException1();
 	}
 
 	@Override
-	public void collect(IN record) {
-		if (isRunning) {
-			collector.collect(++count);
-		}
+	public void handleStream2() throws Exception {
+		callUserFunctionAndLogException2();
+	}
+
+	@Override
+	protected void callUserFunction1() throws Exception {
+		collector.collect(mapper.map1(reuse1.getObject()));
+
+	}
+
+	@Override
+	protected void callUserFunction2() throws Exception {
+		collector.collect(mapper.map2(reuse2.getObject()));
+
 	}
 
 }

@@ -15,36 +15,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.invokable;
+package org.apache.flink.streaming.api.invokable.operator;
 
-import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 
-public class SourceInvokable<OUT> extends StreamInvokable<OUT, OUT> implements Serializable {
-
+public class GroupedReduceStreamOperator<IN> extends ReduceStreamOperator<IN> {
 	private static final long serialVersionUID = 1L;
 
-	private SourceFunction<OUT> sourceFunction;
+	private KeySelector<IN, ?> keySelector;
+	private Map<Object, IN> values;
 
-	public SourceInvokable(SourceFunction<OUT> sourceFunction) {
-		super(sourceFunction);
-		this.sourceFunction = sourceFunction;
-	}
-
-	@Override
-	public void invoke() {
-		callUserFunctionAndLogException();
+	public GroupedReduceStreamOperator(ReduceFunction<IN> reducer, KeySelector<IN, ?> keySelector) {
+		super(reducer);
+		this.keySelector = keySelector;
+		values = new HashMap<Object, IN>();
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		sourceFunction.run(collector);
+		Object key = keySelector.getKey(nextObject);
+		IN currentValue = values.get(key);
+		if (currentValue != null) {
+			IN reduced = reducer.reduce(copy(currentValue), nextObject);
+			values.put(key, reduced);
+			collector.collect(reduced);
+		} else {
+			values.put(key, nextObject);
+			collector.collect(nextObject);
+		}
 	}
 
-	@Override
-	public void cancel() {
-		super.cancel();
-		sourceFunction.cancel();
-	}
 }

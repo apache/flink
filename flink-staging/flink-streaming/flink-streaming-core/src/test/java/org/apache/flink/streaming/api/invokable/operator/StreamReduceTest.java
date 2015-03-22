@@ -41,11 +41,11 @@ public class StreamReduceTest {
 	
 	@Test
 	public void test() {
-		StreamReduceInvokable<Integer> invokable1 = new StreamReduceInvokable<Integer>(
+		ReduceStreamOperator<Integer> operator = new ReduceStreamOperator<Integer>(
 				new MyReducer());
 
 		List<Integer> expected = Arrays.asList(1,2,4,7,10);
-		List<Integer> actual = MockContext.createAndExecute(invokable1,
+		List<Integer> actual = MockContext.createAndExecute(operator,
 				Arrays.asList(1, 1, 2, 3, 3));
 
 		assertEquals(expected, actual);

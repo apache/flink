@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.invokable.operator._
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.functions.ReduceFunction
-import org.apache.flink.streaming.api.invokable.StreamInvokable
+import org.apache.flink.streaming.api.invokable.StreamOperator
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.common.functions.FoldFunction
 import org.apache.flink.api.java.functions.KeySelector
@@ -46,7 +46,7 @@ import org.apache.flink.streaming.api.function.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
-import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy
+import org.apache.flink.streaming.api.invokable.StreamOperator.ChainingStrategy
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -322,13 +322,13 @@ class DataStream[T](javaStream: JavaStream[T]) {
       case _ => new agg.ProductComparableAggregator(aggregationType, true)
     }
 
-    val invokable = jStream match {
-      case groupedStream: GroupedDataStream[_] => new GroupedReduceInvokable(reducer,
+    val operator = jStream match {
+      case groupedStream: GroupedDataStream[_] => new GroupedReduceStreamOperator(reducer,
         groupedStream.getKeySelector())
-      case _ => new StreamReduceInvokable(reducer)
+      case _ => new ReduceStreamOperator(reducer)
     }
     new DataStream[Product](jStream.transform("aggregation", jStream.getType(),
-      invokable)).asInstanceOf[DataStream[T]]
+      operator)).asInstanceOf[DataStream[T]]
   }
 
   /**
@@ -351,7 +351,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       def map(in: T): R = cleanFun(in)
     }
 
-    javaStream.transform("map", implicitly[TypeInformation[R]], new MapInvokable[T, R](mapper))
+    javaStream.transform("map", implicitly[TypeInformation[R]], new MapStreamOperator[T, R](mapper))
   }
 
   /**
@@ -362,7 +362,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new NullPointerException("Map function must not be null.")
     }
 
-    javaStream.transform("map", implicitly[TypeInformation[R]], new MapInvokable[T, R](mapper))
+    javaStream.transform("map", implicitly[TypeInformation[R]], new MapStreamOperator[T, R](mapper))
   }
 
   /**
@@ -374,7 +374,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
    javaStream.transform("flatMap", implicitly[TypeInformation[R]], 
-       new FlatMapInvokable[T, R](flatMapper))
+       new FlatMapStreamOperator[T, R](flatMapper))
   }
 
   /**
@@ -417,9 +417,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     javaStream match {
       case ds: GroupedDataStream[_] => javaStream.transform("reduce",
-        javaStream.getType(), new GroupedReduceInvokable[T](reducer, ds.getKeySelector()))
+        javaStream.getType(), new GroupedReduceStreamOperator[T](reducer, ds.getKeySelector()))
       case _ => javaStream.transform("reduce", javaStream.getType(),
-        new StreamReduceInvokable[T](reducer))
+        new ReduceStreamOperator[T](reducer))
     }
   }
 
@@ -449,10 +449,11 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     javaStream match {
       case ds: GroupedDataStream[_] => javaStream.transform("fold",
-        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), 
+        implicitly[TypeInformation[R]], new GroupedFoldStreamOperator[T,R](
+            folder, ds.getKeySelector(),
             initialValue, implicitly[TypeInformation[R]]))
       case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
-        new StreamFoldInvokable[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
+        new FoldStreamOperator[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
     }
   }
 
