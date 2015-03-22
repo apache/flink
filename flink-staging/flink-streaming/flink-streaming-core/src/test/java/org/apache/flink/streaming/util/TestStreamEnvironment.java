@@ -50,12 +50,12 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public void execute() throws Exception {
-		execute(DEFAULT_JOBNAME);
+	public JobExecutionResult execute() throws Exception {
+		return execute(DEFAULT_JOBNAME);
 	}
 
 	@Override
-	public void execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName) throws Exception {
 		JobGraph jobGraph = streamGraph.getJobGraph(jobName);
 
 		if (internalExecutor) {
@@ -70,6 +70,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 		try {
 			ActorRef client = executor.getJobClient();
 			latestResult = JobClient.submitJobAndWait(jobGraph, false, client, executor.timeout());
+			return latestResult;
 		} catch(JobExecutionException e) {
 			if (e.getMessage().contains("GraphConversionException")) {
 				throw new Exception(CANNOT_EXECUTE_EMPTY_JOB, e);

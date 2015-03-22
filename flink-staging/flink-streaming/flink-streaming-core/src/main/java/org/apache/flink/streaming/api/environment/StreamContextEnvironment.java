@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.environment;
 import java.io.File;
 import java.util.List;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -45,12 +46,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public void execute() throws Exception {
-		execute(null);
+	public JobExecutionResult execute() throws Exception {
+		return execute(null);
 	}
 
 	@Override
-	public void execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName) throws Exception {
 		currentEnvironment = null;
 
 		JobGraph jobGraph;
@@ -65,7 +66,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		}
 
 		try {
-			client.run(jobGraph, true);
+			return client.run(jobGraph, true);
 
 		} catch (Exception e) {
 			throw e;
