@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.socket;
+package org.apache.flink.streaming.api.function.sink;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -23,41 +23,37 @@ import java.io.OutputStream;
 import java.net.Socket;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
-import org.apache.flink.streaming.connectors.util.SerializationSchema;
+import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Socket client that acts as a streaming sink. The data is sent to a Socket.
+ * Socket client that acts as a streaming sink. The data is sent to a Socket as a byte array.
  *
  * @param <IN> data to be written into the Socket.
  */
 public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
-    /**
-     * Class logger
-     */
 	private static final Logger LOG = LoggerFactory.getLogger(SocketClientSink.class);
 
 	private final String hostName;
 	private final int port;
-	private final SerializationSchema<IN, byte[]> scheme;
+	private final SerializationSchema<IN, byte[]> schema;
 	private transient Socket client;
 	private transient DataOutputStream dataOutputStream;
 
-    /**
-     * Default constructor.
-     *
-     * @param hostName Host of the Socket server.
-     * @param port Port of the Socket.
-     * @param schema Schema of the data.
-     */
+	/**
+	 * Default constructor.
+	 *
+	 * @param hostName Host of the Socket server.
+	 * @param port Port of the Socket.
+	 * @param schema Schema of the data.
+	 */
 	public SocketClientSink(String hostName, int port, SerializationSchema<IN, byte[]> schema) {
 		this.hostName = hostName;
 		this.port = port;
-		this.scheme = schema;
+		this.schema = schema;
 	}
 
 	/**
@@ -82,7 +78,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	 */
 	@Override
 	public void invoke(IN value) {
-		byte[] msg = scheme.serialize(value);
+		byte[] msg = schema.serialize(value);
 		try {
 			dataOutputStream.write(msg);
 		} catch (IOException e) {
@@ -97,42 +93,43 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	 */
 	private void closeConnection(){
 		try {
+			dataOutputStream.flush();
 			client.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Error while closing connection with socket server at "
 					+ hostName + ":" + port, e);
 		} finally {
-            if (client != null) {
-                try {
-                    client.close();
-                } catch (IOException e) {
-                    LOG.error("Cannot close connection with socket server at "
-                            + hostName + ":" + port, e);
-                }
-            }
-        }
-    }
+			if (client != null) {
+				try {
+					client.close();
+				} catch (IOException e) {
+					LOG.error("Cannot close connection with socket server at "
+							+ hostName + ":" + port, e);
+				}
+			}
+		}
+	}
 
-    /**
-     * Initialize the connection with the Socket in the server.
-     * @param parameters Configuration.
-     */
+	/**
+	 * Initialize the connection with the Socket in the server.
+	 * @param parameters Configuration.
+	 */
 	@Override
 	public void open(Configuration parameters) {
 		intializeConnection();
 	}
 
-    /**
-     * Closes the connection with the Socket server.
-     */
+	/**
+	 * Closes the connection with the Socket server.
+	 */
 	@Override
 	public void close() {
 		closeConnection();
 	}
 
-    /**
-     * Closes the connection with the Socket server.
-     */
+	/**
+	 * Closes the connection with the Socket server.
+	 */
 	@Override
 	public void cancel() {
 		close();

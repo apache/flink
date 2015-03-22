@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.util;
+package org.apache.flink.streaming.util.serialization;
 
 import org.apache.commons.lang3.SerializationUtils;
 

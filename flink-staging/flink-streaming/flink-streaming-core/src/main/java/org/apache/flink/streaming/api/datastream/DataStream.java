@@ -59,6 +59,7 @@ import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.function.sink.FileSinkFunctionByMillis;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.api.function.sink.SocketClientSink;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.CounterInvokable;
@@ -80,6 +81,7 @@ import org.apache.flink.streaming.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -1113,6 +1115,20 @@ public class DataStream<OUT> {
 			of.setWriteMode(writeMode);
 		}
 		return writeToFile((OutputFormat<OUT>) of, millis);
+	}
+
+	/**
+	 * Writes the DataStream to a socket as a byte array. The format of the output is
+	 * specified by a {@link SerializationSchema}.
+	 *
+	 * @param hostName host of the socket
+	 * @param port port of the socket
+	 * @param schema schema for serialization
+	 * @return the closed DataStream
+	 */
+	public DataStreamSink<OUT> writeToSocket(String hostName, int port, SerializationSchema<OUT, byte[]> schema){
+		DataStreamSink<OUT> returnStream = addSink(new SocketClientSink<OUT>(hostName, port, schema));
+		return returnStream;
 	}
 
 	private DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {

@@ -21,7 +21,7 @@ import java.io.IOException;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
-import org.apache.flink.streaming.connectors.util.SerializationSchema;
+import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +39,12 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	private transient ConnectionFactory factory;
 	private transient Connection connection;
 	private transient Channel channel;
-	private SerializationSchema<IN, byte[]> scheme;
+	private SerializationSchema<IN, byte[]> schema;
 
 	public RMQSink(String HOST_NAME, String QUEUE_NAME, SerializationSchema<IN, byte[]> schema) {
 		this.HOST_NAME = HOST_NAME;
 		this.QUEUE_NAME = QUEUE_NAME;
-		this.scheme = schema;
+		this.schema = schema;
 	}
 
 	/**
@@ -72,7 +72,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	@Override
 	public void invoke(IN value) {
 		try {
-			byte[] msg = scheme.serialize(value);
+			byte[] msg = schema.serialize(value);
 
 			channel.basicPublish("", QUEUE_NAME, null, msg);
 

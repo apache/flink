@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kafka.api.config.PartitionerWrapper;
 import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaTopicUtils;
 import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafkaPartitioner;
-import org.apache.flink.streaming.connectors.util.SerializationSchema;
+import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.NetUtils;
 
 import com.google.common.base.Preconditions;
@@ -50,7 +50,7 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	private Properties props;
 	private String topicId;
 	private String zookeeperAddress;
-	private SerializationSchema<IN, byte[]> scheme;
+	private SerializationSchema<IN, byte[]> schema;
 	private SerializableKafkaPartitioner partitioner;
 	private Class<? extends SerializableKafkaPartitioner> partitionerClass = null;
 
@@ -91,7 +91,7 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 
 		this.zookeeperAddress = zookeeperAddress;
 		this.topicId = topicId;
-		this.scheme = serializationSchema;
+		this.schema = serializationSchema;
 		this.partitioner = partitioner;
 	}
 
@@ -103,7 +103,7 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 
 		this.zookeeperAddress = zookeeperAddress;
 		this.topicId = topicId;
-		this.scheme = serializationSchema;
+		this.schema = serializationSchema;
 		this.partitionerClass = partitioner;
 	}
 
@@ -150,7 +150,7 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	 */
 	@Override
 	public void invoke(IN next) {
-		byte[] serialized = scheme.serialize(next);
+		byte[] serialized = schema.serialize(next);
 		producer.send(new KeyedMessage<IN, byte[]>(topicId, next, serialized));
 	}
 

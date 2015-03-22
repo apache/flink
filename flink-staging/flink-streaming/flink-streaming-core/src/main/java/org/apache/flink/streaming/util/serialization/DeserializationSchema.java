@@ -15,25 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.util;
+package org.apache.flink.streaming.util.serialization;
 
-public class RawSchema implements DeserializationSchema<byte[]>,
-		SerializationSchema<byte[], byte[]> {
+import java.io.Serializable;
 
-	private static final long serialVersionUID = 1L;
+public interface DeserializationSchema<T> extends Serializable {
 
-	@Override
-	public byte[] deserialize(byte[] message) {
-		return message;
-	}
+	/**
+	 * Deserializes the incoming data.
+	 * 
+	 * @param message
+	 *            The incoming message in a byte array
+	 * @return The deserialized message in the required format.
+	 */
+	public T deserialize(byte[] message);
 
-	@Override
-	public boolean isEndOfStream(byte[] nextElement) {
-		return false;
-	}
-
-	@Override
-	public byte[] serialize(byte[] element) {
-		return element;
-	}
+	/**
+	 * Method to decide whether the element signals the end of the stream. If
+	 * true is returned the element won't be emitted
+	 * 
+	 * @param nextElement
+	 *            The element to test for end signal
+	 * @return The end signal, if true the stream shuts down
+	 */
+	public boolean isEndOfStream(T nextElement);
 }

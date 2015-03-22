@@ -22,6 +22,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream,
   SingleOutputStreamOperator, GroupedDataStream}
+import org.apache.flink.streaming.util.serialization.SerializationSchema
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -603,6 +604,13 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def writeAsCsv(path: String, millis: Long = 0): DataStream[T] =
     javaStream.writeAsCsv(path, millis)
+
+  /**
+   * Writes the DataStream to a socket as a byte array. The format of the output is
+   * specified by a {@link SerializationSchema}.
+   */
+  def writeToSocket(hostname: String, port: Integer, schema: SerializationSchema[T, Array[Byte]]):
+    DataStream[T] = javaStream.writeToSocket(hostname, port, schema)
 
   /**
    * Adds the given sink to this DataStream. Only streams with sinks added

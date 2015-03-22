@@ -82,8 +82,6 @@ public class KafkaTopicUtils {
 
 		Broker leader = JavaConversions.asJavaCollection(partitionMetadata.isr()).iterator().next();
 
-		// TODO for Kafka version 8.2.0
-		//		return leader.connectionString();
 		return leader.connectionString();
 	}
 

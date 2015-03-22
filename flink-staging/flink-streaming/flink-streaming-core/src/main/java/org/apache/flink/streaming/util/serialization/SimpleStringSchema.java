@@ -15,28 +15,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.util;
+package org.apache.flink.streaming.util.serialization;
 
-import java.io.Serializable;
+public class SimpleStringSchema implements DeserializationSchema<String>,
+		SerializationSchema<String, String> {
 
-public interface DeserializationSchema<T> extends Serializable {
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Deserializes the incoming data.
-	 * 
-	 * @param message
-	 *            The incoming message in a byte array
-	 * @return The deserialized message in the required format.
-	 */
-	public T deserialize(byte[] message);
+	@Override
+	public String deserialize(byte[] message) {
+		return new String(message);
+	}
 
-	/**
-	 * Method to decide whether the element signals the end of the stream. If
-	 * true is returned the element won't be emitted
-	 * 
-	 * @param nextElement
-	 *            The element to test for end signal
-	 * @return The end signal, if true the stream shuts down
-	 */
-	public boolean isEndOfStream(T nextElement);
+	@Override
+	public boolean isEndOfStream(String nextElement) {
+		return false;
+	}
+
+	@Override
+	public String serialize(String element) {
+		return element;
+	}
+
 }
