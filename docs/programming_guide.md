@@ -2303,7 +2303,7 @@ env.execute()
 Semantic Annotations
 -----------
 
-Semantic annotations can be used give Flink hints about the behavior of a function. 
+Semantic annotations can be used to give Flink hints about the behavior of a function. 
 They tell the system which fields of a function's input the function reads and evaluates and
 which fields it unmodified forwards from its input to its output. 
 Semantic annotations are a powerful means to speed up execution, because they
@@ -2325,11 +2325,12 @@ The following semantic annotations are currently supported.
 Forwarded fields information declares input fields which are unmodified forwarded by a function to the same position or to another position in the output. 
 This information is used by the optimizer to infer whether a data property such as sorting or 
 partitioning is preserved by a function.
+For functions that operate on groups of input elements such as `GroupReduce`, `GroupCombine`, `CoGroup`, and `MapPartition`, all fields that are defined as forwarded fields must always be jointly forwarded from the same input element. The forwarded fields of each element that is emitted by a group-wise function may originate from a different element of the function's input group.
 
 Field forward information is specified using [field expressions](#define-keys-using-field-expressions).
 Fields that are forwarded to the same position in the output can be specified by their position. 
 The specified position must be valid for the input and output data type and have the same type.
-For example the String `"f2"` declares that the third field of a Java input tuple is always equal to the third field in the output tuple.
+For example the String `"f2"` declares that the third field of a Java input tuple is always equal to the third field in the output tuple. 
 
 Fields which are unmodified forwarded to another position in the output are declared by specifying the
 source field in the input and the target field in the output as field expressions.
@@ -2389,7 +2390,8 @@ class MyMap extends MapFunction[(Int, Int), (String, Int, Int)]{
 
 Non-forwarded fields information declares all fields which are not preserved on the same position in a function's output. 
 The values of all other fields are considered to be preserved at the same position in the output. 
-Hence, non-forwarded fields information is inverse to forwarded fields information.
+Hence, non-forwarded fields information is inverse to forwarded fields information. 
+Non-forwarded field information for group-wise operators such as `GroupReduce`, `GroupCombine`, `CoGroup`, and `MapPartition` must fulfill the same requirements as for forwarded field information.
 
 **IMPORTANT**: The specification of non-forwarded fields information is optional. However if used, 
 **ALL!** non-forwarded fields must be specified, because all other fields are considered to be forwarded in place. It is safe to declare a forwarded field as non-forwarded.
