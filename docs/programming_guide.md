@@ -2505,7 +2505,7 @@ DataSet<Integer> toBroadcast = env.fromElements(1, 2, 3);
 
 DataSet<String> data = env.fromElements("a", "b");
 
-data.map(new MapFunction<String, String>() {
+data.map(new RichMapFunction<String, String>() {
     @Override
     public void open(Configuration parameters) throws Exception {
       // 3. Access the broadcasted DataSet as a Collection
