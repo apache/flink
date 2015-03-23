@@ -167,8 +167,6 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 
 		int numberOfPartitions = kafkaTopicUtils.getNumberOfPartitions(topicId);
 
-		String brokerAddress = kafkaTopicUtils.getLeaderBrokerAddressForTopic(topicId);
-
 		if (indexOfSubtask >= numberOfPartitions) {
 			iterator = new KafkaIdleConsumerIterator();
 		} else {
@@ -188,7 +186,7 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 				context.registerState("kafka", kafkaOffSet);
 			}
 
-			iterator = getMultiKafkaIterator(brokerAddress, topicId, partitions, waitOnEmptyFetchMillis);
+			iterator = new KafkaMultiplePartitionsIterator(topicId, partitions, kafkaTopicUtils, waitOnEmptyFetchMillis, connectTimeoutMs, bufferSize);
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info("KafkaSource ({}/{}) listening to partitions {} of topic {}.",
@@ -197,10 +195,6 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 		}
 
 		iterator.initialize();
-	}
-
-	protected KafkaConsumerIterator getMultiKafkaIterator(String hostName, String topic, Map<Integer, KafkaOffset> partitionsWithOffset, int waitOnEmptyFetch) {
-		return new KafkaMultiplePartitionsIterator(hostName, topic, partitionsWithOffset, waitOnEmptyFetch, this.connectTimeoutMs, this.bufferSize);
 	}
 
 	@Override

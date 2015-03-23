@@ -27,6 +27,8 @@ import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaTopicUtils;
 import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.NetUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
@@ -44,6 +46,8 @@ import kafka.serializer.DefaultEncoder;
 public class KafkaSink<IN> extends RichSinkFunction<IN> {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaSink.class);
 
 	private Producer<IN, byte[]> producer;
 	private Properties props;
@@ -64,7 +68,7 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	 * @param serializationSchema
 	 * 		User defined serialization schema.
 	 */
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({"rawtypes", "unchecked"})
 	public KafkaSink(String zookeeperAddress, String topicId,
 			SerializationSchema<IN, byte[]> serializationSchema) {
 		this(zookeeperAddress, topicId, serializationSchema, (Class) null);
@@ -114,12 +118,17 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	public void open(Configuration configuration) {
 
 		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils(zookeeperAddress);
-		String brokerAddress = kafkaTopicUtils.getLeaderBrokerAddressForTopic(topicId);
+		String listOfBrokers = kafkaTopicUtils.getBrokerList(topicId);
+
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Broker list: {}", listOfBrokers);
+		}
 
 		props = new Properties();
 
-		props.put("metadata.broker.list", brokerAddress);
-		props.put("request.required.acks", "1");
+		props.put("metadata.broker.list", listOfBrokers);
+		props.put("request.required.acks", "-1");
+		props.put("message.send.max.retries", "10");
 
 		props.put("serializer.class", DefaultEncoder.class.getCanonicalName());
 
@@ -140,7 +149,7 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 		try {
 			producer = new Producer<IN, byte[]>(config);
 		} catch (NullPointerException e) {
-			throw new RuntimeException("Cannot connect to Kafka broker " + brokerAddress, e);
+			throw new RuntimeException("Cannot connect to Kafka broker " + listOfBrokers, e);
 		}
 	}
 

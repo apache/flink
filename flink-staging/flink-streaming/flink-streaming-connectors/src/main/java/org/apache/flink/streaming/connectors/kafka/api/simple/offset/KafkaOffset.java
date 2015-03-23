@@ -21,12 +21,17 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.common.TopicAndPartition;
 import kafka.javaapi.OffsetResponse;
 import kafka.javaapi.consumer.SimpleConsumer;
 
 public abstract class KafkaOffset implements Serializable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaOffset.class);
 
 	private static final long serialVersionUID = 1L;
 
@@ -38,14 +43,27 @@ public abstract class KafkaOffset implements Serializable {
 		TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
 		Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<TopicAndPartition, PartitionOffsetRequestInfo>();
 		requestInfo.put(topicAndPartition, new PartitionOffsetRequestInfo(whichTime, 1));
+
 		kafka.javaapi.OffsetRequest request = new kafka.javaapi.OffsetRequest(requestInfo,
 				kafka.api.OffsetRequest.CurrentVersion(), clientName);
 		OffsetResponse response = consumer.getOffsetsBefore(request);
 
-		if (response.hasError()) {
-			throw new RuntimeException("Error fetching data from Kafka broker. Reason: "
-					+ response.errorCode(topic, partition));
+		while (response.hasError()) {
+			switch (response.errorCode(topic, partition)) {
+				case 6:
+				case 3:
+					LOG.warn("Kafka broker trying to fetch from a non-leader broker.");
+					break;
+				default:
+					throw new RuntimeException("Error fetching data from Kafka broker. Reason: "
+							+ response.errorCode(topic, partition));
+			}
+
+			request = new kafka.javaapi.OffsetRequest(requestInfo,
+					kafka.api.OffsetRequest.CurrentVersion(), clientName);
+			response = consumer.getOffsetsBefore(request);
 		}
+
 		long[] offsets = response.offsets(topic, partition);
 		return offsets[0];
 	}
