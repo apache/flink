@@ -32,8 +32,6 @@ import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.windowbuffer.TumblingGroupedPreReducer;
-import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.junit.Test;
@@ -97,6 +95,7 @@ public class TumblingGroupedPreReducerTest {
 
 	}
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testEmitWindow2() throws Exception {
 
@@ -116,11 +115,16 @@ public class TumblingGroupedPreReducerTest {
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.emitWindow(collector);
 
-		System.out.println(collected);
-
+		assertSetEquals(StreamWindow.fromElements(inputs.get(0), inputs.get(1)), collected.get(0));
+		
 		wb.store(serializer.copy(inputs.get(0)));
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.store(serializer.copy(inputs.get(2)));
+		wb.emitWindow(collector);
+		
+		assertSetEquals(StreamWindow.fromElements(new Tuple2<Integer, Integer>(2, 0), inputs.get(1)), collected.get(1));
+
+		
 	}
 
 	private static <T> void assertSetEquals(Collection<T> first, Collection<T> second) {
