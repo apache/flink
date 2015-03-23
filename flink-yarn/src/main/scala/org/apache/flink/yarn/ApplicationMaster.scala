@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.yarn
 
 import java.io.{PrintWriter, FileWriter, BufferedWriter}
@@ -45,7 +44,8 @@ object ApplicationMaster {
   val MODIFIED_CONF_FILE = "flink-conf-modified.yaml"
   val MAX_REGISTRATION_DURATION = "5 minutes"
 
-  def main(args: Array[String]): Unit ={
+  def main(args: Array[String]): Unit = {
+
     val yarnClientUsername = System.getenv(FlinkYarnClient.ENV_CLIENT_USERNAME)
     LOG.info(s"YARN daemon runs as ${UserGroupInformation.getCurrentUser.getShortUserName} " +
       s"setting user to execute Flink ApplicationMaster/JobManager to ${yarnClientUsername}")

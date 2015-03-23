@@ -647,7 +647,6 @@ object JobManager {
    * @param args The command line arguments.
    */
   def main(args: Array[String]): Unit = {
-
     // startup checks and logging
     EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager", args)
     EnvironmentInformation.checkJavaVersion()
