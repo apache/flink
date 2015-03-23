@@ -328,6 +328,9 @@ public final class ConfigConstants {
 
 	// ------------------------------ AKKA ------------------------------------
 
+	/**
+	 * Timeout for the startup of the actor system
+	 */
 	public static final String AKKA_STARTUP_TIMEOUT = "akka.startup-timeout";
 
 	/**
