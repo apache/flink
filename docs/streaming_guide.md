@@ -1214,8 +1214,8 @@ Flink on YARN supports automatic restart of lost YARN containers.
 
 The following arguments have to be provided for the `PersistentKafkaSource(...)` constructor:
 
-1. The topic name
-2. The hostname of a Kafka broker
+1. Zookeeper hostname
+2. The topic name
 3. Deserialization schema
 
 Example:
@@ -1223,12 +1223,12 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-stream.addSink(new PersistentKafkaSource<String>("test", "localhost:9092", new SimpleStringSchema()));
+stream.addSink(new PersistentKafkaSource<String>("localhost:2181", "test", new SimpleStringSchema()));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream.addSink(new PersistentKafkaSource[String]("test", "localhost:9092", new SimpleStringSchema))
+stream.addSink(new PersistentKafkaSource[String]("localhost:2181", "test", new SimpleStringSchema))
 {% endhighlight %}
 </div>
 </div>
@@ -1238,21 +1238,21 @@ A class providing an interface for sending data to Kafka.
 
 The followings have to be provided for the `KafkaSink(…)` constructor in order:
 
-1. The topic name
-2. The hostname of a Kafka broker
-3. Serialisation schema
+1. Zookeeper hostname
+2. The topic name
+3. Serialization schema
 
 Example: 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-stream.addSink(new KafkaSink<String>("test", "localhost:9092", new SimpleStringSchema()));
+stream.addSink(new KafkaSink<String>("localhost:2181", "test", new SimpleStringSchema()));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream.addSink(new KafkaSink[String]("test", "localhost:9092", new SimpleStringSchema))
+stream.addSink(new KafkaSink[String]("localhost:2181", "test", new SimpleStringSchema))
 {% endhighlight %}
 </div>
 </div>
