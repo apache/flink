@@ -27,7 +27,7 @@ matrix:
 
 
 git:
-  depth: 10
+  depth: 100
 
 notifications:
   webhooks:
