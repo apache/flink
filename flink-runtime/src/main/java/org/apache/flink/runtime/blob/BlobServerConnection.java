@@ -308,8 +308,6 @@ class BlobServerConnection extends Thread {
 				}
 			}
 
-			fos.close();
-			fos = null;
 
 			if (contentAddressable == NAME_ADDRESSABLE) {
 				File storageFile = this.blobServer.getStorageLocation(jobID, key);
