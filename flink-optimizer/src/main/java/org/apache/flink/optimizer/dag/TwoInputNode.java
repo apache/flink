@@ -607,13 +607,18 @@ public abstract class TwoInputNode extends OptimizerNode {
 			DualInputPlanNode node = operator.instantiate(in1, in2, this);
 			node.setBroadcastInputs(broadcastChannelsCombination);
 
-			SemanticProperties props = this.getSemanticProperties();
-			GlobalProperties gp1 = in1.getGlobalProperties().clone().filterBySemanticProperties(props, 0);
-			GlobalProperties gp2 = in2.getGlobalProperties().clone().filterBySemanticProperties(props, 1);
+			SemanticProperties semPropsGlobalPropFiltering = getSemanticPropertiesForGlobalPropertyFiltering();
+			GlobalProperties gp1 = in1.getGlobalProperties().clone()
+					.filterBySemanticProperties(semPropsGlobalPropFiltering, 0);
+			GlobalProperties gp2 = in2.getGlobalProperties().clone()
+					.filterBySemanticProperties(semPropsGlobalPropFiltering, 1);
 			GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
 
-			LocalProperties lp1 = in1.getLocalProperties().clone().filterBySemanticProperties(props, 0);
-			LocalProperties lp2 = in2.getLocalProperties().clone().filterBySemanticProperties(props, 1);
+			SemanticProperties semPropsLocalPropFiltering = getSemanticPropertiesForLocalPropertyFiltering();
+			LocalProperties lp1 = in1.getLocalProperties().clone()
+					.filterBySemanticProperties(semPropsLocalPropFiltering, 0);
+			LocalProperties lp2 = in2.getLocalProperties().clone()
+					.filterBySemanticProperties(semPropsLocalPropFiltering, 1);
 			LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
 			
 			node.initProperties(combined, locals);
@@ -721,6 +726,14 @@ public abstract class TwoInputNode extends OptimizerNode {
 	@Override
 	public SemanticProperties getSemanticProperties() {
 		return getOperator().getSemanticProperties();
+	}
+
+	protected SemanticProperties getSemanticPropertiesForLocalPropertyFiltering() {
+		return this.getSemanticProperties();
+	}
+
+	protected SemanticProperties getSemanticPropertiesForGlobalPropertyFiltering() {
+		return this.getSemanticProperties();
 	}
 	
 	// --------------------------------------------------------------------------------------------
