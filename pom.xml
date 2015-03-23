@@ -82,7 +82,7 @@ under the License.
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>18.0</guava.version>
-		<akka.version>2.3.7</akka.version>
+		<akka.version>2.3.9</akka.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 		<kryoserialization.version>0.3.2</kryoserialization.version>
 		<protobuf.version>2.5.0</protobuf.version>
