@@ -24,7 +24,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.lang.SerializationUtils;
@@ -43,6 +45,7 @@ import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaTopicUtils;
 import org.apache.flink.streaming.connectors.kafka.api.simple.PersistentKafkaSource;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.Offset;
 import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.util.KafkaLocalSystemTime;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
@@ -58,7 +61,6 @@ import org.slf4j.LoggerFactory;
 
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
-import kafka.utils.Time;
 
 /**
  * Code in this test is based on the following GitHub repository:
@@ -70,9 +72,9 @@ import kafka.utils.Time;
 public class KafkaITCase {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaITCase.class);
+	private static final int NUMBER_OF_KAFKA_SERVERS = 3;
 
 	private static int zkPort;
-	private static int kafkaPort;
 	private static String kafkaHost;
 
 	private static String zookeeperConnectionString;
@@ -80,30 +82,39 @@ public class KafkaITCase {
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 	public static File tmpZkDir;
-	public static File tmpKafkaDir;
+	public static List<File> tmpKafkaDirs;
 
 	private static TestingServer zookeeper;
-	private static KafkaServer broker1;
+	private static List<KafkaServer> brokers;
 
+	private static boolean shutdownKafkaBroker;
 
 	@BeforeClass
 	public static void prepare() throws IOException {
 		LOG.info("Starting KafkaITCase.prepare()");
 		tmpZkDir = tempFolder.newFolder();
-		tmpKafkaDir = tempFolder.newFolder();
+
+		tmpKafkaDirs = new ArrayList<File>(NUMBER_OF_KAFKA_SERVERS);
+		for (int i = 0; i < NUMBER_OF_KAFKA_SERVERS; i++) {
+			tmpKafkaDirs.add(tempFolder.newFolder());
+		}
+
 		kafkaHost = InetAddress.getLocalHost().getHostName();
 		zkPort = NetUtils.getAvailablePort();
-		kafkaPort = NetUtils.getAvailablePort();
 		zookeeperConnectionString = "localhost:" + zkPort;
 
 		zookeeper = null;
-		broker1 = null;
+		brokers = null;
 
 		try {
 			LOG.info("Starting Zookeeper");
 			zookeeper = getZookeeper();
 			LOG.info("Starting KafkaServer");
-			broker1 = getKafkaServer(0);
+			brokers = new ArrayList<KafkaServer>(NUMBER_OF_KAFKA_SERVERS);
+			for (int i = 0; i < NUMBER_OF_KAFKA_SERVERS; i++) {
+				brokers.add(getKafkaServer(i, tmpKafkaDirs.get(i)));
+			}
+
 			LOG.info("ZK and KafkaServer started.");
 		} catch (Throwable t) {
 			LOG.warn("Test failed with exception", t);
@@ -114,8 +125,10 @@ public class KafkaITCase {
 	@AfterClass
 	public static void shutDownServices() {
 		LOG.info("Shutting down all services");
-		if (broker1 != null) {
-			broker1.shutdown();
+		for (KafkaServer broker : brokers) {
+			if (broker != null) {
+				broker.shutdown();
+			}
 		}
 		if (zookeeper != null) {
 			try {
@@ -131,7 +144,7 @@ public class KafkaITCase {
 		LOG.info("Starting KafkaITCase.regularKafkaSourceTest()");
 
 		String topic = "regularKafkaSourceTestTopic";
-		createTestTopic(topic, 1);
+		createTestTopic(topic, 1, 1);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
@@ -145,7 +158,7 @@ public class KafkaITCase {
 
 			@Override
 			public void invoke(Tuple2<Long, String> value) throws Exception {
-				LOG.info("Got " + value);
+				LOG.debug("Got " + value);
 				String[] sp = value.f1.split("-");
 				int v = Integer.parseInt(sp[1]);
 
@@ -217,7 +230,7 @@ public class KafkaITCase {
 		LOG.info("Starting KafkaITCase.tupleTestTopology()");
 
 		String topic = "tupleTestTopic";
-		createTestTopic(topic, 1);
+		createTestTopic(topic, 1, 1);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
@@ -231,7 +244,7 @@ public class KafkaITCase {
 
 			@Override
 			public void invoke(Tuple2<Long, String> value) throws Exception {
-				LOG.info("Got " + value);
+				LOG.debug("Got " + value);
 				String[] sp = value.f1.split("-");
 				int v = Integer.parseInt(sp[1]);
 
@@ -305,8 +318,8 @@ public class KafkaITCase {
 		LOG.info("Starting KafkaITCase.customPartitioningTestTopology()");
 
 		String topic = "customPartitioningTestTopic";
-		
-		createTestTopic(topic, 3);
+
+		createTestTopic(topic, 3, 1);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
@@ -323,7 +336,7 @@ public class KafkaITCase {
 
 			@Override
 			public void invoke(Tuple2<Long, String> value) throws Exception {
-				LOG.info("Got " + value);
+				LOG.debug("Got " + value);
 				String[] sp = value.f1.split("-");
 				int v = Integer.parseInt(sp[1]);
 
@@ -412,6 +425,7 @@ public class KafkaITCase {
 		public int partition(Object key, int numPartitions) {
 			partitionerHasBeenCalled = true;
 
+			@SuppressWarnings("unchecked")
 			Tuple2<Long, String> tuple = (Tuple2<Long, String>) key;
 			if (tuple.f0 < 10) {
 				return 0;
@@ -441,14 +455,13 @@ public class KafkaITCase {
 		public boolean isEndOfStream(Tuple2<Long, String> nextElement) {
 			return false;
 		}
-
 	}
 
 	@Test
 	public void simpleTestTopology() throws Exception {
 		String topic = "simpleTestTopic";
 
-		createTestTopic(topic, 1);
+		createTestTopic(topic, 1, 1);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
@@ -462,7 +475,7 @@ public class KafkaITCase {
 
 			@Override
 			public void invoke(String value) throws Exception {
-				LOG.info("Got " + value);
+				LOG.debug("Got " + value);
 				String[] sp = value.split("-");
 				int v = Integer.parseInt(sp[1]);
 				if (start == -1) {
@@ -524,12 +537,148 @@ public class KafkaITCase {
 		}
 	}
 
+	private static boolean leaderHasShutDown = false;
 
-	private void createTestTopic(String topic, int numberOfPartitions) {
+	@Test
+	public void brokerFailureTest() throws Exception {
+		String topic = "brokerFailureTestTopic";
+
+		createTestTopic(topic, 2, 2);
+
 		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils(zookeeperConnectionString);
-		kafkaTopicUtils.createTopic(topic, numberOfPartitions, 1);
+		final String leaderToShutDown =
+				kafkaTopicUtils.waitAndGetPartitionMetadata(topic, 0).leader().get().connectionString();
+
+		final Thread brokerShutdown = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				shutdownKafkaBroker = false;
+				while (!shutdownKafkaBroker) {
+					try {
+						Thread.sleep(10);
+					} catch (InterruptedException e) {
+						LOG.warn("Interruption", e);
+					}
+				}
+
+				for (KafkaServer kafkaServer : brokers) {
+					if (leaderToShutDown.equals(
+							kafkaServer.config().advertisedHostName()
+									+ ":"
+									+ kafkaServer.config().advertisedPort()
+					)) {
+						LOG.info("Killing Kafka Server {}", leaderToShutDown);
+						kafkaServer.shutdown();
+						leaderHasShutDown = true;
+						break;
+					}
+				}
+			}
+		});
+		brokerShutdown.start();
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		// add consuming topology:
+		DataStreamSource<String> consuming = env.addSource(
+				new PersistentKafkaSource<String>(zookeeperConnectionString, topic, new JavaDefaultStringSchema(), 5000, 10, Offset.FROM_BEGINNING));
+		consuming.setParallelism(1);
+
+		consuming.addSink(new SinkFunction<String>() {
+			int elCnt = 0;
+			int start = 0;
+			int numOfMessagesToReceive = 100;
+
+			BitSet validator = new BitSet(numOfMessagesToReceive + 1);
+
+			@Override
+			public void invoke(String value) throws Exception {
+				LOG.debug("Got " + value);
+				String[] sp = value.split("-");
+				int v = Integer.parseInt(sp[1]);
+
+				if (start == -1) {
+					start = v;
+				}
+				Assert.assertFalse("Received tuple twice", validator.get(v - start));
+				if (v - start < 0 && LOG.isWarnEnabled()) {
+					LOG.warn("Not in order: {}", value);
+				}
+
+				validator.set(v - start);
+				elCnt++;
+				if (elCnt == 20) {
+					// shut down a Kafka broker
+					shutdownKafkaBroker = true;
+				}
+
+				if (elCnt == numOfMessagesToReceive && leaderHasShutDown) {
+					// check if everything in the bitset is set to true
+					int nc;
+					if ((nc = validator.nextClearBit(0)) != numOfMessagesToReceive) {
+//						throw new RuntimeException("The bitset was not set to 1 on all elements. Next clear:" + nc + " Set: " + validator);
+						System.out.println("The bitset was not set to 1 on all elements. Next clear:" + nc + " Set: " + validator);
+					}
+					throw new SuccessException();
+				} else if (elCnt == numOfMessagesToReceive) {
+					numOfMessagesToReceive += 50;
+					LOG.info("Waiting for more messages till {}", numOfMessagesToReceive);
+				}
+			}
+		});
+
+		// add producing topology
+		DataStream<String> stream = env.addSource(new SourceFunction<String>() {
+			boolean running = true;
+
+			@Override
+			public void run(Collector<String> collector) throws Exception {
+				LOG.info("Starting source.");
+				int cnt = 0;
+				while (running) {
+					collector.collect("kafka-" + cnt++);
+
+					if ((cnt - 1) % 20 == 0) {
+						LOG.debug("Sending message #{}", cnt - 1);
+					}
+
+					try {
+						Thread.sleep(10);
+					} catch (InterruptedException ignored) {
+					}
+				}
+			}
+
+			@Override
+			public void cancel() {
+				LOG.info("Source got chancel()");
+				running = false;
+			}
+		});
+		stream.addSink(new KafkaSink<String>(zookeeperConnectionString, topic, new JavaDefaultStringSchema()))
+				.setParallelism(1);
+
+		try {
+			env.setParallelism(1);
+			env.execute();
+		} catch (JobExecutionException good) {
+			Throwable t = good.getCause();
+			int limit = 0;
+			while (!(t instanceof SuccessException)) {
+				t = t.getCause();
+				if (limit++ == 20) {
+					LOG.warn("Test failed with exception", good);
+					Assert.fail("Test failed with: " + good.getMessage());
+				}
+			}
+		}
 	}
 
+
+	private void createTestTopic(String topic, int numberOfPartitions, int replicationFactor) {
+		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils(zookeeperConnectionString);
+		kafkaTopicUtils.createTopic(topic, numberOfPartitions, replicationFactor);
+	}
 
 	private static TestingServer getZookeeper() throws Exception {
 		return new TestingServer(zkPort, tmpZkDir);
@@ -538,40 +687,22 @@ public class KafkaITCase {
 	/**
 	 * Copied from com.github.sakserv.minicluster.KafkaLocalBrokerIntegrationTest (ASL licensed)
 	 */
-	private static KafkaServer getKafkaServer(int brokerId) throws UnknownHostException {
+	private static KafkaServer getKafkaServer(int brokerId, File tmpFolder) throws UnknownHostException {
 		Properties kafkaProperties = new Properties();
+
+		int kafkaPort = NetUtils.getAvailablePort();
+
 		// properties have to be Strings
 		kafkaProperties.put("advertised.host.name", kafkaHost);
 		kafkaProperties.put("port", Integer.toString(kafkaPort));
 		kafkaProperties.put("broker.id", Integer.toString(brokerId));
-		kafkaProperties.put("log.dir", tmpKafkaDir.toString());
+		kafkaProperties.put("log.dir", tmpFolder.toString());
 		kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
 		KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
 
-		KafkaServer server = new KafkaServer(kafkaConfig, new LocalSystemTime());
+		KafkaServer server = new KafkaServer(kafkaConfig, new KafkaLocalSystemTime());
 		server.startup();
 		return server;
-	}
-
-	public static class LocalSystemTime implements Time {
-
-		@Override
-		public long milliseconds() {
-			return System.currentTimeMillis();
-		}
-		public long nanoseconds() {
-			return System.nanoTime();
-		}
-
-		@Override
-		public void sleep(long ms) {
-			try {
-				Thread.sleep(ms);
-			} catch (InterruptedException e) {
-				LOG.warn("Interruption", e);
-			}
-		}
-
 	}
 
 	public static class SuccessException extends Exception {

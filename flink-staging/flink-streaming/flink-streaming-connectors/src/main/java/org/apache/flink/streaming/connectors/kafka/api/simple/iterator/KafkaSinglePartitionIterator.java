@@ -19,11 +19,14 @@ package org.apache.flink.streaming.connectors.kafka.api.simple.iterator;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
+import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaTopicUtils;
 import org.apache.flink.streaming.connectors.kafka.api.simple.MessageWithMetadata;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.CurrentOffset;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.KafkaOffset;
@@ -32,7 +35,9 @@ import org.slf4j.LoggerFactory;
 
 import kafka.api.FetchRequest;
 import kafka.api.FetchRequestBuilder;
+import kafka.cluster.Broker;
 import kafka.common.ErrorMapping;
+import kafka.common.NotLeaderForPartitionException;
 import kafka.javaapi.FetchResponse;
 import kafka.javaapi.PartitionMetadata;
 import kafka.javaapi.TopicMetadata;
@@ -53,34 +58,43 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 
 	private List<String> hosts;
 	private String topic;
-	private int port;
 	private int partition;
 	private long readOffset;
 	private transient SimpleConsumer consumer;
 	private List<String> replicaBrokers;
 	private String clientName;
-	private String leadBroker;
+	private Broker leadBroker;
 	private final int connectTimeoutMs;
 	private final int bufferSize;
 
 	private KafkaOffset initialOffset;
 	private transient Iterator<MessageAndOffset> iter;
 	private transient FetchResponse fetchResponse;
+	private volatile boolean isRunning;
 
 	/**
 	 * Constructor with configurable wait time on empty fetch. For connecting to the Kafka service
 	 * we use the so called simple or low level Kafka API thus directly connecting to one of the brokers.
 	 *
-	 * @param hostName Hostname of a known Kafka broker
-	 * @param port Port of the known Kafka broker
-	 * @param topic Name of the topic to listen to
-	 * @param partition Partition in the chosen topic
+	 * @param topic
+	 * 		Name of the topic to listen to
+	 * @param partition
+	 * 		Partition in the chosen topic
+	 * @param initialOffset
+	 * 		Offset to start consuming at
+	 * @param kafkaTopicUtils
+	 * 		Util for receiving topic metadata
+	 * @param connectTimeoutMs
+	 * 		Connection timeout in milliseconds
+	 * @param bufferSize
+	 * 		Size of buffer
 	 */
-	public KafkaSinglePartitionIterator(String hostName, int port, String topic, int partition, KafkaOffset initialOffset,
-										int connectTimeoutMs, int bufferSize) {
-		this.hosts = new ArrayList<String>();
-		hosts.add(hostName);
-		this.port = port;
+	public KafkaSinglePartitionIterator(String topic, int partition, KafkaOffset initialOffset,
+			KafkaTopicUtils kafkaTopicUtils, int connectTimeoutMs, int bufferSize) {
+
+		Set<String> brokerAddresses = kafkaTopicUtils.getBrokerAddresses(topic, partition);
+		this.hosts = new ArrayList<String>(brokerAddresses);
+
 		this.connectTimeoutMs = connectTimeoutMs;
 		this.bufferSize = bufferSize;
 		this.topic = topic;
@@ -88,7 +102,7 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 
 		this.initialOffset = initialOffset;
 
-		replicaBrokers = new ArrayList<String>();
+		this.replicaBrokers = new ArrayList<String>();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -100,29 +114,55 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 	 * the topic and establishing a connection to it.
 	 */
 	public void initialize() throws InterruptedException {
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Initializing consumer {} / {} with hosts {}", topic, partition, hosts);
+		}
+
 		PartitionMetadata metadata;
+		isRunning = true;
 		do {
-			metadata = findLeader(hosts, port, topic, partition);
+			metadata = findLeader(hosts, topic, partition);
 			try {
 				Thread.sleep(DEFAULT_WAIT_ON_EMPTY_FETCH);
 			} catch (InterruptedException e) {
 				throw new InterruptedException("Establishing connection to Kafka failed");
 			}
-		} while (metadata == null);
+		} while (isRunning && metadata == null);
+		isRunning = false;
 
 		if (metadata.leader() == null) {
-			throw new RuntimeException("Can't find Leader for Topic and Partition. (at " + hosts.get(0)
-					+ ":" + port);
+			throw new RuntimeException("Can't find Leader for Topic and Partition. (at " + hosts + ")");
 		}
 
-		leadBroker = metadata.leader().host();
+		leadBroker = metadata.leader();
 		clientName = "Client_" + topic + "_" + partition;
 
-		consumer = new SimpleConsumer(leadBroker, port, connectTimeoutMs, bufferSize, clientName);
+		consumer = new SimpleConsumer(leadBroker.host(), leadBroker.port(), connectTimeoutMs, bufferSize, clientName);
 
-		readOffset = initialOffset.getOffset(consumer, topic, partition, clientName);
+		try {
+			readOffset = initialOffset.getOffset(consumer, topic, partition, clientName);
+		} catch (NotLeaderForPartitionException e) {
+			do {
 
-		resetFetchResponse(readOffset);
+				metadata = findLeader(hosts, topic, partition);
+
+				try {
+					Thread.sleep(DEFAULT_WAIT_ON_EMPTY_FETCH);
+				} catch (InterruptedException ie) {
+					throw new InterruptedException("Establishing connection to Kafka failed");
+				}
+			} while (metadata == null);
+			readOffset = initialOffset.getOffset(consumer, topic, partition, clientName);
+		}
+
+		try {
+			resetFetchResponse(readOffset);
+		} catch (ClosedChannelException e) {
+			if (LOG.isWarnEnabled()) {
+				LOG.warn("Got ClosedChannelException, trying to find new leader.");
+			}
+			findNewLeader();
+		}
 	}
 
 	/**
@@ -161,7 +201,14 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 	public boolean fetchHasNext() throws InterruptedException {
 		synchronized (fetchResponse) {
 			if (!iter.hasNext()) {
-				resetFetchResponse(readOffset);
+				try {
+					resetFetchResponse(readOffset);
+				} catch (ClosedChannelException e) {
+					if (LOG.isWarnEnabled()) {
+						LOG.warn("Got ClosedChannelException, trying to find new leader.");
+					}
+					findNewLeader();
+				}
 				return iter.hasNext();
 			} else {
 				return true;
@@ -205,7 +252,7 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 	//  Internal utilities
 	// --------------------------------------------------------------------------------------------
 
-	private void resetFetchResponse(long offset) throws InterruptedException {
+	private void resetFetchResponse(long offset) throws InterruptedException, ClosedChannelException {
 		FetchRequest req = new FetchRequestBuilder().clientId(clientName)
 				.addFetch(topic, partition, offset, 100000).build();
 
@@ -225,24 +272,43 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 
 				readOffset = new CurrentOffset().getOffset(consumer, topic, partition, clientName);
 			}
-			consumer.close();
-			consumer = null;
-			leadBroker = findNewLeader(leadBroker, topic, partition, port);
+
+			findNewLeader();
 		}
 
 		iter = fetchResponse.messageSet(topic, partition).iterator();
 	}
 
-	private PartitionMetadata findLeader(List<String> a_hosts, int a_port, String a_topic,
+	private void findNewLeader() throws InterruptedException {
+		consumer.close();
+		consumer = null;
+		leadBroker = findNewLeader(leadBroker, topic, partition);
+		consumer = new SimpleConsumer(leadBroker.host(), leadBroker.port(), 100000, 64 * 1024, clientName);
+	}
+
+	@SuppressWarnings("ConstantConditions")
+	private PartitionMetadata findLeader(List<String> addresses, String a_topic,
 			int a_partition) {
+
 		PartitionMetadata returnMetaData = null;
 		loop:
-		for (String seed : a_hosts) {
+		for (String address : addresses) {
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Trying to find leader via broker: {}", address);
+			}
+
+			String[] split = address.split(":");
+			String host = split[0];
+			int port = Integer.parseInt(split[1]);
+
 			SimpleConsumer consumer = null;
 			try {
-				consumer = new SimpleConsumer(seed, a_port, connectTimeoutMs, bufferSize, "leaderLookup");
+				consumer = new SimpleConsumer(host, port, connectTimeoutMs, bufferSize, "leaderLookup");
 				List<String> topics = Collections.singletonList(a_topic);
+
 				TopicMetadataRequest req = new TopicMetadataRequest(topics);
+
 				kafka.javaapi.TopicMetadataResponse resp = consumer.send(req);
 
 				List<TopicMetadata> metaData = resp.topicsMetadata();
@@ -255,8 +321,13 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 					}
 				}
 			} catch (Exception e) {
-				throw new RuntimeException("Error communicating with Broker [" + seed
-						+ "] to find Leader for [" + a_topic + ", " + a_partition + "]", e);
+				if (e instanceof ClosedChannelException) {
+					LOG.warn("Got ClosedChannelException while trying to communicate with Broker" +
+							"[{}] to find Leader for [{}, {}]. Trying other replicas.", address, a_topic, a_partition);
+				} else {
+					throw new RuntimeException("Error communicating with Broker [" + address
+							+ "] to find Leader for [" + a_topic + ", " + a_partition + "]", e);
+				}
 			} finally {
 				if (consumer != null) {
 					consumer.close();
@@ -266,30 +337,31 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 		if (returnMetaData != null) {
 			replicaBrokers.clear();
 			for (kafka.cluster.Broker replica : returnMetaData.replicas()) {
-				replicaBrokers.add(replica.host());
+				replicaBrokers.add(replica.host() + ":" + replica.port());
 			}
 		}
 		return returnMetaData;
 	}
 
-	private String findNewLeader(String a_oldLeader, String a_topic, int a_partition, int a_port) throws InterruptedException {
+	@SuppressWarnings({"ConstantConditions", "UnusedAssignment"})
+	private Broker findNewLeader(Broker a_oldLeader, String a_topic, int a_partition) throws InterruptedException {
 		for (int i = 0; i < 3; i++) {
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Trying to find a new leader after Broker failure.");
 			}
 			boolean goToSleep = false;
-			PartitionMetadata metadata = findLeader(replicaBrokers, a_port, a_topic, a_partition);
+			PartitionMetadata metadata = findLeader(replicaBrokers, a_topic, a_partition);
 			if (metadata == null) {
 				goToSleep = true;
 			} else if (metadata.leader() == null) {
 				goToSleep = true;
-			} else if (a_oldLeader.equalsIgnoreCase(metadata.leader().host()) && i == 0) {
+			} else if (a_oldLeader.host().equalsIgnoreCase(metadata.leader().host()) && i == 0) {
 				// first time through if the leader hasn't changed give ZooKeeper a second to recover
 				// second time, assume the broker did recover before failover, or it was a non-Broker issue
 				//
 				goToSleep = true;
 			} else {
-				return metadata.leader().host();
+				return metadata.leader();
 			}
 			if (goToSleep) {
 				try {

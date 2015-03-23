@@ -1257,12 +1257,12 @@ Example:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-stream.addSink(new PersistentKafkaSource<String>("localhost:2181", "test", new SimpleStringSchema()));
+stream.addSource(new PersistentKafkaSource<String>("localhost:2181", "test", new SimpleStringSchema()));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-stream.addSink(new PersistentKafkaSource[String]("localhost:2181", "test", new SimpleStringSchema))
+stream.addSource(new PersistentKafkaSource[String]("localhost:2181", "test", new SimpleStringSchema))
 {% endhighlight %}
 </div>
 </div>
@@ -1290,6 +1290,25 @@ stream.addSink(new KafkaSink[String]("localhost:2181", "test", new SimpleStringS
 {% endhighlight %}
 </div>
 </div>
+
+The user can also define custom Kafka producer configuration for the KafkaSink with the constructor:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public KafkaSink(String zookeeperAddress, String topicId, Properties producerConfig,
+      SerializationSchema<IN, byte[]> serializationSchema)
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+public KafkaSink(String zookeeperAddress, String topicId, Properties producerConfig,
+      SerializationSchema serializationSchema)
+{% endhighlight %}
+</div>
+</div>
+
+If this constructor is used, the user needs to make sure to set the broker with the "metadata.broker.list" property. Also the serializer configuration should be left default, the serialization should be set via SerializationSchema.
 
 More about Kafka can be found [here](https://kafka.apache.org/documentation.html).
 

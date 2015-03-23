@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaTopicUtils;
 import org.apache.flink.streaming.connectors.kafka.api.simple.MessageWithMetadata;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.KafkaOffset;
 import org.slf4j.Logger;
@@ -33,25 +34,22 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 	protected List<KafkaSinglePartitionIterator> partitions;
 	protected final int waitOnEmptyFetch;
 
-	public KafkaMultiplePartitionsIterator(String hostName, String topic,
+	public KafkaMultiplePartitionsIterator(String topic,
 										Map<Integer, KafkaOffset> partitionsWithOffset,
+										KafkaTopicUtils kafkaTopicUtils,
 										int waitOnEmptyFetch, int connectTimeoutMs, int bufferSize) {
 		partitions = new ArrayList<KafkaSinglePartitionIterator>(partitionsWithOffset.size());
-
-		String[] hostAndPort = hostName.split(":");
-
-		String host = hostAndPort[0];
-		int port = Integer.parseInt(hostAndPort[1]);
 
 		this.waitOnEmptyFetch = waitOnEmptyFetch;
 
 		for (Map.Entry<Integer, KafkaOffset> partitionWithOffset : partitionsWithOffset.entrySet()) {
 			partitions.add(new KafkaSinglePartitionIterator(
-					host,
-					port,
 					topic,
 					partitionWithOffset.getKey(),
-					partitionWithOffset.getValue(), connectTimeoutMs, bufferSize));
+					partitionWithOffset.getValue(),
+					kafkaTopicUtils,
+					connectTimeoutMs,
+					bufferSize));
 		}
 	}
 
