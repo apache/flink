@@ -18,14 +18,10 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import akka.actor.ActorRef;
-import akka.dispatch.OnFailure;
-import akka.pattern.Patterns;
 import com.google.common.base.Optional;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
@@ -37,7 +33,6 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Future;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,8 +41,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.FailTask;
 
 /**
  * A result partition for data produced by a single task.
@@ -94,7 +87,9 @@ public class ResultPartition implements BufferPoolOwner {
 	/** The subpartitions of this partition. At least one. */
 	private final ResultSubpartition[] subpartitions;
 
-	private final NetworkEnvironment networkEnvironment;
+	private final ResultPartitionManager partitionManager;
+
+	private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
 	// - Runtime state --------------------------------------------------------
 
@@ -126,21 +121,24 @@ public class ResultPartition implements BufferPoolOwner {
 			ResultPartitionID partitionId,
 			ResultPartitionType partitionType,
 			int numberOfSubpartitions,
-			NetworkEnvironment networkEnvironment,
-			IOManager ioManager) {
+			ResultPartitionManager partitionManager,
+			ResultPartitionConsumableNotifier partitionConsumableNotifier,
+			IOManager ioManager,
+			IOMode defaultIoMode) {
 
 		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
 		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
-		this.networkEnvironment = checkNotNull(networkEnvironment);
+		this.partitionManager = checkNotNull(partitionManager);
+		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
 
 		// Create the subpartitions.
 		switch (partitionType) {
 			case BLOCKING:
 				for (int i = 0; i < subpartitions.length; i++) {
 					subpartitions[i] = new SpillableSubpartition(
-							i, this, ioManager, networkEnvironment.getDefaultIOMode());
+							i, this, ioManager, defaultIoMode);
 				}
 
 				break;
@@ -375,7 +373,7 @@ public class ResultPartition implements BufferPoolOwner {
 		int refCnt = pendingReferences.decrementAndGet();
 
 		if (refCnt == 0) {
-			networkEnvironment.getPartitionManager().onConsumedPartition(this);
+			partitionManager.onConsumedPartition(this);
 		}
 		else if (refCnt < 0) {
 			throw new IllegalStateException("All references released.");
@@ -396,24 +394,7 @@ public class ResultPartition implements BufferPoolOwner {
 	 */
 	private void notifyPipelinedConsumers() throws IOException {
 		if (partitionType.isPipelined() && !hasNotifiedPipelinedConsumers) {
-			ScheduleOrUpdateConsumers msg = new ScheduleOrUpdateConsumers(jobId, partitionId);
-
-			Future<Object> futureResponse = Patterns.ask(networkEnvironment.getJobManager(), msg,
-					networkEnvironment.getJobManagerTimeout());
-
-			futureResponse.onFailure(new OnFailure() {
-				@Override
-				public void onFailure(Throwable failure) throws Throwable {
-					LOG.error("Could not schedule or update consumers at the JobManager.", failure);
-
-					// Fail task at the TaskManager
-					FailTask failMsg = new FailTask(partitionId.getProducerId(),
-							new RuntimeException("Could not schedule or update consumers at " +
-									"the JobManager.", failure));
-
-					networkEnvironment.getTaskManager().tell(failMsg, ActorRef.noSender());
-				}
-			}, AkkaUtils.globalExecutionContext());
+			partitionConsumableNotifier.notifyPartitionConsumable(jobId, partitionId);
 
 			hasNotifiedPipelinedConsumers = true;
 		}

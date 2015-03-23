@@ -125,7 +125,15 @@ public class RuntimeEnvironment implements Environment, Runnable {
 				ResultPartitionDeploymentDescriptor desc = partitions.get(i);
 				ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), owner.getExecutionId());
 
-				this.producedPartitions[i] = new ResultPartition(owner.getJobID(), partitionId, desc.getPartitionType(), desc.getNumberOfSubpartitions(), networkEnvironment, ioManager);
+				this.producedPartitions[i] = new ResultPartition(
+						owner.getJobID(),
+						partitionId,
+						desc.getPartitionType(),
+						desc.getNumberOfSubpartitions(),
+						networkEnvironment.getPartitionManager(),
+						networkEnvironment.getPartitionConsumableNotifier(),
+						ioManager,
+						networkEnvironment.getDefaultIOMode());
 
 				writers[i] = new ResultPartitionWriter(this.producedPartitions[i]);
 			}

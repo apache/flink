@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.io.network;
 
 import akka.actor.ActorRef;
+import akka.dispatch.OnFailure;
+import akka.pattern.Patterns;
 import akka.util.Timeout;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -27,20 +30,26 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
+import static org.apache.flink.runtime.messages.TaskManagerMessages.FailTask;
 
 /**
  * Network I/O components of each {@link TaskManager} instance.
@@ -63,6 +72,8 @@ public class NetworkEnvironment {
 
 	private final ConnectionManager connectionManager;
 
+	private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
+
 	private final NetworkEnvironmentConfiguration configuration;
 
 	private boolean isShutdown;
@@ -70,9 +81,12 @@ public class NetworkEnvironment {
 	/**
 	 * Initializes all network I/O components.
 	 */
-	public NetworkEnvironment(ActorRef taskManager, ActorRef jobManager,
-							FiniteDuration jobManagerTimeout,
-							NetworkEnvironmentConfiguration config) throws IOException {
+	public NetworkEnvironment(
+			ActorRef taskManager,
+			ActorRef jobManager,
+			FiniteDuration jobManagerTimeout,
+			NetworkEnvironmentConfiguration config) throws IOException {
+
 		this.taskManager = checkNotNull(taskManager);
 		this.jobManager = checkNotNull(jobManager);
 		this.jobManagerTimeout = checkNotNull(jobManagerTimeout);
@@ -104,6 +118,8 @@ public class NetworkEnvironment {
 		catch (Throwable t) {
 			throw new IOException("Failed to instantiate network connection manager: " + t.getMessage(), t);
 		}
+
+		this.partitionConsumableNotifier = new JobManagerResultPartitionConsumableNotifier(this);
 	}
 
 	public ActorRef getTaskManager() {
@@ -183,7 +199,7 @@ public class NetworkEnvironment {
 
 	public void unregisterTask(Task task) {
 		LOG.debug("Unregistering task {} ({}) from network environment (state: {}).",
-					task.getTaskNameWithSubtasks(), task.getExecutionState());
+				task.getTaskNameWithSubtasks(), task.getExecutionState());
 
 		final ExecutionAttemptID executionId = task.getExecutionId();
 
@@ -233,6 +249,10 @@ public class NetworkEnvironment {
 
 	public IOMode getDefaultIOMode() {
 		return configuration.ioMode();
+	}
+
+	public ResultPartitionConsumableNotifier getPartitionConsumableNotifier() {
+		return partitionConsumableNotifier;
 	}
 
 	public boolean hasReleasedAllResources() {
@@ -295,5 +315,44 @@ public class NetworkEnvironment {
 
 	public boolean isShutdown() {
 		return isShutdown;
+	}
+
+	/**
+	 * Notifies the job manager about consumable partitions.
+	 */
+	private static class JobManagerResultPartitionConsumableNotifier
+			implements ResultPartitionConsumableNotifier {
+
+		private final NetworkEnvironment networkEnvironment;
+
+		public JobManagerResultPartitionConsumableNotifier(NetworkEnvironment networkEnvironment) {
+			this.networkEnvironment = networkEnvironment;
+		}
+
+		@Override
+		public void notifyPartitionConsumable(JobID jobId, final ResultPartitionID partitionId) {
+
+			final ScheduleOrUpdateConsumers msg = new ScheduleOrUpdateConsumers(jobId, partitionId);
+
+			Future<Object> futureResponse = Patterns.ask(
+					networkEnvironment.getJobManager(),
+					msg,
+					networkEnvironment.getJobManagerTimeout());
+
+			futureResponse.onFailure(new OnFailure() {
+				@Override
+				public void onFailure(Throwable failure) throws Throwable {
+					LOG.error("Could not schedule or update consumers at the JobManager.", failure);
+
+					// Fail task at the TaskManager
+					FailTask failMsg = new FailTask(
+							partitionId.getProducerId(),
+							new RuntimeException("Could not schedule or update consumers at " +
+									"the JobManager.", failure));
+
+					networkEnvironment.getTaskManager().tell(failMsg, ActorRef.noSender());
+				}
+			}, AkkaUtils.globalExecutionContext());
+		}
 	}
 }
