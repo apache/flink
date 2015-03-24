@@ -18,10 +18,12 @@
 
 package org.apache.flink.graph.library;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexCentricIteration;
@@ -35,10 +37,14 @@ import java.util.TreeMap;
  *
  * Initially, each vertex is assigned a tuple formed of its own id along with a score equal to 1.0, as value.
  * The vertices propagate their labels and max scores in iterations, each time adopting the label with the
- * highest score from the list of received messages. The chosen label is afterwards re-scored.
+ * highest score from the list of received messages. The chosen label is afterwards re-scored using the fraction
+ * delta/the superstep number. Delta is passed as a parameter and has 0.5 as a default value.
  *
  * The algorithm converges when vertices no longer update their value or when the maximum number of iterations
  * is reached.
+ *
+ * @see <a href="http://arxiv.org/pdf/0808.2633.pdf">article explaining the algorithm in detail</a>
+ *
  *<p>
  * 	The input files is a plain text file and must be formatted as follows:
  * 	<br>
@@ -48,32 +54,45 @@ import java.util.TreeMap;
  * </p>
  *
  * Usage <code>SimpleCommunityDetection &lt;edge path&gt; &lt;result path&gt;
- * &lt;number of iterations&gt;</code><br>
+ * &lt;number of iterations&gt; &lt;delta&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link org.apache.flink.graph.example.utils.SimpleCommunityDetectionData}
  */
-public class SimpleCommunityDetection implements GraphAlgorithm<Long, Tuple2<Long, Double>, Double> {
+public class SimpleCommunityDetection implements GraphAlgorithm<Long, Long, Double> {
 
 	private Integer maxIterations;
 
-	public SimpleCommunityDetection(Integer maxIterations) {
+	private Double delta;
+
+	public SimpleCommunityDetection(Integer maxIterations, Double delta) {
 
 		this.maxIterations = maxIterations;
+		this.delta = delta;
 	}
 
 	@Override
-	public Graph<Long, Tuple2<Long, Double>, Double> run(Graph<Long, Tuple2<Long, Double>, Double> graph) {
+	public Graph<Long, Long, Double> run(Graph<Long, Long, Double> graph) {
 
-		Graph<Long, Tuple2<Long, Double>, Double> undirectedGraph = graph.getUndirected();
+		Graph<Long, Long, Double> undirectedGraph = graph.getUndirected();
+
+		Graph<Long, Tuple2<Long, Double>, Double> graphWithScoredVertices = undirectedGraph
+				.mapVertices(new AddScoreToVertexValuesMapper());
 
 		VertexCentricIteration<Long, Tuple2<Long, Double>, Tuple2<Long, Double>, Double>
-				iteration = undirectedGraph.createVertexCentricIteration(new VertexLabelUpdater(),
+				iteration = graphWithScoredVertices.createVertexCentricIteration(new VertexLabelUpdater(delta),
 				new LabelMessenger(), maxIterations);
 
-		return undirectedGraph.runVertexCentricIteration(iteration);
+		return graphWithScoredVertices.runVertexCentricIteration(iteration)
+				.mapVertices(new RemoveScoreFromVertexValuesMapper());
 	}
 
 	public static final class VertexLabelUpdater extends VertexUpdateFunction<Long, Tuple2<Long, Double>, Tuple2<Long, Double>> {
+
+		private Double delta;
+
+		public VertexLabelUpdater(Double delta) {
+			this.delta = delta;
+		}
 
 		@Override
 		public void updateVertex(Long vertexKey, Tuple2<Long, Double> labelScore,
@@ -126,8 +145,7 @@ public class SimpleCommunityDetection implements GraphAlgorithm<Long, Tuple2<Lon
 				Double highestScore = labelsWithHighestScore.get(maxScoreLabel);
 				// re-score the new label
 				if (maxScoreLabel != labelScore.f0) {
-					// delta = 0.5
-					highestScore -= 0.5f / getSuperstepNumber();
+					highestScore -= delta / getSuperstepNumber();
 				}
 				// else delta = 0
 				// update own label
@@ -146,6 +164,24 @@ public class SimpleCommunityDetection implements GraphAlgorithm<Long, Tuple2<Lon
 				sendMessageTo(edge.getTarget(), new Tuple2<Long, Double>(vertexValue.f0, vertexValue.f1 * edge.getValue()));
 			}
 
+		}
+	}
+
+	@SuppressWarnings("serial")
+	public static final class AddScoreToVertexValuesMapper implements MapFunction<Vertex<Long, Long>, Tuple2<Long, Double>> {
+
+		@Override
+		public Tuple2<Long, Double> map(Vertex<Long, Long> vertex) throws Exception {
+			return new Tuple2<Long, Double>(vertex.getValue(), 1.0);
+		}
+	}
+
+	@SuppressWarnings("serial")
+	public static final class RemoveScoreFromVertexValuesMapper implements MapFunction<Vertex<Long, Tuple2<Long, Double>>, Long> {
+
+		@Override
+		public Long map(Vertex<Long, Tuple2<Long, Double>> vertex) throws Exception {
+			return vertex.getValue().f0;
 		}
 	}
 }

@@ -31,7 +31,10 @@ import java.util.List;
  */
 public class SimpleCommunityDetectionData {
 
-	public static final Integer MAX_ITERATIONS = 12;
+	// the algorithm is not guaranteed to always converge
+	public static final Integer MAX_ITERATIONS = 30;
+
+	public static final double DELTA = 0.5f;
 
 	public static DataSet<Edge<Long, Double>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 
