@@ -167,12 +167,12 @@ class BlobServerConnection extends Thread {
 
 		File blobFile;
 		try {
-			final int contentAdressable = inputStream.read();
+			final int contentAddressable = inputStream.read();
 
-			if (contentAdressable < 0) {
+			if (contentAddressable < 0) {
 				throw new EOFException("Premature end of GET request");
 			}
-			if (contentAdressable == NAME_ADDRESSABLE) {
+			if (contentAddressable == NAME_ADDRESSABLE) {
 				// Receive the job ID and key
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
@@ -181,7 +181,7 @@ class BlobServerConnection extends Thread {
 				String key = readKey(buf, inputStream);
 				blobFile = this.blobServer.getStorageLocation(jobID, key);
 			}
-			else if (contentAdressable == CONTENT_ADDRESSABLE) {
+			else if (contentAddressable == CONTENT_ADDRESSABLE) {
 				final BlobKey key = BlobKey.readFromInputStream(inputStream);
 				blobFile = blobServer.getStorageLocation(key);
 			}
@@ -260,19 +260,19 @@ class BlobServerConnection extends Thread {
 		FileOutputStream fos = null;
 
 		try {
-			final int contentAdressable = inputStream.read();
-			if (contentAdressable < 0) {
+			final int contentAddressable = inputStream.read();
+			if (contentAddressable < 0) {
 				throw new EOFException("Premature end of PUT request");
 			}
 
-			if (contentAdressable == NAME_ADDRESSABLE) {
+			if (contentAddressable == NAME_ADDRESSABLE) {
 				// Receive the job ID and key
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				jobID = JobID.fromByteArray(jidBytes);
 				key = readKey(buf, inputStream);
 			}
-			else if (contentAdressable == CONTENT_ADDRESSABLE) {
+			else if (contentAddressable == CONTENT_ADDRESSABLE) {
 				md = BlobUtils.createMessageDigest();
 			}
 			else {
@@ -280,7 +280,7 @@ class BlobServerConnection extends Thread {
 			}
 
 			if (LOG.isDebugEnabled()) {
-				if (contentAdressable == NAME_ADDRESSABLE) {
+				if (contentAddressable == NAME_ADDRESSABLE) {
 					LOG.debug(String.format("Received PUT request for BLOB under %s / \"%s\"", jobID, key));
 				} else {
 					LOG.debug("Received PUT request for content addressable BLOB");
@@ -311,7 +311,7 @@ class BlobServerConnection extends Thread {
 			fos.close();
 			fos = null;
 
-			if (contentAdressable == NAME_ADDRESSABLE) {
+			if (contentAddressable == NAME_ADDRESSABLE) {
 				File storageFile = this.blobServer.getStorageLocation(jobID, key);
 				if (!incomingFile.renameTo(storageFile)) {
 					throw new IOException(String.format("Cannot move staging file %s to BLOB file %s",
