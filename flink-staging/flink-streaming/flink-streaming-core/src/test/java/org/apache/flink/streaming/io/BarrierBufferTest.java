@@ -105,6 +105,10 @@ public class BarrierBufferTest {
 		input.add(createBuffer(1));
 		input.add(createSuperstep(2, 1));
 		input.add(createSuperstep(3, 1));
+		input.add(createSuperstep(4, 0));
+		input.add(createBuffer(0));
+		input.add(createSuperstep(-1, 0));
+		
 
 		InputGate mockIG1 = new MockInputGate(2, input);
 		AbstractReader mockAR1 = new MockReader(mockIG1);
@@ -131,6 +135,10 @@ public class BarrierBufferTest {
 		bb.processSuperstep(nextBoe);
 		check(input.get(6), nextBoe = bb.getNextNonBlocked());
 		check(input.get(9), nextBoe = bb.getNextNonBlocked());
+		check(input.get(13), nextBoe = bb.getNextNonBlocked());
+		bb.processSuperstep(nextBoe);
+		check(input.get(14), nextBoe = bb.getNextNonBlocked());
+		check(input.get(15), nextBoe = bb.getNextNonBlocked());
 
 		bb.cleanup();
 	}

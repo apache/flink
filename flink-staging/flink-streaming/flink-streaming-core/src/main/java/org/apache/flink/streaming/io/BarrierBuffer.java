@@ -60,6 +60,8 @@ public class BarrierBuffer {
 	private SpillReader spillReader;
 	private BufferSpiller bufferSpiller;
 
+	private boolean inputFinished = false;
+
 	public BarrierBuffer(InputGate inputGate, AbstractReader reader) {
 		this.inputGate = inputGate;
 		totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
@@ -139,14 +141,23 @@ public class BarrierBuffer {
 		} else {
 			// If no non-processed, get new from input
 			while (true) {
-				// We read the next buffer from the inputgate
-				bufferOrEvent = inputGate.getNextBufferOrEvent();
-				if (isBlocked(bufferOrEvent.getChannelIndex())) {
-					// If channel blocked we just store it
-					blockedNonprocessed.add(new SpillingBufferOrEvent(bufferOrEvent, bufferSpiller,
-							spillReader));
+				if (!inputFinished) {
+					// We read the next buffer from the inputgate
+					bufferOrEvent = inputGate.getNextBufferOrEvent();
+					if (isBlocked(bufferOrEvent.getChannelIndex())) {
+						// If channel blocked we just store it
+						blockedNonprocessed.add(new SpillingBufferOrEvent(bufferOrEvent,
+								bufferSpiller, spillReader));
+						if (bufferOrEvent.isEvent() && inputGate.isFinished()) {
+							inputFinished = true;
+							continue;
+						}
+					} else {
+						return bufferOrEvent;
+					}
 				} else {
-					return bufferOrEvent;
+					actOnAllBlocked();
+					return getNextNonBlocked();
 				}
 			}
 		}
