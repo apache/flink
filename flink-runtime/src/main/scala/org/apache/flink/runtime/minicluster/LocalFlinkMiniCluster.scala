@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.slf4j.LoggerFactory
+import akka.actor.ExtendedActorSystem
 
 /**
  * Local Flink mini cluster which executes all [[TaskManager]]s and the [[JobManager]] in the same
@@ -117,7 +118,15 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
   def getJobClientActorSystem: ActorSystem = jobClientActorSystem
 
   def getJobManagerRPCPort: Int = {
-    configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1)
+    if (jobManagerActorSystem.isInstanceOf[ExtendedActorSystem]) {
+      val extActor = jobManagerActorSystem.asInstanceOf[ExtendedActorSystem]
+      extActor.provider.getDefaultAddress.port match {
+        case p: Some[Int] => p.get
+        case _ => -1
+      }
+    } else {
+      -1
+    }
   }
 
   override def shutdown(): Unit = {

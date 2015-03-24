@@ -24,7 +24,6 @@ import java.nio.channels.FileChannel;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 
 public class SpillReader {
@@ -33,30 +32,18 @@ public class SpillReader {
 	private File spillFile;
 
 	/**
-	 * Reads the next buffer from the spilled file. If a buffer pool was given,
-	 * uses the buffer pool to request a new buffer to read into.
-	 * 
+	 * Reads the next buffer from the spilled file.
 	 */
-	public Buffer readNextBuffer(int bufferSize, BufferPool bufferPool) throws IOException {
+	public Buffer readNextBuffer(int bufferSize) throws IOException {
 		try {
-			Buffer buffer = null;
+			Buffer buffer = new Buffer(new MemorySegment(new byte[bufferSize]),
+					new BufferRecycler() {
 
-			// If available tries to request a new buffer from the pool
-			if (bufferPool != null) {
-				buffer = bufferPool.requestBuffer();
-			}
-
-			// If no bufferpool provided or the pool was empty create a new
-			// buffer
-			if (buffer == null) {
-				buffer = new Buffer(new MemorySegment(new byte[bufferSize]), new BufferRecycler() {
-
-					@Override
-					public void recycle(MemorySegment memorySegment) {
-						memorySegment.free();
-					}
-				});
-			}
+						@Override
+						public void recycle(MemorySegment memorySegment) {
+							memorySegment.free();
+						}
+					});
 
 			spillingChannel.read(buffer.getMemorySegment().wrap(0, bufferSize));
 

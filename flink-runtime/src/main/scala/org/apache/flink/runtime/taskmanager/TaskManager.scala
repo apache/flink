@@ -361,7 +361,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
             i.getEnvironment.getInvokable match {
               case barrierTransceiver: BarrierTransceiver =>
                 new Thread(new Runnable {
-                  override def run(): Unit =  barrierTransceiver.broadcastBarrier(checkpointID);
+                  override def run(): Unit =  
+                    barrierTransceiver.broadcastBarrierFromSource(checkpointID);
                 }).start()
               case _ => log.error("[FT-TaskManager] Received a barrier for the wrong vertex")
             }

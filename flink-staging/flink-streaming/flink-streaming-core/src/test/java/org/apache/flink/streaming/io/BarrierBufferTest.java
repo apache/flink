@@ -26,6 +26,7 @@ import java.util.Queue;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
@@ -105,6 +106,10 @@ public class BarrierBufferTest {
 		input.add(createBuffer(1));
 		input.add(createSuperstep(2, 1));
 		input.add(createSuperstep(3, 1));
+		input.add(createSuperstep(4, 0));
+		input.add(createBuffer(0));
+		input.add(new BufferOrEvent(new EndOfPartitionEvent(), 1));
+		
 
 		InputGate mockIG1 = new MockInputGate(2, input);
 		AbstractReader mockAR1 = new MockReader(mockIG1);
@@ -131,6 +136,10 @@ public class BarrierBufferTest {
 		bb.processSuperstep(nextBoe);
 		check(input.get(6), nextBoe = bb.getNextNonBlocked());
 		check(input.get(9), nextBoe = bb.getNextNonBlocked());
+		check(input.get(13), nextBoe = bb.getNextNonBlocked());
+		bb.processSuperstep(nextBoe);
+		check(input.get(14), nextBoe = bb.getNextNonBlocked());
+		check(input.get(15), nextBoe = bb.getNextNonBlocked());
 
 		bb.cleanup();
 	}

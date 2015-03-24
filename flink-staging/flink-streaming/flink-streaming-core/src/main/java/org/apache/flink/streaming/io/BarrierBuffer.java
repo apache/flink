@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
 
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -59,6 +60,10 @@ public class BarrierBuffer {
 
 	private SpillReader spillReader;
 	private BufferSpiller bufferSpiller;
+
+	private boolean inputFinished = false;
+
+	private BufferOrEvent endOfStreamEvent = null;
 
 	public BarrierBuffer(InputGate inputGate, AbstractReader reader) {
 		this.inputGate = inputGate;
@@ -136,17 +141,36 @@ public class BarrierBuffer {
 
 		if (bufferOrEvent != null) {
 			return bufferOrEvent;
+		} else if (blockedNonprocessed.isEmpty() && inputFinished) {
+			return endOfStreamEvent;
 		} else {
 			// If no non-processed, get new from input
 			while (true) {
-				// We read the next buffer from the inputgate
-				bufferOrEvent = inputGate.getNextBufferOrEvent();
-				if (isBlocked(bufferOrEvent.getChannelIndex())) {
-					// If channel blocked we just store it
-					blockedNonprocessed.add(new SpillingBufferOrEvent(bufferOrEvent, bufferSpiller,
-							spillReader));
+				if (!inputFinished) {
+					// We read the next buffer from the inputgate
+					bufferOrEvent = inputGate.getNextBufferOrEvent();
+
+					if (!bufferOrEvent.isBuffer()
+							&& bufferOrEvent.getEvent() instanceof EndOfPartitionEvent) {
+						if (inputGate.isFinished()) {
+							// store the event for later if the channel is
+							// closed
+							endOfStreamEvent = bufferOrEvent;
+							inputFinished = true;
+						}
+
+					} else {
+						if (isBlocked(bufferOrEvent.getChannelIndex())) {
+							// If channel blocked we just store it
+							blockedNonprocessed.add(new SpillingBufferOrEvent(bufferOrEvent,
+									bufferSpiller, spillReader));
+						} else {
+							return bufferOrEvent;
+						}
+					}
 				} else {
-					return bufferOrEvent;
+					actOnAllBlocked();
+					return getNextNonBlocked();
 				}
 			}
 		}
@@ -208,7 +232,11 @@ public class BarrierBuffer {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Publishing barrier to the vertex");
 		}
-		reader.publish(currentSuperstep);
+
+		if (currentSuperstep != null) {
+			reader.publish(currentSuperstep);
+		}
+
 		releaseBlocks();
 	}
 
@@ -238,6 +266,14 @@ public class BarrierBuffer {
 		if (spillfile2 != null) {
 			spillfile2.delete();
 		}
+	}
+
+	public String toString() {
+		return nonprocessed.toString() + blockedNonprocessed.toString();
+	}
+
+	public boolean isEmpty() {
+		return nonprocessed.isEmpty() && blockedNonprocessed.isEmpty();
 	}
 
 }

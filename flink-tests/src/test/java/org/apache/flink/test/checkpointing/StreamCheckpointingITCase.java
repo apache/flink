@@ -97,8 +97,8 @@ public class StreamCheckpointingITCase {
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
 																	"localhost", cluster.getJobManagerRPCPort());
-			env.setDegreeOfParallelism(PARALLELISM);
-//			env.enableMonitoring(500);
+			env.setParallelism(PARALLELISM);
+			env.enableCheckpointing(200);
 
 			DataStream<String> stream = env.addSource(new RichParallelSourceFunction<String>() {
 

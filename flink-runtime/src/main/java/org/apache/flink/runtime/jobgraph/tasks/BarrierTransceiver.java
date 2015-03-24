@@ -32,7 +32,7 @@ public interface BarrierTransceiver {
 	 * A callback for notifying an operator of a new checkpoint barrier.
 	 * @param barrierID
 	 */
-	public void broadcastBarrier(long barrierID);
+	public void broadcastBarrierFromSource(long barrierID);
 
 	/**
 	 * A callback for confirming that a barrier checkpoint is complete

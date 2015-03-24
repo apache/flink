@@ -60,6 +60,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	private InputHandler<IN> inputHandler;
 	protected OutputHandler<OUT> outputHandler;
 	private StreamInvokable<IN, OUT> userInvokable;
+	protected volatile boolean isRunning = false;
 
 	private StreamingRuntimeContext context;
 	private Map<String, OperatorState<?>> states;
@@ -95,12 +96,14 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	}
 
 	@Override
-	public void broadcastBarrier(long id) {
-		// Only called at input vertices
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Received barrier from jobmanager: " + id);
+	public void broadcastBarrierFromSource(long id) {
+		if (this.isRunning) {
+			// Only called at input vertices
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Received barrier from jobmanager: " + id);
+			}
+			actOnBarrier(id);
 		}
-		actOnBarrier(id);
 	}
 
 	/**
@@ -151,6 +154,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	@Override
 	public void invoke() throws Exception {
+		this.isRunning = true;
 
 		boolean operatorOpen = false;
 
@@ -190,6 +194,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 			// Cleanup
 			outputHandler.flushOutputs();
 			clearBuffers();
+			this.isRunning = false;
 		}
 
 	}
@@ -283,16 +288,17 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	 * 
 	 * @param id
 	 */
-	private void actOnBarrier(long id) {
-		try {
-			outputHandler.broadcastBarrier(id);
-			// TODO checkpoint state here
-			confirmBarrier(id);
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Superstep " + id + " processed: " + StreamVertex.this);
+	private synchronized void actOnBarrier(long id) {
+		if (this.isRunning) {
+			try {
+				outputHandler.broadcastBarrier(id);
+				confirmBarrier(id);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Superstep " + id + " processed: " + StreamVertex.this);
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(e);
 			}
-		} catch (Exception e) {
-			throw new RuntimeException("Error while confirming barrier", e);
 		}
 	}
 

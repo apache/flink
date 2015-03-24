@@ -19,9 +19,6 @@ package org.apache.flink.streaming.io;
 
 import java.io.IOException;
 
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 
 public class SpillingBufferOrEvent {
@@ -30,8 +27,6 @@ public class SpillingBufferOrEvent {
 	private boolean isSpilled = false;
 
 	private SpillReader spillReader;
-
-	private BufferPool bufferPool;
 
 	private int channelIndex;
 	private int bufferSize;
@@ -43,10 +38,11 @@ public class SpillingBufferOrEvent {
 		this.channelIndex = boe.getChannelIndex();
 		this.spillReader = reader;
 
-		if (shouldSpill()) {
+		if (boe.isBuffer()) {
+			this.bufferSize = boe.getBuffer().getSize();
 			spiller.spill(boe.getBuffer());
-			isSpilled = true;
-			boe = null;
+			this.boe = null;
+			this.isSpilled = true;
 		}
 	}
 
@@ -56,37 +52,12 @@ public class SpillingBufferOrEvent {
 	 */
 	public BufferOrEvent getBufferOrEvent() throws IOException {
 		if (isSpilled) {
-			return new BufferOrEvent(spillReader.readNextBuffer(bufferSize, bufferPool),
-					channelIndex);
+			boe = new BufferOrEvent(spillReader.readNextBuffer(bufferSize), channelIndex);
+			this.isSpilled = false;
+			return boe;
 		} else {
 			return boe;
 		}
-	}
-
-	/**
-	 * Checks whether a given buffer should be spilled to disk. Currently it
-	 * checks whether the buffer pool from which the buffer was supplied is
-	 * empty and only spills if it is. This avoids out of memory exceptions and
-	 * also blocks at the input gate.
-	 */
-	private boolean shouldSpill() throws IOException {
-		if (boe.isBuffer()) {
-			Buffer buffer = boe.getBuffer();
-			this.bufferSize = buffer.getSize();
-			BufferRecycler recycler = buffer.getRecycler();
-
-			if (recycler instanceof BufferPool) {
-				bufferPool = (BufferPool) recycler;
-				Buffer nextBuffer = bufferPool.requestBuffer();
-				if (nextBuffer == null) {
-					return true;
-				} else {
-					nextBuffer.recycle();
-				}
-			}
-		}
-
-		return false;
 	}
 
 	public boolean isSpilled() {

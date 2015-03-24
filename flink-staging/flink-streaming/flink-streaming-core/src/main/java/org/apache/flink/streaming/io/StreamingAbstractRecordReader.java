@@ -103,6 +103,10 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 				} else {
 					if (handleEvent(event)) {
 						if (inputGate.isFinished()) {
+							if (!barrierBuffer.isEmpty()) {
+								throw new RuntimeException(
+										"BarrierBuffer should be empty at this point");
+							}
 							isFinished = true;
 							return false;
 						} else if (hasReachedEndOfSuperstep()) {

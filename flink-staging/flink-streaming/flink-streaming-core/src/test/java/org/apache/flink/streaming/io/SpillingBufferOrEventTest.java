@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.io;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -41,17 +40,17 @@ public class SpillingBufferOrEventTest {
 
 		Buffer b1 = pool1.requestBuffer();
 		b1.getMemorySegment().putInt(0, 10000);
-		BufferOrEvent boe1 = new BufferOrEvent(b1, 0);
+		BufferOrEvent boe1 = new BufferOrEvent(b1, 2);
 		SpillingBufferOrEvent sboe1 = new SpillingBufferOrEvent(boe1, bsp, spr);
 
-		assertFalse(sboe1.isSpilled());
+		assertTrue(sboe1.isSpilled());
 
 		Buffer b2 = pool2.requestBuffer();
 		b2.getMemorySegment().putInt(0, 10000);
-		BufferOrEvent boe2 = new BufferOrEvent(b2, 0);
+		BufferOrEvent boe2 = new BufferOrEvent(b2, 4);
 		SpillingBufferOrEvent sboe2 = new SpillingBufferOrEvent(boe2, bsp, spr);
 
-		assertFalse(sboe2.isSpilled());
+		assertTrue(sboe2.isSpilled());
 
 		Buffer b3 = pool1.requestBuffer();
 		b3.getMemorySegment().putInt(0, 50000);
@@ -73,14 +72,17 @@ public class SpillingBufferOrEventTest {
 
 		Buffer b1ret = sboe1.getBufferOrEvent().getBuffer();
 		assertEquals(10000, b1ret.getMemorySegment().getInt(0));
+		assertEquals(2, sboe1.getBufferOrEvent().getChannelIndex());
 		b1ret.recycle();
 
 		Buffer b2ret = sboe2.getBufferOrEvent().getBuffer();
 		assertEquals(10000, b2ret.getMemorySegment().getInt(0));
+		assertEquals(4, sboe2.getBufferOrEvent().getChannelIndex());
 		b2ret.recycle();
 
 		Buffer b3ret = sboe3.getBufferOrEvent().getBuffer();
 		assertEquals(50000, b3ret.getMemorySegment().getInt(0));
+		assertEquals(0, sboe3.getBufferOrEvent().getChannelIndex());
 		b3ret.recycle();
 
 		Buffer b4ret = sboe4.getBufferOrEvent().getBuffer();

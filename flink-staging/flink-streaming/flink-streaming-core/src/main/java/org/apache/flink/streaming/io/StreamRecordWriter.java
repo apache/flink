@@ -64,10 +64,12 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 	}
 
 	private class OutputFlusher extends Thread {
-		private boolean running = true;
+		private volatile boolean running = true;
+		
 		public void terminate() {
 			running = false;
 		}
+		
 		@Override
 		public void run() {
 			while (running) {
