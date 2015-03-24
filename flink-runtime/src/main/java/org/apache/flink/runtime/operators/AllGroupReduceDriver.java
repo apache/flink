@@ -32,7 +32,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * GroupReduceDriver task which is executed by a Nephele task manager. The task has a
+ * GroupReduceDriver task which is executed by a Task Manager. The task has a
  * single input and one or multiple outputs. It is provided with a GroupReduceFunction
  * implementation or a RichGroupFunction. This Driver performs
  * multiple tasks depending on the DriverStrategy. In case of a ALL_GROUP_REDUCE_COMBINE

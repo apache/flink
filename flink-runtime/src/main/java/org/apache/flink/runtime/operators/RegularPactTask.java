@@ -1237,12 +1237,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * @param task The task that the output collector is created for.
 	 * @param config The configuration describing the output shipping strategies.
 	 * @param cl The classloader used to load user defined types.
+	 * @param eventualOutputs The output writers that this task forwards to the next task for each output.
+	 * @param outputOffset The offset to start to get the writers for the outputs
 	 * @param numOutputs The number of outputs described in the configuration.
 	 *
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
-	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs)
-			throws Exception
+	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl,
+			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs) throws Exception
 	{
 		if (numOutputs == 0) {
 			return null;
