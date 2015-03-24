@@ -36,14 +36,14 @@ import org.apache.flink.util.Collector;
  * @param <IN> The data type processed by the combine function.
  * @param <OUT> The data type emitted by the combine function.
  */
-public interface FlatCombineFunction<IN, OUT> extends Function, Serializable {
+public interface GroupCombineFunction<IN, OUT> extends Function, Serializable {
 
 	/**
 	 * The combine method, called (potentially multiple timed) with subgroups of elements.
-	 * 
+	 *
 	 * @param values The elements to be combined.
 	 * @param out The collector to use to return values from the function.
-	 * 
+	 *
 	 * @throws Exception The function may throw Exceptions, which will cause the program to cancel,
 	 *                   and may trigger the recovery logic.
 	 */

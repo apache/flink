@@ -20,7 +20,7 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.util.NonReusingMutableToRegularIteratorWrapper;
@@ -35,20 +35,20 @@ import org.slf4j.LoggerFactory;
 * Like @org.apache.flink.runtime.operators.GroupCombineDriver but without grouping and sorting. May emit partially
 * reduced results.
 *
-* @see org.apache.flink.api.common.functions.FlatCombineFunction
+* @see GroupCombineFunction
 */
-public class AllGroupCombineDriver<IN, OUT> implements PactDriver<FlatCombineFunction<IN, OUT>, OUT> {
+public class AllGroupCombineDriver<IN, OUT> implements PactDriver<GroupCombineFunction<IN, OUT>, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AllGroupCombineDriver.class);
 
-	private PactTaskContext<FlatCombineFunction<IN, OUT>, OUT> taskContext;
+	private PactTaskContext<GroupCombineFunction<IN, OUT>, OUT> taskContext;
 
 	private boolean objectReuseEnabled = false;
 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<FlatCombineFunction<IN, OUT>, OUT> context) {
+	public void setup(PactTaskContext<GroupCombineFunction<IN, OUT>, OUT> context) {
 		this.taskContext = context;
 	}
 
@@ -58,9 +58,9 @@ public class AllGroupCombineDriver<IN, OUT> implements PactDriver<FlatCombineFun
 	}
 
 	@Override
-	public Class<FlatCombineFunction<IN, OUT>> getStubType() {
+	public Class<GroupCombineFunction<IN, OUT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<FlatCombineFunction<IN, OUT>> clazz = (Class<FlatCombineFunction<IN, OUT>>) (Class<?>) FlatCombineFunction.class;
+		final Class<GroupCombineFunction<IN, OUT>> clazz = (Class<GroupCombineFunction<IN, OUT>>) (Class<?>) GroupCombineFunction.class;
 		return clazz;
 	}
 
@@ -95,7 +95,7 @@ public class AllGroupCombineDriver<IN, OUT> implements PactDriver<FlatCombineFun
 		TypeSerializer<IN> serializer = serializerFactory.getSerializer();
 
 		final MutableObjectIterator<IN> in = this.taskContext.getInput(0);
-		final FlatCombineFunction<IN, OUT> reducer = this.taskContext.getStub();
+		final GroupCombineFunction<IN, OUT> reducer = this.taskContext.getStub();
 		final Collector<OUT> output = this.taskContext.getOutputCollector();
 
 		if (objectReuseEnabled) {

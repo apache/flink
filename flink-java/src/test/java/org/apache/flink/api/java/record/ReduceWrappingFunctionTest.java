@@ -18,15 +18,12 @@
 
 package org.apache.flink.api.java.record;
 
-import static org.junit.Assert.*;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
@@ -42,6 +39,11 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings({ "serial", "deprecation" })
 public class ReduceWrappingFunctionTest {
@@ -86,7 +88,7 @@ public class ReduceWrappingFunctionTest {
 			target.clear();
 			
 			// test combine
-			((FlatCombineFunction<Record, Record>) reducer).combine(source, collector);
+			((GroupCombineFunction<Record, Record>) reducer).combine(source, collector);
 			assertEquals(2, target.size());
 			assertEquals(new IntValue(42), target.get(0).getField(0, IntValue.class));
 			assertEquals(new LongValue(11), target.get(0).getField(1, LongValue.class));
@@ -138,7 +140,7 @@ public class ReduceWrappingFunctionTest {
 			target.clear();
 			
 			// test combine
-			((FlatCombineFunction<Record, Record>) reducer).combine(source, collector);
+			((GroupCombineFunction<Record, Record>) reducer).combine(source, collector);
 			assertEquals(2, target.size());
 			assertEquals(new IntValue(42), target.get(0).getField(0, IntValue.class));
 			assertEquals(new LongValue(11), target.get(0).getField(1, LongValue.class));
@@ -227,5 +229,5 @@ public class ReduceWrappingFunctionTest {
 			methodCounter.incrementAndGet();
 			super.open(parameters);
 		}
-	};
+	}
 }

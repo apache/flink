@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -173,7 +173,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @param combiner The CombineFunction that is applied on the DataSet.
 	 * @return A GroupCombineOperator which represents the combined DataSet.
 	 */
-	public <R> GroupCombineOperator<T, R> combineGroup(FlatCombineFunction<T, R> combiner) {
+	public <R> GroupCombineOperator<T, R> combineGroup(GroupCombineFunction<T, R> combiner) {
 		if (combiner == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}

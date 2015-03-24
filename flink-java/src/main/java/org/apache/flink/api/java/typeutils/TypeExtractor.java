@@ -34,7 +34,7 @@ import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -135,14 +135,14 @@ public class TypeExtractor {
 		return getUnaryOperatorReturnType((Function) groupReduceInterface, GroupReduceFunction.class, true, true, inType, functionName, allowMissing);
 	}
 
-	public static <IN, OUT> TypeInformation<OUT> getGroupCombineReturnTypes(FlatCombineFunction<IN, OUT> combineInterface, TypeInformation<IN> inType) {
+	public static <IN, OUT> TypeInformation<OUT> getGroupCombineReturnTypes(GroupCombineFunction<IN, OUT> combineInterface, TypeInformation<IN> inType) {
 		return getGroupCombineReturnTypes(combineInterface, inType, null, false);
 	}
 
-	public static <IN, OUT> TypeInformation<OUT> getGroupCombineReturnTypes(FlatCombineFunction<IN, OUT> combineInterface, TypeInformation<IN> inType,
+	public static <IN, OUT> TypeInformation<OUT> getGroupCombineReturnTypes(GroupCombineFunction<IN, OUT> combineInterface, TypeInformation<IN> inType,
 																			String functionName, boolean allowMissing)
 	{
-		return getUnaryOperatorReturnType((Function) combineInterface, FlatCombineFunction.class, true, true, inType, functionName, allowMissing);
+		return getUnaryOperatorReturnType((Function) combineInterface, GroupCombineFunction.class, true, true, inType, functionName, allowMissing);
 	}
 	
 	
@@ -600,7 +600,7 @@ public class TypeExtractor {
 		// the input is a tuple
 		else if (inTypeInfo instanceof TupleTypeInfo && isClassType(inType) 
 				&& Tuple.class.isAssignableFrom(typeToClass(inType))) {
-			ParameterizedType tupleBaseClass = null;
+			ParameterizedType tupleBaseClass;
 			
 			// get tuple from possible tuple subclass
 			while (!(isClassType(inType) && typeToClass(inType).getSuperclass().equals(Tuple.class))) {
@@ -737,7 +737,7 @@ public class TypeExtractor {
 			// check for basic type
 			if (typeInfo.isBasicType()) {
 				
-				TypeInformation<?> actual = null;
+				TypeInformation<?> actual;
 				// check if basic type at all
 				if (!(type instanceof Class<?>) || (actual = BasicTypeInfo.getInfoFor((Class<?>) type)) == null) {
 					throw new InvalidTypesException("Basic type expected.");
@@ -792,7 +792,7 @@ public class TypeExtractor {
 				}
 				
 				// check writable type contents
-				Class<?> clazz = null;
+				Class<?> clazz;
 				if (((WritableTypeInfo<?>) typeInfo).getTypeClass() != (clazz = (Class<?>) type)) {
 					throw new InvalidTypesException("Writable type '"
 							+ ((WritableTypeInfo<?>) typeInfo).getTypeClass().getCanonicalName() + "' expected but was '"
@@ -801,7 +801,7 @@ public class TypeExtractor {
 			}
 			// check for primitive array
 			else if (typeInfo instanceof PrimitiveArrayTypeInfo) {
-				Type component = null;
+				Type component;
 				// check if array at all
 				if (!(type instanceof Class<?> && ((Class<?>) type).isArray() && (component = ((Class<?>) type).getComponentType()) != null)
 						&& !(type instanceof GenericArrayType && (component = ((GenericArrayType) type).getGenericComponentType()) != null)) {
@@ -819,7 +819,7 @@ public class TypeExtractor {
 			}
 			// check for basic array
 			else if (typeInfo instanceof BasicArrayTypeInfo<?, ?>) {
-				Type component = null;
+				Type component;
 				// check if array at all
 				if (!(type instanceof Class<?> && ((Class<?>) type).isArray() && (component = ((Class<?>) type).getComponentType()) != null)
 						&& !(type instanceof GenericArrayType && (component = ((GenericArrayType) type).getGenericComponentType()) != null)) {
@@ -844,7 +844,7 @@ public class TypeExtractor {
 				}
 				
 				// check component
-				Type component = null;
+				Type component;
 				if (type instanceof Class<?>) {
 					component = ((Class<?>) type).getComponentType();
 				} else {
@@ -1428,8 +1428,8 @@ public class TypeExtractor {
 		if (!(t1 instanceof TypeVariable) || !(t2 instanceof TypeVariable)) {
 			return false;
 		}
-		return ((TypeVariable<?>) t1).getName().equals(((TypeVariable<?>)t2).getName())
-				&& ((TypeVariable<?>) t1).getGenericDeclaration().equals(((TypeVariable<?>)t2).getGenericDeclaration());
+		return ((TypeVariable<?>) t1).getName().equals(((TypeVariable<?>) t2).getName())
+				&& ((TypeVariable<?>) t1).getGenericDeclaration().equals(((TypeVariable<?>) t2).getGenericDeclaration());
 	}
 	
 	private static TypeInformation<?> getTypeOfPojoField(TypeInformation<?> pojoInfo, Field field) {

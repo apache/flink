@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.operators.translation;
 
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupCombineOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,9 +30,9 @@ import org.apache.flink.util.Collector;
  * A group combine operator that takes 2-tuples (key-value pairs), and applies the group combine operation only
  * on the unwrapped values.
  */
-public class PlanUnwrappingGroupCombineOperator<IN, OUT, K> extends GroupCombineOperatorBase<Tuple2<K, IN>, OUT, FlatCombineFunction<Tuple2<K, IN>, OUT>> {
+public class PlanUnwrappingGroupCombineOperator<IN, OUT, K> extends GroupCombineOperatorBase<Tuple2<K, IN>, OUT, GroupCombineFunction<Tuple2<K, IN>, OUT>> {
 
-	public PlanUnwrappingGroupCombineOperator(FlatCombineFunction<IN, OUT> udf, Keys.SelectorFunctionKeys<IN, K> key, String name,
+	public PlanUnwrappingGroupCombineOperator(GroupCombineFunction<IN, OUT> udf, Keys.SelectorFunctionKeys<IN, K> key, String name,
 												TypeInformation<OUT> outType, TypeInformation<Tuple2<K, IN>> typeInfoWithKey)
 	{
 		super(new TupleUnwrappingGroupCombiner<IN, OUT, K>(udf),
@@ -42,15 +42,15 @@ public class PlanUnwrappingGroupCombineOperator<IN, OUT, K> extends GroupCombine
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class TupleUnwrappingGroupCombiner<IN, OUT, K> extends WrappingFunction<FlatCombineFunction<IN, OUT>>
-		implements FlatCombineFunction<Tuple2<K, IN>, OUT>
+	public static final class TupleUnwrappingGroupCombiner<IN, OUT, K> extends WrappingFunction<GroupCombineFunction<IN, OUT>>
+		implements GroupCombineFunction<Tuple2<K, IN>, OUT>
 	{
 	
 		private static final long serialVersionUID = 1L;
 		
 		private final TupleUnwrappingIterator<IN, K> iter; 
 		
-		private TupleUnwrappingGroupCombiner(FlatCombineFunction<IN, OUT> wrapped) {
+		private TupleUnwrappingGroupCombiner(GroupCombineFunction<IN, OUT> wrapped) {
 			super(wrapped);
 			this.iter = new TupleUnwrappingIterator<IN, K>();
 		}

@@ -554,7 +554,7 @@ an alternative WordCount implementation. In the implementation,
 DataSet<String> input = [..] // The words received as input
 DataSet<String> groupedInput = input.groupBy(0); // group identical words
 
-DataSet<Tuple2<String, Integer>> combinedWords = groupedInput.combineGroup(new FlatCombineFunction<String, Tuple2<String, Integer>() {
+DataSet<Tuple2<String, Integer>> combinedWords = groupedInput.combineGroup(new GroupCombineFunction<String, Tuple2<String, Integer>() {
 
     public void combine(Iterable<String> words, Collector<Tuple2<String, Integer>>) { // combine
         int count = 0;

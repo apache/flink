@@ -21,7 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -107,15 +107,15 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 	/**
 	 * Marks the group reduce operation as combinable. Combinable operations may pre-reduce the
 	 * data before the actual group reduce operations. Combinable user-defined functions
-	 * must implement the interface {@link org.apache.flink.api.common.functions.FlatCombineFunction}.
+	 * must implement the interface {@link GroupCombineFunction}.
 	 * 
 	 * @param combinable Flag to mark the group reduce operation as combinable.
 	 */
 	public void setCombinable(boolean combinable) {
 		// sanity check
-		if (combinable && !FlatCombineFunction.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
+		if (combinable && !GroupCombineFunction.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
 			throw new IllegalArgumentException("Cannot set a UDF as combinable if it does not implement the interface " +
-					FlatCombineFunction.class.getName());
+					GroupCombineFunction.class.getName());
 		} else {
 			this.combinable = combinable;
 		}

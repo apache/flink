@@ -23,7 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -525,7 +525,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				try {
 					FunctionUtils.closeFunction(this.stub);
 				}
-				catch (Throwable t) {}
+				catch (Throwable t) {
+					// do nothing
+				}
 			}
 			
 			// if resettable driver invoke teardown
@@ -1006,13 +1008,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 							(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 				}
 				
-				if (!(localStub instanceof FlatCombineFunction)) {
+				if (!(localStub instanceof GroupCombineFunction)) {
 					throw new IllegalStateException("Performing combining sort outside a reduce task!");
 				}
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(FlatCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
+					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));
@@ -1467,7 +1469,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		for (int i = 0; i < tasks.size(); i++) {
 			try {
 				tasks.get(i).cancelTask();
-			} catch (Throwable t) {}
+			} catch (Throwable t) {
+				// do nothing
+			}
 		}
 	}
 	

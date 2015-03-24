@@ -23,7 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -45,7 +45,7 @@ import java.util.List;
  * the user supplied a RichGroupReduceFunction with a combine method. The combining is performed in memory with a
  * lazy approach which only combines elements which currently fit in the sorter. This may lead to a partial solution.
  * In the case of the RichGroupReduceFunction this partial result is transformed into a proper deterministic result.
- * The CombineGroup uses the FlatCombineFunction interface which allows to combine values of type <IN> to any type
+ * The CombineGroup uses the GroupCombineFunction interface which allows to combine values of type <IN> to any type
  * of type <OUT>. In contrast, the RichGroupReduceFunction requires the combine method to have the same input and
  * output type to be able to reduce the elements after the combine from <IN> to <OUT>.
  *
@@ -54,18 +54,18 @@ import java.util.List;
  * @param <IN> The data type consumed by the combiner.
  * @param <OUT> The data type produced by the combiner.
  */
-public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<FlatCombineFunction<IN, OUT>, OUT> {
+public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<GroupCombineFunction<IN, OUT>, OUT> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceCombineDriver.class);
 
 	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
 	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
-	private PactTaskContext<FlatCombineFunction<IN, OUT>, OUT> taskContext;
+	private PactTaskContext<GroupCombineFunction<IN, OUT>, OUT> taskContext;
 
 	private InMemorySorter<IN> sorter;
 
-	private FlatCombineFunction<IN, OUT> combiner;
+	private GroupCombineFunction<IN, OUT> combiner;
 
 	private TypeSerializer<IN> serializer;
 
@@ -86,7 +86,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<FlatCombine
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<FlatCombineFunction<IN, OUT>, OUT> context) {
+	public void setup(PactTaskContext<GroupCombineFunction<IN, OUT>, OUT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -97,9 +97,9 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<FlatCombine
 	}
 	
 	@Override
-	public Class<FlatCombineFunction<IN, OUT>> getStubType() {
+	public Class<GroupCombineFunction<IN, OUT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<FlatCombineFunction<IN, OUT>> clazz = (Class<FlatCombineFunction<IN, OUT>>) (Class<?>) FlatCombineFunction.class;
+		final Class<GroupCombineFunction<IN, OUT>> clazz = (Class<GroupCombineFunction<IN, OUT>>) (Class<?>) GroupCombineFunction.class;
 		return clazz;
 	}
 
@@ -188,7 +188,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<FlatCombine
 				final ReusingKeyGroupedIterator<IN> keyIter = 
 						new ReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.serializer, this.groupingComparator);
 
-				final FlatCombineFunction<IN, OUT> combiner = this.combiner;
+				final GroupCombineFunction<IN, OUT> combiner = this.combiner;
 				final Collector<OUT> output = this.output;
 
 				// iterate over key groups
@@ -203,7 +203,7 @@ public class GroupReduceCombineDriver<IN, OUT> implements PactDriver<FlatCombine
 				final NonReusingKeyGroupedIterator<IN> keyIter = 
 						new NonReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.groupingComparator);
 
-				final FlatCombineFunction<IN, OUT> combiner = this.combiner;
+				final GroupCombineFunction<IN, OUT> combiner = this.combiner;
 				final Collector<OUT> output = this.output;
 
 				// iterate over key groups
