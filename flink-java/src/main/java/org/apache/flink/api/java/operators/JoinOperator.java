@@ -225,6 +225,29 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 
 		@Override
+		public DualInputSemanticProperties getSemanticProperties() {
+
+			DualInputSemanticProperties props = super.getSemanticProperties();
+
+			// offset semantic information by extracted key fields
+			if(props != null &&
+					(this.keys1 instanceof Keys.SelectorFunctionKeys ||
+							this.keys2 instanceof Keys.SelectorFunctionKeys)) {
+
+				int numFields1 = this.getInput1Type().getTotalFields();
+				int numFields2 = this.getInput2Type().getTotalFields();
+				int offset1 = (this.keys1 instanceof Keys.SelectorFunctionKeys) ?
+						((Keys.SelectorFunctionKeys) this.keys1).getKeyType().getTotalFields() : 0;
+				int offset2 = (this.keys2 instanceof Keys.SelectorFunctionKeys) ?
+						((Keys.SelectorFunctionKeys) this.keys2).getKeyType().getTotalFields() : 0;
+
+				props = SemanticPropUtil.addSourceFieldOffsets(props, numFields1, numFields2, offset1, offset2);
+			}
+
+			return props;
+		}
+
+		@Override
 		protected DualInputSemanticProperties extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
 			if (function instanceof DefaultJoin.WrappingFlatJoinFunction) {
 				return super.extractSemanticAnnotationsFromUdf(((WrappingFunction<?>) function).getWrappedFunction().getClass());
