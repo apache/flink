@@ -53,7 +53,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 	private volatile Buffer lookAhead;
 
-	public LocalInputChannel(
+	LocalInputChannel(
 			SingleInputGate gate,
 			int channelIndex,
 			ResultPartitionID partitionId,
@@ -71,7 +71,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
+	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		if (queueIterator == null) {
 			LOG.debug("Requesting LOCAL queue {} of partition {}.", subpartitionIndex, partitionId);
 
@@ -87,7 +87,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 	}
 
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	Buffer getNextBuffer() throws IOException, InterruptedException {
 		checkState(queueIterator != null, "Queried for a buffer before requesting a queue.");
 
 		// After subscribe notification
@@ -115,7 +115,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void sendTaskEvent(TaskEvent event) throws IOException {
+	void sendTaskEvent(TaskEvent event) throws IOException {
 		checkState(queueIterator != null, "Tried to send task event to producer before requesting a queue.");
 
 		if (!taskEventDispatcher.publish(partitionId, event)) {
@@ -128,12 +128,12 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 	// ------------------------------------------------------------------------
 
 	@Override
-	public boolean isReleased() {
+	boolean isReleased() {
 		return isReleased;
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() throws IOException {
+	void notifySubpartitionConsumed() throws IOException {
 		if (queueIterator != null) {
 			queueIterator.notifySubpartitionConsumed();
 		}
@@ -144,7 +144,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 	 * iterator.
 	 */
 	@Override
-	public void releaseAllResources() throws IOException {
+	void releaseAllResources() throws IOException {
 		if (!isReleased) {
 			if (lookAhead != null) {
 				lookAhead.recycle();

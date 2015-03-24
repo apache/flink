@@ -53,7 +53,7 @@ public abstract class InputChannel {
 	// Properties
 	// ------------------------------------------------------------------------
 
-	public int getChannelIndex() {
+	int getChannelIndex() {
 		return channelIndex;
 	}
 
@@ -75,12 +75,12 @@ public abstract class InputChannel {
 	 * The queue index to request depends on which sub task the channel belongs
 	 * to and is specified by the consumer of this channel.
 	 */
-	public abstract void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException;
+	abstract void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException;
 
 	/**
 	 * Returns the next buffer from the consumed subpartition.
 	 */
-	public abstract Buffer getNextBuffer() throws IOException, InterruptedException;
+	abstract Buffer getNextBuffer() throws IOException, InterruptedException;
 
 	// ------------------------------------------------------------------------
 	// Task events
@@ -94,19 +94,19 @@ public abstract class InputChannel {
 	 * the producer will wait for all backwards events. Otherwise, this will lead to an Exception
 	 * at runtime.
 	 */
-	public abstract void sendTaskEvent(TaskEvent event) throws IOException;
+	abstract void sendTaskEvent(TaskEvent event) throws IOException;
 
 	// ------------------------------------------------------------------------
 	// Life cycle
 	// ------------------------------------------------------------------------
 
-	public abstract boolean isReleased();
+	abstract boolean isReleased();
 
-	public abstract void notifySubpartitionConsumed() throws IOException;
+	abstract void notifySubpartitionConsumed() throws IOException;
 
 	/**
 	 * Releases all resources of the channel.
 	 */
-	public abstract void releaseAllResources() throws IOException;
+	abstract void releaseAllResources() throws IOException;
 
 }

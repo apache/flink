@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.api.reader;
 
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.util.TestSingleInputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.TestSingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.event.EventListener;

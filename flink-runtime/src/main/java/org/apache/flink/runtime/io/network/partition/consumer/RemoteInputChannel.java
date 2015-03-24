@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -44,37 +43,51 @@ public class RemoteInputChannel extends InputChannel {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteInputChannel.class);
 
-	private final InputChannelID id;
+	/** ID to distinguish this channel from other channels sharing the same TCP connection. */
+	private final InputChannelID id = new InputChannelID();
 
-	private final ConnectionID producerAddress;
+	/** The connection to use to request the remote partition. */
+	private final ConnectionID connectionId;
 
+	/** The connection manager to use connect to the remote partition provider. */
+	private final ConnectionManager connectionManager;
+
+	/**
+	 * The received buffers. Received buffers are enqueued by the network I/O thread and the queue
+	 * is consumed by the receiving task thread.
+	 */
 	private final Queue<Buffer> receivedBuffers = new ArrayDeque<Buffer>();
 
-	private final AtomicReference<IOException> ioError = new AtomicReference<IOException>();
-
+	/**
+	 * Flag indicating whether this channel has been released. Either called by the receiving task
+	 * thread or the task manager actor.
+	 */
 	private final AtomicBoolean isReleased = new AtomicBoolean();
 
+	/** Client to establish a (possibly shared) TCP connection and request the partition. */
 	private PartitionRequestClient partitionRequestClient;
 
+	/**
+	 * The next expected sequence number for the next buffer. This is modified by the network
+	 * I/O thread only.
+	 */
 	private int expectedSequenceNumber = 0;
 
-	private ConnectionManager connectionManager;
+	/**
+	 * An error possibly set by the network I/O thread.
+	 */
+	private volatile Throwable error;
 
-	public RemoteInputChannel(
-			SingleInputGate gate,
+	RemoteInputChannel(
+			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartitionID partitionId,
-			ConnectionID producerAddress,
+			ConnectionID connectionId,
 			ConnectionManager connectionManager) {
 
-		super(gate, channelIndex, partitionId);
+		super(inputGate, channelIndex, partitionId);
 
-		/**
-		 * This ID is used by the {@link PartitionRequestClient} to distinguish
-		 * between receivers, which share the same TCP connection.
-		 */
-		this.id = new InputChannelID();
-		this.producerAddress = checkNotNull(producerAddress);
+		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
 	}
 
@@ -83,22 +96,25 @@ public class RemoteInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
+	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		if (partitionRequestClient == null) {
-			LOG.debug("Requesting REMOTE queue {} from of partition {}.", subpartitionIndex, partitionId);
+			LOG.debug("{}: Requesting REMOTE subpartition {} of partition {}.",
+					this, subpartitionIndex, partitionId);
 
-			partitionRequestClient = connectionManager.createPartitionRequestClient(producerAddress);
+			// Create a client and request the partition
+			partitionRequestClient = connectionManager
+					.createPartitionRequestClient(connectionId);
 
-			partitionRequestClient.requestIntermediateResultPartition(partitionId, subpartitionIndex, this);
+			partitionRequestClient.requestSubpartition(partitionId, subpartitionIndex, this);
 		}
 	}
 
 	@Override
-	public Buffer getNextBuffer() throws IOException {
+	Buffer getNextBuffer() throws IOException {
 		checkState(!isReleased.get(), "Queried for a buffer after channel has been closed.");
 		checkState(partitionRequestClient != null, "Queried for a buffer before requesting a queue.");
 
-		checkIoError();
+		checkError();
 
 		synchronized (receivedBuffers) {
 			Buffer buffer = receivedBuffers.poll();
@@ -117,11 +133,11 @@ public class RemoteInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void sendTaskEvent(TaskEvent event) throws IOException {
+	void sendTaskEvent(TaskEvent event) throws IOException {
 		checkState(!isReleased.get(), "Tried to send task event to producer after channel has been released.");
 		checkState(partitionRequestClient != null, "Tried to send task event to producer before requesting a queue.");
 
-		checkIoError();
+		checkError();
 
 		partitionRequestClient.sendTaskEvent(partitionId, event, this);
 	}
@@ -131,12 +147,12 @@ public class RemoteInputChannel extends InputChannel {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public boolean isReleased() {
+	boolean isReleased() {
 		return isReleased.get();
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() {
+	void notifySubpartitionConsumed() {
 		// Nothing to do
 	}
 
@@ -144,7 +160,7 @@ public class RemoteInputChannel extends InputChannel {
 	 * Releases all received buffers and closes the partition request client.
 	 */
 	@Override
-	public void releaseAllResources() throws IOException {
+	void releaseAllResources() throws IOException {
 		if (isReleased.compareAndSet(false, true)) {
 			synchronized (receivedBuffers) {
 				Buffer buffer;
@@ -155,20 +171,27 @@ public class RemoteInputChannel extends InputChannel {
 
 			if (partitionRequestClient != null) {
 				partitionRequestClient.close(this);
-			} else {
-				connectionManager.closeOpenChannelConnections(producerAddress);
+			}
+			else {
+				connectionManager.closeOpenChannelConnections(connectionId);
 			}
 		}
 	}
 
 	@Override
 	public String toString() {
-		return "RemoteInputChannel [" + partitionId + " at " + producerAddress + "]";
+		return "RemoteInputChannel [" + partitionId + " at " + connectionId + "]";
 	}
 
 	// ------------------------------------------------------------------------
 	// Network I/O notifications (called by network I/O thread)
 	// ------------------------------------------------------------------------
+
+	public int getNumberOfQueuedBuffers() {
+		synchronized (receivedBuffers) {
+			return receivedBuffers.size();
+		}
+	}
 
 	public InputChannelID getInputChannelId() {
 		return id;
@@ -186,8 +209,8 @@ public class RemoteInputChannel extends InputChannel {
 		boolean success = false;
 
 		try {
-			if (!isReleased.get()) {
-				synchronized (receivedBuffers) {
+			synchronized (receivedBuffers) {
+				if (!isReleased.get()) {
 					if (expectedSequenceNumber == sequenceNumber) {
 						receivedBuffers.add(buffer);
 						expectedSequenceNumber++;
@@ -195,13 +218,11 @@ public class RemoteInputChannel extends InputChannel {
 						notifyAvailableBuffer();
 
 						success = true;
-
-						return;
+					}
+					else {
+						onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
 					}
 				}
-
-				IOException error = new BufferReorderingException(expectedSequenceNumber, sequenceNumber);
-				ioError.compareAndSet(null, error);
 			}
 		}
 		finally {
@@ -212,33 +233,35 @@ public class RemoteInputChannel extends InputChannel {
 	}
 
 	public void onEmptyBuffer(int sequenceNumber) {
-		if (!isReleased.get()) {
-			synchronized (receivedBuffers) {
+		synchronized (receivedBuffers) {
+			if (!isReleased.get()) {
 				if (expectedSequenceNumber == sequenceNumber) {
 					expectedSequenceNumber++;
 				}
 				else {
-					IOException error = new BufferReorderingException(expectedSequenceNumber, sequenceNumber);
-					ioError.compareAndSet(null, error);
+					onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
 				}
 			}
 		}
 	}
 
-	public void onError(Throwable error) {
-		if (ioError.compareAndSet(null, error instanceof IOException ? (IOException) error : new IOException(error))) {
+	public void onError(Throwable cause) {
+		if (error == null) {
+			error = cause;
+
+			// Notify the input gate to trigger querying of this channel
 			notifyAvailableBuffer();
 		}
 	}
 
-	// ------------------------------------------------------------------------
+	/**
+	 * Checks whether this channel got notified by the network I/O thread about an error.
+	 */
+	private void checkError() throws IOException {
+		final Throwable t = error;
 
-	private void checkIoError() throws IOException {
-		IOException error = ioError.get();
-
-		if (error != null) {
-			throw new IOException(String.format("%s at remote input channel: %s].",
-					error.getClass().getName(), error.getMessage()));
+		if (t != null) {
+			throw new IOException(t);
 		}
 	}
 
