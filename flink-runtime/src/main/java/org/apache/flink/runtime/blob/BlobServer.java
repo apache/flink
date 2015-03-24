@@ -336,7 +336,12 @@ public class BlobServer extends Thread implements BlobService {
 		}
 	}
 
-	List<BlobServerConnection> getCurrentyActiveConnections() {
+	/**
+	 * Returns all the current active connections in the BlobServer.
+	 *
+	 * @return the list of all the active in current BlobServer
+	 */
+	List<BlobServerConnection> getCurrentActiveConnections() {
 		synchronized (activeConnections) {
 			return new ArrayList<BlobServerConnection>(activeConnections);
 		}
