@@ -23,12 +23,21 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 public class UnionInputGateTest {
 
-	@Test
-	public void testChannelMapping() throws Exception {
-
+	/**
+	 * Tests basic correctness of buffer-or-event interleaving and correct <code>null</code> return
+	 * value after receiving all end-of-partition events.
+	 *
+	 * <p> For buffer-or-event instances, it is important to verify that they have been set off to
+	 * the correct logical index.
+	 */
+	@Test(timeout = 120 * 1000)
+	public void testBasicGetNextLogic() throws Exception {
+		// Setup
 		final SingleInputGate ig1 = new SingleInputGate(new IntermediateDataSetID(), 0, 3);
 		final SingleInputGate ig2 = new SingleInputGate(new IntermediateDataSetID(), 0, 5);
 
@@ -42,21 +51,41 @@ public class UnionInputGateTest {
 		};
 
 		inputChannels[0][0].readBuffer(); // 0 => 0
+		inputChannels[0][0].readEndOfPartitionEvent(); // 0 => 0
 		inputChannels[1][2].readBuffer(); // 2 => 5
+		inputChannels[1][2].readEndOfPartitionEvent(); // 2 => 5
 		inputChannels[1][0].readBuffer(); // 0 => 3
 		inputChannels[1][1].readBuffer(); // 1 => 4
 		inputChannels[0][1].readBuffer(); // 1 => 1
 		inputChannels[1][3].readBuffer(); // 3 => 6
+		inputChannels[0][1].readEndOfPartitionEvent(); // 1 => 1
+		inputChannels[1][3].readEndOfPartitionEvent(); // 3 => 6
 		inputChannels[0][2].readBuffer(); // 1 => 2
+		inputChannels[0][2].readEndOfPartitionEvent(); // 1 => 2
 		inputChannels[1][4].readBuffer(); // 4 => 7
+		inputChannels[1][4].readEndOfPartitionEvent(); // 4 => 7
+		inputChannels[1][1].readEndOfPartitionEvent(); // 0 => 3
+		inputChannels[1][0].readEndOfPartitionEvent(); // 0 => 3
 
-		assertEquals(0, union.getNextBufferOrEvent().getChannelIndex());
-		assertEquals(5, union.getNextBufferOrEvent().getChannelIndex());
-		assertEquals(3, union.getNextBufferOrEvent().getChannelIndex());
-		assertEquals(4, union.getNextBufferOrEvent().getChannelIndex());
-		assertEquals(1, union.getNextBufferOrEvent().getChannelIndex());
-		assertEquals(6, union.getNextBufferOrEvent().getChannelIndex());
-		assertEquals(2, union.getNextBufferOrEvent().getChannelIndex());
-		assertEquals(7, union.getNextBufferOrEvent().getChannelIndex());
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 0);
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 0);
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 5);
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 5);
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 3);
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 4);
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 1);
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 6);
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 1);
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 6);
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 2);
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 2);
+		SingleInputGateTest.verifyBufferOrEvent(union, true, 7);
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 7);
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 4);
+		SingleInputGateTest.verifyBufferOrEvent(union, false, 3);
+
+		// Return null when the input gate has received all end-of-partition events
+		assertTrue(union.isFinished());
+		assertNull(union.getNextBufferOrEvent());
 	}
 }

@@ -32,11 +32,17 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.io.network.util.TestInputChannel;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.junit.Test;
 
+import java.io.IOException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -45,6 +51,44 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SingleInputGateTest {
+
+	/**
+	 * Tests basic correctness of buffer-or-event interleaving and correct <code>null</code> return
+	 * value after receiving all end-of-partition events.
+	 */
+	@Test(timeout = 120 * 1000)
+	public void testBasicGetNextLogic() throws Exception {
+		// Setup
+		final SingleInputGate inputGate = new SingleInputGate(new IntermediateDataSetID(), 0, 2);
+
+		final TestInputChannel[] inputChannels = new TestInputChannel[]{
+				new TestInputChannel(inputGate, 0),
+				new TestInputChannel(inputGate, 1)
+		};
+
+		inputGate.setInputChannel(
+				new IntermediateResultPartitionID(), inputChannels[0].getInputChannel());
+
+		inputGate.setInputChannel(
+				new IntermediateResultPartitionID(), inputChannels[1].getInputChannel());
+
+		// Test
+		inputChannels[0].readBuffer();
+		inputChannels[0].readBuffer();
+		inputChannels[1].readBuffer();
+		inputChannels[1].readEndOfPartitionEvent();
+		inputChannels[0].readEndOfPartitionEvent();
+
+		verifyBufferOrEvent(inputGate, true, 0);
+		verifyBufferOrEvent(inputGate, true, 0);
+		verifyBufferOrEvent(inputGate, true, 1);
+		verifyBufferOrEvent(inputGate, false, 1);
+		verifyBufferOrEvent(inputGate, false, 0);
+
+		// Return null when the input gate has received all end-of-partition events
+		assertTrue(inputGate.isFinished());
+		assertNull(inputGate.getNextBufferOrEvent());
+	}
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -100,5 +144,17 @@ public class SingleInputGateTest {
 
 		verify(partitionManager, times(2)).getSubpartition(any(ResultPartitionID.class), anyInt(), any(Optional.class));
 		verify(taskEventDispatcher, times(2)).publish(any(ResultPartitionID.class), any(TaskEvent.class));
+	}
+
+	// ---------------------------------------------------------------------------------------------
+
+	static void verifyBufferOrEvent(
+			InputGate inputGate,
+			boolean isBuffer,
+			int channelIndex) throws IOException, InterruptedException {
+
+		final BufferOrEvent boe = inputGate.getNextBufferOrEvent();
+		assertEquals(isBuffer, boe.isBuffer());
+		assertEquals(channelIndex, boe.getChannelIndex());
 	}
 }

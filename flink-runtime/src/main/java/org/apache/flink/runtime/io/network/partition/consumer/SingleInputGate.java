@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -124,11 +125,15 @@ public class SingleInputGate implements InputGate {
 	/** Channels, which notified this input gate about available data. */
 	private final BlockingQueue<InputChannel> inputChannelsWithData = new LinkedBlockingQueue<InputChannel>();
 
+	private final BitSet channelsWithEndOfPartitionEvents;
+
 	/**
 	 * Buffer pool for incoming buffers. Incoming data from remote channels is copied to buffers
 	 * from this pool.
 	 */
 	private BufferPool bufferPool;
+
+	private boolean hasReceivedAllEndOfPartitionEvents;
 
 	/** Flag indicating whether partitions have been requested. */
 	private boolean requestedPartitionsFlag;
@@ -153,6 +158,7 @@ public class SingleInputGate implements InputGate {
 		this.numberOfInputChannels = numberOfInputChannels;
 
 		this.inputChannels = Maps.newHashMapWithExpectedSize(numberOfInputChannels);
+		this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
 	}
 
 	// ------------------------------------------------------------------------
@@ -311,8 +317,12 @@ public class SingleInputGate implements InputGate {
 	@Override
 	public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
 
+		if (hasReceivedAllEndOfPartitionEvents) {
+			return null;
+		}
+
 		if (isReleased) {
-			throw new IllegalStateException("The input has already been consumed. This indicates misuse of the input gate.");
+			throw new IllegalStateException("Already released.");
 		}
 
 		requestPartitions();
@@ -337,6 +347,12 @@ public class SingleInputGate implements InputGate {
 			final AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
 
 			if (event.getClass() == EndOfPartitionEvent.class) {
+				channelsWithEndOfPartitionEvents.set(currentChannel.getChannelIndex());
+
+				if (channelsWithEndOfPartitionEvents.cardinality() == numberOfInputChannels) {
+					hasReceivedAllEndOfPartitionEvents = true;
+				}
+
 				currentChannel.notifySubpartitionConsumed();
 
 				currentChannel.releaseAllResources();

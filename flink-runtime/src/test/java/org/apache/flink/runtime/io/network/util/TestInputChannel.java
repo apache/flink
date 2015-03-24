@@ -113,6 +113,11 @@ public class TestInputChannel {
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Creates test input channels and attaches them to the specified input gate.
+	 *
+	 * @return The created test input channels.
+	 */
 	public static TestInputChannel[] createInputChannels(SingleInputGate inputGate, int numberOfInputChannels) {
 		checkNotNull(inputGate);
 		checkArgument(numberOfInputChannels > 0);
