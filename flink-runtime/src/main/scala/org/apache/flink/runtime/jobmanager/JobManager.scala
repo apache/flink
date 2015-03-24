@@ -487,8 +487,8 @@ class JobManager(val configuration: Configuration,
         executionGraph.setScheduleMode(jobGraph.getScheduleMode)
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
         
-        executionGraph.setCheckpointingEnabled(jobGraph.isMonitoringEnabled)
-        executionGraph.setCheckpointingInterval(jobGraph.getMonitorInterval)
+        executionGraph.setCheckpointingEnabled(jobGraph.isCheckpointingEnabled)
+        executionGraph.setCheckpointingInterval(jobGraph.getCheckpointingInterval)
 
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits

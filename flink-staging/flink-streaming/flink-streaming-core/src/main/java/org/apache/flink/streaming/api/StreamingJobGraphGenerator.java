@@ -78,10 +78,10 @@ public class StreamingJobGraphGenerator {
 		// Turn lazy scheduling off
 		jobGraph.setScheduleMode(ScheduleMode.ALL);
 		jobGraph.setJobType(JobGraph.JobType.STREAMING);
-		jobGraph.setMonitoringEnabled(streamGraph.isCheckpointingEnabled());
-		jobGraph.setMonitorInterval(streamGraph.getCheckpointingInterval());
+		jobGraph.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
+		jobGraph.setCheckpointingInterval(streamGraph.getCheckpointingInterval());
 
-		if(jobGraph.isMonitoringEnabled()) {
+		if(jobGraph.isCheckpointingEnabled()) {
 			int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
 			if(executionRetries != -1) {
 				jobGraph.setNumberOfExecutionRetries(executionRetries);
