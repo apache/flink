@@ -1005,6 +1005,64 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				"PojoWithCollection{pojos.size()=2, key=0, sqlDate=1976-05-03, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=31104000, mixed=null}\n";
 	}
 
+	@Test
+	public void testGroupReduceSelectorKeysWithSemProps() throws Exception {
+
+		/*
+		 * Test that semantic properties are correctly adapted when using Selector Keys
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(4);
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple2<Integer, Long>> reduceDs = ds
+				// group by selector key
+				.groupBy(new KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Long>() {
+					@Override
+					public Long getKey(Tuple5<Integer, Long, Integer, String, Long> v) throws Exception {
+						return (v.f0*v.f1)-(v.f2*v.f4);
+					}
+				})
+				.reduceGroup(
+						new GroupReduceFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>>() {
+							@Override
+							public void reduce(Iterable<Tuple5<Integer, Long, Integer, String, Long>> values, Collector<Tuple5<Integer, Long, Integer, String, Long>> out) throws Exception {
+								for (Tuple5<Integer, Long, Integer, String, Long> v : values) {
+									out.collect(v);
+								}
+							}
+						})
+				// add forward field information
+				.withForwardedFields("0")
+				// group again and reduce
+				.groupBy(0).reduceGroup(
+						new GroupReduceFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Long>>() {
+							@Override
+							public void reduce(Iterable<Tuple5<Integer, Long, Integer, String, Long>> values, Collector<Tuple2<Integer, Long>> out) throws Exception {
+								int k = 0;
+								long s = 0;
+								for (Tuple5<Integer, Long, Integer, String, Long> v : values) {
+									k = v.f0;
+									s += v.f1;
+								}
+								out.collect(new Tuple2<Integer, Long>(k, s));
+							}
+						}
+				);
+
+		reduceDs.writeAsCsv(resultPath);
+
+		env.execute();
+
+		expected = "1,1\n" +
+				"2,5\n" +
+				"3,15\n" +
+				"4,34\n" +
+				"5,65\n";
+
+	}
+
 	public static class GroupReducer8 implements GroupReduceFunction<CollectionDataSets.PojoWithCollection, String> {
 		@Override
 		public void reduce(
