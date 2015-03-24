@@ -22,7 +22,7 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -46,7 +46,7 @@ import java.util.List;
  * This class is later processed by the compiler to generate the plan.
  * @see org.apache.flink.api.common.functions.CombineFunction
  */
-public class GroupCombineOperatorBase<IN, OUT, FT extends FlatCombineFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
+public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
 
 	/** The ordering for the order inside a reduce group. */
@@ -81,7 +81,7 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends FlatCombineFunction<IN
 
 	@Override
 	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
-		FlatCombineFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
+		GroupCombineFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
 
 		UnaryOperatorInformation<IN, OUT> operatorInfo = getOperatorInfo();
 		TypeInformation<IN> inputType = operatorInfo.getInputType();

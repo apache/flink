@@ -21,14 +21,14 @@ package org.apache.flink.test.iterative.nephele.customdanglingpagerank;
 import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
 import org.apache.flink.util.Collector;
 
 
 public class CustomRankCombiner extends AbstractRichFunction implements GroupReduceFunction<VertexWithRank, VertexWithRank>,
-		FlatCombineFunction<VertexWithRank, VertexWithRank>
+		GroupCombineFunction<VertexWithRank, VertexWithRank>
 {
 	private static final long serialVersionUID = 1L;
 	

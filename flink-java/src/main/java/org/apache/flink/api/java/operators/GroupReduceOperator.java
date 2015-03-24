@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
@@ -88,7 +88,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	}
 
 	private void checkCombinability() {
-		if (function instanceof FlatCombineFunction &&
+		if (function instanceof GroupCombineFunction &&
 				function.getClass().getAnnotation(RichGroupReduceFunction.Combinable.class) != null) {
 			this.combinable = true;
 		}
@@ -111,7 +111,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	
 	public GroupReduceOperator<IN, OUT> setCombinable(boolean combinable) {
 		// sanity check that the function is a subclass of the combine interface
-		if (combinable && !(function instanceof FlatCombineFunction)) {
+		if (combinable && !(function instanceof GroupCombineFunction)) {
 			throw new IllegalArgumentException("The function does not implement the combine interface.");
 		}
 		

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
@@ -46,7 +46,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
  */
 public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, GroupCombineOperator<IN, OUT>> {
 
-	private final FlatCombineFunction<IN, OUT> function;
+	private final GroupCombineFunction<IN, OUT> function;
 
 	private final Grouping<IN> grouper;
 
@@ -60,7 +60,7 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 	 * @param function The user-defined GroupReduce function.
 	 * @param defaultName The operator's name.
 	 */
-	public GroupCombineOperator(DataSet<IN> input, TypeInformation<OUT> resultType, FlatCombineFunction<IN, OUT> function, String defaultName) {
+	public GroupCombineOperator(DataSet<IN> input, TypeInformation<OUT> resultType, GroupCombineFunction<IN, OUT> function, String defaultName) {
 		super(input, resultType);
 		this.function = function;
 		this.grouper = null;
@@ -73,7 +73,7 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 	 * @param input The grouped input to be processed group-wise by the groupReduce function.
 	 * @param function The user-defined GroupReduce function.
 	 */
-	public GroupCombineOperator(Grouping<IN> input, TypeInformation<OUT> resultType, FlatCombineFunction<IN, OUT> function, String defaultName) {
+	public GroupCombineOperator(Grouping<IN> input, TypeInformation<OUT> resultType, GroupCombineFunction<IN, OUT> function, String defaultName) {
 		super(input != null ? input.getDataSet() : null, resultType);
 
 		this.function = function;
@@ -82,7 +82,7 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 	}
 
 	@Override
-	protected FlatCombineFunction<IN, OUT> getFunction() {
+	protected GroupCombineFunction<IN, OUT> getFunction() {
 		return function;
 	}
 
@@ -99,8 +99,8 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 		if (grouper == null) {
 			// non grouped reduce
 			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
-			GroupCombineOperatorBase<IN, OUT, FlatCombineFunction<IN, OUT>> po =
-					new GroupCombineOperatorBase<IN, OUT, FlatCombineFunction<IN, OUT>>(function, operatorInfo, new int[0], name);
+			GroupCombineOperatorBase<IN, OUT, GroupCombineFunction<IN, OUT>> po =
+					new GroupCombineOperatorBase<IN, OUT, GroupCombineFunction<IN, OUT>>(function, operatorInfo, new int[0], name);
 
 			po.setInput(input);
 			// the parallelism for a non grouped reduce can only be 1
@@ -144,8 +144,8 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 
 			int[] logicalKeyPositions = grouper.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
-			GroupCombineOperatorBase<IN, OUT, FlatCombineFunction<IN, OUT>> po =
-					new GroupCombineOperatorBase<IN, OUT, FlatCombineFunction<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
+			GroupCombineOperatorBase<IN, OUT, GroupCombineFunction<IN, OUT>> po =
+					new GroupCombineOperatorBase<IN, OUT, GroupCombineFunction<IN, OUT>>(function, operatorInfo, logicalKeyPositions, name);
 
 			po.setInput(input);
 			po.setParallelism(getParallelism());
@@ -175,7 +175,7 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 	// --------------------------------------------------------------------------------------------
 
 	private static <IN, OUT, K> PlanUnwrappingGroupCombineOperator<IN, OUT, K> translateSelectorFunctionReducer(
-			Keys.SelectorFunctionKeys<IN, ?> rawKeys, FlatCombineFunction<IN, OUT> function,
+			Keys.SelectorFunctionKeys<IN, ?> rawKeys, GroupCombineFunction<IN, OUT> function,
 			TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator<IN> input)
 	{
 		@SuppressWarnings("unchecked")
@@ -199,7 +199,7 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 	}
 
 	private static <IN, OUT, K1, K2> PlanUnwrappingSortedGroupCombineOperator<IN, OUT, K1, K2> translateSelectorFunctionSortedReducer(
-			Keys.SelectorFunctionKeys<IN, ?> rawGroupingKey, Keys.SelectorFunctionKeys<IN, ?> rawSortingKey, FlatCombineFunction<IN, OUT> function,
+			Keys.SelectorFunctionKeys<IN, ?> rawGroupingKey, Keys.SelectorFunctionKeys<IN, ?> rawSortingKey, GroupCombineFunction<IN, OUT> function,
 			TypeInformation<IN> inputType, TypeInformation<OUT> outputType, String name, Operator<IN> input)
 	{
 		@SuppressWarnings("unchecked")

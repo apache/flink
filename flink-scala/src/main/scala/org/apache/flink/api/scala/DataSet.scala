@@ -641,7 +641,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *  arbitrary output type.
    */
   def combineGroup[R: TypeInformation: ClassTag](
-      combiner: FlatCombineFunction[T, R]): DataSet[R] = {
+      combiner: GroupCombineFunction[T, R]): DataSet[R] = {
     if (combiner == null) {
       throw new NullPointerException("Combine function must not be null.")
     }
@@ -670,7 +670,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     if (fun == null) {
       throw new NullPointerException("Combine function must not be null.")
     }
-    val combiner = new FlatCombineFunction[T, R] {
+    val combiner = new GroupCombineFunction[T, R] {
       val cleanFun = clean(fun)
       def combine(in: java.lang.Iterable[T], out: Collector[R]) {
         cleanFun(in.iterator().asScala, out)

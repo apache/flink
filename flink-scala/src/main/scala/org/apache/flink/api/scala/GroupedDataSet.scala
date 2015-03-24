@@ -22,7 +22,7 @@ import org.apache.flink.api.java.functions.{KeySelector, FirstReducer}
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
 import scala.collection.JavaConverters._
 import org.apache.commons.lang3.Validate
-import org.apache.flink.api.common.functions.{FlatCombineFunction, GroupReduceFunction, ReduceFunction, Partitioner}
+import org.apache.flink.api.common.functions.{GroupCombineFunction, GroupReduceFunction, ReduceFunction, Partitioner}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.operators._
@@ -370,7 +370,7 @@ class GroupedDataSet[T: ClassTag](
   def combineGroup[R: TypeInformation: ClassTag](
                                           fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
     Validate.notNull(fun, "GroupCombine function must not be null.")
-    val combiner = new FlatCombineFunction[T, R] {
+    val combiner = new GroupCombineFunction[T, R] {
       val cleanFun = set.clean(fun)
       def combine(in: java.lang.Iterable[T], out: Collector[R]) {
         cleanFun(in.iterator().asScala, out)
@@ -396,7 +396,7 @@ class GroupedDataSet[T: ClassTag](
    *  arbitrary output type.
    */
   def combineGroup[R: TypeInformation: ClassTag](
-      combiner: FlatCombineFunction[T, R]): DataSet[R] = {
+      combiner: GroupCombineFunction[T, R]): DataSet[R] = {
     Validate.notNull(combiner, "GroupCombine function must not be null.")
     wrap(
       new GroupCombineOperator[T, R](maybeCreateSortedGrouping(),

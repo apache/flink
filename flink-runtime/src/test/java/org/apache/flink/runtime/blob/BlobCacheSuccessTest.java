@@ -18,11 +18,6 @@
 
 package org.apache.flink.runtime.blob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
@@ -32,6 +27,11 @@ import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * This class contains unit tests for the {@link BlobCache}.
@@ -70,8 +70,8 @@ public class BlobCacheSuccessTest {
 
 			blobCache = new BlobCache(serverAddress, new Configuration());
 
-			for(int i = 0; i < blobKeys.size(); i++){
-				blobCache.getURL(blobKeys.get(i));
+			for (BlobKey blobKey : blobKeys) {
+				blobCache.getURL(blobKey);
 			}
 
 			// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
@@ -87,9 +87,7 @@ public class BlobCacheSuccessTest {
 			// Verify the result
 			assertEquals(blobKeys.size(), urls.length);
 
-			for (int i = 0; i < urls.length; ++i) {
-
-				final URL url = urls[i];
+			for (final URL url : urls) {
 
 				assertNotNull(url);
 
