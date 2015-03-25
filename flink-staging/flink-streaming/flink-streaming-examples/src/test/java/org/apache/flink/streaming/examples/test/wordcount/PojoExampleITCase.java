@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test;
+package org.apache.flink.streaming.examples.test.wordcount;
 
 import org.apache.flink.streaming.examples.wordcount.PojoExample;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
