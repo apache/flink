@@ -435,8 +435,8 @@ under the License.
 		</profile>
 
 		<profile>
-			<!-- used for SNAPSHOT and regular releases -->
-			<id>docs-and-source</id>
+			<!-- used for aggregating  ScalaDoc with JavaDoc -->
+			<id>aggregate-scaladoc</id>
 			<build>
 				<plugins>
 
@@ -452,6 +452,18 @@ under the License.
 								<goals>
 									<goal>clean</goal>
 								</goals>
+								<configuration>
+									<excludeDefaultDirectories>true</excludeDefaultDirectories>
+									<filesets>
+										<fileset>
+											<directory>${project.build.directory}</directory>
+											<includes>
+												<include>**/*.class</include>
+												<include>**/classes.*.timestamp</include>
+											</includes>
+										</fileset>
+									</filesets>
+								</configuration>
 							</execution>
 						</executions>
 					</plugin>
@@ -498,6 +510,15 @@ under the License.
 							</execution>
 						</executions>
 					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<!-- used for SNAPSHOT and regular releases -->
+			<id>docs-and-source</id>
+			<build>
+				<plugins>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-source-plugin</artifactId>
@@ -530,6 +551,7 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
+		
 		<profile>
 			<id>release</id>
 				<build>
