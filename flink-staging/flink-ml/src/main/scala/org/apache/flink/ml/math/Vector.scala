@@ -18,29 +18,45 @@
 
 package org.apache.flink.ml.math
 
-/**
- * Base trait for Vectors
- */
+/** Base trait for Vectors
+  *
+  */
 trait Vector {
 
-  /**
-   * Number of elements in a vector
-   * @return
-   */
+  /** Number of elements in a vector
+    *
+    * @return
+    */
   def size: Int
 
-  /**
-   * Element wise access function
-   *
-   * @param index index of the accessed element
-   * @return element with index
-   */
+  /** Element wise access function
+    *
+    * * @param index index of the accessed element
+    * @return element with index
+    */
   def apply(index: Int): Double
 
-  /**
-   * Copies the vector instance
-   *
-   * @return Copy of the vector instance
-   */
+  /** Updates the element at the given index with the provided value
+    *
+    * @param index
+    * @param value
+    */
+  def update(index: Int, value: Double): Unit
+
+  /** Copies the vector instance
+    *
+    * @return Copy of the vector instance
+    */
   def copy: Vector
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case vector: Vector if size == vector.size =>
+        0 until size forall { idx =>
+          this(idx) == vector(idx)
+        }
+
+      case _ => false
+    }
+  }
 }

@@ -18,13 +18,13 @@
 
 package org.apache.flink.ml.math
 
-import org.scalatest.FlatSpec
+import org.junit.Test
+import org.scalatest.ShouldMatchers
 
-class DenseMatrixSuite extends FlatSpec {
+class DenseMatrixTest extends ShouldMatchers {
 
-  behavior of "A DenseMatrix"
-
-  it should "contain the initialization data after intialization" in {
+  @Test
+  def testDataAfterInitialization: Unit = {
     val numRows = 10
     val numCols = 13
 
@@ -40,7 +40,8 @@ class DenseMatrixSuite extends FlatSpec {
     }
   }
 
-  it should "throw an IllegalArgumentException in case of an invalid index access" in {
+  @Test
+  def testIllegalArgumentExceptionInCaseOfInvalidIndexAccess: Unit = {
     val numRows = 10
     val numCols = 13
 
@@ -65,5 +66,24 @@ class DenseMatrixSuite extends FlatSpec {
     intercept[IllegalArgumentException] {
       matrix(numRows, numCols)
     }
+  }
+
+  @Test
+  def testCopy: Unit = {
+    val numRows = 4
+    val numCols = 5
+
+    val data = Array.range(0, numRows*numCols)
+
+    val denseMatrix = DenseMatrix.apply(numRows, numCols, data)
+
+    val copy = denseMatrix.copy
+
+
+    denseMatrix should equal(copy)
+
+    copy(0, 0) = 1
+
+    denseMatrix should not equal(copy)
   }
 }
