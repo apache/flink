@@ -18,15 +18,14 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import com.google.common.base.Optional;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
+import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
@@ -130,10 +129,10 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		final PipelinedSubpartition subpartition = createSubpartition();
 
 		// Successful request
-		assertNotNull(subpartition.getReadView(Optional.<BufferProvider>absent()));
+		assertNotNull(subpartition.createReadView(null));
 
 		try {
-			subpartition.getReadView(Optional.<BufferProvider>absent());
+			subpartition.createReadView(null);
 
 			fail("Did not throw expected exception after duplicate read view request.");
 		}
@@ -147,7 +146,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		TestNotificationListener listener = new TestNotificationListener();
 
-		ResultSubpartitionView view = subpartition.getReadView(Optional.<BufferProvider>absent());
+		ResultSubpartitionView view = subpartition.createReadView(null);
 
 		// Empty => should return null
 		assertNull(view.getNextBuffer());
@@ -262,8 +261,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 		final PipelinedSubpartition subpartition = createSubpartition();
 
-		final PipelinedSubpartitionView view = subpartition.getReadView(
-				Optional.<BufferProvider>absent());
+		final PipelinedSubpartitionView view = subpartition.createReadView(null);
 
 		Future<Boolean> producer = executorService.submit(
 				new TestSubpartitionProducer(subpartition, isSlowProducer, producerSource));

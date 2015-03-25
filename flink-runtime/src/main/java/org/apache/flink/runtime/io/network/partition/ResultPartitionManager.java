@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Table;
@@ -46,7 +45,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
 	private boolean isShutdown;
 
-	public void registerIntermediateResultPartition(ResultPartition partition) throws IOException {
+	public void registerResultPartition(ResultPartition partition) throws IOException {
 		synchronized (registeredPartitions) {
 			checkState(!isShutdown, "Result partition manager already shut down.");
 
@@ -64,10 +63,10 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 	}
 
 	@Override
-	public ResultSubpartitionView getSubpartition(
+	public ResultSubpartitionView createSubpartitionView(
 			ResultPartitionID partitionId,
 			int subpartitionIndex,
-			Optional<BufferProvider> bufferProvider) throws IOException {
+			BufferProvider bufferProvider) throws IOException {
 
 		synchronized (registeredPartitions) {
 			final ResultPartition partition = registeredPartitions.get(partitionId.getProducerId(),
@@ -79,7 +78,7 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
 			LOG.debug("Requested partition {}.", partition);
 
-			return partition.getSubpartition(subpartitionIndex, bufferProvider);
+			return partition.createSubpartitionView(subpartitionIndex, bufferProvider);
 		}
 	}
 

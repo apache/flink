@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import com.google.common.base.Optional;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
@@ -90,10 +88,10 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 				LOG.debug("Read channel on {}: {}.",ctx.channel().localAddress(), request);
 
 				ResultSubpartitionView queueIterator =
-						partitionProvider.getSubpartition(
+						partitionProvider.createSubpartitionView(
 								request.partitionId,
 								request.queueIndex,
-								Optional.<BufferProvider>of(bufferPool));
+								bufferPool);
 
 				if (queueIterator != null) {
 					outboundQueue.enqueue(queueIterator, request.receiverId);

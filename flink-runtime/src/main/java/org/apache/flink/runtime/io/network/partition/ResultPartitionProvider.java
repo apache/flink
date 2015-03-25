@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import com.google.common.base.Optional;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 
 import java.io.IOException;
@@ -28,6 +27,9 @@ public interface ResultPartitionProvider {
 	/**
 	 * Returns the requested intermediate result partition input view.
 	 */
-	ResultSubpartitionView getSubpartition(ResultPartitionID partitionId, int index, Optional<BufferProvider> bufferProvider) throws IOException;
+	ResultSubpartitionView createSubpartitionView(
+			ResultPartitionID partitionId,
+			int index,
+			BufferProvider bufferProvider) throws IOException;
 
 }

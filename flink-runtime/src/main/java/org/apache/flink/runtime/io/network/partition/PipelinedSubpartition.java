@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import com.google.common.base.Optional;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -168,7 +167,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public PipelinedSubpartitionView getReadView(Optional<BufferProvider> bufferProvider) {
+	public PipelinedSubpartitionView createReadView(BufferProvider bufferProvider) {
 		synchronized (buffers) {
 			if (readView != null) {
 				throw new IllegalStateException("Subpartition is being or already has been " +

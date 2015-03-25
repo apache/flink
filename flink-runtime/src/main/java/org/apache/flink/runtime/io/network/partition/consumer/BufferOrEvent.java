@@ -22,6 +22,7 @@ import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Either type for {@link Buffer} or {@link AbstractEvent} instances tagged with the channel index,
@@ -36,14 +37,14 @@ public class BufferOrEvent {
 	private int channelIndex;
 
 	public BufferOrEvent(Buffer buffer, int channelIndex) {
-		this.buffer = buffer;
+		this.buffer = checkNotNull(buffer);
 		this.event = null;
 		this.channelIndex = channelIndex;
 	}
 
 	public BufferOrEvent(AbstractEvent event, int channelIndex) {
 		this.buffer = null;
-		this.event = event;
+		this.event = checkNotNull(event);
 		this.channelIndex = channelIndex;
 	}
 
@@ -70,5 +71,11 @@ public class BufferOrEvent {
 	public void setChannelIndex(int channelIndex) {
 		checkArgument(channelIndex >= 0);
 		this.channelIndex = channelIndex;
+	}
+
+	@Override
+	public String toString() {
+		return String.format("BufferOrEvent [%s, channelIndex = %d]",
+				isBuffer() ? buffer : event, channelIndex);
 	}
 }

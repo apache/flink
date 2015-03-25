@@ -153,7 +153,7 @@ public class NetworkEnvironment {
 				bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(), false);
 				partition.registerBufferPool(bufferPool);
 
-				partitionManager.registerIntermediateResultPartition(partition);
+				partitionManager.registerResultPartition(partition);
 			}
 			catch (Throwable t) {
 				if (bufferPool != null) {

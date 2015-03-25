@@ -50,7 +50,6 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	@Override
 	public boolean registerListener(NotificationListener listener) {
 		return !isReleased.get() && parent.registerListener(listener);
-
 	}
 
 	@Override

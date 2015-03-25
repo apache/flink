@@ -30,11 +30,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class TestBufferFactory {
 
-	private static final int defaultSize = 32 * 1024;
+	public static final int BUFFER_SIZE = 32 * 1024;
 
-	private static final BufferRecycler discardingRecycler = new DiscardingRecycler();
+	private static final BufferRecycler RECYCLER = new DiscardingRecycler();
 
-	private static final Buffer mockBuffer = createBuffer();
+	private static final Buffer MOCK_BUFFER = createBuffer();
 
 	private final int bufferSize;
 
@@ -43,11 +43,11 @@ public class TestBufferFactory {
 	private AtomicInteger numberOfCreatedBuffers = new AtomicInteger();
 
 	public TestBufferFactory() {
-		this(defaultSize, discardingRecycler);
+		this(BUFFER_SIZE, RECYCLER);
 	}
 
 	public TestBufferFactory(int bufferSize) {
-		this(bufferSize, discardingRecycler);
+		this(bufferSize, RECYCLER);
 	}
 
 	public TestBufferFactory(int bufferSize, BufferRecycler bufferRecycler) {
@@ -79,16 +79,16 @@ public class TestBufferFactory {
 	// ------------------------------------------------------------------------
 
 	public static Buffer createBuffer() {
-		return createBuffer(defaultSize);
+		return createBuffer(BUFFER_SIZE);
 	}
 
 	public static Buffer createBuffer(int bufferSize) {
 		checkArgument(bufferSize > 0);
 
-		return new Buffer(new MemorySegment(new byte[bufferSize]), discardingRecycler);
+		return new Buffer(new MemorySegment(new byte[bufferSize]), RECYCLER);
 	}
 
 	public static Buffer getMockBuffer() {
-		return mockBuffer;
+		return MOCK_BUFFER;
 	}
 }

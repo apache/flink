@@ -68,6 +68,8 @@ public class TestPartitionProducer implements Callable<Boolean> {
 	@Override
 	public Boolean call() throws Exception {
 
+		boolean success = false;
+
 		try {
 			BufferOrEvent bufferOrEvent;
 
@@ -98,10 +100,14 @@ public class TestPartitionProducer implements Callable<Boolean> {
 
 			partition.finish();
 
+			success = true;
+
 			return true;
 		}
 		finally {
-			partition.release();
+			if (!success) {
+				partition.release();
+			}
 		}
 	}
 }

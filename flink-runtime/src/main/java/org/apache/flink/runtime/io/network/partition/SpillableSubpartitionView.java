@@ -107,7 +107,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 					parent,
 					bufferProvider.getMemorySegmentSize(),
 					parent.spillWriter.getChannelID(),
-					0);
+					currentBytesRead);
 		}
 		else {
 			spilledView = new SpilledSubpartitionViewAsyncIO(
@@ -115,7 +115,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 					bufferProvider,
 					parent.ioManager,
 					parent.spillWriter.getChannelID(),
-					0);
+					currentBytesRead);
 		}
 
 		return spilledView.getNextBuffer();

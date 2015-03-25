@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import com.google.common.base.Optional;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
@@ -169,7 +168,7 @@ public class ResultPartition implements BufferPoolOwner {
 	 * to the life-cycle of task registrations in the {@link TaskManager}.
 	 */
 	public void registerBufferPool(BufferPool bufferPool) {
-		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() == getNumberOfSubpartitions(),
+		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
 				"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
 
 		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
@@ -302,13 +301,13 @@ public class ResultPartition implements BufferPoolOwner {
 	/**
 	 * Returns the requested subpartition.
 	 */
-	public ResultSubpartitionView getSubpartition(int index, Optional<BufferProvider> bufferProvider) throws IOException {
+	public ResultSubpartitionView createSubpartitionView(int index, BufferProvider bufferProvider) throws IOException {
 		int refCnt = pendingReferences.get();
 
 		checkState(refCnt != -1, "Partition released.");
 		checkState(refCnt > 0, "Partition not pinned.");
 
-		return subpartitions[index].getReadView(bufferProvider);
+		return subpartitions[index].createReadView(bufferProvider);
 	}
 
 	/**

@@ -68,6 +68,8 @@ public class TestSubpartitionProducer implements Callable<Boolean> {
 	@Override
 	public Boolean call() throws Exception {
 
+		boolean success = false;
+
 		try {
 			BufferOrEvent bufferOrEvent;
 
@@ -96,10 +98,13 @@ public class TestSubpartitionProducer implements Callable<Boolean> {
 
 			subpartition.finish();
 
+			success = true;
 			return true;
 		}
 		finally {
-			subpartition.release();
+			if (!success) {
+				subpartition.release();
+			}
 		}
 	}
 }

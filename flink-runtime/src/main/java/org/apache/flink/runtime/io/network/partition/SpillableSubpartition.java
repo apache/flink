@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import com.google.common.base.Optional;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
@@ -169,7 +168,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public ResultSubpartitionView getReadView(Optional<BufferProvider> bufferProvider) throws IOException {
+	public ResultSubpartitionView createReadView(BufferProvider bufferProvider) throws IOException {
 		synchronized (buffers) {
 			if (!isFinished) {
 				throw new IllegalStateException("Subpartition has not been finished yet, " +
@@ -190,14 +189,14 @@ class SpillableSubpartition extends ResultSubpartition {
 				if (ioMode.isSynchronous()) {
 					readView = new SpilledSubpartitionViewSyncIO(
 							this,
-							bufferProvider.get().getMemorySegmentSize(),
+							bufferProvider.getMemorySegmentSize(),
 							spillWriter.getChannelID(),
 							0);
 				}
 				else {
 					readView = new SpilledSubpartitionViewAsyncIO(
 							this,
-							bufferProvider.get(),
+							bufferProvider,
 							ioManager,
 							spillWriter.getChannelID(),
 							0);
@@ -205,7 +204,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			}
 			else {
 				readView = new SpillableSubpartitionView(
-						this, bufferProvider.get(), buffers.size(), ioMode);
+						this, bufferProvider, buffers.size(), ioMode);
 			}
 
 			return readView;

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import com.google.common.base.Optional;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -43,24 +42,27 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 	private static final Logger LOG = LoggerFactory.getLogger(LocalInputChannel.class);
 
+	/** The local partition manager. */
 	private final ResultPartitionManager partitionManager;
 
+	/** Task event dispatcher for backwards events. */
 	private final TaskEventDispatcher taskEventDispatcher;
 
-	private ResultSubpartitionView queueIterator;
+	/** The consumed subpartition */
+	private volatile ResultSubpartitionView subpartitionView;
 
 	private volatile boolean isReleased;
 
 	private volatile Buffer lookAhead;
 
 	LocalInputChannel(
-			SingleInputGate gate,
+			SingleInputGate inputGate,
 			int channelIndex,
 			ResultPartitionID partitionId,
 			ResultPartitionManager partitionManager,
 			TaskEventDispatcher taskEventDispatcher) {
 
-		super(gate, channelIndex, partitionId);
+		super(inputGate, channelIndex, partitionId);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
@@ -72,14 +74,15 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 	@Override
 	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
-		if (queueIterator == null) {
-			LOG.debug("Requesting LOCAL queue {} of partition {}.", subpartitionIndex, partitionId);
+		if (subpartitionView == null) {
+			LOG.debug("{}: Requesting LOCAL subpartition {} of partition {}.",
+					this, subpartitionIndex, partitionId);
 
-			queueIterator = partitionManager
-					.getSubpartition(partitionId, subpartitionIndex, Optional.of(inputGate.getBufferProvider()));
+			subpartitionView = partitionManager.createSubpartitionView(
+					partitionId, subpartitionIndex, inputGate.getBufferProvider());
 
-			if (queueIterator == null) {
-				throw new IOException("Error requesting sub partition.");
+			if (subpartitionView == null) {
+				throw new IOException("Error requesting subpartition.");
 			}
 
 			getNextLookAhead();
@@ -88,11 +91,11 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 	@Override
 	Buffer getNextBuffer() throws IOException, InterruptedException {
-		checkState(queueIterator != null, "Queried for a buffer before requesting a queue.");
+		checkState(subpartitionView != null, "Queried for a buffer before requesting the subpartition.");
 
 		// After subscribe notification
 		if (lookAhead == null) {
-			lookAhead = queueIterator.getNextBuffer();
+			lookAhead = subpartitionView.getNextBuffer();
 		}
 
 		Buffer next = lookAhead;
@@ -116,7 +119,7 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 	@Override
 	void sendTaskEvent(TaskEvent event) throws IOException {
-		checkState(queueIterator != null, "Tried to send task event to producer before requesting a queue.");
+		checkState(subpartitionView != null, "Tried to send task event to producer before requesting the subpartition.");
 
 		if (!taskEventDispatcher.publish(partitionId, event)) {
 			throw new IOException("Error while publishing event " + event + " to producer. The producer could not be found.");
@@ -134,8 +137,8 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 
 	@Override
 	void notifySubpartitionConsumed() throws IOException {
-		if (queueIterator != null) {
-			queueIterator.notifySubpartitionConsumed();
+		if (subpartitionView != null) {
+			subpartitionView.notifySubpartitionConsumed();
 		}
 	}
 
@@ -151,9 +154,9 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 				lookAhead = null;
 			}
 
-			if (queueIterator != null) {
-				queueIterator.releaseAllResources();
-				queueIterator = null;
+			if (subpartitionView != null) {
+				subpartitionView.releaseAllResources();
+				subpartitionView = null;
 			}
 
 			isReleased = true;
@@ -186,15 +189,22 @@ public class LocalInputChannel extends InputChannel implements NotificationListe
 	// ------------------------------------------------------------------------
 
 	private void getNextLookAhead() throws IOException, InterruptedException {
+
+		final ResultSubpartitionView view = subpartitionView;
+
+		if (view == null) {
+			return;
+		}
+
 		while (true) {
-			lookAhead = queueIterator.getNextBuffer();
+			lookAhead = view.getNextBuffer();
 
 			if (lookAhead != null) {
 				notifyAvailableBuffer();
 				break;
 			}
 
-			if (queueIterator.registerListener(this) || queueIterator.isReleased()) {
+			if (view.registerListener(this) || view.isReleased()) {
 				return;
 			}
 		}

@@ -66,6 +66,23 @@ public class ScheduleOrUpdateConsumersTest {
 		flink.stop();
 	}
 
+	/**
+	 * Tests notifications of multiple receivers when a task produces both a pipelined and blocking
+	 * result.
+	 *
+	 * <pre>
+	 *                             +----------+
+	 *            +-- pipelined -> | Receiver |
+	 * +--------+ |                +----------+
+	 * | Sender |-|
+	 * +--------+ |                +----------+
+	 *            +-- blocking --> | Receiver |
+	 *                             +----------+
+	 * </pre>
+	 *
+	 * The pipelined receiver gets deployed after the first buffer is available and the blocking
+	 * one after all subtasks are finished.
+	 */
 	@Test
 	public void testMixedPipelinedAndBlockingResults() throws Exception {
 		final AbstractJobVertex sender = new AbstractJobVertex("Sender");
@@ -92,13 +109,18 @@ public class ScheduleOrUpdateConsumersTest {
 				DistributionPattern.ALL_TO_ALL,
 				ResultPartitionType.BLOCKING);
 
-		SlotSharingGroup slotSharingGroup = new SlotSharingGroup(sender.getID(), pipelinedReceiver.getID(), blockingReceiver.getID());
+		SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
+				sender.getID(), pipelinedReceiver.getID(), blockingReceiver.getID());
 
 		sender.setSlotSharingGroup(slotSharingGroup);
 		pipelinedReceiver.setSlotSharingGroup(slotSharingGroup);
 		blockingReceiver.setSlotSharingGroup(slotSharingGroup);
 
-		final JobGraph jobGraph = new JobGraph("", sender, pipelinedReceiver, blockingReceiver);
+		final JobGraph jobGraph = new JobGraph(
+				"Mixed pipelined and blocking result",
+				sender,
+				pipelinedReceiver,
+				blockingReceiver);
 
 		JobClient.submitJobAndWait(jobGraph, false, jobClient, TestingUtils.TESTING_DURATION());
 	}
