@@ -22,16 +22,16 @@ package org.apache.flink.ml.math
  * Dense vector implementation of [[Vector]]. The data is represented in a continuous array of
  * doubles.
  *
- * @param values Array of doubles to store the vector elements
+ * @param data Array of doubles to store the vector elements
  */
-case class DenseVector(val values: Array[Double]) extends Vector {
+case class DenseVector(val data: Array[Double]) extends Vector {
 
   /**
    * Number of elements in a vector
    * @return
    */
   override def size: Int = {
-    values.length
+    data.length
   }
 
   /**
@@ -41,23 +41,19 @@ case class DenseVector(val values: Array[Double]) extends Vector {
    * @return element at the given index
    */
   override def apply(index: Int): Double = {
-    require(0 <= index && index < values.length, s"Index $index is out of bounds " +
-      s"[0, ${values.length})")
-    values(index)
+    require(0 <= index && index < data.length, s"Index $index is out of bounds " +
+      s"[0, ${data.length})")
+    data(index)
   }
 
   override def toString: String = {
-    s"DenseVector(${values.mkString(", ")})"
+    s"DenseVector(${data.mkString(", ")})"
   }
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case dense: DenseVector =>
-        values.length == dense.values.length && values.zip(dense.values).forall{
-          case (a,b) => a == b
-        }
-
-      case _ => false
+      case dense: DenseVector => data.length == dense.data.length && data.sameElements(dense.data)
+      case _ => super.equals(obj)
     }
   }
 
@@ -67,7 +63,25 @@ case class DenseVector(val values: Array[Double]) extends Vector {
    * @return Copy of the vector instance
    */
   override def copy: Vector = {
-    DenseVector(values.clone())
+    DenseVector(data.clone())
+  }
+
+  /** Updates the element at the given index with the provided value
+    *
+    * @param index
+    * @param value
+    */
+  override def update(index: Int, value: Double): Unit = {
+    require(0 <= index && index < data.length, s"Index $index is out of bounds " +
+      s"[0, ${data.length})")
+
+    data(index) = value
+  }
+
+  def toSparseVector: SparseVector = {
+    val nonZero = (0 until size).zip(data).filter(_._2 != 0)
+
+    SparseVector.fromCOO(size, nonZero)
   }
 }
 

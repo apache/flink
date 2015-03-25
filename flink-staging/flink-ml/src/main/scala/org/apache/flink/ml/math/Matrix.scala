@@ -18,28 +18,52 @@
 
 package org.apache.flink.ml.math
 
-/**
- * Base trait for a matrix representation
- */
+/** Base trait for a matrix representation
+  *
+  */
 trait Matrix {
 
-  /**
-   * Number of rows
-   * @return
-   */
+  /** Number of rows
+    *
+    * @return
+    */
   def numRows: Int
 
-  /**
-   * Number of columns
-   * @return
-   */
+  /** Number of columns
+    *
+    * @return
+    */
   def numCols: Int
 
-  /**
-   * Element wise access function
-   * @param row row index
-   * @param col column index
-   * @return matrix entry at (row, col)
-   */
+  /** Element wise access function
+    *
+    * @param row row index
+    * @param col column index
+    * @return matrix entry at (row, col)
+    */
   def apply(row: Int, col: Int): Double
+
+  /** Element wise update function
+    *
+    * @param row row index
+    * @param col column index
+    * @param value value to set at (row, col)
+    */
+  def update(row: Int, col: Int, value: Double): Unit
+
+  /** Copies the matrix instance
+    *
+    * @return Copy of itself
+    */
+  def copy: Matrix
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case matrix: Matrix if numRows == matrix.numRows && numCols == matrix.numCols =>
+        val coordinates = for(row <- 0 until numRows; col <- 0 until numCols) yield (row, col)
+        coordinates forall { case(row, col) => this.apply(row, col) == matrix(row, col)}
+      case _ => false
+    }
+  }
+
 }

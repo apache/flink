@@ -27,7 +27,7 @@ package object math {
 
     override def iterator: Iterator[Double] = {
       matrix match {
-        case dense: DenseMatrix => dense.values.iterator
+        case dense: DenseMatrix => dense.data.iterator
       }
     }
   }
@@ -35,14 +35,14 @@ package object math {
   implicit class RichVector(vector: Vector) extends Iterable[Double] {
     override def iterator: Iterator[Double] = {
       vector match {
-        case dense: DenseVector => dense.values.iterator
+        case dense: DenseVector => dense.data.iterator
       }
     }
   }
 
   implicit def vector2Array(vector: Vector): Array[Double] = {
     vector match {
-      case dense: DenseVector => dense.values
+      case dense: DenseVector => dense.data
     }
   }
 }
