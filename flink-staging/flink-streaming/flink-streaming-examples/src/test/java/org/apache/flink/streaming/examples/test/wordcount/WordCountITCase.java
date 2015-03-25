@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.examples.test.wordcount;
 
 import org.apache.flink.streaming.examples.wordcount.WordCount;
-import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.testdata.WordCountData;
 
 public class WordCountITCase extends StreamingProgramTestBase {
 
@@ -40,6 +40,6 @@ public class WordCountITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		WordCount.main(new String[] { textPath, resultPath });
+		WordCount.main(new String[]{textPath, resultPath});
 	}
 }

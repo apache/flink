@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.examples.twitter;
 
-import java.util.StringTokenizer;
-
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -29,26 +27,27 @@ import org.apache.flink.streaming.examples.twitter.util.TwitterStreamData;
 import org.apache.flink.util.Collector;
 import org.apache.sling.commons.json.JSONException;
 
+import java.util.StringTokenizer;
+
 /**
  * Implements the "TwitterStream" program that computes a most used word
  * occurrence over JSON files in a streaming fashion.
- * 
- * <p>
+ * <p/>
+ * <p/>
  * The input is a JSON text file with lines separated by newline characters.
- * 
- * <p>
+ * <p/>
+ * <p/>
  * Usage: <code>TwitterStream &lt;text path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link TwitterStreamData}.
- * 
- * <p>
+ * <p/>
+ * <p/>
  * This example shows how to:
  * <ul>
  * <li>acquire external data,
  * <li>use in-line defined functions,
  * <li>handle flattened stream inputs.
  * </ul>
- * 
  */
 public class TwitterStream {
 
@@ -70,9 +69,9 @@ public class TwitterStream {
 		DataStream<String> streamSource = getTextDataStream(env);
 
 		DataStream<Tuple2<String, Integer>> tweets = streamSource
-		// selecting English tweets and splitting to words
+				// selecting English tweets and splitting to words
 				.flatMap(new SelectEnglishAndTokenizeFlatMap())
-				// returning (word, 1)
+						// returning (word, 1)
 				.map(new MapFunction<String, Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
 
@@ -81,14 +80,14 @@ public class TwitterStream {
 						return new Tuple2<String, Integer>(value, 1);
 					}
 				})
-				// group by words and sum their occurence
+						// group by words and sum their occurence
 				.groupBy(0).sum(1)
-				// select word with maximum occurence
+						// select word with maximum occurence
 				.flatMap(new SelectMaxOccurence());
 
 		// emit result
 		if (fileOutput) {
-			tweets.writeAsText(outputPath, 1);
+			tweets.writeAsText(outputPath, 1L);
 		} else {
 			tweets.print();
 		}
@@ -103,7 +102,7 @@ public class TwitterStream {
 
 	/**
 	 * Makes sentences from English tweets.
-	 * 
+	 * <p/>
 	 * <p>
 	 * Implements a string tokenizer that splits sentences into words as a
 	 * user-defined FlatMapFunction. The function takes a line (String) and
@@ -167,6 +166,7 @@ public class TwitterStream {
 	// UTIL METHODS
 	// *************************************************************************
 
+	private static boolean fileInput = false;
 	private static boolean fileOutput = false;
 	private static String textPath;
 	private static String outputPath;
@@ -176,8 +176,11 @@ public class TwitterStream {
 			// parse input arguments
 			fileOutput = true;
 			if (args.length == 2) {
+				fileInput = true;
 				textPath = args[0];
 				outputPath = args[1];
+			} else if (args.length == 1) {
+				outputPath = args[0];
 			} else {
 				System.err.println("USAGE:\nTwitterStream <pathToPropertiesFile> <result path>");
 				return false;
@@ -191,7 +194,7 @@ public class TwitterStream {
 	}
 
 	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env) {
-		if (fileOutput) {
+		if (fileInput) {
 			// read the text file from given input path
 			return env.readTextFile(textPath);
 		} else {

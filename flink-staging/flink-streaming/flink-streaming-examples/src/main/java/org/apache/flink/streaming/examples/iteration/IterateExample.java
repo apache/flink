@@ -17,29 +17,32 @@
 
 package org.apache.flink.streaming.examples.iteration;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.api.windowing.helper.Time;
+import org.apache.flink.util.Collector;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Example illustrating iterations in Flink streaming.
- * 
+ * <p/>
  * <p>
  * The program sums up random numbers and counts additions it performs to reach
  * a specific threshold in an iterative streaming fashion.
  * </p>
- * 
- * <p>
+ * <p/>
+ * <p/>
  * This example shows how to use:
  * <ul>
  * <li>streaming iterations,
@@ -59,35 +62,44 @@ public class IterateExample {
 			return;
 		}
 
-		// set up input for the stream of (0,0) pairs
-		List<Tuple2<Double, Integer>> input = new ArrayList<Tuple2<Double, Integer>>();
-		for (int i = 0; i < 1000; i++) {
-			input.add(new Tuple2<Double, Integer>(0., 0));
-		}
+		// set up input for the stream of integer pairs
 
-		// obtain execution environment and set setBufferTimeout(0) to enable
+		// obtain execution environment and set setBufferTimeout to 1 to enable
 		// continuous flushing of the output buffers (lowest latency)
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
 				.setBufferTimeout(1);
 
+		// create input stream of integer pairs
+		DataStream<Tuple2<Integer, Integer>> inputStream;
+		if(fileInput) {
+			inputStream = env.readTextFile(inputPath).map(new FibonacciInputMap());
+		} else {
+			inputStream = env.addSource(new RandomFibonacciSource());
+		}
+
 		// create an iterative data stream from the input with 5 second timeout
-		IterativeDataStream<Tuple2<Double, Integer>> it = env.fromCollection(input).shuffle()
+		IterativeDataStream<Tuple5<Integer, Integer, Integer, Integer, Integer>> it = inputStream.map(new InputMap())
 				.iterate(5000);
 
-		// apply the step function to add new random value to the tuple and to
+		// apply the step function to get the next Fibonacci number
 		// increment the counter and split the output with the output selector
-		SplitDataStream<Tuple2<Double, Integer>> step = it.map(new Step()).split(new MySelector());
+		SplitDataStream<Tuple5<Integer, Integer, Integer, Integer, Integer>> step = it.map(new Step())
+				.split(new MySelector());
 
 		// close the iteration by selecting the tuples that were directed to the
 		// 'iterate' channel in the output selector
 		it.closeWith(step.select("iterate"));
 
 		// to produce the final output select the tuples directed to the
-		// 'output' channel then project it to the desired second field
+		// 'output' channel then get the input pairs that have the greatest iteration counter
+		// on a 1 second sliding window
+		DataStream<Tuple2<Tuple2<Integer, Integer>, Integer>> numbers = step.select("output")
+				.map(new OutputMap())
+				.window(Time.of(1L, TimeUnit.SECONDS))
+				.every(Time.of(500L, TimeUnit.MILLISECONDS))
+				.maxBy(1).flatten();
 
-		DataStream<Tuple1<Integer>> numbers = step.select("output").project(1).types(Integer.class);
-
-		// emit result
+		// emit results
 		if (fileOutput) {
 			numbers.writeAsText(outputPath, 1);
 		} else {
@@ -103,57 +115,124 @@ public class IterateExample {
 	// *************************************************************************
 
 	/**
-	 * Iteration step function which takes an input (Double , Integer) and
-	 * produces an output (Double + random, Integer + 1).
+	 * Generate random integer pairs from the range from 0 to BOUND/2
 	 */
-	public static class Step extends
-			RichMapFunction<Tuple2<Double, Integer>, Tuple2<Double, Integer>> {
+	private static class RandomFibonacciSource implements SourceFunction<Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
-		private transient Random rnd;
 
-		public void open(Configuration parameters) {
-			rnd = new Random();
+		private Random rnd = new Random();
+
+		@Override
+		public void run(Collector<Tuple2<Integer, Integer>> collector) throws Exception {
+			while(true) {
+				int first = rnd.nextInt(BOUND/2 - 1) + 1;
+				int second = rnd.nextInt(BOUND/2 - 1) + 1;
+
+				collector.collect(new Tuple2<Integer, Integer>(first, second));
+				Thread.sleep(100L);
+			}
 		}
 
 		@Override
-		public Tuple2<Double, Integer> map(Tuple2<Double, Integer> value) throws Exception {
-			return new Tuple2<Double, Integer>(value.f0 + rnd.nextDouble(), value.f1 + 1);
+		public void cancel() {
+			// no cleanup needed
+		}
+	}
+
+	/**
+	 * Generate random integer pairs from the range from 0 to BOUND/2
+	 */
+	private static class FibonacciInputMap implements MapFunction<String, Tuple2<Integer, Integer>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<Integer, Integer> map(String value) throws Exception {
+			Thread.sleep(100L);
+			String record = value.substring(1, value.length()-1);
+			String[] splitted = record.split(",");
+			return new Tuple2<Integer, Integer>(Integer.parseInt(splitted[0]), Integer.parseInt(splitted[1]));
+		}
+	}
+
+	/**
+	 * Map the inputs so that the next Fibonacci numbers can be calculated while preserving the original input tuple
+	 * A counter is attached to the tuple and incremented in every iteration step
+	 */
+	public static class InputMap implements MapFunction<Tuple2<Integer, Integer>, Tuple5<Integer, Integer, Integer, Integer, Integer>> {
+
+		@Override
+		public Tuple5<Integer, Integer, Integer, Integer, Integer> map(Tuple2<Integer, Integer> value) throws
+				Exception {
+			return new Tuple5<Integer, Integer, Integer, Integer, Integer>(value.f0, value.f1, value.f0, value.f1, 0);
+		}
+	}
+
+	/**
+	 * Iteration step function that calculates the next Fibonacci number
+	 */
+	public static class Step implements
+			MapFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>, Tuple5<Integer, Integer, Integer, Integer, Integer>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple5<Integer, Integer, Integer, Integer, Integer> map(Tuple5<Integer, Integer, Integer, Integer, Integer> value) throws Exception {
+			return new Tuple5<Integer, Integer, Integer, Integer, Integer>(value.f0, value.f1, value.f3, value.f2 + value.f3, ++value.f4);
 		}
 	}
 
 	/**
 	 * OutputSelector testing which tuple needs to be iterated again.
 	 */
-	public static class MySelector implements OutputSelector<Tuple2<Double, Integer>> {
+	public static class MySelector implements OutputSelector<Tuple5<Integer, Integer, Integer, Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Iterable<String> select(Tuple2<Double, Integer> value) {
+		public Iterable<String> select(Tuple5<Integer, Integer, Integer, Integer, Integer> value) {
 			List<String> output = new ArrayList<String>();
-			if (value.f0 > 100) {
-				output.add("output");
-			} else {
+			if (value.f2 < BOUND && value.f3 < BOUND) {
 				output.add("iterate");
+			} else {
+				output.add("output");
 			}
+			output.add("output");
 			return output;
 		}
+	}
 
+	/**
+	 * Giving back the input pair and the counter
+	 */
+	public static class OutputMap implements MapFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>, Tuple2<Tuple2<Integer, Integer>, Integer>> {
+
+		@Override
+		public Tuple2<Tuple2<Integer, Integer>, Integer> map(Tuple5<Integer, Integer, Integer, Integer, Integer> value) throws
+				Exception {
+			return new Tuple2<Tuple2<Integer, Integer>, Integer>(new Tuple2<Integer, Integer>(value.f0, value.f1), value.f4);
+		}
 	}
 
 	// *************************************************************************
 	// UTIL METHODS
 	// *************************************************************************
 
+	private static boolean fileInput = false;
 	private static boolean fileOutput = false;
+	private static String inputPath;
 	private static String outputPath;
+	private static final int BOUND = 100;
 
 	private static boolean parseParameters(String[] args) {
 
 		if (args.length > 0) {
 			// parse input arguments
-			fileOutput = true;
 			if (args.length == 1) {
+				fileOutput = true;
 				outputPath = args[0];
+			} else if(args.length == 2) {
+				fileInput = true;
+				inputPath = args[0];
+				fileOutput = true;
+				outputPath = args[1];
 			} else {
 				System.err.println("Usage: IterateExample <result path>");
 				return false;
