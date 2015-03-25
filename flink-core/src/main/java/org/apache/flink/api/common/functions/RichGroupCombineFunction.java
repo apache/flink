@@ -19,13 +19,10 @@
 package org.apache.flink.api.common.functions;
 
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.util.Collector;
 
 /**
- * Rich variant of the {@link FlatCombineFunction}. As a {@link RichFunction}, it gives access to the
+ * Rich variant of the {@link GroupCombineFunction}. As a {@link RichFunction}, it gives access to the
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
@@ -33,7 +30,7 @@ import org.apache.flink.util.Collector;
  * @param <IN> The data type of the elements to be combined.
  * @param <OUT> The resulting data type of the elements to be combined.
  */
-public abstract class RichFlatCombineFunction<IN, OUT> extends AbstractRichFunction implements FlatCombineFunction<IN, OUT> {
+public abstract class RichGroupCombineFunction<IN, OUT> extends AbstractRichFunction implements GroupCombineFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 

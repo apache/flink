@@ -29,7 +29,7 @@ import java.io.Serializable;
  * reduce the data volume earlier, before the entire groups have been collected.
  * <p>
  * This special variant of the combine function reduces the group of elements into a single element. A variant
- * that can return multiple values per group is defined in {@link FlatCombineFunction}.
+ * that can return multiple values per group is defined in {@link GroupCombineFunction}.
  * 
  * @param <IN> The data type processed by the combine function.
  * @param <OUT> The data type emitted by the combine function.

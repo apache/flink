@@ -23,7 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.util.NonReusingMutableToRegularIteratorWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -92,8 +92,8 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 
 		switch (this.strategy) {
 			case ALL_GROUP_REDUCE_COMBINE:
-				if (!(this.taskContext.getStub() instanceof FlatCombineFunction)) {
-					throw new Exception("Using combiner on a UDF that does not implement the combiner interface " + FlatCombineFunction.class.getName());
+				if (!(this.taskContext.getStub() instanceof GroupCombineFunction)) {
+					throw new Exception("Using combiner on a UDF that does not implement the combiner interface " + GroupCombineFunction.class.getName());
 				}
 			case ALL_GROUP_REDUCE:
 			case ALL_GROUP_COMBINE:
@@ -129,7 +129,7 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 					final Collector<OT> output = this.taskContext.getOutputCollector();
 					reducer.reduce(inIter, output);
 				} else if (strategy == DriverStrategy.ALL_GROUP_REDUCE_COMBINE || strategy == DriverStrategy.ALL_GROUP_COMBINE) {
-					@SuppressWarnings("unchecked") final FlatCombineFunction<IT, OT> combiner = (FlatCombineFunction<IT, OT>) this.taskContext.getStub();
+					@SuppressWarnings("unchecked") final GroupCombineFunction<IT, OT> combiner = (GroupCombineFunction<IT, OT>) this.taskContext.getStub();
 					final Collector<OT> output = this.taskContext.getOutputCollector();
 					combiner.combine(inIter, output);
 				} else {
@@ -147,7 +147,7 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 					final Collector<OT> output = this.taskContext.getOutputCollector();
 					reducer.reduce(inIter, output);
 				} else if (strategy == DriverStrategy.ALL_GROUP_REDUCE_COMBINE || strategy == DriverStrategy.ALL_GROUP_COMBINE) {
-					@SuppressWarnings("unchecked") final FlatCombineFunction<IT, OT> combiner = (FlatCombineFunction<IT, OT>) this.taskContext.getStub();
+					@SuppressWarnings("unchecked") final GroupCombineFunction<IT, OT> combiner = (GroupCombineFunction<IT, OT>) this.taskContext.getStub();
 					final Collector<OT> output = this.taskContext.getOutputCollector();
 					combiner.combine(inIter, output);
 				} else {
