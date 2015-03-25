@@ -92,6 +92,8 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> 
 	 */
 	protected synchronized void processRealElement(IN input) throws Exception {
 
+		// Setting the input element in order to avoid NullFieldException when triggering on fake element
+		windowEvent.setElement(input);
 		if (isActiveTrigger) {
 			ActiveTriggerPolicy<IN> trigger = (ActiveTriggerPolicy<IN>) triggerPolicy;
 			Object[] result = trigger.preNotifyTrigger(input);
