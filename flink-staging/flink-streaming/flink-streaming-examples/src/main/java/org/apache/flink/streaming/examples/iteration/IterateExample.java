@@ -26,31 +26,23 @@ import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 /**
- * Example illustrating iterations in Flink streaming.
- * <p/>
- * <p>
- * The program sums up random numbers and counts additions it performs to reach
- * a specific threshold in an iterative streaming fashion.
- * </p>
+ * Example illustrating iterations in Flink streaming. <p/> <p> The program sums up random numbers and counts additions
+ * it performs to reach a specific threshold in an iterative streaming fashion. </p>
  * <p/>
  * <p/>
- * This example shows how to use:
- * <ul>
- * <li>streaming iterations,
- * <li>buffer timeout to enhance latency,
- * <li>directed outputs.
- * </ul>
+ * This example shows how to use: <ul> <li>streaming iterations, <li>buffer timeout to enhance latency, <li>directed
+ * outputs. </ul>
  */
 public class IterateExample {
+
+	private static final int BOUND = 100;
 
 	// *************************************************************************
 	// PROGRAM
@@ -71,7 +63,7 @@ public class IterateExample {
 
 		// create input stream of integer pairs
 		DataStream<Tuple2<Integer, Integer>> inputStream;
-		if(fileInput) {
+		if (fileInput) {
 			inputStream = env.readTextFile(inputPath).map(new FibonacciInputMap());
 		} else {
 			inputStream = env.addSource(new RandomFibonacciSource());
@@ -94,10 +86,7 @@ public class IterateExample {
 		// 'output' channel then get the input pairs that have the greatest iteration counter
 		// on a 1 second sliding window
 		DataStream<Tuple2<Tuple2<Integer, Integer>, Integer>> numbers = step.select("output")
-				.map(new OutputMap())
-				.window(Time.of(1L, TimeUnit.SECONDS))
-				.every(Time.of(500L, TimeUnit.MILLISECONDS))
-				.maxBy(1).flatten();
+				.map(new OutputMap());
 
 		// emit results
 		if (fileOutput) {
@@ -124,12 +113,12 @@ public class IterateExample {
 
 		@Override
 		public void run(Collector<Tuple2<Integer, Integer>> collector) throws Exception {
-			while(true) {
-				int first = rnd.nextInt(BOUND/2 - 1) + 1;
-				int second = rnd.nextInt(BOUND/2 - 1) + 1;
+			while (true) {
+				int first = rnd.nextInt(BOUND / 2 - 1) + 1;
+				int second = rnd.nextInt(BOUND / 2 - 1) + 1;
 
 				collector.collect(new Tuple2<Integer, Integer>(first, second));
-				Thread.sleep(100L);
+				Thread.sleep(500L);
 			}
 		}
 
@@ -147,18 +136,19 @@ public class IterateExample {
 
 		@Override
 		public Tuple2<Integer, Integer> map(String value) throws Exception {
-			Thread.sleep(100L);
-			String record = value.substring(1, value.length()-1);
+			String record = value.substring(1, value.length() - 1);
 			String[] splitted = record.split(",");
 			return new Tuple2<Integer, Integer>(Integer.parseInt(splitted[0]), Integer.parseInt(splitted[1]));
 		}
 	}
 
 	/**
-	 * Map the inputs so that the next Fibonacci numbers can be calculated while preserving the original input tuple
-	 * A counter is attached to the tuple and incremented in every iteration step
+	 * Map the inputs so that the next Fibonacci numbers can be calculated while preserving the original input tuple A
+	 * counter is attached to the tuple and incremented in every iteration step
 	 */
-	public static class InputMap implements MapFunction<Tuple2<Integer, Integer>, Tuple5<Integer, Integer, Integer, Integer, Integer>> {
+	public static class InputMap implements MapFunction<Tuple2<Integer, Integer>, Tuple5<Integer, Integer, Integer,
+			Integer, Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Tuple5<Integer, Integer, Integer, Integer, Integer> map(Tuple2<Integer, Integer> value) throws
@@ -171,12 +161,15 @@ public class IterateExample {
 	 * Iteration step function that calculates the next Fibonacci number
 	 */
 	public static class Step implements
-			MapFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>, Tuple5<Integer, Integer, Integer, Integer, Integer>> {
+			MapFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>, Tuple5<Integer, Integer, Integer,
+					Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple5<Integer, Integer, Integer, Integer, Integer> map(Tuple5<Integer, Integer, Integer, Integer, Integer> value) throws Exception {
-			return new Tuple5<Integer, Integer, Integer, Integer, Integer>(value.f0, value.f1, value.f3, value.f2 + value.f3, ++value.f4);
+		public Tuple5<Integer, Integer, Integer, Integer, Integer> map(Tuple5<Integer, Integer, Integer, Integer,
+				Integer> value) throws Exception {
+			return new Tuple5<Integer, Integer, Integer, Integer, Integer>(value.f0, value.f1, value.f3, value.f2 +
+					value.f3, ++value.f4);
 		}
 	}
 
@@ -194,7 +187,6 @@ public class IterateExample {
 			} else {
 				output.add("output");
 			}
-			output.add("output");
 			return output;
 		}
 	}
@@ -202,12 +194,16 @@ public class IterateExample {
 	/**
 	 * Giving back the input pair and the counter
 	 */
-	public static class OutputMap implements MapFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>, Tuple2<Tuple2<Integer, Integer>, Integer>> {
+	public static class OutputMap implements MapFunction<Tuple5<Integer, Integer, Integer, Integer, Integer>,
+			Tuple2<Tuple2<Integer, Integer>, Integer>> {
+		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Tuple2<Tuple2<Integer, Integer>, Integer> map(Tuple5<Integer, Integer, Integer, Integer, Integer> value) throws
+		public Tuple2<Tuple2<Integer, Integer>, Integer> map(Tuple5<Integer, Integer, Integer, Integer, Integer>
+				value) throws
 				Exception {
-			return new Tuple2<Tuple2<Integer, Integer>, Integer>(new Tuple2<Integer, Integer>(value.f0, value.f1), value.f4);
+			return new Tuple2<Tuple2<Integer, Integer>, Integer>(new Tuple2<Integer, Integer>(value.f0, value.f1),
+					value.f4);
 		}
 	}
 
@@ -219,7 +215,6 @@ public class IterateExample {
 	private static boolean fileOutput = false;
 	private static String inputPath;
 	private static String outputPath;
-	private static final int BOUND = 100;
 
 	private static boolean parseParameters(String[] args) {
 
@@ -228,7 +223,7 @@ public class IterateExample {
 			if (args.length == 1) {
 				fileOutput = true;
 				outputPath = args[0];
-			} else if(args.length == 2) {
+			} else if (args.length == 2) {
 				fileInput = true;
 				inputPath = args[0];
 				fileOutput = true;
@@ -244,4 +239,5 @@ public class IterateExample {
 		}
 		return true;
 	}
+
 }
