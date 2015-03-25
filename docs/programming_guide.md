@@ -1548,7 +1548,7 @@ File-based:
   StringValues. StringValues are mutable strings.
 
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
-  Returns a DataSet of tuples. Supports the basic java types and their Value counterparts as field
+  Returns a DataSet of tuples or POJOs. Supports the basic java types and their Value counterparts as field
   types.
 
 - `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence) delimited primitive data types such as `String` or `Integer`. 
@@ -1595,6 +1595,10 @@ DataSet<Tuple3<Integer, String, Double>> csvInput = env.readCsvFile("hdfs:///the
 DataSet<Tuple2<String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
                                .includeFields("10010")  // take the first and the fourth field
 	                       .types(String.class, Double.class);
+
+// read a CSV file with three fields into a POJO (Person.class) with corresponding fields
+DataSet<Tuple3<Integer, String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
+                         .pojoType(Person.class, "name", "age", "zipcode");                         
 
 // create a set from some given elements
 DataSet<String> value = env.fromElements("Foo", "bar", "foobar", "fubar");
@@ -1678,7 +1682,7 @@ File-based:
   StringValues. StringValues are mutable strings.
 
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
-  Returns a DataSet of tuples. Supports the basic java types and their Value counterparts as field
+  Returns a DataSet of tuples, case class objects, or POJOs. Supports the basic java types and their Value counterparts as field
   types.
 
 Collection-based:
@@ -1724,10 +1728,15 @@ val csvInput = env.readCsvFile[(String, Double)](
   includedFields = Array(0, 3)) // take the first and the fourth field
 
 // CSV input can also be used with Case Classes
-case class MyInput(str: String, dbl: Double)
-val csvInput = env.readCsvFile[MyInput](
+case class MyCaseClass(str: String, dbl: Double)
+val csvInput = env.readCsvFile[MyCaseClass](
   "hdfs:///the/CSV/file",
   includedFields = Array(0, 3)) // take the first and the fourth field
+
+// read a CSV file with three fields into a POJO (Person) with corresponding fields
+val csvInput = env.readCsvFile[Person](
+  "hdfs:///the/CSV/file",
+  pojoFields = Array("name", "age", "zipcode"))
 
 // create a set from some given elements
 val values = env.fromElements("Foo", "bar", "foobar", "fubar")
@@ -1747,6 +1756,8 @@ Flink offers a number of configuration options for CSV parsing:
 
 - `includeFields: Array[Int]` defines which fields to read from the input file (and which to ignore). By default the first *n* fields (as defined by the number of types in the `types()` call) are parsed.
 
+- `pojoFields: Array[String]` specifies the fields of a POJO that are mapped to CSV fields. Parsers for CSV fields are automatically initialized based on the type and order of the POJO fields.
+
 - `parseQuotedStrings: Character` enables quoted string parsing. Strings are parsed as quoted strings if the first character of the string field is the quote character (leading or tailing whitespaces are *not* trimmed). Field delimiters within quoted strings are ignored. Quoted string parsing fails if the last character of a quoted string field is not the quote character. If quoted string parsing is enabled and the first character of the field is *not* the quoting string, the string is parsed as unquoted string. By default, quoted string parsing is disabled.
 
 - `ignoreComments: String` specifies a comment prefix. All lines that start with the specified comment prefix are not parsed and ignored. By default, no lines are ignored.
@@ -1754,7 +1765,6 @@ Flink offers a number of configuration options for CSV parsing:
 - `lenient: Boolean` enables lenient parsing, i.e., lines that cannot be correctly parsed are ignored. By default, lenient parsing is disabled and invalid lines raise an exception.
 
 - `ignoreFirstLine: Boolean` configures the InputFormat to ignore the first line of the input file. By default no line is ignored.
-  
 
 #### Recursive Traversal of the Input Path Directory
 
