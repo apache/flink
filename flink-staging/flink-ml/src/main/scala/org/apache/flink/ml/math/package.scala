@@ -23,26 +23,88 @@ package org.apache.flink.ml
  * abstraction.
  */
 package object math {
-  implicit class RichMatrix(matrix: Matrix) extends Iterable[Double] {
+  implicit class RichMatrix(matrix: Matrix) extends Iterable[(Int, Int, Double)] {
 
-    override def iterator: Iterator[Double] = {
-      matrix match {
-        case dense: DenseMatrix => dense.data.iterator
+    override def iterator: Iterator[(Int, Int, Double)] = {
+      new Iterator[(Int, Int, Double)] {
+        var index = 0
+
+        override def hasNext: Boolean = {
+          index < matrix.numRows * matrix.numCols
+        }
+
+        override def next(): (Int, Int, Double) = {
+          val row = index % matrix.numRows
+          val column = index / matrix.numRows
+
+          index += 1
+
+          (row, column, matrix(row, column))
+        }
+      }
+    }
+
+    def valueIterator: Iterator[Double] = {
+      val it = iterator
+
+      new Iterator[Double] {
+        override def hasNext: Boolean = it.hasNext
+
+        override def next(): Double = it.next._3
+      }
+    }
+
+  }
+
+  implicit class RichVector(vector: Vector) extends Iterable[(Int, Double)] {
+
+    override def iterator: Iterator[(Int, Double)] = {
+      new Iterator[(Int, Double)] {
+        var index = 0
+
+        override def hasNext: Boolean = {
+          index < vector.size
+        }
+
+        override def next(): (Int, Double) = {
+          val resultIndex = index
+
+          index += 1
+
+          (resultIndex, vector(resultIndex))
+        }
+      }
+    }
+
+    def valueIterator: Iterator[Double] = {
+      val it = iterator
+
+      new Iterator[Double] {
+        override def hasNext: Boolean = it.hasNext
+
+        override def next(): Double = it.next._2
       }
     }
   }
 
-  implicit class RichVector(vector: Vector) extends Iterable[Double] {
-    override def iterator: Iterator[Double] = {
-      vector match {
-        case dense: DenseVector => dense.data.iterator
-      }
-    }
-  }
-
-  implicit def vector2Array(vector: Vector): Array[Double] = {
+  /** Stores the vector values in a dense array
+    *
+    * @param vector
+    * @return Array containing the vector values
+    */
+  def vector2Array(vector: Vector): Array[Double] = {
     vector match {
-      case dense: DenseVector => dense.data
+      case dense: DenseVector => dense.data.clone
+
+      case sparse: SparseVector =>
+        val result = new Array[Double](sparse.size)
+
+        for((index, value) <- sparse) {
+          result(index) = value
+        }
+
+        result
+
     }
   }
 }

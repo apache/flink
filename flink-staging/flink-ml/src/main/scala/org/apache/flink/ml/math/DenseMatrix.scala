@@ -134,8 +134,8 @@ case class DenseMatrix(val numRows: Int,
     * @return
     */
   private def locate(row: Int, col: Int): Int = {
-    require(0 <= row && row < numRows, s"Row $row is out of bounds [0, $numRows).")
-    require(0 <= col && col < numCols, s"Col $col is out of bounds [0, $numCols).")
+    require(0 <= row && row < numRows && 0 <= col && col < numCols,
+      (row, col) + " not in [0, " + numRows + ") x [0, " + numCols + ")")
 
     row + col * numRows
   }

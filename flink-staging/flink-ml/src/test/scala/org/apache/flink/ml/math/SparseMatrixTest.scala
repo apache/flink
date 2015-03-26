@@ -25,8 +25,13 @@ class SparseMatrixTest extends ShouldMatchers {
 
   @Test
   def testSparseMatrixFromCOO: Unit = {
-    val sparseMatrix = SparseMatrix.fromCOO(5, 5, (0, 0, 0), (0, 1, 0), (3, 4, 43), (2, 1, 17),
+    val data = List[(Int, Int, Double)]((0, 0, 0), (0, 1, 0), (3, 4, 43), (2, 1, 17),
       (3, 3, 88), (4 , 2, 99), (1, 4, 91), (3, 4, -1))
+
+    val numRows = 5
+    val numCols = 5
+
+    val sparseMatrix = SparseMatrix.fromCOO(numRows, numCols, data)
 
     val expectedSparseMatrix = SparseMatrix.fromCOO(5, 5, (3, 4, 42), (2, 1, 17), (3, 3, 88),
       (4, 2, 99), (1, 4, 91))
@@ -43,8 +48,22 @@ class SparseMatrixTest extends ShouldMatchers {
 
     sparseMatrix.toDenseMatrix.data.sameElements(expectedDenseMatrix.data) should be(true)
 
+    val dataMap = data.
+      map{ case (row, col, value) => (row, col) -> value }.
+      groupBy{_._1}.
+      mapValues{
+      entries =>
+        entries.map(_._2).reduce(_ + _)
+    }
+
+    for(row <- 0 until numRows; col <- 0 until numCols) {
+      sparseMatrix(row, col) should be(dataMap.getOrElse((row, col), 0))
+    }
+
+    // test access to defined field even though it was set to 0
     sparseMatrix(0, 1) = 10
 
+    // test that a non-defined field is not accessible
     intercept[IllegalArgumentException]{
       sparseMatrix(1, 1) = 1
     }
@@ -52,18 +71,29 @@ class SparseMatrixTest extends ShouldMatchers {
 
   @Test
   def testInvalidIndexAccess: Unit = {
-    val sparseVector = SparseVector.fromCOO(5, (1, 1), (3, 3), (4, 4))
+    val data = List[(Int, Int, Double)]((0, 0, 0), (0, 1, 0), (3, 4, 43), (2, 1, 17),
+      (3, 3, 88), (4 , 2, 99), (1, 4, 91), (3, 4, -1))
+
+    val numRows = 5
+    val numCols = 5
+
+    val sparseMatrix = SparseMatrix.fromCOO(numRows, numCols, data)
 
     intercept[IllegalArgumentException] {
-      sparseVector(-1)
+      sparseMatrix(-1, 4)
     }
 
     intercept[IllegalArgumentException] {
-      sparseVector(5)
+      sparseMatrix(numRows, 0)
     }
 
-    sparseVector(0) should equal(0)
-    sparseVector(3) should equal(3)
+    intercept[IllegalArgumentException] {
+      sparseMatrix(0, numCols)
+    }
+
+    intercept[IllegalArgumentException] {
+      sparseMatrix(3, -1)
+    }
   }
 
   @Test

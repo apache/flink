@@ -78,7 +78,7 @@ class SparseVector(
   }
 
   private def locate(index: Int): Int = {
-    require(0 <= index && index < size, s"Index $index is out of bounds [0, $size).")
+    require(0 <= index && index < size, index + " not in [0, " + size + ")")
 
     java.util.Arrays.binarySearch(indices, 0, indices.length, index)
   }
@@ -106,6 +106,10 @@ object SparseVector {
     */
   def fromCOO(size: Int, entries: Iterable[(Int, Double)]): SparseVector = {
     val entryArray = entries.toArray
+
+    entryArray.foreach { case (index, _) =>
+      require(0 <= index && index < size, index + " not in [0, " + size + ")")
+    }
 
     val COOOrdering = new Ordering[(Int, Double)] {
       override def compare(x: (Int, Double), y: (Int, Double)): Int = {
