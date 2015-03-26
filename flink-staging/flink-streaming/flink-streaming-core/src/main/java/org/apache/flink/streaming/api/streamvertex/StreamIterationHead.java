@@ -59,7 +59,8 @@ public class StreamIterationHead<OUT> extends StreamVertex<OUT, OUT> {
 		shouldWait = iterationWaitTime > 0;
 
 		try {
-			BlockingQueueBroker.instance().handIn(iterationId.toString(), dataChannel);
+			BlockingQueueBroker.instance().handIn(iterationId.toString()+"-" 
+					+getEnvironment().getIndexInSubtaskGroup(), dataChannel);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
