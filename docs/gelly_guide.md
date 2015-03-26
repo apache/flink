@@ -402,6 +402,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * PageRank
 * Single-Source Shortest Paths
 * Label Propagation
+* Simple Community Detection
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
 
