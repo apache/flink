@@ -41,8 +41,7 @@ case class DenseVector(val data: Array[Double]) extends Vector {
    * @return element at the given index
    */
   override def apply(index: Int): Double = {
-    require(0 <= index && index < data.length, s"Index $index is out of bounds " +
-      s"[0, ${data.length})")
+    require(0 <= index && index < data.length, index + " not in [0, " + data.length + ")")
     data(index)
   }
 
@@ -72,8 +71,7 @@ case class DenseVector(val data: Array[Double]) extends Vector {
     * @param value
     */
   override def update(index: Int, value: Double): Unit = {
-    require(0 <= index && index < data.length, s"Index $index is out of bounds " +
-      s"[0, ${data.length})")
+    require(0 <= index && index < data.length, index + " not in [0, " + data.length + ")")
 
     data(index) = value
   }

@@ -32,7 +32,7 @@ class DenseVectorTest extends ShouldMatchers {
 
     assertResult(data.length)(vector.size)
 
-    data.zip(vector).foreach{case (expected, actual) => assertResult(expected)(actual)}
+    data.zip(vector.map(_._2)).foreach{case (expected, actual) => assertResult(expected)(actual)}
   }
 
   @Test

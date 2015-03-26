@@ -112,11 +112,11 @@ class SparseMatrix(
   }
 
   private def locate(row: Int, col: Int): Int = {
-    require(0 <= row && row < numRows, s"Row $row is out of bounds [0, $numRows).")
-    require(0 <= col && col < numCols, s"Col $col is out of bounds [0, $numCols).")
+    require(0 <= row && row < numRows && 0 <= col && col < numCols,
+      (row, col) + " not in [0, " + numRows + ") x [0, " + numCols + ")")
 
     val startIndex = colPtrs(col)
-    val endIndex = colPtrs(col+1)
+    val endIndex = colPtrs(col + 1)
 
     java.util.Arrays.binarySearch(rowIndices, startIndex, endIndex, row)
   }
@@ -155,8 +155,8 @@ object SparseMatrix{
     val entryArray = entries.toArray
 
     entryArray.foreach{ case (row, col, _) =>
-        require(0 <= row && row < numRows, s"Row $row is out of bounds [0, $numRows).")
-        require(0 <= col && col < numCols, s"Columm $col is out of bounds [0, $numCols).")
+      require(0 <= row && row < numRows && 0 <= col && col <= numCols,
+        (row, col) + " not in [0, " + numRows + ") x [0, " + numCols + ")")
     }
 
     val COOOrdering = new Ordering[(Int, Int, Double)] {

@@ -25,7 +25,10 @@ class SparseVectorTest extends ShouldMatchers{
 
   @Test
   def testDataAfterInitialization: Unit = {
-    val sparseVector = SparseVector.fromCOO(5, (0, 1), (2, 0), (4, 42), (0, 3))
+    val data = List[(Int, Double)]((0, 1), (2, 0), (4, 42), (0, 3))
+    val size = 5
+    val sparseVector = SparseVector.fromCOO(size, data)
+
     val expectedSparseVector = SparseVector.fromCOO(5, (0, 4), (4, 42))
     val expectedDenseVector = DenseVector.zeros(5)
 
@@ -38,11 +41,22 @@ class SparseVectorTest extends ShouldMatchers{
     val denseVector = sparseVector.toDenseVector
 
     denseVector should equal(expectedDenseVector)
+
+    val dataMap = data.
+      groupBy{_._1}.
+      mapValues{
+      entries =>
+        entries.map(_._2).reduce(_ + _)
+    }
+
+    for(index <- 0 until size) {
+      sparseVector(index) should be(dataMap.getOrElse(index, 0))
+    }
   }
 
   @Test
   def testInvalidIndexAccess: Unit = {
-    val sparseVector = SparseVector.fromCOO(5, (0, 1), (4, 10), (3, 5))
+    val sparseVector = SparseVector.fromCOO(5, (1, 1), (3, 3), (4, 4))
 
     intercept[IllegalArgumentException] {
       sparseVector(-1)

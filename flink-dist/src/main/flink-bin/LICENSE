@@ -250,6 +250,7 @@ under the Apache License (v 2.0):
  - Twitter Hosebird Client (hbc) (https://github.com/twitter/hbc)
  - Jettison (http://jettison.codehaus.org)
  - Akka (http://akka.io)
+ - Breeze (https://github.com/scalanlp/breeze)
  
 
 -----------------------------------------------------------------------
