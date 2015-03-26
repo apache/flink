@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api;
 
-import static org.junit.Assert.assertTrue;
-
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
@@ -28,19 +26,24 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
+import java.util.Collections;
+
+import static org.junit.Assert.assertTrue;
+
 public class IterateTest {
 
 	private static final long MEMORYSIZE = 32;
-	private static boolean iterated = false;
+	private static boolean iterated[];
 
-	public static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {
+	public static final class IterationHead extends RichFlatMapFunction<Boolean,Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void flatMap(Boolean value, Collector<Boolean> out) throws Exception {
+			int indx = getRuntimeContext().getIndexOfThisSubtask();
 			if (value) {
-				iterated = true;
+				iterated[indx] = true;
 			} else {
 				out.collect(value);
 			}
@@ -49,7 +52,7 @@ public class IterateTest {
 
 	}
 
-	public static final class IterationTail extends RichFlatMapFunction<Boolean, Boolean> {
+	public static final class IterationTail extends RichFlatMapFunction<Boolean,Boolean> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -72,11 +75,12 @@ public class IterateTest {
 
 	@Test
 	public void test() throws Exception {
-		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORYSIZE);
-
+		int parallelism = 2;
+		StreamExecutionEnvironment env = new TestStreamEnvironment(parallelism, MEMORYSIZE);
+		iterated = new boolean[parallelism];
 		env.setBufferTimeout(10);
 
-		DataStream<Boolean> source = env.fromElements(false, false, false);
+		DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism, false));
 
 		IterativeDataStream<Boolean> iteration = source.iterate(3000);
 
@@ -87,7 +91,9 @@ public class IterateTest {
 
 		env.execute();
 
-		assertTrue(iterated);
+		for (boolean iter : iterated) {
+			assertTrue(iter);
+		}
 
 	}
 
