@@ -49,7 +49,8 @@ public class StreamIterationTail<IN> extends StreamVertex<IN, IN> {
 			iterationId = configuration.getIterationId();
 			iterationWaitTime = configuration.getIterationWaitTime();
 			shouldWait = iterationWaitTime > 0;
-			dataChannel = BlockingQueueBroker.instance().get(iterationId.toString());
+			BlockingQueueBroker.instance().get(iterationId.toString()+"-"
+					+getEnvironment().getIndexInSubtaskGroup());
 		} catch (Exception e) {
 			throw new StreamVertexException(String.format(
 					"Cannot register inputs of StreamIterationSink %s", iterationId), e);
