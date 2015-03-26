@@ -215,6 +215,7 @@ under the License.
 									<mainClass>${package}.Job</mainClass>
 								</transformer>
 							</transformers>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
 						</configuration>
 					</execution>
 				</executions>
