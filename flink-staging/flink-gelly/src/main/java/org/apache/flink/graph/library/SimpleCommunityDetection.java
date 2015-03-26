@@ -44,19 +44,6 @@ import java.util.TreeMap;
  * is reached.
  *
  * @see <a href="http://arxiv.org/pdf/0808.2633.pdf">article explaining the algorithm in detail</a>
- *
- *<p>
- * 	The input files is a plain text file and must be formatted as follows:
- * 	<br>
- * 	Edges are represented by tuples of srcVertexId, trgVertexId which are
- * 	separated by tabs. Edges themselves are separated by newlines.
- * 	For example: <code>1	2\n1	3\n</code> defines two edges 1-2 and 1-3
- * </p>
- *
- * Usage <code>SimpleCommunityDetection &lt;edge path&gt; &lt;result path&gt;
- * &lt;number of iterations&gt; &lt;delta&gt;</code><br>
- * If no parameters are provided, the program is run with default data from
- * {@link org.apache.flink.graph.example.utils.SimpleCommunityDetectionData}
  */
 public class SimpleCommunityDetection implements GraphAlgorithm<Long, Long, Double> {
 
@@ -86,6 +73,7 @@ public class SimpleCommunityDetection implements GraphAlgorithm<Long, Long, Doub
 				.mapVertices(new RemoveScoreFromVertexValuesMapper());
 	}
 
+	@SuppressWarnings("serial")
 	public static final class VertexLabelUpdater extends VertexUpdateFunction<Long, Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		private Double delta;
@@ -154,6 +142,7 @@ public class SimpleCommunityDetection implements GraphAlgorithm<Long, Long, Doub
 		}
 	}
 
+	@SuppressWarnings("serial")
 	public static final class LabelMessenger extends MessagingFunction<Long, Tuple2<Long, Double>,
 			Tuple2<Long, Double>, Double> {
 

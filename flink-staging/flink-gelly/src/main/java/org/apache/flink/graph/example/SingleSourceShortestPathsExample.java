@@ -119,7 +119,6 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 		return true;
 	}
 
-	@SuppressWarnings("serial")
 	private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
 		if (fileOutput) {
 			return env.readCsvFile(edgesInputPath)

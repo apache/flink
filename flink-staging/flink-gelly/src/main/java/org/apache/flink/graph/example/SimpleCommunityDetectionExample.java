@@ -36,9 +36,21 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * 	<li> with the edge data set given as a parameter
  * 	<li> with default data
  * </ul>
+ *
+ * The input files is a plain text file and must be formatted as follows:
+ * Edges are represented by tuples of srcVertexId, trgVertexId, weight which are
+ * separated by tabs. Edges themselves are separated by newlines.
+ * For example: <code>1\t2\t1.0\n1\t3\t2.0\n</code> defines two edges,
+ * 1-2 with weight 1.0 and 1-3 with weight 2.0.
+ *
+ * Usage <code>SimpleCommunityDetection &lt;edge path&gt; &lt;result path&gt;
+ * &lt;number of iterations&gt; &lt;delta&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from
+ * {@link org.apache.flink.graph.example.utils.SimpleCommunityDetectionData}
  */
 public class SimpleCommunityDetectionExample implements ProgramDescription {
 
+	@SuppressWarnings("serial")
 	public static void main(String [] args) throws Exception {
 
 		if(!parseParameters(args)) {
@@ -112,7 +124,6 @@ public class SimpleCommunityDetectionExample implements ProgramDescription {
 		return true;
 	}
 
-	@SuppressWarnings("serial")
 	private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
 
 		if(fileOutput) {
