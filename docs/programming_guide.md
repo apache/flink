@@ -1597,7 +1597,7 @@ DataSet<Tuple2<String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file
 	                       .types(String.class, Double.class);
 
 // read a CSV file with three fields into a POJO (Person.class) with corresponding fields
-DataSet<Tuple3<Integer, String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
+DataSet<Person>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
                          .pojoType(Person.class, "name", "age", "zipcode");                         
 
 // create a set from some given elements
