@@ -122,9 +122,15 @@ public class StreamDiscretizer<IN> extends StreamInvokable<IN, WindowEvent<IN>> 
 	 * @param input
 	 *            a fake input element
 	 */
+	@SuppressWarnings("unchecked")
 	protected synchronized void triggerOnFakeElement(Object input) {
-		activeEvict(input);
-		emitWindow();
+		if (isActiveEviction) {
+			activeEvict(input);
+			emitWindow();
+		} else {
+			emitWindow();
+			evict((IN) input, true);
+		}
 	}
 
 	/**

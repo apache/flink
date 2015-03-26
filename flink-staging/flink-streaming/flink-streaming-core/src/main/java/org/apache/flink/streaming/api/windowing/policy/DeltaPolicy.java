@@ -47,11 +47,10 @@ public class DeltaPolicy<DATA> implements CloneableTriggerPolicy<DATA>,
 	 */
 	private static final long serialVersionUID = -7797538922123394967L;
 
-	private DeltaFunction<DATA> deltaFuntion;
+	protected DeltaFunction<DATA> deltaFuntion;
 	private List<DATA> windowBuffer;
-	private double threshold;
-	private DATA triggerDataPoint;
-	private DATA init;
+	protected double threshold;
+	protected DATA triggerDataPoint;
 
 	/**
 	 * Crates a delta policy which calculates a delta between the data point
@@ -76,7 +75,6 @@ public class DeltaPolicy<DATA> implements CloneableTriggerPolicy<DATA>,
 		this.triggerDataPoint = init;
 		this.windowBuffer = new LinkedList<DATA>();
 		this.threshold = threshold;
-		this.init = init;
 	}
 
 	@Override
@@ -122,7 +120,7 @@ public class DeltaPolicy<DATA> implements CloneableTriggerPolicy<DATA>,
 				DeltaPolicy<DATA> otherPolicy = (DeltaPolicy<DATA>) other;
 				return threshold == otherPolicy.threshold
 						&& deltaFuntion.getClass() == otherPolicy.deltaFuntion.getClass()
-						&& init.equals(otherPolicy.init);
+						&& triggerDataPoint.equals(otherPolicy.triggerDataPoint);
 			} catch (ClassCastException e) {
 				return false;
 			}

@@ -38,8 +38,8 @@ import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.A
 import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedActiveDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedStreamDiscretizer;
-import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedTimeDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.GroupedWindowBufferInvokable;
 import org.apache.flink.streaming.api.invokable.operator.windowing.StreamDiscretizer;
 import org.apache.flink.streaming.api.invokable.operator.windowing.WindowBufferInvokable;
@@ -50,11 +50,11 @@ import org.apache.flink.streaming.api.windowing.WindowUtils;
 import org.apache.flink.streaming.api.windowing.WindowUtils.WindowTransformation;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
+import org.apache.flink.streaming.api.windowing.policy.CentralActiveTrigger;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBuffer;
@@ -451,11 +451,9 @@ public class WindowedDataStream<OUT> {
 	private StreamInvokable<OUT, WindowEvent<OUT>> getDiscretizer() {
 		if (discretizerKey == null) {
 			return new StreamDiscretizer<OUT>(getTrigger(), getEviction());
-		} else if (WindowUtils.isSystemTimeTrigger(getTrigger())) {
-			// We return a special more efficient grouped discretizer for system
-			// time policies to avoid lunching multiple threads
-			return new GroupedTimeDiscretizer<OUT>(discretizerKey,
-					(TimeTriggerPolicy<OUT>) getTrigger(),
+		} else if (getTrigger() instanceof CentralActiveTrigger) {
+			return new GroupedActiveDiscretizer<OUT>(discretizerKey,
+					(CentralActiveTrigger<OUT>) getTrigger(),
 					(CloneableEvictionPolicy<OUT>) getEviction());
 		} else {
 			return new GroupedStreamDiscretizer<OUT>(discretizerKey,

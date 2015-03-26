@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
  *            policy.
  */
 public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
-		CloneableTriggerPolicy<DATA> {
+		CloneableTriggerPolicy<DATA>, CentralActiveTrigger<DATA> {
 
 	/**
 	 * auto generated version id
@@ -193,9 +193,21 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		return "TimePolicy(" + granularity + ", " + timestampWrapper.getClass().getSimpleName()
 				+ ")";
 	}
-	
+
 	public TimestampWrapper<DATA> getTimeStampWrapper() {
 		return timestampWrapper;
+	}
+
+	@Override
+	public Object[] notifyOnLastGlobalElement(DATA datapoint) {
+		LinkedList<Object> fakeElements = new LinkedList<Object>();
+		// check if there is more then one window border missed
+		// use > here. In case >= would fit, the regular call will do the job.
+		while (timestampWrapper.getTimestamp(datapoint) >= startTime + granularity) {
+			startTime += granularity;
+			fakeElements.add(startTime - 1);
+		}
+		return (Object[]) fakeElements.toArray();
 	}
 
 }

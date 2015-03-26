@@ -18,24 +18,19 @@
 package org.apache.flink.streaming.api.invokable.operator.windowing;
 
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.windowing.policy.CentralActiveTrigger;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 
-/**
- * A specialized {@link GroupedStreamDiscretizer} to be used with time only
- * policies
- */
-public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
+public class GroupedActiveDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 
 	private static final long serialVersionUID = -3469545957144404137L;
 
-	private TimeTriggerPolicy<IN> timeTriggerPolicy;
-	private Thread policyThread;
+	private volatile IN last;
+	private Thread centralThread;
 
-	public GroupedTimeDiscretizer(KeySelector<IN, ?> keySelector,
-			TimeTriggerPolicy<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy) {
+	public GroupedActiveDiscretizer(KeySelector<IN, ?> keySelector,
+			CentralActiveTrigger<IN> triggerPolicy, CloneableEvictionPolicy<IN> evictionPolicy) {
 		super(keySelector, triggerPolicy, evictionPolicy);
-		this.timeTriggerPolicy = triggerPolicy;
 	}
 
 	@Override
@@ -51,33 +46,70 @@ public class GroupedTimeDiscretizer<IN> extends GroupedStreamDiscretizer<IN> {
 	}
 
 	@Override
-	public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
-		super.open(parameters);
+	public void invoke() throws Exception {
 
-		Runnable runnable = new TimeCheck();
-		policyThread = new Thread(runnable);
-		policyThread.start();
+		while (isRunning && readNext() != null) {
+			last = copy(nextObject);
+			Object key = keySelector.getKey(nextObject);
+
+			synchronized (groupedDiscretizers) {
+				StreamDiscretizer<IN> groupDiscretizer = groupedDiscretizers.get(key);
+
+				if (groupDiscretizer == null) {
+					groupDiscretizer = makeNewGroup(key);
+					groupedDiscretizers.put(key, groupDiscretizer);
+				}
+
+				groupDiscretizer.processRealElement(nextObject);
+			}
+
+		}
+
+		for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {
+			group.emitWindow();
+		}
+
 	}
 
-	private class TimeCheck implements Runnable {
+	@Override
+	public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
+		super.open(parameters);
+		centralThread = new Thread(new CentralCheck());
+		centralThread.start();
+	}
+
+	private class CentralCheck implements Runnable {
 
 		@Override
 		public void run() {
-			while (true) {
+			while (isRunning) {
 				// wait for the specified granularity
 				try {
-					Thread.sleep(timeTriggerPolicy.granularity);
+					Thread.sleep(2000);
 				} catch (InterruptedException e) {
 					// ignore it...
 				}
 
-				for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {
-					TimeTriggerPolicy<IN> groupTrigger = (TimeTriggerPolicy<IN>) group.triggerPolicy;
-					Object fake = groupTrigger.activeFakeElementEmission(null);
-					if (fake != null) {
-						group.triggerOnFakeElement(fake);
+				try {
+					if (last != null) {
+						synchronized (groupedDiscretizers) {
+							for (StreamDiscretizer<IN> group : groupedDiscretizers.values()) {
+
+								CentralActiveTrigger<IN> groupTrigger = (CentralActiveTrigger<IN>) group.triggerPolicy;
+								Object[] fakes = groupTrigger.notifyOnLastGlobalElement(last);
+								if (fakes != null) {
+									for (Object fake : fakes) {
+										group.triggerOnFakeElement(fake);
+									}
+								}
+							}
+						}
+
 					}
+				} catch (Exception e) {
+					throw new RuntimeException(e);
 				}
+
 			}
 		}
 	}
