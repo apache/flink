@@ -70,10 +70,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in1 = tableEnv.toTable(ds1, "a, b, c");
-		Table<JavaBatchTranslator> in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
+		Table in1 = tableEnv.toTable(ds1, "a, b, c");
+		Table in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
 
-		Table<JavaBatchTranslator> result = in1.join(in2).where("b === e").select("c, g");
+		Table result = in1.join(in2).where("b === e").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -91,10 +91,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in1 = tableEnv.toTable(ds1, "a, b, c");
-		Table<JavaBatchTranslator> in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
+		Table in1 = tableEnv.toTable(ds1, "a, b, c");
+		Table in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
 
-		Table<JavaBatchTranslator> result = in1.join(in2).where("b === e && b < 2").select("c, g");
+		Table result = in1.join(in2).where("b === e && b < 2").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -112,10 +112,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.get3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in1 = tableEnv.toTable(ds1, "a, b, c");
-		Table<JavaBatchTranslator> in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
+		Table in1 = tableEnv.toTable(ds1, "a, b, c");
+		Table in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
 
-		Table<JavaBatchTranslator> result = in1.join(in2).where("a === d && b === h").select("c, g");
+		Table result = in1.join(in2).where("a === d && b === h").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -134,10 +134,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in1 = tableEnv.toTable(ds1, "a, b, c");
-		Table<JavaBatchTranslator> in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
+		Table in1 = tableEnv.toTable(ds1, "a, b, c");
+		Table in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
 
-		Table<JavaBatchTranslator> result = in1.join(in2).where("foo === e").select("c, g");
+		Table result = in1.join(in2).where("foo === e").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -155,10 +155,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in1 = tableEnv.toTable(ds1, "a, b, c");
-		Table<JavaBatchTranslator> in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
+		Table in1 = tableEnv.toTable(ds1, "a, b, c");
+		Table in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
 
-		Table<JavaBatchTranslator> result = in1
+		Table result = in1
 				.join(in2).where("a === g").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
@@ -177,10 +177,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in1 = tableEnv.toTable(ds1, "a, b, c");
-		Table<JavaBatchTranslator> in2 = tableEnv.toTable(ds2, "d, e, f, g, c");
+		Table in1 = tableEnv.toTable(ds1, "a, b, c");
+		Table in2 = tableEnv.toTable(ds2, "d, e, f, g, c");
 
-		Table<JavaBatchTranslator> result = in1
+		Table result = in1
 				.join(in2).where("a === d").select("c, g");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
@@ -199,10 +199,10 @@ public class JoinITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
 		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in1 = tableEnv.toTable(ds1, "a, b, c");
-		Table<JavaBatchTranslator> in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
+		Table in1 = tableEnv.toTable(ds1, "a, b, c");
+		Table in2 = tableEnv.toTable(ds2, "d, e, f, g, h");
 
-		Table<JavaBatchTranslator> result = in1
+		Table result = in1
 				.join(in2).where("a === d").select("g.count");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);

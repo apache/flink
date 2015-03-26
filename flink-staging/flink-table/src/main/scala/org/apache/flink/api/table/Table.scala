@@ -17,32 +17,32 @@
  */
 package org.apache.flink.api.table
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.table.analysis.{GroupByAnalyzer, SelectionAnalyzer, PredicateAnalyzer}
-import org.apache.flink.api.table.operations._
+import org.apache.flink.api.table.expressions.analysis.{GroupByAnalyzer, PredicateAnalyzer, SelectionAnalyzer}
+import org.apache.flink.api.table.expressions.{Expression, ResolvedFieldReference, UnresolvedFieldReference}
 import org.apache.flink.api.table.parser.ExpressionParser
-import org.apache.flink.api.table.tree.{ResolvedFieldReference, UnresolvedFieldReference, Expression}
+import org.apache.flink.api.table.plan._
 
 /**
  * The abstraction for writing Table API programs. Similar to how the batch and streaming APIs
  * have [[org.apache.flink.api.scala.DataSet]] and
  * [[org.apache.flink.streaming.api.scala.DataStream]].
  *
- * Use the methods of [[Table]] to transform data or to revert back to the underlying
- * batch or streaming representation.
+ * Use the methods of [[Table]] to transform data. Use
+ * [[org.apache.flink.api.java.table.TableEnvironment]] to convert a [[Table]] back to a DataSet
+ * or DataStream.
+ *
+ * When using Scala a [[Table]] can also be converted using implicit conversions.
+ *
+ * Example:
+ *
+ * {{{
+ *   val table = set.toTable('a, 'b)
+ *   ...
+ *   val table2 = ...
+ *   val set = table2.toSet[MyType]
+ * }}}
  */
-case class Table[A <: TableTranslator](
-    private[flink] val operation: Operation,
-    private[flink] val operationTranslator: A) {
-
-
-  /**
-   * Converts the result of this operation back to a [[org.apache.flink.api.scala.DataSet]] or
-   * [[org.apache.flink.streaming.api.scala.DataStream]].
-   */
-  def as[O](implicit tpe: TypeInformation[O]): operationTranslator.Representation[O] = {
-    operationTranslator.translate(operation)
-  }
+case class Table(private[flink] val operation: PlanNode) {
 
   /**
    * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
@@ -54,7 +54,7 @@ case class Table[A <: TableTranslator](
    *   in.select('key, 'value.avg + " The average" as 'average, 'other.substring(0, 10))
    * }}}
    */
-  def select(fields: Expression*): Table[A] = {
+  def select(fields: Expression*): Table = {
     val analyzer = new SelectionAnalyzer(operation.outputFields)
     val analyzedFields = fields.map(analyzer.analyze)
     val fieldNames = analyzedFields map(_.name)
@@ -75,7 +75,7 @@ case class Table[A <: TableTranslator](
    *   in.select("key, value.avg + " The average" as average, other.substring(0, 10)")
    * }}}
    */
-  def select(fields: String): Table[A] = {
+  def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     select(fieldExprs: _*)
   }
@@ -90,7 +90,7 @@ case class Table[A <: TableTranslator](
    *   in.as('a, 'b)
    * }}}
    */
-  def as(fields: Expression*): Table[A] = {
+  def as(fields: Expression*): Table = {
     fields forall {
       f => f.isInstanceOf[UnresolvedFieldReference]
     } match {
@@ -110,7 +110,7 @@ case class Table[A <: TableTranslator](
    *   in.as("a, b")
    * }}}
    */
-  def as(fields: String): Table[A] = {
+  def as(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     as(fieldExprs: _*)
   }
@@ -125,7 +125,7 @@ case class Table[A <: TableTranslator](
    *   in.filter('name === "Fred")
    * }}}
    */
-  def filter(predicate: Expression): Table[A] = {
+  def filter(predicate: Expression): Table = {
     val analyzer = new PredicateAnalyzer(operation.outputFields)
     val analyzedPredicate = analyzer.analyze(predicate)
     this.copy(operation = Filter(operation, analyzedPredicate))
@@ -141,7 +141,7 @@ case class Table[A <: TableTranslator](
    *   in.filter("name === 'Fred'")
    * }}}
    */
-  def filter(predicate: String): Table[A] = {
+  def filter(predicate: String): Table = {
     val predicateExpr = ExpressionParser.parseExpression(predicate)
     filter(predicateExpr)
   }
@@ -156,7 +156,7 @@ case class Table[A <: TableTranslator](
    *   in.filter(name === "Fred")
    * }}}
    */
-  def where(predicate: Expression): Table[A] = {
+  def where(predicate: Expression): Table = {
     filter(predicate)
   }
 
@@ -170,7 +170,7 @@ case class Table[A <: TableTranslator](
    *   in.filter("name === 'Fred'")
    * }}}
    */
-  def where(predicate: String): Table[A] = {
+  def where(predicate: String): Table = {
     filter(predicate)
   }
 
@@ -184,7 +184,7 @@ case class Table[A <: TableTranslator](
    *   in.groupBy('key).select('key, 'value.avg)
    * }}}
    */
-  def groupBy(fields: Expression*): Table[A] = {
+  def groupBy(fields: Expression*): Table = {
     val analyzer = new GroupByAnalyzer(operation.outputFields)
     val analyzedFields = fields.map(analyzer.analyze)
 
@@ -210,7 +210,7 @@ case class Table[A <: TableTranslator](
    *   in.groupBy("key").select("key, value.avg")
    * }}}
    */
-  def groupBy(fields: String): Table[A] = {
+  def groupBy(fields: String): Table = {
     val fieldsExpr = ExpressionParser.parseExpressionList(fields)
     groupBy(fieldsExpr: _*)
   }
@@ -226,7 +226,7 @@ case class Table[A <: TableTranslator](
    *   left.join(right).where('a === 'b && 'c > 3).select('a, 'b, 'd)
    * }}}
    */
-  def join(right: Table[A]): Table[A] = {
+  def join(right: Table): Table = {
     val leftInputNames = operation.outputFields.map(_._1).toSet
     val rightInputNames = right.operation.outputFields.map(_._1).toSet
     if (leftInputNames.intersect(rightInputNames).nonEmpty) {

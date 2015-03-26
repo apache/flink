@@ -69,9 +69,9 @@ can join to Tables:
 {% highlight scala %}
 case class MyResult(a: String, b: Int)
 
-val input1 = env.fromElements(...).as('a, 'b)
-val input2 = env.fromElements(...).as('c, 'd)
-val joined = input1.join(input2).where("b = a && d > 42").select("a, d").as[MyResult]
+val input1 = env.fromElements(...).toTable('a, 'b)
+val input2 = env.fromElements(...).toTable('c, 'd)
+val joined = input1.join(input2).where("b = a && d > 42").select("a, d").toSet[MyResult]
 {% endhighlight %}
 
 Notice, how a DataSet can be converted to a Table by using `as` and specifying new

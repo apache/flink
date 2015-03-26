@@ -18,7 +18,7 @@
 package org.apache.flink.api.table.runtime
 
 import org.apache.flink.api.table.codegen.GenerateUnaryPredicate
-import org.apache.flink.api.table.tree.{NopExpression, Expression}
+import org.apache.flink.api.table.expressions.{NopExpression, Expression}
 import org.apache.flink.api.common.functions.RichFilterFunction
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.configuration.Configuration

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.table.runtime
 
-import org.apache.flink.api.table.tree.Expression
+import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.table.codegen.GenerateUnaryResultAssembler

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.ExpressionException
+import org.apache.flink.api.table.{Row, ExpressionException}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -57,7 +57,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinDs = ds1.join(ds2).where('b === 'e).select('c, 'g)
 
-    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    joinDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n"
   }
@@ -70,7 +70,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinDs = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 
-    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    joinDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hallo\n"
   }
@@ -83,7 +83,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinDs = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
 
-    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    joinDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
       "Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n"
@@ -97,7 +97,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinDs = ds1.join(ds2).where('foo === 'e).select('c, 'g)
 
-    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    joinDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = ""
   }
@@ -110,7 +110,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinDs = ds1.join(ds2).where('a === 'g).select('c, 'g)
 
-    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    joinDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = ""
   }
@@ -123,7 +123,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinDs = ds1.join(ds2).where('a === 'd).select('c, 'g)
 
-    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    joinDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = ""
   }
@@ -136,7 +136,7 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
 
     val joinDs = ds1.join(ds2).where('a === 'd).select('g.count)
 
-    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    joinDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "6"
   }

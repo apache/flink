@@ -18,8 +18,8 @@
 package org.apache.flink.api.table.parser
 
 import org.apache.flink.api.table.ExpressionException
-import org.apache.flink.api.table.operations.As
-import org.apache.flink.api.table.tree._
+import org.apache.flink.api.table.plan.As
+import org.apache.flink.api.table.expressions._
 
 import scala.util.parsing.combinator.{PackratParsers, JavaTokenParsers}
 

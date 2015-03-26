@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.java.table
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.table.Table
@@ -43,8 +44,8 @@ class TableEnvironment {
    * This will transform the set containing elements of two fields to a table where the fields
    * are named a and b.
    */
-  def toTable[T](set: DataSet[T], fields: String): Table[JavaBatchTranslator] = {
-    new JavaBatchTranslator().createTable(set, fields).asInstanceOf[Table[JavaBatchTranslator]]
+  def toTable[T](set: DataSet[T], fields: String): Table = {
+    new JavaBatchTranslator().createTable(set, fields)
   }
 
   /**
@@ -52,8 +53,8 @@ class TableEnvironment {
    * The fields of the DataSet type are used to name the
    * [[org.apache.flink.api.table.Table]] fields.
    */
-  def toTable[T](set: DataSet[T]): Table[JavaBatchTranslator] = {
-    new JavaBatchTranslator().createTable(set).asInstanceOf[Table[JavaBatchTranslator]]
+  def toTable[T](set: DataSet[T]): Table = {
+    new JavaBatchTranslator().createTable(set)
   }
 
   /**
@@ -69,9 +70,8 @@ class TableEnvironment {
    * This will transform the set containing elements of two fields to a table where the fields
    * are named a and b.
    */
-  def toTable[T](set: DataStream[T], fields: String): Table[JavaStreamingTranslator] = {
+  def toTable[T](set: DataStream[T], fields: String): Table = {
     new JavaStreamingTranslator().createTable(set, fields)
-      .asInstanceOf[Table[JavaStreamingTranslator]]
   }
 
   /**
@@ -79,8 +79,8 @@ class TableEnvironment {
    * The fields of the DataSet type are used to name the
    * [[org.apache.flink.api.table.Table]] fields.
    */
-  def toTable[T](set: DataStream[T]): Table[JavaStreamingTranslator] = {
-    new JavaStreamingTranslator().createTable(set).asInstanceOf[Table[JavaStreamingTranslator]]
+  def toTable[T](set: DataStream[T]): Table = {
+    new JavaStreamingTranslator().createTable(set)
   }
 
   /**
@@ -90,10 +90,9 @@ class TableEnvironment {
    * fields and the types must match.
    */
   @SuppressWarnings(Array("unchecked"))
-  def toSet[T](
-      table: Table[JavaBatchTranslator],
-      clazz: Class[T]): DataSet[T] = {
-    table.as(TypeExtractor.createTypeInfo(clazz)).asInstanceOf[DataSet[T]]
+  def toSet[T](table: Table, clazz: Class[T]): DataSet[T] = {
+    new JavaBatchTranslator().translate[T](table.operation)(
+      TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
   }
 
   /**
@@ -103,10 +102,10 @@ class TableEnvironment {
    * fields and the types must match.
    */
   @SuppressWarnings(Array("unchecked"))
-  def toStream[T](
-      table: Table[JavaStreamingTranslator],
-    clazz: Class[T]): DataStream[T] = {
-    table.as(TypeExtractor.createTypeInfo(clazz)).asInstanceOf[DataStream[T]]
+  def toStream[T](table: Table, clazz: Class[T]): DataStream[T] = {
+    new JavaStreamingTranslator().translate[T](table.operation)(
+      TypeExtractor.createTypeInfo(clazz).asInstanceOf[TypeInformation[T]])
+
   }
 }
 

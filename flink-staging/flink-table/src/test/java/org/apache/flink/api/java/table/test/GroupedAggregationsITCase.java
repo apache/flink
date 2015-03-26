@@ -68,10 +68,10 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.groupBy("foo").select("a.avg");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
@@ -89,10 +89,10 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.groupBy("b").select("b, a.sum");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
@@ -114,10 +114,10 @@ public class GroupedAggregationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.groupBy("b").select("a.sum");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);

@@ -69,10 +69,10 @@ public class CastingITCase extends MultipleProgramsTestBase {
 				env.fromElements(new Tuple7<Byte, Short, Integer, Long, Float, Double, String>(
 						(byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"));
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(input);
 
-		Table<JavaBatchTranslator> result = table.select(
+		Table result = table.select(
 				"f0 + 'b', f1 + 's', f2 + 'i', f3 + 'L', f4 + 'f', f5 + \"d\"");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
@@ -92,10 +92,10 @@ public class CastingITCase extends MultipleProgramsTestBase {
 				env.fromElements(new Tuple7<Byte, Short, Integer, Long, Float, Double, String>(
 						(byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"));
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(input);
 
-		Table<JavaBatchTranslator> result = table.select("f0 + 1, f1 +" +
+		Table result = table.select("f0 + 1, f1 +" +
 				" 1, f2 + 1L, f3 + 1.0f, f4 + 1.0d, f5 + 1");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
@@ -116,10 +116,10 @@ public class CastingITCase extends MultipleProgramsTestBase {
 						new Tuple7<Byte, Short, Integer, Long, Float, Double, String>((byte) 1, (short) 1, 1, 1L, 1.0f, 1.0d, "Hello"),
 						new Tuple7<Byte, Short, Integer, Long, Float, Double, String>((byte) 2, (short) 2, 2, 2L, 2.0f, 2.0d, "Hello"));
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(input, "a,b,c,d,e,f,g");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.filter("a > 1 && b > 1 && c > 1L && d > 1.0f && e > 1.0d && f > 1");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);

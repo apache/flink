@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.table
 
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.table._
-import org.apache.flink.api.table.tree.{Expression, UnresolvedFieldReference}
+import org.apache.flink.api.table.expressions.{Expression, UnresolvedFieldReference}
 import org.apache.flink.streaming.api.scala.DataStream
 
 class DataStreamConversions[T](stream: DataStream[T], inputType: CompositeType[T]) {
@@ -37,11 +37,11 @@ class DataStreamConversions[T](stream: DataStream[T], inputType: CompositeType[T
    * of type `Int`.
    */
 
-  def as(fields: Expression*): Table[ScalaStreamingTranslator] = {
+  def as(fields: Expression*): Table = {
      new ScalaStreamingTranslator().createTable(
        stream,
        fields.toArray,
-       checkDeterministicFields = true).asInstanceOf[Table[ScalaStreamingTranslator]]
+       checkDeterministicFields = true)
   }
 
   /**
@@ -59,7 +59,7 @@ class DataStreamConversions[T](stream: DataStream[T], inputType: CompositeType[T
    * of type `Int`.
    */
 
-  def toTable: Table[ScalaStreamingTranslator] = {
+  def toTable: Table = {
     val resultFields = inputType.getFieldNames.map(UnresolvedFieldReference)
     as(resultFields: _*)
   }

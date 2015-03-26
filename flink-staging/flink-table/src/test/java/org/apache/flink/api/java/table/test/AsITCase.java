@@ -65,7 +65,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b, c");
 
 		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
@@ -86,7 +86,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b");
 
 		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
@@ -102,7 +102,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b, c, d");
 
 		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
@@ -118,7 +118,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a, b, b");
 
 		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
@@ -134,7 +134,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a + 1, b, c");
 
 		DataSet<Row> ds = tableEnv.toSet(table, Row.class);
@@ -150,7 +150,7 @@ public class AsITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(CollectionDataSets.get3TupleDataSet(env), "a as foo, b," +
 						" c");
 

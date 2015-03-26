@@ -18,9 +18,9 @@
 package org.apache.flink.api.table.codegen
 
 import java.util.concurrent.atomic.AtomicInteger
-import org.apache.flink.api.table.tree._
+import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.{RenamingProxyTypeInfo, RowTypeInfo}
-import org.apache.flink.api.table.{ExpressionException, tree}
+import org.apache.flink.api.table.{ExpressionException, expressions}
 import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, BasicTypeInfo, TypeInformation}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
@@ -43,9 +43,9 @@ import scala.collection.mutable
   *           as "(IN1, IN2) => OUT".
   */
 abstract class ExpressionCodeGenerator[R](
-                                           inputs: Seq[(String, CompositeType[_])],
-                                           val nullCheck: Boolean = false,
-                                           cl: ClassLoader) {
+    inputs: Seq[(String, CompositeType[_])],
+    val nullCheck: Boolean = false,
+    cl: ClassLoader) {
   protected val log = LoggerFactory.getLogger(classOf[ExpressionCodeGenerator[_]])
 
   import scala.reflect.runtime.{universe => ru}
@@ -111,13 +111,13 @@ abstract class ExpressionCodeGenerator[R](
     }
 
     val cleanedExpr = expr match {
-      case tree.Naming(namedExpr, _) => namedExpr
+      case expressions.Naming(namedExpr, _) => namedExpr
       case _ => expr
     }
 
     val code: Seq[Tree] = cleanedExpr match {
 
-      case tree.Literal(null, typeInfo) =>
+      case expressions.Literal(null, typeInfo) =>
         if (nullCheck) {
           q"""
             val $nullTerm = true
@@ -129,7 +129,7 @@ abstract class ExpressionCodeGenerator[R](
           """)
         }
 
-      case tree.Literal(intValue: Int, INT_TYPE_INFO) =>
+      case expressions.Literal(intValue: Int, INT_TYPE_INFO) =>
         if (nullCheck) {
           q"""
             val $nullTerm = false
@@ -141,7 +141,7 @@ abstract class ExpressionCodeGenerator[R](
           """)
         }
 
-      case tree.Literal(longValue: Long, LONG_TYPE_INFO) =>
+      case expressions.Literal(longValue: Long, LONG_TYPE_INFO) =>
         if (nullCheck) {
           q"""
             val $nullTerm = false
@@ -154,7 +154,7 @@ abstract class ExpressionCodeGenerator[R](
         }
 
 
-      case tree.Literal(doubleValue: Double, DOUBLE_TYPE_INFO) =>
+      case expressions.Literal(doubleValue: Double, DOUBLE_TYPE_INFO) =>
         if (nullCheck) {
           q"""
             val $nullTerm = false
@@ -166,7 +166,7 @@ abstract class ExpressionCodeGenerator[R](
           """)
         }
 
-      case tree.Literal(floatValue: Float, FLOAT_TYPE_INFO) =>
+      case expressions.Literal(floatValue: Float, FLOAT_TYPE_INFO) =>
         if (nullCheck) {
           q"""
             val $nullTerm = false
@@ -178,7 +178,7 @@ abstract class ExpressionCodeGenerator[R](
           """)
         }
 
-      case tree.Literal(strValue: String, STRING_TYPE_INFO) =>
+      case expressions.Literal(strValue: String, STRING_TYPE_INFO) =>
         if (nullCheck) {
           q"""
             val $nullTerm = false
@@ -190,7 +190,7 @@ abstract class ExpressionCodeGenerator[R](
           """)
         }
 
-      case tree.Literal(boolValue: Boolean, BOOLEAN_TYPE_INFO) =>
+      case expressions.Literal(boolValue: Boolean, BOOLEAN_TYPE_INFO) =>
         if (nullCheck) {
           q"""
             val $nullTerm = false
@@ -234,7 +234,7 @@ abstract class ExpressionCodeGenerator[R](
           """
         }
 
-      case tree.Cast(child: Expression, STRING_TYPE_INFO) =>
+      case expressions.Cast(child: Expression, STRING_TYPE_INFO) =>
         val childGen = generateExpression(child)
         val castCode = if (nullCheck) {
           q"""
@@ -252,7 +252,7 @@ abstract class ExpressionCodeGenerator[R](
         }
         childGen.code ++ castCode
 
-      case tree.Cast(child: Expression, INT_TYPE_INFO) =>
+      case expressions.Cast(child: Expression, INT_TYPE_INFO) =>
         val childGen = generateExpression(child)
         val castCode = if (nullCheck) {
           q"""
@@ -266,7 +266,7 @@ abstract class ExpressionCodeGenerator[R](
         }
         childGen.code ++ castCode
 
-      case tree.Cast(child: Expression, LONG_TYPE_INFO) =>
+      case expressions.Cast(child: Expression, LONG_TYPE_INFO) =>
         val childGen = generateExpression(child)
         val castCode = if (nullCheck) {
           q"""
@@ -280,7 +280,7 @@ abstract class ExpressionCodeGenerator[R](
         }
         childGen.code ++ castCode
 
-      case tree.Cast(child: Expression, FLOAT_TYPE_INFO) =>
+      case expressions.Cast(child: Expression, FLOAT_TYPE_INFO) =>
         val childGen = generateExpression(child)
         val castCode = if (nullCheck) {
           q"""
@@ -294,7 +294,7 @@ abstract class ExpressionCodeGenerator[R](
         }
         childGen.code ++ castCode
 
-      case tree.Cast(child: Expression, DOUBLE_TYPE_INFO) =>
+      case expressions.Cast(child: Expression, DOUBLE_TYPE_INFO) =>
         val childGen = generateExpression(child)
         val castCode = if (nullCheck) {
           q"""

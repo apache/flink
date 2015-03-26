@@ -67,10 +67,10 @@ public class FilterITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.filter("false");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
@@ -88,10 +88,10 @@ public class FilterITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.filter("true");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
@@ -114,10 +114,10 @@ public class FilterITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> table =
+		Table table =
 				tableEnv.toTable(input, "a, b, c");
 
-		Table<JavaBatchTranslator> result = table
+		Table result = table
 				.filter(" a % 2 === 0 ");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);

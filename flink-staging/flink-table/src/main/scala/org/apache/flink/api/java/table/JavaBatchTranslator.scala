@@ -28,18 +28,18 @@ import org.apache.flink.api.java.operators.JoinOperator.EquiJoin
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators.{GroupReduceOperator, Keys, MapOperator, UnsortedGrouping}
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
-import org.apache.flink.api.table.analysis.ExtractEquiJoinFields
-import org.apache.flink.api.table.operations._
+import org.apache.flink.api.table.expressions.analysis.ExtractEquiJoinFields
+import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.runtime.{ExpressionAggregateFunction, ExpressionFilterFunction, ExpressionJoinFunction, ExpressionSelectFunction}
-import org.apache.flink.api.table.tree._
+import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.{RenameOperator, RenamingProxyTypeInfo, RowTypeInfo}
 import org.apache.flink.api.table.{ExpressionException, Row, Table}
 
 /**
- * [[TableTranslator]] for creating [[Table]]s from Java [[org.apache.flink.api.java.DataSet]]s and
+ * [[PlanTranslator]] for creating [[Table]]s from Java [[org.apache.flink.api.java.DataSet]]s and
  * translating them back to Java [[org.apache.flink.api.java.DataSet]]s.
  */
-class JavaBatchTranslator extends TableTranslator {
+class JavaBatchTranslator extends PlanTranslator {
 
   type Representation[A] = JavaDataSet[A]
 
@@ -47,14 +47,14 @@ class JavaBatchTranslator extends TableTranslator {
       repr: Representation[A],
       inputType: CompositeType[A],
       expressions: Array[Expression],
-      resultFields: Seq[(String, TypeInformation[_])]): Table[this.type] = {
+      resultFields: Seq[(String, TypeInformation[_])]): Table = {
 
     val rowDataSet = createSelect(expressions, repr, inputType)
 
-    Table(Root(rowDataSet, resultFields), this)
+    Table(Root(rowDataSet, resultFields))
   }
 
-  override def translate[A](op: Operation)(implicit tpe: TypeInformation[A]): JavaDataSet[A] = {
+  override def translate[A](op: PlanNode)(implicit tpe: TypeInformation[A]): JavaDataSet[A] = {
 
     if (tpe.getTypeClass == classOf[Row]) {
       // shortcut for DataSet[Row]
@@ -113,13 +113,14 @@ class JavaBatchTranslator extends TableTranslator {
     operator
   }
 
-  private def translateInternal(op: Operation): JavaDataSet[Row] = {
+  private def translateInternal(op: PlanNode): JavaDataSet[Row] = {
     op match {
       case Root(dataSet: JavaDataSet[Row], resultFields) =>
         dataSet
 
       case Root(_, _) =>
-        throw new ExpressionException("Invalid Root for JavaBatchTranslator: " + op)
+        throw new ExpressionException("Invalid Root for JavaBatchTranslator: " + op + ". " +
+          "Did you try converting a Table based on a DataSet to a DataStream or vice-versa?")
 
       case GroupBy(_, fields) =>
         throw new ExpressionException("Dangling GroupBy operation. Did you forget a " +

@@ -68,9 +68,9 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds, "a,b,c");
+		Table in = tableEnv.toTable(ds, "a,b,c");
 
-		Table<JavaBatchTranslator> result = in
+		Table result = in
 				.select("a, b, c");
 
 		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
@@ -94,9 +94,9 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds);
+		Table in = tableEnv.toTable(ds);
 
-		Table<JavaBatchTranslator> result = in
+		Table result = in
 				.select("f0 as a, f1 as b")
 				.select("a, b");
 
@@ -117,7 +117,7 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.toTable(ds, "a, b");
 
 		DataSet<Row> resultSet = tableEnv.toSet(in, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -134,7 +134,7 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds, "a, b, c, d");
+		Table in = tableEnv.toTable(ds, "a, b, c, d");
 
 		DataSet<Row> resultSet = tableEnv.toSet(in, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -151,7 +151,7 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds, "a, b, c, b");
+		Table in = tableEnv.toTable(ds, "a, b, c, b");
 
 		DataSet<Row> resultSet = tableEnv.toSet(in, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -168,7 +168,7 @@ public class SelectITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds, "a, b as c, d");
+		Table in = tableEnv.toTable(ds, "a, b as c, d");
 
 		DataSet<Row> resultSet = tableEnv.toSet(in, Row.class);
 		resultSet.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);

@@ -69,9 +69,9 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				new Tuple2<String, Integer>("AAAA", 2),
 				new Tuple2<String, Integer>("BBBB", 1));
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.toTable(ds, "a, b");
 
-		Table<JavaBatchTranslator> result = in
+		Table result = in
 				.select("a.substring(0, b)");
 
 		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
@@ -91,9 +91,9 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				new Tuple2<String, Integer>("ABCD", 2),
 				new Tuple2<String, Integer>("ABCD", 1));
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.toTable(ds, "a, b");
 
-		Table<JavaBatchTranslator> result = in
+		Table result = in
 				.select("a.substring(b)");
 
 		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
@@ -113,9 +113,9 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				new Tuple2<String, Float>("ABCD", 2.0f),
 				new Tuple2<String, Float>("ABCD", 1.0f));
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.toTable(ds, "a, b");
 
-		Table<JavaBatchTranslator> result = in
+		Table result = in
 				.select("a.substring(0, b)");
 
 		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);
@@ -135,9 +135,9 @@ public class StringExpressionsITCase extends MultipleProgramsTestBase {
 				new Tuple2<String, String>("ABCD", "a"),
 				new Tuple2<String, String>("ABCD", "b"));
 
-		Table<JavaBatchTranslator> in = tableEnv.toTable(ds, "a, b");
+		Table in = tableEnv.toTable(ds, "a, b");
 
-		Table<JavaBatchTranslator> result = in
+		Table result = in
 				.select("a.substring(b, 15)");
 
 		DataSet<Row> resultSet = tableEnv.toSet(result, Row.class);

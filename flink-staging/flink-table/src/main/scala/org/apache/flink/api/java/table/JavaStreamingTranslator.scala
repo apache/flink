@@ -23,23 +23,23 @@ import java.lang.reflect.Modifier
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.table.operations._
+import org.apache.flink.api.table.plan._
 import org.apache.flink.api.table.runtime.{ExpressionFilterFunction, ExpressionSelectFunction}
-import org.apache.flink.api.table.tree._
+import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{ExpressionException, Row, Table}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable
 
 /**
- * [[TableTranslator]] for creating [[Table]]s from Java [[DataStream]]s and
+ * [[PlanTranslator]] for creating [[Table]]s from Java [[DataStream]]s and
  * translating them back to Java [[DataStream]]s.
  *
  * This is very limited right now. Only select and filter are implemented. Also, the expression
  * operations must be extended to allow windowing operations.
  */
 
-class JavaStreamingTranslator extends TableTranslator {
+class JavaStreamingTranslator extends PlanTranslator {
 
   type Representation[A] = DataStream[A]
 
@@ -47,14 +47,14 @@ class JavaStreamingTranslator extends TableTranslator {
       repr: Representation[A],
       inputType: CompositeType[A],
       expressions: Array[Expression],
-      resultFields: Seq[(String, TypeInformation[_])]): Table[this.type] = {
+      resultFields: Seq[(String, TypeInformation[_])]): Table = {
 
     val rowDataStream = createSelect(expressions, repr, inputType)
 
-    new Table(Root(rowDataStream, resultFields), this)
+    new Table(Root(rowDataStream, resultFields))
   }
 
-  override def translate[A](op: Operation)(implicit tpe: TypeInformation[A]): DataStream[A] = {
+  override def translate[A](op: PlanNode)(implicit tpe: TypeInformation[A]): DataStream[A] = {
 
     if (tpe.getTypeClass == classOf[Row]) {
       // shortcut for DataSet[Row]
@@ -112,13 +112,14 @@ class JavaStreamingTranslator extends TableTranslator {
     resultSet.transform(opName, outputType, new MapInvokable[Row, A](function))
   }
 
-  private def translateInternal(op: Operation): DataStream[Row] = {
+  private def translateInternal(op: PlanNode): DataStream[Row] = {
     op match {
       case Root(dataSet: DataStream[Row], resultFields) =>
         dataSet
 
       case Root(_, _) =>
-        throw new ExpressionException("Invalid Root for JavaStreamingTranslator: " + op)
+        throw new ExpressionException("Invalid Root for JavaStreamingTranslator: " + op + ". " +
+          "Did you try converting a Table based on a DataSet to a DataStream or vice-versa?")
 
       case GroupBy(_, fields) =>
         throw new ExpressionException("Dangling GroupBy operation. Did you forget a " +

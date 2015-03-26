@@ -21,7 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.table.Row
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.table.tree.Expression
+import org.apache.flink.api.table.expressions.Expression
 import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo}
 
 /**

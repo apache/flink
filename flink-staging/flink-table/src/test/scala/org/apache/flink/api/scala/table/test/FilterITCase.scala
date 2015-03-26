@@ -18,7 +18,8 @@
 
 package org.apache.flink.api.scala.table.test
 
-import org.apache.flink.api.table.tree.Literal
+import org.apache.flink.api.table.Row
+import org.apache.flink.api.table.expressions.Literal
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -60,7 +61,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 
     val filterDs = ds.filter( Literal(false) )
 
-    filterDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    filterDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "\n"
   }
@@ -75,7 +76,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 
     val filterDs = ds.filter( Literal(true) )
 
-    filterDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    filterDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" + "4,3,Hello world, " +
       "how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" + "7,4," +
@@ -108,7 +109,7 @@ class FilterITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 
     val filterDs = ds.filter( 'a % 2 === 0 )
 
-    filterDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    filterDs.toSet[Row].writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "2,2,Hello\n" + "4,3,Hello world, how are you?\n" + "6,3,Luke Skywalker\n" + "8,4," +
       "Comment#2\n" + "10,4,Comment#4\n" + "12,5,Comment#6\n" + "14,5,Comment#8\n" + "16,6," +

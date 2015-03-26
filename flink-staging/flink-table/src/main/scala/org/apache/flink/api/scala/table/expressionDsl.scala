@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.table
 
-import org.apache.flink.api.table.tree._
+import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
 import scala.language.implicitConversions

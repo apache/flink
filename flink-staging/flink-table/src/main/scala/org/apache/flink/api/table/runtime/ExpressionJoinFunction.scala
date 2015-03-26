@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.table.runtime
 
-import org.apache.flink.api.table.tree.{NopExpression, Expression}
+import org.apache.flink.api.table.expressions.{NopExpression, Expression}
 import org.apache.flink.api.common.functions.RichFlatJoinFunction
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.table.codegen.{GenerateBinaryResultAssembler,
