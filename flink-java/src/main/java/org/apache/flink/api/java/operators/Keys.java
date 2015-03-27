@@ -82,18 +82,18 @@ public abstract class Keys<T> {
 
 			this.keyExtractor = keyExtractor;
 			this.keyType = keyType;
-			
+
+			if(!keyType.isKeyType()) {
+				throw new InvalidProgramException("Return type "+keyType+" of KeySelector "+keyExtractor.getClass()+" is not a valid key type");
+			}
+
 			// we have to handle a special case here:
-			// if the keyType is a tuple type, we need to select the full tuple with all its fields.
-			if(keyType.isTupleType()) {
+			// if the keyType is a composite type, we need to select the full type with all its fields.
+			if(keyType instanceof CompositeType) {
 				ExpressionKeys<K> ek = new ExpressionKeys<K>(new String[] {ExpressionKeys.SELECT_ALL_CHAR}, keyType);
 				logicalKeyFields = ek.computeLogicalKeyPositions();
 			} else {
 				logicalKeyFields = new int[] {0};
-			}
-
-			if (!this.keyType.isKeyType()) {
-				throw new IllegalArgumentException("Invalid type of KeySelector keys");
 			}
 		}
 

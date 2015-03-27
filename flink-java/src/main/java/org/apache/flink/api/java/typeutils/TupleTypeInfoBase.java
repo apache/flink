@@ -223,11 +223,6 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	}
 	
 	@Override
-	public boolean isKeyType() {
-		return isValidKeyType(this);
-	}
-
-	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof TupleTypeInfoBase) {
 			@SuppressWarnings("unchecked")
@@ -243,20 +238,6 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	@Override
 	public int hashCode() {
 		return this.types.hashCode() ^ Arrays.deepHashCode(this.types);
-	}
-
-	private boolean isValidKeyType(TypeInformation<?> typeInfo) {
-		if(typeInfo instanceof TupleTypeInfoBase) {
-			TupleTypeInfoBase<?> tupleType = ((TupleTypeInfoBase<?>)typeInfo);
-			for(int i=0;i<tupleType.getArity();i++) {
-				if (!isValidKeyType(tupleType.getTypeAt(i))) {
-					return false;
-				}
-			}
-			return true;
-		} else  {
-			return typeInfo.isKeyType();
-		}
 	}
 
 	@Override

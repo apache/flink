@@ -132,7 +132,15 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * @return True, if the type can be used as a key, false otherwise.
 	 */
 	public abstract boolean isKeyType();
-	
+
+	/**
+	 * Checks whether this type can be used as a key for sorting.
+	 * The order produced by sorting this type must be meaningful.
+	 */
+	public boolean isSortKeyType() {
+		return isKeyType();
+	}
+
 	/**
 	 * Creates a serializer for the type. The serializer may use the ExecutionConfig
 	 * for parameterization.
