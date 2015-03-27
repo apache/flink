@@ -20,7 +20,7 @@ package org.apache.flink.runtime.taskmanager
 import java.io.{File, IOException}
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
-import java.util.concurrent.FutureTask
+import java.util.concurrent.{TimeUnit, FutureTask}
 import management.{GarbageCollectorMXBean, ManagementFactory, MemoryMXBean}
 
 import akka.actor._
