@@ -35,18 +35,17 @@ public class ConfigurationViewTest {
 	@Test
 	public void testCompleteness(){
 
-		//these keys are never used.
-		Set<String> unused = new HashSet<String>(Arrays.asList("TASK_MANAGER_NET_NUM_IN_THREADS_KEY",
-			"TASK_MANAGER_NET_NUM_OUT_THREADS_KEY",
-			"TASK_MANAGER_NET_NETTY_LOW_WATER_MARK",
-			"TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK",
-			"TASK_MANAGER_HEARTBEAT_INTERVAL_KEY"));
+		Set<String> keysStartWithDefault = new HashSet<String>(Arrays.asList("DEFAULT_PARALLELISM_KEY",
+			"DEFAULT_EXECUTION_RETRIES_KEY",
+			"DEFAULT_EXECUTION_RETRY_DELAY_KEY",
+			"DEFAULT_SPILLING_MAX_FAN_KEY",
+			"DEFAULT_SORT_SPILLING_THRESHOLD_KEY"));
 
 		Map<String, Object> pairs = DefaultConfigKeyValues.getDefaultConfig(new Configuration());
 
 		for (Field f : ConfigConstants.class.getFields()) {
 			String name = f.getName();
-			if (!name.startsWith("DEFAULT") && !unused.contains(name)) {
+			if (!name.startsWith("DEFAULT") || keysStartWithDefault.contains(name)) {
 				try {
 					String value = (String)f.get(null);
 					if (!pairs.keySet().contains(value)) {
