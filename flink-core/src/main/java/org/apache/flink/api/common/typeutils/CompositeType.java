@@ -169,6 +169,26 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 		return getFieldIndex(fieldName) >= 0;
 	}
 
+	@Override
+	public boolean isKeyType() {
+		for(int i=0;i<this.getArity();i++) {
+			if (!this.getTypeAt(i).isKeyType()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	@Override
+	public boolean isSortKeyType() {
+		for(int i=0;i<this.getArity();i++) {
+			if (!this.getTypeAt(i).isSortKeyType()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/**
 	 * Returns the names of the composite fields of this type. The order of the returned array must
 	 * be consistent with the internal field index ordering.

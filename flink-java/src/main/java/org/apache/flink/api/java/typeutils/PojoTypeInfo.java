@@ -118,8 +118,11 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 	}
 
 	@Override
-	public boolean isKeyType() {
-		return Comparable.class.isAssignableFrom(typeClass);
+	public boolean isSortKeyType() {
+		// Support for sorting POJOs that implement Comparable is not implemented yet.
+		// Since the order of fields in a POJO type is not well defined, sorting on fields
+		//   gives only some undefined order.
+		return false;
 	}
 	
 

@@ -24,9 +24,11 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.SortPartitionOperatorBase;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.SingleInputOperator;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 
 import java.util.Arrays;
 
@@ -96,11 +98,23 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 
 	private int[] getFlatFields(int field) {
 
+		if(!(super.getType() instanceof TupleTypeInfoBase<?>)) {
+			throw new InvalidProgramException("Field positions can only be specified on Tuple or " +
+					"Case Class types.");
+		}
+		else {
+			// check selected field is sortable type
+			TypeInformation<?> sortKeyType = ((TupleTypeInfoBase<?>) super.getType()).getTypeAt(field);
+			if (!sortKeyType.isSortKeyType()) {
+				throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
+			}
+		}
+
 		Keys.ExpressionKeys<T> ek;
 		try {
 			ek = new Keys.ExpressionKeys<T>(new int[]{field}, super.getType());
 		} catch(IllegalArgumentException iae) {
-			throw new InvalidProgramException("Invalid specification of field expression.", iae);
+			throw new InvalidProgramException("Invalid specification of field position.", iae);
 		}
 		return ek.computeLogicalKeyPositions();
 	}
@@ -108,6 +122,13 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 	private int[] getFlatFields(String fields) {
 
 		if(super.getType() instanceof CompositeType) {
+
+			// check selected field is sortable type
+			TypeInformation<?> sortKeyType = ((CompositeType<?>) super.getType()).getTypeAt(fields);
+			if (!sortKeyType.isSortKeyType()) {
+				throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
+			}
+
 			// compute flat field positions for (nested) sorting fields
 			Keys.ExpressionKeys<T> ek;
 			try {
@@ -123,6 +144,12 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 				throw new InvalidProgramException("Output sorting of non-composite types can only be defined on the full type. " +
 						"Use a field wildcard for that (\"*\" or \"_\")");
 			} else {
+
+				// check if selected field is sortable type
+				if (!super.getType().isSortKeyType()) {
+					throw new InvalidProgramException("Selected sort key cannot be sorted: " + super.getType());
+				}
+
 				return new int[]{0};
 			}
 		}
@@ -148,7 +175,6 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 			}
 		}
 	}
-
 
 	// --------------------------------------------------------------------------------------------
 	//  Translation
