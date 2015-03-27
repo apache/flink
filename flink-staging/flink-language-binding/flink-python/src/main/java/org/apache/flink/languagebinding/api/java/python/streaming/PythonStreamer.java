@@ -23,9 +23,7 @@ import static org.apache.flink.languagebinding.api.java.common.PlanBinder.FLINK_
 import org.apache.flink.languagebinding.api.java.common.streaming.StreamPrinter;
 import org.apache.flink.languagebinding.api.java.common.streaming.Streamer;
 import org.apache.flink.languagebinding.api.java.python.PythonPlanBinder;
-import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.FLINK_PYTHON2_BINARY_KEY;
 import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
-import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.FLINK_PYTHON3_BINARY_KEY;
 import static org.apache.flink.languagebinding.api.java.python.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
 
 /**
@@ -85,21 +83,15 @@ public class PythonStreamer extends Streamer {
 			importString.append(FLINK_PYTHON_PLAN_NAME.substring(1, FLINK_PYTHON_PLAN_NAME.length() - 3));
 		}
 
-		if (usePython3) {
-			try {
-				Runtime.getRuntime().exec(FLINK_PYTHON3_BINARY_PATH);
-			} catch (IOException ex) {
-				throw new RuntimeException(FLINK_PYTHON3_BINARY_KEY + "=" + FLINK_PYTHON3_BINARY_PATH + " does not point to a valid python binary.");
-			}
-			pb.command(FLINK_PYTHON3_BINARY_PATH, "-O", "-B", executorPath, "" + server.getLocalPort());
-		} else {
-			try {
-				Runtime.getRuntime().exec(FLINK_PYTHON2_BINARY_PATH);
-			} catch (IOException ex) {
-				throw new RuntimeException(FLINK_PYTHON2_BINARY_KEY + "=" + FLINK_PYTHON2_BINARY_PATH + " does not point to a valid python binary.");
-			}
-			pb.command(FLINK_PYTHON2_BINARY_PATH, "-O", "-B", executorPath, "" + server.getLocalPort());
+		String pythonBinaryPath = usePython3 ? FLINK_PYTHON3_BINARY_PATH : FLINK_PYTHON2_BINARY_PATH;
+
+		try {
+			Runtime.getRuntime().exec(pythonBinaryPath);
+		} catch (IOException ex) {
+			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
 		}
+		pb.command(pythonBinaryPath, "-O", "-B", executorPath, "" + server.getLocalPort());
+
 		if (debug) {
 			socket.setSoTimeout(0);
 			LOG.info("Waiting for Python Process : " + function.getRuntimeContext().getTaskName()

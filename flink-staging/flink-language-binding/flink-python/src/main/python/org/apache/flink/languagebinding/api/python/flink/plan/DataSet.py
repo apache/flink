@@ -30,7 +30,6 @@ from flink.functions.MapFunction import MapFunction
 from flink.functions.MapPartitionFunction import MapPartitionFunction
 from flink.functions.ReduceFunction import ReduceFunction
 
-
 def deduct_output_type(dataset):
     skip = set([_Identifier.GROUP, _Identifier.SORT, _Identifier.UNION])
     source = set([_Identifier.SOURCE_CSV, _Identifier.SOURCE_TEXT, _Identifier.SOURCE_VALUE])
