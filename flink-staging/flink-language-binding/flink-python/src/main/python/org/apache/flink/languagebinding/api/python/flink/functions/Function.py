@@ -35,7 +35,7 @@ class Function(object):
         self._meta = None
 
     def _configure(self, input_file, output_file, port):
-        self._connection = Connection.BufferingUDPMappedFileConnection(input_file, output_file, port)
+        self._connection = Connection.BufferingTCPMappedFileConnection(input_file, output_file, port)
         self._iterator = Iterator.Iterator(self._connection)
         self.context = RuntimeContext.RuntimeContext(self._iterator, self._collector)
         self._configure_chain(Collector.Collector(self._connection))

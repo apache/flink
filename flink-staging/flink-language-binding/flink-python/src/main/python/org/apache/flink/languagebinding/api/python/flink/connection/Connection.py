@@ -60,7 +60,7 @@ class OneWayBusyBufferingMappedFileConnection(object):
         self._file_output_buffer.write(b'\x01')
 
 
-class BufferingUDPMappedFileConnection(object):
+class BufferingTCPMappedFileConnection(object):
     def __init__(self, input_file=tempfile.gettempdir() + "/flink_data/input", output_file=tempfile.gettempdir() + "/flink_data/output", socket=None):
         self._input_file = open(input_file, "rb+")
         self._output_file = open(output_file, "rb+")
@@ -71,7 +71,7 @@ class BufferingUDPMappedFileConnection(object):
         self._out = deque()
         self._out_size = 0
 
-        self._input = ""
+        self._input = b""
         self._input_offset = 0
         self._input_size = 0
         self._was_last = False
@@ -124,13 +124,13 @@ class BufferingUDPMappedFileConnection(object):
         self._was_last = False
         self._input_size = 0
         self._input_offset = 0
-        self._input = ""
+        self._input = b""
 
 
-class TwinBufferingUDPMappedFileConnection(BufferingUDPMappedFileConnection):
+class TwinBufferingTCPMappedFileConnection(BufferingTCPMappedFileConnection):
     def __init__(self, input_file=tempfile.gettempdir() + "/flink/data/input", output_file=tempfile.gettempdir() + "/flink/data/output", socket=None):
-        super(TwinBufferingUDPMappedFileConnection, self).__init__(input_file, output_file, socket)
-        self._input = ["", ""]
+        super(TwinBufferingTCPMappedFileConnection, self).__init__(input_file, output_file, socket)
+        self._input = [b"", b""]
         self._input_offset = [0, 0]
         self._input_size = [0, 0]
         self._was_last = [False, False]
@@ -161,6 +161,6 @@ class TwinBufferingUDPMappedFileConnection(BufferingUDPMappedFileConnection):
         self._was_last = [False, False]
         self._input_size = [0, 0]
         self._input_offset = [0, 0]
-        self._input = ["", ""]
+        self._input = [b"", b""]
 
 

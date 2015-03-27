@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.HashMap;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
@@ -57,8 +56,8 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 
 	public static final String FLINK_PYTHON2_BINARY_KEY = "python.binary.python2";
 	public static final String FLINK_PYTHON3_BINARY_KEY = "python.binary.python3";
-	public static  String FLINK_PYTHON2_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON2_BINARY_KEY, "python");
-	public static  String FLINK_PYTHON3_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
+	public static String FLINK_PYTHON2_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON2_BINARY_KEY, "python");
+	public static String FLINK_PYTHON3_BINARY_PATH = GlobalConfiguration.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
 
 	private static final String FLINK_PYTHON_FILE_PATH = System.getProperty("java.io.tmpdir") + "/flink_plan";
 	protected static final String FLINK_PYTHON_REL_LOCAL_PATH = "/resources/python";
@@ -104,13 +103,14 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 				split = x;
 			}
 		}
+
 		try {
 			prepareFiles(Arrays.copyOfRange(args, 0, split == 0 ? 1 : split));
 			startPython(Arrays.copyOfRange(args, split == 0 ? args.length : split + 1, args.length));
 			receivePlan();
 
 			if (env instanceof LocalEnvironment) {
-				FLINK_HDFS_PATH = "file:/tmp/flink";
+				FLINK_HDFS_PATH = "file:" + System.getProperty("java.io.tmpdir") + "/flink";
 			}
 
 			distributeFiles(env);
@@ -172,7 +172,6 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 	}
 
 	private void startPython(String[] args) throws IOException {
-		sets = new HashMap();
 		StringBuilder argsBuilder = new StringBuilder();
 		for (String arg : args) {
 			argsBuilder.append(" ").append(arg);
@@ -180,23 +179,15 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 		receiver = new Receiver(null);
 		receiver.open(null);
 
-		if (usePython3) {
-			try {
-				Runtime.getRuntime().exec(FLINK_PYTHON3_BINARY_PATH);
-			} catch (IOException ex) {
-				throw new RuntimeException(FLINK_PYTHON3_BINARY_KEY + "=" + FLINK_PYTHON3_BINARY_PATH + " does not point to a valid python binary.");
-			}
-			process = Runtime.getRuntime().exec(FLINK_PYTHON3_BINARY_PATH + " -B "
-					+ FLINK_PYTHON_FILE_PATH + FLINK_PYTHON_PLAN_NAME + argsBuilder.toString());
-		} else {
-			try {
-				Runtime.getRuntime().exec(FLINK_PYTHON2_BINARY_PATH);
-			} catch (IOException ex) {
-				throw new RuntimeException(FLINK_PYTHON2_BINARY_KEY + "=" + FLINK_PYTHON2_BINARY_PATH + " does not point to a valid python binary.");
-			}
-			process = Runtime.getRuntime().exec(FLINK_PYTHON2_BINARY_PATH + " -B "
-					+ FLINK_PYTHON_FILE_PATH + FLINK_PYTHON_PLAN_NAME + argsBuilder.toString());
+		String pythonBinaryPath = usePython3 ? FLINK_PYTHON3_BINARY_PATH : FLINK_PYTHON2_BINARY_PATH;
+
+		try {
+			Runtime.getRuntime().exec(pythonBinaryPath);
+		} catch (IOException ex) {
+			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
 		}
+		process = Runtime.getRuntime().exec(pythonBinaryPath + " -B " + FLINK_PYTHON_FILE_PATH + FLINK_PYTHON_PLAN_NAME + argsBuilder.toString());
+
 		new StreamPrinter(process.getInputStream()).start();
 		new StreamPrinter(process.getErrorStream()).start();
 
@@ -210,7 +201,7 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 			if (value != 0) {
 				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
 			}
-		} catch (IllegalThreadStateException ise) {
+		} catch (IllegalThreadStateException ise) {//Process still running
 		}
 	}
 
