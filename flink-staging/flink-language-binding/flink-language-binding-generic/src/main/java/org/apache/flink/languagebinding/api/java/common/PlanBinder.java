@@ -54,11 +54,7 @@ public abstract class PlanBinder<INFO extends OperationInfo> {
 
 	public static boolean DEBUG = false;
 
-	public static void setLocalMode() {
-		FLINK_HDFS_PATH = System.getProperty("java.io.tmpdir") + "/flink";
-	}
-
-	protected HashMap<Integer, Object> sets;
+	protected HashMap<Integer, Object> sets = new HashMap();
 	public static ExecutionEnvironment env;
 	protected Receiver receiver;
 
