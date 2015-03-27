@@ -85,19 +85,13 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private Collector<X> finalOutputCollector;
 
-	private List<RecordWriter<?>> finalOutputWriters;
-
 	private TypeSerializerFactory<Y> feedbackTypeSerializer;
 
 	private TypeSerializerFactory<X> solutionTypeSerializer;
 
 	private ResultPartitionWriter toSync;
 
-	private int initialSolutionSetInput; // undefined for bulk iterations
-
 	private int feedbackDataInput; // workset or bulk partial solution
-
-	private RuntimeAggregatorRegistry aggregatorRegistry;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -115,15 +109,15 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 		// at this time, the outputs to the step function are created
 		// add the outputs for the final solution
-		this.finalOutputWriters = new ArrayList<RecordWriter<?>>();
+		List<RecordWriter<?>> finalOutputWriters = new ArrayList<RecordWriter<?>>();
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
 		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
-			userCodeClassLoader, this.finalOutputWriters, config.getNumOutputs(), finalOutConfig.getNumOutputs());
+			userCodeClassLoader, finalOutputWriters, config.getNumOutputs(), finalOutConfig.getNumOutputs());
 
 		// sanity check the setup
 		final int writersIntoStepFunction = this.eventualOutputs.size();
-		final int writersIntoFinalResult = this.finalOutputWriters.size();
+		final int writersIntoFinalResult = finalOutputWriters.size();
 		final int syncGateIndex = this.config.getIterationHeadIndexOfSyncOutput();
 
 		if (writersIntoStepFunction + writersIntoFinalResult != syncGateIndex) {
@@ -207,13 +201,12 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
 		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
 		
-		JoinHashMap<BT> map = new JoinHashMap<BT>(solutionTypeSerializer, solutionTypeComparator);
-		return map;
+		return new JoinHashMap<BT>(solutionTypeSerializer, solutionTypeComparator);
 	}
 	
 	private void readInitialSolutionSet(CompactingHashTable<X> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
 		solutionSet.open();
-		solutionSet.buildTable(solutionSetInput);
+		solutionSet.buildTableWithUniqueKey(solutionSetInput);
 	}
 	
 	private void readInitialSolutionSet(JoinHashMap<X> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
@@ -255,14 +248,13 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			SolutionSetUpdateBarrier solutionSetUpdateBarrier = null;
 
 			feedbackDataInput = config.getIterationHeadPartialSolutionOrWorksetInputIndex();
-			feedbackTypeSerializer = this.<Y>getInputSerializer(feedbackDataInput);
+			feedbackTypeSerializer = this.getInputSerializer(feedbackDataInput);
 			excludeFromReset(feedbackDataInput);
 
+			int initialSolutionSetInput;
 			if (isWorksetIteration) {
 				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
-				TypeSerializerFactory<X> solutionTypeSerializerFactory = config
-						.getSolutionSetSerializer(getUserCodeClassLoader());
-				solutionTypeSerializer = solutionTypeSerializerFactory;
+				solutionTypeSerializer = config.getSolutionSetSerializer(getUserCodeClassLoader());
 
 				// setup the index for the solution set
 				@SuppressWarnings("unchecked")
@@ -283,10 +275,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 					solutionSetUpdateBarrier = new SolutionSetUpdateBarrier();
 					SolutionSetUpdateBarrierBroker.instance().handIn(brokerKey, solutionSetUpdateBarrier);
 				}
-			} else {
+			}
+			else {
 				// bulk iteration case
-				initialSolutionSetInput = -1;
-
 				@SuppressWarnings("unchecked")
 				TypeSerializerFactory<X> solSer = (TypeSerializerFactory<X>) feedbackTypeSerializer;
 				solutionTypeSerializer = solSer;
@@ -299,7 +290,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			}
 
 			// instantiate all aggregators and register them at the iteration global registry
-			aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators
+			RuntimeAggregatorRegistry aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators
 					(getUserCodeClassLoader()));
 			IterationAggregatorBroker.instance().handIn(brokerKey, aggregatorRegistry);
 
@@ -392,7 +383,6 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 			if (solutionSet != null) {
 				solutionSet.close();
-				solutionSet = null;
 			}
 		}
 	}
@@ -434,8 +424,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			log.debug(formatLogString("Sending end-of-superstep to all iteration outputs."));
 		}
 
-		for (int outputIndex = 0; outputIndex < this.eventualOutputs.size(); outputIndex++) {
-			this.eventualOutputs.get(outputIndex).sendEndOfSuperstep();
+		for (RecordWriter<?> eventualOutput : this.eventualOutputs) {
+			eventualOutput.sendEndOfSuperstep();
 		}
 	}
 
