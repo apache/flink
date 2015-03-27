@@ -19,18 +19,21 @@
 package org.apache.flink.ml.regression
 
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.client.CliFrontendTestUtils
 import org.apache.flink.ml.common.ParameterMap
 import org.apache.flink.ml.feature.PolynomialBase
-import org.junit.{BeforeClass, Test}
-import org.scalatest.ShouldMatchers
+import org.scalatest.{Matchers, FlatSpec}
 
 import org.apache.flink.api.scala._
+import org.apache.flink.test.util.FlinkTestBase
 
-class MultipleLinearRegressionITCase extends ShouldMatchers {
+class MultipleLinearRegressionITSuite
+  extends FlatSpec
+  with Matchers
+  with FlinkTestBase {
 
-  @Test
-  def testEstimationOfLinearFunction(): Unit = {
+  behavior of "The multipe linear regression implementation"
+
+  it should "estimate a linear function" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism(2)
@@ -65,8 +68,7 @@ class MultipleLinearRegressionITCase extends ShouldMatchers {
     srs should be (expectedSquaredResidualSum +- 2)
   }
 
-  @Test
-  def testEstimationOfCubicFunction(): Unit = {
+  it should "estimate a cubic function" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism(2)
@@ -103,13 +105,5 @@ class MultipleLinearRegressionITCase extends ShouldMatchers {
     val srs = model.squaredResidualSum(transformedInput).collect(0)
 
     srs should be(RegressionData.expectedPolynomialSquaredResidualSum +- 5)
-  }
-}
-
-object MultipleLinearRegressionITCase{
-
-  @BeforeClass
-  def setup(): Unit = {
-    CliFrontendTestUtils.pipeSystemOutToNull()
   }
 }

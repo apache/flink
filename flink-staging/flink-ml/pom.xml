@@ -41,11 +41,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.scalatest</groupId>
-			<artifactId>scalatest_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
 			<groupId>com.github.fommil.netlib</groupId>
 			<artifactId>core</artifactId>
 			<version>1.1.2</version>
@@ -63,6 +58,13 @@
 			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -105,6 +107,19 @@
 						<goals>
 							<goal>test</goal>
 						</goals>
+						<configuration>
+							<suffixes>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffixes>
+						</configuration>
+					</execution>
+					<execution>
+						<id>integration-test</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<suffixes>(IT|Integration)(Test|Suite|Case)</suffixes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

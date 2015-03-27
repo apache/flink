@@ -18,23 +18,27 @@
 
 package org.apache.flink.ml.recommendation
 
-import org.apache.flink.api.common.ExecutionMode
+import scala.language.postfixOps
+
+import org.scalatest._
+
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.client.CliFrontendTestUtils
-import org.junit.{BeforeClass, Test}
-import org.scalatest.ShouldMatchers
-
 import org.apache.flink.api.scala._
+import org.apache.flink.test.util.FlinkTestBase
 
-class ALSITCase extends ShouldMatchers {
+class ALSITSuite
+  extends FlatSpec
+  with Matchers
+  with FlinkTestBase {
 
-  @Test
-  def testMatrixFactorization(): Unit = {
+  override val parallelism = 2
+
+  behavior of "The alternating least squares (ALS) implementation"
+
+  it should "properly factorize a matrix" in {
     import ALSData._
 
     val env = ExecutionEnvironment.getExecutionEnvironment
-
-    env.setParallelism(2)
 
     val als = ALS()
       .setIterations(iterations)
@@ -69,14 +73,6 @@ class ALSITCase extends ShouldMatchers {
     val risk = model.empiricalRisk(inputDS).collect(0)
 
     risk should be(expectedEmpiricalRisk +- 1)
-  }
-}
-
-object ALSITCase {
-
-  @BeforeClass
-  def setup(): Unit = {
-    CliFrontendTestUtils.pipeSystemOutToNull()
   }
 }
 
