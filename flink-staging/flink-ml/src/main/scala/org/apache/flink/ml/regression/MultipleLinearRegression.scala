@@ -441,7 +441,7 @@ Transformer[ Vector, LabeledVector ] {
 
       val prediction = dotProduct + weight0
 
-      LabeledVector(value, prediction)
+      LabeledVector(prediction, value)
     }
   }
 }
