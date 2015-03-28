@@ -75,7 +75,7 @@ class PolynomialBase extends Transformer[LabeledVector, LabeledVector] with Seri
 
         val transformedVector = calculatePolynomial(degree, vector)
 
-        LabeledVector(transformedVector, label)
+        LabeledVector(label, transformedVector)
       }
     }
   }

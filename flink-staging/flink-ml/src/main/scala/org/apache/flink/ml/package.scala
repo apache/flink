@@ -16,27 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ml.common
+package org.apache.flink
 
-import org.apache.flink.ml.math.Vector
+import org.apache.flink.api.java.operators.DataSink
+import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
+import org.apache.flink.ml.common.LabeledVector
 
-/** This class represents a vector with an associated label as it is required for many supervised
-  * learning tasks.
-  *
-  * @param label Label of the data point
-  * @param vector Data point
-  */
-case class LabeledVector(label: Double, vector: Vector) {
+package object ml {
 
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case labeledVector: LabeledVector =>
-        vector.equals(labeledVector.vector) && label.equals(labeledVector.label)
-      case _ => false
+  /** Pimp my [[ExecutionEnvironment]] to directly support `readLibSVM`
+    *
+    * @param executionEnvironment
+    */
+  implicit class RichExecutionEnvironment(executionEnvironment: ExecutionEnvironment) {
+    def readLibSVM(path: String): DataSet[LabeledVector] = {
+      MLUtils.readLibSVM(executionEnvironment, path)
     }
   }
 
-  override def toString: String = {
-    s"LabeledVector($label, $vector)"
+  /** Pimp my [[DataSet]] to directly support `writeAsLibSVM`
+    *
+    * @param dataSet
+    */
+  implicit class RichDataSet(dataSet: DataSet[LabeledVector]) {
+    def writeAsLibSVM(path: String): DataSink[String] = {
+      MLUtils.writeLibSVM(path, dataSet)
+    }
   }
 }

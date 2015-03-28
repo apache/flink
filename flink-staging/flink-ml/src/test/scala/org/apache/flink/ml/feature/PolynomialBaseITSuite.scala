@@ -39,8 +39,8 @@ class PolynomialBaseITSuite
     env.setParallelism (2)
 
     val input = Seq (
-    LabeledVector (DenseVector (1), 1.0),
-    LabeledVector (DenseVector (2), 2.0)
+    LabeledVector (1.0, DenseVector (1)),
+    LabeledVector (2.0, DenseVector (2))
     )
 
     val inputDS = env.fromCollection (input)
@@ -69,8 +69,8 @@ class PolynomialBaseITSuite
     env.setParallelism(2)
 
     val input = Seq(
-      LabeledVector(DenseVector(2, 3), 1.0),
-      LabeledVector(DenseVector(2, 3, 4), 2.0)
+      LabeledVector(1.0, DenseVector(2, 3)),
+      LabeledVector(2.0, DenseVector(2, 3, 4))
     )
 
     val expectedMap = List(
@@ -100,8 +100,8 @@ class PolynomialBaseITSuite
     env.setParallelism(2)
 
     val input = Seq(
-      LabeledVector(DenseVector(2, 3), 1.0),
-      LabeledVector(DenseVector(2, 3, 4), 2.0)
+      LabeledVector(1.0, DenseVector(2, 3)),
+      LabeledVector(2.0, DenseVector(2, 3, 4))
     )
 
     val inputDS = env.fromCollection(input)

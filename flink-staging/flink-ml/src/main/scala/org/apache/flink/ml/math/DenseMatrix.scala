@@ -26,9 +26,12 @@ package org.apache.flink.ml.math
  * @param numCols Number of columns
  * @param data Array of matrix elements in column major order
  */
-case class DenseMatrix(val numRows: Int,
-                  val numCols: Int,
-                  val data: Array[Double]) extends Matrix {
+case class DenseMatrix(
+    val numRows: Int,
+    val numCols: Int,
+    val data: Array[Double])
+  extends Matrix
+  with Serializable{
 
   import DenseMatrix._
 

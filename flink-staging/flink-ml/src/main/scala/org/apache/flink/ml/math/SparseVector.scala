@@ -27,7 +27,8 @@ class SparseVector(
     val size: Int,
     val indices: Array[Int],
     val data: Array[Double])
-  extends Vector {
+  extends Vector
+  with Serializable {
   /** Updates the element at the given index with the provided value
     *
     * @param index
@@ -75,6 +76,11 @@ class SparseVector(
     }
 
     denseVector
+  }
+
+  override def toString: String = {
+    val entries = indices.zip(data).mkString(", ")
+    "SparseVector(" + entries + ")"
   }
 
   private def locate(index: Int): Int = {

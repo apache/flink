@@ -37,7 +37,8 @@ class SparseMatrix(
     val rowIndices: Array[Int],
     val colPtrs: Array[Int],
     val data: Array[Double])
-  extends Matrix {
+  extends Matrix
+  with Serializable {
 
   /** Element wise access function
     *
