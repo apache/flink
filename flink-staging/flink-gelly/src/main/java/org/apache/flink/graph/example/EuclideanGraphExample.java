@@ -71,7 +71,7 @@ public class EuclideanGraphExample implements ProgramDescription {
 		Graph<Long, Point, Double> graph = Graph.fromDataSet(vertices, edges, env);
 
 		// the edge value will be the Euclidean distance between its src and trg vertex
-		DataSet<Tuple3<Long, Long, Double>> resultedTriplets = graph.getTriplets()
+		DataSet<Tuple3<Long, Long, Double>> edgesWithEuclideanWeight = graph.getTriplets()
 				.map(new MapFunction<Triplet<Long, Point, Double>, Tuple3<Long, Long, Double>>() {
 
 					@Override
@@ -80,16 +80,13 @@ public class EuclideanGraphExample implements ProgramDescription {
 
 						Vertex<Long, Point> srcVertex = triplet.getSrcVertex();
 						Vertex<Long, Point> trgVertex = triplet.getTrgVertex();
-						Edge<Long, Double> edge = triplet.getEdge();
-
-						edge.setValue(srcVertex.getValue().euclideanDistance(trgVertex.getValue()));
 
 						return new Tuple3<Long, Long, Double>(srcVertex.getId(), trgVertex.getId(),
-								edge.getValue());
+								srcVertex.getValue().euclideanDistance(trgVertex.getValue()));
 					}
 				});
 
-		Graph<Long, Point, Double> resultedGraph = graph.joinWithEdges(resultedTriplets,
+		Graph<Long, Point, Double> resultedGraph = graph.joinWithEdges(edgesWithEuclideanWeight,
 				new MapFunction<Tuple2<Double, Double>, Double>() {
 
 					@Override

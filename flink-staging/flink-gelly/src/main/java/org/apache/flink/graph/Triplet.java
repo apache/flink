@@ -33,6 +33,8 @@ import java.io.Serializable;
 public class Triplet <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
 		extends Tuple5<K, K, VV, VV, EV> {
 
+	private static final long serialVersionUID = 1L;
+
 	public Triplet() {}
 
 	/**
