@@ -165,6 +165,9 @@ long numberOfVertices()
 // get the number of edges
 long numberOfEdges()
 
+// get a DataSet of Triplets<srcVertex, trgVertex, edge>
+DataSet<Triplet<K, VV, EV>> getTriplets()
+
 {% endhighlight %}
 
 [Back to top](#top)
