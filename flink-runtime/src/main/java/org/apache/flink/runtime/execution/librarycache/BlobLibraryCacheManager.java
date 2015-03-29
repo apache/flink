@@ -47,8 +47,6 @@ import com.google.common.base.Preconditions;
  * a set of libraries (typically JAR files) which the job requires to run. The library cache manager
  * caches library files in order to avoid unnecessary retransmission of data. It is based on a singleton
  * programming pattern, so there exists at most on library manager at a time.
- * <p>
- * This class is thread-safe.
  */
 public final class BlobLibraryCacheManager extends TimerTask implements LibraryCacheManager {
 
@@ -236,20 +234,20 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 			URL url = blobService.getURL(key);
 
 			Integer references = blobKeyReferenceCounters.get(key);
-			int newReferences = references == null ? 1 : references.intValue() + 1;
+			int newReferences = references == null ? 1 : references + 1;
 			blobKeyReferenceCounters.put(key, newReferences);
 
 			return url;
 		}
 		catch (IOException e) {
-			throw new IOException("Cannot access jar file stored under " + key, e);
+			throw new IOException("Cannot get library with hash " + key, e);
 		}
 	}
 	
 	private void unregisterReferenceToBlobKey(BlobKey key) {
 		Integer references = blobKeyReferenceCounters.get(key);
 		if (references != null) {
-			int newReferences = Math.max(references.intValue() - 1, 0);
+			int newReferences = Math.max(references - 1, 0);
 			blobKeyReferenceCounters.put(key, newReferences);
 		}
 		else {
@@ -261,7 +259,12 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 
 
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 * An entry in the per-job library cache. Tracks which execution attempts
+	 * still reference the libraries. Once none reference it any more, the
+	 * libraries can be cleaned up.
+	 */
 	private static class LibraryCacheEntry {
 		
 		private final ClassLoader classLoader;
@@ -289,7 +292,8 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		
 		public void register(ExecutionAttemptID task, Collection<BlobKey> keys) {
 			if (!libraries.containsAll(keys)) {
-				throw new IllegalStateException("The library registration references a different set of libraries than previous registrations for this job.");
+				throw new IllegalStateException(
+						"The library registration references a different set of libraries than previous registrations for this job.");
 			}
 			
 			this.referenceHolders.add(task);

@@ -21,23 +21,28 @@ package org.apache.flink.runtime.execution.librarycache;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.junit.Test;
+
 import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class BlobLibraryCacheManagerTest {
 
 	@Test
-	public void testLibraryCacheManagerCleanup(){
+	public void testLibraryCacheManagerCleanup() {
 		Configuration config = new Configuration();
 
 		config.setLong(ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL, 1);
@@ -65,7 +70,7 @@ public class BlobLibraryCacheManagerTest {
 
 			List<File> files = new ArrayList<File>();
 
-			for (BlobKey key: keys){
+			for (BlobKey key : keys) {
 				files.add(libraryCacheManager.getFile(key));
 			}
 
@@ -81,10 +86,10 @@ public class BlobLibraryCacheManagerTest {
 				do {
 					Thread.sleep(500);
 				}
-				while (libraryCacheManager.getNumberOfCachedLibraries() > 0 && 
+				while (libraryCacheManager.getNumberOfCachedLibraries() > 0 &&
 						System.currentTimeMillis() < deadline);
 			}
-			
+
 			// this fails if we exited via a timeout
 			assertEquals(0, libraryCacheManager.getNumberOfCachedLibraries());
 
@@ -94,30 +99,126 @@ public class BlobLibraryCacheManagerTest {
 				// the blob cache should no longer contain the files
 				try {
 					files.add(libraryCacheManager.getFile(key));
-				} catch (IOException ioe) {
+				}
+				catch (IOException ioe) {
 					caughtExceptions++;
 				}
 			}
 
 			assertEquals(2, caughtExceptions);
-			
+
 			bc.close();
 		}
-		catch (Exception e){
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally{
-			if (server != null){
+		finally {
+			if (server != null) {
 				server.shutdown();
 			}
 
-			if (libraryCacheManager != null){
+			if (libraryCacheManager != null) {
 				try {
 					libraryCacheManager.shutdown();
-				} catch (IOException e) {
+				}
+				catch (IOException e) {
 					e.printStackTrace();
 				}
+			}
+		}
+	}
+
+	@Test
+	public void testRegisterAndDownload() {
+		BlobServer server = null;
+		BlobCache cache = null;
+		File cacheDir = null;
+		try {
+			// create the blob transfer services
+			Configuration config = new Configuration();
+			server = new BlobServer(config);
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
+			cache = new BlobCache(serverAddress, config);
+
+			// upload some meaningless data to the server
+			BlobClient uploader = new BlobClient(serverAddress);
+			BlobKey dataKey1 = uploader.put(new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
+			BlobKey dataKey2 = uploader.put(new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
+			uploader.close();
+
+			BlobLibraryCacheManager libCache = new BlobLibraryCacheManager(cache, 1000000000L);
+
+			assertEquals(0, libCache.getNumberOfCachedLibraries());
+
+			// first try to access a non-existing entry
+			try {
+				libCache.getClassLoader(new JobID());
+				fail("Should fail with an IllegalStateException");
+			}
+			catch (IllegalStateException e) {
+				// that#s what we want
+			}
+
+			// now register some BLOBs as libraries
+			{
+				JobID jid = new JobID();
+				ExecutionAttemptID executionId = new ExecutionAttemptID();
+				Collection<BlobKey> keys = Collections.singleton(dataKey1);
+
+				libCache.registerTask(jid, executionId, keys);
+				assertEquals(1, libCache.getNumberOfReferenceHolders(jid));
+				assertEquals(1, libCache.getNumberOfCachedLibraries());
+				assertNotNull(libCache.getClassLoader(jid));
+
+				// un-register them again
+				libCache.unregisterTask(jid, executionId);
+				assertEquals(0, libCache.getNumberOfReferenceHolders(jid));
+
+				// library is still cached (but not associated with job any more)
+				assertEquals(1, libCache.getNumberOfCachedLibraries());
+
+				// should not be able to access the classloader any more
+				try {
+					libCache.getClassLoader(jid);
+					fail("Should fail with an IllegalStateException");
+				}
+				catch (IllegalStateException e) {
+					// that#s what we want
+				}
+			}
+
+			cacheDir = new File(cache.getStorageDir(), "cache");
+			assertTrue(cacheDir.exists());
+
+			// make sure no further blobs can be downloaded by removing the write
+			// permissions from the directory
+			assertTrue("Could not remove write permissions from cache directory", cacheDir.setWritable(false, false));
+
+			// since we cannot download this library any more, this call should fail
+			try {
+				libCache.registerTask(new JobID(), new ExecutionAttemptID(), Collections.singleton(dataKey2));
+				fail("This should fail with an IOException");
+			}
+			catch (IOException e) {
+				// splendid!
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			if (cacheDir != null) {
+				if (!cacheDir.setWritable(true, false)) {
+					System.err.println("Could not re-add write permissions to cache directory.");
+				}
+			}
+			if (cache != null) {
+				cache.shutdown();
+			}
+			if (server != null) {
+				server.shutdown();
 			}
 		}
 	}
