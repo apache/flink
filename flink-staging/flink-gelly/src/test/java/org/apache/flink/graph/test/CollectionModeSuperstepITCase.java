@@ -26,7 +26,6 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.junit.Assert;
@@ -48,9 +47,8 @@ public class CollectionModeSuperstepITCase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(), 
 				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 		
-		VertexCentricIteration<Long, Long, Long, Long> iteration = 
-				graph.createVertexCentricIteration(new UpdateFunction(), new MessageFunction(), 10);
-		Graph<Long, Long, Long> result = graph.runVertexCentricIteration(iteration);
+		Graph<Long, Long, Long> result = graph.runVertexCentricIteration(
+				new UpdateFunction(), new MessageFunction(), 10);
 
 		result.getVertices().map(
 				new VertexToTuple2Map<Long, Long>()).output(
@@ -83,5 +81,4 @@ public class CollectionModeSuperstepITCase {
 			return 1l;
 		}
 	}
-
 }
