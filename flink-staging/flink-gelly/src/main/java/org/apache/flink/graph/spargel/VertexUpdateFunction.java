@@ -92,7 +92,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	}
 	
 	/**
-	 * Gets the iteration aggregator registered under the given name. The iteration aggregator is combines
+	 * Gets the iteration aggregator registered under the given name. The iteration aggregator combines
 	 * all aggregates globally once per superstep and makes them available in the next superstep.
 	 * 
 	 * @param name The name of the aggregator.

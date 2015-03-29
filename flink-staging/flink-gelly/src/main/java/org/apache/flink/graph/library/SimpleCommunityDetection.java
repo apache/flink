@@ -26,7 +26,6 @@ import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
 import java.util.Map;
@@ -65,11 +64,8 @@ public class SimpleCommunityDetection implements GraphAlgorithm<Long, Long, Doub
 		Graph<Long, Tuple2<Long, Double>, Double> graphWithScoredVertices = undirectedGraph
 				.mapVertices(new AddScoreToVertexValuesMapper());
 
-		VertexCentricIteration<Long, Tuple2<Long, Double>, Tuple2<Long, Double>, Double>
-				iteration = graphWithScoredVertices.createVertexCentricIteration(new VertexLabelUpdater(delta),
-				new LabelMessenger(), maxIterations);
-
-		return graphWithScoredVertices.runVertexCentricIteration(iteration)
+		return graphWithScoredVertices.runVertexCentricIteration(new VertexLabelUpdater(delta),
+				new LabelMessenger(), maxIterations)
 				.mapVertices(new RemoveScoreFromVertexValuesMapper());
 	}
 

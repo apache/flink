@@ -25,7 +25,6 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
 public class PageRank<K extends Comparable<K> & Serializable> implements
@@ -43,11 +42,8 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) throws Exception {
 
 		final long numberOfVertices = network.numberOfVertices();
-
-		VertexCentricIteration<K, Double, Double, Double> iteration = network.createVertexCentricIteration(
-				new VertexRankUpdater<K>(beta, numberOfVertices), new RankMessenger<K>(numberOfVertices),
+		return network.runVertexCentricIteration(new VertexRankUpdater<K>(beta, numberOfVertices), new RankMessenger<K>(numberOfVertices),
 				maxIterations);
-		return network.runVertexCentricIteration(iteration);
 	}
 
 	/**

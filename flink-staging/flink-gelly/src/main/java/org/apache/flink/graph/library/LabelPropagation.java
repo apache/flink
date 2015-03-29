@@ -22,7 +22,6 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
-import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.types.NullValue;
 
@@ -56,9 +55,8 @@ public class LabelPropagation<K extends Comparable<K> & Serializable>
 
 		// iteratively adopt the most frequent label among the neighbors
 		// of each vertex
-		VertexCentricIteration<K, Long, Long, NullValue> iteration = input.createVertexCentricIteration(
-				new UpdateVertexLabel<K>(), new SendNewLabelToNeighbors<K>(), maxIterations);
-		return input.runVertexCentricIteration(iteration);
+		return input.runVertexCentricIteration(new UpdateVertexLabel<K>(), new SendNewLabelToNeighbors<K>(),
+				maxIterations);
 	}
 
 	/**
