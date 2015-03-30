@@ -319,10 +319,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
         _ ! Heartbeat(instanceID, report)
       }
 
-
-    case LogMemoryUsage =>
-      logMemoryStats()
-
     case SendStackTrace =>
       val traces = Thread.getAllStackTraces.asScala
       val stackTraceStr = traces.map((trace: (Thread, Array[StackTraceElement])) => {
@@ -668,7 +664,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
     }
 
     try {
-      networkEnvironment = Some(new NetworkEnvironment(self, jobManager, timeout, networkConfig))
+      val env: NetworkEnvironment = new NetworkEnvironment(timeout, networkConfig)
+      env.associateWithTaskManagerAndJobManager(jobManager, self)
+      networkEnvironment = Some(env)
     } catch {
       case ioe: IOException =>
         log.error(ioe, "Failed to instantiate network environment.")
@@ -726,7 +724,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
         libraryCacheManager foreach { _.unregisterTask(task.getJobID, executionID) }
 
         log.info("Updating FINAL execution state of {} ({}) to {}.", task.getTaskName,
-          task.getExecutionId, task.getExecutionState);
+          task.getExecutionId, task.getExecutionState)
 
         self ! UpdateTaskExecutionState(new TaskExecutionState(
           task.getJobID, task.getExecutionId, task.getExecutionState, task.getFailureCause))
@@ -746,8 +744,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
           fileCache.deleteTmpFile(entry.getKey, entry.getValue, task.getJobID)
         }
       } catch {
-        case t: Throwable => log.error("Error cleaning up local files from the distributed cache" +
-          ".", t)
+        case t: Throwable => log.error(
+          "Error cleaning up local files from the distributed cache.", t)
       }
     }
 
@@ -760,16 +758,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
     }
 
     task.unregisterMemoryManager(memoryManager)
-  }
-
-  private def logMemoryStats(): Unit = {
-    if (log.isInfoEnabled) {
-      val memoryMXBean = ManagementFactory.getMemoryMXBean
-      val gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans.asScala
-
-      log.info(TaskManager.getMemoryUsageStatsAsString(memoryMXBean))
-      log.info(TaskManager.getGarbageCollectorStatsAsString(gcMXBeans))
-    }
   }
 }
 

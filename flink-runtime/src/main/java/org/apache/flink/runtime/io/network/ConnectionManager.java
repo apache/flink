@@ -30,7 +30,9 @@ import java.io.IOException;
  */
 public interface ConnectionManager {
 
-	void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool) throws IOException;
+	void start(ResultPartitionProvider partitionProvider,
+				TaskEventDispatcher taskEventDispatcher,
+				NetworkBufferPool networkbufferPool) throws IOException;
 
 	/**
 	 * Creates a {@link PartitionRequestClient} instance for the given {@link ConnectionID}.

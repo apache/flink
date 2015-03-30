@@ -70,6 +70,12 @@ public class TaskEventDispatcher {
 		return false;
 	}
 
+	public void clearAll() {
+		synchronized (registeredWriters) {
+			registeredWriters.clear();
+		}
+	}
+
 	/**
 	 * Returns the number of currently registered writers.
 	 */

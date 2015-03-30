@@ -52,184 +52,59 @@ import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpd
 import static org.apache.flink.runtime.messages.TaskManagerMessages.FailTask;
 
 /**
- * Network I/O components of each {@link TaskManager} instance.
+ * Network I/O components of each {@link TaskManager} instance. The network environment contains
+ * the data structures that keep track of all intermediate results and all data exchanges.
+ *
+ * When initialized, the NetworkEnvironment will allocate the network buffer pool.
+ * All other components (netty, intermediate result managers, ...) are only created once the
+ * environment is "associated" with a TaskManager and JobManager. This happens as soon as the
+ * TaskManager actor gets created and registers itself at the JobManager.
  */
 public class NetworkEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(NetworkEnvironment.class);
 
-	private final ActorRef taskManager;
-
-	private final ActorRef jobManager;
-
-	private final FiniteDuration jobManagerTimeout;
-
-	private final ResultPartitionManager partitionManager;
-
-	private final TaskEventDispatcher taskEventDispatcher;
-
-	private final NetworkBufferPool networkBufferPool;
-
-	private final ConnectionManager connectionManager;
-
-	private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
+	private final Object lock = new Object();
 
 	private final NetworkEnvironmentConfiguration configuration;
 
+	private final FiniteDuration jobManagerTimeout;
+
+	private final NetworkBufferPool networkBufferPool;
+
+	private ConnectionManager connectionManager;
+
+	private ResultPartitionManager partitionManager;
+
+	private TaskEventDispatcher taskEventDispatcher;
+
+	private ResultPartitionConsumableNotifier partitionConsumableNotifier;
+
 	private boolean isShutdown;
+
 
 	/**
 	 * Initializes all network I/O components.
 	 */
-	public NetworkEnvironment(
-			ActorRef taskManager,
-			ActorRef jobManager,
-			FiniteDuration jobManagerTimeout,
-			NetworkEnvironmentConfiguration config) throws IOException {
+	public NetworkEnvironment(FiniteDuration jobManagerTimeout,
+								NetworkEnvironmentConfiguration config) throws IOException {
 
-		this.taskManager = checkNotNull(taskManager);
-		this.jobManager = checkNotNull(jobManager);
+		this.configuration = checkNotNull(config);
 		this.jobManagerTimeout = checkNotNull(jobManagerTimeout);
 
-		this.partitionManager = new ResultPartitionManager();
-		this.taskEventDispatcher = new TaskEventDispatcher();
-		this.configuration = checkNotNull(config);
-
-		// --------------------------------------------------------------------
-		// Network buffers
-		// --------------------------------------------------------------------
+		// create the network buffers - this is the operation most likely to fail upon
+		// mis-configuration, so we do this first
 		try {
 			networkBufferPool = new NetworkBufferPool(config.numNetworkBuffers(), config.networkBufferSize());
 		}
 		catch (Throwable t) {
-			throw new IOException("Failed to instantiate network buffer pool: " + t.getMessage(), t);
-		}
-
-		// --------------------------------------------------------------------
-		// Network connections
-		// --------------------------------------------------------------------
-		final Option<NettyConfig> nettyConfig = config.nettyConfig();
-
-		connectionManager = nettyConfig.isDefined() ? new NettyConnectionManager(nettyConfig.get()) : new LocalConnectionManager();
-
-		try {
-			connectionManager.start(partitionManager, taskEventDispatcher, networkBufferPool);
-		}
-		catch (Throwable t) {
-			throw new IOException("Failed to instantiate network connection manager: " + t.getMessage(), t);
-		}
-
-		this.partitionConsumableNotifier = new JobManagerResultPartitionConsumableNotifier(this);
-	}
-
-	public ActorRef getTaskManager() {
-		return taskManager;
-	}
-
-	public ActorRef getJobManager() {
-		return jobManager;
-	}
-
-	public Timeout getJobManagerTimeout() {
-		return new Timeout(jobManagerTimeout);
-	}
-
-	public void registerTask(Task task) throws IOException {
-		final ResultPartition[] producedPartitions = task.getProducedPartitions();
-		final ResultPartitionWriter[] writers = task.getWriters();
-
-		if (writers.length != producedPartitions.length) {
-			throw new IllegalStateException("Unequal number of writers and partitions.");
-		}
-
-		for (int i = 0; i < producedPartitions.length; i++) {
-			final ResultPartition partition = producedPartitions[i];
-			final ResultPartitionWriter writer = writers[i];
-
-			// Buffer pool for the partition
-			BufferPool bufferPool = null;
-
-			try {
-				bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(), false);
-				partition.registerBufferPool(bufferPool);
-
-				partitionManager.registerResultPartition(partition);
-			}
-			catch (Throwable t) {
-				if (bufferPool != null) {
-					bufferPool.lazyDestroy();
-				}
-
-				if (t instanceof IOException) {
-					throw (IOException) t;
-				}
-				else {
-					throw new IOException(t.getMessage(), t);
-				}
-			}
-
-			// Register writer with task event dispatcher
-			taskEventDispatcher.registerWriterForIncomingTaskEvents(writer.getPartitionId(), writer);
-		}
-
-		// Setup the buffer pool for each buffer reader
-		final SingleInputGate[] inputGates = task.getInputGates();
-
-		for (SingleInputGate gate : inputGates) {
-			BufferPool bufferPool = null;
-
-			try {
-				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(), false);
-				gate.setBufferPool(bufferPool);
-			}
-			catch (Throwable t) {
-				if (bufferPool != null) {
-					bufferPool.lazyDestroy();
-				}
-
-				if (t instanceof IOException) {
-					throw (IOException) t;
-				}
-				else {
-					throw new IOException(t.getMessage(), t);
-				}
-			}
+			throw new IOException("Cannot allocate network buffer pool: " + t.getMessage(), t);
 		}
 	}
 
-	public void unregisterTask(Task task) {
-		LOG.debug("Unregistering task {} ({}) from network environment (state: {}).",
-				task.getTaskNameWithSubtasks(), task.getExecutionState());
-
-		final ExecutionAttemptID executionId = task.getExecutionId();
-
-		if (task.isCanceledOrFailed()) {
-			partitionManager.releasePartitionsProducedBy(executionId);
-		}
-
-		ResultPartitionWriter[] writers = task.getWriters();
-
-		if (writers != null) {
-			for (ResultPartitionWriter writer : task.getWriters()) {
-				taskEventDispatcher.unregisterWriter(writer);
-			}
-		}
-
-		final SingleInputGate[] inputGates = task.getInputGates();
-
-		if (inputGates != null) {
-			for (SingleInputGate gate : inputGates) {
-				try {
-					if (gate != null) {
-						gate.releaseAllResources();
-					}
-				}
-				catch (IOException e) {
-					LOG.error("Error during release of reader resources: " + e.getMessage(), e);
-				}
-			}
-		}
-	}
+	// --------------------------------------------------------------------------------------------
+	//  Properties
+	// --------------------------------------------------------------------------------------------
 
 	public ResultPartitionManager getPartitionManager() {
 		return partitionManager;
@@ -253,6 +128,228 @@ public class NetworkEnvironment {
 
 	public ResultPartitionConsumableNotifier getPartitionConsumableNotifier() {
 		return partitionConsumableNotifier;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Association / Disassociation with JobManager / TaskManager
+	// --------------------------------------------------------------------------------------------
+
+	public boolean isAssociated() {
+		return partitionConsumableNotifier != null;
+	}
+
+	/**
+	 * This associates the network environment with a TaskManager and JobManager.
+	 * This will actually start the network components.
+	 *
+	 * @param jobManagerRef The JobManager actor reference.
+	 * @param taskManagerRef The TaskManager actor reference.
+	 *
+	 * @throws IOException Thrown if the network subsystem (Netty) cannot be properly started.
+	 */
+	public void associateWithTaskManagerAndJobManager(ActorRef jobManagerRef, ActorRef taskManagerRef)
+			throws IOException
+	{
+		checkNotNull(jobManagerRef);
+		checkNotNull(taskManagerRef);
+
+		synchronized (lock) {
+			if (isShutdown) {
+				throw new IllegalStateException("environment is shut down");
+			}
+
+			if (this.partitionConsumableNotifier == null &&
+				this.partitionManager == null &&
+				this.taskEventDispatcher == null &&
+				this.connectionManager == null)
+			{
+				// good, not currently associated. start the individual components
+
+				this.partitionManager = new ResultPartitionManager();
+				this.taskEventDispatcher = new TaskEventDispatcher();
+				this.partitionConsumableNotifier = new JobManagerResultPartitionConsumableNotifier(
+													jobManagerRef, taskManagerRef, new Timeout(jobManagerTimeout));
+
+				// -----  Network connections  -----
+				final Option<NettyConfig> nettyConfig = configuration.nettyConfig();
+				connectionManager = nettyConfig.isDefined() ? new NettyConnectionManager(nettyConfig.get())
+															: new LocalConnectionManager();
+
+				try {
+					connectionManager.start(partitionManager, taskEventDispatcher, networkBufferPool);
+				}
+				catch (Throwable t) {
+					throw new IOException("Failed to instantiate network connection manager: " + t.getMessage(), t);
+				}
+			}
+			else {
+				throw new IllegalStateException(
+						"Network Environment is already associated with a JobManager/TaskManager");
+			}
+		}
+	}
+
+	public void disassociate() throws IOException {
+		synchronized (lock) {
+			if (!isAssociated()) {
+				return;
+			}
+
+			LOG.debug("Disassociating NetworkEnvironment from TaskManager. Cleaning all intermediate results.");
+
+			// terminate all network connections
+			if (connectionManager != null) {
+				try {
+					LOG.debug("Shutting down network connection manager");
+					connectionManager.shutdown();
+					connectionManager = null;
+				}
+				catch (Throwable t) {
+					throw new IOException("Cannot shutdown network connection manager", t);
+				}
+			}
+
+			// shutdown all intermediate results
+			if (partitionManager != null) {
+				try {
+					LOG.debug("Shutting down intermediate result partition manager");
+					partitionManager.shutdown();
+					partitionManager = null;
+				}
+				catch (Throwable t) {
+					throw new IOException("Cannot shutdown partition manager", t);
+				}
+			}
+
+			partitionConsumableNotifier = null;
+
+			if (taskEventDispatcher != null) {
+				taskEventDispatcher.clearAll();
+				taskEventDispatcher = null;
+			}
+
+			// make sure that the global buffer pool re-acquires all buffers
+			networkBufferPool.destroyAllBufferPools();
+		}
+	}
+
+
+
+	// --------------------------------------------------------------------------------------------
+	//  Task operations
+	// --------------------------------------------------------------------------------------------
+
+	public void registerTask(Task task) throws IOException {
+		final ResultPartition[] producedPartitions = task.getProducedPartitions();
+		final ResultPartitionWriter[] writers = task.getWriters();
+
+		if (writers.length != producedPartitions.length) {
+			throw new IllegalStateException("Unequal number of writers and partitions.");
+		}
+
+		synchronized (lock) {
+			if (isShutdown) {
+				throw new IllegalStateException("NetworkEnvironment is shut down");
+			}
+			if (!isAssociated()) {
+				throw new IllegalStateException("NetworkEnvironment is not associated with a TaskManager");
+			}
+
+			for (int i = 0; i < producedPartitions.length; i++) {
+				final ResultPartition partition = producedPartitions[i];
+				final ResultPartitionWriter writer = writers[i];
+
+				// Buffer pool for the partition
+				BufferPool bufferPool = null;
+
+				try {
+					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(), false);
+					partition.registerBufferPool(bufferPool);
+
+					partitionManager.registerResultPartition(partition);
+				}
+				catch (Throwable t) {
+					if (bufferPool != null) {
+						bufferPool.lazyDestroy();
+					}
+
+					if (t instanceof IOException) {
+						throw (IOException) t;
+					}
+					else {
+						throw new IOException(t.getMessage(), t);
+					}
+				}
+
+				// Register writer with task event dispatcher
+				taskEventDispatcher.registerWriterForIncomingTaskEvents(writer.getPartitionId(), writer);
+			}
+
+			// Setup the buffer pool for each buffer reader
+			final SingleInputGate[] inputGates = task.getInputGates();
+
+			for (SingleInputGate gate : inputGates) {
+				BufferPool bufferPool = null;
+
+				try {
+					bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(), false);
+					gate.setBufferPool(bufferPool);
+				}
+				catch (Throwable t) {
+					if (bufferPool != null) {
+						bufferPool.lazyDestroy();
+					}
+
+					if (t instanceof IOException) {
+						throw (IOException) t;
+					}
+					else {
+						throw new IOException(t.getMessage(), t);
+					}
+				}
+			}
+		}
+	}
+
+	public void unregisterTask(Task task) {
+		LOG.debug("Unregistering task {} ({}) from network environment (state: {}).",
+				task.getTaskNameWithSubtasks(), task.getExecutionState());
+
+		final ExecutionAttemptID executionId = task.getExecutionId();
+
+		synchronized (lock) {
+			if (isShutdown || !isAssociated()) {
+				// no need to do anything when we are not operational
+				return;
+			}
+
+			if (task.isCanceledOrFailed()) {
+				partitionManager.releasePartitionsProducedBy(executionId);
+			}
+
+			ResultPartitionWriter[] writers = task.getWriters();
+
+			if (writers != null) {
+				for (ResultPartitionWriter writer : task.getWriters()) {
+					taskEventDispatcher.unregisterWriter(writer);
+				}
+			}
+
+			final SingleInputGate[] inputGates = task.getInputGates();
+
+			if (inputGates != null) {
+				for (SingleInputGate gate : inputGates) {
+					try {
+						if (gate != null) {
+							gate.releaseAllResources();
+						}
+					}
+					catch (IOException e) {
+						LOG.error("Error during release of reader resources: " + e.getMessage(), e);
+					}
+				}
+			}
+		}
 	}
 
 	public boolean hasReleasedAllResources() {
@@ -281,32 +378,25 @@ public class NetworkEnvironment {
 	 * Tries to shut down all network I/O components.
 	 */
 	public void shutdown() {
-		if (!isShutdown) {
+		synchronized (lock) {
+			if (isShutdown) {
+				return;
+			}
+
+			// shut down all connections and free all intermediate result partitions
 			try {
-				if (networkBufferPool != null) {
-					networkBufferPool.destroy();
-				}
+				disassociate();
+			}
+			catch (Throwable t) {
+				LOG.warn("Network services did not shut down properly: " + t.getMessage(), t);
+			}
+
+			// destroy the buffer pool
+			try {
+				networkBufferPool.destroy();
 			}
 			catch (Throwable t) {
 				LOG.warn("Network buffer pool did not shut down properly: " + t.getMessage(), t);
-			}
-
-			if (partitionManager != null) {
-				try {
-					partitionManager.shutdown();
-				}
-				catch (Throwable t) {
-					LOG.warn("Partition manager did not shut down properly: " + t.getMessage(), t);
-				}
-			}
-
-			try {
-				if (connectionManager != null) {
-					connectionManager.shutdown();
-				}
-			}
-			catch (Throwable t) {
-				LOG.warn("Network connection manager did not shut down properly: " + t.getMessage(), t);
 			}
 
 			isShutdown = true;
@@ -320,13 +410,20 @@ public class NetworkEnvironment {
 	/**
 	 * Notifies the job manager about consumable partitions.
 	 */
-	private static class JobManagerResultPartitionConsumableNotifier
-			implements ResultPartitionConsumableNotifier {
+	private static class JobManagerResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier {
 
-		private final NetworkEnvironment networkEnvironment;
+		private final ActorRef jobManager;
 
-		public JobManagerResultPartitionConsumableNotifier(NetworkEnvironment networkEnvironment) {
-			this.networkEnvironment = networkEnvironment;
+		private final ActorRef taskManager;
+
+		private final Timeout jobManagerMessageTimeout;
+
+		public JobManagerResultPartitionConsumableNotifier(ActorRef jobManager,
+															ActorRef taskManager,
+															Timeout jobManagerMessageTimeout) {
+			this.jobManager = jobManager;
+			this.taskManager = taskManager;
+			this.jobManagerMessageTimeout = jobManagerMessageTimeout;
 		}
 
 		@Override
@@ -334,23 +431,20 @@ public class NetworkEnvironment {
 
 			final ScheduleOrUpdateConsumers msg = new ScheduleOrUpdateConsumers(jobId, partitionId);
 
-			Future<Object> futureResponse = Patterns.ask(
-					networkEnvironment.getJobManager(),
-					msg,
-					networkEnvironment.getJobManagerTimeout());
+			Future<Object> futureResponse = Patterns.ask(jobManager, msg, jobManagerMessageTimeout);
 
 			futureResponse.onFailure(new OnFailure() {
 				@Override
-				public void onFailure(Throwable failure) throws Throwable {
+				public void onFailure(Throwable failure) {
 					LOG.error("Could not schedule or update consumers at the JobManager.", failure);
 
 					// Fail task at the TaskManager
 					FailTask failMsg = new FailTask(
 							partitionId.getProducerId(),
-							new RuntimeException("Could not schedule or update consumers at " +
-									"the JobManager.", failure));
+							new RuntimeException("Could not notify JobManager to schedule or update consumers",
+									failure));
 
-					networkEnvironment.getTaskManager().tell(failMsg, ActorRef.noSender());
+					taskManager.tell(failMsg, ActorRef.noSender());
 				}
 			}, AkkaUtils.globalExecutionContext());
 		}

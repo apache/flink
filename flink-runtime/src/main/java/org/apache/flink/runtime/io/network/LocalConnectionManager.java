@@ -22,8 +22,6 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
-import java.io.IOException;
-
 /**
  * A connection manager implementation to bypass setup overhead for task managers running in local
  * execution mode.
@@ -31,11 +29,13 @@ import java.io.IOException;
 public class LocalConnectionManager implements ConnectionManager {
 
 	@Override
-	public void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool) throws IOException {
+	public void start(ResultPartitionProvider partitionProvider,
+						TaskEventDispatcher taskEventDispatcher,
+						NetworkBufferPool networkbufferPool) {
 	}
 
 	@Override
-	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException {
+	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
 		return null;
 	}
 
@@ -48,6 +48,5 @@ public class LocalConnectionManager implements ConnectionManager {
 	}
 
 	@Override
-	public void shutdown() throws IOException {
-	}
+	public void shutdown() {}
 }
