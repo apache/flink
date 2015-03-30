@@ -42,15 +42,18 @@ public class NettyConnectionManager implements ConnectionManager {
 	}
 
 	@Override
-	public void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool) throws IOException {
-		PartitionRequestProtocol partitionRequestProtocol = new PartitionRequestProtocol(partitionProvider, taskEventDispatcher, networkbufferPool);
+	public void start(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool)
+			throws IOException {
+		PartitionRequestProtocol partitionRequestProtocol =
+				new PartitionRequestProtocol(partitionProvider, taskEventDispatcher, networkbufferPool);
 
 		client.init(partitionRequestProtocol);
 		server.init(partitionRequestProtocol);
 	}
 
 	@Override
-	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException, InterruptedException {
+	public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId)
+			throws IOException, InterruptedException {
 		return partitionRequestClientFactory.createPartitionRequestClient(connectionId);
 	}
 
@@ -70,4 +73,3 @@ public class NettyConnectionManager implements ConnectionManager {
 		server.shutdown();
 	}
 }
-
