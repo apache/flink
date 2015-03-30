@@ -72,6 +72,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+@SuppressWarnings("serial")
 public class TaskManagerTest {
 
 	private static ActorSystem system;
@@ -79,12 +80,12 @@ public class TaskManagerTest {
 	private static Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
 
 	@BeforeClass
-	public static void setup(){
+	public static void setup() {
 		system = ActorSystem.create("TestActorSystem", TestingUtils.testConfig());
 	}
 
 	@AfterClass
-	public static void teardown(){
+	public static void teardown() {
 		JavaTestKit.shutdownActorSystem(system);
 		system = null;
 	}

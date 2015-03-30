@@ -39,7 +39,8 @@ import static org.junit.Assert.*;
 public class ClientConnectionTest {
 
 	private static final long CONNECT_TIMEOUT = 2 * 1000; // 2 seconds
-	private static final long MAX_DELAY = 5 * CONNECT_TIMEOUT;
+	private static final long ASK_STARTUP_TIMEOUT = 100 * 1000; // 100 seconds
+	private static final long MAX_DELAY = 50 * 1000; // less than the startup timeout
 
 	/**
 	 * Tests the behavior against a LOCAL address where no job manager is running.
@@ -82,6 +83,7 @@ public class ClientConnectionTest {
 	private void testFailureBehavior(InetSocketAddress unreachableEndpoint) {
 
 		final Configuration config = new Configuration();
+		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, (ASK_STARTUP_TIMEOUT/1000) + " s");
 		config.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, (CONNECT_TIMEOUT/1000) + " s");
 
 		try {
@@ -113,7 +115,7 @@ public class ClientConnectionTest {
 			invoker.start();
 
 			try {
-				// wait until the caller is successful, for at most teh given time
+				// wait until the caller is successful, for at most the given time
 				long now = System.currentTimeMillis();
 				long deadline = now + MAX_DELAY;
 
