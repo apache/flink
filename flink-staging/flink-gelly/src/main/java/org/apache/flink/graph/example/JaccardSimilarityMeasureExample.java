@@ -28,7 +28,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.NeighborsFunction;
+import org.apache.flink.graph.EdgesFunction;
 import org.apache.flink.graph.Triplet;
 import org.apache.flink.graph.example.utils.JaccardSimilarityMeasureData;
 import org.apache.flink.types.NullValue;
@@ -37,9 +37,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 
 /**
- * Given an undirected, unweighted graph,return a weighted graph where the edge values are equal
- * to the Jaccard similarity coefficient - the number of common neighbors divided by the total number
- * of neighbors - for the src and target vertices.
+ * Given a directed, unweighted graph, return a weighted graph where the edge values are equal
+ * to the Jaccard similarity coefficient - the number of common neighbors divided by the the size
+ * of the union of neighbor sets - for the src and target vertices.
  *
  * <p>
  * Input files are plain text files and must be formatted as follows:
@@ -67,11 +67,9 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
 
 		Graph<Long, NullValue, Double> graph = Graph.fromDataSet(edges, env);
-		// undirect the graph
-		Graph<Long, NullValue, Double> undirectedGraph = graph.getUndirected();
 
 		DataSet<Vertex<Long, HashSet<Long>>> verticesWithNeighbors =
-				undirectedGraph.reduceOnNeighbors(new GatherNeighbors(), EdgeDirection.ALL);
+				graph.reduceOnEdges(new GatherNeighbors(), EdgeDirection.ALL);
 
 		Graph<Long, HashSet<Long>, Double> graphWithVertexValues = Graph.fromDataSet(verticesWithNeighbors, edges, env);
 
@@ -106,21 +104,22 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 	/**
 	 * Each vertex will have a HashSet containing its neighbor ids as value.
 	 */
-	private static final class GatherNeighbors implements NeighborsFunction<Long, NullValue, Double,
-				Vertex<Long, HashSet<Long>>> {
+	private static final class GatherNeighbors implements EdgesFunction<Long, Double, Vertex<Long, HashSet<Long>>> {
 
 		@Override
-		public Vertex<Long, HashSet<Long>> iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Double>,
-						Vertex<Long, NullValue>>> neighbors) throws Exception {
+		public Vertex<Long, HashSet<Long>> iterateEdges(Iterable<Tuple2<Long, Edge<Long, Double>>> edges) throws Exception {
 
 			HashSet<Long> neighborsHashSet = new HashSet<Long>();
-			Tuple3<Long, Edge<Long, Double>, Vertex<Long, NullValue>> next = null;
-			Iterator<Tuple3<Long, Edge<Long, Double>, Vertex<Long, NullValue>>> neighborsIterator =
-					neighbors.iterator();
+			Tuple2<Long, Edge<Long, Double>> next = null;
+			Iterator<Tuple2<Long, Edge<Long, Double>>> edgesIterator = edges.iterator();
 
-			while (neighborsIterator.hasNext()) {
-				next = neighborsIterator.next();
-				neighborsHashSet.add(next.f2.getId());
+			while (edgesIterator.hasNext()) {
+				next = edgesIterator.next();
+				if(next.f1.getSource() == next.f0) {
+					neighborsHashSet.add(next.f1.getTarget());
+				} else {
+					neighborsHashSet.add(next.f1.getSource());
+				}
 			}
 
 			return new Vertex<Long, HashSet<Long>>(next.f0, neighborsHashSet);
@@ -148,14 +147,14 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 			Vertex<Long, HashSet<Long>> source = triplet.getSrcVertex();
 			Vertex<Long, HashSet<Long>> target = triplet.getTrgVertex();
 
-			double unionPlusIntersection = source.getValue().size() + target.getValue().size();
+			long unionPlusIntersection = source.getValue().size() + target.getValue().size();
 			// within a HashSet, all elements are distinct
 			source.getValue().addAll(target.getValue());
 			// the source value contains the union
-			double union = source.getValue().size();
-			double intersection = unionPlusIntersection - union;
+			long union = source.getValue().size();
+			long intersection = unionPlusIntersection - union;
 
-			return new Tuple3<Long, Long, Double>(source.getId(), target.getId(), intersection/union);
+			return new Tuple3<Long, Long, Double>(source.getId(), target.getId(), (double) intersection/union);
 		}
 	}
 
