@@ -47,7 +47,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 	private final AtomicBoolean isShutdown = new AtomicBoolean();
 
 	/** Logging */
-	protected static final Logger LOG = LoggerFactory.getLogger(IOManagerAsync.class);
+	private static final Logger LOG = LoggerFactory.getLogger(IOManagerAsync.class);
 
 	// -------------------------------------------------------------------------
 	//               Constructors / Destructors
