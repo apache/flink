@@ -68,7 +68,7 @@ public class Client {
 	
 	private final Optimizer compiler;		// the compiler to compile the jobs
 	
-	private boolean printStatusDuringExecution = false;
+	private boolean printStatusDuringExecution = true;
 	
 	// ------------------------------------------------------------------------
 	//                            Construction

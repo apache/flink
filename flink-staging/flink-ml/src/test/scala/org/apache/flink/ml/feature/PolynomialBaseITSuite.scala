@@ -19,18 +19,21 @@
 package org.apache.flink.ml.feature
 
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.client.CliFrontendTestUtils
 import org.apache.flink.ml.common.LabeledVector
 import org.apache.flink.ml.math.DenseVector
-import org.junit.{BeforeClass, Test}
-import org.scalatest.ShouldMatchers
+import org.scalatest.{Matchers, FlatSpec}
 
 import org.apache.flink.api.scala._
+import org.apache.flink.test.util.FlinkTestBase
 
-class PolynomialBaseITCase extends ShouldMatchers {
+class PolynomialBaseITSuite
+  extends FlatSpec
+  with Matchers
+  with FlinkTestBase {
 
-  @Test
-  def testMapElementToPolynomialVectorSpace (): Unit = {
+  behavior of "The polynomial base implementation"
+
+  it should "map single element vectors to the polynomial vector space" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism (2)
@@ -60,8 +63,7 @@ class PolynomialBaseITCase extends ShouldMatchers {
     }
   }
 
-  @Test
-  def testMapVectorToPolynomialVectorSpace(): Unit = {
+  it should "map vectors to the polynomial vector space" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism(2)
@@ -92,8 +94,7 @@ class PolynomialBaseITCase extends ShouldMatchers {
     }
   }
 
-  @Test
-  def testReturnEmptyVectorIfDegreeIsZero(): Unit = {
+  it should "return an empty vector if the max degree is zero" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism(2)
@@ -121,12 +122,5 @@ class PolynomialBaseITCase extends ShouldMatchers {
       expectedMap.contains(entry.label) should be(true)
       entry.vector should equal(expectedMap(entry.label))
     }
-  }
-}
-
-object PolynomialBaseITCase {
-  @BeforeClass
-  def setup(): Unit = {
-    CliFrontendTestUtils.pipeSystemOutToNull()
   }
 }
