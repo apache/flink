@@ -60,6 +60,9 @@ var memoryValues = ["memory.non-heap.used" , "memory.flink.used", "memory.heap.u
 
 var metricsLimit = 3;
 
+// number of minutes for which the summary will be provided
+var summaryTime = 10;
+
 /**
 Create rickshaw graph for the specified taskManager id (tmid).
 **/
@@ -69,6 +72,7 @@ function createGraph(tmId, maxload, maxmem) {
     var scales = [];
     scales.push(d3.scale.linear().domain([0, maxmem]));
     scales.push(d3.scale.linear().domain([0, maxload]).nice());
+    scales.push(d3.scale.linear().domain([0,100]));
     for(i in memoryValues) {
         var value = memoryValues[i];
         taskManagerMemory[tmId][value] = [];
@@ -88,6 +92,16 @@ function createGraph(tmId, maxload, maxmem) {
         scale: scales[1],
         data: taskManagerMemory[tmId]["load"],
         name: "OS Load",
+        renderer: 'line',
+        stroke: 'rgba(0,0,0,0.5)'
+    });
+    taskManagerMemory[tmId]["cpuLoad"] = [];
+    // add cpu load series
+    series.push({
+        color: palette.color(),
+        scale: scales[2],
+        data: taskManagerMemory[tmId]["cpuLoad"],
+        name: "CPU Load",
         renderer: 'line',
         stroke: 'rgba(0,0,0,0.5)'
     });
@@ -121,7 +135,7 @@ function createGraph(tmId, maxload, maxmem) {
     var y_axis_load = new Rickshaw.Graph.Axis.Y.Scaled( {
         graph: graph,
         orientation: 'right',
-        scale: scales[1],
+        scale: scales[2],
         grid: false,
         element: document.getElementById("y_axis-load-"+tmId)
     } );
@@ -199,10 +213,12 @@ function processTMdata(json) {
 		// check if taskManager has a row
 		tmRow = $("#"+tmRowIdCssName);
 		if(tmRow.length == 0) {
-		    var tmMemoryBox = "<div class=\"chart_container\" id=\"chart_container-"+tm.instanceID+"\">"+
+		    // *-memory_stats div contains only the statistics where as chart_container-* div contains the graph
+		    var tmMemoryBox =  "<div id=\""+tmRowIdCssName+"-memory_stats"+"\">"+"</div>"+
+		                       "<div class=\"chart_container\" id=\"chart_container-"+tm.instanceID+"\">"+
                                   "<div class=\"y_axis\" id=\"y_axis-"+tm.instanceID+"\"><p class=\"axis_label\">Memory</p></div>"+
                                   "<div class=\"chart\" id=\"chart-"+tm.instanceID+"\"><i>Waiting for first Heartbeat to arrive</i></div>"+
-                                  "<div class=\"y_axis-load\" id=\"y_axis-load-"+tm.instanceID+"\"><p class=\"axis_label\">Load</p></div>"+
+                                  "<div class=\"y_axis-load\" id=\"y_axis-load-"+tm.instanceID+"\"><p class=\"axis_label\">CPU Load</p></div>"+
                                "<div class=\"legend\" id=\"legend-"+tm.instanceID+"\"></div>"+
                                "</div>";
 
@@ -224,6 +240,25 @@ function processTMdata(json) {
 		    taskManagerGraph[tm.instanceID].render();
         //    taskManagerGraph[tm.instanceID].resize();
 		}
+
+        // html dump for memory statistics of task manager
+        var tmMemStats = $("#"+tmRowIdCssName+"-memory_stats");
+        tmMemStats.html("<b>CPU Load</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-cpuLoad\"></span>% "+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_cpuLoad\"></span>%"+"<br>"+
+                        "<b>OS Load</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-osLoad\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_load\"></span>"+"<br>"+
+                        "<b>Memory.heap.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memHeapUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_heap_used\"></span>"+"<br>"+
+                        "<b>Memory.flink.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memFlinkUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_flink_used\"></span>"+"<br>"+
+                        "<b>Memory.non-heap.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memNonHeapUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_non-heap_used\"></span>"+"<br><br>"+
+                        "<button id=\"graph_button-"+tm.instanceID+"\" onclick=\"hideShowGraph('"+tm.instanceID+"')\"></button>"+"<br>");
+
+        // preserve the show/hide state of graph after update interval
+        var graphElement =  $("#chart_container-"+tm.instanceID);
+        if(graphElement.is(':visible')){
+            $("#graph_button-"+tm.instanceID).text("Hide Detailed Graph");
+        } else {
+            $("#graph_button-"+tm.instanceID).text("Show Detailed Graph");
+        }
+
+
         // fill (update) row with contents
         // memory statistics
         var time = getUnixTime();
@@ -234,26 +269,46 @@ function processTMdata(json) {
             switch(valueKey) {
                 case "memory.heap.used":
                     var value = metricsJSON.gauges[valueKey].value - flinkMemory;
+                    $("#"+tmRowIdCssName+"-memHeapUsed").html(formatBase1024KMGTP(value));
                     break;
                 case "memory.non-heap.used":
                     var value = metricsJSON.gauges[valueKey].value;
+                    $("#"+tmRowIdCssName+"-memNonHeapUsed").html(formatBase1024KMGTP(value));
                     break;
                 case "memory.flink.used":
                     var value = flinkMemory;
+                    $("#"+tmRowIdCssName+"-memFlinkUsed").html(formatBase1024KMGTP(value));
                     break;
             }
             taskManagerMemory[tm.instanceID][valueKey].push({x: time, y: value})
         }
-        // load
-        taskManagerMemory[tm.instanceID]["load"].push({x:time, y:metricsJSON.gauges["load"].value });
+        // os load
+        var osLoadValue = Number(metricsJSON.gauges["load"].value.toFixed(2));
+        taskManagerMemory[tm.instanceID]["load"].push({x:time, y:osLoadValue });
+        $("#"+tmRowIdCssName+"-osLoad").html(osLoadValue);
+
+        // cpu load
+        var cpuLoadValue = Number((metricsJSON.gauges["cpuLoad"].value*100).toFixed(2));
+        taskManagerMemory[tm.instanceID]["cpuLoad"].push({x:time, y:cpuLoadValue });
+        $("#"+tmRowIdCssName+"-cpuLoad").html(cpuLoadValue);
+
+        // generate summary for the last summaryTime minutes
+        var summaryStats = generateSummaryFor(taskManagerMemory[tm.instanceID],summaryTime);
+        // fill the averages
+        for(var statKey in summaryStats){
+            $("#"+tmRowIdCssName+"-avg_"+statKey.replace(/\./g,'_')).html(summaryStats[statKey]);
+        }
 
         if(metricsLimit == -1 || i < metricsLimit) {
             taskManagerGraph[tm.instanceID].update();
         } else {
-            $("#chart_container-"+tm.instanceID).hide();
+            tmMemStats.hide();
         }
 
-
+        // tooltip to show the time used for summary
+        var avgTimeInfo = "";
+        avgTimeInfo = getTooltipHTML("The average values are for the previous "+summaryTime+" minutes");
+        $("#tmTableHeaderMemStat").html("Memory Statistics "+avgTimeInfo);
 
         // info box
         tmInfoBox = $("#"+tmRowIdCssName+"-info");
@@ -314,34 +369,65 @@ function updateLimit(element) {
             $("#metrics-limit-all,#metrics-limit-none").removeClass("active");
             $(element).addClass("active");
             metricsLimit = 3;
-            hideShowGraphs();
+            hideShowMemStats();
             break;
         case 'metrics-limit-all':
             $("#metrics-limit-3,#metrics-limit-none").removeClass("active");
             $(element).addClass("active");
             metricsLimit = -1;
-            hideShowGraphs();
+            hideShowMemStats();
             break;
         case 'metrics-limit-none':
             $("#metrics-limit-all,#metrics-limit-3").removeClass("active");
             $(element).addClass("active");
             metricsLimit = 0;
-            hideShowGraphs();
+            hideShowMemStats();
             break;
     }
 }
+// toggle function for showing/hiding graphs
+function hideShowGraph(tmid){
+    var element = $("#chart_container-"+tmid);
+    if(element.is(":visible")){
+        $("#graph_button-"+tmid).text("Show Detailed Graph");
+        element.hide();
+    } else {
+         $("#graph_button-"+tmid).text("Hide Detailed Graph");
+         element.show();
+    }
+}
 
-function hideShowGraphs() {
+// hide/show memory statistics for task managers according to metric limits
+function hideShowMemStats() {
     var i = 0;
     for(tmid in taskManagerMemory) {
        if(metricsLimit == -1 || i++ < metricsLimit) {
-            $("#chart_container-"+tmid).show();
+            $("#tm-row-"+tmid+"-memory_stats").show();
        } else {
+            $("#tm-row-"+tmid+"-memory_stats").hide();
+       }
+       if(metricsLimit == 0 && $("#chart_container-"+tmid).is(":visible")){
+            $("#graph_button-"+tmid).text("Show Detailed Graph");
             $("#chart_container-"+tmid).hide();
        }
     }
 }
 
+// generate summary for the last *time* minutes
+function generateSummaryFor(stats,time){
+    var summary = {};
+    var numElements = time*12;
+    for(var key in stats){
+        var prevValues = stats[key].slice(numElements*-1);
+        var sum = (prevValues.reduce(function(p,q){return {x:p.x+q.x,y:p.y+q.y}})).y;
+        var avg = Number((sum/(prevValues.length)).toFixed(2));
+        if (avg > 1024){
+            avg = formatBase1024KMGTP(avg);
+            }
+        summary[key]=avg;
+        }
+    return summary;
+}
 
 function updateTaskManagers() {
 	$.ajax({ url : "setupInfo?get=taskmanagers", type : "GET", cache: false, success : function(json) {

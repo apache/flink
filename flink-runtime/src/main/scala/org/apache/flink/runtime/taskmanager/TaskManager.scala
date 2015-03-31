@@ -1894,6 +1894,10 @@ object TaskManager {
       override def getValue: Double =
         ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
     })
+    metricRegistry.register("cpuLoad", new Gauge[Double] {
+      override def getValue: Double =
+        ManagementFactory.getOperatingSystemMXBean().asInstanceOf[com.sun.management.OperatingSystemMXBean].getProcessCpuLoad()
+    })
     metricRegistry
   }
 }
