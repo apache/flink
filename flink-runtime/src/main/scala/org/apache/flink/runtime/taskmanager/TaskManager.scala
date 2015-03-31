@@ -22,6 +22,7 @@ import java.io.{File, IOException}
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
 import java.util.concurrent.{TimeUnit, FutureTask}
+import java.lang.reflect.Method
 import java.lang.management.{GarbageCollectorMXBean, ManagementFactory, MemoryMXBean}
 
 import akka.actor._
@@ -1894,6 +1895,41 @@ object TaskManager {
       override def getValue: Double =
         ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
     })
+
+    // Preprocessing steps for registering cpuLoad
+    val fetchCPULoad = getMethodToFetchCPULoad()
+
+    // Log getProcessCpuLoad unavailable for Java 6
+    if(fetchCPULoad.isEmpty){
+      LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
+        "implementation for this Java runtime environment\n" +
+        Thread.currentThread().getStackTrace)
+    }
+
+    metricRegistry.register("cpuLoad", new Gauge[Double] {
+      override def getValue: Double = {
+        try{
+          fetchCPULoad.map(_.invoke(ManagementFactory.getOperatingSystemMXBean().
+            asInstanceOf[com.sun.management.OperatingSystemMXBean]).
+            asInstanceOf[Double]).getOrElse(-1)
+        } catch {
+          case t: Throwable => {
+            LOG.warn("Error retrieving CPU Load through OperatingSystemMXBean", t)
+            -1
+          }
+        }
+      }
+    })
     metricRegistry
+  }
+
+  /**
+   * Fetches getProcessCpuLoad method if available in the
+   *  OperatingSystemMXBean implementation else returns None
+   * @return
+   */
+  private def getMethodToFetchCPULoad(): Option[Method] = {
+    val methodsList = classOf[com.sun.management.OperatingSystemMXBean].getMethods()
+    methodsList.filter(_.getName == "getProcessCpuLoad").headOption
   }
 }
