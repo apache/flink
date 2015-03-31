@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
@@ -43,7 +45,10 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 
 	/** Flag to signify that the IOManager has been shut down already */
 	private final AtomicBoolean isShutdown = new AtomicBoolean();
-	
+
+	/** Logging */
+	private static final Logger LOG = LoggerFactory.getLogger(IOManagerAsync.class);
+
 	// -------------------------------------------------------------------------
 	//               Constructors / Destructors
 	// -------------------------------------------------------------------------
