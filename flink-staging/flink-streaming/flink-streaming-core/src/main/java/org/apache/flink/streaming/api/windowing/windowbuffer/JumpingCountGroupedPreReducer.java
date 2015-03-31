@@ -20,64 +20,34 @@ package org.apache.flink.streaming.api.windowing.windowbuffer;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.util.Collector;
 
-public class SlidingCountGroupedPreReducer<T> extends SlidingGroupedPreReducer<T> {
+public class JumpingCountGroupedPreReducer<T> extends TumblingGroupedPreReducer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private long windowSize;
-	private long slideSize;
-	private int start;
+	private final long countToSkip; // How many elements should be jumped over
+	private long skipped = 0; // How many elements have we skipped since the last emitWindow
 
-	protected long index = 0;
-
-	public SlidingCountGroupedPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer,
-			KeySelector<T, ?> key, long windowSize, long slideSize, int start) {
-		super(reducer, serializer, key);
-		if (windowSize > slideSize) {
-			this.windowSize = windowSize;
-			this.slideSize = slideSize;
-			this.start = start;
-		} else {
-			throw new RuntimeException(
-					"Window size needs to be larger than slide size for the sliding pre-reducer");
-		}
-		index = index - start;
+	public JumpingCountGroupedPreReducer(ReduceFunction<T> reducer, KeySelector<T, ?> keySelector,
+										TypeSerializer<T> serializer, long countToSkip) {
+		super(reducer, keySelector, serializer);
+		this.countToSkip = countToSkip;
 	}
 
 	@Override
-	protected void afterStore() {
-		index++;
+	public void emitWindow(Collector<StreamWindow<T>> collector) {
+		super.emitWindow(collector);
+		skipped = 0;
 	}
 
 	@Override
 	public void store(T element) throws Exception {
-		if (index >= 0) {
+		if(skipped == countToSkip){
 			super.store(element);
 		} else {
-			index++;
+			skipped++;
 		}
-	}
-
-	@Override
-	protected boolean currentEligible(T next) {
-		if (index <= slideSize) {
-			return true;
-		} else {
-			return index == windowSize;
-		}
-	}
-
-	@Override
-	protected void afterEmit() {
-		if (index >= slideSize) {
-			index = index - slideSize;
-		}
-	}
-
-	@Override
-	public SlidingCountGroupedPreReducer<T> clone() {
-		return new SlidingCountGroupedPreReducer<T>(reducer, serializer, key, windowSize,
-				slideSize, start);
 	}
 }
