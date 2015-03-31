@@ -23,7 +23,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
 /**
- * Non-grouped pre-reducer for tumbling eviction policy.
+ * Non-grouped pre-reducer for sliding time eviction policy.
  */
 public class SlidingTimeGroupedPreReducer<T> extends SlidingGroupedPreReducer<T> {
 

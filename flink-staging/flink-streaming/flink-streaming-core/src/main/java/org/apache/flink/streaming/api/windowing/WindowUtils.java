@@ -162,4 +162,30 @@ public class WindowUtils {
 		}
 
 	}
+
+	public static boolean isJumpingCountPolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
+		if (isCountOnly(trigger, eviction)) {
+			long slide = getSlideSize(trigger);
+			long window = getWindowSize(eviction);
+
+			return slide > window
+					&& ((CountTriggerPolicy<?>) trigger).getStart() == ((CountEvictionPolicy<?>) eviction)
+					.getStart()
+					&& ((CountEvictionPolicy<?>) eviction).getDeleteOnEviction() == 1;
+		} else {
+			return false;
+		}
+	}
+
+	public static boolean isJumpingTimePolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
+		if (isTimeOnly(trigger, eviction)) {
+			long slide = getSlideSize(trigger);
+			long window = getWindowSize(eviction);
+
+			return slide > window
+					&& getTimeStampWrapper(trigger).equals(getTimeStampWrapper(eviction));
+		} else {
+			return false;
+		}
+	}
 }

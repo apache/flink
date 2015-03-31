@@ -24,6 +24,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
+/*
+ * Non-grouped pre-reducer for sliding eviction policy
+ * (the slide size is smaller than the window size).
+ */
 public abstract class SlidingPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
 
 	private static final long serialVersionUID = 1L;
