@@ -23,7 +23,6 @@ import java.lang.Long
 import akka.actor._
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.ActorLogMessages
-import org.apache.flink.runtime.execution.ExecutionState.RUNNING
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph, ExecutionVertex}
 import org.apache.flink.runtime.jobgraph.JobStatus._
 import org.apache.flink.runtime.jobgraph.JobVertexID
@@ -84,13 +83,16 @@ class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
         case FAILED | CANCELED | FINISHED =>
           log.info("Stopping monitor for terminated job {}", executionGraph.getJobID)
           self ! PoisonPill
-        case _ =>
+        case RUNNING =>
           curId += 1
           log.debug("Sending Barrier to vertices of Job " + executionGraph.getJobName)
           vertices.filter(v => v.getJobVertex.getJobVertex.isInputVertex &&
                   v.getExecutionState == RUNNING).foreach(vertex
           => vertex.getCurrentAssignedResource.getInstance.getTaskManager
                     ! BarrierReq(vertex.getCurrentExecutionAttempt.getAttemptId,curId))
+        case _ =>
+          log.debug("Omitting sending barrier since graph is in {} state for job {}",
+            executionGraph.getState, executionGraph.getJobID)
       }
       
     case StateBarrierAck(jobID, jobVertexID, instanceID, checkpointID, opState) =>
@@ -112,7 +114,7 @@ class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
       ackId = if(!keysToKeep.isEmpty) keysToKeep.max else ackId
       acks.keys.foreach(x => acks = acks.updated(x,acks(x).filter(_ >= ackId)))
       states = states.filterKeys(_._3 >= ackId)
-      log.debug("[FT-MONITOR] Last global barrier is " + ackId)
+      log.debug("Last global barrier is " + ackId)
       executionGraph.loadOperatorStates(states)
       
   }
