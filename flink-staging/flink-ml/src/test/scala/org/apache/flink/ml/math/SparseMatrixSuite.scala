@@ -18,13 +18,13 @@
 
 package org.apache.flink.ml.math
 
-import org.junit.Test
-import org.scalatest.ShouldMatchers
+import org.scalatest.{Matchers, FlatSpec}
 
-class SparseMatrixTest extends ShouldMatchers {
+class SparseMatrixSuite extends FlatSpec with Matchers {
 
-  @Test
-  def testSparseMatrixFromCOO: Unit = {
+  behavior of "Flink's SparseMatrix"
+
+  it should "be initialized from a coordinate list representation (COO)" in {
     val data = List[(Int, Int, Double)]((0, 0, 0), (0, 1, 0), (3, 4, 43), (2, 1, 17),
       (3, 3, 88), (4 , 2, 99), (1, 4, 91), (3, 4, -1))
 
@@ -69,8 +69,7 @@ class SparseMatrixTest extends ShouldMatchers {
     }
   }
 
-  @Test
-  def testInvalidIndexAccess: Unit = {
+  it should "fail when accessing zero elements or using invalid indices" in {
     val data = List[(Int, Int, Double)]((0, 0, 0), (0, 1, 0), (3, 4, 43), (2, 1, 17),
       (3, 3, 88), (4 , 2, 99), (1, 4, 91), (3, 4, -1))
 
@@ -96,8 +95,7 @@ class SparseMatrixTest extends ShouldMatchers {
     }
   }
 
-  @Test
-  def testSparseMatrixFromCOOWithInvalidIndices: Unit = {
+  it should "fail when elements of the COO list have invalid indices" in {
     intercept[IllegalArgumentException]{
       val sparseMatrix = SparseMatrix.fromCOO(5 ,5, (5, 0, 10),  (0, 0, 0), (0, 1, 0), (3, 4, 43),
         (2, 1, 17))
@@ -109,8 +107,7 @@ class SparseMatrixTest extends ShouldMatchers {
     }
   }
 
-  @Test
-  def testSparseMatrixCopy: Unit = {
+  it should "be copyable" in {
     val sparseMatrix = SparseMatrix.fromCOO(4, 4, (0, 1, 2), (2, 3, 1), (2, 0, 42), (1, 3, 3))
 
     val copy = sparseMatrix.copy
