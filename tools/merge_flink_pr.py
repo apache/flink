@@ -92,7 +92,7 @@ def continue_maybe(prompt):
         fail("Okay, exiting")
 
 
-original_head = run_cmd("git rev-parse HEAD")[:8]
+original_head = run_cmd("git rev-parse --abbrev-ref HEAD").rstrip("/\n")
 
 
 def clean_up():
