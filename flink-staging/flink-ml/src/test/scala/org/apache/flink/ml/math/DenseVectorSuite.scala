@@ -18,14 +18,13 @@
 
 package org.apache.flink.ml.math
 
-import org.junit.Test
-import org.scalatest.ShouldMatchers
+import org.scalatest.{Matchers, FlatSpec}
 
+class DenseVectorSuite extends FlatSpec with Matchers {
 
-class DenseVectorTest extends ShouldMatchers {
+  behavior of "Flink's DenseVector"
 
-  @Test
-  def testDataAfterInitialization {
+  it should "contain the initialization data" in {
     val data = Array.range(1,10)
 
     val vector = DenseVector(data)
@@ -35,8 +34,7 @@ class DenseVectorTest extends ShouldMatchers {
     data.zip(vector.map(_._2)).foreach{case (expected, actual) => assertResult(expected)(actual)}
   }
 
-  @Test
-  def testIllegalArgumentExceptionInCaseOfIllegalIndexAccess {
+  it should "fail in case of an illegal element access" in {
     val size = 10
 
     val vector = DenseVector.zeros(size)

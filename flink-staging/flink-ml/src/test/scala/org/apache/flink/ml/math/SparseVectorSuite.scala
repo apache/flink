@@ -18,13 +18,13 @@
 
 package org.apache.flink.ml.math
 
-import org.junit.Test
-import org.scalatest.ShouldMatchers
+import org.scalatest.{Matchers, FlatSpec}
 
-class SparseVectorTest extends ShouldMatchers{
+class SparseVectorSuite extends FlatSpec with Matchers {
 
-  @Test
-  def testDataAfterInitialization: Unit = {
+  behavior of "Flink's SparseVector"
+
+  it should "contain the initialization data provided as coordinate list (COO)" in {
     val data = List[(Int, Double)]((0, 1), (2, 0), (4, 42), (0, 3))
     val size = 5
     val sparseVector = SparseVector.fromCOO(size, data)
@@ -54,8 +54,7 @@ class SparseVectorTest extends ShouldMatchers{
     }
   }
 
-  @Test
-  def testInvalidIndexAccess: Unit = {
+  it should "fail when accessing elements using an invalid index" in {
     val sparseVector = SparseVector.fromCOO(5, (1, 1), (3, 3), (4, 4))
 
     intercept[IllegalArgumentException] {
@@ -67,8 +66,7 @@ class SparseVectorTest extends ShouldMatchers{
     }
   }
 
-  @Test
-  def testSparseVectorFromCOOWithInvalidIndices: Unit = {
+  it should "fail when the COO list contains elements with invalid indices" in {
     intercept[IllegalArgumentException] {
       val sparseVector = SparseVector.fromCOO(5, (0, 1), (-1, 34), (3, 2))
     }
@@ -78,8 +76,7 @@ class SparseVectorTest extends ShouldMatchers{
     }
   }
 
-  @Test
-  def testSparseVectorCopy: Unit = {
+  it should "be copyable" in {
     val sparseVector = SparseVector.fromCOO(5, (0, 1), (4, 3), (3, 2))
 
     val copy = sparseVector.copy

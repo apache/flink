@@ -20,13 +20,13 @@ package org.apache.flink.ml.math
 
 import Breeze._
 
-import org.junit.Test
-import org.scalatest.ShouldMatchers
+import org.scalatest.{Matchers, FlatSpec}
 
-class BreezeMathTest extends ShouldMatchers {
+class BreezeMathSuite extends FlatSpec with Matchers {
 
-  @Test
-  def testBreezeDenseMatrixWrapping: Unit = {
+  behavior of "Breeze vector conversion"
+
+  it should "convert a DenseMatrix into breeze.linalg.DenseMatrix and vice versa" in {
     val numRows = 5
     val numCols = 4
 
@@ -43,8 +43,7 @@ class BreezeMathTest extends ShouldMatchers {
     result should equal(expectedMatrix)
   }
 
-  @Test
-  def testBreezeSparseMatrixWrapping: Unit = {
+  it should "convert a SparseMatrix into breeze.linalg.CSCMatrix" in {
     val numRows = 5
     val numCols = 4
 
