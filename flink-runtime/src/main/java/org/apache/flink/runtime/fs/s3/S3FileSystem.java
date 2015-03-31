@@ -204,7 +204,9 @@ public final class S3FileSystem extends FileSystem {
 			LOG.debug("Provided URI does not provide an access key to Amazon S3, using configuration...");
 			awsAccessKey = GlobalConfiguration.getString(S3_ACCESS_KEY_KEY, null);
 			if (awsAccessKey == null) {
-				throw new IOException("Cannot determine access key to Amazon S3");
+				throw new IOException("Cannot determine access key to Amazon S3. Please make " +
+						"sure to configure it by setting the configuration key '"
+						+ S3_ACCESS_KEY_KEY + "'.");
 			}
 		}
 
@@ -212,7 +214,9 @@ public final class S3FileSystem extends FileSystem {
 			LOG.debug("Provided URI does not provide a secret key to Amazon S3, using configuration...");
 			awsSecretKey = GlobalConfiguration.getString(S3_SECRET_KEY_KEY, null);
 			if (awsSecretKey == null) {
-				throw new IOException("Cannot determine secret key to Amazon S3");
+				throw new IOException("Cannot determine secret key to Amazon S3. Please make " +
+						"sure to configure it by setting the configuration key '"
+						+ S3_SECRET_KEY_KEY + "'.");
 			}
 		}
 
