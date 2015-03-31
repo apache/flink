@@ -20,61 +20,38 @@ package org.apache.flink.streaming.api.windowing.windowbuffer;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.util.Collector;
 
 /**
- * Non-grouped pre-reducer for tumbling eviction policy (the slide size is the same as the window size).
+ * Non-grouped pre-reducer for jumping time eviction policy
+ * (the policies are based on time, and the slide size is larger than the window size).
  */
-public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
+public class JumpingTimePreReducer<T> extends TumblingPreReducer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private ReduceFunction<T> reducer;
+	private TimestampWrapper<T> timestampWrapper;
+	protected long windowStartTime;
+	private long slideSize;
 
-	private T reduced;
-	private TypeSerializer<T> serializer;
-
-	public TumblingPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer) {
-		this.reducer = reducer;
-		this.serializer = serializer;
+	public JumpingTimePreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer,
+								long slideSize, long windowSize, TimestampWrapper<T> timestampWrapper){
+		super(reducer, serializer);
+		this.timestampWrapper = timestampWrapper;
+		this.windowStartTime = timestampWrapper.getStartTime() + slideSize - windowSize;
+		this.slideSize = slideSize;
 	}
 
+	@Override
 	public void emitWindow(Collector<StreamWindow<T>> collector) {
-		if (reduced != null) {
-			StreamWindow<T> currentWindow = createEmptyWindow();
-			currentWindow.add(reduced);
-			collector.collect(currentWindow);
-			reduced = null;
-		} else if (emitEmpty) {
-			collector.collect(createEmptyWindow());
-		}
+		super.emitWindow(collector);
+		windowStartTime += slideSize;
 	}
 
 	public void store(T element) throws Exception {
-		if (reduced == null) {
-			reduced = element;
-		} else {
-			reduced = reducer.reduce(serializer.copy(reduced), element);
+		if(timestampWrapper.getTimestamp(element) >= windowStartTime) {
+			super.store(element);
 		}
 	}
-
-	public void evict(int n) {
-	}
-
-	@Override
-	public TumblingPreReducer<T> clone() {
-		return new TumblingPreReducer<T>(reducer, serializer);
-	}
-
-	@Override
-	public String toString() {
-		return reduced.toString();
-	}
-
-	@Override
-	public WindowBuffer<T> emitEmpty() {
-		emitEmpty = true;
-		return this;
-	}
-
 }

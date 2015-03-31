@@ -20,64 +20,36 @@ package org.apache.flink.streaming.api.windowing.windowbuffer;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.windowing.StreamWindow;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
+import org.apache.flink.util.Collector;
 
-public class SlidingCountGroupedPreReducer<T> extends SlidingGroupedPreReducer<T> {
+public class JumpingTimeGroupedPreReducer<T> extends TumblingGroupedPreReducer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private long windowSize;
+	private TimestampWrapper<T> timestampWrapper;
+	protected long windowStartTime;
 	private long slideSize;
-	private int start;
 
-	protected long index = 0;
-
-	public SlidingCountGroupedPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer,
-			KeySelector<T, ?> key, long windowSize, long slideSize, int start) {
-		super(reducer, serializer, key);
-		if (windowSize > slideSize) {
-			this.windowSize = windowSize;
-			this.slideSize = slideSize;
-			this.start = start;
-		} else {
-			throw new RuntimeException(
-					"Window size needs to be larger than slide size for the sliding pre-reducer");
-		}
-		index = index - start;
+	public JumpingTimeGroupedPreReducer(ReduceFunction<T> reducer, KeySelector<T, ?> keySelector,
+										TypeSerializer<T> serializer,
+										long slideSize, long windowSize, TimestampWrapper<T> timestampWrapper){
+		super(reducer, keySelector, serializer);
+		this.timestampWrapper = timestampWrapper;
+		this.windowStartTime = timestampWrapper.getStartTime() + slideSize - windowSize;
+		this.slideSize = slideSize;
 	}
 
 	@Override
-	protected void afterStore() {
-		index++;
+	public void emitWindow(Collector<StreamWindow<T>> collector) {
+		super.emitWindow(collector);
+		windowStartTime += slideSize;
 	}
 
-	@Override
 	public void store(T element) throws Exception {
-		if (index >= 0) {
+		if(timestampWrapper.getTimestamp(element) >= windowStartTime) {
 			super.store(element);
-		} else {
-			index++;
 		}
-	}
-
-	@Override
-	protected boolean currentEligible(T next) {
-		if (index <= slideSize) {
-			return true;
-		} else {
-			return index == windowSize;
-		}
-	}
-
-	@Override
-	protected void afterEmit() {
-		if (index >= slideSize) {
-			index = index - slideSize;
-		}
-	}
-
-	@Override
-	public SlidingCountGroupedPreReducer<T> clone() {
-		return new SlidingCountGroupedPreReducer<T>(reducer, serializer, key, windowSize,
-				slideSize, start);
 	}
 }

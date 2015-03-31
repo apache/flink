@@ -430,7 +430,8 @@ public class AggregationFunctionTest {
 	}
 
 	public static class MyPojo implements Serializable {
-
+		
+		private static final long serialVersionUID = 1L;
 		public int f0;
 		public int f1;
 

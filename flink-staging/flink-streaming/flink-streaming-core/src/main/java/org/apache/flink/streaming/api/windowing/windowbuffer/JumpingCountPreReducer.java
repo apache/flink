@@ -23,58 +23,33 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
 /**
- * Non-grouped pre-reducer for tumbling eviction policy (the slide size is the same as the window size).
+ * Non-grouped pre-reducer for jumping time eviction policy
+ * (the policies are based on count, and the slide size is larger than the window size).
  */
-public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
+public class JumpingCountPreReducer<T> extends TumblingPreReducer<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private ReduceFunction<T> reducer;
+	private final long countToSkip; // How many elements should be jumped over
+	private long skipped = 0; // How many elements have we skipped since the last emitWindow
 
-	private T reduced;
-	private TypeSerializer<T> serializer;
-
-	public TumblingPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer) {
-		this.reducer = reducer;
-		this.serializer = serializer;
+	public JumpingCountPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer, long countToSkip){
+		super(reducer, serializer);
+		this.countToSkip = countToSkip;
 	}
 
+	@Override
 	public void emitWindow(Collector<StreamWindow<T>> collector) {
-		if (reduced != null) {
-			StreamWindow<T> currentWindow = createEmptyWindow();
-			currentWindow.add(reduced);
-			collector.collect(currentWindow);
-			reduced = null;
-		} else if (emitEmpty) {
-			collector.collect(createEmptyWindow());
-		}
+		super.emitWindow(collector);
+		skipped = 0;
 	}
 
+	@Override
 	public void store(T element) throws Exception {
-		if (reduced == null) {
-			reduced = element;
+		if(skipped == countToSkip){
+			super.store(element);
 		} else {
-			reduced = reducer.reduce(serializer.copy(reduced), element);
+			skipped++;
 		}
 	}
-
-	public void evict(int n) {
-	}
-
-	@Override
-	public TumblingPreReducer<T> clone() {
-		return new TumblingPreReducer<T>(reducer, serializer);
-	}
-
-	@Override
-	public String toString() {
-		return reduced.toString();
-	}
-
-	@Override
-	public WindowBuffer<T> emitEmpty() {
-		emitEmpty = true;
-		return this;
-	}
-
 }

@@ -65,6 +65,10 @@ import org.apache.flink.streaming.api.windowing.windowbuffer.SlidingTimeGroupedP
 import org.apache.flink.streaming.api.windowing.windowbuffer.SlidingTimePreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.TumblingGroupedPreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.TumblingPreReducer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.JumpingCountPreReducer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.JumpingTimePreReducer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.JumpingCountGroupedPreReducer;
+import org.apache.flink.streaming.api.windowing.windowbuffer.JumpingTimeGroupedPreReducer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
@@ -525,6 +529,33 @@ public class WindowedDataStream<OUT> {
 							WindowUtils.getTimeStampWrapper(trigger));
 				}
 
+			} else if(WindowUtils.isJumpingCountPolicy(trigger, eviction)){
+				if(groupByKey == null){
+					return new JumpingCountPreReducer<OUT>((ReduceFunction<OUT>) transformation.getUDF(), getType()
+							.createSerializer(getExecutionConfig()),
+							WindowUtils.getSlideSize(trigger) - WindowUtils.getWindowSize(eviction));
+				} else {
+					return new JumpingCountGroupedPreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(),
+							groupByKey,
+							getType().createSerializer(getExecutionConfig()),
+							WindowUtils.getSlideSize(trigger) - WindowUtils.getWindowSize(eviction));
+				}
+			} else if(WindowUtils.isJumpingTimePolicy(trigger, eviction)){
+				if(groupByKey == null) {
+					return new JumpingTimePreReducer<OUT>((ReduceFunction<OUT>) transformation.getUDF(),
+							getType().createSerializer(getExecutionConfig()),
+							WindowUtils.getSlideSize(trigger),
+							WindowUtils.getWindowSize(eviction),
+							WindowUtils.getTimeStampWrapper(trigger));
+				} else {
+					return new JumpingTimeGroupedPreReducer<OUT>((ReduceFunction<OUT>) transformation.getUDF(),
+							groupByKey,
+							getType().createSerializer(getExecutionConfig()),
+							WindowUtils.getSlideSize(trigger),
+							WindowUtils.getWindowSize(eviction),
+							WindowUtils.getTimeStampWrapper(trigger));
+				}
 			}
 		}
 		return new BasicWindowBuffer<OUT>();
