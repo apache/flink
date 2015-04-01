@@ -215,6 +215,7 @@ function processTMdata(json) {
 		if(tmRow.length == 0) {
 		    // *-memory_stats div contains only the statistics where as chart_container-* div contains the graph
 		    var tmMemoryBox =  "<div id=\""+tmRowIdCssName+"-memory_stats"+"\">"+"</div>"+
+                               "<button type=\"button\" class=\"btn btn-default\" id=\"graph_button-"+tm.instanceID+"\" onclick=\"hideShowGraph('"+tm.instanceID+"')\"></button>"+"<br>"+
 		                       "<div class=\"chart_container\" id=\"chart_container-"+tm.instanceID+"\">"+
                                   "<div class=\"y_axis\" id=\"y_axis-"+tm.instanceID+"\"><p class=\"axis_label\">Memory</p></div>"+
                                   "<div class=\"chart\" id=\"chart-"+tm.instanceID+"\"><i>Waiting for first Heartbeat to arrive</i></div>"+
@@ -247,15 +248,16 @@ function processTMdata(json) {
                         "<b>OS Load</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-osLoad\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_load\"></span>"+"<br>"+
                         "<b>Memory.heap.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memHeapUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_heap_used\"></span>"+"<br>"+
                         "<b>Memory.flink.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memFlinkUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_flink_used\"></span>"+"<br>"+
-                        "<b>Memory.non-heap.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memNonHeapUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_non-heap_used\"></span>"+"<br><br>"+
-                        "<button id=\"graph_button-"+tm.instanceID+"\" onclick=\"hideShowGraph('"+tm.instanceID+"')\"></button>"+"<br>");
+                        "<b>Memory.non-heap.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memNonHeapUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_non-heap_used\"></span>"+"<br><br>");
 
         // preserve the show/hide state of graph after update interval
         var graphElement =  $("#chart_container-"+tm.instanceID);
         if(graphElement.is(':visible')){
             $("#graph_button-"+tm.instanceID).text("Hide Detailed Graph");
+            $("#tm-row-"+tm.instanceID+"-memory_stats").hide();
         } else {
             $("#graph_button-"+tm.instanceID).text("Show Detailed Graph");
+            $("#tm-row-"+tm.instanceID+"-memory_stats").show();
         }
 
 
@@ -391,9 +393,11 @@ function hideShowGraph(tmid){
     if(element.is(":visible")){
         $("#graph_button-"+tmid).text("Show Detailed Graph");
         element.hide();
+        $("#tm-row-"+tmid+"-memory_stats").show();
     } else {
          $("#graph_button-"+tmid).text("Hide Detailed Graph");
          element.show();
+         $("#tm-row-"+tmid+"-memory_stats").hide();
     }
 }
 
@@ -401,14 +405,17 @@ function hideShowGraph(tmid){
 function hideShowMemStats() {
     var i = 0;
     for(tmid in taskManagerMemory) {
-       if(metricsLimit == -1 || i++ < metricsLimit) {
-            $("#tm-row-"+tmid+"-memory_stats").show();
-       } else {
-            $("#tm-row-"+tmid+"-memory_stats").hide();
-       }
-       if(metricsLimit == 0 && $("#chart_container-"+tmid).is(":visible")){
+       // by default hide the graphs when Show/Disable Metrics is clicked
+       if($("#chart_container-"+tmid).is(":visible")){
             $("#graph_button-"+tmid).text("Show Detailed Graph");
             $("#chart_container-"+tmid).hide();
+       }
+       if(metricsLimit == -1 || i++ < metricsLimit) {
+            $("#tm-row-"+tmid+"-memory_stats").show();
+            $("#graph_button-"+tmid).show();
+       } else {
+            $("#tm-row-"+tmid+"-memory_stats").hide();
+            $("#graph_button-"+tmid).hide();
        }
     }
 }

@@ -1898,6 +1898,21 @@ object TaskManager {
       override def getValue: Double =
         ManagementFactory.getOperatingSystemMXBean().asInstanceOf[com.sun.management.OperatingSystemMXBean].getProcessCpuLoad()
     })
+    try{
+      metricRegistry.register("cpuLoad", new Gauge[Double] {
+        override def getValue: Double =
+          ManagementFactory.getOperatingSystemMXBean().
+            asInstanceOf[com.sun.management.OperatingSystemMXBean].getProcessCpuLoad()
+      })
+    } catch {
+      case t:Throwable => {
+        if (t.isInstanceOf[java.lang.ClassCastException]){
+          LOG.warn("Error casting to OperatingSystemMXBean",t)
+        } else {
+          LOG.warn("Error retrieving process CPU Load",t)
+        }
+      }
+    }
     metricRegistry
   }
 }
