@@ -32,7 +32,7 @@ import kafka.utils.VerifiableProperties;
  *
  * This PartitionerWrapper is called with the Properties. From there, we extract the wrapped Partitioner instance.
  *
- * The serialziable PartitionerWrapper is serialized into the Properties Hashmap and also deserialized from there.
+ * The serializable PartitionerWrapper is serialized into the Properties Hashmap and also deserialized from there.
  */
 public class PartitionerWrapper implements Partitioner {
 	public final static String SERIALIZED_WRAPPER_NAME = "flink.kafka.wrapper.serialized";
