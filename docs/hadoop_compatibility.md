@@ -1,5 +1,6 @@
 ---
 title: "Hadoop Compatibility"
+is_beta: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -19,6 +20,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
 
 * This will be replaced by the TOC
 {:toc}
