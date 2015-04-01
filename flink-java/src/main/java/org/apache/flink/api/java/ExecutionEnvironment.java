@@ -1063,10 +1063,10 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates a {@link LocalEnvironment}. The local execution environment will run the program in a
 	 * multi-threaded fashion in the same JVM as the environment was created in. It will use the
-	 * degree of parallelism specified in the parameter.
+	 * parallelism specified in the parameter.
 	 *
 	 * @param customConfiguration Pass a custom configuration to the LocalEnvironment.
-	 * @return A local execution environment with the specified degree of parallelism.
+	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static LocalEnvironment createLocalEnvironment(Configuration customConfiguration) {
 		LocalEnvironment lee = new LocalEnvironment();

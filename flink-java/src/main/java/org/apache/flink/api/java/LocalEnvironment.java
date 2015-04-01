@@ -33,7 +33,7 @@ import org.apache.flink.configuration.Configuration;
  * machine.
  */
 public class LocalEnvironment extends ExecutionEnvironment {
-	private Configuration configuration = null;
+	private Configuration configuration;
 	/**
 	 * Creates a new local environment.
 	 */
