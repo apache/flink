@@ -247,7 +247,7 @@ public class StreamJoinOperator<I1, I2> extends
 
 			streamGraph.setInvokable(id, invokable);
 
-			return setType(outType);
+			return this.returns(outType);
 		}
 	}
 

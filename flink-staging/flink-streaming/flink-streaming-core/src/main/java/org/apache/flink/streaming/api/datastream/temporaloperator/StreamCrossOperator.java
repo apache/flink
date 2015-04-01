@@ -101,7 +101,7 @@ public class StreamCrossOperator<I1, I2> extends
 
 			streamGraph.setInvokable(id, invokable);
 
-			return setType(outTypeInfo);
+			return this.returns(outTypeInfo);
 
 		}
 

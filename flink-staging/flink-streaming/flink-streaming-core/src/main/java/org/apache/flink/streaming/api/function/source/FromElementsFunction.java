@@ -27,6 +27,8 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 
 	Iterable<T> iterable;
 
+	private volatile boolean isRunning;
+
 	public FromElementsFunction(T... elements) {
 		this.iterable = Arrays.asList(elements);
 	}
@@ -41,13 +43,19 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 
 	@Override
 	public void run(Collector<T> collector) throws Exception {
+		isRunning = true;
 		for (T element : iterable) {
-			collector.collect(element);
+			if (isRunning) {
+				collector.collect(element);
+			} else {
+				break;
+			}
 		}
 	}
 
 	@Override
 	public void cancel() {
+		isRunning = false;
 	}
 
 }

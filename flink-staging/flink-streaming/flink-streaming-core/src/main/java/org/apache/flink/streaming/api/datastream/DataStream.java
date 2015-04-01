@@ -195,13 +195,6 @@ public class DataStream<OUT> {
 		return this.typeInfo;
 	}
 
-	@SuppressWarnings("unchecked")
-	public <R> DataStream<R> setType(TypeInformation<R> outType) {
-		streamGraph.setOutType(id, outType);
-		typeInfo = outType;
-		return (DataStream<R>) this;
-	}
-
 	public <F> F clean(F f) {
 		if (getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
 			ClosureCleaner.clean(f, true);
