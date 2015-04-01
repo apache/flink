@@ -34,7 +34,6 @@ import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 import kafka.serializer.DefaultEncoder;
-import kafka.serializer.StringEncoder;
 
 /**
  * Sink that emits its inputs to a Kafka topic.
@@ -123,7 +122,9 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 		props.put("request.required.acks", "1");
 
 		props.put("serializer.class", DefaultEncoder.class.getCanonicalName());
-		props.put("key.serializer.class", StringEncoder.class.getCanonicalName());
+
+		// this will not be used as the key will not be serialized
+		props.put("key.serializer.class", DefaultEncoder.class.getCanonicalName());
 
 		if (partitioner != null) {
 			props.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
@@ -152,7 +153,9 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 	@Override
 	public void invoke(IN next) {
 		byte[] serialized = schema.serialize(next);
-		producer.send(new KeyedMessage<IN, byte[]>(topicId, next, serialized));
+
+		// Sending message without serializable key.
+		producer.send(new KeyedMessage<IN, byte[]>(topicId, null, next, serialized));
 	}
 
 	@Override

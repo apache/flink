@@ -66,6 +66,26 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	/**
 	 * Creates a KafkaSource that consumes a topic.
+	 *
+	 * @param zookeeperAddress
+	 *            Address of the Zookeeper host (with port number).
+	 * @param topicId
+	 *            ID of the Kafka topic.
+	 * @param groupId
+	 * 			   ID of the consumer group.
+	 * @param deserializationSchema
+	 *            User defined deserialization schema.
+	 * @param zookeeperSyncTimeMillis
+	 *            Synchronization time with zookeeper.
+	 */
+	public KafkaSource(String zookeeperAddress,
+					String topicId, String groupId,
+					DeserializationSchema<OUT> deserializationSchema,
+					long zookeeperSyncTimeMillis) {
+		this(zookeeperAddress, topicId, groupId, deserializationSchema, zookeeperSyncTimeMillis, null);
+	}
+	/**
+	 * Creates a KafkaSource that consumes a topic.
 	 * 
 	 * @param zookeeperAddress
 	 *            Address of the Zookeeper host (with port number).
