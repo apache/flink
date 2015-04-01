@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.CoGroupTaskIterator;
-import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
+import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
@@ -45,9 +45,9 @@ public class NonReusingSortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIt
 
 	private TypePairComparator<T1, T2> comp;
 
-	private ReusingKeyGroupedIterator<T1> iterator1;
+	private NonReusingKeyGroupedIterator<T1> iterator1;
 
-	private ReusingKeyGroupedIterator<T2> iterator2;
+	private NonReusingKeyGroupedIterator<T2> iterator2;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -61,8 +61,8 @@ public class NonReusingSortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIt
 
 		this.comp = pairComparator;
 
-		this.iterator1 = new ReusingKeyGroupedIterator<T1>(input1, serializer1, groupingComparator1);
-		this.iterator2 = new ReusingKeyGroupedIterator<T2>(input2, serializer2, groupingComparator2);
+		this.iterator1 = new NonReusingKeyGroupedIterator<T1>(input1, groupingComparator1);
+		this.iterator2 = new NonReusingKeyGroupedIterator<T2>(input2, groupingComparator2);
 	}
 
 	@Override
