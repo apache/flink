@@ -1,5 +1,6 @@
 ---
 title: "Table API - Relational Queries"
+is_beta: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
