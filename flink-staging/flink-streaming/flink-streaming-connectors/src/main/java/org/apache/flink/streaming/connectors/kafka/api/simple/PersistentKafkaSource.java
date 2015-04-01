@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.api.simple;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
@@ -56,6 +57,9 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 	private final int zookeeperSyncTimeMillis;
 	private final int waitOnEmptyFetchMillis;
 	private final KafkaOffset startingOffset;
+
+	private int connectTimeoutMs = 100000;
+	private int bufferSize = 64 * 1024;
 
 	private transient KafkaConsumerIterator iterator;
 	private transient OperatorState<Map<Integer, KafkaOffset>> kafkaOffSet;
@@ -124,6 +128,11 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 			DeserializationSchema<OUT> deserializationSchema, int zookeeperSyncTimeMillis,
 			int waitOnEmptyFetchMillis, Offset startOffsetType) {
 		super(deserializationSchema);
+		Preconditions.checkNotNull(zookeeperAddress, "The Zookeeper address can not be null");
+		Preconditions.checkNotNull(topicId, "The topic id can not be null");
+		Preconditions.checkNotNull(deserializationSchema, "The deserialization schema can not be null");
+		Preconditions.checkArgument(zookeeperSyncTimeMillis > 0, "The sync time must be positive");
+		Preconditions.checkArgument(waitOnEmptyFetchMillis > 0, "The wait time must be positive");
 
 		this.topicId = topicId;
 		this.zookeeperServerAddress = zookeeperAddress;
@@ -189,7 +198,7 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 	}
 
 	protected KafkaConsumerIterator getMultiKafkaIterator(String hostName, String topic, Map<Integer, KafkaOffset> partitionsWithOffset, int waitOnEmptyFetch) {
-		return new KafkaMultiplePartitionsIterator(hostName, topic, partitionsWithOffset, waitOnEmptyFetch);
+		return new KafkaMultiplePartitionsIterator(hostName, topic, partitionsWithOffset, waitOnEmptyFetch, this.connectTimeoutMs, this.bufferSize);
 	}
 
 	@Override
@@ -209,6 +218,16 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 			partitions.put(msg.getPartition(), new GivenOffset(msg.getOffset()));
 			kafkaOffSet.update(partitions);
 		}
+	}
+
+	public void setConnectTimeoutMs(int connectTimeoutMs) {
+		Preconditions.checkArgument(connectTimeoutMs > 0, "The timeout must be positive");
+		this.connectTimeoutMs = connectTimeoutMs;
+	}
+
+	public void setBufferSize(int bufferSize) {
+		Preconditions.checkArgument(connectTimeoutMs > 0, "The buffer size must be positive");
+		this.bufferSize = bufferSize;
 	}
 
 	@Override

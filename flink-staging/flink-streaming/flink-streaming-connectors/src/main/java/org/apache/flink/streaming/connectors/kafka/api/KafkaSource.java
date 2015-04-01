@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import com.google.common.base.Preconditions;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -52,6 +53,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	private final String zookeeperAddress;
 	private final String groupId;
 	private final String topicId;
+	private Properties customProperties;
 
 	private transient ConsumerConnector consumer;
 	private transient ConsumerIterator<byte[], byte[]> consumerIterator;
@@ -75,13 +77,24 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	 *            User defined deserialization schema.
 	 * @param zookeeperSyncTimeMillis
 	 *            Synchronization time with zookeeper.
+	 * @param customProperties
+	 * 			  Custom properties for Kafka
 	 */
-	public KafkaSource(String zookeeperAddress, String topicId, String groupId, DeserializationSchema<OUT> deserializationSchema, long zookeeperSyncTimeMillis) {
+	public KafkaSource(String zookeeperAddress,
+					String topicId, String groupId,
+					DeserializationSchema<OUT> deserializationSchema,
+					long zookeeperSyncTimeMillis, Properties customProperties) {
 		super(deserializationSchema);
+		Preconditions.checkNotNull(zookeeperAddress, "ZK address is null");
+		Preconditions.checkNotNull(topicId, "Topic ID is null");
+		Preconditions.checkNotNull(deserializationSchema, "deserializationSchema is null");
+		Preconditions.checkArgument(zookeeperSyncTimeMillis >= 0, "The ZK sync time must be positive");
+
 		this.zookeeperAddress = zookeeperAddress;
 		this.groupId = groupId;
 		this.topicId = topicId;
 		this.zookeeperSyncTimeMillis = zookeeperSyncTimeMillis;
+		this.customProperties = customProperties;
 	}
 
 	/**
@@ -97,7 +110,7 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	 *            Synchronization time with zookeeper.
 	 */
 	public KafkaSource(String zookeeperAddress, String topicId, DeserializationSchema<OUT> deserializationSchema, long zookeeperSyncTimeMillis) {
-		this(zookeeperAddress, topicId, DEFAULT_GROUP_ID, deserializationSchema, zookeeperSyncTimeMillis);
+		this(zookeeperAddress, topicId, DEFAULT_GROUP_ID, deserializationSchema, zookeeperSyncTimeMillis, null);
 	}
 	/**
 	 * Creates a KafkaSource that consumes a topic.
@@ -123,6 +136,15 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 		props.put("zookeeper.session.timeout.ms", "10000");
 		props.put("zookeeper.sync.time.ms", Long.toString(zookeeperSyncTimeMillis));
 		props.put("auto.commit.interval.ms", "1000");
+
+		if(customProperties != null) {
+			for(Map.Entry<Object, Object> e : props.entrySet()) {
+				if(props.contains(e.getKey())) {
+					LOG.warn("Overwriting property "+e.getKey()+" with value "+e.getValue());
+				}
+				props.put(e.getKey(), e.getValue());
+			}
+		}
 
 		consumer = Consumer.createJavaConsumerConnector(new ConsumerConfig(props));
 

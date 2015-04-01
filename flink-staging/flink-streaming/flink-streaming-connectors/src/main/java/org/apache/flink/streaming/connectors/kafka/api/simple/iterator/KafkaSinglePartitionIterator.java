@@ -60,6 +60,8 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 	private List<String> replicaBrokers;
 	private String clientName;
 	private String leadBroker;
+	private final int connectTimeoutMs;
+	private final int bufferSize;
 
 	private KafkaOffset initialOffset;
 	private transient Iterator<MessageAndOffset> iter;
@@ -74,11 +76,13 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 	 * @param topic Name of the topic to listen to
 	 * @param partition Partition in the chosen topic
 	 */
-	public KafkaSinglePartitionIterator(String hostName, int port, String topic, int partition, KafkaOffset initialOffset) {
+	public KafkaSinglePartitionIterator(String hostName, int port, String topic, int partition, KafkaOffset initialOffset,
+										int connectTimeoutMs, int bufferSize) {
 		this.hosts = new ArrayList<String>();
 		hosts.add(hostName);
 		this.port = port;
-
+		this.connectTimeoutMs = connectTimeoutMs;
+		this.bufferSize = bufferSize;
 		this.topic = topic;
 		this.partition = partition;
 
@@ -114,7 +118,7 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 		leadBroker = metadata.leader().host();
 		clientName = "Client_" + topic + "_" + partition;
 
-		consumer = new SimpleConsumer(leadBroker, port, 100000, 64 * 1024, clientName);
+		consumer = new SimpleConsumer(leadBroker, port, connectTimeoutMs, bufferSize, clientName);
 
 		readOffset = initialOffset.getOffset(consumer, topic, partition, clientName);
 
@@ -236,7 +240,7 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 		for (String seed : a_hosts) {
 			SimpleConsumer consumer = null;
 			try {
-				consumer = new SimpleConsumer(seed, a_port, 100000, 64 * 1024, "leaderLookup");
+				consumer = new SimpleConsumer(seed, a_port, connectTimeoutMs, bufferSize, "leaderLookup");
 				List<String> topics = Collections.singletonList(a_topic);
 				TopicMetadataRequest req = new TopicMetadataRequest(topics);
 				kafka.javaapi.TopicMetadataResponse resp = consumer.send(req);
