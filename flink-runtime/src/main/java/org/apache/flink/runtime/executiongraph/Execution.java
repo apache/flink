@@ -20,23 +20,22 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorRef;
 import akka.dispatch.OnComplete;
-import static akka.dispatch.Futures.future;
-
 import akka.dispatch.OnFailure;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.deployment.PartialPartitionInfo;
-import org.apache.flink.runtime.deployment.PartitionInfo;
+import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.io.network.RemoteAddress;
+import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -44,11 +43,10 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
-
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -57,9 +55,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static akka.dispatch.Futures.future;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELING;
@@ -69,6 +68,12 @@ import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
+import static org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
+import static org.apache.flink.runtime.messages.TaskManagerMessages.FailIntermediateResultPartitions;
+import static org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
+import static org.apache.flink.runtime.messages.TaskManagerMessages.UpdateTask;
+import static org.apache.flink.runtime.messages.TaskManagerMessages.UpdateTaskSinglePartitionInfo;
+import static org.apache.flink.runtime.messages.TaskManagerMessages.createUpdateTaskMultiplePartitionInfos;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times (for recovery,
@@ -111,7 +116,7 @@ public class Execution implements Serializable {
 
 	private final FiniteDuration timeout;
 
-	private ConcurrentLinkedQueue<PartialPartitionInfo> partialPartitionInfos;
+	private ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
 
 	private volatile ExecutionState state = CREATED;
 	
@@ -121,11 +126,11 @@ public class Execution implements Serializable {
 	
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 	
+	private StateHandle operatorState;
+
 	// --------------------------------------------------------------------------------------------
 	
 	public Execution(ExecutionVertex vertex, int attemptNumber, long startTimestamp, FiniteDuration timeout) {
-		checkArgument(attemptNumber >= 0);
-		
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
 		
@@ -136,17 +141,17 @@ public class Execution implements Serializable {
 
 		this.timeout = timeout;
 
-		this.partialPartitionInfos = new ConcurrentLinkedQueue<PartialPartitionInfo>();
+		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor>();
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	//   Properties
 	// --------------------------------------------------------------------------------------------
-	
+
 	public ExecutionVertex getVertex() {
 		return vertex;
 	}
-	
+
 	public ExecutionAttemptID getAttemptId() {
 		return attemptId;
 	}
@@ -154,15 +159,15 @@ public class Execution implements Serializable {
 	public int getAttemptNumber() {
 		return attemptNumber;
 	}
-	
+
 	public ExecutionState getState() {
 		return state;
 	}
-	
+
 	public SimpleSlot getAssignedResource() {
 		return assignedResource;
 	}
-	
+
 	public InstanceConnectionInfo getAssignedResourceLocation() {
 		return assignedResourceLocation;
 	}
@@ -192,8 +197,8 @@ public class Execution implements Serializable {
 		}
 		assignedResource = null;
 
-		partialPartitionInfos.clear();
-		partialPartitionInfos = null;
+		partialInputChannelDeploymentDescriptors.clear();
+		partialInputChannelDeploymentDescriptors = null;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -205,14 +210,16 @@ public class Execution implements Serializable {
 	 *       to be scheduled immediately and no resource is available. If the task is accepted by the schedule, any
 	 *       error sets the vertex state to failed and triggers the recovery logic.
 	 * 
-	 * @param scheduler
+	 * @param scheduler The scheduler to use to schedule this execution attempt.
+	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
+	 *               immediately deploy it.
 	 * 
 	 * @throws IllegalStateException Thrown, if the vertex is not in CREATED state, which is the only state that permits scheduling.
 	 * @throws NoResourceAvailableException Thrown is no queued scheduling is allowed and no resources are currently available.
 	 */
 	public boolean scheduleForExecution(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
 		if (scheduler == null) {
-			throw new NullPointerException();
+			throw new IllegalArgumentException("Cannot send null Scheduler when scheduling execution.");
 		}
 
 		final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();
@@ -220,7 +227,7 @@ public class Execution implements Serializable {
 
 		// sanity check
 		if (locationConstraint != null && sharingGroup == null) {
-			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing not allowed.");
+			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing allowed.");
 		}
 
 		if (transitionState(CREATED, SCHEDULED)) {
@@ -322,21 +329,26 @@ public class Execution implements Serializable {
 
 			Instance instance = slot.getInstance();
 			Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
-					new TaskManagerMessages.SubmitTask(deployment), new Timeout(timeout));
+					new SubmitTask(deployment), new Timeout(timeout));
 
 			deployAction.onComplete(new OnComplete<Object>(){
 
 				@Override
 				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if (failure != null) {
-						markFailed(failure);
+						if (failure instanceof TimeoutException) {
+							markFailed(new Exception("Cannot deploy task - TaskManager not responding.", failure));
+						}
+						else {
+							markFailed(failure);
+						}
 					}
 					else {
 						if (success == null) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot + ": TaskOperationResult was null"));
 						}
 
-						if(success instanceof TaskOperationResult) {
+						if (success instanceof TaskOperationResult) {
 							TaskOperationResult result = (TaskOperationResult) success;
 
 							if (!result.executionID().equals(attemptId)) {
@@ -349,7 +361,7 @@ public class Execution implements Serializable {
 										getVertexWithAttempt() + " to slot " + slot + ": " + result
 										.description()));
 							}
-						}else {
+						} else {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot +
 									": Response was not of type TaskOperationResult"));
 						}
@@ -421,28 +433,47 @@ public class Execution implements Serializable {
 		}
 	}
 
-	// TODO This leads to many unnecessary RPC calls in most cases
-	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> consumers) {
-		if (consumers.size() != 1) {
-			fail(new IllegalStateException("Only one consumer is supported currently."));
+	void scheduleOrUpdateConsumers(List<List<ExecutionEdge>> allConsumers) {
+		if (allConsumers.size() != 1) {
+			fail(new IllegalStateException("Currently, only a single consumer group per partition is supported."));
 		}
 
-		final List<ExecutionEdge> consumer = consumers.get(0);
-
-		for (ExecutionEdge edge : consumer) {
+		for (ExecutionEdge edge : allConsumers.get(0)) {
 			final ExecutionVertex consumerVertex = edge.getTarget();
 
-			final ExecutionState consumerState = consumerVertex.getExecutionState();
+			final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
+			final ExecutionState consumerState = consumer.getState();
 
+			final IntermediateResultPartition partition = edge.getSource();
+
+			// ----------------------------------------------------------------
+			// Consumer is created => try to deploy and cache input channel
+			// descriptors if there is a deployment race
+			// ----------------------------------------------------------------
 			if (consumerState == CREATED) {
-				consumerVertex.cachePartitionInfo(PartialPartitionInfo.fromEdge(edge));
+				final Execution partitionExecution = partition.getProducer()
+						.getCurrentExecutionAttempt();
 
+				consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor.fromEdge(
+						partition, partitionExecution));
+
+				// When deploying a consuming task, its task deployment descriptor will contain all
+				// deployment information available at the respective time. It is possible that some
+				// of the partitions to be consumed have not been created yet. These are updated
+				// runtime via the update messages.
+				//
+				// TODO The current approach may send many update messages even though the consuming
+				// task has already been deployed with all necessary information. We have to check
+				// whether this is a problem and fix it, if it is.
 				future(new Callable<Boolean>(){
 					@Override
 					public Boolean call() throws Exception {
 						try {
+							final ExecutionGraph consumerGraph = consumerVertex.getExecutionGraph();
+
 							consumerVertex.scheduleForExecution(
-								consumerVertex.getExecutionGraph().getScheduler(), false);
+									consumerVertex.getExecutionGraph().getScheduler(),
+									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());
 						} catch (Throwable t) {
 							fail(new IllegalStateException("Could not schedule consumer " +
 									"vertex " + consumerVertex, t));
@@ -457,41 +488,64 @@ public class Execution implements Serializable {
 					consumerVertex.sendPartitionInfos();
 				}
 			}
-			else if (consumerState == RUNNING) {
-				SimpleSlot consumerSlot = consumerVertex.getCurrentAssignedResource();
-				ExecutionAttemptID consumerExecutionId = consumerVertex.
-						getCurrentExecutionAttempt().getAttemptId();
+			// ----------------------------------------------------------------
+			// Consumer is running => send update message now
+			// ----------------------------------------------------------------
+			else {
+				if (consumerState == RUNNING) {
+					final SimpleSlot consumerSlot = consumer.getAssignedResource();
 
-				IntermediateResultPartitionID partitionID = edge.getSource().getPartitionId();
-				int connectionIndex = edge.getSource().getIntermediateResult().getConnectionIndex();
+					if (consumerSlot == null) {
+						// The consumer has been reset concurrently
+						continue;
+					}
 
-				PartitionInfo.PartitionLocation producerLocation;
-				RemoteAddress producerAddress = null;
+					final Instance consumerInstance = consumerSlot.getInstance();
 
-				if(consumerSlot.getInstance().getInstanceConnectionInfo().equals(
-						getAssignedResourceLocation())) {
-					producerLocation = PartitionInfo.PartitionLocation.LOCAL;
-				} else {
-					producerLocation = PartitionInfo.PartitionLocation.REMOTE;
-					producerAddress = new RemoteAddress(getAssignedResourceLocation(),
-							connectionIndex);
+					final ResultPartitionID partitionId = new ResultPartitionID(
+							partition.getPartitionId(), attemptId);
+
+					final Instance partitionInstance = partition.getProducer()
+							.getCurrentAssignedResource().getInstance();
+
+					final ResultPartitionLocation partitionLocation;
+
+					if (consumerInstance.equals(partitionInstance)) {
+						// Consuming task is deployed to the same instance as the partition => local
+						partitionLocation = ResultPartitionLocation.createLocal();
+					}
+					else {
+						// Different instances => remote
+						final ConnectionID connectionId = new ConnectionID(
+								partitionInstance.getInstanceConnectionInfo(),
+								partition.getIntermediateResult().getConnectionIndex());
+
+						partitionLocation = ResultPartitionLocation.createRemote(connectionId);
+					}
+
+					final InputChannelDeploymentDescriptor descriptor = new InputChannelDeploymentDescriptor(
+							partitionId, partitionLocation);
+
+					final UpdateTask updateTaskMessage = new UpdateTaskSinglePartitionInfo(
+							consumer.getAttemptId(), partition.getIntermediateResult().getId(), descriptor);
+
+					sendUpdateTaskRpcCall(consumerSlot, updateTaskMessage);
 				}
+				// ----------------------------------------------------------------
+				// Consumer is scheduled or deploying => cache input channel
+				// deployment descriptors and send update message later
+				// ----------------------------------------------------------------
+				else if (consumerState == SCHEDULED || consumerState == DEPLOYING) {
+					final Execution partitionExecution = partition.getProducer()
+							.getCurrentExecutionAttempt();
 
-				PartitionInfo partitionInfo = new PartitionInfo(partitionID, attemptId,
-						producerLocation, producerAddress);
+					consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor
+							.fromEdge(partition, partitionExecution));
 
-				TaskManagerMessages.UpdateTask updateTaskMessage =
-						new TaskManagerMessages.UpdateTaskSinglePartitionInfo(consumerExecutionId,
-								edge.getSource().getIntermediateResult().getId(), partitionInfo);
-
-				sendUpdateTaskRpcCall(consumerSlot, updateTaskMessage);
-			}
-			else if (consumerState == SCHEDULED || consumerState == DEPLOYING) {
-				consumerVertex.cachePartitionInfo(PartialPartitionInfo.fromEdge(edge));
-
-				// double check to resolve race conditions
-				if(consumerVertex.getExecutionState() == RUNNING){
-					consumerVertex.sendPartitionInfos();
+					// double check to resolve race conditions
+					if (consumerVertex.getExecutionState() == RUNNING) {
+						consumerVertex.sendPartitionInfos();
+					}
 				}
 			}
 		}
@@ -532,6 +586,17 @@ public class Execution implements Serializable {
 
 				if (transitionState(current, FINISHED)) {
 					try {
+						for (IntermediateResultPartition finishedPartition
+								: getVertex().finishAllBlockingPartitions()) {
+
+							IntermediateResultPartition[] allPartitions = finishedPartition
+									.getIntermediateResult().getPartitions();
+
+							for (IntermediateResultPartition partition : allPartitions) {
+								scheduleOrUpdateConsumers(partition.getConsumers());
+							}
+						}
+
 						assignedResource.releaseSlot();
 						vertex.getExecutionGraph().deregisterExecution(this);
 					}
@@ -601,28 +666,28 @@ public class Execution implements Serializable {
 		}
 	}
 
-	void cachePartitionInfo(PartialPartitionInfo partitionInfo) {
-		partialPartitionInfos.add(partitionInfo);
+	void cachePartitionInfo(PartialInputChannelDeploymentDescriptor partitionInfo) {
+		partialInputChannelDeploymentDescriptors.add(partitionInfo);
 	}
 
 	void sendPartitionInfos() {
 		// check if the ExecutionVertex has already been archived and thus cleared the
 		// partial partition infos queue
-		if(partialPartitionInfos != null && !partialPartitionInfos.isEmpty()) {
+		if(partialInputChannelDeploymentDescriptors != null && !partialInputChannelDeploymentDescriptors.isEmpty()) {
 
-			PartialPartitionInfo partialPartitionInfo;
+			PartialInputChannelDeploymentDescriptor partialInputChannelDeploymentDescriptor;
 
 			List<IntermediateDataSetID> resultIDs = new ArrayList<IntermediateDataSetID>();
-			List<PartitionInfo> partitionInfos = new ArrayList<PartitionInfo>();
+			List<InputChannelDeploymentDescriptor> inputChannelDeploymentDescriptors = new ArrayList<InputChannelDeploymentDescriptor>();
 
-			while ((partialPartitionInfo = partialPartitionInfos.poll()) != null) {
-				resultIDs.add(partialPartitionInfo.getIntermediateDataSetID());
-				partitionInfos.add(partialPartitionInfo.createPartitionInfo(this));
+			while ((partialInputChannelDeploymentDescriptor = partialInputChannelDeploymentDescriptors.poll()) != null) {
+				resultIDs.add(partialInputChannelDeploymentDescriptor.getResultId());
+				inputChannelDeploymentDescriptors.add(partialInputChannelDeploymentDescriptor.createInputChannelDeploymentDescriptor(this));
 			}
 
-			TaskManagerMessages.UpdateTask updateTaskMessage =
-					TaskManagerMessages.createUpdateTaskMultiplePartitionInfos(attemptId, resultIDs,
-							partitionInfos);
+			UpdateTask updateTaskMessage =
+					createUpdateTaskMultiplePartitionInfos(attemptId, resultIDs,
+							inputChannelDeploymentDescriptors);
 
 			sendUpdateTaskRpcCall(assignedResource, updateTaskMessage);
 		}
@@ -741,7 +806,7 @@ public class Execution implements Serializable {
 		if (slot != null) {
 
 			Future<Object> cancelResult = AkkaUtils.retry(slot.getInstance().getTaskManager(), new
-							TaskManagerMessages.CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
+							CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
 					AkkaUtils.globalExecutionContext(), timeout);
 
 			cancelResult.onComplete(new OnComplete<Object>() {
@@ -771,7 +836,7 @@ public class Execution implements Serializable {
 			if (instance.isAlive()) {
 				try {
 					// TODO For some tests this could be a problem when querying too early if all resources were released
-					instance.getTaskManager().tell(new TaskManagerMessages.FailIntermediateResultPartitions(attemptId), ActorRef.noSender());
+					instance.getTaskManager().tell(new FailIntermediateResultPartitions(attemptId), ActorRef.noSender());
 				} catch (Throwable t) {
 					fail(new Exception("Intermediate result partition could not be failed.", t));
 				}
@@ -780,7 +845,8 @@ public class Execution implements Serializable {
 	}
 
 	private void sendUpdateTaskRpcCall(final SimpleSlot consumerSlot,
-									final TaskManagerMessages.UpdateTask updateTaskMsg) {
+									final UpdateTask updateTaskMsg) {
+
 		if (consumerSlot != null) {
 			final Instance instance = consumerSlot.getInstance();
 
@@ -810,8 +876,8 @@ public class Execution implements Serializable {
 			markTimestamp(targetState);
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("{} ({}) switched from {} to {}.",this.getVertex().getTaskName(),
-						getAttemptId(),  currentState, targetState);
+				LOG.debug("{} ({}) switched from {} to {}.",
+						getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
 			}
 
 			// make sure that the state transition completes normally.
@@ -844,5 +910,13 @@ public class Execution implements Serializable {
 	public String toString() {
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
+	}
+
+	public void setOperatorState(StateHandle operatorStates) {
+		this.operatorState = operatorStates;
+	}
+
+	public StateHandle getOperatorState() {
+		return operatorState;
 	}
 }

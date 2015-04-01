@@ -55,23 +55,33 @@ public class MusicProfiles implements ProgramDescription {
 	 * users that listen to the same song are connected. Finally, we use the
 	 * graph API to run the label propagation community detection algorithm on
 	 * the similarity graph.
+	 *
+	 * The triplets input is expected to be given as one triplet per line,
+	 * in the following format: "<userID>\t<songID>\t<playcount>".
+	 *
+	 * The mismatches input file is expected to contain one mismatch record per line,
+	 * in the following format:
+	 * "ERROR: <songID trackID> song_title"
+	 *
+	 * If no arguments are provided, the example runs with default data from {@link MusicProfilesData}.
 	 */
 	public static void main(String[] args) throws Exception {
 
+		if (!parseParameters(args)) {
+			return;
+		}
+
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		final int numIterations = 10;
 
 		/**
-		 * Read the user-song-play triplets The format is
-		 * <userID>\t<songID>\t<playcount>
+		 * Read the user-song-play triplets.
 		 */
-		DataSet<Tuple3<String, String, Integer>> triplets = MusicProfilesData.getUserSongTriplets(env);
+		DataSet<Tuple3<String, String, Integer>> triplets = getUserSongTripletsData(env);
 
 		/**
-		 * Read the mismatches dataset and extract the songIDs The format is
-		 * "ERROR: <songID trackID> song_title"
+		 * Read the mismatches dataset and extract the songIDs
 		 */
-		DataSet<Tuple1<String>> mismatches = MusicProfilesData.getMismatches(env).map(new ExtractMismatchSongIds());
+		DataSet<Tuple1<String>> mismatches = getMismatchesData(env).map(new ExtractMismatchSongIds());
 
 		/**
 		 * Filter out the mismatches from the triplets dataset
@@ -93,7 +103,11 @@ public class MusicProfiles implements ProgramDescription {
 				.reduceOnEdges(new GetTopSongPerUser(), EdgeDirection.OUT)
 				.filter(new FilterSongNodes());
 
-		usersWithTopTrack.print();
+		if (fileOutput) {
+			usersWithTopTrack.writeAsCsv(topTracksOutputPath, "\n", "\t");
+		} else {
+			usersWithTopTrack.print();
+		}
 
 		/**
 		 * Create a user-user similarity graph, based on common songs, i.e. two
@@ -126,10 +140,14 @@ public class MusicProfiles implements ProgramDescription {
 							public Long map(Tuple2<Long, Long> value) {
 								return value.f1;
 							}
-						}).run(new LabelPropagation<String>(numIterations))
+						}).run(new LabelPropagation<String>(maxIterations))
 				.getVertices();
 
-		verticesWithCommunity.print();
+		if (fileOutput) {
+			verticesWithCommunity.writeAsCsv(communitiesOutputPath, "\n", "\t");
+		} else {
+			verticesWithCommunity.print();
+		}
 
 		env.execute();
 	}
@@ -191,8 +209,10 @@ public class MusicProfiles implements ProgramDescription {
 				listeners.add(edge.getSource());
 			}
 			for (int i = 0; i < listeners.size() - 1; i++) {
-				out.collect(new Edge<String, NullValue>(listeners.get(i),
-						listeners.get(i + 1), NullValue.getInstance()));
+				for (int j = i + 1; j < listeners.size(); j++) {
+					out.collect(new Edge<String, NullValue>(listeners.get(i),
+							listeners.get(j), NullValue.getInstance()));
+				}
 			}
 		}
 	}
@@ -212,5 +232,66 @@ public class MusicProfiles implements ProgramDescription {
 	@Override
 	public String getDescription() {
 		return "Music Profiles Example";
+	}
+
+	// ******************************************************************************************************************
+	// UTIL METHODS
+	// ******************************************************************************************************************
+
+	private static boolean fileOutput = false;
+
+	private static String userSongTripletsInputPath = null;
+
+	private static String mismatchesInputPath = null;
+
+	private static String topTracksOutputPath = null;
+
+	private static String communitiesOutputPath = null;
+
+	private static int maxIterations = 10;
+
+	private static boolean parseParameters(String[] args) {
+
+		if(args.length > 0) {
+			if(args.length != 5) {
+				System.err.println("Usage: MusicProfiles <input user song triplets path>" +
+						" <input song mismatches path> <output top tracks path> "
+						+ "<output communities path> <num iterations>");
+				return false;
+			}
+
+			fileOutput = true;
+			userSongTripletsInputPath = args[0];
+			mismatchesInputPath = args[1];
+			topTracksOutputPath = args[2];
+			communitiesOutputPath = args[3];
+			maxIterations = Integer.parseInt(args[4]);
+		} else {
+			System.out.println("Executing Music Profiles example with default parameters and built-in default data.");
+			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
+			System.out.println("Usage: MusicProfiles <input user song triplets path>" +
+					" <input song mismatches path> <output top tracks path> "
+					+ "<output communities path> <num iterations>");
+		}
+		return true;
+	}
+
+	private static DataSet<Tuple3<String, String, Integer>> getUserSongTripletsData(ExecutionEnvironment env) {
+		if (fileOutput) {
+			return env.readCsvFile(userSongTripletsInputPath)
+					.lineDelimiter("\n").fieldDelimiter("\t")
+					.types(String.class, String.class, Integer.class);
+		} else {
+			return MusicProfilesData.getUserSongTriplets(env);
+		}
+	}
+
+	private static DataSet<String> getMismatchesData(ExecutionEnvironment env) {
+		if (fileOutput) {
+			return env.readTextFile(mismatchesInputPath);
+		} else {
+			return MusicProfilesData.getMismatches(env);
+		}
 	}
 }

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
@@ -37,12 +38,13 @@ public class ClusterUtil {
 	 * 
 	 * @param jobGraph
 	 *            jobGraph
-	 * @param degreeOfParallelism
+	 * @param parallelism
 	 *            numberOfTaskTrackers
 	 * @param memorySize
 	 *            memorySize
+	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	public static void runOnMiniCluster(JobGraph jobGraph, int degreeOfParallelism, long memorySize)
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize)
 			throws Exception {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
@@ -50,7 +52,7 @@ public class ClusterUtil {
 		LocalFlinkMiniCluster exec = null;
 
 		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, degreeOfParallelism);
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
 		}
@@ -59,7 +61,7 @@ public class ClusterUtil {
 			exec = new LocalFlinkMiniCluster(configuration, true);
 			ActorRef jobClient = exec.getJobClient();
 
-			JobClient.submitJobAndWait(jobGraph, true, jobClient, exec.timeout());
+			return JobClient.submitJobAndWait(jobGraph, true, jobClient, exec.timeout());
 
 		} catch (Exception e) {
 			throw e;
@@ -70,7 +72,7 @@ public class ClusterUtil {
 		}
 	}
 
-	public static void runOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
-		runOnMiniCluster(jobGraph, numOfSlots, -1);
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
+		return runOnMiniCluster(jobGraph, numOfSlots, -1);
 	}
 }

@@ -22,7 +22,7 @@ import java.net.InetSocketAddress
 
 import akka.actor._
 import akka.pattern.ask
-import org.apache.flink.configuration.GlobalConfiguration
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.JobManager
@@ -34,7 +34,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
+class ApplicationClient(flinkConfig: Configuration) extends Actor
+  with ActorLogMessages with ActorLogging {
   import context._
 
   val INITIAL_POLLING_DELAY = 0 seconds
@@ -52,7 +53,7 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
   override def preStart(): Unit = {
     super.preStart()
 
-    timeout = AkkaUtils.getTimeout(GlobalConfiguration.getConfiguration())
+    timeout = AkkaUtils.getTimeout(flinkConfig)
   }
 
   override def postStop(): Unit = {
@@ -101,8 +102,16 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
       pollingTimer = Some(context.system.scheduler.schedule(INITIAL_POLLING_DELAY,
         WAIT_FOR_YARN_INTERVAL, jm, PollYarnClusterStatus))
 
+    case LocalUnregisterClient =>
+      // unregister client from AM
+      yarnJobManager foreach {
+        _ ! UnregisterClient
+      }
+      // poison ourselves
+      self ! PoisonPill
+
     case msg: StopYarnSession =>
-      log.info("Stop yarn session.")
+      log.info("Sending StopYarnSession request to ApplicationMaster.")
       stopMessageReceiver = Some(sender)
       yarnJobManager foreach {
         _ forward msg
@@ -126,15 +135,25 @@ class ApplicationClient extends Actor with ActorLogMessages with ActorLogging {
     case LocalGetYarnClusterStatus =>
       sender() ! latestClusterStatus
 
+      // Forward message to Application Master
+    case msg: StopAMAfterJob =>
+      yarnJobManager foreach {
+        _ forward msg
+      }
 
     // -----------------  handle messages from the cluster -------------------
     // receive remote messages
     case msg: YarnMessage =>
+      log.debug("Received new YarnMessage {}. Now {} messages in queue", msg, messagesQueue.size)
       messagesQueue.enqueue(msg)
 
     // locally forward messages
     case LocalGetYarnMessage =>
-      sender() ! messagesQueue.headOption
+      if(messagesQueue.size > 0) {
+        sender() ! Option(messagesQueue.dequeue)
+      } else {
+        sender() ! None
+      }
   }
 
   /**

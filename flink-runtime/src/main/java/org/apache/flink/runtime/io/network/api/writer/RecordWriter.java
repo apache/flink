@@ -31,7 +31,7 @@ import static org.apache.flink.runtime.io.network.api.serialization.RecordSerial
 /**
  * A record-oriented runtime result writer.
  * <p>
- * The RecordWriter wraps the runtime's {@link BufferWriter} and takes care of
+ * The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
  * serializing records into buffers.
  * <p>
  * <strong>Important</strong>: it is necessary to call {@link #flush()} after
@@ -43,20 +43,21 @@ import static org.apache.flink.runtime.io.network.api.serialization.RecordSerial
  */
 public class RecordWriter<T extends IOReadableWritable> {
 
-	protected final BufferWriter writer;
+	protected final ResultPartitionWriter writer;
 
 	private final ChannelSelector<T> channelSelector;
 
 	private final int numChannels;
 
 	/** {@link RecordSerializer} per outgoing channel */
-	private RecordSerializer<T>[] serializers;
+	private final RecordSerializer<T>[] serializers;
 
-	public RecordWriter(BufferWriter writer) {
+	public RecordWriter(ResultPartitionWriter writer) {
 		this(writer, new RoundRobinChannelSelector<T>());
 	}
 
-	public RecordWriter(BufferWriter writer, ChannelSelector<T> channelSelector) {
+	@SuppressWarnings("unchecked")
+	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector) {
 		this.writer = writer;
 		this.channelSelector = channelSelector;
 
@@ -71,10 +72,6 @@ public class RecordWriter<T extends IOReadableWritable> {
 		for (int i = 0; i < numChannels; i++) {
 			serializers[i] = new SpanningRecordSerializer<T>();
 		}
-	}
-
-	public boolean isFinished() {
-		return writer.isFinished();
 	}
 
 	public void emit(T record) throws IOException, InterruptedException {
@@ -103,16 +100,21 @@ public class RecordWriter<T extends IOReadableWritable> {
 			RecordSerializer<T> serializer = serializers[targetChannel];
 
 			synchronized (serializer) {
-				Buffer buffer = serializer.getCurrentBuffer();
-				if (buffer == null) {
-					writer.writeEvent(event, targetChannel);
-				}
-				else {
+
+				if (serializer.hasData()) {
+					Buffer buffer = serializer.getCurrentBuffer();
+					if (buffer == null) {
+						throw new IllegalStateException("Serializer has data but no buffer.");
+					}
+
 					writer.writeBuffer(buffer, targetChannel);
 					writer.writeEvent(event, targetChannel);
 
 					buffer = writer.getBufferProvider().requestBufferBlocking();
 					serializer.setNextBuffer(buffer);
+				}
+				else {
+					writer.writeEvent(event, targetChannel);
 				}
 			}
 		}

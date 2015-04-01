@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
+import org.apache.flink.core.memory.MemorySegment;
+
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.flink.core.memory.MemorySegment;
 
 /**
  * A reader that reads data in blocks from a file channel. The reader reads the blocks into a 
@@ -40,7 +40,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * or even whether the file was written in blocks of the same size, or in blocks at all. Ensuring that the
  * writing and reading is consistent with each other (same blocks sizes) is up to the programmer.  
  */
-public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySegment, ReadRequest> implements BlockChannelReader {
+public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySegment, ReadRequest> implements BlockChannelReader<MemorySegment> {
 	
 	private final LinkedBlockingQueue<MemorySegment> returnSegments;
 	
@@ -57,7 +57,7 @@ public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySeg
 			LinkedBlockingQueue<MemorySegment> returnSegments)
 	throws IOException
 	{
-		super(channelID, requestQueue, new QueuingCallback(returnSegments), false);
+		super(channelID, requestQueue, new QueuingCallback<MemorySegment>(returnSegments), false);
 		this.returnSegments = returnSegments;
 	}	
 
@@ -74,7 +74,12 @@ public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySeg
 	public void readBlock(MemorySegment segment) throws IOException {
 		addRequest(new SegmentReadRequest(this, segment));
 	}
-	
+
+	@Override
+	public void seekToPosition(long position) throws IOException {
+		requestQueue.add(new SeekRequest(this, position));
+	}
+
 	/**
 	 * Gets the next memory segment that has been filled with data by the reader. This method blocks until
 	 * such a segment is available, or until an error occurs in the reader, or the reader is closed.
@@ -87,7 +92,7 @@ public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySeg
 	 * @throws IOException Thrown, if an I/O error occurs in the reader while waiting for the request to return.
 	 */
 	@Override
-	public MemorySegment getNextReturnedSegment() throws IOException {
+	public MemorySegment getNextReturnedBlock() throws IOException {
 		try {
 			while (true) {
 				final MemorySegment next = this.returnSegments.poll(1000, TimeUnit.MILLISECONDS);
@@ -114,10 +119,5 @@ public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySeg
 	@Override
 	public LinkedBlockingQueue<MemorySegment> getReturnQueue() {
 		return this.returnSegments;
-	}
-	
-	@Override
-	public void seekToPosition(long position) throws IOException {
-		this.requestQueue.add(new SeekRequest(this, position));
 	}
 }

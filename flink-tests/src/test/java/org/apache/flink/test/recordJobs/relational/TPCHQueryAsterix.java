@@ -147,7 +147,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		 */
 		// create DataSourceContract for Orders input
 		FileDataSource orders = new FileDataSource(new CsvInputFormat(), ordersPath, "Orders");
-		orders.setDegreeOfParallelism(numSubtasks);
+		orders.setParallelism(numSubtasks);
 		CsvInputFormat.configureRecordFormat(orders)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -160,7 +160,7 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		 */
 		// create DataSourceContract for Customer input
 		FileDataSource customers = new FileDataSource(new CsvInputFormat(), customerPath, "Customers");
-		customers.setDegreeOfParallelism(numSubtasks);
+		customers.setParallelism(numSubtasks);
 		CsvInputFormat.configureRecordFormat(customers)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')
@@ -171,17 +171,17 @@ public class TPCHQueryAsterix implements Program, ProgramDescription {
 		JoinOperator joinCO = JoinOperator.builder(new JoinCO(), IntValue.class, 0, 0)
 			.name("JoinCO")
 			.build();
-		joinCO.setDegreeOfParallelism(numSubtasks);
+		joinCO.setParallelism(numSubtasks);
 
 		// create ReduceOperator for aggregating the result
 		ReduceOperator aggCO = ReduceOperator.builder(new AggCO(), StringValue.class, 1)
 			.name("AggCo")
 			.build();
-		aggCO.setDegreeOfParallelism(numSubtasks);
+		aggCO.setParallelism(numSubtasks);
 
 		// create DataSinkContract for writing the result
 		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, "Output");
-		result.setDegreeOfParallelism(numSubtasks);
+		result.setParallelism(numSubtasks);
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')

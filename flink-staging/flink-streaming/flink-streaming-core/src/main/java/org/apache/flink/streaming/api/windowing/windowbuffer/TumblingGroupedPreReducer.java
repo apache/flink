@@ -29,7 +29,7 @@ import org.apache.flink.util.Collector;
 /**
  * Grouped pre-reducer for tumbling eviction polciy.
  */
-public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
+public class TumblingGroupedPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
 
 	private static final long serialVersionUID = 1L;
 
@@ -37,8 +37,8 @@ public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePr
 	private KeySelector<T, ?> keySelector;
 
 	private Map<Object, T> reducedValues;
+	private Map<Object, T> keyInstancePerKey = new HashMap<Object, T>();
 
-	private int numOfElements = 0;
 	private TypeSerializer<T> serializer;
 
 	public TumblingGroupedPreReducer(ReduceFunction<T> reducer, KeySelector<T, ?> keySelector,
@@ -49,17 +49,15 @@ public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePr
 		this.reducedValues = new HashMap<Object, T>();
 	}
 
-	public boolean emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamWindow<T>> collector) {
 
 		if (!reducedValues.isEmpty()) {
-			StreamWindow<T> currentWindow = new StreamWindow<T>();
+			StreamWindow<T> currentWindow = createEmptyWindow();
 			currentWindow.addAll(reducedValues.values());
 			collector.collect(currentWindow);
 			reducedValues.clear();
-			numOfElements = 0;
-			return true;
-		} else {
-			return false;
+		} else if (emitEmpty) {
+			collector.collect(createEmptyWindow());
 		}
 
 	}
@@ -76,14 +74,13 @@ public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePr
 		}
 
 		reducedValues.put(key, reduced);
-		numOfElements++;
+
+		if (emitPerGroup && !keyInstancePerKey.containsKey(key)) {
+			keyInstancePerKey.put(key, element);
+		}
 	}
 
 	public void evict(int n) {
-	}
-
-	public int size() {
-		return numOfElements;
 	}
 
 	@Override

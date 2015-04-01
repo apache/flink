@@ -40,10 +40,13 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	}
 
 	@Override
-	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) {
+	public Graph<K, Double, Double> run(Graph<K, Double, Double> network) throws Exception {
+
+		final long numberOfVertices = network.numberOfVertices();
+
 		VertexCentricIteration<K, Double, Double, Double> iteration = network.createVertexCentricIteration(
-				new VertexRankUpdater<K>(beta), new RankMessenger<K>(), maxIterations);
-		iteration.addBroadcastSetForUpdateFunction("numberOfVertices", network.numberOfVertices());
+				new VertexRankUpdater<K>(beta, numberOfVertices), new RankMessenger<K>(numberOfVertices),
+				maxIterations);
 		return network.runVertexCentricIteration(iteration);
 	}
 
@@ -55,17 +58,12 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	public static final class VertexRankUpdater<K extends Comparable<K> & Serializable>
 			extends VertexUpdateFunction<K, Double, Double> {
 
-		
 		private final double beta;
-		private int numVertices;
+		private final long numVertices;
 		
-		public VertexRankUpdater(double beta) {
+		public VertexRankUpdater(double beta, long numberOfVertices) {
 			this.beta = beta;
-		}
-		
-		@Override
-		public void preSuperstep(){
-			numVertices = (Integer) getBroadcastSet("numberOfVertices").iterator().next();
+			this.numVertices = numberOfVertices;
 		}
 
 		@Override
@@ -91,8 +89,18 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	public static final class RankMessenger<K extends Comparable<K> & Serializable>
 			extends MessagingFunction<K, Double, Double, Double> {
 
+		private final long numVertices;
+
+		public RankMessenger(long numberOfVertices) {
+			this.numVertices = numberOfVertices;
+		}
+
 		@Override
 		public void sendMessages(K vertexId, Double newRank) {
+			if (getSuperstepNumber() == 1) {
+				// initialize vertex ranks
+				newRank = 1.0 / numVertices;
+			}
 			for (Edge<K, Double> edge : getOutgoingEdges()) {
 				sendMessageTo(edge.getTarget(), newRank * edge.getValue());
 			}

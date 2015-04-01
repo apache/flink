@@ -25,9 +25,11 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.slf4j.LoggerFactory
+import akka.actor.ExtendedActorSystem
 
 /**
  * Local Flink mini cluster which executes all [[TaskManager]]s and the [[JobManager]] in the same
@@ -52,7 +54,6 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
   var jobClient: Option[ActorRef] = None
 
 
-
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val config = getDefaultConfig
 
@@ -64,7 +65,12 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
   }
 
   override def startJobManager(system: ActorSystem): ActorRef = {
-    val (jobManager, _) = JobManager.startJobManagerActors(configuration, system)
+    val config = configuration.clone()
+    val (jobManager, archiver) = JobManager.startJobManagerActors(config, system)
+    if (config.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, false)) {
+      val webServer = new WebInfoServer(configuration, jobManager, archiver)
+      webServer.start()
+    }
     jobManager
   }
 
@@ -95,10 +101,10 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     }
 
     TaskManager.startTaskManagerActor(config, system, HOSTNAME, taskManagerActorName,
-                                      singleActorSystem, localExecution, classOf[TaskManager])
+      singleActorSystem, localExecution, classOf[TaskManager])
   }
 
-  def getJobClient(): ActorRef ={
+  def getJobClient(): ActorRef = {
     jobClient match {
       case Some(jc) => jc
       case None =>
@@ -108,7 +114,7 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
         config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getJobManagerRPCPort)
 
         val jc = JobClient.createJobClientFromConfig(config, singleActorSystem,
-                                                            jobClientActorSystem)
+          jobClientActorSystem)
         jobClient = Some(jc)
         jc
     }
@@ -117,31 +123,39 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
   def getJobClientActorSystem: ActorSystem = jobClientActorSystem
 
   def getJobManagerRPCPort: Int = {
-    configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1)
+    if (jobManagerActorSystem.isInstanceOf[ExtendedActorSystem]) {
+      val extActor = jobManagerActorSystem.asInstanceOf[ExtendedActorSystem]
+      extActor.provider.getDefaultAddress.port match {
+        case p: Some[Int] => p.get
+        case _ => -1
+      }
+    } else {
+      -1
+    }
   }
 
   override def shutdown(): Unit = {
     super.shutdown()
 
-    if(!singleActorSystem) {
+    if (!singleActorSystem) {
       jobClientActorSystem.shutdown()
     }
   }
 
   override def awaitTermination(): Unit = {
-    if(!singleActorSystem) {
+    if (!singleActorSystem) {
       jobClientActorSystem.awaitTermination()
     }
     super.awaitTermination()
   }
 
   def initializeIOFormatClasses(configuration: Configuration): Unit = {
-    try{
+    try {
       val om = classOf[FileOutputFormat[_]].getDeclaredMethod("initDefaultsFromConfiguration",
         classOf[Configuration])
       om.setAccessible(true)
       om.invoke(null, configuration)
-    }catch {
+    } catch {
       case e: Exception =>
         LOG.error("Cannot (re) initialize the globally loaded defaults. Some classes might not " +
           "follow the specified default behaviour.")
@@ -153,16 +167,16 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     if (config.getInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1) == -1) {
 
       val bufferMem: Long =
-            config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
-                           ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) *
-            config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-                           ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
+        config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+          ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS) *
+          config.getLong(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
+            ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
 
       val numTaskManager = config.getInteger(
         ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
 
       val memoryFraction = config.getFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
-                                           ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
+        ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
 
       // full memory size
       var memorySize: Long = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag
@@ -174,9 +188,13 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
       // for each TaskManager, subtract the memory needed for memory buffers
       memorySize -= bufferMem
       memorySize = (memorySize * memoryFraction).toLong
-      memorySize >>>= 20  // bytes to megabytes
+      memorySize >>>= 20 // bytes to megabytes
       config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize)
     }
+  }
+
+  def getConfiguration: Configuration = {
+    this.userConfiguration
   }
 
   def getDefaultConfig: Configuration = {
@@ -191,5 +209,16 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     config.setInteger(NettyConfig.NUM_THREADS_SERVER, 2)
 
     config
+  }
+}
+
+object LocalFlinkMiniCluster {
+  val LOG = LoggerFactory.getLogger(classOf[LocalFlinkMiniCluster])
+
+  def main(args: Array[String]) {
+    var conf = new Configuration;
+    conf.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 4)
+    conf.setBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER, true)
+    var cluster = new LocalFlinkMiniCluster(conf, true)
   }
 }

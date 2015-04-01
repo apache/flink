@@ -90,8 +90,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 					new ReduceOperatorBase<IN, ReduceFunction<IN>>(function, operatorInfo, new int[0], name);
 			
 			po.setInput(input);
-			// the degree of parallelism for a non grouped reduce can only be 1
-			po.setDegreeOfParallelism(1);
+			// the parallelism for a non grouped reduce can only be 1
+			po.setParallelism(1);
 			
 			return po;
 		}
@@ -118,7 +118,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			po.setCustomPartitioner(grouper.getCustomPartitioner());
 			
 			po.setInput(input);
-			po.setDegreeOfParallelism(getParallelism());
+			po.setParallelism(getParallelism());
 			
 			return po;
 		}
@@ -130,7 +130,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	// --------------------------------------------------------------------------------------------
 	
 	private static <T, K> MapOperatorBase<Tuple2<K, T>, T, ?> translateSelectorFunctionReducer(Keys.SelectorFunctionKeys<T, ?> rawKeys,
-			ReduceFunction<T> function, TypeInformation<T> inputType, String name, Operator<T> input, int dop)
+			ReduceFunction<T> function, TypeInformation<T> inputType, String name, Operator<T> input, int parallelism)
 	{
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<T, K> keys = (Keys.SelectorFunctionKeys<T, K>) rawKeys;
@@ -148,10 +148,10 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		reducer.setInput(keyExtractingMap);
 		keyRemovingMap.setInput(reducer);
 		
-		// set dop
-		keyExtractingMap.setDegreeOfParallelism(input.getDegreeOfParallelism());
-		reducer.setDegreeOfParallelism(dop);
-		keyRemovingMap.setDegreeOfParallelism(dop);
+		// set parallelism
+		keyExtractingMap.setParallelism(input.getParallelism());
+		reducer.setParallelism(parallelism);
+		keyRemovingMap.setParallelism(parallelism);
 		
 		return keyRemovingMap;
 	}

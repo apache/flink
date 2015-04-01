@@ -169,10 +169,10 @@ public class SortPartitionOperator<T> extends SingleInputOperator<T, T, SortPart
 		noop.setInput(input);
 		if(this.getParallelism() < 0) {
 			// use parallelism of input if not explicitly specified
-			noop.setDegreeOfParallelism(input.getDegreeOfParallelism());
+			noop.setParallelism(input.getParallelism());
 		} else {
 			// use explicitly specified parallelism
-			noop.setDegreeOfParallelism(this.getParallelism());
+			noop.setParallelism(this.getParallelism());
 		}
 
 		return noop;

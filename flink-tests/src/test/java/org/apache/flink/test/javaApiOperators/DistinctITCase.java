@@ -44,7 +44,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class DistinctITCase extends MultipleProgramsTestBase {
 
-	public DistinctITCase(ExecutionMode mode){
+	public DistinctITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

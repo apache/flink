@@ -23,6 +23,8 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -79,17 +81,17 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public void execute() {
+	public JobExecutionResult execute() {
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
-		executeRemotely(jobGraph);
+		return executeRemotely(jobGraph);
 	}
 
 	@Override
-	public void execute(String jobName) {
+	public JobExecutionResult execute(String jobName) {
 
 		JobGraph jobGraph = streamGraph.getJobGraph(jobName);
-		executeRemotely(jobGraph);
+		return executeRemotely(jobGraph);
 	}
 
 	/**
@@ -97,8 +99,9 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * 
 	 * @param jobGraph
 	 *            jobGraph to execute
+	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	private void executeRemotely(JobGraph jobGraph) {
+	private JobExecutionResult executeRemotely(JobGraph jobGraph) {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
@@ -109,10 +112,16 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
 		Client client = new Client(new InetSocketAddress(host, port), configuration,
-				JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()));
+				JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()), -1);
 
 		try {
-			client.run(jobGraph, true);
+			JobSubmissionResult result = client.run(jobGraph, true);
+			if(result instanceof JobExecutionResult) {
+				return (JobExecutionResult) result;
+			} else {
+				LOG.warn("The Client didn't return a JobExecutionResult");
+				return new JobExecutionResult(result.getJobID(), -1, null);
+			}
 		} catch (ProgramInvocationException e) {
 			throw new RuntimeException("Cannot execute job due to ProgramInvocationException", e);
 		}
@@ -120,8 +129,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public String toString() {
-		return "Remote Environment (" + this.host + ":" + this.port + " - DOP = "
-				+ (getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism()) + ")";
+		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = "
+				+ (getParallelism() == -1 ? "default" : getParallelism()) + ")";
 	}
 
 }

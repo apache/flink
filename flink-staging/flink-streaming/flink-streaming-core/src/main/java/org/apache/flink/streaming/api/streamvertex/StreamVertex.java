@@ -17,21 +17,39 @@
 
 package org.apache.flink.streaming.api.streamvertex;
 
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.BarrierTransceiver;
+import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
+import org.apache.flink.runtime.jobmanager.BarrierAck;
+import org.apache.flink.runtime.jobmanager.StateBarrierAck;
+import org.apache.flink.runtime.state.LocalStateHandle;
+import org.apache.flink.runtime.state.OperatorState;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.invokable.ChainableInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.streaming.io.IndexedReaderIterator;
-import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTaskContext<OUT> {
+import akka.actor.ActorRef;
+
+public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTaskContext<OUT>,
+		BarrierTransceiver, OperatorStateCarrier {
+
+	private static final Logger LOG = LoggerFactory.getLogger(StreamVertex.class);
 
 	private static int numTasks;
 
@@ -42,16 +60,20 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	private InputHandler<IN> inputHandler;
 	protected OutputHandler<OUT> outputHandler;
 	private StreamInvokable<IN, OUT> userInvokable;
+	protected volatile boolean isRunning = false;
 
 	private StreamingRuntimeContext context;
 	private Map<String, OperatorState<?>> states;
 
 	protected ClassLoader userClassLoader;
 
+	private EventListener<TaskEvent> superstepListener;
+
 	public StreamVertex() {
 		userInvokable = null;
 		numTasks = newVertex();
 		instanceID = numTasks;
+		superstepListener = new SuperstepEventListener();
 	}
 
 	protected static int newVertex() {
@@ -69,24 +91,38 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	protected void initialize() {
 		this.userClassLoader = getUserCodeClassLoader();
 		this.configuration = new StreamConfig(getTaskConfiguration());
-		this.states = configuration.getOperatorStates(userClassLoader);
+		this.states = new HashMap<String, OperatorState<?>>();
 		this.context = createRuntimeContext(getEnvironment().getTaskName(), this.states);
 	}
 
-	protected <T> void invokeUserFunction(StreamInvokable<?, T> userInvokable) throws Exception {
-		userInvokable.setRuntimeContext(context);
-		userInvokable.open(getTaskConfiguration());
-
-		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
-			invokable.setRuntimeContext(context);
-			invokable.open(getTaskConfiguration());
+	@Override
+	public void broadcastBarrierFromSource(long id) {
+		if (this.isRunning) {
+			// Only called at input vertices
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Received barrier from jobmanager: " + id);
+			}
+			actOnBarrier(id);
 		}
+	}
 
-		userInvokable.invoke();
-		userInvokable.close();
+	/**
+	 * This method is called to confirm that a barrier has been fully processed.
+	 * It sends an acknowledgment to the jobmanager. In the current version if
+	 * there is user state it also checkpoints the state to the jobmanager.
+	 */
+	@Override
+	public void confirmBarrier(long barrierID) throws IOException {
 
-		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
-			invokable.close();
+		if (configuration.getStateMonitoring() && !states.isEmpty()) {
+			getEnvironment().getJobManager().tell(
+					new StateBarrierAck(getEnvironment().getJobID(), getEnvironment()
+							.getJobVertexId(), context.getIndexOfThisSubtask(), barrierID,
+							new LocalStateHandle(states)), ActorRef.noSender());
+		} else {
+			getEnvironment().getJobManager().tell(
+					new BarrierAck(getEnvironment().getJobID(), getEnvironment().getJobVertexId(),
+							context.getIndexOfThisSubtask(), barrierID), ActorRef.noSender());
 		}
 
 	}
@@ -118,7 +154,82 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	@Override
 	public void invoke() throws Exception {
-		outputHandler.invokeUserFunction("TASK", userInvokable);
+		this.isRunning = true;
+
+		boolean operatorOpen = false;
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Task {} invoked with instance id {}", getName(), getInstanceID());
+		}
+
+		try {
+			userInvokable.setRuntimeContext(context);
+
+			operatorOpen = true;
+			openOperator();
+
+			userInvokable.invoke();
+
+			closeOperator();
+			operatorOpen = false;
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Task {} invoke finished instance id {}", getName(), getInstanceID());
+			}
+
+		} catch (Exception e) {
+
+			if (operatorOpen) {
+				try {
+					closeOperator();
+				} catch (Throwable t) {
+				}
+			}
+
+			if (LOG.isErrorEnabled()) {
+				LOG.error("StreamInvokable failed due to: {}", StringUtils.stringifyException(e));
+			}
+			throw e;
+		} finally {
+			// Cleanup
+			outputHandler.flushOutputs();
+			clearBuffers();
+			this.isRunning = false;
+		}
+
+	}
+
+	protected void openOperator() throws Exception {
+		userInvokable.open(getTaskConfiguration());
+
+		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+			invokable.setRuntimeContext(context);
+			invokable.open(getTaskConfiguration());
+		}
+	}
+
+	protected void closeOperator() throws Exception {
+		userInvokable.close();
+
+		for (ChainableInvokable<?, ?> invokable : outputHandler.chainedInvokables) {
+			invokable.close();
+		}
+	}
+
+	protected void clearBuffers() throws IOException {
+		if (outputHandler != null) {
+			outputHandler.clearWriters();
+		}
+		if (inputHandler != null) {
+			inputHandler.clearReaders();
+		}
+	}
+
+	@Override
+	public void cancel() {
+		if (userInvokable != null) {
+			userInvokable.cancel();
+		}
 	}
 
 	@Override
@@ -166,4 +277,50 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 		throw new IllegalArgumentException("CoReader not available");
 	}
 
+	public EventListener<TaskEvent> getSuperstepListener() {
+		return this.superstepListener;
+	}
+
+	/**
+	 * Method to be called when a barrier is received from all the input
+	 * channels. It should broadcast the barrier to the output operators,
+	 * checkpoint the state and send an ack.
+	 * 
+	 * @param id
+	 */
+	private synchronized void actOnBarrier(long id) {
+		if (this.isRunning) {
+			try {
+				outputHandler.broadcastBarrier(id);
+				confirmBarrier(id);
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Superstep " + id + " processed: " + StreamVertex.this);
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
+
+	@Override
+	public String toString() {
+		return configuration.getOperatorName() + " (" + context.getIndexOfThisSubtask() + ")";
+	}
+
+	/**
+	 * Re-injects the user states into the map
+	 */
+	@Override
+	public void injectState(StateHandle stateHandle) {
+		this.states.putAll(stateHandle.getState(userClassLoader));
+	}
+
+	private class SuperstepEventListener implements EventListener<TaskEvent> {
+
+		@Override
+		public void onEvent(TaskEvent event) {
+			actOnBarrier(((StreamingSuperstep) event).getId());
+		}
+
+	}
 }

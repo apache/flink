@@ -44,7 +44,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase {
 
-	public HadoopReduceCombineFunctionITCase(ExecutionMode mode){
+	public HadoopReduceCombineFunctionITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
@@ -99,7 +99,7 @@ public class HadoopReduceCombineFunctionITCase extends MultipleProgramsTestBase 
 
 	@Test
 	public void testCombiner() throws Exception {
-		org.junit.Assume.assumeThat(mode, new IsEqual<ExecutionMode>(ExecutionMode.CLUSTER));
+		org.junit.Assume.assumeThat(mode, new IsEqual<TestExecutionMode>(TestExecutionMode.CLUSTER));
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple2<IntWritable, IntWritable>> ds = HadoopTestData.getKVPairDataSet(env).

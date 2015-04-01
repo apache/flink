@@ -59,11 +59,10 @@ under the License.
 				<artifactId>maven-archetype-plugin</artifactId>
 				<version>2.2</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
-					<skip>${skipTests}</skip>
+					<skip>true</skip>
 				</configuration>
 			</plugin>
-			
-			<!-- deactivate the shade plugin for the quickstart scripts -->
+			<!-- deactivate the shade plugin for the quickstart archetypes -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -73,7 +72,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			
 		</plugins>
 	</build>
 </project>

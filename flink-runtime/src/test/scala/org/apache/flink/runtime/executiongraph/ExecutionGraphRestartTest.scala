@@ -20,9 +20,10 @@ package org.apache.flink.runtime.executiongraph
 
 import akka.actor.{Props, ActorSystem}
 import akka.testkit.TestKit
+import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobID, JobGraph, AbstractJobVertex}
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, AbstractJobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.testingUtils.TestingUtils

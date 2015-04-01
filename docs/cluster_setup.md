@@ -258,7 +258,7 @@ commands
 
 ~~~bash
 cd hadoop-*
-binn/start-dfs.sh
+bin/start-dfs.sh
 ~~~
 
 If your HDFS setup is correct, you should be able to open the HDFS
@@ -323,7 +323,7 @@ In particular,
 
  * the amount of available memory per TaskManager (`taskmanager.heap.mb`), 
  * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
- * the total number of CPUs in the cluster (`parallelization.degree.default`) and 
+ * the total number of CPUs in the cluster (`parallelism.default`) and
  * the temporary directories (`taskmanager.tmp.dirs`)
 
 are very important configuration values.

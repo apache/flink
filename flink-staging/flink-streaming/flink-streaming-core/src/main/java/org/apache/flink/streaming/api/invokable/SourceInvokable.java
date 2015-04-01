@@ -39,6 +39,12 @@ public class SourceInvokable<OUT> extends StreamInvokable<OUT, OUT> implements S
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		sourceFunction.invoke(collector);
+		sourceFunction.run(collector);
+	}
+
+	@Override
+	public void cancel() {
+		super.cancel();
+		sourceFunction.cancel();
 	}
 }

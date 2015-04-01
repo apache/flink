@@ -28,20 +28,38 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.library.PageRank;
+import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.util.Collector;
 
+/**
+ * This example implements a simple PageRank algorithm, using a vertex-centric iteration.
+ *
+ * The edges input file is expected to contain one edge per line, with long IDs and double
+ * values, in the following format:"<sourceVertexID>\t<targetVertexID>\t<edgeValue>".
+ *
+ * If no arguments are provided, the example runs with a random graph of 10 vertices
+ * and random edge weights.
+ *
+ */
 public class PageRankExample implements ProgramDescription {
 
 	@SuppressWarnings("serial")
 	public static void main(String[] args) throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		if(!parseParameters(args)) {
+			return;
+		}
 
-		DataSet<Vertex<Long, Double>> pages = getPagesDataSet(env);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Edge<Long, Double>> links = getLinksDataSet(env);
 
-		Graph<Long, Double, Double> network = Graph.fromDataSet(pages, links, env);
+		Graph<Long, Double, Double> network = Graph.fromDataSet(links, new MapFunction<Long, Double>() {
+
+			public Double map(Long value) throws Exception {
+				return 1.0;
+			}
+		}, env);
 
 		DataSet<Tuple2<Long, Long>> vertexOutDegrees = network.outDegrees();
 
@@ -58,34 +76,63 @@ public class PageRankExample implements ProgramDescription {
 				new PageRank<Long>(DAMPENING_FACTOR, maxIterations))
 				.getVertices();
 
-		pageRanks.print();
+		if (fileOutput) {
+			pageRanks.writeAsCsv(outputPath, "\n", "\t");
+		} else {
+			pageRanks.print();
+		}
 
 		env.execute();
 	}
 
 	@Override
 	public String getDescription() {
-		return "PageRank";
+		return "PageRank example";
 	}
 
+	// *************************************************************************
+	//     UTIL METHODS
+	// *************************************************************************
+
+	private static boolean fileOutput = false;
 	private static final double DAMPENING_FACTOR = 0.85;
 	private static long numPages = 10;
+	private static String edgeInputPath = null;
+	private static String outputPath = null;
 	private static int maxIterations = 10;
 
-	@SuppressWarnings("serial")
-	private static DataSet<Vertex<Long, Double>> getPagesDataSet(ExecutionEnvironment env) {
-		return env.generateSequence(1, numPages).map(
-				new MapFunction<Long, Vertex<Long, Double>>() {
-					@Override
-					public Vertex<Long, Double> map(Long l) throws Exception {
-						return new Vertex<Long, Double>(l, 1.0 / numPages);
-					}
-				});
+	private static boolean parseParameters(String[] args) {
 
+		if(args.length > 0) {
+			if(args.length != 4) {
+				System.err.println("Usage: PageRank <input edges path> <output path> <num iterations>");
+				return false;
+			}
+
+			fileOutput = true;
+			edgeInputPath = args[1];
+			outputPath = args[2];
+			maxIterations = Integer.parseInt(args[3]);
+		} else {
+			System.out.println("Executing PageRank example with default parameters and built-in default data.");
+			System.out.println("  Provide parameters to read input data from files.");
+			System.out.println("  See the documentation for the correct format of input files.");
+			System.out.println("  Usage: PageRank <input edges path> <output path> <num iterations>");
+		}
+		return true;
 	}
 
 	@SuppressWarnings("serial")
 	private static DataSet<Edge<Long, Double>> getLinksDataSet(ExecutionEnvironment env) {
+
+		if (fileOutput) {
+			return env.readCsvFile(edgeInputPath)
+					.fieldDelimiter("\t")
+					.lineDelimiter("\n")
+					.types(Long.class, Long.class, Double.class)
+					.map(new Tuple3ToEdgeMap<Long, Double>());
+		}
+
 		return env.generateSequence(1, numPages).flatMap(
 				new FlatMapFunction<Long, Edge<Long, Double>>() {
 					@Override

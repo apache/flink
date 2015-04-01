@@ -23,24 +23,23 @@ import org.apache.flink.streaming.api.windowing.WindowEvent;
 import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 
 /**
- * This invokable flattens the results of the window transformations by
- * outputing the elements of the {@link StreamWindow} one-by-one
+ * This invokable manages the window buffers attached to the discretizers.
  */
-public class WindowBufferInvokable<T> extends
-		ChainableInvokable<WindowEvent<T>, StreamWindow<T>> {
+public class WindowBufferInvokable<T> extends ChainableInvokable<WindowEvent<T>, StreamWindow<T>> {
 
 	protected WindowBuffer<T> buffer;
 
 	public WindowBufferInvokable(WindowBuffer<T> buffer) {
 		super(null);
 		this.buffer = buffer;
+		withoutInputCopy();
 	}
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -63,12 +62,6 @@ public class WindowBufferInvokable<T> extends
 
 	private void handleWindowEvent(WindowEvent<T> windowEvent) throws Exception {
 		handleWindowEvent(windowEvent, buffer);
-	}
-
-	@Override
-	public void collect(WindowEvent<T> record) {
-		nextObject = record;
-		callUserFunctionAndLogException();
 	}
 
 }

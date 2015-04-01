@@ -56,7 +56,7 @@ public abstract class SequentialFormatTestBase<T> {
 
 	protected long blockSize;
 
-	private int degreeOfParallelism;
+	private int parallelism;
 
 	private int[] rawDataSizes;
 
@@ -65,11 +65,11 @@ public abstract class SequentialFormatTestBase<T> {
 	/**
 	 * Initializes SequentialFormatTest.
 	 */
-	public SequentialFormatTestBase(int numberOfTuples, long blockSize, int degreeOfParallelism) {
+	public SequentialFormatTestBase(int numberOfTuples, long blockSize, int parallelism) {
 		this.numberOfTuples = numberOfTuples;
 		this.blockSize = blockSize;
-		this.degreeOfParallelism = degreeOfParallelism;
-		this.rawDataSizes = new int[degreeOfParallelism];
+		this.parallelism = parallelism;
+		this.rawDataSizes = new int[parallelism];
 	}
 
 	/**
@@ -78,7 +78,7 @@ public abstract class SequentialFormatTestBase<T> {
 	@Before
 	public void calcRawDataSize() throws IOException {
 		int recordIndex = 0;
-		for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
+		for (int fileIndex = 0; fileIndex < this.parallelism; fileIndex++) {
 			ByteCounter byteCounter = new ByteCounter();
 			DataOutputStream out = new DataOutputStream(byteCounter);
 			for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
@@ -98,7 +98,7 @@ public abstract class SequentialFormatTestBase<T> {
 		Arrays.sort(inputSplits, new InputSplitSorter());
 
 		int splitIndex = 0;
-		for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
+		for (int fileIndex = 0; fileIndex < this.parallelism; fileIndex++) {
 			List<FileInputSplit> sameFileSplits = new ArrayList<FileInputSplit>();
 			Path lastPath = inputSplits[splitIndex].getPath();
 			for (; splitIndex < inputSplits.length; splitIndex++) {
@@ -178,7 +178,7 @@ public abstract class SequentialFormatTestBase<T> {
 		this.tempFile.deleteOnExit();
 		Configuration configuration = new Configuration();
 		configuration.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
-		if (this.degreeOfParallelism == 1) {
+		if (this.parallelism == 1) {
 			BinaryOutputFormat<T> output = createOutputFormat(this.tempFile.toURI().toString(),
 					configuration);
 			for (int index = 0; index < this.numberOfTuples; index++) {
@@ -189,7 +189,7 @@ public abstract class SequentialFormatTestBase<T> {
 			this.tempFile.delete();
 			this.tempFile.mkdir();
 			int recordIndex = 0;
-			for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
+			for (int fileIndex = 0; fileIndex < this.parallelism; fileIndex++) {
 				BinaryOutputFormat<T> output = createOutputFormat(this.tempFile.toURI() + "/" +
 						(fileIndex+1), configuration);
 				for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
@@ -201,7 +201,7 @@ public abstract class SequentialFormatTestBase<T> {
 	}
 
 	private int getNumberOfTuplesPerFile(int fileIndex) {
-		return this.numberOfTuples / this.degreeOfParallelism;
+		return this.numberOfTuples / this.parallelism;
 	}
 
 	/**
@@ -211,7 +211,7 @@ public abstract class SequentialFormatTestBase<T> {
 	public void checkLength() {
 		File[] files = this.tempFile.isDirectory() ? this.tempFile.listFiles() : new File[] { this.tempFile };
 		Arrays.sort(files);
-		for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
+		for (int fileIndex = 0; fileIndex < this.parallelism; fileIndex++) {
 			long lastBlockLength = this.rawDataSizes[fileIndex] % (this.blockSize - getInfoSize());
 			long expectedLength =
 				(this.getExpectedBlockCount(fileIndex) - 1) * this.blockSize + getInfoSize() +
@@ -252,13 +252,13 @@ public abstract class SequentialFormatTestBase<T> {
 	@Parameters
 	public static List<Object[]> getParameters() {
 		ArrayList<Object[]> params = new ArrayList<Object[]>();
-		for (int dop = 1; dop <= 2; dop++) {
-			// numberOfTuples, blockSize, dop
-			params.add(new Object[] { 100, BinaryOutputFormat.NATIVE_BLOCK_SIZE, dop });
-			params.add(new Object[] { 100, 1000, dop });
-			params.add(new Object[] { 100, 1 << 20, dop });
-			params.add(new Object[] { 10000, 1000, dop });
-			params.add(new Object[] { 10000, 1 << 20, dop });
+		for (int parallelism = 1; parallelism <= 2; parallelism++) {
+			// numberOfTuples, blockSize, parallelism
+			params.add(new Object[] { 100, BinaryOutputFormat.NATIVE_BLOCK_SIZE, parallelism });
+			params.add(new Object[] { 100, 1000, parallelism });
+			params.add(new Object[] { 100, 1 << 20, parallelism });
+			params.add(new Object[] { 10000, 1000, parallelism });
+			params.add(new Object[] { 10000, 1 << 20, parallelism });
 		}
 		return params;
 	}

@@ -58,7 +58,7 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	protected String resultPath;
 
 	public CoGroupConnectedComponentsITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 	
@@ -71,7 +71,7 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	
 	@Override
 	protected Plan getTestJob() {
-		return getPlan(DOP, verticesPath, edgesPath, resultPath, 100);
+		return getPlan(parallelism, verticesPath, edgesPath, resultPath, 100);
 	}
 
 	@Override

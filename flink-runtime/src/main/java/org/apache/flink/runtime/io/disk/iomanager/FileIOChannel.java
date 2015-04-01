@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.util.Random;
 
 import org.apache.flink.util.StringUtils;
@@ -73,6 +74,8 @@ public interface FileIOChannel {
 	* @throws IOException Thrown, if an error occurred while waiting for pending requests.
 	*/
 	public void closeAndDelete() throws IOException;
+
+	FileChannel getNioFileChannel();
 	
 	// --------------------------------------------------------------------------------------------
 	// --------------------------------------------------------------------------------------------

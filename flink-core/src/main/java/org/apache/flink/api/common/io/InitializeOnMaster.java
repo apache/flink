@@ -31,7 +31,7 @@ public interface InitializeOnMaster {
 	/**
 	 * The method is invoked on the master (JobManager) before the distributed program execution starts.
 	 * 
-	 * @param parallelism The degree of parallelism with which the format or functions will be run.
+	 * @param parallelism The parallelism with which the format or functions will be run.
 	 * @throws IOException The initialization may throw exceptions, which may cause the job to abort.
 	 */
 	void initializeGlobal(int parallelism) throws IOException;

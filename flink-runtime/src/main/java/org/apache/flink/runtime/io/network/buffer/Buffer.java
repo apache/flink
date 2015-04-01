@@ -22,7 +22,6 @@ import org.apache.flink.core.memory.MemorySegment;
 
 import java.nio.ByteBuffer;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -39,7 +38,7 @@ public class Buffer {
 	/** The recycler for the backing {@link MemorySegment} */
 	private final BufferRecycler recycler;
 
-	private final boolean isBuffer;
+	private boolean isBuffer;
 
 	/** The current number of references to this buffer */
 	private int referenceCount = 1;
@@ -66,6 +65,14 @@ public class Buffer {
 		return isBuffer;
 	}
 
+	public void tagAsEvent() {
+		synchronized (recycleLock) {
+			ensureNotRecycled();
+		}
+
+		isBuffer = false;
+	}
+
 	public MemorySegment getMemorySegment() {
 		synchronized (recycleLock) {
 			ensureNotRecycled();
@@ -78,14 +85,17 @@ public class Buffer {
 		synchronized (recycleLock) {
 			ensureNotRecycled();
 
+			// we need to return a copy here to guarantee thread-safety
 			return memorySegment.wrap(0, currentSize).duplicate();
 		}
+	}
+	
+	public BufferRecycler getRecycler(){
+		return recycler;
 	}
 
 	public int getSize() {
 		synchronized (recycleLock) {
-			ensureNotRecycled();
-
 			return currentSize;
 		}
 	}
@@ -94,7 +104,10 @@ public class Buffer {
 		synchronized (recycleLock) {
 			ensureNotRecycled();
 
-			checkArgument(newSize >= 0 && newSize <= memorySegment.size(), "Size of buffer must be >= 0 and <= " + memorySegment.size() + ", but was " + newSize + ".");
+			if (newSize < 0 || newSize > memorySegment.size()) {
+				throw new IllegalArgumentException("Size of buffer must be >= 0 and <= " +
+													memorySegment.size() + ", but was " + newSize + ".");
+			}
 
 			currentSize = newSize;
 		}
@@ -102,8 +115,6 @@ public class Buffer {
 
 	public void recycle() {
 		synchronized (recycleLock) {
-			ensureNotRecycled();
-
 			if (--referenceCount == 0) {
 				recycler.recycle(memorySegment);
 			}

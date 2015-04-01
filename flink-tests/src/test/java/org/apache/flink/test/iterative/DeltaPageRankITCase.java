@@ -42,7 +42,7 @@ public class DeltaPageRankITCase extends RecordAPITestBase {
 	
 	@Override
 	protected Plan getTestJob() {
-		String[] params = { String.valueOf(DOP) , verticesPath, edgesPath, resultPath, "3" };
+		String[] params = { String.valueOf(parallelism) , verticesPath, edgesPath, resultPath, "3" };
 		
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
 		return cc.getPlan(params);

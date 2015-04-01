@@ -30,7 +30,7 @@ import org.junit.Test;
 
 public class LocalExecutorITCase {
 
-	private static final int DOP = 4;
+	private static final int parallelism = 4;
 
 	@Test
 	public void testLocalExecutorWithWordCount() {
@@ -50,11 +50,11 @@ public class LocalExecutorITCase {
 
 			LocalExecutor executor = new LocalExecutor();
 			executor.setDefaultOverwriteFiles(true);
-			executor.setTaskManagerNumSlots(DOP);
+			executor.setTaskManagerNumSlots(parallelism);
 			executor.setPrintStatusDuringExecution(false);
 			executor.start();
 			
-			executor.executePlan(wc.getPlan(Integer.valueOf(DOP).toString(), inFile.toURI().toString(),
+			executor.executePlan(wc.getPlan(Integer.valueOf(parallelism).toString(), inFile.toURI().toString(),
 					outFile.toURI().toString()));
 			executor.stop();
 		} catch (Exception e) {

@@ -22,7 +22,7 @@ import java.io.IOException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.ConnectorSource;
-import org.apache.flink.streaming.connectors.util.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +45,8 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	private transient Channel channel;
 	private transient QueueingConsumer consumer;
 	private transient QueueingConsumer.Delivery delivery;
+
+	private volatile boolean isRunning = false;
 
 	OUT out;
 
@@ -80,42 +82,46 @@ public class RMQSource<OUT> extends ConnectorSource<OUT> {
 	 *            The Collector for sending data to the dataStream
 	 */
 	@Override
-	public void invoke(Collector<OUT> collector) throws Exception {
+	public void run(Collector<OUT> collector) throws Exception {
+		isRunning = true;
+		try {
+			while (isRunning) {
 
-		while (true) {
+				try {
+					delivery = consumer.nextDelivery();
+				} catch (Exception e) {
+					if (LOG.isErrorEnabled()) {
+						LOG.error("Cannot recieve RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
+					}
+				}
 
-			try {
-				delivery = consumer.nextDelivery();
-			} catch (Exception e) {
-				if (LOG.isErrorEnabled()) {
-					LOG.error("Cannot recieve RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
+				out = schema.deserialize(delivery.getBody());
+				if (schema.isEndOfStream(out)) {
+					break;
+				} else {
+					collector.collect(out);
 				}
 			}
-
-			out = schema.deserialize(delivery.getBody());
-			if (schema.isEndOfStream(out)) {
-				break;
-			} else {
-				collector.collect(out);
-			}
+		} finally {
+			connection.close();
 		}
 
 	}
 
 	@Override
-	public void open(Configuration config) {
+	public void open(Configuration config) throws Exception {
 		initializeConnection();
 	}
 
 	@Override
-	public void close() {
+	public void cancel() {
+		isRunning = false;
 		try {
 			connection.close();
 		} catch (IOException e) {
 			throw new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME
 					+ " at " + HOST_NAME, e);
 		}
-
 	}
 
 }

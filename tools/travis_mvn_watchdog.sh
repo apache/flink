@@ -45,7 +45,7 @@ LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 # Maven command to run. We set the forkCount manually, because otherwise Maven sees too many cores
 # on the Travis VMs.
-MVN="mvn -Dflink.forkCount=2 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES clean install verify"
+MVN="mvn -Dflink.forkCount=2 -B $PROFILE -Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES clean install"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
@@ -106,6 +106,18 @@ print_stacktraces () {
 		echo "=============================================================================="
 
 		jstack $pid
+	done
+}
+
+# locate YARN logs and put them into artifacts directory
+put_yarn_logs_to_artifacts() {
+	# Make sure to be in project root
+	cd $HERE/../
+	for file in `find ./flink-yarn-tests/target/flink-yarn-tests* -type f -name '*.log'`; do
+		TARGET_FILE=`echo "$file" | grep -Eo "container_[0-9_]+/(.*).log"`
+		TARGET_DIR=`dirname	 "$TARGET_FILE"`
+		mkdir -p "$ARTIFACTS_DIR/yarn-tests/$TARGET_DIR"
+		cp $file "$ARTIFACTS_DIR/yarn-tests/$TARGET_FILE"
 	done
 }
 
@@ -177,7 +189,28 @@ echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 rm $MVN_PID
 rm $MVN_EXIT
 
+put_yarn_logs_to_artifacts
+
 upload_artifacts_s3
+
+# Check the number of files in the uber jar and fail the build if there are too many files (see: FLINK-1637)
+
+# since we are in flink/tools/artifacts
+# we are going back to
+cd ../../
+
+
+UBERJAR=`find . | grep uberjar | head -n 1`
+if [ -z "$UBERJAR" ] ; then
+	echo "Uberjar not found. Assuming failed build";
+else 
+	jar tf $UBERJAR | wc -l > num_files_in_uberjar
+	NUM_FILES_IN_UBERJAR=`cat num_files_in_uberjar`
+	echo "Files in uberjar: $NUM_FILES_IN_UBERJAR. Uberjar: $UBERJAR"
+	if [ "$NUM_FILES_IN_UBERJAR" -ge "65536" ] ; then
+		echo "WARN: The number of files in the uberjar ($NUM_FILES_IN_UBERJAR) exceeds the maximum number of possible files for Java 6 (65536)"
+	fi
+fi
 
 # Exit code for Travis build success/failure
 exit $EXIT_CODE

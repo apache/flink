@@ -29,7 +29,7 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * Reduce task which is executed by a Nephele task manager. The task has a
+ * Reduce task which is executed by a Task Manager. The task has a
  * single input and one or multiple outputs. It is provided with a ReduceFunction
  * implementation.
  * <p>

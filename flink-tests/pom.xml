@@ -46,7 +46,7 @@ under the License.
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-compiler</artifactId>
+			<artifactId>flink-optimizer</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -125,19 +125,42 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-optimizer</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.scalatest</groupId>
-			<artifactId>scalatest_2.10</artifactId>
+			<artifactId>scalatest_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_2.10</artifactId>
+			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 		</dependency>
 		
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
 			<scope>test</scope>
 		</dependency>
 		
@@ -463,35 +486,4 @@ under the License.
 			</plugins>
 		</pluginManagement>
 	</build>
-
-	<!-- See main pom.xml for explanation of profiles -->
-	<profiles>
-		<profile>
-			<id>hadoop-1</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
-				</property>
-			</activation>
-			<dependencies>
-				<!-- Add this here, for hadoop-2 we don't need it since we get guava transitively -->
-				<dependency>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-					<version>${guava.version}</version>
-					<scope>test</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hadoop-2</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-		</profile>
-	</profiles>
 </project>

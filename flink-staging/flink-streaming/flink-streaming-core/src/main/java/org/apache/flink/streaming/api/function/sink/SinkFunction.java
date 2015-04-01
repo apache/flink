@@ -21,8 +21,18 @@ import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
 
+/**
+ * Interface for implementing user defined sink functionality.
+ *
+ * @param <IN> Input type parameter.
+ */
 public interface SinkFunction<IN> extends Function, Serializable {
 
-	public abstract void invoke(IN value) throws Exception;
-
+	/**
+	 * Function for standard sink behaviour. This function is called for every record.
+	 *
+	 * @param value The input record.
+	 * @throws Exception
+	 */
+	public void invoke(IN value) throws Exception;
 }

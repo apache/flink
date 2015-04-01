@@ -26,8 +26,6 @@ import org.apache.flink.streaming.api.datastream.{ SplitDataStream => SplitJavaS
  * {@link #select} function. To apply a transformation on the whole output simply call
  * the appropriate method on this stream.
  *
- * @param <OUT>
- *            The type of the output.
  */
 class SplitDataStream[T](javaStream: SplitJavaStream[T]) extends DataStream[T](javaStream){
 

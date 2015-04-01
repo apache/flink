@@ -118,7 +118,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 			PartitionOperatorBase<T> noop = new PartitionOperatorBase<T>(operatorInfo, pMethod, name);
 			
 			noop.setInput(input);
-			noop.setDegreeOfParallelism(getParallelism());
+			noop.setParallelism(getParallelism());
 			
 			return noop;
 		} 
@@ -131,7 +131,7 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 				PartitionOperatorBase<T> noop = new PartitionOperatorBase<T>(operatorInfo, pMethod, logicalKeyPositions, name);
 				
 				noop.setInput(input);
-				noop.setDegreeOfParallelism(getParallelism());
+				noop.setParallelism(getParallelism());
 				noop.setCustomPartitioner(customPartitioner);
 				
 				return noop;
@@ -177,10 +177,10 @@ public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOpe
 		
 		noop.setCustomPartitioner(customPartitioner);
 		
-		// set dop
-		keyExtractingMap.setDegreeOfParallelism(input.getDegreeOfParallelism());
-		noop.setDegreeOfParallelism(partitionDop);
-		keyRemovingMap.setDegreeOfParallelism(partitionDop);
+		// set parallelism
+		keyExtractingMap.setParallelism(input.getParallelism());
+		noop.setParallelism(partitionDop);
+		keyRemovingMap.setParallelism(partitionDop);
 		
 		return keyRemovingMap;
 	}

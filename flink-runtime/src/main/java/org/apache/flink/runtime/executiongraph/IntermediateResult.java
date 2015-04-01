@@ -18,8 +18,13 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionType;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class IntermediateResult {
 
@@ -31,19 +36,29 @@ public class IntermediateResult {
 
 	private final int numParallelProducers;
 
+	private final AtomicInteger numberOfRunningProducers;
+
 	private int partitionsAssigned;
 
 	private int numConsumers;
 
 	private final int connectionIndex;
 
-	private final IntermediateResultPartitionType resultType;
+	private final ResultPartitionType resultType;
 
-	public IntermediateResult(IntermediateDataSetID id, ExecutionJobVertex producer, int numParallelProducers) {
-		this.id = id;
-		this.producer = producer;
+	public IntermediateResult(
+			IntermediateDataSetID id,
+			ExecutionJobVertex producer,
+			int numParallelProducers,
+			ResultPartitionType resultType) {
+
+		this.id = checkNotNull(id);
+		this.producer = checkNotNull(producer);
 		this.partitions = new IntermediateResultPartition[numParallelProducers];
+		checkArgument(numParallelProducers >= 1);
 		this.numParallelProducers = numParallelProducers;
+
+		this.numberOfRunningProducers = new AtomicInteger(numParallelProducers);
 
 		// we do not set the intermediate result partitions here, because we let them be initialized by
 		// the execution vertex that produces them
@@ -52,8 +67,7 @@ public class IntermediateResult {
 		this.connectionIndex = (int) (Math.random() * Integer.MAX_VALUE);
 
 		// The runtime type for this produced result
-		// TODO The JobGraph generator has to decide which type of result this is
-		this.resultType = IntermediateResultPartitionType.PIPELINED;
+		this.resultType = checkNotNull(resultType);
 	}
 
 	public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -85,7 +99,7 @@ public class IntermediateResult {
 		return partitionsAssigned;
 	}
 
-	public IntermediateResultPartitionType getResultType() {
+	public ResultPartitionType getResultType() {
 		return resultType;
 	}
 
@@ -103,5 +117,27 @@ public class IntermediateResult {
 
 	public int getConnectionIndex() {
 		return connectionIndex;
+	}
+
+	void resetForNewExecution() {
+		this.numberOfRunningProducers.set(numParallelProducers);
+	}
+
+	int decrementNumberOfRunningProducersAndGetRemaining() {
+		return numberOfRunningProducers.decrementAndGet();
+	}
+
+	boolean isConsumable() {
+		if (resultType.isPipelined()) {
+			return true;
+		}
+		else {
+			return numberOfRunningProducers.get() == 0;
+		}
+	}
+
+	@Override
+	public String toString() {
+		return "IntermediateResult " + id.toString();
 	}
 }

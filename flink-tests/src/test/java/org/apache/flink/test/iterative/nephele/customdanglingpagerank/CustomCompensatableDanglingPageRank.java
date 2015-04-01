@@ -96,7 +96,7 @@ public class CustomCompensatableDanglingPageRank {
 		
 	public static JobGraph getJobGraph(String[] args) throws Exception {
 
-		int degreeOfParallelism = 2;
+		int parallelism = 2;
 		String pageWithRankInputPath = ""; //"file://" + PlayConstants.PLAY_DIR + "test-inputs/danglingpagerank/pageWithRank";
 		String adjacencyListInputPath = ""; //"file://" + PlayConstants.PLAY_DIR +
 //			"test-inputs/danglingpagerank/adjacencylists";
@@ -114,7 +114,7 @@ public class CustomCompensatableDanglingPageRank {
 		double messageLoss = 0.75;
 
 		if (args.length >= 14) {
-			degreeOfParallelism = Integer.parseInt(args[0]);
+			parallelism = Integer.parseInt(args[0]);
 			pageWithRankInputPath = args[1];
 			adjacencyListInputPath = args[2];
 			outputPath = args[3];
@@ -138,7 +138,7 @@ public class CustomCompensatableDanglingPageRank {
 
 		// page rank input
 		InputFormatVertex pageWithRankInput = JobGraphUtils.createInput(new CustomImprovedDanglingPageRankInputFormat(),
-			pageWithRankInputPath, "DanglingPageWithRankInput", jobGraph, degreeOfParallelism);
+			pageWithRankInputPath, "DanglingPageWithRankInput", jobGraph, parallelism);
 		TaskConfig pageWithRankInputConfig = new TaskConfig(pageWithRankInput.getConfiguration());
 		pageWithRankInputConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
 		pageWithRankInputConfig.setOutputComparator(vertexWithRankAndDanglingComparator, 0);
@@ -147,7 +147,7 @@ public class CustomCompensatableDanglingPageRank {
 
 		// edges as adjacency list
 		InputFormatVertex adjacencyListInput = JobGraphUtils.createInput(new CustomImprovedAdjacencyListInputFormat(),
-			adjacencyListInputPath, "AdjancencyListInput", jobGraph, degreeOfParallelism);
+			adjacencyListInputPath, "AdjancencyListInput", jobGraph, parallelism);
 		TaskConfig adjacencyListInputConfig = new TaskConfig(adjacencyListInput.getConfiguration());
 		adjacencyListInputConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);
 		adjacencyListInputConfig.setOutputSerializer(vertexWithAdjacencyListSerializer);
@@ -155,7 +155,7 @@ public class CustomCompensatableDanglingPageRank {
 
 		// --------------- the head ---------------------
 		AbstractJobVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "IterationHead", jobGraph,
-			degreeOfParallelism);
+			parallelism);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		headConfig.setIterationId(ITERATION_ID);
 		
@@ -200,7 +200,7 @@ public class CustomCompensatableDanglingPageRank {
 		// --------------- the join ---------------------
 		
 		AbstractJobVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
-			"IterationIntermediate", jobGraph, degreeOfParallelism);
+			"IterationIntermediate", jobGraph, parallelism);
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 		intermediateConfig.setIterationId(ITERATION_ID);
 //		intermediateConfig.setDriver(RepeatableHashjoinMatchDriverWithCachedBuildside.class);
@@ -228,7 +228,7 @@ public class CustomCompensatableDanglingPageRank {
 		// ---------------- the tail (co group) --------------------
 		
 		AbstractJobVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph,
-			degreeOfParallelism);
+			parallelism);
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		tailConfig.setIterationId(ITERATION_ID);
 		tailConfig.setIsWorksetUpdate();
@@ -264,7 +264,7 @@ public class CustomCompensatableDanglingPageRank {
 		
 		// --------------- the output ---------------------
 
-		OutputFormatVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", degreeOfParallelism);
+		OutputFormatVertex output = JobGraphUtils.createFileOutput(jobGraph, "FinalOutput", parallelism);
 		TaskConfig outputConfig = new TaskConfig(output.getConfiguration());
 		outputConfig.addInputToGroup(0);
 		outputConfig.setInputSerializer(vertexWithRankAndDanglingSerializer, 0);
@@ -273,7 +273,7 @@ public class CustomCompensatableDanglingPageRank {
 		
 		// --------------- the auxiliaries ---------------------
 
-		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
+		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, parallelism);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setNumberOfIterations(numIterations);
 		syncConfig.addIterationAggregator(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
@@ -292,7 +292,7 @@ public class CustomCompensatableDanglingPageRank {
 		JobGraphUtils.connect(head, tail, DistributionPattern.POINTWISE);
 		JobGraphUtils.connect(intermediate, tail, DistributionPattern.ALL_TO_ALL);
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
-		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(1, degreeOfParallelism);
+		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(1, parallelism);
 
 		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 

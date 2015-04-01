@@ -35,13 +35,14 @@ public class WindowMerger<T> extends ChainableInvokable<StreamWindow<T>, StreamW
 	public WindowMerger() {
 		super(null);
 		this.windows = new HashMap<Integer, StreamWindow<T>>();
+		withoutInputCopy();
 	}
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -65,11 +66,5 @@ public class WindowMerger<T> extends ChainableInvokable<StreamWindow<T>, StreamW
 		} else {
 			windows.put(nextWindow.windowID, current);
 		}
-	}
-
-	@Override
-	public void collect(StreamWindow<T> record) {
-		nextObject = record;
-		callUserFunctionAndLogException();
 	}
 }

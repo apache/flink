@@ -45,7 +45,7 @@ public class GlobalSortingITCase extends RecordAPITestBase {
 	private String sortedRecords;
 
 	public GlobalSortingITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	@Override
@@ -86,7 +86,7 @@ public class GlobalSortingITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		GlobalSort globalSort = new GlobalSort();
-		return globalSort.getPlan(Integer.valueOf(DOP).toString(), recordsPath, resultPath);
+		return globalSort.getPlan(Integer.valueOf(parallelism).toString(), recordsPath, resultPath);
 	}
 
 	@Override
@@ -108,7 +108,7 @@ public class GlobalSortingITCase extends RecordAPITestBase {
 			String output        = (args.length > 2 ? args[2] : "");
 			
 			FileDataSource source = new FileDataSource(CsvInputFormat.class, recordsPath);
-			source.setDegreeOfParallelism(numSubtasks);
+			source.setParallelism(numSubtasks);
 			CsvInputFormat.configureRecordFormat(source)
 				.recordDelimiter('\n')
 				.fieldDelimiter('|')
@@ -116,7 +116,7 @@ public class GlobalSortingITCase extends RecordAPITestBase {
 			
 			FileDataSink sink =
 				new FileDataSink(CsvOutputFormat.class, output);
-			sink.setDegreeOfParallelism(numSubtasks);
+			sink.setParallelism(numSubtasks);
 			CsvOutputFormat.configureRecordFormat(sink)
 				.recordDelimiter('\n')
 				.fieldDelimiter('|')

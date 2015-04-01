@@ -56,7 +56,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 
 	private static Logger LOG = LoggerFactory.getLogger(TPCHQuery4.class);
 	
-	private int degreeOfParallelism = 1;
+	private int parallelism = 1;
 	private String ordersInputPath;
 	private String lineItemInputPath;
 	private String outputPath;
@@ -218,40 +218,40 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 		
 		FileDataSource orders = 
 			new FileDataSource(new IntTupleDataInFormat(), this.ordersInputPath, "Orders");
-		orders.setDegreeOfParallelism(this.degreeOfParallelism);
+		orders.setParallelism(this.parallelism);
 		//orders.setOutputContract(UniqueKey.class);
 		
 		FileDataSource lineItems =
 			new FileDataSource(new IntTupleDataInFormat(), this.lineItemInputPath, "LineItems");
-		lineItems.setDegreeOfParallelism(this.degreeOfParallelism);
+		lineItems.setParallelism(this.parallelism);
 		
 		FileDataSink result = 
 				new FileDataSink(new StringTupleDataOutFormat(), this.outputPath, "Output");
-		result.setDegreeOfParallelism(degreeOfParallelism);
+		result.setParallelism(parallelism);
 		
 		MapOperator lineFilter = 
 				MapOperator.builder(LiFilter.class)
 			.name("LineItemFilter")
 			.build();
-		lineFilter.setDegreeOfParallelism(degreeOfParallelism);
+		lineFilter.setParallelism(parallelism);
 		
 		MapOperator ordersFilter = 
 				MapOperator.builder(OFilter.class)
 			.name("OrdersFilter")
 			.build();
-		ordersFilter.setDegreeOfParallelism(degreeOfParallelism);
+		ordersFilter.setParallelism(parallelism);
 		
 		JoinOperator join = 
 				JoinOperator.builder(JoinLiO.class, IntValue.class, 0, 0)
 			.name("OrdersLineitemsJoin")
 			.build();
-			join.setDegreeOfParallelism(degreeOfParallelism);
+			join.setParallelism(parallelism);
 		
 		ReduceOperator aggregation = 
 				ReduceOperator.builder(CountAgg.class, StringValue.class, 0)
 			.name("AggregateGroupBy")
 			.build();
-		aggregation.setDegreeOfParallelism(this.degreeOfParallelism);
+		aggregation.setParallelism(this.parallelism);
 		
 		lineFilter.setInput(lineItems);
 		ordersFilter.setInput(orders);
@@ -269,7 +269,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 	 * @param args
 	 */
 	private void setArgs(String[] args) {
-		this.degreeOfParallelism = Integer.parseInt(args[0]);
+		this.parallelism = Integer.parseInt(args[0]);
 		this.ordersInputPath = args[1];
 		this.lineItemInputPath = args[2];
 		this.outputPath = args[3];
@@ -278,7 +278,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return "Parameters: [dop] [orders-input] [lineitem-input] [output]";
+		return "Parameters: [parallelism] [orders-input] [lineitem-input] [output]";
 	}
 
 }

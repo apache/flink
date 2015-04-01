@@ -19,9 +19,28 @@ package org.apache.flink.streaming.api.function.source;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 
-public abstract class RichSourceFunction<OUT> extends AbstractRichFunction implements
-		SourceFunction<OUT> {
+/**
+ * Base class for implementing a parallel data source that has access to context information
+ * (via {@link #getRuntimeContext()}) and additional life-cycle methods
+ * ({@link #open(org.apache.flink.configuration.Configuration)} and {@link #close()}.
+ *
+ * <p>This class is useful when implementing parallel sources where different parallel subtasks
+ * need to perform different work. Typical patterns for that are:
+ * <ul>
+ *     <li>Use {@link #getRuntimeContext()} to obtain the runtime context.</li>
+ *     <li>Use {@link org.apache.flink.api.common.functions.RuntimeContext#getNumberOfParallelSubtasks()}
+ *         to determine the current parallelism. It is strongly encouraged to use this method, rather than
+ *         hard-wiring the parallelism, because the configured parallelism may change depending on
+ *         program configuration. The parallelism may also change after recovering failures, when fewer than
+ *         desired parallel worker as available.</li>
+ *     <li>Use {@link org.apache.flink.api.common.functions.RuntimeContext#getIndexOfThisSubtask()} to
+ *         determine which subtask the current instance of the function executes.</li>
+ * </ul>
+ * </p>
+ *
+ * @param <OUT> The type of the records produced by this source.
+ */
+public abstract class RichSourceFunction<OUT> extends AbstractRichFunction implements SourceFunction<OUT> {
 
 	private static final long serialVersionUID = 1L;
-
 }

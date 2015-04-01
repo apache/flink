@@ -28,6 +28,11 @@
 #
 #  https://github.com/apache/spark/blob/master/dev/create-release/create-release.sh
 #
+
+# Added by rmetzger
+echo "Please make sure to use java 6 OPENJDK (not oracle) to build the release binaries"
+exit 1
+
 CURR_DIR=`pwd`
 if [[ `basename $CURR_DIR` != "tools" ]] ; then
   echo "You have to call the script from the tools/ dir"

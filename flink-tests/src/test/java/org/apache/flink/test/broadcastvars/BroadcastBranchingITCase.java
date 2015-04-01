@@ -95,7 +95,7 @@ public class BroadcastBranchingITCase extends RecordAPITestBase {
 		MapOperator mp2 = MapOperator.builder(Mp2.class).setBroadcastVariable("z", mp1).input(jn2).build();
 
 		FileDataSink output = new FileDataSink(new ContractITCaseOutputFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 		output.setInput(mp2);
 
 		return new Plan(output);

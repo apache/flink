@@ -107,7 +107,7 @@ public class ChannelViewsTest
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+		final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
@@ -120,7 +120,7 @@ public class ChannelViewsTest
 		
 		// create the reader input view
 		memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
+		final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channel);
 		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
 		
@@ -151,7 +151,7 @@ public class ChannelViewsTest
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+		final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
@@ -164,7 +164,7 @@ public class ChannelViewsTest
 		
 		// create the reader input view
 		memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
+		final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channel);
 		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
 		
@@ -192,7 +192,7 @@ public class ChannelViewsTest
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+		final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 
 		// write a number of pairs
@@ -205,7 +205,7 @@ public class ChannelViewsTest
 
 		// create the reader input view
 		memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
+		final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channel);
 		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
 
@@ -243,7 +243,7 @@ public class ChannelViewsTest
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+		final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
@@ -256,7 +256,7 @@ public class ChannelViewsTest
 		
 		// create the reader input view
 		memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
+		final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channel);
 		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, true);
 		generator.reset();
 		
@@ -287,7 +287,7 @@ public class ChannelViewsTest
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, 1);
-		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+		final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
@@ -300,7 +300,7 @@ public class ChannelViewsTest
 		
 		// create the reader input view
 		memory = this.memoryManager.allocatePages(this.parentTask, 1);
-		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
+		final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channel);
 		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
 		
@@ -331,7 +331,7 @@ public class ChannelViewsTest
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
+		final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channel);
 		final ChannelWriterOutputView outView = new ChannelWriterOutputView(writer, memory, MEMORY_PAGE_SIZE);
 		
 		// write a number of pairs
@@ -344,7 +344,7 @@ public class ChannelViewsTest
 		
 		// create the reader input view
 		memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
-		final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel);
+		final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channel);
 		final ChannelReaderInputView inView = new ChannelReaderInputView(reader, memory, outView.getBlockCount(), true);
 		generator.reset();
 		

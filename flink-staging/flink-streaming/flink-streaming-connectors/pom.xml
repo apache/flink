@@ -35,13 +35,14 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<dependencies>
+	<!-- Allow users to pass custom connector versions -->
+	<properties>
+		<kafka.version>0.8.2.0</kafka.version>
+		<rabbitmq.version>3.3.1</rabbitmq.version>
+		<flume-ng.version>1.5.0</flume-ng.version>
+	</properties>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded</artifactId>
-			<version>${project.version}</version>
-		</dependency>
+	<dependencies>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -51,9 +52,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_2.10</artifactId>
-			<version>0.8.2.0</version>
+			<artifactId>kafka_${scala.binary.version}</artifactId>
+			<version>${kafka.version}</version>
 			<exclusions>
+				<exclusion>
+					<groupId>org.apache.zookeeper</groupId>
+					<artifactId>zookeeper</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>com.sun.jmx</groupId>
 					<artifactId>jmxri</artifactId>
@@ -94,15 +99,22 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>2.7.1</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>com.rabbitmq</groupId>
 			<artifactId>amqp-client</artifactId>
-			<version>3.3.1</version>
+			<version>${rabbitmq.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flume</groupId>
 			<artifactId>flume-ng-core</artifactId>
-			<version>1.5.0</version>
+			<version>${flume-ng.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
@@ -231,12 +243,25 @@ under the License.
 				</executions>
 			</plugin>
 			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
+				<!-- Override artifactSet configuration to build fat-jar with all dependencies packed. -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>2.3</version>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<configuration>
+							<artifactSet>
+								<includes combine.children="append">
+									<!-- We include all dependencies that transitively depend on guava -->
+									<include>org.apache.flume:*</include>
+									<include>com.twitter:hbc-core</include>
+									<include>com.twitter:joauth</include>
+								</includes>
+							</artifactSet>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

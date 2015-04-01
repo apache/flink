@@ -19,49 +19,61 @@
 package org.apache.flink.runtime.util;
 
 /**
- * Atomic reference counter, which enters a "disposed" state after the reference
- * count reaches 0.
+ * Atomic reference counter, which enters a "disposed" state after it reaches a configurable
+ * reference count (default 0).
  */
 public class AtomicDisposableReferenceCounter {
 
 	private final Object lock = new Object();
 
-	private int referenceCounter;
+	private int referenceCount;
 
 	private boolean isDisposed;
+
+	/** Enter the disposed state when the reference count reaches this number. */
+	private final int disposeOnReferenceCount;
+
+	public AtomicDisposableReferenceCounter() {
+		this.disposeOnReferenceCount = 0;
+	}
+
+	public AtomicDisposableReferenceCounter(int disposeOnReferenceCount) {
+		this.disposeOnReferenceCount = disposeOnReferenceCount;
+	}
 
 	/**
 	 * Increments the reference count and returns whether it was successful.
 	 * <p>
-	 * If the method returns <code>false</code>, the counter has already been
-	 * disposed. Otherwise it returns <code>true</code>.
+	 * If the method returns <code>false</code>, the counter has already been disposed. Otherwise it
+	 * returns <code>true</code>.
 	 */
-	public boolean incrementReferenceCounter() {
+	public boolean increment() {
 		synchronized (lock) {
 			if (isDisposed) {
 				return false;
 			}
 
-			referenceCounter++;
+			referenceCount++;
 			return true;
 		}
 	}
 
 	/**
-	 * Decrements the reference count.
+	 * Decrements the reference count and returns whether the reference counter entered the disposed
+	 * state.
 	 * <p>
-	 * If the method returns <code>true</code>, the decrement operation disposed
-	 * the counter. Otherwise it returns <code>false</code>.
+	 * If the method returns <code>true</code>, the decrement operation disposed the counter.
+	 * Otherwise it returns <code>false</code>.
 	 */
-	public boolean decrementReferenceCounter() {
+	public boolean decrement() {
 		synchronized (lock) {
 			if (isDisposed) {
 				return false;
 			}
 
-			referenceCounter--;
+			referenceCount--;
 
-			if (referenceCounter <= 0) {
+			if (referenceCount <= disposeOnReferenceCount) {
 				isDisposed = true;
 			}
 
@@ -69,9 +81,24 @@ public class AtomicDisposableReferenceCounter {
 		}
 	}
 
+	public int get() {
+		synchronized (lock) {
+			return referenceCount;
+		}
+	}
+
+	/**
+	 * Returns whether the reference count has reached the disposed state.
+	 */
+	public boolean isDisposed() {
+		synchronized (lock) {
+			return isDisposed;
+		}
+	}
+
 	public boolean disposeIfNotUsed() {
 		synchronized (lock) {
-			if(referenceCounter <= 0){
+			if (referenceCount <= disposeOnReferenceCount) {
 				isDisposed = true;
 			}
 

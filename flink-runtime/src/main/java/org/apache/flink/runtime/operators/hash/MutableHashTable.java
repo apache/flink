@@ -300,7 +300,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	/**
 	 * The reader for the spilled-file of the probe partition that is currently read.
 	 */
-	private BlockChannelReader currentSpilledProbeSide;
+	private BlockChannelReader<MemorySegment> currentSpilledProbeSide;
 	
 	/**
 	 * The channel enumerator that is used while processing the current partition to create
@@ -802,7 +802,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			segments.add(getNextBuffer());
 			segments.add(getNextBuffer());
 			
-			final BlockChannelReader inReader = this.ioManager.createBlockChannelReader(p.getBuildSideChannel().getChannelID());
+			final BlockChannelReader<MemorySegment> inReader = this.ioManager.createBlockChannelReader(p.getBuildSideChannel().getChannelID());
 			final ChannelReaderInputView inView = new HeaderlessChannelReaderInputView(inReader, segments,
 						p.getBuildSideBlockCount(), p.getLastSegmentLimit(), false);
 			final ChannelReaderInputViewIterator<BT> inIter = new ChannelReaderInputViewIterator<BT>(inView, 

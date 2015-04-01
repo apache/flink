@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.profiling.types;
 
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 
 /**
  * Instance summary profiling events summarize the profiling events of all instances involved in computing a job.

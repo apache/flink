@@ -22,8 +22,35 @@ import java.io.Serializable;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.util.Collector;
 
+/**
+ * Interface for a stream data source.
+ *
+ * <p>Sources implementing this specific interface are executed with
+ * parallelism 1. To execute your sources in parallel
+ * see {@link ParallelSourceFunction}.</p>
+ *
+ * @param <OUT> The type of the records produced by this source.
+ */
 public interface SourceFunction<OUT> extends Function, Serializable {
 
-	public void invoke(Collector<OUT> collector) throws Exception;
-		
+	/**
+	 * Main work method of the source. This function is invoked at the beginning of the
+	 * source's life and is expected to produce its data py "pushing" the records into
+	 * the given collector.
+	 *
+	 * @param collector The collector that forwards records to the source's consumers.
+	 *
+	 * @throws Exception Throwing any type of exception will cause the source to be considered
+	 *                   failed. When fault tolerance is enabled, recovery will be triggered,
+	 *                   which may create a new instance of this source.
+	 */
+	public void run(Collector<OUT> collector) throws Exception;
+
+	/**
+	 * This method signals the source function to cancel its operation
+	 * The method is called by the framework if the task is to be aborted prematurely.
+	 * This happens when the user cancels the job, or when the task is canceled as
+	 * part of a program failure and cleanup.
+	 */
+	public void cancel();
 }

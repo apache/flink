@@ -25,7 +25,7 @@ import java.net.InetAddress;
 
 import akka.actor.ActorRef;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.junit.Test;
 import org.mockito.Matchers;
 

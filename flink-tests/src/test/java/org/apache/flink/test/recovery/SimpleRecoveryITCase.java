@@ -37,8 +37,12 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 
+/**
+ * A series of tests (reusing one FlinkMiniCluster) where tasks fail (one or more time)
+ * and the recovery should restart them to verify job completion.
+ */
+@SuppressWarnings("serial")
 public class SimpleRecoveryITCase {
-
 
 	private static ForkableFlinkMiniCluster cluster;
 
@@ -47,7 +51,7 @@ public class SimpleRecoveryITCase {
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-		config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
+		config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "100 ms");
 
 		cluster = new ForkableFlinkMiniCluster(config, false);
 	}
@@ -75,7 +79,7 @@ public class SimpleRecoveryITCase {
 				ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 						"localhost", cluster.getJobManagerRPCPort());
 
-				env.setDegreeOfParallelism(4);
+				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
 
 				env.generateSequence(1, 10)
@@ -104,7 +108,7 @@ public class SimpleRecoveryITCase {
 				ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 						"localhost", cluster.getJobManagerRPCPort());
 
-				env.setDegreeOfParallelism(4);
+				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
 
 				env.generateSequence(1, 10)
@@ -150,7 +154,7 @@ public class SimpleRecoveryITCase {
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getJobManagerRPCPort());
 
-			env.setDegreeOfParallelism(4);
+			env.setParallelism(4);
 			env.setNumberOfExecutionRetries(1);
 
 			env.generateSequence(1, 10)
@@ -194,7 +198,7 @@ public class SimpleRecoveryITCase {
 			ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getJobManagerRPCPort());
 
-			env.setDegreeOfParallelism(4);
+			env.setParallelism(4);
 			env.setNumberOfExecutionRetries(3);
 
 			env.generateSequence(1, 10)

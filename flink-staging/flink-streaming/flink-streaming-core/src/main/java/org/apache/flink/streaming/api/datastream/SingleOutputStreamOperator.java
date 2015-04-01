@@ -17,16 +17,10 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy;
-import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
-import org.apache.flink.streaming.state.OperatorState;
 
 /**
  * The SingleOutputStreamOperator represents a user defined transformation
@@ -68,20 +62,20 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	/**
-	 * Sets the degree of parallelism for this operator. The degree must be 1 or
+	 * Sets the parallelism for this operator. The degree must be 1 or
 	 * more.
 	 * 
-	 * @param dop
-	 *            The degree of parallelism for this operator.
-	 * @return The operator with set degree of parallelism.
+	 * @param parallelism
+	 *            The parallelism for this operator.
+	 * @return The operator with set parallelism.
 	 */
-	public SingleOutputStreamOperator<OUT, O> setParallelism(int dop) {
-		if (dop < 1) {
+	public SingleOutputStreamOperator<OUT, O> setParallelism(int parallelism) {
+		if (parallelism < 1) {
 			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
 		}
-		this.degreeOfParallelism = dop;
+		this.parallelism = parallelism;
 
-		streamGraph.setParallelism(id, degreeOfParallelism);
+		streamGraph.setParallelism(id, parallelism);
 
 		return this;
 	}
@@ -96,43 +90,6 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 */
 	public SingleOutputStreamOperator<OUT, O> setBufferTimeout(long timeoutMillis) {
 		streamGraph.setBufferTimeout(id, timeoutMillis);
-		return this;
-	}
-
-	/**
-	 * This is a beta feature </br></br> Register an operator state for this
-	 * operator by the given name. This name can be used to retrieve the state
-	 * during runtime using {@link StreamingRuntimeContext#getState(String)}. To
-	 * obtain the {@link StreamingRuntimeContext} from the user-defined function
-	 * use the {@link RichFunction#getRuntimeContext()} method.
-	 * 
-	 * @param name
-	 *            The name of the operator state.
-	 * @param state
-	 *            The state to be registered for this name.
-	 * @return The data stream with state registered.
-	 */
-	protected SingleOutputStreamOperator<OUT, O> registerState(String name, OperatorState<?> state) {
-		streamGraph.addOperatorState(getId(), name, state);
-		return this;
-	}
-
-	/**
-	 * This is a beta feature </br></br> Register operator states for this
-	 * operator provided in a map. The registered states can be retrieved during
-	 * runtime using {@link StreamingRuntimeContext#getState(String)}. To obtain
-	 * the {@link StreamingRuntimeContext} from the user-defined function use
-	 * the {@link RichFunction#getRuntimeContext()} method.
-	 * 
-	 * @param states
-	 *            The map containing the states that will be registered.
-	 * @return The data stream with states registered.
-	 */
-	protected SingleOutputStreamOperator<OUT, O> registerState(Map<String, OperatorState<?>> states) {
-		for (Entry<String, OperatorState<?>> entry : states.entrySet()) {
-			streamGraph.addOperatorState(getId(), entry.getKey(), entry.getValue());
-		}
-
 		return this;
 	}
 

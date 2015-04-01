@@ -184,3 +184,12 @@
 	font-weight: bold;
 	margin: 20px 0;
 }
+
+.navbar {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+#flink-doc-sidenav {
+    margin-top: 25px;
+}

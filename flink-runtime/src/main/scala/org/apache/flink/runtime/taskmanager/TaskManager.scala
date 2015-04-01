@@ -15,17 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.runtime.taskmanager
 
 import java.io.{File, IOException}
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
-import java.util.concurrent.{FutureTask, TimeUnit}
+import java.util.concurrent.{TimeUnit, FutureTask}
 import management.{GarbageCollectorMXBean, ManagementFactory, MemoryMXBean}
 
 import akka.actor._
 import akka.pattern.ask
+import com.codahale.metrics.{Gauge, MetricFilter, MetricRegistry}
+import com.codahale.metrics.json.MetricsModule
+import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, GarbageCollectorMetricSet}
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.flink.api.common.cache.DistributedCache
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.core.fs.Path
@@ -33,17 +36,19 @@ import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.BlobCache
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
-import org.apache.flink.runtime.deployment.{PartitionInfo, TaskDeploymentDescriptor}
+import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.execution.{CancelTaskException, ExecutionState, RuntimeEnvironment}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{HardwareDescription, InstanceConnectionInfo, InstanceID}
+import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
-import org.apache.flink.runtime.jobmanager.JobManager
+import org.apache.flink.runtime.jobgraph.tasks.{OperatorStateCarrier,BarrierTransceiver}
+import org.apache.flink.runtime.jobmanager.{BarrierReq,JobManager}
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
@@ -116,6 +121,18 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
   val hardwareDescription = HardwareDescription.extractFromSystem(memoryManager.getMemorySize)
   val fileCache = new FileCache()
   val runningTasks = scala.collection.mutable.HashMap[ExecutionAttemptID, Task]()
+  val metricRegistry = new MetricRegistry
+  // register metrics
+  metricRegistry.register("gc", new GarbageCollectorMetricSet)
+  metricRegistry.register("memory", new MemoryUsageGaugeSet)
+  metricRegistry.register("load", new Gauge[Double] {
+    override def getValue: Double =
+      ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
+  })
+  // register metric serialization
+  val metricRegistryMapper: ObjectMapper =
+    new ObjectMapper().registerModule(new MetricsModule(TimeUnit.SECONDS, TimeUnit.MILLISECONDS,
+      false, MetricFilter.ALL))
 
   // Actors which want to be notified once this task manager has been registered at the job manager
   val waitForRegistration = scala.collection.mutable.Set[ActorRef]()
@@ -260,7 +277,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
       }
 
     case UnregisterTask(executionID) =>
-      unregisterTask(executionID)
+      unregisterTaskAndNotifyFinalState(executionID)
 
     case updateMsg:UpdateTaskExecutionState =>
       currentJobManager foreach {
@@ -291,10 +308,16 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
       }
 
     case SendHeartbeat =>
-      currentJobManager foreach { _ ! Heartbeat(instanceID) }
+      var report: Array[Byte] = null
+      try {
+        report = metricRegistryMapper.writeValueAsBytes(metricRegistry)
+      } catch {
+        case all: Throwable => log.warning("Error turning the report into JSON", all)
+      }
 
-    case LogMemoryUsage =>
-      logMemoryStats()
+      currentJobManager foreach {
+        _ ! Heartbeat(instanceID, report)
+      }
 
     case SendStackTrace =>
       val traces = Thread.getAllStackTraces.asScala
@@ -347,7 +370,25 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
     case FailIntermediateResultPartitions(executionID) =>
       log.info("Fail intermediate result partitions associated with execution {}.", executionID)
       networkEnvironment foreach {
-        _.getPartitionManager.failIntermediateResultPartitions(executionID)
+        _.getPartitionManager.releasePartitionsProducedBy(executionID)
+      }
+
+    case BarrierReq(attemptID, checkpointID) =>
+      log.debug("[FT-TaskManager] Barrier {} request received for attempt {}", 
+          checkpointID, attemptID)
+      runningTasks.get(attemptID) match {
+        case Some(i) =>
+          if (i.getExecutionState == ExecutionState.RUNNING) {
+            i.getEnvironment.getInvokable match {
+              case barrierTransceiver: BarrierTransceiver =>
+                new Thread(new Runnable {
+                  override def run(): Unit =  
+                    barrierTransceiver.broadcastBarrierFromSource(checkpointID);
+                }).start()
+              case _ => log.error("[FT-TaskManager] Received a barrier for the wrong vertex")
+            }
+          }
+        case None => log.error("[FT-TaskManager] Received a barrier for an unknown vertex")
       }
   }
 
@@ -399,7 +440,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
         tdd.getTaskName, self)
-
+      
       runningTasks.put(executionID, task) match {
         case Some(_) => throw new RuntimeException(
           s"TaskManager contains already a task with executionID $executionID.")
@@ -420,10 +461,19 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       task.setEnvironment(env)
 
+      //inject operator state
+      if(tdd.getOperatorStates != null)
+      {
+        val vertex = task.getEnvironment.getInvokable match {
+          case opStateCarrier: OperatorStateCarrier =>
+            opStateCarrier.injectState(tdd.getOperatorStates)
+        }
+      }
+      
       // register the task with the network stack and profiles
       networkEnvironment match {
         case Some(ne) =>
-          log.debug("Register task {} on {}.", task, connectionInfo)
+          log.info("Register task {} on {}.", task, connectionInfo)
           ne.registerTask(task)
         case None => throw new RuntimeException(
           "Network environment has not been properly instantiated.")
@@ -522,8 +572,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
     registrationDuration = 0 seconds
   }
 
-  private def updateTask(executionId: ExecutionAttemptID,
-                         partitionInfos: Seq[(IntermediateDataSetID, PartitionInfo)]): Unit = {
+  private def updateTask(
+    executionId: ExecutionAttemptID,
+    partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)]): Unit = {
 
     runningTasks.get(executionId) match {
       case Some(task) =>
@@ -613,8 +664,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
     }
 
     try {
-      networkEnvironment = Some(new NetworkEnvironment(self, jobManager, timeout,
-        networkConfig))
+      val env: NetworkEnvironment = new NetworkEnvironment(timeout, networkConfig)
+      env.associateWithTaskManagerAndJobManager(jobManager, self)
+      networkEnvironment = Some(env)
     } catch {
       case ioe: IOException =>
         log.error(ioe, "Failed to instantiate network environment.")
@@ -659,17 +711,24 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
 
       for (t <- runningTasks.values) {
         t.failExternally(cause)
-        unregisterTask(t.getExecutionId)
+        unregisterTaskAndNotifyFinalState(t.getExecutionId)
       }
     }
   }
 
-  private def unregisterTask(executionID: ExecutionAttemptID): Unit = {
+  private def unregisterTaskAndNotifyFinalState(executionID: ExecutionAttemptID): Unit = {
     runningTasks.remove(executionID) match {
       case Some(task) =>
         log.info("Unregister task with execution ID {}.", executionID)
         removeAllTaskResources(task)
         libraryCacheManager foreach { _.unregisterTask(task.getJobID, executionID) }
+
+        log.info("Updating FINAL execution state of {} ({}) to {}.", task.getTaskName,
+          task.getExecutionId, task.getExecutionState)
+
+        self ! UpdateTaskExecutionState(new TaskExecutionState(
+          task.getJobID, task.getExecutionId, task.getExecutionState, task.getFailureCause))
+
       case None =>
         if (log.isDebugEnabled) {
           log.debug("Cannot find task with ID {} to unregister.", executionID)
@@ -685,8 +744,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
           fileCache.deleteTmpFile(entry.getKey, entry.getValue, task.getJobID)
         }
       } catch {
-        case t: Throwable => log.error("Error cleaning up local files from the distributed cache" +
-          ".", t)
+        case t: Throwable => log.error(
+          "Error cleaning up local files from the distributed cache.", t)
       }
     }
 
@@ -699,16 +758,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo,
     }
 
     task.unregisterMemoryManager(memoryManager)
-  }
-
-  private def logMemoryStats(): Unit = {
-    if (log.isInfoEnabled) {
-      val memoryMXBean = ManagementFactory.getMemoryMXBean
-      val gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans.asScala
-
-      log.info(TaskManager.getMemoryUsageStatsAsString(memoryMXBean))
-      log.info(TaskManager.getGarbageCollectorStatsAsString(gcMXBeans))
-    }
   }
 }
 
@@ -1168,7 +1217,19 @@ object TaskManager {
         connectionInfo.address(), connectionInfo.dataPort(), pageSize, configuration))
     }
 
-    val networkConfig = NetworkEnvironmentConfiguration(numNetworkBuffers, pageSize, nettyConfig)
+    // Default spill I/O mode for intermediate results
+    val syncOrAsync = configuration.getString(ConfigConstants.TASK_MANAGER_NETWORK_DEFAULT_IO_MODE,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE)
+
+    val ioMode : IOMode = if (syncOrAsync == "async") {
+      IOMode.ASYNC
+    }
+    else {
+      IOMode.SYNC
+    }
+
+    val networkConfig = NetworkEnvironmentConfiguration(numNetworkBuffers, pageSize, ioMode,
+      nettyConfig)
 
     val networkBufferMem = numNetworkBuffers * pageSize
 
@@ -1248,9 +1309,10 @@ object TaskManager {
         "' is missing (hostname/address of JobManager to connect to).")
     }
 
-    if (port <= 0) {
+    if (port <= 0 || port >= 65536) {
       throw new Exception("Invalid value for '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
-        "' (port of the JobManager actor system) : " + port)
+        "' (port of the JobManager actor system) : " + port +
+        ".  it must be great than 0 and less than 65536.")
     }
 
     (hostname, port)

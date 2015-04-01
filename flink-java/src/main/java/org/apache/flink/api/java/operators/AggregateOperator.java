@@ -193,8 +193,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			
 			// set input
 			po.setInput(input);
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			// set parallelism
+			po.setParallelism(this.getParallelism());
 			
 			return po;
 		}
@@ -209,7 +209,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			po.setCombinable(true);
 			
 			po.setInput(input);
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setParallelism(this.getParallelism());
 			po.setCustomPartitioner(grouping.getCustomPartitioner());
 			
 			SingleInputSemanticProperties props = new SingleInputSemanticProperties();

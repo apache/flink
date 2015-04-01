@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.jobmanager
 
 import akka.actor.{ActorLogging, Actor}
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
-import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
 

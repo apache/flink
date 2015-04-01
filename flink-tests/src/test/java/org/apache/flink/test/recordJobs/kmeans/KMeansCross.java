@@ -53,7 +53,7 @@ public class KMeansCross implements Program, ProgramDescription {
 
 		// create DataSourceContract for cluster center input
 		FileDataSource initialClusterPoints = new FileDataSource(new PointInFormat(), clusterInput, "Centers");
-		initialClusterPoints.setDegreeOfParallelism(1);
+		initialClusterPoints.setParallelism(1);
 		
 		BulkIteration iteration = new BulkIteration("K-Means Loop");
 		iteration.setInput(initialClusterPoints);

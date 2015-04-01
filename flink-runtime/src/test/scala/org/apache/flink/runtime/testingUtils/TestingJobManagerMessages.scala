@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
+import org.apache.flink.runtime.jobgraph.JobStatus
 
 object TestingJobManagerMessages {
 

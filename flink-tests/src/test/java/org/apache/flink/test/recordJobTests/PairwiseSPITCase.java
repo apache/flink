@@ -71,7 +71,7 @@ public class PairwiseSPITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		PairwiseSP a2aSP = new PairwiseSP();
 		return a2aSP.getPlan(
-				String.valueOf(config.getInteger("All2AllSPTest#NoSubtasks", DOP)),
+				String.valueOf(config.getInteger("All2AllSPTest#NoSubtasks", parallelism)),
 				rdfDataPath,
 				resultPath,
 				"true");
@@ -85,7 +85,7 @@ public class PairwiseSPITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("All2AllSPTest#NoSubtasks", DOP);
+		config.setInteger("All2AllSPTest#NoSubtasks", parallelism);
 		return toParameterList(config);
 	}
 }

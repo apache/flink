@@ -37,7 +37,7 @@ public class ReOpenableHashPartition<BT, PT> extends HashPartition<BT, PT> {
 
 	private FileIOChannel.ID initialBuildSideChannel = null;			// path to initial build side contents (only for in-memory partitions)
 	
-	private BlockChannelWriter initialBuildSideWriter = null;
+	private BlockChannelWriter<MemorySegment> initialBuildSideWriter = null;
 
 	private boolean isRestored = false;							// marks a restored partition
 	

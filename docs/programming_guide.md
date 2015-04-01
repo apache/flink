@@ -58,7 +58,7 @@ public class WordCountExample {
     public static void main(String[] args) throws Exception {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-	    DataSet<String> text = env.fromElements(
+        DataSet<String> text = env.fromElements(
             "Who's there?",
             "I think I hear them. Stand, ho! Who's there?");
 
@@ -218,10 +218,10 @@ obtain one using these static methods on class `ExecutionEnvironment`:
 getExecutionEnvironment()
 
 createLocalEnvironment()
-createLocalEnvironment(int degreeOfParallelism)
+createLocalEnvironment(int parallelism)
 
 createRemoteEnvironment(String host, int port, String... jarFiles)
-createRemoteEnvironment(String host, int port, int degreeOfParallelism, String... jarFiles)
+createRemoteEnvironment(String host, int port, int parallelism, String... jarFiles)
 {% endhighlight %}
 
 Typically, you only need to use `getExecutionEnvironment()`, since this
@@ -318,10 +318,10 @@ obtain one using these static methods on class `ExecutionEnvironment`:
 {% highlight scala %}
 def getExecutionEnvironment
 
-def createLocalEnvironment(degreeOfParallelism: Int = Runtime.getRuntime.availableProcessors()))
+def createLocalEnvironment(parallelism: Int = Runtime.getRuntime.availableProcessors()))
 
 def createRemoteEnvironment(host: String, port: String, jarFiles: String*)
-def createRemoteEnvironment(host: String, port: String, degreeOfParallelism: Int, jarFiles: String*)
+def createRemoteEnvironment(host: String, port: String, parallelism: Int, jarFiles: String*)
 {% endhighlight %}
 
 Typically, you only need to use `getExecutionEnvironment()`, since this
@@ -1431,7 +1431,7 @@ public class WordWithCount {
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-class WordWithCount(val word: String, val count: Int) {
+class WordWithCount(var word: String, var count: Int) {
     def this() {
       this(null, -1)
     }
@@ -1548,7 +1548,7 @@ File-based:
   StringValues. StringValues are mutable strings.
 
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
-  Returns a DataSet of tuples. Supports the basic java types and their Value counterparts as field
+  Returns a DataSet of tuples or POJOs. Supports the basic java types and their Value counterparts as field
   types.
 
 - `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence) delimited primitive data types such as `String` or `Integer`. 
@@ -1595,6 +1595,10 @@ DataSet<Tuple3<Integer, String, Double>> csvInput = env.readCsvFile("hdfs:///the
 DataSet<Tuple2<String, Double>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
                                .includeFields("10010")  // take the first and the fourth field
 	                       .types(String.class, Double.class);
+
+// read a CSV file with three fields into a POJO (Person.class) with corresponding fields
+DataSet<Person>> csvInput = env.readCsvFile("hdfs:///the/CSV/file")
+                         .pojoType(Person.class, "name", "age", "zipcode");                         
 
 // create a set from some given elements
 DataSet<String> value = env.fromElements("Foo", "bar", "foobar", "fubar");
@@ -1678,7 +1682,7 @@ File-based:
   StringValues. StringValues are mutable strings.
 
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
-  Returns a DataSet of tuples. Supports the basic java types and their Value counterparts as field
+  Returns a DataSet of tuples, case class objects, or POJOs. Supports the basic java types and their Value counterparts as field
   types.
 
 Collection-based:
@@ -1710,7 +1714,7 @@ Generic:
 val env  = ExecutionEnvironment.getExecutionEnvironment
 
 // read text file from local files system
-val localLiens = env.readTextFile("file:///path/to/my/textfile")
+val localLines = env.readTextFile("file:///path/to/my/textfile")
 
 // read text file from a HDFS running at nnHost:nnPort
 val hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile")
@@ -1724,10 +1728,15 @@ val csvInput = env.readCsvFile[(String, Double)](
   includedFields = Array(0, 3)) // take the first and the fourth field
 
 // CSV input can also be used with Case Classes
-case class MyInput(str: String, dbl: Double)
-val csvInput = env.readCsvFile[MyInput](
+case class MyCaseClass(str: String, dbl: Double)
+val csvInput = env.readCsvFile[MyCaseClass](
   "hdfs:///the/CSV/file",
   includedFields = Array(0, 3)) // take the first and the fourth field
+
+// read a CSV file with three fields into a POJO (Person) with corresponding fields
+val csvInput = env.readCsvFile[Person](
+  "hdfs:///the/CSV/file",
+  pojoFields = Array("name", "age", "zipcode"))
 
 // create a set from some given elements
 val values = env.fromElements("Foo", "bar", "foobar", "fubar")
@@ -1747,6 +1756,8 @@ Flink offers a number of configuration options for CSV parsing:
 
 - `includeFields: Array[Int]` defines which fields to read from the input file (and which to ignore). By default the first *n* fields (as defined by the number of types in the `types()` call) are parsed.
 
+- `pojoFields: Array[String]` specifies the fields of a POJO that are mapped to CSV fields. Parsers for CSV fields are automatically initialized based on the type and order of the POJO fields.
+
 - `parseQuotedStrings: Character` enables quoted string parsing. Strings are parsed as quoted strings if the first character of the string field is the quote character (leading or tailing whitespaces are *not* trimmed). Field delimiters within quoted strings are ignored. Quoted string parsing fails if the last character of a quoted string field is not the quote character. If quoted string parsing is enabled and the first character of the field is *not* the quoting string, the string is parsed as unquoted string. By default, quoted string parsing is disabled.
 
 - `ignoreComments: String` specifies a comment prefix. All lines that start with the specified comment prefix are not parsed and ignored. By default, no lines are ignored.
@@ -1754,7 +1765,6 @@ Flink offers a number of configuration options for CSV parsing:
 - `lenient: Boolean` enables lenient parsing, i.e., lines that cannot be correctly parsed are ignored. By default, lenient parsing is disabled and invalid lines raise an exception.
 
 - `ignoreFirstLine: Boolean` configures the InputFormat to ignore the first line of the input file. By default no line is ignored.
-  
 
 #### Recursive Traversal of the Input Path Directory
 
@@ -2074,7 +2084,7 @@ val myLongs = env.fromCollection(longIt)
 </div>
 
 **Note:** Currently, the collection data source requires that data types and iterators implement
-`Serializable`. Furthermore, collection data sources can not be executed in parallel (degree of
+`Serializable`. Furthermore, collection data sources can not be executed in parallel (
 parallelism = 1).
 
 [Back to top](#top)
@@ -2222,7 +2232,7 @@ val initial = env.fromElements(0)
 val count = initial.iterate(10000) { iterationInput: DataSet[Int] =>
   val result = iterationInput.map { i => 
     val x = Math.random()
-    val y = Math.randon()
+    val y = Math.random()
     i + (if (x * x + y * y < 1) 1 else 0)
   }
   result
@@ -2505,7 +2515,7 @@ DataSet<Integer> toBroadcast = env.fromElements(1, 2, 3);
 
 DataSet<String> data = env.fromElements("a", "b");
 
-data.map(new MapFunction<String, String>() {
+data.map(new RichMapFunction<String, String>() {
     @Override
     public void open(Configuration parameters) throws Exception {
       // 3. Access the broadcasted DataSet as a Collection
@@ -2704,15 +2714,15 @@ Parallel Execution
 This section describes how the parallel execution of programs can be configured in Flink. A Flink
 program consists of multiple tasks (operators, data sources, and sinks). A task is split into
 several parallel instances for execution and each parallel instance processes a subset of the task's
-input data. The number of parallel instances of a task is called its *parallelism* or *degree of
-parallelism (DOP)*.
+input data. The number of parallel instances of a task is called its *parallelism*.
 
-The degree of parallelism of a task can be specified in Flink on different levels.
+
+The parallelism of a task can be specified in Flink on different levels.
 
 ### Operator Level
 
 The parallelism of an individual operator, data source, or data sink can be defined by calling its
-`setParallelism()` method.  For example, the degree of parallelism of the `Sum` operator in the
+`setParallelism()` method.  For example, the parallelism of the `Sum` operator in the
 [WordCount](#example-program) example program can be set to `5` as follows :
 
 
@@ -2749,13 +2759,13 @@ env.execute("Word Count Example")
 
 ### Execution Environment Level
 
-Flink programs are executed in the context of an [execution environmentt](#program-skeleton). An
+Flink programs are executed in the context of an [execution environment](#program-skeleton). An
 execution environment defines a default parallelism for all operators, data sources, and data sinks
 it executes. Execution environment parallelism can be overwritten by explicitly configuring the
 parallelism of an operator.
 
 The default parallelism of an execution environment can be specified by calling the
-`setDegreeOfParallelism()` method. To execute all operators, data sources, and data sinks of the
+`setParallelism()` method. To execute all operators, data sources, and data sinks of the
 [WordCount](#example-program) example program with a parallelism of `3`, set the default parallelism of the
 execution environment as follows:
 
@@ -2763,7 +2773,7 @@ execution environment as follows:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-env.setDegreeOfParallelism(3);
+env.setParallelism(3);
 
 DataSet<String> text = [...]
 DataSet<Tuple2<String, Integer>> wordCounts = [...]
@@ -2775,7 +2785,7 @@ env.execute("Word Count Example");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
-env.setDegreeOfParallelism(3)
+env.setParallelism(3)
 
 val text = [...]
 val wordCounts = text
@@ -2789,10 +2799,64 @@ env.execute("Word Count Example")
 </div>
 </div>
 
+### Client Level
+
+The parallelism can be set at the Client when submitting jobs to Flink. The
+Client can either be a Java or a Scala program. One example of such a Client is
+Flink's Command-line Interface (CLI).
+
+For the CLI client, the parallelism parameter can be specified with `-p`. For
+exampple:
+
+    ./bin/flink run -p 10 ../examples/*WordCount-java*.jar
+
+
+In a Java/Scala program, the parallelism is set as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+try {
+    PackagedProgram program = new PackagedProgram(file, args);
+    InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport("localhost:6123");
+    Configuration config = new Configuration();
+
+    Client client = new Client(jobManagerAddress, config, program.getUserCodeClassLoader());
+
+    // set the parallelism to 10 here
+    client.run(program, 10, true);
+
+} catch (ProgramInvocationException e) {
+    e.printStackTrace();
+}
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+try {
+    PackagedProgram program = new PackagedProgram(file, args)
+    InetSocketAddress jobManagerAddress = RemoteExecutor.getInetFromHostport("localhost:6123")
+    Configuration config = new Configuration()
+
+    Client client = new Client(jobManagerAddress, new Configuration(), program.getUserCodeClassLoader())
+
+    // set the parallelism to 10 here
+    client.run(program, 10, true)
+
+} catch {
+    case e: Exception => e.printStackTrace
+}
+{% endhighlight %}
+</div>
+</div>
+
+
 ### System Level
 
 A system-wide default parallelism for all execution environments can be defined by setting the
-`parallelization.degree.default` property in `./conf/flink-conf.yaml`. See the
+`parallelism.default` property in `./conf/flink-conf.yaml`. See the
 [Configuration](config.html) documentation for details.
 
 [Back to top](#top)

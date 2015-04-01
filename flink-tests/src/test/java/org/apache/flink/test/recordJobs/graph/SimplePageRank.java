@@ -132,7 +132,7 @@ public class SimplePageRank implements Program, ProgramDescription {
 	// --------------------------------------------------------------------------------------------
 	
 	public Plan getPlan(String ... args) {
-		int dop = 1;
+		int parallelism = 1;
 		String pageWithRankInputPath = "";
 		String adjacencyListInputPath = "";
 		String outputPath = "";
@@ -140,7 +140,7 @@ public class SimplePageRank implements Program, ProgramDescription {
 		long numVertices = 5;
 
 		if (args.length >= 6) {
-			dop = Integer.parseInt(args[0]);
+			parallelism = Integer.parseInt(args[0]);
 			pageWithRankInputPath = args[1];
 			adjacencyListInputPath = args[2];
 			outputPath = args[3];
@@ -183,12 +183,12 @@ public class SimplePageRank implements Program, ProgramDescription {
 		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 
 		Plan p = new Plan(out, "Simple PageRank");
-		p.setDefaultParallelism(dop);
+		p.setDefaultParallelism(parallelism);
 		return p;
 	}
 
 	@Override
 	public String getDescription() {
-		return "Parameters: <degree-of-parallelism> <pages-input-path> <edges-input-path> <output-path> <max-iterations> <num-vertices> <num-dangling-vertices>";
+		return "Parameters: <parallelism> <pages-input-path> <edges-input-path> <output-path> <max-iterations> <num-vertices> <num-dangling-vertices>";
 	}
 }

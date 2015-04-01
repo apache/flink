@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.client;
 
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 
 /**
  * This exception denotes an error while submitting a job to the JobManager

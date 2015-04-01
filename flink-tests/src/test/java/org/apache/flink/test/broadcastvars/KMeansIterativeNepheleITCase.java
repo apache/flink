@@ -60,9 +60,9 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	
 	private static final int MEMORY_PER_CONSUMER = 2;
 
-	private static final int DOP = 4;
+	private static final int parallelism = 4;
 
-	private static final double MEMORY_FRACTION_PER_CONSUMER = (double)MEMORY_PER_CONSUMER/TASK_MANAGER_MEMORY_SIZE*DOP;
+	private static final double MEMORY_FRACTION_PER_CONSUMER = (double)MEMORY_PER_CONSUMER/TASK_MANAGER_MEMORY_SIZE*parallelism;
 
 	protected String dataPath;
 	protected String clusterPath;
@@ -70,7 +70,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 	
 	public KMeansIterativeNepheleITCase() {
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 	@Override
@@ -87,7 +87,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
-		return createJobGraph(dataPath, clusterPath, this.resultPath, DOP, 20);
+		return createJobGraph(dataPath, clusterPath, this.resultPath, parallelism, 20);
 	}
 
 	// -------------------------------------------------------------------------------------------------------------
@@ -252,8 +252,8 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		return tail;
 	}
 	
-	private static AbstractJobVertex createSync(JobGraph jobGraph, int numIterations, int dop) {
-		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, dop);
+	private static AbstractJobVertex createSync(JobGraph jobGraph, int numIterations, int parallelism) {
+		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, parallelism);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setNumberOfIterations(numIterations);
 		syncConfig.setIterationId(ITERATION_ID);

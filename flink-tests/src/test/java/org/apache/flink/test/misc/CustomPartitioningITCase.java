@@ -34,7 +34,7 @@ public class CustomPartitioningITCase extends JavaProgramTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		if (!isCollectionExecution()) {
-			Assert.assertTrue(env.getDegreeOfParallelism() > 1);
+			Assert.assertTrue(env.getParallelism() > 1);
 		}
 		
 		env.generateSequence(1, 1000)

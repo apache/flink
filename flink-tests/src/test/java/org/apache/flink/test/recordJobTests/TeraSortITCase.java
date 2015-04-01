@@ -36,7 +36,7 @@ public class TeraSortITCase extends RecordAPITestBase {
 	private String resultPath;
 
 	public TeraSortITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	@Override
@@ -49,7 +49,7 @@ public class TeraSortITCase extends RecordAPITestBase {
 		String testDataPath = getClass().getResource(INPUT_DATA_FILE).toString();
 		
 		TeraSort ts = new TeraSort();
-		return ts.getPlan(Integer.valueOf(DOP).toString(), testDataPath, resultPath);
+		return ts.getPlan(Integer.valueOf(parallelism).toString(), testDataPath, resultPath);
 	}
 
 	@Override

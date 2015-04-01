@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.MapPartitionFunction;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.util.Collector;
 
 /**

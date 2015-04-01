@@ -26,9 +26,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
@@ -89,6 +92,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
 	public static final String ENV_CLIENT_USERNAME = "_CLIENT_USERNAME";
 	public static final String ENV_SLOTS = "_SLOTS";
+	public static final String ENV_DETACHED = "_DETACHED";
 	public static final String ENV_DYNAMIC_PROPERTIES = "_DYNAMIC_PROPERTIES";
 
 
@@ -134,6 +138,8 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 	private List<File> shipFiles = new ArrayList<File>();
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
+
+	private boolean detached;
 
 
 	public FlinkYarnClient() {
@@ -238,6 +244,15 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 	@Override
 	public void setShipFiles(List<File> shipFiles) {
+		File shipFile;
+		for(Iterator<File> it = shipFiles.iterator(); it.hasNext(); ) {
+			shipFile = it.next();
+			// remove uberjar from ship list (by default everything in the lib/ folder is added to
+			// the list of files to ship, but we handle the uberjar separately.
+			if(shipFile.getName().startsWith("flink-dist-") && shipFile.getName().endsWith("jar")) {
+				it.remove();
+			}
+		}
 		this.shipFiles.addAll(shipFiles);
 	}
 
@@ -287,6 +302,16 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		return false;
 	}
 
+	@Override
+	public void setDetachedMode(boolean detachedMode) {
+		this.detached = detachedMode;
+	}
+
+	@Override
+	public boolean isDetached() {
+		return detached;
+	}
+
 	public AbstractFlinkYarnCluster deploy(final String clusterName) throws Exception {
 
 		UserGroupInformation.setConfiguration(conf);
@@ -307,6 +332,9 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 			return deployInternal(clusterName);
 		}
 	}
+
+
+
 	/**
 	 * This method will block until the ApplicationMaster/JobManager have been
 	 * deployed on YARN.
@@ -322,6 +350,13 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		// Create application via yarnClient
 		yarnApplication = yarnClient.createApplication();
 		GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
+
+		// ------------------ Add dynamic properties to local flinkConfiguraton ------
+
+		List<Tuple2<String, String>> dynProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncoded);
+		for (Tuple2<String, String> dynProperty : dynProperties) {
+			flinkConfiguration.setString(dynProperty.f0, dynProperty.f1);
+		}
 
 		// ------------------ Check if the specified queue exists --------------
 
@@ -448,7 +483,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 				.newRecord(ContainerLaunchContext.class);
 
 		String amCommand = "$JAVA_HOME/bin/java"
-					+ " -Xmx"+Utils.calculateHeapSize(jobManagerMemoryMb)+"M " +javaOpts;
+					+ " -Xmx"+Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration)+"M " +javaOpts;
 
 		if(hasLogback || hasLog4j) {
 			amCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/jobmanager-main.log\"";
@@ -484,6 +519,8 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 		// Set-up ApplicationSubmissionContext for the application
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
+		appContext.setMaxAppAttempts(flinkConfiguration.getInteger(ConfigConstants.YARN_APPLICATION_ATTEMPTS, 1));
+
 		final ApplicationId appId = appContext.getApplicationId();
 
 		// Setup jar for ApplicationMaster
@@ -538,6 +575,8 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		appMasterEnv.put(FlinkYarnClient.ENV_CLIENT_SHIP_FILES, envShipFileList.toString());
 		appMasterEnv.put(FlinkYarnClient.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
 		appMasterEnv.put(FlinkYarnClient.ENV_SLOTS, String.valueOf(slots));
+		appMasterEnv.put(FlinkYarnClient.ENV_DETACHED, String.valueOf(detached));
+
 		if(dynamicPropertiesEncoded != null) {
 			appMasterEnv.put(FlinkYarnClient.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
 		}
@@ -551,6 +590,9 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 
 		if(clusterName == null) {
 			clusterName = "Flink session with "+taskManagerCount+" TaskManagers";
+		}
+		if(detached) {
+			clusterName += " (detached)";
 		}
 
 		appContext.setApplicationName(clusterName); // application name
@@ -593,7 +635,7 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 			Thread.sleep(1000);
 		}
 		// the Flink cluster is deployed in YARN. Represent cluster
-		return new FlinkYarnCluster(yarnClient, appId, conf, flinkConfiguration, sessionFilesDir);
+		return new FlinkYarnCluster(yarnClient, appId, conf, flinkConfiguration, sessionFilesDir, detached);
 	}
 
 	/**
@@ -646,8 +688,6 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		return new ClusterResourceDescription(totalFreeMemory, containerLimit, nodeManagersFree);
 	}
 
-
-
 	public String getClusterDescription() throws Exception {
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -680,6 +720,10 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 		}
 		yarnClient.stop();
 		return baos.toString();
+	}
+
+	public String getSessionFilesDir() {
+		return sessionFilesDir.toString();
 	}
 
 	public static class YarnDeploymentException extends RuntimeException {

@@ -33,18 +33,20 @@ public class WindowPartitioner<T> extends ChainableInvokable<StreamWindow<T>, St
 	public WindowPartitioner(KeySelector<T, ?> keySelector) {
 		super(null);
 		this.keySelector = keySelector;
+		withoutInputCopy();
 	}
 
 	public WindowPartitioner(int numberOfSplits) {
 		super(null);
 		this.numberOfSplits = numberOfSplits;
+		withoutInputCopy();
 	}
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -56,23 +58,17 @@ public class WindowPartitioner<T> extends ChainableInvokable<StreamWindow<T>, St
 			if (numberOfSplits <= 1) {
 				collector.collect(currentWindow);
 			} else {
-				for (StreamWindow<T> window : currentWindow.split(numberOfSplits)) {
+				for (StreamWindow<T> window : StreamWindow.split(currentWindow, numberOfSplits)) {
 					collector.collect(window);
 				}
 			}
 		} else {
 
-			for (StreamWindow<T> window : currentWindow.partitionBy(keySelector)) {
+			for (StreamWindow<T> window : StreamWindow
+					.partitionBy(currentWindow, keySelector, true)) {
 				collector.collect(window);
 			}
 
 		}
 	}
-
-	@Override
-	public void collect(StreamWindow<T> record) {
-		nextObject = record;
-		callUserFunctionAndLogException();
-	}
-
 }

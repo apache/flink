@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.io;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
@@ -31,15 +31,16 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 
 	private OutputFlusher outputFlusher;
 
-	public StreamRecordWriter(BufferWriter writer) {
+	public StreamRecordWriter(ResultPartitionWriter writer) {
 		this(writer, new RoundRobinChannelSelector<T>(), 1000);
 	}
 
-	public StreamRecordWriter(BufferWriter writer, ChannelSelector<T> channelSelector) {
+	public StreamRecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector) {
 		this(writer, channelSelector, 1000);
 	}
 
-	public StreamRecordWriter(BufferWriter writer, ChannelSelector<T> channelSelector, long timeout) {
+	public StreamRecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector,
+			long timeout) {
 		super(writer, channelSelector);
 
 		this.timeout = timeout;
@@ -57,24 +58,28 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 
 			flush();
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+			// Do nothing here
 		}
 	}
 
 	private class OutputFlusher extends Thread {
-		private boolean running = true;
+		private volatile boolean running = true;
+
 		public void terminate() {
 			running = false;
 		}
+
 		@Override
 		public void run() {
-			while (running && !writer.isFinished()) {
+			while (running) {
 				try {
 					flush();
 					Thread.sleep(timeout);
-				} catch (Exception e) {
+				} catch (InterruptedException e) {
+					// Do nothing here
+				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
 			}

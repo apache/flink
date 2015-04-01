@@ -16,19 +16,23 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+<nav class="navbar navbar-default navbar-static-top" role="navigation">
   <div class="container">
     <div class="row">
       <div class="col-md-1 af-mobile-nav-bar">
-	<a href="{{ site.baseurl }}index.html" title="Home">
+        {% comment %}
+        We might be on an externally hosted documentation site.
+        Please keep the site.FLINK_WEBSITE_URL below to ensure a link back to the Flink website.
+        {% endcomment %}
+	<a href="{{ site.FLINK_WEBSITE_URL }}/index.html" title="Home">
 	  <img class="hidden-xs hidden-sm img-responsive"
-	       src="{{ site.baseurl }}img/logo.png" alt="Apache Flink Logo">
+	       src="{{ site.baseurl }}/img/logo.png" alt="Apache Flink Logo">
 	</a>	
 	<div class="row visible-xs">
 	  <div class="col-xs-3">
-	    <a href="{{ site.baseurl }}index.html" title="Home">  
+	    <a href="{{ site.baseurl }}/index.html" title="Home">
 	      <img class="hidden-x hidden-sm img-responsive"
-		   src="{{ site.baseurl }}img/logo.png" alt="Apache Flink Logo">
+		   src="{{ site.baseurl }}/img/logo.png" alt="Apache Flink Logo">
 	    </a>	
 	  </div>
 	  <div class="col-xs-5"></div>
@@ -45,15 +49,15 @@ under the License.
 	  <ul class="nav navbar-nav">
 
 	    <li>
-	      <a href="index.html" class="{% if page.url contains 'index.html' %}active{% endif %}">Documentation</a>
+	      <a href="{{ site.baseurl }}/index.html" class="{% if page.url contains 'index.html' %}active{% endif %}">Documentation</a>
 	    </li>
 
 	    <li>
-	      <a href="api/java/index.html">Javadoc</a>
+	      <a href="{{ site.baseurl }}/api/java/index.html">Javadoc</a>
 	    </li>
 
 	    <li>
-	      <a href="api/scala/index.html#org.apache.flink.api.scala.package">Scaladoc</a>
+	      <a href="{{ site.baseurl }}/api/scala/index.html#org.apache.flink.api.scala.package">Scaladoc</a>
 	    </li>
 
 	  </ul>

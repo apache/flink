@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.instance;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -27,19 +28,43 @@ import java.net.InetAddress;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.junit.Assert;
 import org.junit.Test;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.reflect.Whitebox;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+/**
+ * Tests for the InstanceConnectionInfo, which identifies the location and connection
+ * information of a TaskManager.
+ */
 public class InstanceConnectionInfoTest {
 
 	@Test
 	public void testEqualsHashAndCompareTo() {
 		try {
+			// we mock the addresses to save the times of the reverse name lookups
+			InetAddress address1 = mock(InetAddress.class);
+			when(address1.getCanonicalHostName()).thenReturn("localhost");
+			when(address1.getHostName()).thenReturn("localhost");
+			when(address1.getHostAddress()).thenReturn("127.0.0.1");
+			when(address1.getAddress()).thenReturn(new byte[] {127, 0, 0, 1} );
+
+			InetAddress address2 = mock(InetAddress.class);
+			when(address2.getCanonicalHostName()).thenReturn("testhost1");
+			when(address2.getHostName()).thenReturn("testhost1");
+			when(address2.getHostAddress()).thenReturn("0.0.0.0");
+			when(address2.getAddress()).thenReturn(new byte[] {0, 0, 0, 0} );
+
+			InetAddress address3 = mock(InetAddress.class);
+			when(address3.getCanonicalHostName()).thenReturn("testhost2");
+			when(address3.getHostName()).thenReturn("testhost2");
+			when(address3.getHostAddress()).thenReturn("192.168.0.1");
+			when(address3.getAddress()).thenReturn(new byte[] {(byte) 192, (byte) 168, 0, 1} );
+
 			// one == four != two != three
-			InstanceConnectionInfo one = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
-			InstanceConnectionInfo two = new InstanceConnectionInfo(InetAddress.getByName("0.0.0.0"), 19871);
-			InstanceConnectionInfo three = new InstanceConnectionInfo(InetAddress.getByName("192.168.0.1"), 10871);
-			InstanceConnectionInfo four = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
+			InstanceConnectionInfo one = new InstanceConnectionInfo(address1, 19871);
+			InstanceConnectionInfo two = new InstanceConnectionInfo(address2, 19871);
+			InstanceConnectionInfo three = new InstanceConnectionInfo(address3, 10871);
+			InstanceConnectionInfo four = new InstanceConnectionInfo(address1, 19871);
 			
 			assertTrue(one.equals(four));
 			assertTrue(!one.equals(two));
@@ -101,10 +126,10 @@ public class InstanceConnectionInfoTest {
 	public void testGetFQDNHostname() {
 		try {
 			InstanceConnectionInfo info1 = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
-			assertTrue(info1.getFQDNHostname() != null);
+			assertNotNull(info1.getFQDNHostname());
 			
 			InstanceConnectionInfo info2 = new InstanceConnectionInfo(InetAddress.getByName("1.2.3.4"), 8888);
-			assertTrue(info2.getFQDNHostname() != null);
+			assertNotNull(info2.getFQDNHostname());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -115,10 +140,15 @@ public class InstanceConnectionInfoTest {
 	@Test
 	public void testGetHostname0() {
 		try {
-			final InstanceConnectionInfo info1 = PowerMockito.spy(new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871));
-			Whitebox.setInternalState(info1, "fqdnHostName", "worker2.cluster.mycompany.com");
-			Assert.assertEquals("worker2", info1.getHostname());
-		} catch (Exception e) {
+			InetAddress address = mock(InetAddress.class);
+			when(address.getCanonicalHostName()).thenReturn("worker2.cluster.mycompany.com");
+			when(address.getHostName()).thenReturn("worker2.cluster.mycompany.com");
+			when(address.getHostAddress()).thenReturn("127.0.0.1");
+
+			final InstanceConnectionInfo info = new InstanceConnectionInfo(address, 19871);
+			Assert.assertEquals("worker2", info.getHostname());
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -127,14 +157,43 @@ public class InstanceConnectionInfoTest {
 	@Test
 	public void testGetHostname1() {
 		try {
-			final InstanceConnectionInfo info1 = PowerMockito.spy(new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871));
-			Whitebox.setInternalState(info1, "fqdnHostName", "worker10");
-			Assert.assertEquals("worker10", info1.getHostname());
-		} catch (Exception e) {
+			InetAddress address = mock(InetAddress.class);
+			when(address.getCanonicalHostName()).thenReturn("worker10");
+			when(address.getHostName()).thenReturn("worker10");
+			when(address.getHostAddress()).thenReturn("127.0.0.1");
+
+			InstanceConnectionInfo info = new InstanceConnectionInfo(address, 19871);
+			Assert.assertEquals("worker10", info.getHostname());
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
-	
-	
+
+	@Test
+	public void testGetHostname2() {
+		try {
+			final String addressString = "192.168.254.254";
+
+			// we mock the addresses to save the times of the reverse name lookups
+			InetAddress address = mock(InetAddress.class);
+			when(address.getCanonicalHostName()).thenReturn("192.168.254.254");
+			when(address.getHostName()).thenReturn("192.168.254.254");
+			when(address.getHostAddress()).thenReturn("192.168.254.254");
+			when(address.getAddress()).thenReturn(new byte[] {(byte) 192, (byte) 168, (byte) 254, (byte) 254} );
+
+			InstanceConnectionInfo info = new InstanceConnectionInfo(address, 54152);
+
+			assertNotNull(info.getFQDNHostname());
+			assertTrue(info.getFQDNHostname().equals(addressString));
+
+			assertNotNull(info.getHostname());
+			assertTrue(info.getHostname().equals(addressString));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 }

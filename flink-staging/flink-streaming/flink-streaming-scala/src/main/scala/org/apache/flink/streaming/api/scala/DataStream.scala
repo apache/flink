@@ -19,26 +19,27 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
+import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream,
   SingleOutputStreamOperator, GroupedDataStream}
+import org.apache.flink.streaming.util.serialization.SerializationSchema
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.streaming.api.invokable.operator.MapInvokable
+import org.apache.flink.streaming.api.invokable.operator._
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.FlatMapFunction
-import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.streaming.api.invokable.StreamInvokable
-import org.apache.flink.streaming.api.invokable.operator.{ GroupedReduceInvokable, StreamReduceInvokable }
 import org.apache.flink.api.common.functions.ReduceFunction
+import org.apache.flink.api.common.functions.FoldFunction
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.streaming.api.function.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.{ EvictionPolicy, TriggerPolicy }
-import org.apache.flink.streaming.api.collector.OutputSelector
 import scala.collection.JavaConversions._
 import java.util.HashMap
 import org.apache.flink.streaming.api.function.aggregation.SumFunction
@@ -56,11 +57,16 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def getJavaStream: JavaStream[T] = javaStream
 
   /**
-   * Sets the degree of parallelism of this operation. This must be greater than 1.
+   * Returns the TypeInformation for the elements of this DataStream.
    */
-  def setParallelism(dop: Int): DataStream[T] = {
+  def getType(): TypeInformation[T] = javaStream.getType
+
+  /**
+   * Sets the parallelism of this operation. This must be greater than 1.
+   */
+  def setParallelism(parallelism: Int): DataStream[T] = {
     javaStream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.setParallelism(dop)
+      case ds: SingleOutputStreamOperator[_, _] => ds.setParallelism(parallelism)
       case _ =>
         throw new UnsupportedOperationException("Operator " + javaStream.toString +  " cannot " +
           "have " +
@@ -70,7 +76,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Returns the degree of parallelism of this operation.
+   * Returns the parallelism of this operation.
    */
   def getParallelism: Int = javaStream match {
     case op: SingleOutputStreamOperator[_, _] => op.getParallelism
@@ -183,7 +189,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   /**
    * Initiates an iterative part of the program that creates a loop by feeding
    * back data streams. To create a streaming iteration the user needs to define
-   * a transformation that creates two DataStreams.The first one one is the output
+   * a transformation that creates two DataStreams. The first one is the output
    * that will be fed back to the start of the iteration and the second is the output
    * stream of the iterative part.
    * <p>
@@ -198,8 +204,30 @@ class DataStream[T](javaStream: JavaStream[T]) {
    *
    *
    */
-  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R]),  
-        maxWaitTimeMillis:Long = 0): DataStream[R] = {
+  def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R])): DataStream[R] = {
+    iterate(0)(stepFunction)
+  }
+
+  /**
+   * Initiates an iterative part of the program that creates a loop by feeding
+   * back data streams. To create a streaming iteration the user needs to define
+   * a transformation that creates two DataStreams. The first one is the output
+   * that will be fed back to the start of the iteration and the second is the output
+   * stream of the iterative part.
+   * <p>
+   * stepfunction: initialStream => (feedback, output)
+   * <p>
+   * A common pattern is to use output splitting to create feedback and output DataStream.
+   * Please refer to the .split(...) method of the DataStream
+   * <p>
+   * By default a DataStream with iteration will never terminate, but the user
+   * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
+   * If no data received in the set time the stream terminates.
+   *
+   *
+   */
+  def iterate[R](maxWaitTimeMillis:Long = 0)
+                (stepFunction: DataStream[T] => (DataStream[T], DataStream[R])) : DataStream[R] = {
     val iterativeStream = javaStream.iterate(maxWaitTimeMillis)
 
     val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
@@ -402,7 +430,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Creates a new [[DataStream]] by reducing the elements of this DataStream
+  * Creates a new [[DataStream]] by reducing the elements of this DataStream
    * using an associative reduce function.
    */
   def reduce(fun: (T, T) => T): DataStream[T] = {
@@ -414,6 +442,42 @@ class DataStream[T](javaStream: JavaStream[T]) {
       def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
     }
     reduce(reducer)
+  }
+
+  /**
+   * Creates a new [[DataStream]] by folding the elements of this DataStream
+   * using an associative fold function and an initial value.
+   */
+  def fold[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[T,R]): 
+  DataStream[R] = {
+    if (folder == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    javaStream match {
+      case ds: GroupedDataStream[_] => javaStream.transform("fold",
+        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), 
+            initialValue, implicitly[TypeInformation[R]]))
+      case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
+        new StreamFoldInvokable[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
+    }
+  }
+
+  /**
+   * Creates a new [[DataStream]] by folding the elements of this DataStream
+   * using an associative fold function and an initial value.
+   */
+  def fold[R: TypeInformation: ClassTag](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    val folder = new FoldFunction[T,R] {
+      val cleanFun = clean(fun)
+
+      def fold(acc: R, v: T) = {
+        cleanFun(acc, v)
+      }
+    }
+    fold(initialValue, folder)
   }
 
   /**
@@ -476,14 +540,14 @@ class DataStream[T](javaStream: JavaStream[T]) {
    * Creates a new SplitDataStream that contains only the elements satisfying the
    *  given output selector predicate.
    */
-  def split(fun: T => String): SplitDataStream[T] = {
+  def split(fun: T => TraversableOnce[String]): SplitDataStream[T] = {
     if (fun == null) {
       throw new NullPointerException("OutputSelector must not be null.")
     }
     val selector = new OutputSelector[T] {
       val cleanFun = clean(fun)
       def select(in: T): java.lang.Iterable[String] = {
-        List(cleanFun(in))
+        cleanFun(in).toIterable.asJava
       }
     }
     split(selector)
@@ -545,6 +609,13 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def writeAsCsv(path: String, millis: Long = 0): DataStream[T] =
     javaStream.writeAsCsv(path, millis)
+
+  /**
+   * Writes the DataStream to a socket as a byte array. The format of the output is
+   * specified by a {@link SerializationSchema}.
+   */
+  def writeToSocket(hostname: String, port: Integer, schema: SerializationSchema[T, Array[Byte]]):
+    DataStream[T] = javaStream.writeToSocket(hostname, port, schema)
 
   /**
    * Adds the given sink to this DataStream. Only streams with sinks added

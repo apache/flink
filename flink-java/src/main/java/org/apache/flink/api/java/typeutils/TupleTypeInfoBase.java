@@ -272,4 +272,9 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		bld.append('>');
 		return bld.toString();
 	}
+
+	@Override
+	public boolean hasDeterministicFieldOrder() {
+		return true;
+	}
 }

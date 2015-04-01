@@ -25,22 +25,22 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import akka.remote.AssociationErrorEvent;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.compiler.CompilerException;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.contextcheck.ContextChecker;
-import org.apache.flink.compiler.costs.DefaultCostEstimator;
-import org.apache.flink.compiler.plan.FlinkPlan;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plan.StreamingPlan;
-import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.CompilerException;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.optimizer.plan.FlinkPlan;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plan.StreamingPlan;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -68,9 +68,22 @@ public class Client {
 	
 	private final Configuration configuration;	// the configuration describing the job manager address
 	
-	private final PactCompiler compiler;		// the compiler to compile the jobs
+	private final Optimizer compiler;		// the compiler to compile the jobs
 	
-	private boolean printStatusDuringExecution = false;
+	private boolean printStatusDuringExecution = true;
+
+	/**
+	 * If != -1, this field specifies the total number of available slots on the cluster
+	 * conntected to the client.
+	 */
+	private int maxSlots = -1;
+
+	/**
+	 * ID of the last job submitted with this client.
+	 */
+	private JobID lastJobId = null;
+
+	private ClassLoader userCodeClassLoader; // TODO: use userCodeClassloader to deserialize accumulator results.
 	
 	// ------------------------------------------------------------------------
 	//                            Construction
@@ -82,7 +95,7 @@ public class Client {
 	 * 
 	 * @param jobManagerAddress Address and port of the job-manager.
 	 */
-	public Client(InetSocketAddress jobManagerAddress, Configuration config, ClassLoader userCodeClassLoader) {
+	public Client(InetSocketAddress jobManagerAddress, Configuration config, ClassLoader userCodeClassLoader, int maxSlots) {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		
@@ -90,7 +103,9 @@ public class Client {
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
-		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
+		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
+		this.userCodeClassLoader = userCodeClassLoader;
+		this.maxSlots = maxSlots;
 	}
 
 	/**
@@ -114,7 +129,8 @@ public class Client {
 			throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
 		}
 
-		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
+		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
 	
 	public void setPrintStatusDuringExecution(boolean print) {
@@ -127,6 +143,14 @@ public class Client {
 	
 	public int getJobManagerPort() {
 		return this.configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+	}
+
+	/**
+	 * @return -1 if unknown. The maximum number of available processing slots at the Flink cluster
+	 * connected to this client.
+	 */
+	public int getMaxSlots() {
+		return this.maxSlots;
 	}
 	
 	// ------------------------------------------------------------------------
@@ -147,7 +171,7 @@ public class Client {
 			// temporary hack to support the optimizer plan preview
 			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(this.compiler);
 			if (parallelism > 0) {
-				env.setDegreeOfParallelism(parallelism);
+				env.setParallelism(parallelism);
 			}
 			env.setAsContext();
 			
@@ -193,11 +217,11 @@ public class Client {
 	
 	public FlinkPlan getOptimizedPlan(Plan p, int parallelism) throws CompilerException {
 		if (parallelism > 0 && p.getDefaultParallelism() <= 0) {
+			LOG.debug("Changing plan default parallelism from {} to {}",p.getDefaultParallelism(), parallelism);
 			p.setDefaultParallelism(parallelism);
 		}
-		
-		ContextChecker checker = new ContextChecker();
-		checker.check(p);
+		LOG.debug("Set parallelism {}, plan default parallelism {}", parallelism, p.getDefaultParallelism());
+
 		return this.compiler.compile(p);
 	}
 	
@@ -219,12 +243,11 @@ public class Client {
 	}
 	
 	private JobGraph getJobGraph(FlinkPlan optPlan, List<File> jarFiles) {
-		JobGraph job = null;
-
+		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
 		} else {
-			NepheleJobGraphGenerator gen = new NepheleJobGraphGenerator();
+			JobGraphGenerator gen = new JobGraphGenerator();
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
 		}
 
@@ -235,49 +258,31 @@ public class Client {
 		return job;
 	}
 
-	public JobExecutionResult run(final PackagedProgram prog, int parallelism, boolean wait) throws ProgramInvocationException {
+	public JobSubmissionResult run(final PackagedProgram prog, int parallelism, boolean wait) throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
 		if (prog.isUsingProgramEntryPoint()) {
 			return run(prog.getPlanWithJars(), parallelism, wait);
 		}
 		else if (prog.isUsingInteractiveMode()) {
-			
-			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism);
+			LOG.info("Starting program in interactive mode");
+			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism, wait);
 			ContextEnvironment.enableLocalExecution(false);
-			if (wait) {
-				// invoke here
-				try {
-					prog.invokeInteractiveModeForExecution();
-				}
-				finally {
-					ContextEnvironment.enableLocalExecution(true);
-				}
+			// invoke here
+			try {
+				prog.invokeInteractiveModeForExecution();
 			}
-			else {
-				// invoke in the background
-				Thread backGroundRunner = new Thread("Program Runner") {
-					public void run() {
-						try {
-							prog.invokeInteractiveModeForExecution();
-						}
-						catch (Throwable t) {
-							LOG.error("The program execution failed.", t);
-						}
-						finally {
-							ContextEnvironment.enableLocalExecution(true);
-						}
-					}
-				};
-				backGroundRunner.start();
+			finally {
+				ContextEnvironment.enableLocalExecution(true);
 			}
-			return null;
+
+			return new JobSubmissionResult(lastJobId);
 		}
 		else {
 			throw new RuntimeException();
 		}
 	}
 	
-	public JobExecutionResult run(PackagedProgram prog, OptimizedPlan optimizedPlan, boolean wait) throws ProgramInvocationException {
+	public JobSubmissionResult run(PackagedProgram prog, OptimizedPlan optimizedPlan, boolean wait) throws ProgramInvocationException {
 		return run(optimizedPlan, prog.getAllLibraries(), wait);
 
 	}
@@ -296,17 +301,18 @@ public class Client {
 	 *                                    i.e. the job-manager is unreachable, or due to the fact that the
 	 *                                    parallel execution failed.
 	 */
-	public JobExecutionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
+	public JobSubmissionResult run(JobWithJars prog, int parallelism, boolean wait) throws CompilerException, ProgramInvocationException {
 		return run((OptimizedPlan) getOptimizedPlan(prog, parallelism), prog.getJarFiles(), wait);
 	}
 	
 
-	public JobExecutionResult run(OptimizedPlan compiledPlan, List<File> libraries, boolean wait) throws ProgramInvocationException {
+	public JobSubmissionResult run(OptimizedPlan compiledPlan, List<File> libraries, boolean wait) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(compiledPlan, libraries);
+		this.lastJobId = job.getJobID();
 		return run(job, wait);
 	}
 
-	public JobExecutionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
+	public JobSubmissionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
 
 		final String hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		if (hostname == null) {
@@ -340,6 +346,8 @@ public class Client {
 			}
 			else {
 				JobClient.submitJobDetached(jobGraph, client, timeout);
+				// return a "Fake" execution result with the JobId
+				return new JobSubmissionResult(jobGraph.getJobID());
 			}
 		}
 		catch (JobExecutionException e) {
@@ -352,35 +360,18 @@ public class Client {
 			actorSystem.shutdown();
 			actorSystem.awaitTermination();
 		}
-
-		return new JobExecutionResult(-1, null);
-	}
-
-	private Throwable getAssociationError(List<AssociationErrorEvent> eventLog) {
-		int len = eventLog.size();
-		if (len > 0) {
-			AssociationErrorEvent e = eventLog.get(len - 1);
-			Throwable cause = e.getCause();
-			if (cause instanceof akka.remote.InvalidAssociation) {
-				return cause.getCause();
-			} else {
-				return cause;
-			}
-		} else {
-			return null;
-		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	public static final class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		
-		private final PactCompiler compiler;
+		private final Optimizer compiler;
 		
 		private FlinkPlan optimizerPlan;
 		
 		
-		private OptimizerPlanEnvironment(PactCompiler compiler) {
+		private OptimizerPlanEnvironment(Optimizer compiler) {
 			this.compiler = compiler;
 		}
 		

@@ -150,10 +150,18 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 		}
 	}
 
+	public long getWindowSize() {
+		return granularity;
+	}
+
 	@Override
 	public String toString() {
 		return "TimePolicy(" + granularity + ", " + timestampWrapper.getClass().getSimpleName()
 				+ ")";
+	}
+
+	public TimestampWrapper<DATA> getTimeStampWrapper() {
+		return timestampWrapper;
 	}
 
 }

@@ -40,6 +40,7 @@ import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.{AbstractID, Collector}
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 
@@ -71,7 +72,7 @@ import scala.reflect.ClassTag
  * are named similarly. All functions are available in package
  * `org.apache.flink.api.common.functions`.
  *
- * The elements are partitioned depending on the degree of parallelism of the
+ * The elements are partitioned depending on the parallelism of the
  * [[ExecutionEnvironment]] or of one specific DataSet.
  *
  * Most of the operations have an implicit [[TypeInformation]] parameter. This is supplied by
@@ -89,7 +90,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Returns the TypeInformation for the elements of this DataSet.
    */
-  def getType: TypeInformation[T] = set.getType
+  def getType(): TypeInformation[T] = set.getType
 
   /**
    * Returns the execution environment associated with the current DataSet.
@@ -148,13 +149,13 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Sets the degree of parallelism of this operation. This must be greater than 1.
+   * Sets the parallelism of this operation. This must be greater than 1.
    */
-  def setParallelism(dop: Int) = {
+  def setParallelism(parallelism: Int) = {
     javaSet match {
-      case ds: DataSource[_] => ds.setParallelism(dop)
-      case op: Operator[_, _] => op.setParallelism(dop)
-      case di: DeltaIterationResultSet[_, _] => di.getIterationHead.parallelism(dop)
+      case ds: DataSource[_] => ds.setParallelism(parallelism)
+      case op: Operator[_, _] => op.setParallelism(parallelism)
+      case di: DeltaIterationResultSet[_, _] => di.getIterationHead.parallelism(parallelism)
       case _ =>
         throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
           "parallelism.")
@@ -163,7 +164,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Returns the degree of parallelism of this operation.
+   * Returns the parallelism of this operation.
    */
   def getParallelism: Int = javaSet match {
     case ds: DataSource[_] => ds.getParallelism
@@ -535,11 +536,12 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @see org.apache.flink.api.java.Utils.CollectHelper
    */
   @throws(classOf[Exception])
-  def collect: List[T] = {
+  def collect: mutable.Buffer[T] = {
     val id = new AbstractID().toString
     javaSet.flatMap(new Utils.CollectHelper[T](id)).output(new DiscardingOutputFormat[T])
     val res = getExecutionEnvironment.execute()
-    res.getAccumulatorResult(id).asInstanceOf[List[T]]
+
+    res.getAccumulatorResult(id).asInstanceOf[java.util.List[T]].asScala
   }
 
   /**
@@ -621,6 +623,62 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     wrap(new GroupReduceOperator[T, R](javaSet,
       implicitly[TypeInformation[R]],
       reducer,
+      getCallLocationName()))
+  }
+
+  /**
+   *  Applies a CombineFunction on a grouped [[DataSet]].  A
+   *  CombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  the combine method once per partition for combining a group of
+   *  results. This operator is suitable for combining values into an
+   *  intermediate format before doing a proper groupReduce where the
+   *  data is shuffled across the node for further reduction. The
+   *  GroupReduce operator can also be supplied with a combiner by
+   *  implementing the RichGroupReduce function. The combine method of
+   *  the RichGroupReduce function demands input and output type to be
+   *  the same. The CombineFunction, on the other side, can have an
+   *  arbitrary output type.
+   */
+  def combineGroup[R: TypeInformation: ClassTag](
+      combiner: GroupCombineFunction[T, R]): DataSet[R] = {
+    if (combiner == null) {
+      throw new NullPointerException("Combine function must not be null.")
+    }
+    wrap(new GroupCombineOperator[T, R](javaSet,
+      implicitly[TypeInformation[R]],
+      combiner,
+      getCallLocationName()))
+  }
+
+  /**
+   *  Applies a CombineFunction on a grouped [[DataSet]].  A
+   *  CombineFunction is similar to a GroupReduceFunction but does not
+   *  perform a full data exchange. Instead, the CombineFunction calls
+   *  the combine method once per partition for combining a group of
+   *  results. This operator is suitable for combining values into an
+   *  intermediate format before doing a proper groupReduce where the
+   *  data is shuffled across the node for further reduction. The
+   *  GroupReduce operator can also be supplied with a combiner by
+   *  implementing the RichGroupReduce function. The combine method of
+   *  the RichGroupReduce function demands input and output type to be
+   *  the same. The CombineFunction, on the other side, can have an
+   *  arbitrary output type.
+   */
+  def combineGroup[R: TypeInformation: ClassTag](
+      fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Combine function must not be null.")
+    }
+    val combiner = new GroupCombineFunction[T, R] {
+      val cleanFun = clean(fun)
+      def combine(in: java.lang.Iterable[T], out: Collector[R]) {
+        cleanFun(in.iterator().asScala, out)
+      }
+    }
+    wrap(new GroupCombineOperator[T, R](javaSet,
+      implicitly[TypeInformation[R]],
+      combiner,
       getCallLocationName()))
   }
 

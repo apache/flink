@@ -49,7 +49,7 @@ public class SpargelTranslationTest {
 			;
 			final int NUM_ITERATIONS = 13;
 			
-			final int ITERATION_DOP = 77;
+			final int ITERATION_parallelism = 77;
 			
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -75,7 +75,7 @@ public class SpargelTranslationTest {
 				vertexIteration.addBroadcastSetForUpdateFunction(BC_SET_UPDATES_NAME, bcUpdate);
 				
 				vertexIteration.setName(ITERATION_NAME);
-				vertexIteration.setParallelism(ITERATION_DOP);
+				vertexIteration.setParallelism(ITERATION_parallelism);
 				
 				vertexIteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 				
@@ -93,7 +93,7 @@ public class SpargelTranslationTest {
 			// check the basic iteration properties
 			assertEquals(NUM_ITERATIONS, resultSet.getMaxIterations());
 			assertArrayEquals(new int[] {0}, resultSet.getKeyPositions());
-			assertEquals(ITERATION_DOP, iteration.getParallelism());
+			assertEquals(ITERATION_parallelism, iteration.getParallelism());
 			assertEquals(ITERATION_NAME, iteration.getName());
 			
 			assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
@@ -129,7 +129,7 @@ public class SpargelTranslationTest {
 			;
 			final int NUM_ITERATIONS = 13;
 			
-			final int ITERATION_DOP = 77;
+			final int ITERATION_parallelism = 77;
 			
 			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -154,7 +154,7 @@ public class SpargelTranslationTest {
 				vertexIteration.addBroadcastSetForUpdateFunction(BC_SET_UPDATES_NAME, bcVar);
 				
 				vertexIteration.setName(ITERATION_NAME);
-				vertexIteration.setParallelism(ITERATION_DOP);
+				vertexIteration.setParallelism(ITERATION_parallelism);
 				
 				vertexIteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 				
@@ -172,7 +172,7 @@ public class SpargelTranslationTest {
 			// check the basic iteration properties
 			assertEquals(NUM_ITERATIONS, resultSet.getMaxIterations());
 			assertArrayEquals(new int[] {0}, resultSet.getKeyPositions());
-			assertEquals(ITERATION_DOP, iteration.getParallelism());
+			assertEquals(ITERATION_parallelism, iteration.getParallelism());
 			assertEquals(ITERATION_NAME, iteration.getName());
 			
 			assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());

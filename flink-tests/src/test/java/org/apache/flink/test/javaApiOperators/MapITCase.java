@@ -42,7 +42,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class MapITCase extends MultipleProgramsTestBase {
 
-	public MapITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public MapITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

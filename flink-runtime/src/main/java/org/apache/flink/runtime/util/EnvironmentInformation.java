@@ -207,6 +207,7 @@ public class EnvironmentInformation {
 	 *
 	 * @param log The logger to log the information to.
 	 * @param componentName The component name to mention in the log.
+	 * @param commandLineArgs The arguments accompanying the starting the component.
 	 */
 	public static void logEnvironmentInfo(Logger log, String componentName, String[] commandLineArgs) {
 		if (log.isInfoEnabled()) {

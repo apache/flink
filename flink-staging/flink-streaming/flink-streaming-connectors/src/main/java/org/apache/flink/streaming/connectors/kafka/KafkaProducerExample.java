@@ -21,7 +21,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSink;
-import org.apache.flink.streaming.connectors.util.JavaDefaultStringSchema;
+import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
 import org.apache.flink.util.Collector;
 
 public class KafkaProducerExample {
@@ -36,21 +36,27 @@ public class KafkaProducerExample {
 			return;
 		}
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment().setDegreeOfParallelism(4);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment().setParallelism(4);
 
 		@SuppressWarnings({ "unused", "serial" })
 		DataStream<String> stream1 = env.addSource(new SourceFunction<String>() {
 			@Override
-			public void invoke(Collector<String> collector) throws Exception {
-				for (int i = 0; i < 100; i++) {
+			public void run(Collector<String> collector) throws Exception {
+				for (int i = 0; i < 20; i++) {
 					collector.collect("message #" + i);
 					Thread.sleep(100L);
 				}
 
 				collector.collect(new String("q"));
 			}
+
+			@Override
+			public void cancel() {				
+			}
+			
+			
 		}).addSink(
-				new KafkaSink<String>(topic, host + ":" + port, new JavaDefaultStringSchema())
+				new KafkaSink<String>(host + ":" + port, topic, new JavaDefaultStringSchema())
 		)
 		.setParallelism(3);
 

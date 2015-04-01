@@ -45,9 +45,9 @@ public class YarnTaskManagerRunner {
 
 
 	public static void main(final String[] args) throws IOException {
-
 		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN TaskManager", args);
 		EnvironmentInformation.checkJavaVersion();
+		org.apache.flink.runtime.util.SignalHandler.register(LOG);
 
 		// try to parse the command line arguments
 		final Configuration configuration;

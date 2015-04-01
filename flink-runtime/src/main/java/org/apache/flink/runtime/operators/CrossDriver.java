@@ -32,7 +32,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * Cross task which is executed by a Nephele task manager. The task has two
+ * Cross task which is executed by a Task Manager. The task has two
  * inputs and one or multiple outputs. It is provided with a CrossFunction
  * implementation.
  * <p>

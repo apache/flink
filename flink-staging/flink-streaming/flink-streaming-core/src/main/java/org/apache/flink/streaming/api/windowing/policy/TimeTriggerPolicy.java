@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
  *            policy.
  */
 public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
-		CloneableTriggerPolicy<DATA> {
+		CloneableTriggerPolicy<DATA>, CentralActiveTrigger<DATA> {
 
 	/**
 	 * auto generated version id
@@ -43,30 +43,6 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	protected long startTime;
 	public long granularity;
 	public TimestampWrapper<DATA> timestampWrapper;
-	protected long delay;
-
-	/**
-	 * This trigger policy triggers with regard to the time. The is measured
-	 * using a given {@link Timestamp} implementation. A point in time is always
-	 * represented as long. Therefore, parameters such as granularity can be set
-	 * as long value as well. If this value for the granularity is set to 2 for
-	 * example, the policy will trigger at every second point in time.
-	 * 
-	 * @param granularity
-	 *            The granularity of the trigger. If this value is set to x the
-	 *            policy will trigger at every x-th time point
-	 * @param timestampWrapper
-	 *            The {@link TimestampWrapper} to measure the time with. This
-	 *            can be either user defined of provided by the API.
-	 * @param timeWrapper
-	 *            This policy creates fake elements to not miss windows in case
-	 *            no element arrived within the duration of the window. This
-	 *            extractor should wrap a long into such an element of type
-	 *            DATA.
-	 */
-	public TimeTriggerPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper) {
-		this(granularity, timestampWrapper, 0);
-	}
 
 	/**
 	 * This is mostly the same as
@@ -81,21 +57,16 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 * @param timestampWrapper
 	 *            The {@link TimestampWrapper} to measure the time with. This
 	 *            can be either user defined of provided by the API.
-	 * @param delay
-	 *            A delay for the first trigger. If the start time given by the
-	 *            timestamp is x, the delay is y, and the granularity is z, the
-	 *            first trigger will happen at x+y+z.
 	 * @param timeWrapper
 	 *            This policy creates fake elements to not miss windows in case
 	 *            no element arrived within the duration of the window. This
 	 *            extractor should wrap a long into such an element of type
 	 *            DATA.
 	 */
-	public TimeTriggerPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper, long delay) {
-		this.startTime = timestampWrapper.getStartTime() + delay;
+	public TimeTriggerPolicy(long granularity, TimestampWrapper<DATA> timestampWrapper) {
+		this.startTime = timestampWrapper.getStartTime();
 		this.timestampWrapper = timestampWrapper;
 		this.granularity = granularity;
-		this.delay = delay;
 	}
 
 	/**
@@ -194,7 +165,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 	@Override
 	public TimeTriggerPolicy<DATA> clone() {
-		return new TimeTriggerPolicy<DATA>(granularity, timestampWrapper, delay);
+		return new TimeTriggerPolicy<DATA>(granularity, timestampWrapper);
 	}
 
 	@Override
@@ -213,10 +184,30 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		}
 	}
 
+	public long getSlideSize() {
+		return granularity;
+	}
+
 	@Override
 	public String toString() {
 		return "TimePolicy(" + granularity + ", " + timestampWrapper.getClass().getSimpleName()
 				+ ")";
+	}
+
+	public TimestampWrapper<DATA> getTimeStampWrapper() {
+		return timestampWrapper;
+	}
+
+	@Override
+	public Object[] notifyOnLastGlobalElement(DATA datapoint) {
+		LinkedList<Object> fakeElements = new LinkedList<Object>();
+		// check if there is more then one window border missed
+		// use > here. In case >= would fit, the regular call will do the job.
+		while (timestampWrapper.getTimestamp(datapoint) >= startTime + granularity) {
+			startTime += granularity;
+			fakeElements.add(startTime - 1);
+		}
+		return (Object[]) fakeElements.toArray();
 	}
 
 }

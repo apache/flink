@@ -31,7 +31,7 @@ public class HadoopMapredITCase extends JavaProgramTestBase {
 	protected void preSubmit() throws Exception {
 		textPath = createTempFile("text.txt", WordCountData.TEXT);
 		resultPath = getTempDirPath("result");
-		this.setDegreeOfParallelism(4);
+		this.setParallelism(4);
 	}
 
 	@Override

@@ -160,10 +160,13 @@ DataSet<Tuple2<K, Long>> outDegrees()
 DataSet<Tuple2<K, Long>> getDegrees()
 
 // get the number of vertices
-DataSet<Integer> numberOfVertices()
+long numberOfVertices()
 
 // get the number of edges
-DataSet<Integer> numberOfEdges()
+long numberOfEdges()
+
+// get a DataSet of Triplets<srcVertex, trgVertex, edge>
+DataSet<Triplet<K, VV, EV>> getTriplets()
 
 {% endhighlight %}
 
@@ -344,7 +347,7 @@ Gelly wraps Flink's [Spargel API](spargel_guide.html) to provide methods for ver
 Like in Spargel, the user only needs to implement two functions: a `VertexUpdateFunction`, which defines how a vertex will update its value
 based on the received messages and a `MessagingFunction`, which allows a vertex to send out messages for the next superstep.
 These functions are given as parameters to Gelly's `createVertexCentricIteration`, which returns a `VertexCentricIteration`. 
-The user can configure this iteration (set the name, the degree of parallelism, aggregators, etc.) and then run the computation, using the `runVertexCentricIteration` method:
+The user can configure this iteration (set the name, the parallelism, aggregators, etc.) and then run the computation, using the `runVertexCentricIteration` method:
 
 {% highlight java %}
 Graph<Long, Double, Double> graph = ...
@@ -357,8 +360,8 @@ VertexCentricIteration<Long, Double, Double, Double> iteration =
 // set the iteration name
 iteration.setName("Single Source Shortest Paths");
 
-// set the degree of parallelism
-iteration.setDegreeOfParallelism(16);
+// set the parallelism
+iteration.setParallelism(16);
 
 // run the computation
 graph.runVertexCentricIteration(iteration);
@@ -386,7 +389,7 @@ List<Vertex<Long, Long>> vertices = ...
 // create a list of edges with IDs = {(1, 2) (1, 3), (2, 4), (5, 6)}
 List<Edge<Long, Long>> edges = ...
 
-Graph<Long, Long, Long> graph = Graph.fromcollection(vertices, edges, env);
+Graph<Long, Long, Long> graph = Graph.fromCollection(vertices, edges, env);
 
 // will return false: 6 is an invalid ID
 graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>()); 
@@ -402,6 +405,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * PageRank
 * Single-Source Shortest Paths
 * Label Propagation
+* Simple Community Detection
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
 

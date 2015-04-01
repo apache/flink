@@ -31,7 +31,7 @@ import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;

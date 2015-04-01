@@ -32,7 +32,7 @@ public class MapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 
 	@Override
 	public void invoke() throws Exception {
-		while (readNext() != null) {
+		while (isRunning && readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -42,9 +42,4 @@ public class MapInvokable<IN, OUT> extends ChainableInvokable<IN, OUT> {
 		collector.collect(mapper.map(nextObject));
 	}
 
-	@Override
-	public void collect(IN record) {
-		nextObject = copy(record);
-		callUserFunctionAndLogException();
-	}
 }

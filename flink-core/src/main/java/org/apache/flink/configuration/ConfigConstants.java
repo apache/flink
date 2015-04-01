@@ -31,15 +31,28 @@ public final class ConfigConstants {
 	// ---------------------------- Parallelism -------------------------------
 
 	/**
-	 * The config parameter defining the default degree of parallelism for jobs.
+	 * The config parameter defining the default parallelism for jobs.
 	 */
-	public static final String DEFAULT_PARALLELIZATION_DEGREE_KEY = "parallelization.degree.default";
-	
+	public static final String DEFAULT_PARALLELISM_KEY = "parallelism.default";
+
+	/**
+	 * The deprecated config parameter defining the default parallelism for jobs.
+	 */
+	@Deprecated
+	public static final String DEFAULT_PARALLELISM_KEY_OLD = "parallelization.degree.default";
+
+
 	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this
 	 * value to 0 effectively disables fault tolerance.
 	 */
 	public static final String DEFAULT_EXECUTION_RETRIES_KEY = "execution-retries.default";
+
+	/**
+	 * Config parameter for the delay between execution retries. The value must be specified in the
+	 * notation "10 s" or "1 min" (style of Scala Finite Durations)
+	 */
+	public static final String DEFAULT_EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
 	
@@ -116,8 +129,7 @@ public final class ConfigConstants {
 	 * The key for the config parameter defining whether the memory manager allocates memory lazy.
 	 */
 	public static final String TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY = "taskmanager.memory.lazyalloc";
-	
-	
+
 	/**
 	 * The config parameter defining the number of buffers used in the network stack. This defines the
 	 * number of possible tasks and shuffles.
@@ -128,6 +140,12 @@ public final class ConfigConstants {
 	 * The config parameter defining the size of the buffers used in the network stack.
 	 */
 	public static final String TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY = "taskmanager.network.bufferSizeInBytes";
+
+	/**
+	 * The implementation to use for spillable/spilled intermediate results, which have both
+	 * synchronous and asynchronous implementations: "sync" or "async".
+	 */
+	public static final String TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "taskmanager.network.defaultIOMode";
 
 	/**
 	 * The config parameter defining the number of task slots of a task manager.
@@ -181,6 +199,35 @@ public final class ConfigConstants {
 	 * This value is limiting this cutoff to a absolute value.
 	 */
 	public static final String YARN_HEAP_LIMIT_CAP = "yarn.heap-limit-cap";
+
+	/**
+	 * Reallocate failed YARN containers.
+	 */
+	public static final String YARN_REALLOCATE_FAILED_CONTAINERS = "yarn.reallocate-failed";
+
+	/**
+	 * The maximum number of failed YARN containers before entirely stopping
+	 * the YARN session / job on YARN.
+	 *
+	 * By default, we take the number of of initially requested containers.
+	 */
+	public static final String YARN_MAX_FAILED_CONTAINERS = "yarn.maximum-failed-containers";
+
+	/**
+	 * Set the number of retries for failed YARN ApplicationMasters/JobManagers.
+	 * This value is usually limited by YARN.
+	 *
+	 * By default, its 1.
+	 */
+	public static final String YARN_APPLICATION_ATTEMPTS = "yarn.application-attempts";
+
+	/**
+	 * The heartbeat intervall between the Application Master and the YARN Resource Manager.
+	 *
+	 * The default value is 5 (seconds).
+	 */
+	public static final String YARN_HEARTBEAT_DELAY_SECONDS = "yarn.heartbeat-delay";
+
 
 	// ------------------------ Hadoop Configuration ------------------------
 
@@ -281,6 +328,9 @@ public final class ConfigConstants {
 
 	// ------------------------------ AKKA ------------------------------------
 
+	/**
+	 * Timeout for the startup of the actor system
+	 */
 	public static final String AKKA_STARTUP_TIMEOUT = "akka.startup-timeout";
 
 	/**
@@ -339,7 +389,7 @@ public final class ConfigConstants {
 	public static final String AKKA_ASK_TIMEOUT = "akka.ask.timeout";
 
 	/**
-	 * Timeout for all blocking calls
+	 * Timeout for all blocking calls that look up remote actors
 	 */
 	public static final String AKKA_LOOKUP_TIMEOUT = "akka.lookup.timeout";
 	
@@ -359,9 +409,9 @@ public final class ConfigConstants {
 	// ---------------------------- Parallelism -------------------------------
 	
 	/**
-	 * The default degree of parallelism for operations.
+	 * The default parallelism for operations.
 	 */
-	public static final int DEFAULT_PARALLELIZATION_DEGREE = 1;
+	public static final int DEFAULT_PARALLELISM = 1;
 	
 	/**
 	 * The default number of execution retries.
@@ -426,6 +476,12 @@ public final class ConfigConstants {
 	 * Default size of network stack buffers.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE = 32768;
+
+	/**
+	 * The implementation to use for spillable/spilled intermediate results, which have both
+	 * synchronous and asynchronous implementations: "sync" or "async".
+	 */
+	public static final String DEFAULT_TASK_MANAGER_NETWORK_DEFAULT_IO_MODE = "sync";
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.
@@ -559,6 +615,9 @@ public final class ConfigConstants {
 	 * Sets the number of local task managers
 	 */
 	public static final String LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER = "localinstancemanager.numtaskmanager";
+
+
+	public static final String LOCAL_INSTANCE_MANAGER_START_WEBSERVER = "localinstancemanager.start-webserver";
 	
 	// ------------------------------------------------------------------------
 	

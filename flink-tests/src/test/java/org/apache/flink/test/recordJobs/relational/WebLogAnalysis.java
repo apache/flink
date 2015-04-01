@@ -318,7 +318,7 @@ public class WebLogAnalysis implements Program, ProgramDescription {
 
 		// Create DataSinkContract for writing the result of the OLAP query
 		FileDataSink result = new FileDataSink(new CsvOutputFormat(), output, antiJoinVisits, "Result");
-		result.setDegreeOfParallelism(numSubTasks);
+		result.setParallelism(numSubTasks);
 		CsvOutputFormat.configureRecordFormat(result)
 			.recordDelimiter('\n')
 			.fieldDelimiter('|')

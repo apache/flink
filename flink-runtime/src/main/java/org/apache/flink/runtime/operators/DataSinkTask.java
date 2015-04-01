@@ -92,7 +92,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			initInputReaders();
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the input streams failed" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -156,7 +156,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 					input1 = sorter.getIterator();
 				} catch (Exception e) {
 					throw new RuntimeException("Initializing the input processing failed" +
-						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+							(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 				}
 				break;
 			default:

@@ -72,7 +72,7 @@ public class StreamDiscretizerTest {
 		};
 
 		TriggerPolicy<Integer> trigger = new TimeTriggerPolicy<Integer>(2L,
-				new TimestampWrapper<Integer>(myTimeStamp, 1), 2L);
+				new TimestampWrapper<Integer>(myTimeStamp, 3));
 
 		EvictionPolicy<Integer> eviction = new TimeEvictionPolicy<Integer>(4L,
 				new TimestampWrapper<Integer>(myTimeStamp, 1));

@@ -24,11 +24,11 @@ import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.plan.BulkIterationPlanNode;
-import org.apache.flink.compiler.plan.BulkPartialSolutionPlanNode;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plan.SinkPlanNode;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
+import org.apache.flink.optimizer.plan.BulkPartialSolutionPlanNode;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.graph.PageRankBasic.BuildOutgoingEdgeList;
 import org.apache.flink.examples.java.graph.PageRankBasic.Dampener;
@@ -37,7 +37,7 @@ import org.apache.flink.examples.java.graph.PageRankBasic.JoinVertexWithEdgesMat
 import org.apache.flink.examples.java.graph.PageRankBasic.RankAssigner;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.test.compiler.util.CompilerTestBase;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
@@ -68,7 +68,7 @@ public class PageRankCompilerTest extends CompilerTestBase{
 			IterativeDataSet<Tuple2<Long, Double>> iteration = pagesWithRanks.iterate(10);
 			
 			Configuration cfg = new Configuration();
-			cfg.setString(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
+			cfg.setString(Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND);
 			
 			DataSet<Tuple2<Long, Double>> newRanks = iteration
 					// join pages with outgoing edges and distribute rank

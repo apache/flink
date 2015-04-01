@@ -23,16 +23,15 @@ import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.util.Collector;
 
 /**
- * Non-grouped pre-reducer for tumbling eviction policy.
+ * Non-grouped pre-reducer for tumbling eviction policy (the slide size is the same as the window size).
  */
-public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
+public class TumblingPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
 
 	private static final long serialVersionUID = 1L;
 
 	private ReduceFunction<T> reducer;
 
 	private T reduced;
-	private int numOfElements = 0;
 	private TypeSerializer<T> serializer;
 
 	public TumblingPreReducer(ReduceFunction<T> reducer, TypeSerializer<T> serializer) {
@@ -40,16 +39,14 @@ public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggreg
 		this.serializer = serializer;
 	}
 
-	public boolean emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamWindow<T>> collector) {
 		if (reduced != null) {
-			StreamWindow<T> currentWindow = new StreamWindow<T>();
+			StreamWindow<T> currentWindow = createEmptyWindow();
 			currentWindow.add(reduced);
 			collector.collect(currentWindow);
 			reduced = null;
-			numOfElements = 0;
-			return true;
-		} else {
-			return false;
+		} else if (emitEmpty) {
+			collector.collect(createEmptyWindow());
 		}
 	}
 
@@ -59,14 +56,9 @@ public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggreg
 		} else {
 			reduced = reducer.reduce(serializer.copy(reduced), element);
 		}
-		numOfElements++;
 	}
 
 	public void evict(int n) {
-	}
-
-	public int size() {
-		return numOfElements;
 	}
 
 	@Override
@@ -77,6 +69,12 @@ public class TumblingPreReducer<T> implements WindowBuffer<T>, CompletePreAggreg
 	@Override
 	public String toString() {
 		return reduced.toString();
+	}
+
+	@Override
+	public WindowBuffer<T> emitEmpty() {
+		emitEmpty = true;
+		return this;
 	}
 
 }

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -76,7 +76,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The abstract base class for all tasks. Encapsulated common behavior and implements the main life-cycle
+ * The base class for all tasks. Encapsulated common behavior and implements the main life-cycle
  * of the user code.
  */
 public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
@@ -254,7 +254,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			initOutputs();
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the output handlers failed" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -339,7 +339,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Initializing the input processing failed" +
-					e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+						(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 			}
 
 			if (!this.running) {
@@ -420,7 +420,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Initializing the UDF" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 	}
 	
@@ -513,7 +513,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			if (this.stub != null) {
 				// collect the counters from the stub
 				if (FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext) != null) {
-					Map<String, Accumulator<?, ?>> accumulators = FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
+					Map<String, Accumulator<?, ?>> accumulators =
+							FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
 					RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
 				}
 			}
@@ -524,7 +525,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				try {
 					FunctionUtils.closeFunction(this.stub);
 				}
-				catch (Throwable t) {}
+				catch (Throwable t) {
+					// do nothing
+				}
 			}
 			
 			// if resettable driver invoke teardown
@@ -1002,16 +1005,16 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					localStub = initStub(userCodeFunctionType);
 				} catch (Exception e) {
 					throw new RuntimeException("Initializing the user code and the configuration failed" +
-						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+							(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 				}
 				
-				if (!(localStub instanceof FlatCombineFunction)) {
+				if (!(localStub instanceof GroupCombineFunction)) {
 					throw new IllegalStateException("Performing combining sort outside a reduce task!");
 				}
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(FlatCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
+					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));
@@ -1236,12 +1239,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * @param task The task that the output collector is created for.
 	 * @param config The configuration describing the output shipping strategies.
 	 * @param cl The classloader used to load user defined types.
+	 * @param eventualOutputs The output writers that this task forwards to the next task for each output.
+	 * @param outputOffset The offset to start to get the writers for the outputs
 	 * @param numOutputs The number of outputs described in the configuration.
 	 *
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
-	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs)
-			throws Exception
+	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl,
+			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs) throws Exception
 	{
 		if (numOutputs == 0) {
 			return null;
@@ -1464,7 +1469,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		for (int i = 0; i < tasks.size(); i++) {
 			try {
 				tasks.get(i).cancelTask();
-			} catch (Throwable t) {}
+			} catch (Throwable t) {
+				// do nothing
+			}
 		}
 	}
 	

@@ -19,12 +19,15 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -34,8 +37,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Input gate wrapper to union the input from multiple input gates.
- * <p>
- * Each input gate has input channels attached from which it reads data. At each input gate, the
+ *
+ * <p> Each input gate has input channels attached from which it reads data. At each input gate, the
  * input channels have unique IDs from 0 (inclusive) to the number of input channels (exclusive).
  *
  * <pre>
@@ -65,6 +68,8 @@ public class UnionInputGate implements InputGate {
 	/** The input gates to union. */
 	private final InputGate[] inputGates;
 
+	private final Set<InputGate> inputGatesWithRemainingData;
+
 	/** Data availability listener across all unioned input gates. */
 	private final InputGateListener inputGateListener;
 
@@ -85,12 +90,14 @@ public class UnionInputGate implements InputGate {
 		checkArgument(inputGates.length > 1, "Union input gate should union at least two input gates.");
 
 		this.inputGateToIndexOffsetMap = Maps.newHashMapWithExpectedSize(inputGates.length);
+		this.inputGatesWithRemainingData = Sets.newHashSetWithExpectedSize(inputGates.length);
 
 		int currentNumberOfInputChannels = 0;
 
 		for (InputGate inputGate : inputGates) {
 			// The offset to use for buffer or event instances received from this input gate.
 			inputGateToIndexOffsetMap.put(checkNotNull(inputGate), currentNumberOfInputChannels);
+			inputGatesWithRemainingData.add(inputGate);
 
 			currentNumberOfInputChannels += inputGate.getNumberOfInputChannels();
 		}
@@ -133,12 +140,26 @@ public class UnionInputGate implements InputGate {
 	@Override
 	public BufferOrEvent getNextBufferOrEvent() throws IOException, InterruptedException {
 
+		if (inputGatesWithRemainingData.isEmpty()) {
+			return null;
+		}
+
 		// Make sure to request the partitions, if they have not been requested before.
 		requestPartitions();
 
 		final InputGate inputGate = inputGateListener.getNextInputGateToReadFrom();
 
 		final BufferOrEvent bufferOrEvent = inputGate.getNextBufferOrEvent();
+
+		if (bufferOrEvent.isEvent()
+				&& bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class
+				&& inputGate.isFinished()) {
+
+			if (!inputGatesWithRemainingData.remove(inputGate)) {
+				throw new IllegalStateException("Couldn't find input gate in set of remaining " +
+						"input gates.");
+			}
+		}
 
 		// Set the channel index to identify the input channel (across all unioned input gates)
 		final int channelIndexOffset = inputGateToIndexOffsetMap.get(inputGate);
@@ -163,9 +184,9 @@ public class UnionInputGate implements InputGate {
 
 	/**
 	 * Data availability listener at all unioned input gates.
-	 * <p>
-	 * The listener registers itself at each input gate and is notified for *each incoming buffer*
-	 * at one of the unioned input gates.
+	 *
+	 * <p> The listener registers itself at each input gate and is notified for *each incoming
+	 * buffer* at one of the unioned input gates.
 	 */
 	private static class InputGateListener implements EventListener<InputGate> {
 

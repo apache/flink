@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import static org.junit.Assert.*;
-
+import org.apache.flink.core.memory.MemorySegment;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,12 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
-import org.apache.flink.runtime.io.disk.iomanager.ReadRequest;
-import org.apache.flink.runtime.io.disk.iomanager.WriteRequest;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class IOManagerAsyncTest {
 	
@@ -65,7 +60,7 @@ public class IOManagerAsyncTest {
 		
 		try {
 			final FileIOChannel.ID channelID = this.ioManager.createChannel();
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channelID);
+			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channelID);
 			
 			MemorySegment memSeg = new MemorySegment(new byte[32 * 1024]);
 			
@@ -75,15 +70,15 @@ public class IOManagerAsyncTest {
 				}
 				
 				writer.writeBlock(memSeg);
-				memSeg = writer.getNextReturnedSegment();
+				memSeg = writer.getNextReturnedBlock();
 			}
 			
 			writer.close();
 			
-			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channelID);
+			final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channelID);
 			for (int i = 0; i < NUM_IOS; i++) {
 				reader.readBlock(memSeg);
-				memSeg = reader.getNextReturnedSegment();
+				memSeg = reader.getNextReturnedBlock();
 				
 				for (int pos = 0; pos < memSeg.size(); pos += 4) {
 					if (memSeg.getInt(pos) != i) {
@@ -112,10 +107,10 @@ public class IOManagerAsyncTest {
 			}
 			
 			final FileIOChannel.ID channelID = this.ioManager.createChannel();
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channelID);
+			final BlockChannelWriter<MemorySegment> writer = this.ioManager.createBlockChannelWriter(channelID);
 			
 			for (int i = 0; i < NUM_IOS; i++) {
-				final MemorySegment memSeg = memSegs.isEmpty() ? writer.getNextReturnedSegment() : memSegs.remove(memSegs.size() - 1);
+				final MemorySegment memSeg = memSegs.isEmpty() ? writer.getNextReturnedBlock() : memSegs.remove(memSegs.size() - 1);
 				
 				for (int pos = 0; pos < memSeg.size(); pos += 4) {
 					memSeg.putInt(pos, i);
@@ -127,16 +122,16 @@ public class IOManagerAsyncTest {
 			
 			// get back the memory
 			while (memSegs.size() < NUM_SEGS) {
-				memSegs.add(writer.getNextReturnedSegment());
+				memSegs.add(writer.getNextReturnedBlock());
 			}
 			
-			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channelID);
+			final BlockChannelReader<MemorySegment> reader = this.ioManager.createBlockChannelReader(channelID);
 			while(!memSegs.isEmpty()) {
 				reader.readBlock(memSegs.remove(0));
 			}
 			
 			for (int i = 0; i < NUM_IOS; i++) {
-				final MemorySegment memSeg = reader.getNextReturnedSegment();
+				final MemorySegment memSeg = reader.getNextReturnedBlock();
 				
 				for (int pos = 0; pos < memSeg.size(); pos += 4) {
 					if (memSeg.getInt(pos) != i) {
@@ -150,7 +145,7 @@ public class IOManagerAsyncTest {
 			
 			// get back the memory
 			while (memSegs.size() < NUM_SEGS) {
-				memSegs.add(reader.getNextReturnedSegment());
+				memSegs.add(reader.getNextReturnedBlock());
 			}
 		}
 		catch (Exception ex) {

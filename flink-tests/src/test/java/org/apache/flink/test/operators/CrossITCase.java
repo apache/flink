@@ -24,7 +24,7 @@ import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.api.java.record.operators.CrossOperator;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.compiler.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
@@ -122,36 +122,36 @@ public class CrossITCase extends RecordAPITestBase {
 				new ContractITCaseInputFormat(), leftInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
-		input_left.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
+		input_left.setParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
 		FileDataSource input_right = new FileDataSource(
 				new ContractITCaseInputFormat(), rightInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
-		input_right.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
+		input_right.setParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
 
 		CrossOperator testCross = CrossOperator.builder(new TestCross()).build();
-		testCross.setDegreeOfParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
-		testCross.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+		testCross.setParallelism(config.getInteger("CrossTest#NoSubtasks", 1));
+		testCross.getParameters().setString(Optimizer.HINT_LOCAL_STRATEGY,
 				config.getString("CrossTest#LocalStrategy", ""));
 		if (config.getString("CrossTest#ShipStrategy", "").equals("BROADCAST_FIRST")) {
-			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
-					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
-			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
-					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
+			testCross.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY_FIRST_INPUT,
+					Optimizer.HINT_SHIP_STRATEGY_BROADCAST);
+			testCross.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY_SECOND_INPUT,
+					Optimizer.HINT_SHIP_STRATEGY_FORWARD);
 		} else if (config.getString("CrossTest#ShipStrategy", "").equals("BROADCAST_SECOND")) {
-			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_FIRST_INPUT,
-					PactCompiler.HINT_SHIP_STRATEGY_BROADCAST);
-			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY_SECOND_INPUT,
-					PactCompiler.HINT_SHIP_STRATEGY_FORWARD);
+			testCross.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY_FIRST_INPUT,
+					Optimizer.HINT_SHIP_STRATEGY_BROADCAST);
+			testCross.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY_SECOND_INPUT,
+					Optimizer.HINT_SHIP_STRATEGY_FORWARD);
 		} else {
-			testCross.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
+			testCross.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY,
 					config.getString("CrossTest#ShipStrategy", ""));
 		}
 
 		FileDataSink output = new FileDataSink(
 				new ContractITCaseOutputFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 
 		output.setInput(testCross);
 		testCross.setFirstInput(input_left);
@@ -170,10 +170,10 @@ public class CrossITCase extends RecordAPITestBase {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST,
-				PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND,
-				PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST,
-				PactCompiler.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND };
+		String[] localStrategies = { Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_FIRST,
+				Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_BLOCKED_OUTER_SECOND,
+				Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_FIRST,
+				Optimizer.HINT_LOCAL_STRATEGY_NESTEDLOOP_STREAMED_OUTER_SECOND };
 
 		String[] shipStrategies = { "BROADCAST_FIRST", "BROADCAST_SECOND"
 		// PactCompiler.HINT_SHIP_STRATEGY_BROADCAST

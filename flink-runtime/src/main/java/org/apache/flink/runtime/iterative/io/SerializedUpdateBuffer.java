@@ -46,7 +46,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
 	private ArrayDeque<MemorySegment> fullBuffers;
 
-	private BlockChannelWriter currentWriter;
+	private BlockChannelWriter<MemorySegment> currentWriter;
 
 	private final IOManager ioManager;
 
@@ -182,7 +182,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
 			// now close the writer and create the reader
 			currentWriter.close();
-			final BlockChannelReader reader = ioManager.createBlockChannelReader(currentWriter.getChannelID());
+			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(currentWriter.getChannelID());
 
 			// gather some memory segments to circulate while reading back the data
 			final List<MemorySegment> readSegments = new ArrayList<MemorySegment>();
@@ -263,14 +263,14 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
 		private final Deque<MemorySegment> fullBufferSource;
 
-		private final BlockChannelReader spilledBufferSource;
+		private final BlockChannelReader<MemorySegment> spilledBufferSource;
 
 		private int spilledBuffersRemaining;
 
 		private int requestsRemaining;
 
 		private ReadEnd(MemorySegment firstMemSegment, LinkedBlockingQueue<MemorySegment> emptyBufferTarget,
-										Deque<MemorySegment> fullBufferSource, BlockChannelReader spilledBufferSource,
+										Deque<MemorySegment> fullBufferSource, BlockChannelReader<MemorySegment> spilledBufferSource,
 										List<MemorySegment> emptyBuffers, int numBuffersSpilled)
 			throws IOException {
 			super(firstMemSegment, firstMemSegment.getInt(0), HEADER_LENGTH);

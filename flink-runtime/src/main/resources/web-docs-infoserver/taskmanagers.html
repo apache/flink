@@ -39,9 +39,49 @@ under the License.
     <!-- Scripts from Bootstrap -->
     <script src="js/jquery-2.1.0.js"></script>
     <script src="js/bootstrap.js"></script>
-    
+
+    <!-- Scripts and CSS for the visualization -->
+    <link rel="stylesheet" href="css/rickshaw.min.css">
+    <script src="js/d3.min.js"></script>
+    <script src="js/d3.layout.min.js"></script>
+    <script src="js/rickshaw.min.js"></script>
+
+    <style>
+    .chart_container {
+        position: relative;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+    .chart {
+        position: relative;
+        left: 65px;
+    }
+    .y_axis {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 60px;
+    }
+    .y_axis-load {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 60px;
+        right: 0px;
+    }
+    .axis_label {
+        position:absolute;
+        text-align: center;
+        width: inherit;
+    }
+
+    .legend {
+        display: inline-block;
+        vertical-align: top;
+        margin: -50px 0 0 10px;
+    }
+    </style>
+
     <!-- Scripts from Flink -->
-	<script type="text/javascript" src="js/jquery.flot.min.js"></script>
 	<script type="text/javascript" src="js/helpers.js"></script>
 	<script type="text/javascript" src="js/taskmanager.js"></script>
 	<script type="text/javascript" src="js/jcanvas.min.js"></script>
@@ -52,7 +92,7 @@ under the License.
 		$.ajax({ url : "menu?get=taskmanagers", type : "GET", cache: false, success : function(html) {
 			$("#side-menu").empty();
 			$("#side-menu").append(html);
-		}, dataType : "html",
+		}, dataType : "html"
 		});
 	});
   	</script>
@@ -101,17 +141,36 @@ under the License.
 
         <div class="row">
           <div class="col-lg-12">
-            <h1>Task Managers <small>Overview over connected Task Managers</small></h1>
+            <h1 id="page-title">Task Managers</h1>
             <ol class="breadcrumb">
               <li><a href="index.html"><i class="icon-dashboard"></i> Dashboard</a></li>
-              <li class="active"><i class="icon-file-alt"></i> Task Managers</li>
+              <li class="active"><i class="icon-file-alt"></i>Task Managers</li>
             </ol>
           </div>
+          <div class="col-lg-12" id="metricsControl" style="padding-bottom:25px;">
+              <button id="metrics-limit-3" onclick="updateLimit(this)" class="btn btn-default active">Show metrics for 3 TaskManagers</button>
+              <button id="metrics-limit-all" onclick="updateLimit(this)" class="btn btn-default">Show metrics for all TaskManagers</button>
+              <button id="metrics-limit-none" onclick="updateLimit(this)" class="btn btn-default">Disable metrics</button>
+          </div>
+
 		  <div class="col-lg-12">
 	          <div class="table-responsive" id="taskmanagerTable">
+                  <table class="table table-bordered table-hover table-striped">
+                      <tr id="taskmanagerTable-header"><th>TaskManager</th>
+                          <th>Memory Statistics</th>
+                          <th>Information</th>
+                      </tr>
+                  </table>
 	          </div>
 	      </div>
-          <div class="col-lg-12" id="taskManagerStackTrace"></div>
+          <div class="col-lg-12" style="display:none">
+              <i class="fa fa-times" style="position:absolute; right:20px; top:20px;" onclick="$(this).parent().hide();"></i>
+              <div id="allMetrics"></div>
+          </div>
+          <div class="col-lg-12" style="display:none">
+              <i class="fa fa-times" style="position:absolute; right:20px; top:20px;" onclick="$(this).parent().hide();"></i>
+              <div id="taskManagerStackTrace"></div>
+          </div>
         </div><!-- /.row -->
 
       </div><!-- /#page-wrapper -->

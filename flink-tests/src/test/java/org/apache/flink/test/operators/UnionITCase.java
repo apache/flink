@@ -111,20 +111,20 @@ public class UnionITCase extends RecordAPITestBase {
 			new ContractITCaseInputFormat(), input1Path);
 		DelimitedInputFormat.configureDelimitedFormat(input1)
 			.recordDelimiter('\n');
-		input1.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
+		input1.setParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 		
 		FileDataSource input2 = new FileDataSource(
 				new ContractITCaseInputFormat(), input2Path);
 		DelimitedInputFormat.configureDelimitedFormat(input2)
 			.recordDelimiter('\n');
-		input2.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
+		input2.setParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 		
 		MapOperator testMapper = MapOperator.builder(new TestMapper()).build();
-		testMapper.setDegreeOfParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
+		testMapper.setParallelism(config.getInteger("UnionTest#NoSubtasks", 1));
 
 		FileDataSink output = new FileDataSink(
 				new ContractITCaseOutputFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 
 		output.setInput(testMapper);
 

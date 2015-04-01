@@ -19,10 +19,10 @@
 package org.apache.flink.streaming.io;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
-public class IndexedMutableReader<T extends IOReadableWritable> extends MutableRecordReader<T> {
+public class IndexedMutableReader<T extends IOReadableWritable> extends
+		StreamingMutableRecordReader<T> {
 
 	InputGate reader;
 

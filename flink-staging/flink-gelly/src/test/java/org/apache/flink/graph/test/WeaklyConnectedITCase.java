@@ -32,7 +32,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class WeaklyConnectedITCase extends MultipleProgramsTestBase {
 
-	public WeaklyConnectedITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public WeaklyConnectedITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
@@ -62,7 +62,7 @@ public class WeaklyConnectedITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		graph.isWeaklyConnected(10).writeAsText(resultPath);
+		env.fromElements(graph.isWeaklyConnected(10)).writeAsText(resultPath);
 		
 		env.execute();
 		expectedResult = "true\n";
@@ -78,7 +78,7 @@ public class WeaklyConnectedITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
 		
-		graph.isWeaklyConnected(10).writeAsText(resultPath);
+		env.fromElements(graph.isWeaklyConnected(10)).writeAsText(resultPath);
 		
 		env.execute();
 		expectedResult = "false\n";
@@ -94,7 +94,7 @@ public class WeaklyConnectedITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env).getUndirected();
 		
-		graph.isWeaklyConnected(10).writeAsText(resultPath);
+		env.fromElements(graph.isWeaklyConnected(10)).writeAsText(resultPath);
 		
 		env.execute();
 		expectedResult = "true\n";
@@ -110,7 +110,7 @@ public class WeaklyConnectedITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getDisconnectedLongLongEdgeData(env), env).getUndirected();
 		
-		graph.isWeaklyConnected(10).writeAsText(resultPath);
+		env.fromElements(graph.isWeaklyConnected(10)).writeAsText(resultPath);
 		
 		env.execute();
 		expectedResult = "false\n";

@@ -24,8 +24,9 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 
 	void setBufferPoolOwner(BufferPoolOwner owner);
 
-	void destroy() throws IOException;
+	void lazyDestroy();
 
+	@Override
 	boolean isDestroyed();
 
 	int getNumberOfRequiredMemorySegments();

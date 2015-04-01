@@ -24,10 +24,10 @@ import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
@@ -114,29 +114,29 @@ public class ReduceITCase extends RecordAPITestBase {
 				new ContractITCaseInputFormat(), inPath);
 		DelimitedInputFormat.configureDelimitedFormat(input)
 			.recordDelimiter('\n');
-		input.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
+		input.setParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
 
 		ReduceOperator testReducer = ReduceOperator.builder(new TestReducer(), StringValue.class, 0)
 			.build();
-		testReducer.setDegreeOfParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
-		testReducer.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+		testReducer.setParallelism(config.getInteger("ReduceTest#NoSubtasks", 1));
+		testReducer.getParameters().setString(Optimizer.HINT_LOCAL_STRATEGY,
 				config.getString("ReduceTest#LocalStrategy", ""));
-		testReducer.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
+		testReducer.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY,
 				config.getString("ReduceTest#ShipStrategy", ""));
 
 		FileDataSink output = new FileDataSink(
 				new ContractITCaseOutputFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 
 		output.setInput(testReducer);
 		testReducer.setInput(input);
 
 		Plan plan = new Plan(output);
 
-		PactCompiler pc = new PactCompiler(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(plan);
 
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+		JobGraphGenerator jgg = new JobGraphGenerator();
 		return jgg.compileJobGraph(op);
 
 	}
@@ -151,8 +151,8 @@ public class ReduceITCase extends RecordAPITestBase {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT };
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH };
+		String[] localStrategies = { Optimizer.HINT_LOCAL_STRATEGY_SORT };
+		String[] shipStrategies = { Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH };
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

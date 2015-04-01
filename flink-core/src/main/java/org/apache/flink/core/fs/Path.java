@@ -37,6 +37,8 @@ import org.apache.flink.util.StringUtils;
 /**
  * Names a file or directory in a {@link FileSystem}. Path strings use slash as
  * the directory separator. A path string is absolute if it begins with a slash.
+ *
+ * Tailing slashes are removed from the path.
  */
 public class Path implements IOReadableWritable, Serializable {
 	
@@ -71,7 +73,7 @@ public class Path implements IOReadableWritable, Serializable {
 	 * Constructs a path object from a given URI.
 	 * 
 	 * @param uri
-	 *        the URI to contruct the path object from
+	 *        the URI to construct the path object from
 	 */
 	public Path(URI uri) {
 		this.uri = uri;
@@ -143,20 +145,24 @@ public class Path implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Checks if the provided path string is either null or has zero length and throws
+ 	 * Checks if the provided path string is either null or has zero length and throws
 	 * a {@link IllegalArgumentException} if any of the two conditions apply.
-	 * 
+	 * In addition, leading and tailing whitespaces are removed.
+	 *
 	 * @param path
 	 *        the path string to be checked
+	 * @return The checked and trimmed path.
 	 */
-	private void checkPathArg(String path) {
+	private String checkAndTrimPathArg(String path) {
 		// disallow construction of a Path from an empty string
 		if (path == null) {
 			throw new IllegalArgumentException("Can not create a Path from a null string");
 		}
+		path = path.trim();
 		if (path.length() == 0) {
 			throw new IllegalArgumentException("Can not create a Path from an empty string");
 		}
+		return path;
 	}
 
 	/**
@@ -167,7 +173,7 @@ public class Path implements IOReadableWritable, Serializable {
 	 *        the string to construct a path from
 	 */
 	public Path(String pathString) {
-		checkPathArg(pathString);
+		pathString = checkAndTrimPathArg(pathString);
 
 		// We can't use 'new URI(String)' directly, since it assumes things are
 		// escaped, which we don't require of Paths.
@@ -217,7 +223,7 @@ public class Path implements IOReadableWritable, Serializable {
 	 *        the path string
 	 */
 	public Path(String scheme, String authority, String path) {
-		checkPathArg(path);
+		path = checkAndTrimPathArg(path);
 		initialize(scheme, authority, path);
 	}
 
@@ -247,9 +253,18 @@ public class Path implements IOReadableWritable, Serializable {
 	 * @return the normalized path string
 	 */
 	private String normalizePath(String path) {
-		// remove double slashes & backslashes
-		path = path.replace("//", "/");
+
+		// remove leading and tailing whitespaces
+		path = path.trim();
+
+		// remove consecutive slashes & backslashes
 		path = path.replace("\\", "/");
+		path = path.replaceAll("/+", "/");
+
+		// remove tailing separator
+		if(!path.equals(SEPARATOR) && path.endsWith(SEPARATOR)) {
+			path = path.substring(0, path.length() - SEPARATOR.length());
+		}
 
 		return path;
 	}
@@ -306,23 +321,19 @@ public class Path implements IOReadableWritable, Serializable {
 	}
 
 	/**
-	 * Returns the final component of this path.
+	 * Returns the final component of this path, i.e., everything that follows the last separator.
 	 * 
 	 * @return the final component of the path
 	 */
 	public String getName() {
 		final String path = uri.getPath();
-		if (path.endsWith(SEPARATOR)) {
-			final int slash = path.lastIndexOf(SEPARATOR, path.length() - SEPARATOR.length() - 1);
-			return path.substring(slash + 1, path.length() - SEPARATOR.length());
-		} else {
-			final int slash = path.lastIndexOf(SEPARATOR);
-			return path.substring(slash + 1);
-		}
+		final int slash = path.lastIndexOf(SEPARATOR);
+		return path.substring(slash + 1);
 	}
 
 	/**
-	 * Returns the parent of a path or <code>null</code> if at root.
+	 * Returns the parent of a path, i.e., everything that precedes the last separator
+	 * or <code>null</code> if at root.
 	 * 
 	 * @return the parent of a path or <code>null</code> if at root.
 	 */

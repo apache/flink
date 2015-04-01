@@ -40,7 +40,7 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	
 	protected String name;								// the name of the contract instance. optional.
 		
-	private int degreeOfParallelism = -1;				// the number of parallel instances to use. -1, if unknown
+	private int parallelism = -1;				// the number of parallel instances to use. -1, if unknown
 
 	/**
 	 * The return type of the user function.
@@ -160,25 +160,50 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	}
 
 	/**
-	 * Gets the degree of parallelism for this contract instance. The degree of parallelism denotes
+	 * Gets the parallelism for this contract instance. The parallelism denotes
 	 * how many parallel instances of the user function will be spawned during the execution. If this
 	 * value is <code>-1</code>, then the system will decide the number of parallel instances by itself.
 	 * 
-	 * @return The degree of parallelism.
+	 * @return The parallelism.
+	 * @deprecated Please use {@link #getParallelism}
 	 */
+	@Deprecated
 	public int getDegreeOfParallelism() {
-		return this.degreeOfParallelism;
+		return getParallelism();
 	}
 
 	/**
-	 * Sets the degree of parallelism for this contract instance. The degree of parallelism denotes
+	 * Gets the parallelism for this contract instance. The parallelism denotes
+	 * how many parallel instances of the user function will be spawned during the execution. If this
+	 * value is <code>-1</code>, then the system will decide the number of parallel instances by itself.
+	 *
+	 * @return The parallelism.
+	 */
+	public int getParallelism() {
+		return this.parallelism;
+	}
+
+	/**
+	 * Sets the parallelism for this contract instance. The parallelism denotes
 	 * how many parallel instances of the user function will be spawned during the execution. Set this
 	 * value to <code>-1</code> to let the system decide on its own.
 	 * 
-	 * @param degree The number of parallel instances to spawn. -1, if unspecified.
+	 * @param parallelism The number of parallel instances to spawn. -1, if unspecified.
+	 * @deprecated Please use {@link #setParallelism}
 	 */
-	public void setDegreeOfParallelism(int degree) {
-		this.degreeOfParallelism = degree;
+	@Deprecated
+	public void setDegreeOfParallelism(int parallelism) {
+		setParallelism(parallelism);
+	}
+	/**
+	 * Sets the parallelism for this contract instance. The parallelism denotes
+	 * how many parallel instances of the user function will be spawned during the execution. Set this
+	 * value to <code>-1</code> to let the system decide on its own.
+	 *
+	 * @param parallelism The number of parallel instances to spawn. -1, if unspecified.
+	 */
+	public void setParallelism(int parallelism) {
+		this.parallelism = parallelism;
 	}
 	
 	

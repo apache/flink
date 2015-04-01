@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.yarn
 
 import java.io.{PrintWriter, FileWriter, BufferedWriter}
@@ -23,10 +22,11 @@ import java.security.PrivilegedAction
 
 import akka.actor._
 import org.apache.flink.client.CliFrontend
-import org.apache.flink.configuration.{Configuration, ConfigConstants}
+import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
+import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.yarn.Messages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
@@ -44,10 +44,15 @@ object ApplicationMaster {
   val MODIFIED_CONF_FILE = "flink-conf-modified.yaml"
   val MAX_REGISTRATION_DURATION = "5 minutes"
 
-  def main(args: Array[String]): Unit ={
+  def main(args: Array[String]): Unit = {
+
     val yarnClientUsername = System.getenv(FlinkYarnClient.ENV_CLIENT_USERNAME)
-    LOG.info(s"YARN daemon runs as ${UserGroupInformation.getCurrentUser.getShortUserName}" +
-      s"' setting user to execute Flink ApplicationMaster/JobManager to $yarnClientUsername'")
+    LOG.info(s"YARN daemon runs as ${UserGroupInformation.getCurrentUser.getShortUserName} " +
+      s"setting user to execute Flink ApplicationMaster/JobManager to ${yarnClientUsername}")
+
+    EnvironmentInformation.logEnvironmentInfo(LOG, "YARN ApplicationMaster/JobManager", args)
+    EnvironmentInformation.checkJavaVersion()
+    org.apache.flink.runtime.util.SignalHandler.register(LOG)
 
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)
 
@@ -96,11 +101,15 @@ object ApplicationMaster {
           if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) != -1) {
             LOG.info("Starting Job Manger web frontend.")
             config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
+            config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0); // set port to 0.
             webserver = new WebInfoServer(config, jobManager, archiver)
             webserver.start()
           }
 
-          val jobManagerWebPort = if (webserver == null) -1 else webserver.getServerPort
+          val jobManagerWebPort = if (webserver == null) {
+            LOG.warn("Web server is null. It will not be accessible through YARN")
+            -1
+          } else webserver.getServerPort
 
           // generate configuration file for TaskManagers
           generateConfigurationFile(s"$currDir/$MODIFIED_CONF_FILE", currDir, ownHostname,
@@ -161,7 +170,7 @@ object ApplicationMaster {
     if(slots != -1){
       output.println(s"${ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS}: $slots")
       output.println(
-        s"${ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY}: ${slots*taskManagerCount}")
+        s"${ConfigConstants.DEFAULT_PARALLELISM_KEY}: ${slots*taskManagerCount}")
     }
 
     output.println(s"${ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION}: " +
@@ -194,10 +203,12 @@ object ApplicationMaster {
     (Configuration, ActorSystem, ActorRef, ActorRef) = {
 
     LOG.info("Starting JobManager for YARN")
-    val args = Array[String]("--configDir", currDir)
+    LOG.info("Loading config from: {}", currDir)
 
-    LOG.info(s"Config path: $currDir.")
-    val (configuration, _, _, _) = JobManager.parseArgs(args)
+    GlobalConfiguration.loadConfiguration(currDir)
+    val configuration = GlobalConfiguration.getConfiguration()
+
+    configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, currDir)
 
     // add dynamic properties to JobManager configuration.
     val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)
@@ -225,7 +236,7 @@ object ApplicationMaster {
 
     val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
       libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
-      delayBetweenRetries, timeout) with YarnJobManager)
+      delayBetweenRetries, timeout) with ApplicationMasterActor)
 
     LOG.debug("Starting JobManager actor")
     val jobManager = JobManager.startActor(jobManagerProps, jobManagerSystem)
