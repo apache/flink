@@ -91,6 +91,7 @@ public class StreamCrossOperator<I1, I2> extends
 		 * @return The crossed data streams
 		 * 
 		 */
+		@SuppressWarnings("unchecked")
 		public <R> SingleOutputStreamOperator<R, ?> with(CrossFunction<I1, I2, R> function) {
 			TypeInformation<R> outTypeInfo = TypeExtractor.getCrossReturnTypes(function,
 					op.input1.getType(), op.input2.getType());
@@ -101,7 +102,7 @@ public class StreamCrossOperator<I1, I2> extends
 
 			streamGraph.setInvokable(id, invokable);
 
-			return setType(outTypeInfo);
+			return ((SingleOutputStreamOperator<R, ?>) this).returns(outTypeInfo);
 
 		}
 
