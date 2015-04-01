@@ -236,6 +236,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 * 
 		 * @return The joined data stream.
 		 */
+		@SuppressWarnings("unchecked")
 		public <OUT> SingleOutputStreamOperator<OUT, ?> with(JoinFunction<I1, I2, OUT> joinFunction) {
 
 			TypeInformation<OUT> outType = TypeExtractor.getJoinReturnTypes(joinFunction,
@@ -247,7 +248,7 @@ public class StreamJoinOperator<I1, I2> extends
 
 			streamGraph.setInvokable(id, invokable);
 
-			return setType(outType);
+			return ((SingleOutputStreamOperator<OUT, ?>) this).returns(outType);
 		}
 	}
 

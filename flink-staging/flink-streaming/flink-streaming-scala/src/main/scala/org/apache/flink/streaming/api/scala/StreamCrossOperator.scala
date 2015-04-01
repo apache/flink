@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.ExecutionConfig
-
 import scala.reflect.ClassTag
 import org.apache.commons.lang.Validate
 import org.apache.flink.api.common.functions.CrossFunction
@@ -33,6 +32,7 @@ import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.datastream.temporaloperator.TemporalWindow
 import java.util.concurrent.TimeUnit
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 
 class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends
   TemporalOperator[I1, I2, StreamCrossOperator.CrossWindow[I1, I2]](i1, i2) {
@@ -89,8 +89,9 @@ object StreamCrossOperator {
 
       javaStream.getExecutionEnvironment().getStreamGraph().setInvokable(javaStream.getId(),
         invokable)
-
-      javaStream.setType(implicitly[TypeInformation[R]])
+        
+      val js = javaStream.asInstanceOf[SingleOutputStreamOperator[R,_]]
+      js.returns(implicitly[TypeInformation[R]]).asInstanceOf[SingleOutputStreamOperator[R,_]]
     }
     
     override def every(length: Long, timeUnit: TimeUnit): CrossWindow[I1, I2] = {
