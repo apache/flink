@@ -1,5 +1,6 @@
 ---
 title: "Language-Integrated Queries (Table API)"
+is_beta: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
