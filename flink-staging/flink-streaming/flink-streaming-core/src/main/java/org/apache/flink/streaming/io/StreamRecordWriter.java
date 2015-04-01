@@ -39,7 +39,8 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		this(writer, channelSelector, 1000);
 	}
 
-	public StreamRecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector, long timeout) {
+	public StreamRecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector,
+			long timeout) {
 		super(writer, channelSelector);
 
 		this.timeout = timeout;
@@ -57,26 +58,28 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 
 			flush();
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+			// Do nothing here
 		}
 	}
 
 	private class OutputFlusher extends Thread {
 		private volatile boolean running = true;
-		
+
 		public void terminate() {
 			running = false;
 		}
-		
+
 		@Override
 		public void run() {
 			while (running) {
 				try {
 					flush();
 					Thread.sleep(timeout);
-				} catch (Exception e) {
+				} catch (InterruptedException e) {
+					// Do nothing here
+				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
 			}
