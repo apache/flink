@@ -292,7 +292,12 @@ function processTMdata(json) {
         // cpu load
         var cpuLoadValue = Number((metricsJSON.gauges["cpuLoad"].value*100).toFixed(2));
         taskManagerMemory[tm.instanceID]["cpuLoad"].push({x:time, y:cpuLoadValue });
-        $("#"+tmRowIdCssName+"-cpuLoad").html(cpuLoadValue);
+        if(cpuLoadValue != -100){
+          $("#"+tmRowIdCssName+"-cpuLoad").html(cpuLoadValue);
+        } else {
+          $("#"+tmRowIdCssName+"-cpuLoad").html("NA"+getTooltipHTML("CPU Load is unavailable as the java version is not 1.7 or above"));
+        }
+
 
         // generate summary for the last summaryTime minutes
         var summaryStats = generateSummaryFor(taskManagerMemory[tm.instanceID],summaryTime);
@@ -425,6 +430,10 @@ function generateSummaryFor(stats,time){
     var summary = {};
     var numElements = time*12;
     for(var key in stats){
+        if(key=="cpuLoad" && stats[key][0] && stats[key][0]['y']==-100){
+            summary[key]="NA";
+            continue;
+        }
         var prevValues = stats[key].slice(numElements*-1);
         var sum = (prevValues.reduce(function(p,q){return {x:p.x+q.x,y:p.y+q.y}})).y;
         var avg = Number((sum/(prevValues.length)).toFixed(2));
