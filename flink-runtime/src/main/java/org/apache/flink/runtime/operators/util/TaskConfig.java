@@ -25,16 +25,10 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
-import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.api.common.aggregators.AggregatorWithName;
-import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
+import org.apache.flink.api.common.accumulators.ConvergenceCriterion;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -51,7 +45,6 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.PactDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
-import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
 /**
@@ -191,17 +184,9 @@ public class TaskConfig implements Serializable {
 	
 	private static final String ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX = "iterative.head.out.";
 	
-	private static final String ITERATION_HEAD_SYNC_OUT_INDEX = "iterative.head.sync-index.";
-	
 	private static final String ITERATION_CONVERGENCE_CRITERION = "iterative.terminationCriterion";
 	
-	private static final String ITERATION_CONVERGENCE_CRITERION_AGG_NAME = "iterative.terminationCriterion.agg.name";
-	
-	private static final String ITERATION_NUM_AGGREGATORS = "iterative.num-aggs";
-	
-	private static final String ITERATION_AGGREGATOR_NAME_PREFIX = "iterative.agg.name.";
-	
-	private static final String ITERATION_AGGREGATOR_PREFIX = "iterative.agg.data.";
+	private static final String ITERATION_CONVERGENCE_CRITERION_ACC_NAME = "iterative.terminationCriterion.acc.name";
 	
 	private static final String ITERATION_SOLUTION_SET_SERIALIZER = "iterative.ss-serializer";
 	
@@ -872,21 +857,6 @@ public class TaskConfig implements Serializable {
 		return this.config.getBoolean(ITERATION_WORKSET_MARKER, false);
 	}
 	
-	public void setIterationHeadIndexOfSyncOutput(int outputIndex) {
-		if (outputIndex < 0) {
-			throw new IllegalArgumentException();
-		}
-		this.config.setInteger(ITERATION_HEAD_SYNC_OUT_INDEX, outputIndex);
-	}
-	
-	public int getIterationHeadIndexOfSyncOutput() {
-		int outputIndex = this.config.getInteger(ITERATION_HEAD_SYNC_OUT_INDEX, -1);
-		if (outputIndex < 0) {
-			throw new IllegalArgumentException();
-		}
-		return outputIndex;
-	}
-	
 	public void setIterationHeadFinalOutputConfig(TaskConfig conf) {
 		this.config.addAll(conf.config, ITERATION_HEAD_FINAL_OUT_CONFIG_PREFIX);
 	}
@@ -914,62 +884,7 @@ public class TaskConfig implements Serializable {
 		return getTypeComparatorFactory(ITERATION_SOLUTION_SET_COMPARATOR,
 			ITERATION_SOLUTION_SET_COMPARATOR_PARAMETERS, cl);
 	}
-
-	public void addIterationAggregator(String name, Aggregator<?> aggregator) {
-		int num = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
-		this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, name);
-		try {
-				InstantiationUtil.writeObjectToConfig(aggregator, this.config, ITERATION_AGGREGATOR_PREFIX + num);
-		} catch (IOException e) {
-				throw new RuntimeException("Error while writing the aggregator object to the task configuration.");
-		}
-		this.config.setInteger(ITERATION_NUM_AGGREGATORS, num + 1);
-	}
 	
-	public void addIterationAggregators(Collection<AggregatorWithName<?>> aggregators) {
-		int num = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
-		for (AggregatorWithName<?> awn : aggregators) {
-			this.config.setString(ITERATION_AGGREGATOR_NAME_PREFIX + num, awn.getName());
-			try {
-				InstantiationUtil.writeObjectToConfig(awn.getAggregator(), this.config, ITERATION_AGGREGATOR_PREFIX + num);
-			} catch (IOException e) {
-				throw new RuntimeException("Error while writing the aggregator object to the task configuration.");
-			}
-			num++;
-		}
-		this.config.setInteger(ITERATION_NUM_AGGREGATORS, num);
-	}
-	
-	@SuppressWarnings("unchecked")
-	public Collection<AggregatorWithName<?>> getIterationAggregators(ClassLoader cl) {
-		final int numAggs = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
-		if (numAggs == 0) {
-			return Collections.emptyList();
-		}
-		
-		List<AggregatorWithName<?>> list = new ArrayList<AggregatorWithName<?>>(numAggs);
-		for (int i = 0; i < numAggs; i++) {
-			Aggregator<Value> aggObj;
-			try {
-				aggObj = (Aggregator<Value>) InstantiationUtil.readObjectFromConfig(
-						this.config, ITERATION_AGGREGATOR_PREFIX + i, cl);
-			} catch (IOException e) {
-					throw new RuntimeException("Error while reading the aggregator object from the task configuration.");
-			} catch (ClassNotFoundException e) {
-					throw new RuntimeException("Error while reading the aggregator object from the task configuration. " +
-				"Aggregator class not found.");
-			}
-			if (aggObj == null) {
-				throw new RuntimeException("Missing config entry for aggregator.");
-			}
-			String name = this.config.getString(ITERATION_AGGREGATOR_NAME_PREFIX + i, null);
-			if (name == null) {
-				throw new RuntimeException("Missing config entry for aggregator.");
-			}
-			list.add(new AggregatorWithName<Value>(name, aggObj));
-		}
-		return list;
-	}
 	
 	public void setConvergenceCriterion(String aggregatorName, ConvergenceCriterion<?> convCriterion) {
 		try {
@@ -977,14 +892,13 @@ public class TaskConfig implements Serializable {
 		} catch (IOException e) {
 			throw new RuntimeException("Error while writing the convergence criterion object to the task configuration.");
 		}
-		this.config.setString(ITERATION_CONVERGENCE_CRITERION_AGG_NAME, aggregatorName);
+		this.config.setString(ITERATION_CONVERGENCE_CRITERION_ACC_NAME, aggregatorName);
 	}
 
-	@SuppressWarnings("unchecked")
-	public <T extends Value> ConvergenceCriterion<T> getConvergenceCriterion(ClassLoader cl) {
-		ConvergenceCriterion<T> convCriterionObj = null;
+	public ConvergenceCriterion<?> getConvergenceCriterion(ClassLoader cl) {
+		ConvergenceCriterion<?> convCriterionObj = null;
 		try {
-			convCriterionObj = (ConvergenceCriterion<T>) InstantiationUtil.readObjectFromConfig(
+			convCriterionObj = (ConvergenceCriterion<?>) InstantiationUtil.readObjectFromConfig(
 			this.config, ITERATION_CONVERGENCE_CRITERION, cl);
 		} catch (IOException e) {
 			throw new RuntimeException("Error while reading the covergence criterion object from the task configuration.");
@@ -1002,8 +916,8 @@ public class TaskConfig implements Serializable {
 		return config.getBytes(ITERATION_CONVERGENCE_CRITERION, null) != null;
 	}
 	
-	public String getConvergenceCriterionAggregatorName() {
-		return this.config.getString(ITERATION_CONVERGENCE_CRITERION_AGG_NAME, null);
+	public String getConvergenceCriterionAccumulatorName() {
+		return this.config.getString(ITERATION_CONVERGENCE_CRITERION_ACC_NAME, null);
 	}
 	
 	public void setIsSolutionSetUpdate() {

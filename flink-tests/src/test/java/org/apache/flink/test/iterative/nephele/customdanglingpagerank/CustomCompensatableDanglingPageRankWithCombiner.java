@@ -54,7 +54,7 @@ import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.Vert
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankDanglingToVertexWithRankPairComparatorFactory;
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankSerializerFactory;
 import org.apache.flink.test.iterative.nephele.danglingpagerank.DiffL1NormConvergenceCriterion;
-import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStatsAggregator;
+import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStatsAccumulator;
 import org.apache.flink.test.util.TestBaseUtils;
 
 public class CustomCompensatableDanglingPageRankWithCombiner {
@@ -184,8 +184,9 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		headConfig.setIterationHeadFinalOutputConfig(headFinalOutConfig);
 		
 		// the sync
-		headConfig.setIterationHeadIndexOfSyncOutput(3);
 		headConfig.setNumberOfIterations(numIterations);
+		
+		headConfig.setConvergenceCriterion(CustomCompensatableDotProductCoGroup.ACCUMULATOR_NAME, new DiffL1NormConvergenceCriterion());
 		
 		// the driver 
 		headConfig.setDriver(CollectorMapDriver.class);
@@ -195,8 +196,7 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		headConfig.setStubParameter("compensation.failingWorker", failingWorkers);
 		headConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
 		headConfig.setStubParameter("compensation.messageLoss", String.valueOf(messageLoss));
-		headConfig.addIterationAggregator(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
-
+		
 		// --------------- the join ---------------------
 		
 		AbstractJobVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
@@ -263,7 +263,6 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		tailConfig.setRelativeMemoryInput(1, (double)coGroupSortMemory/totalMemoryConsumption);
 		tailConfig.setFilehandlesInput(1, NUM_FILE_HANDLES_PER_SORT);
 		tailConfig.setSpillingThresholdInput(1, SORT_SPILL_THRESHOLD);
-		tailConfig.addIterationAggregator(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
 		
 		// output
 		tailConfig.setOutputSerializer(vertexWithRankAndDanglingSerializer);
@@ -284,16 +283,7 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		outputConfig.setInputSerializer(vertexWithRankAndDanglingSerializer, 0);
 		outputConfig.setStubWrapper(new UserCodeClassWrapper<CustomPageWithRankOutFormat>(CustomPageWithRankOutFormat.class));
 		outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
-		
-		// --------------- the auxiliaries ---------------------
 
-		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, parallelism);
-		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setNumberOfIterations(numIterations);
-		syncConfig.addIterationAggregator(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
-		syncConfig.setConvergenceCriterion(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, new DiffL1NormConvergenceCriterion());
-		syncConfig.setIterationId(ITERATION_ID);
-		
 		// --------------- the wiring ---------------------
 
 		JobGraphUtils.connect(pageWithRankInput, head, DistributionPattern.ALL_TO_ALL);
@@ -310,8 +300,6 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 
 		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, sync, DistributionPattern.POINTWISE);
-		
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
 		pageWithRankInput.setSlotSharingGroup(sharingGroup);
 		adjacencyListInput.setSlotSharingGroup(sharingGroup);
@@ -319,8 +307,7 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		intermediate.setSlotSharingGroup(sharingGroup);
 		tail.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
-		sync.setSlotSharingGroup(sharingGroup);
-
+		
 		tail.setStrictlyCoLocatedWith(head);
 		intermediate.setStrictlyCoLocatedWith(head);
 

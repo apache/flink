@@ -16,24 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.iterative.aggregators;
+package org.apache.flink.test.iterative.accumulators;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
-import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.accumulators.ConvergenceCriterion;
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.util.JavaProgramTestBase;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.util.Collector;
 
 
 /**
@@ -119,10 +118,6 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 			IterativeDataSet<Tuple2<Long, Long>> iteration =
 					initialSolutionSet.iterate(MAX_ITERATIONS);
 
-			// register the convergence criterion
-			iteration.registerAggregationConvergenceCriterion(UPDATED_ELEMENTS,
-					new LongSumAggregator(), new UpdatedElementsConvergenceCriterion(convergence_threshold));
-
 			DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.join(edges).where(0).equalTo(0)
 					.with(new NeighborWithComponentIDJoin())
 					.groupBy(0).reduceGroup(new MinimumReduce());
@@ -131,7 +126,7 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 					verticesWithNewComponents.join(iteration).where(0).equalTo(0)
 					.flatMap(new MinimumIdFilter());
 
-			iteration.closeWith(updatedComponentId).writeAsText(resultPath);
+			iteration.closeWith(updatedComponentId, new UpdatedElementsConvergenceCriterion(convergence_threshold), UPDATED_ELEMENTS).writeAsText(resultPath);
 
 			env.execute();
 
@@ -179,12 +174,14 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 	@SuppressWarnings("serial")
 	public static final class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 
-		private static LongSumAggregator aggr;
+		private static LongCounter aggr;
 
 		@Override
 		public void open(Configuration conf) {
-			aggr = getIterationRuntimeContext().getIterationAggregator(
-					ConnectedComponentsWithConvergenceProgram.UPDATED_ELEMENTS);
+			aggr = new LongCounter();
+			getIterationRuntimeContext().addIterationAccumulator(
+					ConnectedComponentsWithConvergenceProgram.UPDATED_ELEMENTS,
+					aggr);
 		}
 
 		@Override
@@ -194,7 +191,7 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 
 			if (vertexWithNewAndOldId.f0.f1 < vertexWithNewAndOldId.f1.f1) {
 				out.collect(vertexWithNewAndOldId.f0);
-				aggr.aggregate(1l);
+				aggr.add(1l);
 			} else {
 				out.collect(vertexWithNewAndOldId.f1);
 			}
@@ -203,7 +200,7 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 
 	// A Convergence Criterion with one parameter
 	@SuppressWarnings("serial")
-	public static final class UpdatedElementsConvergenceCriterion implements ConvergenceCriterion<LongValue> {
+	public static final class UpdatedElementsConvergenceCriterion implements ConvergenceCriterion<Long> {
 
 		private long threshold;
 
@@ -216,8 +213,8 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 		}
 
 		@Override
-		public boolean isConverged(int iteration, LongValue value) {
-			return value.getValue() < this.threshold;
+		public boolean isConverged(int iteration, Long value) {
+			return value.longValue() < this.threshold;
 		}
 	}
 

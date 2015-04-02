@@ -18,17 +18,18 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.api.common.aggregators.AggregatorRegistry;
-import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.ConvergenceCriterion;
+import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -41,9 +42,10 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
+
+import com.esotericsoftware.minlog.Log;
 
 /**
  * 
@@ -52,18 +54,20 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
-	public static final String TERMINATION_CRITERION_AGGREGATOR_NAME = "terminationCriterion.aggregator";
+	public static final String TERMINATION_CRITERION_ACCUMULATOR_NAME = "terminationCriterion.accumulator";
 	
 	
 	private Operator<T> iterationResult;
 	
 	private final Operator<T> inputPlaceHolder;
 	
-	private final AggregatorRegistry aggregators = new AggregatorRegistry();
-	
 	private int numberOfIterations = -1;
 	
 	protected Operator<?> terminationCriterion;
+	
+	private ConvergenceCriterion<?> convergenceCriterion;
+
+	private String convergenceCriterionAccumulatorName;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -130,7 +134,19 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 		mapper.setInput(criterion);
 		
 		this.terminationCriterion = mapper;
-		this.getAggregators().registerAggregationConvergenceCriterion(TERMINATION_CRITERION_AGGREGATOR_NAME, new TerminationCriterionAggregator(), new TerminationCriterionAggregationConvergence());
+		this.registerConvergenceCriterion(TERMINATION_CRITERION_ACCUMULATOR_NAME, new TerminationCriterionAccumulationConvergence());
+	}
+	
+	/**
+	 * Registers a ConvergenceCriterion on this BulkIteration.
+	 * 
+	 * @param nameOfAccumulator
+	 * @param convergenceCheck
+	 */
+	public void registerConvergenceCriterion(String nameOfAccumulator, ConvergenceCriterion<?> convergenceCheck)
+	{
+		this.convergenceCriterionAccumulatorName = nameOfAccumulator;
+		this.convergenceCriterion = convergenceCheck;
 	}
 	
 	/**
@@ -147,9 +163,12 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 		return this.numberOfIterations;
 	}
 	
-	@Override
-	public AggregatorRegistry getAggregators() {
-		return this.aggregators;
+	public ConvergenceCriterion<?> getConvergenceCriterion() {
+		return convergenceCriterion;
+	}
+
+	public String getConvergenceCriterionAccumulatorName() {
+		return convergenceCriterionAccumulatorName;
 	}
 	
 	/**
@@ -236,65 +255,80 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	public static class TerminationCriterionMapper<X> extends AbstractRichFunction implements FlatMapFunction<X, X> {
 		private static final long serialVersionUID = 1L;
 		
-		private TerminationCriterionAggregator aggregator;
+		private TerminationCriterionAccumulator accumulator;
 		
 		@Override
 		public void open(Configuration parameters) {
-			aggregator = getIterationRuntimeContext().getIterationAggregator(TERMINATION_CRITERION_AGGREGATOR_NAME);
+			accumulator = new TerminationCriterionAccumulator();
+			getIterationRuntimeContext().addIterationAccumulator(TERMINATION_CRITERION_ACCUMULATOR_NAME, accumulator);
 		}
 		
 		@Override
 		public void flatMap(X in, Collector<X> out) {
-			aggregator.aggregate(1L);
+			accumulator.add(1L);
 		}
 	}
 	
 	/**
-	 * Aggregator that basically only adds 1 for every output tuple of the termination criterion branch
+	 * Accumulator that basically only adds 1 for every output tuple of the termination criterion branch
 	 */
-	@SuppressWarnings("serial")
-	public static class TerminationCriterionAggregator implements Aggregator<LongValue> {
+	public static class TerminationCriterionAccumulator implements SimpleAccumulator<Long> {
 
+		private static final long serialVersionUID = 1L;
 		private long count;
 
 		@Override
-		public LongValue getAggregate() {
-			return new LongValue(count);
-		}
-
-		public void aggregate(long count) {
-			this.count += count;
+		public void add(Long count) {
+			this.count += count.longValue();
 		}
 
 		@Override
-		public void aggregate(LongValue count) {
-			this.count += count.getValue();
+		public Long getLocalValue() {
+			return new Long(count);
 		}
 
 		@Override
-		public void reset() {
+		public void resetLocal() {
 			count = 0;
+		}
+
+		@Override
+		public void merge(Accumulator<Long, Long> other) {
+			this.count += other.getLocalValue().longValue();
+		}
+
+		@Override
+		public void write(ObjectOutputStream out) throws IOException {
+			out.writeLong(count);
+		}
+
+		@Override
+		public void read(ObjectInputStream in) throws IOException {
+			this.count = in.readLong();
+		}
+		
+		public Accumulator<Long, Long> clone() {
+			TerminationCriterionAccumulator clone = new TerminationCriterionAccumulator();
+			clone.add(this.getLocalValue());
+			return clone;
 		}
 	}
 
 	/**
 	 * Convergence for the termination criterion is reached if no tuple is output at current iteration for the termination criterion branch
 	 */
-	public static class TerminationCriterionAggregationConvergence implements ConvergenceCriterion<LongValue> {
+	public static class TerminationCriterionAccumulationConvergence implements ConvergenceCriterion<Long> {
 
 		private static final long serialVersionUID = 1L;
-		
-		private static final Logger log = LoggerFactory.getLogger(TerminationCriterionAggregationConvergence.class);
-
 		@Override
-		public boolean isConverged(int iteration, LongValue countAggregate) {
-			long count = countAggregate.getValue();
+		public boolean isConverged(int iteration, Long countAggregate) {
+			long count = countAggregate.longValue();
 
-			if (log.isInfoEnabled()) {
-				log.info("Termination criterion stats in iteration [" + iteration + "]: " + count);
+			if (Log.INFO) {
+				Log.info("Termination criterion stats in iteration [" + iteration + "]: " + count);
 			}
 
-			return count == 0;
+			return (count == 0);
 		}
 	}
 

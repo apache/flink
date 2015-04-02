@@ -32,7 +32,6 @@ import org.apache.flink.test.recordJobs.graph.pageRankUtil.DiffL1NormConvergence
 import org.apache.flink.test.recordJobs.graph.pageRankUtil.DotProductCoGroup;
 import org.apache.flink.test.recordJobs.graph.pageRankUtil.DotProductMatch;
 import org.apache.flink.test.recordJobs.graph.pageRankUtil.ImprovedAdjacencyListInputFormat;
-import org.apache.flink.test.recordJobs.graph.pageRankUtil.PageRankStatsAggregator;
 import org.apache.flink.test.recordJobs.graph.pageRankUtil.PageWithRankOutFormat;
 import org.apache.flink.types.LongValue;
 
@@ -88,8 +87,7 @@ public class DanglingPageRank implements Program, ProgramDescription {
 		
 		iteration.setNextPartialSolution(rankAggregation);
 		iteration.setMaximumNumberOfIterations(numIterations);
-		iteration.getAggregators().registerAggregationConvergenceCriterion(DotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator(), 
-				new DiffL1NormConvergenceCriterion());
+		iteration.registerConvergenceCriterion(DotProductCoGroup.ACCUMULATOR_NAME, new DiffL1NormConvergenceCriterion());
 		
 		FileDataSink out = new FileDataSink(new PageWithRankOutFormat(), outputPath, iteration, "Final Ranks");
 

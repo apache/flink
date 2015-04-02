@@ -18,19 +18,18 @@
 
 package org.apache.flink.runtime.iterative.task;
 
+import java.io.IOException;
+
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
-import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * An intermediate iteration task, which runs a Driver}inside.
@@ -96,7 +95,7 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 
 			if (isWorksetUpdate && isWorksetIteration) {
 				long numCollected = worksetUpdateOutputCollector.getElementsCollectedAndReset();
-				worksetAggregator.aggregate(numCollected);
+				worksetAccumulator.add(numCollected);
 			}
 			
 			if (log.isInfoEnabled()) {
@@ -123,7 +122,7 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 	}
 
 	private void sendEndOfSuperstep() throws IOException, InterruptedException {
-		for (RecordWriter eventualOutput : this.eventualOutputs) {
+		for (@SuppressWarnings("rawtypes") RecordWriter eventualOutput : this.eventualOutputs) {
 			eventualOutput.sendEndOfSuperstep();
 		}
 	}

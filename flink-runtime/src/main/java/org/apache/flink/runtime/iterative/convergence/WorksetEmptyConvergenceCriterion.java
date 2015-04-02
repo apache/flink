@@ -16,32 +16,35 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.convergence;
 
+import org.apache.flink.api.common.accumulators.ConvergenceCriterion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
-import org.apache.flink.types.LongValue;
 
 /**
- * A workset iteration is by definition converged if no records have been updated in the solutionset
+ * A workset iteration is by definition converged if no records have been
+ * updated in the solutionset
  */
-public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<LongValue> {
+public class WorksetEmptyConvergenceCriterion implements
+		ConvergenceCriterion<Long> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger log = LoggerFactory.getLogger(WorksetEmptyConvergenceCriterion.class);
-	
-	public static final String AGGREGATOR_NAME = "pact.runtime.workset-empty-aggregator";
+	private static final Logger log = LoggerFactory
+			.getLogger(WorksetEmptyConvergenceCriterion.class);
+
+	public static final String ACCUMULATOR_NAME = "pact.runtime.workset-empty-accumulator";
 
 	@Override
-	public boolean isConverged(int iteration, LongValue value) {
+	public boolean isConverged(int iteration, Long value) {
 
-		long updatedElements = value.getValue();
+		long updatedElements = value.longValue();
 
 		if (log.isInfoEnabled()) {
-			log.info("[" + updatedElements + "] elements updated in the solutionset in iteration [" + iteration + "]");
+			log.info("[" + updatedElements
+					+ "] elements updated in the solutionset in iteration ["
+					+ iteration + "]");
 		}
 
 		return updatedElements == 0;

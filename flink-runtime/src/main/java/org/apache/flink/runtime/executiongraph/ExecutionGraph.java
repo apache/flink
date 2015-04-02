@@ -389,6 +389,19 @@ public class ExecutionGraph implements Serializable {
 			}
 		};
 	}
+	
+	public List<ExecutionVertex> getExecutionVerticesByJobVertexID(JobVertexID id) {
+		
+		List<ExecutionVertex> vertices = new ArrayList<ExecutionVertex>();
+		
+		for(ExecutionVertex v : getAllExecutionVertices()) {
+			if(v.getJobvertexId().equals(id)) {
+				vertices.add(v);
+			}
+		}
+		
+		return vertices;
+	}
 
 	public long getStatusTimestamp(JobStatus status) {
 		return this.stateTimestamps[status.ordinal()];

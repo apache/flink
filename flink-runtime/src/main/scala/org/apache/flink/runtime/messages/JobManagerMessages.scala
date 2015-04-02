@@ -130,6 +130,29 @@ object JobManagerMessages {
    * @param jobID
    */
   case class AccumulatorResultsNotFound(jobID: JobID) extends AccumulatorResultsResponse
+  
+   /**
+   * Used from a worker inside of an iteration to indicate to the JobManager that it is done 
+   * with the current iteration
+   *
+   * @param accumulatorEvent
+   */
+  case class ReportIterationWorkerDone(iterationId: Integer, accumulatorEvent: AccumulatorEvent)
+  
+   /**
+   * Used by the IterationManager to initiate the next iteration
+   *
+   * @param accumulatorEvent
+   */
+  case class InitNextIteration(accumulatorEvent: AccumulatorEvent)
+  
+     /**
+   * Used by the IterationManager to initiate the termination of a iteration
+   *
+   * @param accumulatorEvent
+   */
+  case class InitIterationTermination()
+
 
   /**
    * Requests the current [[JobStatus]] of the job identified by [[jobID]]. This message triggers

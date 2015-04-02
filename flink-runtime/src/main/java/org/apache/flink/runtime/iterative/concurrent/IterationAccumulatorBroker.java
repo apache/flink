@@ -17,19 +17,17 @@
  */
 
 
-package org.apache.flink.runtime.iterative.event;
+package org.apache.flink.runtime.iterative.concurrent;
 
-import java.util.Map;
+import org.apache.flink.runtime.iterative.task.RuntimeAccumulatorRegistry;
 
-import org.apache.flink.api.common.aggregators.Aggregator;
-
-public class AllWorkersDoneEvent extends IterationEventWithAggregators {
-
-	public AllWorkersDoneEvent() {
-		super();
-	}
+public class IterationAccumulatorBroker extends Broker<RuntimeAccumulatorRegistry> {
 	
-	public AllWorkersDoneEvent(Map<String, Aggregator<?>> aggregators) {
-		super(aggregators);
+	/** single instance */
+	private static final IterationAccumulatorBroker INSTANCE = new IterationAccumulatorBroker();
+
+	/** retrieve singleton instance */
+	public static IterationAccumulatorBroker instance() {
+		return INSTANCE;
 	}
 }

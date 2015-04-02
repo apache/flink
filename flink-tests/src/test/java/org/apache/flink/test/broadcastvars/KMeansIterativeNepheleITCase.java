@@ -155,7 +155,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		return output;
 	}
 	
-	private static AbstractJobVertex createIterationHead(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer) {
+	private static AbstractJobVertex createIterationHead(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer, int numIterations) {
 		AbstractJobVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks);
 
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
@@ -179,12 +179,12 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		headFinalOutConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 		headConfig.setIterationHeadFinalOutputConfig(headFinalOutConfig);
 		
-		// the sync
-		headConfig.setIterationHeadIndexOfSyncOutput(2);
-		
 		// the driver 
 		headConfig.setDriver(NoOpDriver.class);
 		headConfig.setDriverStrategy(DriverStrategy.UNARY_NO_OP);
+		
+		// number of iterations
+		headConfig.setNumberOfIterations(numIterations);
 		
 		return head;
 	}
@@ -251,14 +251,6 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		
 		return tail;
 	}
-	
-	private static AbstractJobVertex createSync(JobGraph jobGraph, int numIterations, int parallelism) {
-		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, parallelism);
-		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setNumberOfIterations(numIterations);
-		syncConfig.setIterationId(ITERATION_ID);
-		return sync;
-	}
 
 	// -------------------------------------------------------------------------------------------------------------
 	// Unified solution set and workset tail update
@@ -277,12 +269,10 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		InputFormatVertex points = createPointsInput(jobGraph, pointsPath, numSubTasks, serializer);
 		InputFormatVertex centers = createCentersInput(jobGraph, centersPath, numSubTasks, serializer);
 		
-		AbstractJobVertex head = createIterationHead(jobGraph, numSubTasks, serializer);
+		AbstractJobVertex head = createIterationHead(jobGraph, numSubTasks, serializer, numIterations);
 		AbstractJobVertex mapper = createMapper(jobGraph, numSubTasks, serializer, serializer, serializer, int0Comparator);
 		
 		AbstractJobVertex reducer = createReducer(jobGraph, numSubTasks, serializer, int0Comparator, serializer);
-		
-		AbstractJobVertex sync = createSync(jobGraph, numIterations, numSubTasks);
 		
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
 
@@ -302,8 +292,6 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		
 		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 		
-		JobGraphUtils.connect(head, sync, DistributionPattern.ALL_TO_ALL);
-
 		// -- instance sharing -------------------------------------------------------------------------------------
 		
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
@@ -313,7 +301,6 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		head.setSlotSharingGroup(sharingGroup);
 		mapper.setSlotSharingGroup(sharingGroup);
 		reducer.setSlotSharingGroup(sharingGroup);
-		sync.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
 		
 		mapper.setStrictlyCoLocatedWith(head);

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.{IOException, File}
 import java.net.InetSocketAddress
-
 import akka.actor.Status.{Success, Failure}
 import org.apache.flink.api.common.{JobID, ExecutionConfig}
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
@@ -49,15 +48,18 @@ import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, NextInputSplit, Heartbeat}
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.util.InstantiationUtil
-
 import org.slf4j.LoggerFactory
-
 import akka.actor._
-
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
+import org.apache.flink.runtime.jobmanager.iterations.IterationManager
+import java.util.concurrent.CopyOnWriteArrayList
+import org.apache.flink.runtime.operators.util.TaskConfig
+import org.apache.flink.api.common.accumulators.ConvergenceCriterion
+import com.google.common.base.Preconditions
 
 /**
  * The job manager is responsible for receiving Flink jobs, scheduling the tasks, gathering the
@@ -104,6 +106,8 @@ class JobManager(val flinkConfiguration: Configuration,
   /** List of current jobs running jobs */
   val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
   
+  /** Manages all running iterations */
+  var iterationManagers: List[IterationManager] = Nil
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
@@ -425,6 +429,17 @@ class JobManager(val flinkConfiguration: Configuration,
         instanceManager.unregisterTaskManager(taskManager)
         context.unwatch(taskManager)
       }
+      
+    case ReportIterationWorkerDone(iterationId, accumulatorEvent) =>
+      try {
+        this.getIterationManager(accumulatorEvent.getJobID(), iterationId)
+          .receiveWorkerDoneEvent(accumulatorEvent.getAccumulators(
+            libraryCacheManager.getClassLoader(accumulatorEvent.getJobID)), sender);
+      } catch {
+        case t: Throwable =>
+          log.error(t, "Could not process accumulator event of job {} received from {}.",
+            accumulatorEvent.getJobID, sender.path)
+      }
   }
 
   /**
@@ -530,6 +545,25 @@ class JobManager(val flinkConfiguration: Configuration,
         if (log.isDebugEnabled) {
           log.debug(s"Successfully created execution graph from job graph ${jobId} (${jobName}).")
         }
+        
+        this.iterationManagers = Nil
+        for (vertex <- jobGraph.getVertices
+            if (vertex.getInvokableClassName
+            .equalsIgnoreCase("org.apache.flink.runtime.iterative.task.IterationHeadPactTask"))) {
+          val taskConfig = new TaskConfig(vertex.getConfiguration)
+          val manager = new IterationManager(jobGraph.getJobID, taskConfig.getIterationId, 
+              vertex.getParallelism, taskConfig.getNumberOfIterations, accumulatorManager, 
+              self)
+          if (taskConfig.usesConvergenceCriterion()) {
+            val convergenceCriterion = taskConfig.getConvergenceCriterion(userCodeLoader)
+              .asInstanceOf[ConvergenceCriterion[Object]]
+            val convergenceAggregatorName = taskConfig.getConvergenceCriterionAccumulatorName()
+            Preconditions.checkNotNull(convergenceCriterion)
+            Preconditions.checkNotNull(convergenceAggregatorName)
+            manager.setConvergenceCriterion(convergenceAggregatorName, convergenceCriterion)
+          }
+          iterationManagers = manager :: iterationManagers;
+        }
 
         // give an actorContext
         executionGraph.setParentContext(context);
@@ -620,6 +654,12 @@ class JobManager(val flinkConfiguration: Configuration,
       case t: Throwable =>
         log.error(t, "Could not properly unregister job {} form the library cache.", jobID)
     }
+  }
+  
+  private def getIterationManager(jobId: JobID, iterationId: Int): IterationManager = {
+    iterationManagers.find(manager => manager.getJobId == jobId 
+        && manager.getIterationId == iterationId)
+      .getOrElse(null)
   }
 }
 

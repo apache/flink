@@ -20,20 +20,19 @@
 package org.apache.flink.runtime.operators.chaining;
 
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
-import org.apache.flink.api.common.operators.base.BulkIterationBase.TerminationCriterionAggregator;
+import org.apache.flink.api.common.operators.base.BulkIterationBase.TerminationCriterionAccumulator;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 public class ChainedTerminationCriterionDriver<IT, OT> extends ChainedDriver<IT, OT> {
 	
-	private TerminationCriterionAggregator agg;
+	private TerminationCriterionAccumulator acc;
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void setup(AbstractInvokable parent) {
-		agg = ((IterationRuntimeContext) getUdfRuntimeContext()).getIterationAggregator(BulkIterationBase.TERMINATION_CRITERION_AGGREGATOR_NAME);
+		acc = (TerminationCriterionAccumulator) getUdfRuntimeContext().<Long, Long>getAccumulator(BulkIterationBase.TERMINATION_CRITERION_ACCUMULATOR_NAME);
 	}
 
 	@Override
@@ -59,7 +58,7 @@ public class ChainedTerminationCriterionDriver<IT, OT> extends ChainedDriver<IT,
 
 	@Override
 	public void collect(IT record) {
-		agg.aggregate(1);
+		acc.add(1L);
 	}
 
 	@Override

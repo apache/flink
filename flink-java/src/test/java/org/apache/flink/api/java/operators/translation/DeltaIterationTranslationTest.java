@@ -27,7 +27,6 @@ import java.util.Iterator;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
@@ -54,8 +53,6 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			
 			final String BEFORE_NEXT_WORKSET_MAP = "Some Mapper";
 			
-			final String AGGREGATOR_NAME = "AggregatorName";
-			
 			final int[] ITERATION_KEYS = new int[] {2};
 			final int NUM_ITERATIONS = 13;
 			
@@ -76,8 +73,6 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 				
 				DeltaIteration<Tuple3<Double, Long, String>, Tuple2<Double, String>> iteration = initialSolutionSet.iterateDelta(initialWorkSet, NUM_ITERATIONS, ITERATION_KEYS);
 				iteration.name(ITERATION_NAME).parallelism(ITERATION_parallelism);
-				
-				iteration.registerAggregator(AGGREGATOR_NAME, new LongSumAggregator());
 				
 				// test that multiple workset consumers are supported
 				DataSet<Tuple2<Double, String>> worksetSelfJoin = 
@@ -137,8 +132,6 @@ public class DeltaIterationTranslationTest implements java.io.Serializable {
 			}
 
 			assertEquals(BEFORE_NEXT_WORKSET_MAP, nextWorksetMapper.getName());
-			
-			assertEquals(AGGREGATOR_NAME, iteration.getAggregators().getAllRegisteredAggregators().iterator().next().getName());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

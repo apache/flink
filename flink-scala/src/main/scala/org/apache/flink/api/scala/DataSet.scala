@@ -20,7 +20,6 @@ package org.apache.flink.api.scala
 import java.lang
 import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
 import org.apache.flink.api.common.operators.Order
@@ -172,31 +171,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     case _ =>
       throw new UnsupportedOperationException("Operator " + javaSet.toString + " does not have " +
         "parallelism.")
-  }
-
-  /**
-   * Registers an [[org.apache.flink.api.common.aggregators.Aggregator]]
-   * for the iteration. Aggregators can be used to maintain simple statistics during the
-   * iteration, such as number of elements processed. The aggregators compute global aggregates:
-   * After each iteration step, the values are globally aggregated to produce one aggregate that
-   * represents statistics across all parallel instances.
-   * The value of an aggregator can be accessed in the next iteration.
-   *
-   * Aggregators can be accessed inside a function via
-   * [[org.apache.flink.api.common.functions.AbstractRichFunction#getIterationRuntimeContext]].
-   *
-   * @param name The name under which the aggregator is registered.
-   * @param aggregator The aggregator class.
-   */
-  def registerAggregator(name: String, aggregator: Aggregator[_]): DataSet[T] = {
-    javaSet match {
-      case di: DeltaIterationResultSet[_, _] =>
-        di.getIterationHead.registerAggregator(name, aggregator)
-      case _ =>
-        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
-          "aggregators.")
-    }
-    this
   }
 
   /**

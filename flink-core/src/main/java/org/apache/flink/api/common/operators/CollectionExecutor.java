@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,9 +35,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.api.common.aggregators.AggregatorWithName;
-import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
+import org.apache.flink.api.common.accumulators.ConvergenceCriterion;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
@@ -49,7 +48,7 @@ import org.apache.flink.api.common.operators.util.TypeComparable;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.types.Value;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Visitor;
 
 /**
@@ -57,15 +56,11 @@ import org.apache.flink.util.Visitor;
  */
 public class CollectionExecutor {
 	
-	private static final boolean DEFAULT_MUTABLE_OBJECT_SAFE_MODE = true;
-	
 	private final Map<Operator<?>, List<?>> intermediateResults;
 	
 	private final Map<String, Accumulator<?, ?>> accumulators;
 	
-	private final Map<String, Value> previousAggregates;
-	
-	private final Map<String, Aggregator<?>> aggregators;
+	private final Map<String, Accumulator<?, ?>> previousAggregates;
 	
 	private final ClassLoader classLoader;
 	
@@ -80,8 +75,7 @@ public class CollectionExecutor {
 		
 		this.intermediateResults = new HashMap<Operator<?>, List<?>>();
 		this.accumulators = new HashMap<String, Accumulator<?,?>>();
-		this.previousAggregates = new HashMap<String, Value>();
-		this.aggregators = new HashMap<String, Aggregator<?>>();
+		this.previousAggregates = new HashMap<String, Accumulator<?, ?>>();
 		
 		this.classLoader = getClass().getClassLoader();
 	}
@@ -265,13 +259,8 @@ public class CollectionExecutor {
 			iteration.getTerminationCriterion().accept(dynCollector);
 		}
 		
-		// register the aggregators
-		for (AggregatorWithName<?> a : iteration.getAggregators().getAllRegisteredAggregators()) {
-			aggregators.put(a.getName(), a.getAggregator());
-		}
-		
-		String convCriterionAggName = iteration.getAggregators().getConvergenceCriterionAggregatorName();
-		ConvergenceCriterion<Value> convCriterion = (ConvergenceCriterion<Value>) iteration.getAggregators().getConvergenceCriterion();
+		String convCriterionAccName = iteration.getConvergenceCriterionAccumulatorName();
+		ConvergenceCriterion<Object> convCriterion = (ConvergenceCriterion<Object>) iteration.getConvergenceCriterion();
 		
 		List<T> currentResult = inputData;
 		
@@ -294,8 +283,8 @@ public class CollectionExecutor {
 			}
 			
 			// evaluate the aggregator convergence criterion
-			if (convCriterion != null && convCriterionAggName != null) {
-				Value v = aggregators.get(convCriterionAggName).getAggregate();
+			if (convCriterion != null && convCriterionAccName != null) {
+				Object v = accumulators.get(convCriterionAccName).getLocalValue();
 				if (convCriterion.isConverged(superstep, v)) {
 					break;
 				}
@@ -307,15 +296,14 @@ public class CollectionExecutor {
 			}
 			
 			// set the previous iteration's aggregates and reset the aggregators
-			for (Map.Entry<String, Aggregator<?>> e : aggregators.entrySet()) {
-				previousAggregates.put(e.getKey(), e.getValue().getAggregate());
-				e.getValue().reset();
+			for (Map.Entry<String, Accumulator<?, ?>> e : accumulators.entrySet()) {
+				previousAggregates.put(e.getKey(), InstantiationUtil.createCopy(e.getValue()));
+				e.getValue().resetLocal();
 			}
 		}
 		
 		previousAggregates.clear();
-		aggregators.clear();
-		
+	
 		return currentResult;
 	}
 
@@ -362,11 +350,6 @@ public class CollectionExecutor {
 
 		List<?> currentWorkset = worksetInputData;
 
-		// register the aggregators
-		for (AggregatorWithName<?> a : iteration.getAggregators().getAllRegisteredAggregators()) {
-			aggregators.put(a.getName(), a.getAggregator());
-		}
-
 		final int maxIterations = iteration.getMaximumNumberOfIterations();
 
 		for (int superstep = 1; superstep <= maxIterations; superstep++) {
@@ -403,14 +386,13 @@ public class CollectionExecutor {
 			}
 			
 			// set the previous iteration's aggregates and reset the aggregators
-			for (Map.Entry<String, Aggregator<?>> e : aggregators.entrySet()) {
-				previousAggregates.put(e.getKey(), e.getValue().getAggregate());
-				e.getValue().reset();
+			for (Map.Entry<String, Accumulator<?, ?>> e : accumulators.entrySet()) {
+				previousAggregates.put(e.getKey(), InstantiationUtil.createCopy(e.getValue()));
+				e.getValue().resetLocal();
 			}
 		}
 		
 		previousAggregates.clear();
-		aggregators.clear();
 
 		List<T> currentSolution = new ArrayList<T>(solutionMap.size());
 		currentSolution.addAll(solutionMap.values());
@@ -493,17 +475,23 @@ public class CollectionExecutor {
 		public int getSuperstepNumber() {
 			return iterationSuperstep;
 		}
-
+		
 		@SuppressWarnings("unchecked")
 		@Override
-		public <T extends Aggregator<?>> T getIterationAggregator(String name) {
-			return (T) aggregators.get(name);
+		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
+			return (Accumulator<V, A>) accumulators.get(name);
 		}
 
 		@SuppressWarnings("unchecked")
-		@Override
-		public <T extends Value> T getPreviousIterationAggregate(String name) {
+		public <T extends Accumulator<?, ? extends Serializable>> T getPreviousIterationAccumulator(String name) {
 			return (T) previousAggregates.get(name);
+		}
+
+		@Override
+		public <V, A extends Serializable> void addIterationAccumulator(
+				String name, Accumulator<V, A> accumulator) {
+			accumulators.put(name, accumulator);
+			
 		}
 	}
 }

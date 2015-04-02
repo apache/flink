@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.accumulators.ConvergenceCriterion;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -29,24 +30,47 @@ public class BulkIterationResultSet<T> extends DataSet<T> {
 	private final DataSet<T> nextPartialSolution;
 
 	private final DataSet<?> terminationCriterion;
+	
+	private ConvergenceCriterion<?> convergenceCriterion;
+	
+	private String convergenceCriterionAccumulatorName;
 
 	BulkIterationResultSet(ExecutionEnvironment context,
-						TypeInformation<T> type,
-						IterativeDataSet<T> iterationHead,
-						DataSet<T> nextPartialSolution) {
-		this(context, type, iterationHead, nextPartialSolution, null);
+			TypeInformation<T> type,
+			IterativeDataSet<T> iterationHead,
+			DataSet<T> nextPartialSolution) {
+		
+		this(context, type, iterationHead, nextPartialSolution, null, null, null);
 	}
 
 	BulkIterationResultSet(ExecutionEnvironment context,
-		TypeInformation<T> type, IterativeDataSet<T> iterationHead,
-		DataSet<T> nextPartialSolution, DataSet<?> terminationCriterion)
-	{
+			TypeInformation<T> type, IterativeDataSet<T> iterationHead,
+			DataSet<T> nextPartialSolution, DataSet<?> terminationCriterion) {
+		
+		this(context, type, iterationHead, nextPartialSolution, terminationCriterion, null, null);
+	}
+	
+	BulkIterationResultSet(ExecutionEnvironment context,
+			TypeInformation<T> type, IterativeDataSet<T> iterationHead,
+			DataSet<T> nextPartialSolution, ConvergenceCriterion<?> convergenceCriterion,
+			String convergenceCriterionAccumulatorName) {
+		
+		this(context, type, iterationHead, nextPartialSolution, null, convergenceCriterion, convergenceCriterionAccumulatorName);
+	}
+
+	BulkIterationResultSet(ExecutionEnvironment context,
+			TypeInformation<T> type, IterativeDataSet<T> iterationHead,
+			DataSet<T> nextPartialSolution, DataSet<?> terminationCriterion,
+			ConvergenceCriterion<?> convergenceCriterion, String convergenceCriterionAccumulatorName) {
+		
 		super(context, type);
 		this.iterationHead = iterationHead;
 		this.nextPartialSolution = nextPartialSolution;
 		this.terminationCriterion = terminationCriterion;
+		this.convergenceCriterion = convergenceCriterion;
+		this.convergenceCriterionAccumulatorName = convergenceCriterionAccumulatorName;
 	}
-
+	
 	public IterativeDataSet<T> getIterationHead() {
 		return iterationHead;
 	}
@@ -57,5 +81,13 @@ public class BulkIterationResultSet<T> extends DataSet<T> {
 
 	public DataSet<?> getTerminationCriterion() {
 		return terminationCriterion;
+	}
+
+	public ConvergenceCriterion<?> getConvergenceCriterion() {
+		return convergenceCriterion;
+	}
+
+	public String getConvergenceCriterionAccumulatorName() {
+		return convergenceCriterionAccumulatorName;
 	}
 }

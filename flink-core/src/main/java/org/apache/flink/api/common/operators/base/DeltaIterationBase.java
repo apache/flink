@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -72,8 +71,6 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	 * The maximum number of iterations. Possibly used only as a safeguard.
 	 */
 	private int maxNumberOfIterations = -1;
-
-	private final AggregatorRegistry aggregators = new AggregatorRegistry();
 	
 	private boolean solutionSetUnManaged;
 
@@ -110,11 +107,6 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	
 	public int getMaximumNumberOfIterations() {
 		return this.maxNumberOfIterations;
-	}
-	
-	@Override
-	public AggregatorRegistry getAggregators() {
-		return this.aggregators;
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -21,7 +21,7 @@ package org.apache.flink.spargel.java.record;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import org.apache.flink.api.common.aggregators.Aggregator;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Key;
@@ -81,12 +81,12 @@ public abstract class MessagingFunction<VertexKey extends Key<VertexKey>, Vertex
 		return this.runtimeContext.getSuperstepNumber();
 	}
 	
-	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
-		return this.runtimeContext.<T>getIterationAggregator(name);
+	public <V, A extends Serializable> void addIterationAccumulator(String name, Accumulator<V, A> accumulator) {
+		this.runtimeContext.addIterationAccumulator(name, accumulator);
 	}
 	
-	public <T extends Value> T getPreviousIterationAggregate(String name) {
-		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
+	public <T extends Accumulator<?, ?>> T getPreviousIterationAccumulator(String name) {
+		return this.runtimeContext.<T>getPreviousIterationAccumulator(name);
 	}
 
 	// --------------------------------------------------------------------------------------------
