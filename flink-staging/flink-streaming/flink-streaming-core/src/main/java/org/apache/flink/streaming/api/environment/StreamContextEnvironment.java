@@ -36,10 +36,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	protected List<File> jars;
 	protected Client client;
+	private final boolean wait;
 
-	protected StreamContextEnvironment(Client client, List<File> jars, int parallelism) {
+	protected StreamContextEnvironment(Client client, List<File> jars, int parallelism, boolean wait) {
 		this.client = client;
 		this.jars = jars;
+		this.wait = wait;
 		if (parallelism > 0) {
 			setParallelism(parallelism);
 		} else {
@@ -74,7 +76,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			jobGraph.addJar(new Path(file.getAbsolutePath()));
 		}
 
-		JobSubmissionResult result = client.run(jobGraph, true);
+		JobSubmissionResult result = client.run(jobGraph, wait);
 		if(result instanceof JobExecutionResult) {
 			return (JobExecutionResult) result;
 		} else {
@@ -82,5 +84,4 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 			return new JobExecutionResult(result.getJobID(), -1, null);
 		}
 	}
-
 }

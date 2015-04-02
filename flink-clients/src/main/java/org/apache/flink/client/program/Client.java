@@ -267,6 +267,7 @@ public class Client {
 			LOG.info("Starting program in interactive mode");
 			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism, wait);
 			ContextEnvironment.enableLocalExecution(false);
+
 			// invoke here
 			try {
 				prog.invokeInteractiveModeForExecution();
@@ -313,7 +314,7 @@ public class Client {
 	}
 
 	public JobSubmissionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
-
+		this.lastJobId = jobGraph.getJobID();
 		final String hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		if (hostname == null) {
 			throw new ProgramInvocationException("Could not find hostname of job manager.");

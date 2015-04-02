@@ -212,24 +212,37 @@ public abstract class YarnTestBase {
 	}
 
 	public static class ContainsName implements FilenameFilter {
-		private String name;
+		private String[] names;
 		private String excludeInPath = null;
 
-		public ContainsName(String name) {
-			this.name = name;
+		/**
+		 * @param names which have to be included in the filename.
+		 */
+		public ContainsName(String[] names) {
+			this.names = names;
 		}
 
-		public ContainsName(String name, String excludeInPath) {
-			this.name = name;
+		public ContainsName(String[] names, String excludeInPath) {
+			this.names = names;
 			this.excludeInPath = excludeInPath;
 		}
 
 		@Override
 		public boolean accept(File dir, String name) {
 			if(excludeInPath == null) {
-				return name.contains(this.name);
+				for(String n: names) {
+					if(!name.contains(n)) {
+						return false;
+					}
+				}
+				return true;
 			} else {
-				return name.contains(this.name) && !dir.toString().contains(excludeInPath);
+				for(String n: names) {
+					if(!name.contains(n)) {
+						return false;
+					}
+				}
+				return !dir.toString().contains(excludeInPath);
 			}
 		}
 	}
@@ -344,7 +357,7 @@ public abstract class YarnTestBase {
 			}
 
 			Map<String, String> map = new HashMap<String, String>(System.getenv());
-			File flinkConfFilePath = findFile(flinkDistRootDir, new ContainsName("flink-conf.yaml"));
+			File flinkConfFilePath = findFile(flinkDistRootDir, new ContainsName(new String[] {"flink-conf.yaml"}));
 			Assert.assertNotNull(flinkConfFilePath);
 			map.put("FLINK_CONF_DIR", flinkConfFilePath.getParent());
 			File yarnConfFile = writeYarnSiteConfigXML(conf);

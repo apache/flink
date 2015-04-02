@@ -78,8 +78,11 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 		return gen.getOptimizerPlanAsJSON(op);
 	}
-	
-	
+
+	public boolean isWait() {
+		return wait;
+	}
+
 	@Override
 	public String toString() {
 		return "Context Environment (parallelism = " + (getParallelism() == -1 ? "default" : getParallelism())

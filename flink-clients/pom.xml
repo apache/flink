@@ -53,7 +53,7 @@ under the License.
 			<artifactId>flink-optimizer</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>

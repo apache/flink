@@ -45,6 +45,7 @@ import org.codehaus.jettison.json.JSONObject;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,7 +102,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 						"-tm", "1024",
 						"-s", "2" // Test that 2 slots are started on the TaskManager.
 				},
-				"Number of connected TaskManagers changed to 1. Slots available: 2",null, RunTypes.YARN_SESSION);
+				"Number of connected TaskManagers changed to 1. Slots available: 2", null, RunTypes.YARN_SESSION);
 		LOG.info("Finished testClientStartup()");
 	}
 
@@ -376,7 +377,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void perJobYarnCluster() {
 		LOG.info("Starting perJobYarnCluster()");
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName("-WordCount.jar", "streaming")); // exclude streaming wordcount here.
+		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"} , "streaming")); // exclude streaming wordcount here.
 		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
 		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
 						"-yj", flinkUberjar.getAbsolutePath(),
@@ -398,7 +399,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void perJobYarnClusterWithParallelism() {
 		LOG.info("Starting perJobYarnCluster()");
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName("-WordCount.jar", "streaming")); // exclude streaming wordcount here.
+		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"}, "streaming")); // exclude streaming wordcount here.
 		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
 		runWithArgs(new String[]{"run",
 						"-p", "2", //test that the job is executed with a DOP of 2
@@ -415,28 +416,19 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Finished perJobYarnCluster()");
 	}
 
-	/**
-	 * Test a fire-and-forget job submission to a YARN cluster.
-	 */
-	@Test(timeout=60000)
-	public void testDetachedPerJobYarnCluster() {
-		LOG.info("Starting testDetachedPerJobYarnCluster()");
-
-		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName("-WordCount.jar", "streaming")); // exclude streaming wordcount here.
-		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
-
+	private void testDetachedPerJobYarnClusterInternal(String job) {
 		YarnClient yc = YarnClient.createYarnClient();
 		yc.init(yarnConfiguration);
 		yc.start();
 
 		Runner runner = startWithArgs(new String[]{"run", "-m", "yarn-cluster", "-yj", flinkUberjar.getAbsolutePath(),
-					"-yn", "1",
-					"-yjm", "512",
-					"-yD", "yarn.heap-cutoff-ratio=0.5", // test if the cutoff is passed correctly
-					"-ytm", "1024",
-					"--yarndetached", exampleJarLocation.getAbsolutePath()},
-			"The Job has been submitted with JobID",
-			RunTypes.CLI_FRONTEND);
+						"-yn", "1",
+						"-yjm", "512",
+						"-yD", "yarn.heap-cutoff-ratio=0.5", // test if the cutoff is passed correctly
+						"-ytm", "1024",
+						"--yarndetached", job},
+				"The Job has been submitted with JobID",
+				RunTypes.CLI_FRONTEND);
 
 		// it should usually be 2, but on slow machines, the number varies
 		Assert.assertTrue("There should be at most 2 containers running", getRunningContainers() <= 2);
@@ -471,7 +463,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				LOG.info("Selected {} as the last appId from {}", tmpAppId, Arrays.toString(apps.toArray()));
 			}
 			final ApplicationId id = tmpAppId;
-			
+
 			// now it has finished.
 			// check the output.
 			File taskmanagerOut = YarnTestBase.findFile("..", new FilenameFilter() {
@@ -512,8 +504,37 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			LOG.warn("Error while detached yarn session was running", t);
 			Assert.fail();
 		}
+	}
+
+	/**
+	 * Test a fire-and-forget job submission to a YARN cluster.
+	 */
+	@Test(timeout=60000)
+	public void testDetachedPerJobYarnCluster() {
+		LOG.info("Starting testDetachedPerJobYarnCluster()");
+
+		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"-WordCount.jar"}, "streaming")); // exclude streaming wordcount here.
+		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+
+		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
 
 		LOG.info("Finished testDetachedPerJobYarnCluster()");
+	}
+
+	/**
+	 * Test a fire-and-forget job submission to a YARN cluster.
+	 */
+	@Ignore
+	@Test(timeout=60000)
+	public void testDetachedPerJobYarnClusterWithStreamingJob() {
+		LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
+
+		File exampleJarLocation = YarnTestBase.findFile("..", new ContainsName(new String[] {"flink-streaming-examples", "-WordCount.jar"}));
+		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+
+		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
+
+		LOG.info("Finished testDetachedPerJobYarnClusterWithStreamingJob()");
 	}
 
 	/**

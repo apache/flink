@@ -23,7 +23,7 @@ matrix:
     - jdk: "openjdk6" # we must use openjdk6 here to deploy a java6 compatible uber-jar for YARN
       env: PROFILE="-Dhadoop.version=2.2.0"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11"
+      env: PROFILE="-Dhadoop.version=2.6.0 -Dscala-2.11 -Dmaven.javadoc.skip=true"
 
 
 git:

@@ -653,7 +653,7 @@ public abstract class StreamExecutionEnvironment {
 		if (env instanceof ContextEnvironment) {
 			ContextEnvironment ctx = (ContextEnvironment) env;
 			currentEnvironment = createContextEnvironment(ctx.getClient(), ctx.getJars(),
-					ctx.getParallelism());
+					ctx.getParallelism(), ctx.isWait());
 		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
 			currentEnvironment = new StreamPlanEnvironment(env);
 		} else {
@@ -663,8 +663,8 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	private static StreamExecutionEnvironment createContextEnvironment(Client client,
-			List<File> jars, int parallelism) {
-		return new StreamContextEnvironment(client, jars, parallelism);
+			List<File> jars, int parallelism, boolean wait) {
+		return new StreamContextEnvironment(client, jars, parallelism, wait);
 	}
 
 	/**
