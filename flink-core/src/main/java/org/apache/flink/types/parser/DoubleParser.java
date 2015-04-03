@@ -107,7 +107,6 @@ public class DoubleParser extends FieldParser<Double> {
 			i++;
 		}
 		
-		System.out.println("hallo2");
 		String str = new String(bytes, startPos, i);
 		return Double.parseDouble(str);
 	}
