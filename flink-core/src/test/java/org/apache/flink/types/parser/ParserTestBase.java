@@ -25,7 +25,9 @@ import static org.junit.Assert.fail;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 
+import org.apache.flink.types.StringValue;
 import org.apache.flink.types.parser.FieldParser;
 import org.junit.Test;
 
@@ -45,7 +47,6 @@ public abstract class ParserTestBase<T> {
 	
 	public abstract Class<T> getTypeClass();
 	
-
 	@Test
 	public void testTest() {
 		assertNotNull(getParser());
@@ -243,7 +244,7 @@ public abstract class ParserTestBase<T> {
 				FieldParser<T> parser = getParser();
 				
 				byte[] bytes = testValues[i].getBytes();
-				int numRead = parser.parseField(bytes, 0, bytes.length, new byte[] {'|'}, parser.createValue());
+				int numRead = parser.parseField(bytes, 0, bytes.length, new byte[]{'|'}, parser.createValue());
 				
 				assertTrue("Parser accepted the invalid value " + testValues[i] + ".", numRead == -1);
 			}
@@ -400,6 +401,41 @@ public abstract class ParserTestBase<T> {
 		}
 		
 		return result;
+	}
+
+	@Test
+	public void testEmptyFieldInIsolation() {
+		try {
+			String [] emptyStrings = new String[] {"|"};
+
+			FieldParser<T> parser = getParser();
+
+			for (String emptyString : emptyStrings) {
+				byte[] bytes = emptyString.getBytes();
+				int numRead = parser.parseField(bytes, 0, bytes.length, new byte[]{'|'}, parser.createValue());
+
+				if (getTypeClass() == String.class) {
+					assertTrue("Parser declared the empty string as invalid.", numRead != -1);
+					assertEquals("Invalid number of bytes read returned.", bytes.length, numRead);
+
+					T result = parser.getLastResult();
+					assertEquals("Parser parsed wrong.", "", result);
+				} else if(getTypeClass() == StringValue.class) {
+					assertTrue("Parser declared the empty string as invalid.", numRead != -1);
+					assertEquals("Invalid number of bytes read returned.", bytes.length, numRead);
+
+					T result = parser.getLastResult();
+					assertEquals("Parser parsed wrong.", new StringValue(""), result);
+				} else {
+					assertTrue("Parser accepted the empty string.", numRead == -1);
+				}
+			}
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Test erroneous: " + e.getMessage());
+		}
 	}
 
 }

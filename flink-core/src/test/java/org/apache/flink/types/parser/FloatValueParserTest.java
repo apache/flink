@@ -52,7 +52,7 @@ public class FloatValueParserTest extends ParserTestBase<FloatValue> {
 	@Override
 	public String[] getInvalidTestValues() {
 		return new String[] {
-			"a", "123abc4", "-57-6", "7-877678"
+			"a", "123abc4", "-57-6", "7-877678", " 1", "2 ", " ", "\t"
 		};
 	}
 
