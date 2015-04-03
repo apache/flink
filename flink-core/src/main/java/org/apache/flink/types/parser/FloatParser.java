@@ -41,6 +41,10 @@ public class FloatParser extends FieldParser<Float> {
 		}
 		
 		String str = new String(bytes, startPos, i-startPos);
+		if (str.length() == 0) {
+			this.result = 0;
+			return (i == limit) ? limit : i+ delimiter.length;
+		} 
 		try {
 			this.result = Float.parseFloat(str);
 			return (i == limit) ? limit : i+ delimiter.length;
@@ -49,6 +53,7 @@ public class FloatParser extends FieldParser<Float> {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
 		}
+		
 	}
 	
 	@Override

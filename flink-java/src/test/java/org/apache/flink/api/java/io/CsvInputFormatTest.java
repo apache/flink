@@ -322,9 +322,9 @@ public class CsvInputFormatTest {
 	}
 	
 	@Test
-	public void testIntegerFieldsl() throws IOException {
+	public void testIntegerFields() throws IOException {
 		try {
-			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|\n";
+			final String fileContent = "111|222|||555\n666|777|888|999|000|\n";
 			final FileInputSplit split = createTempFile(fileContent);	
 
 			final TupleTypeInfo<Tuple5<Integer, Integer, Integer, Integer, Integer>> typeInfo =
@@ -342,8 +342,8 @@ public class CsvInputFormatTest {
 			assertNotNull(result);
 			assertEquals(Integer.valueOf(111), result.f0);
 			assertEquals(Integer.valueOf(222), result.f1);
-			assertEquals(Integer.valueOf(333), result.f2);
-			assertEquals(Integer.valueOf(444), result.f3);
+			assertEquals(Integer.valueOf(0), result.f2);
+			assertEquals(Integer.valueOf(0), result.f3);
 			assertEquals(Integer.valueOf(555), result.f4);
 			
 			result = format.nextRecord(result);
@@ -353,6 +353,48 @@ public class CsvInputFormatTest {
 			assertEquals(Integer.valueOf(888), result.f2);
 			assertEquals(Integer.valueOf(999), result.f3);
 			assertEquals(Integer.valueOf(000), result.f4);
+			
+			result = format.nextRecord(result);
+			assertNull(result);
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
+		}
+	}
+
+	@Test
+	public void testDoubleFields() throws IOException {
+		try {
+			final String fileContent = "11.1|22.2|||55.5\n66.6|77.7|88.8|99.9|00.0|\n";
+			final FileInputSplit split = createTempFile(fileContent);	
+
+			final TupleTypeInfo<Tuple5<Double, Double, Double, Double, Double>> typeInfo =
+					TupleTypeInfo.getBasicTupleTypeInfo(Double.class, Double.class, Double.class, Double.class, Double.class);
+			final CsvInputFormat<Tuple5<Double, Double, Double, Double, Double>> format = new CsvInputFormat<Tuple5<Double, Double, Double, Double, Double>>(PATH, typeInfo);
+			
+			format.setFieldDelimiter("|");
+
+			format.configure(new Configuration());
+			format.open(split);
+			
+			Tuple5<Double, Double, Double, Double, Double> result = new Tuple5<Double, Double, Double, Double, Double>();
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals(Double.valueOf(11.1), result.f0);
+			assertEquals(Double.valueOf(22.2), result.f1);
+			assertEquals(Double.valueOf(0), result.f2);
+			assertEquals(Double.valueOf(0), result.f3);
+			assertEquals(Double.valueOf(55.5), result.f4);
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals(Double.valueOf(66.6), result.f0);
+			assertEquals(Double.valueOf(77.7), result.f1);
+			assertEquals(Double.valueOf(88.8), result.f2);
+			assertEquals(Double.valueOf(99.9), result.f3);
+			assertEquals(Double.valueOf(00.0), result.f4);
 			
 			result = format.nextRecord(result);
 			assertNull(result);
