@@ -64,7 +64,13 @@ public abstract class FieldParser<T> {
 		UNTERMINATED_QUOTED_STRING,
 
 		/** The parser found characters between the end of the quoted string and the delimiter. */
-		UNQUOTED_CHARS_AFTER_QUOTED_STRING
+		UNQUOTED_CHARS_AFTER_QUOTED_STRING,
+		
+		/** The string is empty. */
+		EMPTY_STRING,
+
+		/** There is whitespace in a numeric field. */
+		WHITESPACE_IN_NUMERIC_FIELD
 	}
 	
 	private ParseErrorState errorState = ParseErrorState.NONE;
