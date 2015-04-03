@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.StreamGraph;
@@ -241,8 +242,10 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return The transformed {@link DataStream}
 	 */
 	public <OUT> SingleOutputStreamOperator<OUT, ?> map(CoMapFunction<IN1, IN2, OUT> coMapper) {
-		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoMapFunction.class,
-				coMapper.getClass(), 2, null, null);
+
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coMapper,
+				CoMapFunction.class, false, true, getInputType1(), getInputType2(),
+				Utils.getCallLocationName(), true);
 
 		return addCoFunction("Co-Map", outTypeInfo, new CoMapInvokable<IN1, IN2, OUT>(
 				clean(coMapper)));
@@ -266,8 +269,10 @@ public class ConnectedDataStream<IN1, IN2> {
 	 */
 	public <OUT> SingleOutputStreamOperator<OUT, ?> flatMap(
 			CoFlatMapFunction<IN1, IN2, OUT> coFlatMapper) {
-		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoFlatMapFunction.class,
-				coFlatMapper.getClass(), 2, null, null);
+
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coFlatMapper,
+				CoFlatMapFunction.class, false, true, getInputType1(), getInputType2(),
+				Utils.getCallLocationName(), true);
 
 		return addCoFunction("Co-Flat Map", outTypeInfo, new CoFlatMapInvokable<IN1, IN2, OUT>(
 				clean(coFlatMapper)));
@@ -291,8 +296,9 @@ public class ConnectedDataStream<IN1, IN2> {
 	 */
 	public <OUT> SingleOutputStreamOperator<OUT, ?> reduce(CoReduceFunction<IN1, IN2, OUT> coReducer) {
 
-		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoReduceFunction.class,
-				coReducer.getClass(), 2, null, null);
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coReducer,
+				CoReduceFunction.class, false, true, getInputType1(), getInputType2(),
+				Utils.getCallLocationName(), true);
 
 		return addCoFunction("Co-Reduce", outTypeInfo, getReduceInvokable(clean(coReducer)));
 
@@ -357,9 +363,10 @@ public class ConnectedDataStream<IN1, IN2> {
 		if (slideInterval < 1) {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
-
-		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoWindowFunction.class,
-				coWindowFunction.getClass(), 2, null, null);
+		
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coWindowFunction,
+				CoWindowFunction.class, false, true, getInputType1(), getInputType2(),
+				Utils.getCallLocationName(), true);
 
 		return addCoFunction("Co-Window", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
@@ -402,9 +409,8 @@ public class ConnectedDataStream<IN1, IN2> {
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
 				environment, functionName, outTypeInfo, functionInvokable);
 
-		dataStream1.streamGraph.addCoTask(returnStream.getId(), functionInvokable,
-				getInputType1(), getInputType2(), outTypeInfo, functionName,
-				environment.getParallelism());
+		dataStream1.streamGraph.addCoTask(returnStream.getId(), functionInvokable, getInputType1(),
+				getInputType2(), outTypeInfo, functionName, environment.getParallelism());
 
 		dataStream1.connectGraph(dataStream1, returnStream.getId(), 1);
 		dataStream1.connectGraph(dataStream2, returnStream.getId(), 2);

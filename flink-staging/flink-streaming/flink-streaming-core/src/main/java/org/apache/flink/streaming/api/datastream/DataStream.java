@@ -25,6 +25,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
@@ -38,11 +39,13 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
@@ -102,7 +105,6 @@ public class DataStream<OUT> {
 	protected static Integer counter = 0;
 	protected final StreamExecutionEnvironment environment;
 	protected final Integer id;
-	protected final String type;
 	protected int parallelism;
 	protected List<String> userDefinedNames;
 	protected StreamPartitioner<OUT> partitioner;
@@ -111,6 +113,7 @@ public class DataStream<OUT> {
 	protected List<DataStream<OUT>> mergedStreams;
 
 	protected final StreamGraph streamGraph;
+	private boolean typeUsed;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment with
@@ -131,7 +134,6 @@ public class DataStream<OUT> {
 
 		counter++;
 		this.id = counter;
-		this.type = operatorType;
 		this.environment = environment;
 		this.parallelism = environment.getParallelism();
 		this.streamGraph = environment.getStreamGraph();
@@ -151,7 +153,6 @@ public class DataStream<OUT> {
 	public DataStream(DataStream<OUT> dataStream) {
 		this.environment = dataStream.environment;
 		this.id = dataStream.id;
-		this.type = dataStream.type;
 		this.parallelism = dataStream.parallelism;
 		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
 		this.partitioner = dataStream.partitioner;
@@ -192,7 +193,43 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public TypeInformation<OUT> getType() {
+		if (typeInfo instanceof MissingTypeInfo) {
+			MissingTypeInfo typeInfo = (MissingTypeInfo) this.typeInfo;
+			throw new InvalidTypesException(
+					"The return type of function '"
+							+ typeInfo.getFunctionName()
+							+ "' could not be determined automatically, due to type erasure. "
+							+ "You can give type information hints by using the returns(...) method on the result of "
+							+ "the transformation call, or by letting your function implement the 'ResultTypeQueryable' "
+							+ "interface.", typeInfo.getTypeException());
+		}
+		typeUsed = true;
 		return this.typeInfo;
+	}
+
+	/**
+	 * Tries to fill in the type information. Type information can be filled in
+	 * later when the program uses a type hint. This method checks whether the
+	 * type information has ever been accessed before and does not allow
+	 * modifications if the type was accessed already. This ensures consistency
+	 * by making sure different parts of the operation do not assume different
+	 * type information.
+	 * 
+	 * @param typeInfo
+	 *            The type information to fill in.
+	 * 
+	 * @throws IllegalStateException
+	 *             Thrown, if the type information has been accessed before.
+	 */
+	protected void fillInType(TypeInformation<OUT> typeInfo) {
+		if (typeUsed) {
+			throw new IllegalStateException(
+					"TypeInformation cannot be filled in for the type after it has been used. "
+							+ "Please make sure that the type info hints are the first call after the transformation function, "
+							+ "before any access to types or semantic properties, etc.");
+		}
+		streamGraph.setOutType(id, typeInfo);
+		this.typeInfo = typeInfo;
 	}
 
 	public <F> F clean(F f) {
@@ -234,8 +271,8 @@ public class DataStream<OUT> {
 
 	/**
 	 * Operator used for directing tuples to specific named outputs using an
-	 * {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}. Calling
-	 * this method on an operator creates a new {@link SplitDataStream}.
+	 * {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}.
+	 * Calling this method on an operator creates a new {@link SplitDataStream}.
 	 * 
 	 * @param outputSelector
 	 *            The user defined
@@ -471,7 +508,8 @@ public class DataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<OUT, R> mapper) {
 
-		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType());
+		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType(),
+				Utils.getCallLocationName(), true);
 
 		return transform("Map", outType, new MapInvokable<OUT, R>(clean(mapper)));
 	}
@@ -495,7 +533,7 @@ public class DataStream<OUT> {
 	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
 
 		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
-				getType());
+				getType(), Utils.getCallLocationName(), true);
 
 		return transform("Flat Map", outType, new FlatMapInvokable<OUT, R>(clean(flatMapper)));
 
@@ -521,20 +559,22 @@ public class DataStream<OUT> {
 
 	/**
 	 * Applies a fold transformation on the data stream. The returned stream
-	 * contains all the intermediate values of the fold transformation. The
-	 * user can also extend the {@link RichFoldFunction} to gain access to
-	 * other features provided by the {@link org.apache.flink.api.common.functions.RichFunction}
-	 * interface
-	 *
+	 * contains all the intermediate values of the fold transformation. The user
+	 * can also extend the {@link RichFoldFunction} to gain access to other
+	 * features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface
+	 * 
 	 * @param folder
-	 *          The {@link FoldFunction} that will be called for every element
-	 *          of the input values.
+	 *            The {@link FoldFunction} that will be called for every element
+	 *            of the input values.
 	 * @return The transformed DataStream
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<OUT, R> folder) {
-		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType());
+		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType(),
+				Utils.getCallLocationName(), false);
 
-		return transform("Fold", outType, new StreamFoldInvokable<OUT, R>(clean(folder), initialValue, outType));
+		return transform("Fold", outType, new StreamFoldInvokable<OUT, R>(clean(folder),
+				initialValue, outType));
 	}
 
 	/**
@@ -1111,15 +1151,19 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Writes the DataStream to a socket as a byte array. The format of the output is
-	 * specified by a {@link SerializationSchema}.
-	 *
-	 * @param hostName host of the socket
-	 * @param port port of the socket
-	 * @param schema schema for serialization
+	 * Writes the DataStream to a socket as a byte array. The format of the
+	 * output is specified by a {@link SerializationSchema}.
+	 * 
+	 * @param hostName
+	 *            host of the socket
+	 * @param port
+	 *            port of the socket
+	 * @param schema
+	 *            schema for serialization
 	 * @return the closed DataStream
 	 */
-	public DataStreamSink<OUT> writeToSocket(String hostName, int port, SerializationSchema<OUT, byte[]> schema){
+	public DataStreamSink<OUT> writeToSocket(String hostName, int port,
+			SerializationSchema<OUT, byte[]> schema) {
 		DataStreamSink<OUT> returnStream = addSink(new SocketClientSink<OUT>(hostName, port, schema));
 		return returnStream;
 	}
