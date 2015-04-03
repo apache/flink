@@ -194,8 +194,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		if (typeInfo == null) {
 			throw new IllegalArgumentException("Type information must not be null.");
 		}
-		streamGraph.setOutType(id, typeInfo);
-		this.typeInfo = typeInfo;
+		fillInType(typeInfo);
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;

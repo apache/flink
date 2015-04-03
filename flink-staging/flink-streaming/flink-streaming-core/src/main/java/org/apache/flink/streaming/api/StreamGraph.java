@@ -34,12 +34,13 @@ import java.util.Set;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapperFactory;
 import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapper;
+import org.apache.flink.streaming.api.collector.selector.OutputSelectorWrapperFactory;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -169,7 +170,9 @@ public class StreamGraph extends StreamingPlan {
 
 		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
 				inTypeInfo, executionConfig) : null;
-		StreamRecordSerializer<OUT> outSerializer = outTypeInfo != null ? new StreamRecordSerializer<OUT>(
+
+		StreamRecordSerializer<OUT> outSerializer = (outTypeInfo != null)
+				&& !(outTypeInfo instanceof MissingTypeInfo) ? new StreamRecordSerializer<OUT>(
 				outTypeInfo, executionConfig) : null;
 
 		addTypeSerializers(vertexID, inSerializer, null, outSerializer, null);
@@ -215,7 +218,8 @@ public class StreamGraph extends StreamingPlan {
 		setSerializersFrom(iterationHead, vertexID);
 
 		int outpartitionerIndexToCopy = edges.getInEdgeIndices(iterationHead).get(0);
-		StreamPartitioner<?> outputPartitioner = edges.getOutEdges(outpartitionerIndexToCopy).get(0).getPartitioner();
+		StreamPartitioner<?> outputPartitioner = edges.getOutEdges(outpartitionerIndexToCopy)
+				.get(0).getPartitioner();
 
 		setEdge(vertexID, iterationHead, outputPartitioner, 0, new ArrayList<String>());
 
@@ -273,9 +277,12 @@ public class StreamGraph extends StreamingPlan {
 
 		addVertex(vertexID, CoStreamVertex.class, taskInvokableObject, operatorName, parallelism);
 
+		StreamRecordSerializer<OUT> outSerializer = (outTypeInfo != null)
+				&& !(outTypeInfo instanceof MissingTypeInfo) ? new StreamRecordSerializer<OUT>(
+				outTypeInfo, executionConfig) : null;
+
 		addTypeSerializers(vertexID, new StreamRecordSerializer<IN1>(in1TypeInfo, executionConfig),
-				new StreamRecordSerializer<IN2>(in2TypeInfo, executionConfig),
-				new StreamRecordSerializer<OUT>(outTypeInfo, executionConfig), null);
+				new StreamRecordSerializer<IN2>(in2TypeInfo, executionConfig), outSerializer, null);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CO-TASK: {}", vertexID);
