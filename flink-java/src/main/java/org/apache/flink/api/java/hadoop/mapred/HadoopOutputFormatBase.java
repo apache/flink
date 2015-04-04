@@ -52,7 +52,6 @@ public abstract class HadoopOutputFormatBase<K, V, T> implements OutputFormat<T>
 	private transient JobContext jobContext;
 
 	public HadoopOutputFormatBase(org.apache.hadoop.mapred.OutputFormat<K, V> mapredOutputFormat, JobConf job) {
-		super();
 		this.mapredOutputFormat = mapredOutputFormat;
 		HadoopUtils.mergeHadoopConf(job);
 		this.jobConf = job;
