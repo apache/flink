@@ -60,34 +60,30 @@ public class HBaseWriteExample {
 				.sum(1);
 
 		// emit result
-//		if(fileOutput) {
-			Job job = Job.getInstance();
-			job.getConfiguration().set(TableOutputFormat.OUTPUT_TABLE, outputTableName);
-			// TODO is "mapred.output.dir" really useful?
-			job.getConfiguration().set("mapred.output.dir","/tmp/test");
-			counts.map(new RichMapFunction <Tuple2<String,Integer>, Tuple2<Text,Mutation>>() {
-				private final byte[] CF_SOME = Bytes.toBytes("test-column");
-				private final byte[] Q_SOME = Bytes.toBytes("value");
-				private transient Tuple2<Text, Mutation> reuse;
+		Job job = Job.getInstance();
+		job.getConfiguration().set(TableOutputFormat.OUTPUT_TABLE, outputTableName);
+		// TODO is "mapred.output.dir" really useful?
+		job.getConfiguration().set("mapred.output.dir","/tmp/test");
+		counts.map(new RichMapFunction <Tuple2<String,Integer>, Tuple2<Text,Mutation>>() {
+			private final byte[] CF_SOME = Bytes.toBytes("test-column");
+			private final byte[] Q_SOME = Bytes.toBytes("value");
+			private transient Tuple2<Text, Mutation> reuse;
 
-				@Override
-				public void open(Configuration parameters) throws Exception {
-					super.open(parameters);
-					reuse = new Tuple2<Text, Mutation>();
-				}
+			@Override
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				reuse = new Tuple2<Text, Mutation>();
+			}
 
-				@Override
-				public Tuple2<Text, Mutation> map(Tuple2<String, Integer> t) throws Exception {
-					reuse.f0 = new Text(t.f0);
-					Put put = new Put(t.f0.getBytes());
-					put.add(CF_SOME, Q_SOME, Bytes.toBytes(t.f1));
-					reuse.f1 = put;
-					return reuse;
-				}
-			}).output(new HadoopOutputFormat<Text, Mutation>(new TableOutputFormat<Text>(), job));
-//		} else {
-//			counts.print();
-//		}
+			@Override
+			public Tuple2<Text, Mutation> map(Tuple2<String, Integer> t) throws Exception {
+				reuse.f0 = new Text(t.f0);
+				Put put = new Put(t.f0.getBytes());
+				put.add(CF_SOME, Q_SOME, Bytes.toBytes(t.f1));
+				reuse.f1 = put;
+				return reuse;
+			}
+		}).output(new HadoopOutputFormat<Text, Mutation>(new TableOutputFormat<Text>(), job));
 		
 		// execute program
 		env.execute("WordCount (HBase sink) Example");
@@ -134,13 +130,13 @@ public class HBaseWriteExample {
 				textPath = args[0];
 				outputTableName = args[1];
 			} else {
-				System.err.println("Usage: WordCount <text path> <result path>");
+				System.err.println("Usage: HBaseWriteExample <text path> <output table>");
 				return false;
 			}
 		} else {
-			System.out.println("Executing WordCount example with built-in default data.");
+			System.out.println("Executing HBaseWriteExample example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: WordCount <text path> <result path>");
+			System.out.println("  Usage: HBaseWriteExample <text path> <output table>");
 		}
 		return true;
 	}
