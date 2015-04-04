@@ -34,8 +34,8 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<hbase.hadoop1.version>0.98.6.1-hadoop1</hbase.hadoop1.version>
-		<hbase.hadoop2.version>0.98.6.1-hadoop2</hbase.hadoop2.version>
+		<hbase.hadoop1.version>0.98.11-hadoop1</hbase.hadoop1.version>
+		<hbase.hadoop2.version>0.98.11-hadoop2</hbase.hadoop2.version>
 	</properties>
 
 	<dependencies>
@@ -111,6 +111,12 @@ under the License.
 					<artifactId>hadoop-mapreduce-client-core</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hbase</groupId>
+			<artifactId>hbase-server</artifactId>
+			<version>${hbase.version}</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
