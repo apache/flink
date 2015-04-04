@@ -69,9 +69,6 @@ public class PathTest {
 		p = new Path("file:/C:/my/windows/path");
 		assertEquals("/C:/my/windows/path", p.toUri().getPath());
 
-		p = new Path("C:");
-		assertEquals("/C:", p.toUri().getPath());
-
 		try {
 			new Path((String)null);
 			fail();
@@ -98,21 +95,51 @@ public class PathTest {
 	@Test
 	public void testIsAbsolute() {
 
+		// UNIX
+
 		Path p = new Path("/my/abs/path");
+		assertTrue(p.isAbsolute());
+
+		p = new Path("/");
 		assertTrue(p.isAbsolute());
 
 		p = new Path("./my/rel/path");
 		assertFalse(p.isAbsolute());
 
+		p = new Path("my/rel/path");
+		assertFalse(p.isAbsolute());
+
+		// WINDOWS
+
 		p = new Path("C:/my/abs/windows/path");
 		assertTrue(p.isAbsolute());
 
-		p = new Path("file:/C:");
+		p = new Path("y:/my/abs/windows/path");
+		assertTrue(p.isAbsolute());
+
+		p = new Path("b:\\my\\abs\\windows\\path");
 		assertTrue(p.isAbsolute());
 
 		p = new Path("C:");
+		assertFalse(p.isAbsolute());
+
+		p = new Path("C:my\\relative\\path");
+		assertFalse(p.isAbsolute());
+
+		p = new Path("\\my\\dir");
 		assertTrue(p.isAbsolute());
 
+		p = new Path("\\");
+		assertTrue(p.isAbsolute());
+
+		p = new Path(".\\my\\relative\\path");
+		assertFalse(p.isAbsolute());
+
+		p = new Path("my\\relative\\path");
+		assertFalse(p.isAbsolute());
+
+		p = new Path("\\\\myServer\\myDir");
+		assertTrue(p.isAbsolute());
 	}
 
 	@Test

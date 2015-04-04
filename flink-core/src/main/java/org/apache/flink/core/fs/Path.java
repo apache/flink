@@ -312,10 +312,7 @@ public class Path implements IOReadableWritable, Serializable {
 	 */
 	public boolean isAbsolute() {
 		final int start = hasWindowsDrive(uri.getPath(), true) ? 3 : 0;
-		if (uri.getPath().length() > start) {
-			return uri.getPath().startsWith(SEPARATOR, start);
-		}
-		return true;
+		return uri.getPath().startsWith(SEPARATOR, start);
 	}
 
 	/**
