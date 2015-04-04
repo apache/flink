@@ -395,10 +395,6 @@ public class DefaultMemoryManager implements MemoryManager {
 	// ------------------------------------------------------------------------
 	
 	private int getNumPages(long numBytes) {
-		if (numBytes < 0) {
-			throw new IllegalArgumentException("The number of bytes to allocate must not be negative.");
-		}
-		
 		final long numPages = numBytes >>> this.pageSizeBits;
 		if (numPages <= Integer.MAX_VALUE) {
 			return (int) numPages;
