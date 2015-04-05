@@ -16,30 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test;
+package org.apache.flink.streaming.examples.test.join;
 
-import org.apache.flink.streaming.examples.wordcount.PojoExample;
+import org.apache.flink.streaming.examples.join.WindowJoin;
+import org.apache.flink.streaming.examples.join.util.WindowJoinData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
-import org.apache.flink.test.testdata.WordCountData;
 
-public class PojoExampleITCase extends StreamingProgramTestBase {
+public class WindowJoinITCase extends StreamingProgramTestBase {
 
-	protected String textPath;
+	protected String gradesPath;
+	protected String salariesPath;
 	protected String resultPath;
 
 	@Override
 	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT);
+		setParallelism(1);
+		gradesPath = createTempFile("gradesText.txt", WindowJoinData.GRADES_INPUT);
+		salariesPath = createTempFile("salariesText.txt", WindowJoinData.SALARIES_INPUT);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
+		compareResultsByLinesInMemory(WindowJoinData.WINDOW_JOIN_RESULTS, resultPath);
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		PojoExample.main(new String[]{textPath, resultPath});
+		WindowJoin.main(new String[]{gradesPath, salariesPath, resultPath});
 	}
 }

@@ -47,6 +47,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	public TestStreamEnvironment(ForkableFlinkMiniCluster executor, int parallelism){
 		this.executor = executor;
 		setDefaultLocalParallelism(parallelism);
+		setParallelism(parallelism);
 	}
 
 	@Override

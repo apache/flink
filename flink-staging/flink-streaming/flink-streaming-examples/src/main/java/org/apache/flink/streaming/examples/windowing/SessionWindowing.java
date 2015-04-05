@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -28,11 +25,20 @@ import org.apache.flink.streaming.api.windowing.policy.CentralActiveTrigger;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.util.Collector;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class SessionWindowing {
 
 	@SuppressWarnings("serial")
 	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(2);
+
+		if (!parseParameters(args)) {
+			return;
+		}
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(2);
 
 		final List<Tuple3<String, Long, Integer>> input = new ArrayList<Tuple3<String, Long, Integer>>();
 
@@ -57,9 +63,11 @@ public class SessionWindowing {
 							// We sleep three seconds between every output so we
 							// can see whether we properly detect sessions
 							// before the next start for a specific id
-							Thread.sleep(3000);
 							collector.collect(value);
-							System.out.println("Collected: " + value);
+							if (!fileOutput) {
+								System.out.println("Collected: " + value);
+								Thread.sleep(3000);
+							}
 						}
 					}
 
@@ -69,10 +77,16 @@ public class SessionWindowing {
 				});
 
 		// We create sessions for each id with max timeout of 3 time units
-		source.groupBy(0)
+		DataStream<Tuple3<String, Long, Integer>> aggregated = source.groupBy(0)
 				.window(new SessionTriggerPolicy(3L),
 						new TumblingEvictionPolicy<Tuple3<String, Long, Integer>>()).sum(2)
-				.flatten().print();
+				.flatten();
+
+		if (fileOutput) {
+			aggregated.writeAsText(outputPath);
+		} else {
+			aggregated.print();
+		}
 
 		env.execute();
 	}
@@ -115,7 +129,7 @@ public class SessionWindowing {
 			// belongs to a different group
 
 			if (timeSinceLastEvent > sessionTimeout) {
-				return new Object[] { datapoint };
+				return new Object[]{datapoint};
 			} else {
 				return null;
 			}
@@ -127,4 +141,27 @@ public class SessionWindowing {
 		}
 
 	}
+
+	// *************************************************************************
+	// UTIL METHODS
+	// *************************************************************************
+
+	private static boolean fileOutput = false;
+	private static String outputPath;
+
+	private static boolean parseParameters(String[] args) {
+
+		if (args.length > 0) {
+			// parse input arguments
+			if (args.length == 1) {
+				fileOutput = true;
+				outputPath = args[0];
+			} else {
+				System.err.println("Usage: SessionWindowing <result path>");
+				return false;
+			}
+		}
+		return true;
+	}
+
 }
