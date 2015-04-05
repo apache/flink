@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.common.operators;
 
-import org.apache.flink.api.common.aggregators.AggregatorRegistry;
-
 public interface IterationOperator {
-	
-	AggregatorRegistry getAggregators();
+
 }

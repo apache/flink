@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
@@ -286,6 +287,32 @@ public class InstantiationUtil {
 		oos.writeObject(o);
 
 		return baos.toByteArray();
+	}
+	
+
+	/**
+	 * Creates a copy of the given serializable object by an in-memory
+	 * serialization and subsequent deserialization.
+	 * 
+	 * @param original
+	 *            the original object to be copied
+	 * @return the copy of original object created by the original object's
+	 *         serialization/deserialization methods
+	 * @throws IOException
+	 *             thrown if an error occurs while creating the copy of the
+	 *             object
+	 * @throws ClassNotFoundException 
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T extends Serializable> T createCopy(final T original)
+			throws IOException, ClassNotFoundException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		oos.writeObject(original);
+
+		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+		ObjectInputStream ois = new ObjectInputStream(bais);
+		return (T) ois.readObject();
 	}
 	
 	// --------------------------------------------------------------------------------------------

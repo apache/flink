@@ -22,8 +22,6 @@ import java.util.Arrays;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -39,8 +37,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * @see DataSet#iterateDelta(DataSet, int, int[])
  */
 public class DeltaIteration<ST, WT> {
-	
-	private final AggregatorRegistry aggregators = new AggregatorRegistry();
 	
 	private final DataSet<ST> initialSolutionSet;
 	private final DataSet<WT> initialWorkset;
@@ -183,34 +179,6 @@ public class DeltaIteration<ST, WT> {
 	 */
 	public int getParallelism() {
 		return parallelism;
-	}
-	
-	/**
-	 * Registers an {@link Aggregator} for the iteration. Aggregators can be used to maintain simple statistics during the
-	 * iteration, such as number of elements processed. The aggregators compute global aggregates: After each iteration step,
-	 * the values are globally aggregated to produce one aggregate that represents statistics across all parallel instances.
-	 * The value of an aggregator can be accessed in the next iteration.
-	 * <p>
-	 * Aggregators can be accessed inside a function via the
-	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#getIterationRuntimeContext()} method.
-	 * 
-	 * @param name The name under which the aggregator is registered.
-	 * @param aggregator The aggregator class.
-	 * 
-	 * @return The DeltaIteration itself, to allow chaining function calls.
-	 */
-	public DeltaIteration<ST, WT> registerAggregator(String name, Aggregator<?> aggregator) {
-		this.aggregators.registerAggregator(name, aggregator);
-		return this;
-	}
-	
-	/**
-	 * Gets the registry for aggregators for the iteration.
-	 * 
-	 * @return The registry with all aggregators.
-	 */
-	public AggregatorRegistry getAggregators() {
-		return this.aggregators;
 	}
 	
 	/**

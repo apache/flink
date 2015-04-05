@@ -160,9 +160,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 			headFinalOutConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			headConfig.setIterationHeadFinalOutputConfig(headFinalOutConfig);
 
-			// the sync
-			headConfig.setIterationHeadIndexOfSyncOutput(2);
-
 			// driver
 			headConfig.setDriver(CollectorMapDriver.class);
 			headConfig.setDriverStrategy(DriverStrategy.COLLECTOR_MAP);
@@ -170,6 +167,9 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 			// back channel
 			headConfig.setRelativeBackChannelMemory(1.0);
+			
+			// number of iterations
+			headConfig.setNumberOfIterations(maxIterations);
 		}
 
 		// - tail ------------------------------------------------------------------------------------------------------
@@ -219,12 +219,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 			outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
 		}
 
-		// - sync ------------------------------------------------------------------------------------------------------
-		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
-		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setNumberOfIterations(maxIterations);
-		syncConfig.setIterationId(ITERATION_ID);
-
 		// --------------------------------------------------------------------------------------------------------------
 		// 2. EDGES
 		// --------------------------------------------------------------------------------------------------------------
@@ -234,8 +228,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
 		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
-
-		JobGraphUtils.connect(head, sync, DistributionPattern.POINTWISE);
 
 		// --------------------------------------------------------------------------------------------------------------
 		// 3. INSTANCE SHARING
@@ -247,7 +239,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		head.setSlotSharingGroup(sharingGroup);
 		tail.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
-		sync.setSlotSharingGroup(sharingGroup);
 		
 		tail.setStrictlyCoLocatedWith(head);
 

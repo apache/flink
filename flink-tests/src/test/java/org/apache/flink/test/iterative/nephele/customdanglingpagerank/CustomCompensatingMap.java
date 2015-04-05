@@ -26,7 +26,9 @@ import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.iterative.nephele.ConfigUtils;
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;
+import org.apache.flink.test.iterative.nephele.danglingpagerank.CompensatableDotProductCoGroup;
 import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStats;
+import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStatsAccumulator;
 import org.apache.flink.util.Collector;
 
 @SuppressWarnings("deprecation")
@@ -54,10 +56,14 @@ public class CustomCompensatingMap extends AbstractRichFunction implements Gener
 		isFailingWorker = failingWorkers.contains(workerIndex);
 		
 		long numVertices = ConfigUtils.asLong("pageRank.numVertices", parameters);
+		
+		getIterationRuntimeContext().addIterationAccumulator(CompensatableDotProductCoGroup.ACCUMULATOR_NAME, new PageRankStatsAccumulator());
 
 		if (currentIteration > 1) {
 			
-			PageRankStats stats = (PageRankStats) getIterationRuntimeContext().getPreviousIterationAggregate(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME);
+			PageRankStats stats = (PageRankStats) getIterationRuntimeContext()
+					.getPreviousIterationAccumulator(CustomCompensatableDotProductCoGroup.ACCUMULATOR_NAME)
+					.getLocalValue();
 
 			uniformRank = 1d / (double) numVertices;
 			double lostMassFactor = (numVertices - stats.numVertices()) / (double) numVertices;

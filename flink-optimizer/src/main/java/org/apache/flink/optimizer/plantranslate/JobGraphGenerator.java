@@ -18,16 +18,25 @@
 
 package org.apache.flink.optimizer.plantranslate;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.aggregators.AggregatorRegistry;
-import org.apache.flink.api.common.aggregators.AggregatorWithName;
-import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
-import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.accumulators.ConvergenceCriterion;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
@@ -45,15 +54,11 @@ import org.apache.flink.optimizer.plan.SolutionSetPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
-import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -78,16 +83,6 @@ import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Visitor;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 /**
  * This component translates the optimizer's resulting {@link org.apache.flink.optimizer.plan.OptimizedPlan}
@@ -1190,7 +1185,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig headConfig = new TaskConfig(headVertex.getConfiguration());
 		final TaskConfig headFinalOutputConfig = descr.getHeadFinalResultConfig();
 		
-		// ------------ finalize the head config with the final outputs and the sync gate ------------
+		// ------------ finalize the head config with the final outputs ------------
 		final int numStepFunctionOuts = headConfig.getNumOutputs();
 		final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
 		
@@ -1199,31 +1194,20 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		}
 		
 		headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
-		headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
+		
 		final double relativeMemForBackChannel = bulkNode.getRelativeMemoryPerSubTask();
 		if (relativeMemForBackChannel <= 0) {
 			throw new CompilerException("Bug: No memory has been assigned to the iteration back channel.");
 		}
 		headConfig.setRelativeBackChannelMemory(relativeMemForBackChannel);
-		
-		// --------------------------- create the sync task ---------------------------
-		final AbstractJobVertex sync = new AbstractJobVertex("Sync(" + bulkNode.getNodeName() + ")");
-		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
-		sync.setParallelism(1);
-		this.auxVertices.add(sync);
-		
-		final TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, headVertex.getParallelism());
 
-		// set the number of iteration / convergence criterion for the sync
+		// set the number of iteration / convergence criterion for the head
 		final int maxNumIterations = bulkNode.getIterationNode().getIterationContract().getMaximumNumberOfIterations();
 		if (maxNumIterations < 1) {
 			throw new CompilerException("Cannot create bulk iteration with unspecified maximum number of iterations.");
 		}
-		syncConfig.setNumberOfIterations(maxNumIterations);
+		headConfig.setNumberOfIterations(maxNumIterations);
 		
-		// connect the sync task
-		sync.connectNewDataSetAsInput(headVertex, DistributionPattern.POINTWISE);
 		
 		// ----------------------------- create the iteration tail ------------------------------
 		
@@ -1287,25 +1271,19 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			headConfig.setWaitForSolutionSetUpdate();
 		}
 		
-		// ------------------- register the aggregators -------------------
-		AggregatorRegistry aggs = bulkNode.getIterationNode().getIterationContract().getAggregators();
-		Collection<AggregatorWithName<?>> allAggregators = aggs.getAllRegisteredAggregators();
+		// ------------------- register the convergence criterion -------------------
+		String convAccName = bulkNode.getIterationNode().getIterationContract().getConvergenceCriterionAccumulatorName();
+		ConvergenceCriterion<?> convCriterion = bulkNode.getIterationNode().getIterationContract().getConvergenceCriterion();
 		
-		headConfig.addIterationAggregators(allAggregators);
-		syncConfig.addIterationAggregators(allAggregators);
-		
-		String convAggName = aggs.getConvergenceCriterionAggregatorName();
-		ConvergenceCriterion<?> convCriterion = aggs.getConvergenceCriterion();
-		
-		if (convCriterion != null || convAggName != null) {
+		if (convCriterion != null || convAccName != null) {
 			if (convCriterion == null) {
-				throw new CompilerException("Error: Convergence criterion aggregator set, but criterion is null.");
+				throw new CompilerException("Error: Convergence criterion accumulator set, but criterion is null.");
 			}
-			if (convAggName == null) {
-				throw new CompilerException("Error: Aggregator convergence criterion set, but aggregator is null.");
+			if (convAccName == null) {
+				throw new CompilerException("Error: Accumulator convergence criterion set, but aggregator is null.");
 			}
 			
-			syncConfig.setConvergenceCriterion(convAggName, convCriterion);
+			headConfig.setConvergenceCriterion(convAccName, convCriterion);
 		}
 	}
 	
@@ -1315,17 +1293,15 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig headConfig = new TaskConfig(headVertex.getConfiguration());
 		final TaskConfig headFinalOutputConfig = descr.getHeadFinalResultConfig();
 		
-		// ------------ finalize the head config with the final outputs and the sync gate ------------
+		// ------------ finalize the head config with the final outputs ------------
 		{
 			final int numStepFunctionOuts = headConfig.getNumOutputs();
-			final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
 			
 			if (numStepFunctionOuts == 0) {
 				throw new CompilerException("The workset iteration has no operation on the workset inside the step function.");
 			}
 			
 			headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
-			headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
 			final double relativeMemory = iterNode.getRelativeMemoryPerSubTask();
 			if (relativeMemory <= 0) {
 				throw new CompilerException("Bug: No memory has been assigned to the workset iteration.");
@@ -1338,28 +1314,17 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// set the solution set serializer and comparator
 			headConfig.setSolutionSetSerializer(iterNode.getSolutionSetSerializer());
 			headConfig.setSolutionSetComparator(iterNode.getSolutionSetComparator());
-		}
-		
-		// --------------------------- create the sync task ---------------------------
-		final TaskConfig syncConfig;
-		{
-			final AbstractJobVertex sync = new AbstractJobVertex("Sync (" + iterNode.getNodeName() + ")");
-			sync.setInvokableClass(IterationSynchronizationSinkTask.class);
-			sync.setParallelism(1);
-			this.auxVertices.add(sync);
 			
-			syncConfig = new TaskConfig(sync.getConfiguration());
-			syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, headVertex.getParallelism());
-	
-			// set the number of iteration / convergence criterion for the sync
+			// register the convergence criterion
+			headConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.ACCUMULATOR_NAME, new WorksetEmptyConvergenceCriterion());
+			
+			// set the number of iteration for the head
 			final int maxNumIterations = iterNode.getIterationNode().getIterationContract().getMaximumNumberOfIterations();
 			if (maxNumIterations < 1) {
 				throw new CompilerException("Cannot create workset iteration with unspecified maximum number of iterations.");
 			}
-			syncConfig.setNumberOfIterations(maxNumIterations);
-			
-			// connect the sync task
-			sync.connectNewDataSetAsInput(headVertex, DistributionPattern.POINTWISE);
+			headConfig.setNumberOfIterations(maxNumIterations);
+		
 		}
 		
 		// ----------------------------- create the iteration tails -----------------------------
@@ -1438,31 +1403,6 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				}
 			}
 		}
-		
-		// ------------------- register the aggregators -------------------
-		AggregatorRegistry aggs = iterNode.getIterationNode().getIterationContract().getAggregators();
-		Collection<AggregatorWithName<?>> allAggregators = aggs.getAllRegisteredAggregators();
-		
-		for (AggregatorWithName<?> agg : allAggregators) {
-			if (agg.getName().equals(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME)) {
-				throw new CompilerException("User defined aggregator used the same name as built-in workset " +
-						"termination check aggregator: " + WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
-			}
-		}
-		
-		headConfig.addIterationAggregators(allAggregators);
-		syncConfig.addIterationAggregators(allAggregators);
-		
-		String convAggName = aggs.getConvergenceCriterionAggregatorName();
-		ConvergenceCriterion<?> convCriterion = aggs.getConvergenceCriterion();
-		
-		if (convCriterion != null || convAggName != null) {
-			throw new CompilerException("Error: Cannot use custom convergence criterion with workset iteration. Workset iterations have implicit convergence criterion where workset is empty.");
-		}
-		
-		headConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
-		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
-		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new WorksetEmptyConvergenceCriterion());
 	}
 	
 	private static String getDescriptionForUserCode(UserCodeWrapper<?> wrapper) {

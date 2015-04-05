@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.iterative.task;
 
+import java.io.IOException;
+import java.io.Serializable;
+
 import org.apache.flink.api.common.ExecutionConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.operators.util.JoinHashMap;
@@ -34,7 +35,7 @@ import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
-import org.apache.flink.runtime.iterative.concurrent.IterationAggregatorBroker;
+import org.apache.flink.runtime.iterative.concurrent.IterationAccumulatorBroker;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetBroker;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import org.apache.flink.runtime.iterative.io.SolutionSetObjectsUpdateOutputCollector;
@@ -46,12 +47,11 @@ import org.apache.flink.runtime.operators.ResettablePactDriver;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
-
-import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The abstract base class for all tasks able to participate in an iteration.
@@ -61,7 +61,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 {
 	private static final Logger log = LoggerFactory.getLogger(AbstractIterativePactTask.class);
 	
-	protected LongSumAggregator worksetAggregator;
+	protected LongCounter worksetAccumulator;
 
 	protected BlockingBackChannel worksetBackChannel;
 
@@ -70,9 +70,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	protected boolean isWorksetUpdate;
 
 	protected boolean isSolutionSetUpdate;
-	
 
-	private RuntimeAggregatorRegistry iterationAggregators;
+	private RuntimeAccumulatorRegistry iterationAccumulators;
 
 	private String brokerKey;
 
@@ -108,10 +107,10 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 			worksetBackChannel = BlockingBackChannelBroker.instance().getAndRemove(brokerKey());
 
 			if (isWorksetIteration) {
-				worksetAggregator = getIterationAggregators().getAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
-
-				if (worksetAggregator == null) {
-					throw new RuntimeException("Missing workset elements count aggregator.");
+				worksetAccumulator = getIterationAccumulators().getAccumulator(WorksetEmptyConvergenceCriterion.ACCUMULATOR_NAME);
+				
+				if (worksetAccumulator == null) {
+					throw new RuntimeException("Missing workset elements count accumulator.");
 				}
 			}
 		}
@@ -212,11 +211,12 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		}
 	}
 
-	public RuntimeAggregatorRegistry getIterationAggregators() {
-		if (this.iterationAggregators == null) {
-			this.iterationAggregators = IterationAggregatorBroker.instance().get(brokerKey());
+
+	public RuntimeAccumulatorRegistry getIterationAccumulators() {
+		if (this.iterationAccumulators == null) {
+			this.iterationAccumulators = IterationAccumulatorBroker.instance().get(brokerKey());
 		}
-		return this.iterationAggregators;
+		return this.iterationAccumulators;
 	}
 
 	protected void verifyEndOfSuperstepState() throws IOException {
@@ -365,15 +365,19 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 			return AbstractIterativePactTask.this.superstepNum;
 		}
 
-		@Override
-		public <T extends Aggregator<?>> T getIterationAggregator(String name) {
-			return getIterationAggregators().<T>getAggregator(name);
+		public <V, A extends Serializable> void addIterationAccumulator(String name, Accumulator <V, A>  accumulator) {
+			getIterationAccumulators().addAccumulator(name, accumulator);
 		}
 
-		@Override
 		@SuppressWarnings("unchecked")
-		public <T extends Value> T getPreviousIterationAggregate(String name) {
-			return (T) getIterationAggregators().getPreviousGlobalAggregate(name);
+		@Override
+		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
+			return (Accumulator<V, A>) getIterationAccumulators().getAccumulator(name);
+		}
+
+		@SuppressWarnings("unchecked")
+		public <T extends Accumulator<?, ? extends Serializable>> T getPreviousIterationAccumulator(String name) {
+			return (T) getIterationAccumulators().getPreviousGlobalAccumulator(name);
 		}
 	}
 

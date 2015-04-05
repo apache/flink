@@ -164,8 +164,8 @@ public class CompensatableDanglingPageRank {
 		headConfig.setIterationHeadFinalOutputConfig(headFinalOutConfig);
 		
 		// the sync
-		headConfig.setIterationHeadIndexOfSyncOutput(3);
 		headConfig.setNumberOfIterations(numIterations);
+		headConfig.setConvergenceCriterion(CompensatableDotProductCoGroup.ACCUMULATOR_NAME, new DiffL1NormConvergenceCriterion());
 		
 		// the driver 
 		headConfig.setDriver(CollectorMapDriver.class);
@@ -175,8 +175,7 @@ public class CompensatableDanglingPageRank {
 		headConfig.setStubParameter("compensation.failingWorker", failingWorkers);
 		headConfig.setStubParameter("compensation.failingIteration", String.valueOf(failingIteration));
 		headConfig.setStubParameter("compensation.messageLoss", String.valueOf(messageLoss));
-		headConfig.addIterationAggregator(CompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
-
+		
 		// --------------- the join ---------------------
 		
 		AbstractJobVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class, "IterationIntermediate", jobGraph, parallelism);
@@ -250,16 +249,7 @@ public class CompensatableDanglingPageRank {
 		outputConfig.setInputSerializer(recSerializer, 0);
 		outputConfig.setStubWrapper(new UserCodeClassWrapper<PageWithRankOutFormat>(PageWithRankOutFormat.class));
 		outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
-		
-		// --------------- the auxiliaries ---------------------
 
-		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, parallelism);
-		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setNumberOfIterations(numIterations);
-		syncConfig.addIterationAggregator(CompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
-		syncConfig.setConvergenceCriterion(CompensatableDotProductCoGroup.AGGREGATOR_NAME, new DiffL1NormConvergenceCriterion());
-		syncConfig.setIterationId(ITERATION_ID);
-		
 		// --------------- the wiring ---------------------
 
 		JobGraphUtils.connect(pageWithRankInput, head, DistributionPattern.ALL_TO_ALL);
@@ -276,8 +266,6 @@ public class CompensatableDanglingPageRank {
 
 		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, sync, DistributionPattern.POINTWISE);
-		
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
 		pageWithRankInput.setSlotSharingGroup(sharingGroup);
 		adjacencyListInput.setSlotSharingGroup(sharingGroup);
@@ -285,7 +273,6 @@ public class CompensatableDanglingPageRank {
 		intermediate.setSlotSharingGroup(sharingGroup);
 		tail.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
-		sync.setSlotSharingGroup(sharingGroup);
 		
 		tail.setStrictlyCoLocatedWith(head);
 		intermediate.setStrictlyCoLocatedWith(head);

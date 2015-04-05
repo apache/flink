@@ -16,24 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.iterative.aggregators;
+package org.apache.flink.test.iterative.accumulators;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.util.JavaProgramTestBase;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.util.Collector;
-import org.junit.Assert;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.util.Collector;
+import org.junit.Assert;
 
 /**
  * Connected Components test case that uses a parameterizable aggregator
@@ -111,8 +110,7 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 
 	private static class ConnectedComponentsWithAggregatorProgram {
 
-		private static final String ELEMENTS_IN_COMPONENT = "elements.in.component.aggregator";
-		private static final long componentId = 1l;
+		private static final String ELEMENTS_IN_COMPONENT = "elements.in.component.accumulator";
 		private static long [] aggr_value = new long [MAX_ITERATIONS];
 
 		public static String runProgram(String resultPath) throws Exception {
@@ -125,9 +123,6 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 
 			IterativeDataSet<Tuple2<Long, Long>> iteration =
 					initialSolutionSet.iterate(MAX_ITERATIONS);
-
-			// register the aggregator
-			iteration.registerAggregator(ELEMENTS_IN_COMPONENT, new LongSumAggregatorWithParameter(componentId));
 
 			DataSet<Tuple2<Long, Long>> verticesWithNewComponents = iteration.join(edges).where(0).equalTo(0)
 					.with(new NeighborWithComponentIDJoin())
@@ -187,19 +182,23 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 	@SuppressWarnings("serial")
 	public static final class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 
-		private static LongSumAggregatorWithParameter aggr;
+		private static LongSumAccumulatorWithParameter acc;
+		
+		private static final long componentId = 1l;
 
 		@Override
 		public void open(Configuration conf) {
-			aggr = getIterationRuntimeContext().getIterationAggregator(
-					ConnectedComponentsWithAggregatorProgram.ELEMENTS_IN_COMPONENT);
+			acc = new LongSumAccumulatorWithParameter(componentId);
+			getIterationRuntimeContext().addIterationAccumulator(
+					ConnectedComponentsWithAggregatorProgram.ELEMENTS_IN_COMPONENT,
+					acc);
 
 			int superstep = getIterationRuntimeContext().getSuperstepNumber(); 
 
 			if (superstep > 1) {
-				LongValue val = getIterationRuntimeContext().getPreviousIterationAggregate(
-						ConnectedComponentsWithAggregatorProgram.ELEMENTS_IN_COMPONENT);
-				ConnectedComponentsWithAggregatorProgram.aggr_value[superstep-2] = val.getValue();
+				Long val = (Long) getIterationRuntimeContext().getPreviousIterationAccumulator(
+						ConnectedComponentsWithAggregatorProgram.ELEMENTS_IN_COMPONENT).getLocalValue();
+				ConnectedComponentsWithAggregatorProgram.aggr_value[superstep-2] = val.longValue();
 			}
 		}
 
@@ -210,13 +209,13 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 
 			if (vertexWithNewAndOldId.f0.f1 < vertexWithNewAndOldId.f1.f1) {
 				out.collect(vertexWithNewAndOldId.f0);
-				if (vertexWithNewAndOldId.f0.f1 == aggr.getComponentId()) {
-					aggr.aggregate(1l);
+				if (vertexWithNewAndOldId.f0.f1 == acc.getComponentId()) {
+					acc.add(1l);
 				}
 			} else {
 				out.collect(vertexWithNewAndOldId.f1);
-				if (vertexWithNewAndOldId.f1.f1 == aggr.getComponentId()) {
-					aggr.aggregate(1l);
+				if (vertexWithNewAndOldId.f1.f1 == acc.getComponentId()) {
+					acc.add(1l);
 				}
 			}
 		}
@@ -224,11 +223,13 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 
 	// A LongSumAggregator with one parameter
 	@SuppressWarnings("serial")
-	public static final class LongSumAggregatorWithParameter extends LongSumAggregator {
+	public static final class LongSumAccumulatorWithParameter extends LongCounter {
 
 		private long componentId;
+		
+		public LongSumAccumulatorWithParameter() { }
 
-		public LongSumAggregatorWithParameter(long compId) {
+		public LongSumAccumulatorWithParameter(long compId) {
 			this.componentId = compId;
 		}
 

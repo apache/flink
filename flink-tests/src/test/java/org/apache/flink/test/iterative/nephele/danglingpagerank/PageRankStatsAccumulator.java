@@ -19,10 +19,15 @@
 
 package org.apache.flink.test.iterative.nephele.danglingpagerank;
 
-import org.apache.flink.api.common.aggregators.Aggregator;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 
 @SuppressWarnings("serial")
-public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
+public class PageRankStatsAccumulator implements SimpleAccumulator<PageRankStats> {
 
 	private double diff = 0;
 
@@ -41,12 +46,12 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 	private double finalDiff = 0;
 
 	@Override
-	public PageRankStats getAggregate() {
+	public PageRankStats getLocalValue() {
 		return new PageRankStats(diff, rank, danglingRank, numDanglingVertices, numVertices, edges, summedRank,
 			finalDiff);
 	}
 
-	public void aggregate(double diffDelta, double rankDelta, double danglingRankDelta, long danglingVerticesDelta,
+	public void add(double diffDelta, double rankDelta, double danglingRankDelta, long danglingVerticesDelta,
 			long verticesDelta, long edgesDelta, double summedRankDelta, double finalDiffDelta) {
 		diff += diffDelta;
 		rank += rankDelta;
@@ -59,7 +64,7 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 	}
 
 	@Override
-	public void aggregate(PageRankStats pageRankStats) {
+	public void add(PageRankStats pageRankStats) {
 		diff += pageRankStats.diff();
 		rank += pageRankStats.rank();
 		danglingRank += pageRankStats.danglingRank();
@@ -70,8 +75,7 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 		finalDiff += pageRankStats.finalDiff();
 	}
 
-	@Override
-	public void reset() {
+	public void resetLocal() {
 		diff = 0;
 		rank = 0;
 		danglingRank = 0;
@@ -80,5 +84,40 @@ public class PageRankStatsAggregator implements Aggregator<PageRankStats> {
 		edges = 0;
 		summedRank = 0;
 		finalDiff = 0;
+	}
+
+	@Override
+	public void merge(Accumulator<PageRankStats, PageRankStats> other) {
+		this.add(other.getLocalValue());
+	}
+
+	@Override
+	public void write(ObjectOutputStream out) throws IOException {
+		out.writeDouble(diff);
+		out.writeDouble(rank);
+		out.writeDouble(danglingRank);
+		out.writeLong(numDanglingVertices);
+		out.writeLong(numVertices);
+		out.writeLong(edges);
+		out.writeDouble(summedRank);
+		out.writeDouble(finalDiff);
+	}
+
+	@Override
+	public void read(ObjectInputStream in) throws IOException {
+		diff = in.readDouble();
+		rank = in.readDouble();
+		danglingRank = in.readDouble();
+		numDanglingVertices = in.readLong();
+		numVertices = in.readLong();
+		edges = in.readLong();
+		summedRank = in.readDouble();
+		finalDiff = in.readDouble();
+	}
+	
+	public PageRankStatsAccumulator clone() {
+		PageRankStatsAccumulator clone = new PageRankStatsAccumulator();
+		clone.add(this.getLocalValue());
+		return clone;
 	}
 }

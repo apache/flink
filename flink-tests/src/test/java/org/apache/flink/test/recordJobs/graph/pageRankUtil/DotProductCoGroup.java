@@ -46,12 +46,12 @@ public class DotProductCoGroup extends CoGroupFunction implements Serializable {
 	
 	public static final String NUM_DANGLING_VERTICES_PARAMETER = "pageRank.numDanglingVertices";
 	
-	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
+	public static final String ACCUMULATOR_NAME = "pagerank.accumulator";
 	
 	private static final double BETA = 0.85;
 
 	
-	private PageRankStatsAggregator aggregator;
+	private PageRankStatsAccumulator aggregator;
 
 	private long numVertices;
 
@@ -81,12 +81,16 @@ public class DotProductCoGroup extends CoGroupFunction implements Serializable {
 
 		dampingFactor = (1d - BETA) / (double) numVertices;
 		
-		aggregator = getIterationRuntimeContext().getIterationAggregator(AGGREGATOR_NAME);
+		aggregator = new PageRankStatsAccumulator();
+		getIterationRuntimeContext().addIterationAccumulator(ACCUMULATOR_NAME, aggregator);
+
 		
 		if (currentIteration == 1) {
 			danglingRankFactor = BETA * (double) numDanglingVertices / ((double) numVertices * (double) numVertices);
 		} else {
-			PageRankStats previousAggregate = getIterationRuntimeContext().getPreviousIterationAggregate(AGGREGATOR_NAME);
+			PageRankStats previousAggregate = (PageRankStats) getIterationRuntimeContext()
+					.getPreviousIterationAccumulator(ACCUMULATOR_NAME)
+					.getLocalValue();
 			danglingRankFactor = BETA * previousAggregate.danglingRank() / (double) numVertices;
 		}
 	}
@@ -117,7 +121,7 @@ public class DotProductCoGroup extends CoGroupFunction implements Serializable {
 		double danglingRankToAggregate = isDangling.get() ? rank : 0;
 		long danglingVerticesToAggregate = isDangling.get() ? 1 : 0;
 		double diff = Math.abs(currentRank - rank);
-		aggregator.aggregate(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges);
+		aggregator.add(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges);
 		
 		// return the new record
 		newRank.setValue(rank);

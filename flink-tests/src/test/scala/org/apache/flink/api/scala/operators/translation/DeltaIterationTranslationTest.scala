@@ -25,7 +25,6 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.apache.flink.api.common.{InvalidProgramException, Plan}
-import org.apache.flink.api.common.aggregators.LongSumAggregator
 import org.apache.flink.api.common.operators.base.DeltaIterationBase
 import org.apache.flink.api.common.operators.base.JoinOperatorBase
 import org.apache.flink.api.common.operators.base.MapOperatorBase
@@ -63,9 +62,9 @@ class DeltaIterationTranslationTest {
           val joined = wsSelfJoin.join(s).where(1).equalTo(2).apply(new SolutionWorksetJoin)
           (joined, joined.map(new NextWorksetMapper).name(BEFORE_NEXT_WORKSET_MAP))
       }
+      
       result.name(ITERATION_NAME)
         .setParallelism(ITERATION_PARALLELISM)
-        .registerAggregator(AGGREGATOR_NAME, new LongSumAggregator)
 
       result.print()
       result.writeAsText("/dev/null")
@@ -117,8 +116,6 @@ class DeltaIterationTranslationTest {
       }
 
       assertEquals(BEFORE_NEXT_WORKSET_MAP, nextWorksetMapper.getName)
-      assertEquals(AGGREGATOR_NAME, iteration.getAggregators.getAllRegisteredAggregators.iterator
-        .next.getName)
     }
     catch {
       case e: Exception => {

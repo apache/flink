@@ -28,18 +28,18 @@ import org.apache.flink.test.iterative.nephele.ConfigUtils;
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRank;
 import org.apache.flink.test.iterative.nephele.customdanglingpagerank.types.VertexWithRankAndDangling;
 import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStats;
-import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStatsAggregator;
+import org.apache.flink.test.iterative.nephele.danglingpagerank.PageRankStatsAccumulator;
 import org.apache.flink.util.Collector;
 
 public class CustomCompensatableDotProductCoGroup extends AbstractRichFunction implements CoGroupFunction<VertexWithRankAndDangling, VertexWithRank, VertexWithRankAndDangling> {
 
 	private static final long serialVersionUID = 1L;
 
-	public static final String AGGREGATOR_NAME = "pagerank.aggregator";
+	public static final String ACCUMULATOR_NAME = "pagerank.accumulator";
 	
 	private VertexWithRankAndDangling accumulator = new VertexWithRankAndDangling();
 
-	private PageRankStatsAggregator aggregator;
+	private PageRankStatsAccumulator aggregator;
 
 	private long numVertices;
 
@@ -71,12 +71,15 @@ public class CustomCompensatableDotProductCoGroup extends AbstractRichFunction i
 		
 		dampingFactor = (1d - BETA) / (double) numVertices;
 
-		aggregator = getIterationRuntimeContext().getIterationAggregator(AGGREGATOR_NAME);
+		aggregator = new PageRankStatsAccumulator();
+		getIterationRuntimeContext().addIterationAccumulator(ACCUMULATOR_NAME, aggregator);
 		
 		if (currentIteration == 1) {
 			danglingRankFactor = BETA * (double) numDanglingVertices / ((double) numVertices * (double) numVertices);
 		} else {
-			PageRankStats previousAggregate = getIterationRuntimeContext().getPreviousIterationAggregate(AGGREGATOR_NAME);
+			PageRankStats previousAggregate = (PageRankStats) getIterationRuntimeContext()
+					.getPreviousIterationAccumulator(ACCUMULATOR_NAME)
+					.getLocalValue();
 			danglingRankFactor = BETA * previousAggregate.danglingRank() / (double) numVertices;
 		}
 	}
@@ -111,7 +114,7 @@ public class CustomCompensatableDotProductCoGroup extends AbstractRichFunction i
 
 		double diff = Math.abs(currentRank - rank);
 
-		aggregator.aggregate(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges, summedRank, 0);
+		aggregator.add(diff, rank, danglingRankToAggregate, danglingVerticesToAggregate, 1, edges, summedRank, 0);
 
 		accumulator.setVertexID(currentPageRank.getVertexID());
 		accumulator.setRank(rank);
@@ -123,7 +126,7 @@ public class CustomCompensatableDotProductCoGroup extends AbstractRichFunction i
 	@Override
 	public void close() throws Exception {
 		if (currentIteration == failingIteration && failingWorkers.contains(workerIndex)) {
-			aggregator.reset();
+			aggregator.resetLocal();
 		}
 	}
 	

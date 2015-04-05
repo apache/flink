@@ -22,7 +22,6 @@ import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
-import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
@@ -81,18 +80,6 @@ public class JobGraphUtils {
 		taskVertex.setInvokableClass(task);
 		taskVertex.setParallelism(parallelism);
 		return taskVertex;
-	}
-
-	public static AbstractJobVertex createSync(JobGraph jobGraph, int parallelism) {
-		AbstractJobVertex sync = new AbstractJobVertex("BulkIterationSync");
-		jobGraph.addVertex(sync);
-		
-		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
-		sync.setParallelism(1);
-		
-		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, parallelism);
-		return sync;
 	}
 
 	public static OutputFormatVertex createFileOutput(JobGraph jobGraph, String name, int parallelism) {

@@ -21,12 +21,11 @@ package org.apache.flink.runtime.iterative.task;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.util.JoinHashMap;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -35,27 +34,35 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
-import org.apache.flink.runtime.iterative.concurrent.IterationAggregatorBroker;
+import org.apache.flink.runtime.iterative.concurrent.IterationAccumulatorBroker;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetBroker;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
-import org.apache.flink.runtime.iterative.concurrent.SuperstepBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
-import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
-import org.apache.flink.runtime.iterative.event.TerminationEvent;
-import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
+import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import org.apache.flink.runtime.iterative.io.SerializedUpdateBuffer;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 
 /**
  * The head is responsible for coordinating an iteration and can run a
@@ -89,10 +96,11 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private TypeSerializerFactory<X> solutionTypeSerializer;
 
-	private ResultPartitionWriter toSync;
-
 	private int feedbackDataInput; // workset or bulk partial solution
 
+	private RuntimeAccumulatorRegistry accumulatorRegistry;
+	private Map<String, Accumulator<?, ?>> lastGlobalState = null;
+	
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -110,21 +118,11 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		// at this time, the outputs to the step function are created
 		// add the outputs for the final solution
 		List<RecordWriter<?>> finalOutputWriters = new ArrayList<RecordWriter<?>>();
-		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
+		final TaskConfig finalOutConfig = this.config
+				.getIterationHeadFinalOutputConfig();
 		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
-			userCodeClassLoader, finalOutputWriters, config.getNumOutputs(), finalOutConfig.getNumOutputs());
-
-		// sanity check the setup
-		final int writersIntoStepFunction = this.eventualOutputs.size();
-		final int writersIntoFinalResult = finalOutputWriters.size();
-		final int syncGateIndex = this.config.getIterationHeadIndexOfSyncOutput();
-
-		if (writersIntoStepFunction + writersIntoFinalResult != syncGateIndex) {
-			throw new Exception("Error: Inconsistent head task setup - wrong mapping of output gates.");
-		}
-		// now, we can instantiate the sync gate
-		this.toSync = getEnvironment().getWriter(syncGateIndex);
+				userCodeClassLoader, finalOutputWriters, config.getNumOutputs(), finalOutConfig.getNumOutputs());
 	}
 
 	/**
@@ -191,7 +189,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			}
 		}
 	}
-	
+
 	private <BT> JoinHashMap<BT> initJoinHashMap() {
 		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer
 				(getUserCodeClassLoader());
@@ -203,7 +201,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		
 		return new JoinHashMap<BT>(solutionTypeSerializer, solutionTypeComparator);
 	}
-	
+
 	private void readInitialSolutionSet(CompactingHashTable<X> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
 		solutionSet.open();
 		solutionSet.buildTableWithUniqueKey(solutionSetInput);
@@ -218,33 +216,27 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		}
 	}
 
-	private SuperstepBarrier initSuperstepBarrier() {
-		SuperstepBarrier barrier = new SuperstepBarrier(getUserCodeClassLoader());
-		this.toSync.subscribeToEvent(barrier, AllWorkersDoneEvent.class);
-		this.toSync.subscribeToEvent(barrier, TerminationEvent.class);
-		return barrier;
-	}
-
 	@Override
 	public void run() throws Exception {
 		final String brokerKey = brokerKey();
-		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
-		
+
 		final boolean objectSolutionSet = config.isSolutionSetUnmanaged();
 
 		CompactingHashTable<X> solutionSet = null; // if workset iteration
 		JoinHashMap<X> solutionSetObjectMap = null; // if workset iteration with unmanaged solution set
-		
+
 		boolean waitForSolutionSetUpdate = config.getWaitForSolutionSetUpdate();
 		boolean isWorksetIteration = config.getIsWorksetIteration();
 
 		try {
-			/* used for receiving the current iteration result from iteration tail */
+			/*
+			 * used for receiving the current iteration result from iteration
+			 * tail
+			 */
 			SuperstepKickoffLatch nextStepKickoff = new SuperstepKickoffLatch();
 			SuperstepKickoffLatchBroker.instance().handIn(brokerKey, nextStepKickoff);
-			
+
 			BlockingBackChannel backChannel = initBackChannel();
-			SuperstepBarrier barrier = initSuperstepBarrier();
 			SolutionSetUpdateBarrier solutionSetUpdateBarrier = null;
 
 			feedbackDataInput = config.getIterationHeadPartialSolutionOrWorksetInputIndex();
@@ -288,11 +280,20 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 					SolutionSetUpdateBarrierBroker.instance().handIn(brokerKey, solutionSetUpdateBarrier);
 				}
 			}
+			
+			// register the global accumulator registry
+			accumulatorRegistry = new RuntimeAccumulatorRegistry();
 
-			// instantiate all aggregators and register them at the iteration global registry
-			RuntimeAggregatorRegistry aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators
-					(getUserCodeClassLoader()));
-			IterationAggregatorBroker.instance().handIn(brokerKey, aggregatorRegistry);
+			IterationAccumulatorBroker.instance().handIn(brokerKey,
+					accumulatorRegistry);
+
+			// setup workset accumulator
+			if (isWorksetIteration) {
+				worksetAccumulator = new LongCounter();
+				getIterationAccumulators().addAccumulator(
+						WorksetEmptyConvergenceCriterion.ACCUMULATOR_NAME,
+						worksetAccumulator);
+			}
 
 			DataInputView superstepResult = null;
 
@@ -301,8 +302,6 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
 				}
-
-				barrier.setup();
 
 				if (waitForSolutionSetUpdate) {
 					solutionSetUpdateBarrier.setup();
@@ -327,36 +326,65 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 					log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 				}
 
-				sendEventToSync(new WorkerDoneEvent(workerIndex, aggregatorRegistry.getAllAggregators()));
+				Environment env = getEnvironment();
+				
+				// Report end of superstep to JobManager
+				TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
+				JobManagerMessages.ReportIterationWorkerDone workerDoneEvent = new JobManagerMessages.ReportIterationWorkerDone(
+						taskConfig.getIterationId(),
+						new AccumulatorEvent(getEnvironment().getJobID(),
+								getIterationAccumulators().getAllAccumulators()));
+				
+				final Future<Object> response = Patterns.ask(env.getJobManager(),
+						workerDoneEvent, 3600000); // 1 hour
+				
+				Object result = null;
 
+				// wait for signaling of next action from JobManager
 				if (log.isInfoEnabled()) {
 					log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
 				}
+				try {
+					result = Await.result(response, (new Timeout(1, TimeUnit.HOURS)).duration());
+				} catch (Exception ex) {
+					throw new IOException("Could not retrieve instruction from the " +
+							"job manager", ex);
+				}
 
-				barrier.waitForOtherWorkers();
-
-				if (barrier.terminationSignaled()) {
-					if (log.isInfoEnabled()) {
-						log.info(formatLogString("head received termination request in iteration ["
-							+ currentIteration()
-							+ "]"));
+				if (result instanceof JobManagerMessages.InitNextIteration) {
+					
+					JobManagerMessages.InitNextIteration resultMessage = (JobManagerMessages.InitNextIteration) result;
+					// make sure processes on the same machine don't use the same object
+					resultMessage = InstantiationUtil.createCopy(resultMessage);
+					
+					lastGlobalState = resultMessage.accumulatorEvent().getAccumulators(getUserCodeClassLoader());
+					
+					if(lastGlobalState == null) {
+						throw new RuntimeException(
+								"This should not happen. Global state information should be given from JobManager.");
 					}
+					
+					incrementIterationCounter();
+					accumulatorRegistry
+							.updateGlobalAccumulatorsAndReset(lastGlobalState);
+					lastGlobalState = null;
+
+					nextStepKickoff.triggerNextSuperstep();
+				}
+				else if (result instanceof JobManagerMessages.InitIterationTermination) {
+					
 					requestTermination();
 					nextStepKickoff.signalTermination();
-				} else {
-					incrementIterationCounter();
-
-					String[] globalAggregateNames = barrier.getAggregatorNames();
-					Value[] globalAggregates = barrier.getAggregates();
-					aggregatorRegistry.updateGlobalAggregatesAndReset(globalAggregateNames, globalAggregates);
-					
-					nextStepKickoff.triggerNextSuperstep();
+				}
+				else {
+					throw new RuntimeException("Unknown message type for iteration handling");
 				}
 			}
 
 			if (log.isInfoEnabled()) {
 				log.info(formatLogString("streaming out final result after [" + currentIteration() + "] iterations"));
 			}
+
 
 			if (isWorksetIteration) {
 				if (objectSolutionSet) {
@@ -375,7 +403,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			// - backchannel
 			// - aggregator registry
 			// - solution set index
-			IterationAggregatorBroker.instance().remove(brokerKey);
+			IterationAccumulatorBroker.instance().remove(brokerKey);
 			BlockingBackChannelBroker.instance().remove(brokerKey);
 			SuperstepKickoffLatchBroker.instance().remove(brokerKey);
 			SolutionSetBroker.instance().remove(brokerKey);
@@ -427,12 +455,5 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		for (RecordWriter<?> eventualOutput : this.eventualOutputs) {
 			eventualOutput.sendEndOfSuperstep();
 		}
-	}
-
-	private void sendEventToSync(WorkerDoneEvent event) throws IOException, InterruptedException {
-		if (log.isInfoEnabled()) {
-			log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " to sync"));
-		}
-		this.toSync.writeEventToAllChannels(event);
 	}
 }

@@ -21,7 +21,7 @@ package org.apache.flink.test.iterative.nephele.danglingpagerank;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
+import org.apache.flink.api.common.accumulators.ConvergenceCriterion;
 
 @SuppressWarnings("serial")
 public class DiffL1NormConvergenceCriterion implements ConvergenceCriterion<PageRankStats> {

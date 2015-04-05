@@ -80,6 +80,21 @@ public class AccumulatorManager {
 
 		return result;
 	}
+	
+	public Map<String, Accumulator<?, ?>> getJobAccumulators(JobID jobID) {
+		Map<String, Accumulator<?, ?>> result = new HashMap<String, Accumulator<?, ?>>();
+
+		JobAccumulators jobAccumulator = jobAccumulators.get(jobID);
+
+		if(jobAccumulator != null) {
+			for (Map.Entry<String, Accumulator<?, ?>> entry : jobAccumulator.getAccumulators().
+					entrySet()) {
+				result.put(entry.getKey(), entry.getValue());
+			}
+		}
+
+		return result;
+	}
 
 	/**
 	 * Cleanup data for the oldest jobs if the maximum number of entries is
