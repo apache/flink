@@ -551,6 +551,38 @@ public class GroupingTest {
 						}, Order.ASCENDING);
 	}
 
+	@Test
+	public void testGroupingAtomicType() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> dataSet = env.fromElements(0, 1, 1, 2, 0, 0);
+
+		dataSet.groupBy("*");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testGroupAtomicTypeWithInvalid1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> dataSet = env.fromElements(0, 1, 2, 3);
+
+		dataSet.groupBy("*", "invalidField");
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testGroupAtomicTypeWithInvalid2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> dataSet = env.fromElements(0, 1, 2, 3);
+
+		dataSet.groupBy("invalidField");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testGroupAtomicTypeWithInvalid3() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<ArrayList<Integer>> dataSet = env.fromElements(new ArrayList<Integer>());
+
+		dataSet.groupBy("*");
+	}
+
 
 	public static class CustomType implements Serializable {
 		
