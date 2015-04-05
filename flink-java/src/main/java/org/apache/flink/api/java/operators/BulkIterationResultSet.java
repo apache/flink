@@ -36,18 +36,20 @@ public class BulkIterationResultSet<T> extends DataSet<T> {
 	private String convergenceCriterionAccumulatorName;
 
 	BulkIterationResultSet(ExecutionEnvironment context,
-			TypeInformation<T> type,
-			IterativeDataSet<T> iterationHead,
-			DataSet<T> nextPartialSolution) {
-		
-		this(context, type, iterationHead, nextPartialSolution, null, null, null);
+						TypeInformation<T> type,
+						IterativeDataSet<T> iterationHead,
+						DataSet<T> nextPartialSolution) {
+		this(context, type, iterationHead, nextPartialSolution, null);
 	}
 
 	BulkIterationResultSet(ExecutionEnvironment context,
-			TypeInformation<T> type, IterativeDataSet<T> iterationHead,
-			DataSet<T> nextPartialSolution, DataSet<?> terminationCriterion) {
-		
-		this(context, type, iterationHead, nextPartialSolution, terminationCriterion, null, null);
+		TypeInformation<T> type, IterativeDataSet<T> iterationHead,
+		DataSet<T> nextPartialSolution, DataSet<?> terminationCriterion)
+	{
+		super(context, type);
+		this.iterationHead = iterationHead;
+		this.nextPartialSolution = nextPartialSolution;
+		this.terminationCriterion = terminationCriterion;
 	}
 	
 	BulkIterationResultSet(ExecutionEnvironment context,
@@ -70,7 +72,7 @@ public class BulkIterationResultSet<T> extends DataSet<T> {
 		this.convergenceCriterion = convergenceCriterion;
 		this.convergenceCriterionAccumulatorName = convergenceCriterionAccumulatorName;
 	}
-	
+
 	public IterativeDataSet<T> getIterationHead() {
 		return iterationHead;
 	}
@@ -82,7 +84,7 @@ public class BulkIterationResultSet<T> extends DataSet<T> {
 	public DataSet<?> getTerminationCriterion() {
 		return terminationCriterion;
 	}
-
+	
 	public ConvergenceCriterion<?> getConvergenceCriterion() {
 		return convergenceCriterion;
 	}

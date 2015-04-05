@@ -54,6 +54,7 @@ import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,34 +67,28 @@ import akka.util.Timeout;
 /**
  * The head is responsible for coordinating an iteration and can run a
  * {@link org.apache.flink.runtime.operators.PactDriver} inside. It will read
- * the initial input and establish a {@link BlockingBackChannel} to the
- * iteration's tail. After successfully processing the input, it will send
- * EndOfSuperstep events to its outputs. It must also be connected to a
- * synchronization task and after each superstep, it will wait until it receives
- * an {@link AllWorkersDoneEvent} from the sync, which signals that all other
- * heads have also finished their iteration. Starting with the second iteration,
- * the input for the head is the output of the tail, transmitted through the
- * backchannel. Once the iteration is done, the head will send a
- * {@link TerminationEvent} to all it's connected tasks, signaling them to
- * shutdown.
+ * the initial input and establish a {@link BlockingBackChannel} to the iteration's tail. After successfully processing
+ * the input, it will send EndOfSuperstep events to its outputs. It must also be connected to a
+ * synchronization task and after each superstep, it will wait
+ * until it receives an {@link AllWorkersDoneEvent} from the sync, which signals that all other heads have also finished
+ * their iteration. Starting with
+ * the second iteration, the input for the head is the output of the tail, transmitted through the backchannel. Once the
+ * iteration is done, the head
+ * will send a {@link TerminationEvent} to all it's connected tasks, signaling them to shutdown.
  * <p>
- * Assumption on the ordering of the outputs: - The first n output gates write
- * to channels that go to the tasks of the step function. - The next m output
- * gates to to the tasks that consume the final solution. - The last output gate
+ * Assumption on the ordering of the outputs: - The first n output gates write to channels that go to the tasks of the
+ * step function. - The next m output gates to to the tasks that consume the final solution. - The last output gate
  * connects to the synchronization task.
  * 
  * @param <X>
- *            The type of the bulk partial solution / solution set and the final
- *            output.
+ *        The type of the bulk partial solution / solution set and the final output.
  * @param <Y>
- *            The type of the feed-back data set (bulk partial solution /
- *            workset). For bulk iterations, {@code Y} is the same as {@code X}
+ *        The type of the feed-back data set (bulk partial solution / workset). For bulk iterations, {@code Y} is the
+ *        same as {@code X}
  */
-public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
-		AbstractIterativePactTask<S, OT> {
+public class IterationHeadPactTask<X, Y, S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
 
-	private static final Logger log = LoggerFactory
-			.getLogger(IterationHeadPactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationHeadPactTask.class);
 
 	private Collector<X> finalOutputCollector;
 
@@ -110,16 +105,14 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 
 	@Override
 	protected int getNumTaskInputs() {
-		// this task has an additional input in the workset case for the initial
-		// solution set
+		// this task has an additional input in the workset case for the initial solution set
 		boolean isWorkset = config.getIsWorksetIteration();
 		return driver.getNumberOfInputs() + (isWorkset ? 1 : 0);
 	}
 
 	@Override
 	protected void initOutputs() throws Exception {
-		// initialize the regular outputs first (the ones into the step
-		// function).
+		// initialize the regular outputs first (the ones into the step function).
 		super.initOutputs();
 
 		// at this time, the outputs to the step function are created
@@ -128,67 +121,53 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 		final TaskConfig finalOutConfig = this.config
 				.getIterationHeadFinalOutputConfig();
 		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
-		this.finalOutputCollector = RegularPactTask.getOutputCollector(this,
-				finalOutConfig, userCodeClassLoader, finalOutputWriters,
-				config.getNumOutputs(), finalOutConfig.getNumOutputs());
+		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
+				userCodeClassLoader, finalOutputWriters, config.getNumOutputs(), finalOutConfig.getNumOutputs());
 	}
 
 	/**
-	 * the iteration head prepares the backchannel: it allocates memory,
-	 * instantiates a {@link BlockingBackChannel} and hands it to the iteration
-	 * tail via a {@link Broker} singleton
+	 * the iteration head prepares the backchannel: it allocates memory, instantiates a {@link BlockingBackChannel} and
+	 * hands it to the iteration tail via a {@link Broker} singleton
 	 **/
 	private BlockingBackChannel initBackChannel() throws Exception {
 
 		/* get the size of the memory available to the backchannel */
-		int backChannelMemoryPages = getMemoryManager().computeNumberOfPages(
-				this.config.getRelativeBackChannelMemory());
+		int backChannelMemoryPages = getMemoryManager().computeNumberOfPages(this.config.getRelativeBackChannelMemory());
 
 		/* allocate the memory available to the backchannel */
 		List<MemorySegment> segments = new ArrayList<MemorySegment>();
 		int segmentSize = getMemoryManager().getPageSize();
-		getMemoryManager()
-				.allocatePages(this, segments, backChannelMemoryPages);
+		getMemoryManager().allocatePages(this, segments, backChannelMemoryPages);
 
 		/* instantiate the backchannel */
-		BlockingBackChannel backChannel = new BlockingBackChannel(
-				new SerializedUpdateBuffer(segments, segmentSize,
-						getIOManager()));
+		BlockingBackChannel backChannel = new BlockingBackChannel(new SerializedUpdateBuffer(segments, segmentSize,
+			getIOManager()));
 
 		/* hand the backchannel over to the iteration tail */
-		Broker<BlockingBackChannel> broker = BlockingBackChannelBroker
-				.instance();
+		Broker<BlockingBackChannel> broker = BlockingBackChannelBroker.instance();
 		broker.handIn(brokerKey(), backChannel);
 
 		return backChannel;
 	}
-
-	private <BT> CompactingHashTable<BT> initCompactingHashTable()
-			throws Exception {
+	
+	private <BT> CompactingHashTable<BT> initCompactingHashTable() throws Exception {
 		// get some memory
 		double hashjoinMemorySize = config.getRelativeSolutionSetMemory();
 		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
-		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config
-				.getSolutionSetSerializer(userCodeClassLoader);
-		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config
-				.getSolutionSetComparator(userCodeClassLoader);
-
-		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory
-				.getSerializer();
-		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory
-				.createComparator();
+		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
+		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
+	
+		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
+		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
 
 		CompactingHashTable<BT> hashTable = null;
 		List<MemorySegment> memSegments = null;
 		boolean success = false;
 		try {
-			int numPages = getMemoryManager().computeNumberOfPages(
-					hashjoinMemorySize);
-			memSegments = getMemoryManager().allocatePages(
-					getOwningNepheleTask(), numPages);
-			hashTable = new CompactingHashTable<BT>(solutionTypeSerializer,
-					solutionTypeComparator, memSegments);
+			int numPages = getMemoryManager().computeNumberOfPages(hashjoinMemorySize);
+			memSegments = getMemoryManager().allocatePages(getOwningNepheleTask(), numPages);
+			hashTable = new CompactingHashTable<BT>(solutionTypeSerializer, solutionTypeComparator, memSegments);
 			success = true;
 			return hashTable;
 		} finally {
@@ -197,18 +176,14 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 					try {
 						hashTable.close();
 					} catch (Throwable t) {
-						log.error(
-								"Error closing the solution set hash table after unsuccessful creation.",
-								t);
+						log.error("Error closing the solution set hash table after unsuccessful creation.", t);
 					}
 				}
 				if (memSegments != null) {
 					try {
 						getMemoryManager().release(memSegments);
 					} catch (Throwable t) {
-						log.error(
-								"Error freeing memory after error during solution set hash table creation.",
-								t);
+						log.error("Error freeing memory after error during solution set hash table creation.", t);
 					}
 				}
 			}
@@ -216,30 +191,25 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 	}
 
 	private <BT> JoinHashMap<BT> initJoinHashMap() {
-		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config
-				.getSolutionSetSerializer(getUserCodeClassLoader());
-		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config
-				.getSolutionSetComparator(getUserCodeClassLoader());
-
-		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory
-				.getSerializer();
-		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory
-				.createComparator();
-
-		return new JoinHashMap<BT>(solutionTypeSerializer,
-				solutionTypeComparator);
+		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer
+				(getUserCodeClassLoader());
+		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator
+				(getUserCodeClassLoader());
+	
+		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
+		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
+		
+		return new JoinHashMap<BT>(solutionTypeSerializer, solutionTypeComparator);
 	}
 
-	private void readInitialSolutionSet(CompactingHashTable<X> solutionSet,
-			MutableObjectIterator<X> solutionSetInput) throws IOException {
+	private void readInitialSolutionSet(CompactingHashTable<X> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
 		solutionSet.open();
 		solutionSet.buildTableWithUniqueKey(solutionSetInput);
 	}
-
-	private void readInitialSolutionSet(JoinHashMap<X> solutionSet,
-			MutableObjectIterator<X> solutionSetInput) throws IOException {
+	
+	private void readInitialSolutionSet(JoinHashMap<X> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
 		TypeSerializer<X> serializer = solutionTypeSerializer.getSerializer();
-
+		
 		X next;
 		while ((next = solutionSetInput.next(serializer.createInstance())) != null) {
 			solutionSet.insertOrReplace(next);
@@ -253,8 +223,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 		final boolean objectSolutionSet = config.isSolutionSetUnmanaged();
 
 		CompactingHashTable<X> solutionSet = null; // if workset iteration
-		JoinHashMap<X> solutionSetObjectMap = null; // if workset iteration with
-													// unmanaged solution set
+		JoinHashMap<X> solutionSetObjectMap = null; // if workset iteration with unmanaged solution set
 
 		boolean waitForSolutionSetUpdate = config.getWaitForSolutionSetUpdate();
 		boolean isWorksetIteration = config.getIsWorksetIteration();
@@ -265,37 +234,29 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 			 * tail
 			 */
 			SuperstepKickoffLatch nextStepKickoff = new SuperstepKickoffLatch();
-			SuperstepKickoffLatchBroker.instance().handIn(brokerKey,
-					nextStepKickoff);
+			SuperstepKickoffLatchBroker.instance().handIn(brokerKey, nextStepKickoff);
 
 			BlockingBackChannel backChannel = initBackChannel();
 			SolutionSetUpdateBarrier solutionSetUpdateBarrier = null;
 
-			feedbackDataInput = config
-					.getIterationHeadPartialSolutionOrWorksetInputIndex();
+			feedbackDataInput = config.getIterationHeadPartialSolutionOrWorksetInputIndex();
 			feedbackTypeSerializer = this.getInputSerializer(feedbackDataInput);
 			excludeFromReset(feedbackDataInput);
 
 			int initialSolutionSetInput;
 			if (isWorksetIteration) {
-				initialSolutionSetInput = config
-						.getIterationHeadSolutionSetInputIndex();
-				solutionTypeSerializer = config
-						.getSolutionSetSerializer(getUserCodeClassLoader());
+				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
+				solutionTypeSerializer = config.getSolutionSetSerializer(getUserCodeClassLoader());
 
 				// setup the index for the solution set
 				@SuppressWarnings("unchecked")
-				MutableObjectIterator<X> solutionSetInput = (MutableObjectIterator<X>) createInputIterator(
-						inputReaders[initialSolutionSetInput],
-						solutionTypeSerializer);
-
+				MutableObjectIterator<X> solutionSetInput = (MutableObjectIterator<X>) createInputIterator(inputReaders[initialSolutionSetInput], solutionTypeSerializer);
+				
 				// read the initial solution set
 				if (objectSolutionSet) {
 					solutionSetObjectMap = initJoinHashMap();
-					readInitialSolutionSet(solutionSetObjectMap,
-							solutionSetInput);
-					SolutionSetBroker.instance().handIn(brokerKey,
-							solutionSetObjectMap);
+					readInitialSolutionSet(solutionSetObjectMap, solutionSetInput);
+					SolutionSetBroker.instance().handIn(brokerKey, solutionSetObjectMap);
 				} else {
 					solutionSet = initCompactingHashTable();
 					readInitialSolutionSet(solutionSet, solutionSetInput);
@@ -304,20 +265,19 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 
 				if (waitForSolutionSetUpdate) {
 					solutionSetUpdateBarrier = new SolutionSetUpdateBarrier();
-					SolutionSetUpdateBarrierBroker.instance().handIn(brokerKey,
-							solutionSetUpdateBarrier);
+					SolutionSetUpdateBarrierBroker.instance().handIn(brokerKey, solutionSetUpdateBarrier);
 				}
-			} else {
+			}
+			else {
 				// bulk iteration case
 				@SuppressWarnings("unchecked")
 				TypeSerializerFactory<X> solSer = (TypeSerializerFactory<X>) feedbackTypeSerializer;
 				solutionTypeSerializer = solSer;
-
+				
 				// = termination Criterion tail
 				if (waitForSolutionSetUpdate) {
 					solutionSetUpdateBarrier = new SolutionSetUpdateBarrier();
-					SolutionSetUpdateBarrierBroker.instance().handIn(brokerKey,
-							solutionSetUpdateBarrier);
+					SolutionSetUpdateBarrierBroker.instance().handIn(brokerKey, solutionSetUpdateBarrier);
 				}
 			}
 			
@@ -340,8 +300,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 			while (this.running && !terminationRequested()) {
 
 				if (log.isInfoEnabled()) {
-					log.info(formatLogString("starting iteration ["
-							+ currentIteration() + "]"));
+					log.info(formatLogString("starting iteration [" + currentIteration() + "]"));
 				}
 
 				if (waitForSolutionSetUpdate) {
@@ -364,8 +323,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 				// blocking call to wait for the result
 				superstepResult = backChannel.getReadEndAfterSuperstepEnded();
 				if (log.isInfoEnabled()) {
-					log.info(formatLogString("finishing iteration ["
-							+ currentIteration() + "]"));
+					log.info(formatLogString("finishing iteration [" + currentIteration() + "]"));
 				}
 
 				Environment env = getEnvironment();
@@ -384,13 +342,10 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 
 				// wait for signaling of next action from JobManager
 				if (log.isInfoEnabled()) {
-					log.info(formatLogString("waiting for other workers in iteration ["
-							+ currentIteration() + "]"));
+					log.info(formatLogString("waiting for other workers in iteration [" + currentIteration() + "]"));
 				}
 				try {
 					result = Await.result(response, (new Timeout(1, TimeUnit.HOURS)).duration());
-					Thread.sleep(10); // sometimes Await.result seems to unblock slightly too early 
-										//and deserialization is not fully finished
 				} catch (Exception ex) {
 					throw new IOException("Could not retrieve instruction from the " +
 							"job manager", ex);
@@ -399,7 +354,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 				if (result instanceof JobManagerMessages.InitNextIteration) {
 					
 					JobManagerMessages.InitNextIteration resultMessage = (JobManagerMessages.InitNextIteration) result;
-
+					// make sure processes on the same machine don't use the same object
+					resultMessage = InstantiationUtil.createCopy(resultMessage);
+					
 					lastGlobalState = resultMessage.accumulatorEvent().getAccumulators(getUserCodeClassLoader());
 					
 					if(lastGlobalState == null) {
@@ -425,9 +382,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 			}
 
 			if (log.isInfoEnabled()) {
-				log.info(formatLogString("streaming out final result after ["
-						+ currentIteration() + "] iterations"));
+				log.info(formatLogString("streaming out final result after [" + currentIteration() + "] iterations"));
 			}
+
 
 			if (isWorksetIteration) {
 				if (objectSolutionSet) {
@@ -436,9 +393,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 					streamSolutionSetToFinalOutput(solutionSet);
 				}
 			} else {
-				streamOutFinalOutputBulk(new InputViewIterator<X>(
-						superstepResult,
-						this.solutionTypeSerializer.getSerializer()));
+				streamOutFinalOutputBulk(new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer.getSerializer()));
 			}
 
 			this.finalOutputCollector.close();
@@ -460,8 +415,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 		}
 	}
 
-	private void streamOutFinalOutputBulk(MutableObjectIterator<X> results)
-			throws IOException {
+	private void streamOutFinalOutputBulk(MutableObjectIterator<X> results) throws IOException {
 		final Collector<X> out = this.finalOutputCollector;
 		X record = this.solutionTypeSerializer.getSerializer().createInstance();
 
@@ -469,9 +423,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 			out.collect(record);
 		}
 	}
-
-	private void streamSolutionSetToFinalOutput(CompactingHashTable<X> hashTable)
-			throws IOException {
+	
+	private void streamSolutionSetToFinalOutput(CompactingHashTable<X> hashTable) throws IOException {
 		final MutableObjectIterator<X> results = hashTable.getEntryIterator();
 		final Collector<X> output = this.finalOutputCollector;
 		X record = solutionTypeSerializer.getSerializer().createInstance();
@@ -480,10 +433,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 			output.collect(record);
 		}
 	}
-
+	
 	@SuppressWarnings("unchecked")
-	private void streamSolutionSetToFinalOutput(JoinHashMap<X> soluionSet)
-			throws IOException {
+	private void streamSolutionSetToFinalOutput(JoinHashMap<X> soluionSet) throws IOException {
 		final Collector<X> output = this.finalOutputCollector;
 		for (Object e : soluionSet.values()) {
 			output.collect((X) e);
@@ -491,12 +443,11 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends
 	}
 
 	private void feedBackSuperstepResult(DataInputView superstepResult) {
-		this.inputs[this.feedbackDataInput] = new InputViewIterator<Y>(
-				superstepResult, this.feedbackTypeSerializer.getSerializer());
+		this.inputs[this.feedbackDataInput] =
+			new InputViewIterator<Y>(superstepResult, this.feedbackTypeSerializer.getSerializer());
 	}
 
-	private void sendEndOfSuperstepToAllIterationOutputs() throws IOException,
-			InterruptedException {
+	private void sendEndOfSuperstepToAllIterationOutputs() throws IOException, InterruptedException {
 		if (log.isDebugEnabled()) {
 			log.debug(formatLogString("Sending end-of-superstep to all iteration outputs."));
 		}
