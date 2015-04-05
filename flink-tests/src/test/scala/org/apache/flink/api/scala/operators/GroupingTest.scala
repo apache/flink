@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.scala.operators
 
+import java.util
+
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
 import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
@@ -96,7 +98,7 @@ class GroupingTest {
     }
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[InvalidProgramException])
   def testGroupByKeyFields2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
@@ -146,7 +148,7 @@ class GroupingTest {
     }
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[InvalidProgramException])
   def testGroupByKeyExpressions2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -223,6 +225,38 @@ class GroupingTest {
     catch {
       case e: Exception => Assert.fail()
     }
+  }
+
+  @Test
+  def testAtomicValue1(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(0, 1, 2)
+
+    ds.groupBy("*")
+  }
+
+  @Test(expected = classOf[InvalidProgramException])
+  def testAtomicValueInvalid1(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(0, 1, 2)
+
+    ds.groupBy("invalidKey")
+  }
+
+  @Test(expected = classOf[InvalidProgramException])
+  def testAtomicValueInvalid2(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(0, 1, 2)
+
+    ds.groupBy("_", "invalidKey")
+  }
+
+  @Test(expected = classOf[InvalidProgramException])
+  def testAtomicValueInvalid3(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(new util.ArrayList[Integer]())
+
+    ds.groupBy("*")
   }
 }
 

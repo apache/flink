@@ -743,6 +743,15 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
     expected = "b\nccc\nee\n"
   }
 
+  @Test
+  def testWithAtomic1: Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(0, 1, 1, 2)
+    val reduceDs = ds.groupBy("*").reduceGroup((ints: Iterator[Int]) => ints.next())
+    reduceDs.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "0\n1\n2"
+  }
 }
 
 @RichGroupReduceFunction.Combinable

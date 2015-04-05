@@ -280,7 +280,7 @@ public abstract class Keys<T> {
 				if (!type.isKeyType()) {
 					throw new InvalidProgramException("This type (" + type + ") cannot be used as key.");
 				} else if (expressionsIn.length != 1 || !(Keys.ExpressionKeys.SELECT_ALL_CHAR.equals(expressionsIn[0]) || Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA.equals(expressionsIn[0]))) {
-					throw new IllegalArgumentException("Field expression for atomic type must be equal to '*' or '_'.");
+					throw new InvalidProgramException("Field expression for atomic type must be equal to '*' or '_'.");
 				}
 
 				keyFields = new ArrayList<FlatFieldDescriptor>(1);
@@ -297,7 +297,7 @@ public abstract class Keys<T> {
 				for (int i = 0; i < expressions.length; i++) {
 					List<FlatFieldDescriptor> keys = cType.getFlatFields(expressions[i]); // use separate list to do a size check
 					if(keys.size() == 0) {
-						throw new IllegalArgumentException("Unable to extract key from expression '"+expressions[i]+"' on key "+cType);
+						throw new InvalidProgramException("Unable to extract key from expression '"+expressions[i]+"' on key "+cType);
 					}
 					keyFields.addAll(keys);
 				}
