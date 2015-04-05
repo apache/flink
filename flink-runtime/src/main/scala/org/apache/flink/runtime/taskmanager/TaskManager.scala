@@ -1900,8 +1900,7 @@ object TaskManager {
           val osMXBean = ManagementFactory.getOperatingSystemMXBean().
             asInstanceOf[com.sun.management.OperatingSystemMXBean]
           if(containsMethodInImpl(osMXBean,"getProcessCpuLoad")) {
-            return ManagementFactory.getOperatingSystemMXBean().
-              asInstanceOf[com.sun.management.OperatingSystemMXBean].getProcessCpuLoad()
+            return osMXBean.getProcessCpuLoad()
           } else {
             return -1
           }
