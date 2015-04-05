@@ -1897,8 +1897,14 @@ object TaskManager {
     metricRegistry.register("cpuLoad", new Gauge[Double] {
       override def getValue: Double = {
         try{
-          return ManagementFactory.getOperatingSystemMXBean().
-            asInstanceOf[com.sun.management.OperatingSystemMXBean].getProcessCpuLoad()
+          val osMXBean = ManagementFactory.getOperatingSystemMXBean().
+            asInstanceOf[com.sun.management.OperatingSystemMXBean]
+          if(containsMethodInImpl(osMXBean,"getProcessCpuLoad")) {
+            return ManagementFactory.getOperatingSystemMXBean().
+              asInstanceOf[com.sun.management.OperatingSystemMXBean].getProcessCpuLoad()
+          } else {
+            return -1
+          }
         } catch {
           case t:Throwable => {
             if (t.isInstanceOf[java.lang.ClassCastException]){
@@ -1912,5 +1918,23 @@ object TaskManager {
       }
     })
     metricRegistry
+  }
+
+  /**
+   * Checks whether a method exists in an object's class implementation
+   *  without raising any exc eptions
+   *
+   * @param obj
+   * @param methodName
+   * @return
+   */
+  private def containsMethodInImpl(obj: Any,methodName: String): Boolean = {
+    val methodsList = obj.getClass().getMethods()
+    for(method <- methodsList){
+      if(method.getName() == methodName) {
+        return true
+      }
+    }
+    return false
   }
 }
