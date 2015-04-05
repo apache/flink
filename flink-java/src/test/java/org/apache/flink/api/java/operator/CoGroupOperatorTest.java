@@ -18,26 +18,26 @@
 
 package org.apache.flink.api.java.operator;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.operators.SemanticProperties;
-import org.apache.flink.api.java.functions.FunctionAnnotation;
-import org.apache.flink.api.java.operators.CoGroupOperator;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.Collector;
-import org.junit.Assert;
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.junit.BeforeClass;
-import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operator.JoinOperatorTest.CustomType;
+import org.apache.flink.api.java.operators.CoGroupOperator;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.util.Collector;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
@@ -180,6 +180,78 @@ public class CoGroupOperatorTest {
 
 		// should not work, cogroup key non-existent
 		ds1.coGroup(ds2).where("myNonExistent").equalTo("myInt");
+	}
+
+	@Test
+	public void testCoGroupKeyAtomicExpression1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 1);
+
+		ds1.coGroup(ds2).where("myInt").equalTo("*");
+	}
+
+	@Test
+	public void testCoGroupKeyAtomicExpression2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 1);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		ds1.coGroup(ds2).where("*").equalTo("myInt");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 1);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		ds1.coGroup(ds2).where("*", "invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 1);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		ds1.coGroup(ds2).where("invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression3() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 1);
+
+		ds1.coGroup(ds2).where("myInt").equalTo("invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression4() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 1);
+
+		ds1.coGroup(ds2).where("myInt").equalTo("*", "invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression5() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<ArrayList<Integer>> ds1 = env.fromElements(new ArrayList<Integer>());
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.coGroup(ds2).where("*");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression6() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<ArrayList<Integer>> ds2 = env.fromElements(new ArrayList<Integer>());
+
+		ds1.coGroup(ds2).where("*").equalTo("*");
 	}
 	
 	@Test

@@ -143,7 +143,7 @@ public class GroupingTest {
 		}
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = InvalidProgramException.class)
 	public void testGroupByKeyExpressions2() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -549,6 +549,38 @@ public class GroupingTest {
 								return value.f3;
 							}
 						}, Order.ASCENDING);
+	}
+
+	@Test
+	public void testGroupingAtomicType() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> dataSet = env.fromElements(0, 1, 1, 2, 0, 0);
+
+		dataSet.groupBy("*");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testGroupAtomicTypeWithInvalid1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> dataSet = env.fromElements(0, 1, 2, 3);
+
+		dataSet.groupBy("*", "invalidField");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testGroupAtomicTypeWithInvalid2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> dataSet = env.fromElements(0, 1, 2, 3);
+
+		dataSet.groupBy("invalidField");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testGroupAtomicTypeWithInvalid3() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<ArrayList<Integer>> dataSet = env.fromElements(new ArrayList<Integer>());
+
+		dataSet.groupBy("*");
 	}
 
 

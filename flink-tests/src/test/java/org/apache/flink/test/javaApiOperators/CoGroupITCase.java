@@ -18,10 +18,6 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.java.DataSet;
@@ -46,6 +42,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class CoGroupITCase extends MultipleProgramsTestBase {
@@ -488,6 +488,36 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 				"-1,30000,Flink\n";
 	}
 
+	@Test
+	public void testCoGroupWithAtomicType1() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Integer> ds2 = env.fromElements(0, 1, 2);
+
+		DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds1.coGroup(ds2).where(0).equalTo("*").with(new CoGroupAtomic1());
+
+		coGroupDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "(1,1,Hi)\n" +
+			"(2,2,Hello)";
+	}
+
+	@Test
+	public void testCoGroupWithAtomicType2() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 1, 2);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
+
+		DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds1.coGroup(ds2).where("*").equalTo(0).with(new CoGroupAtomic2());
+
+		coGroupDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "(1,1,Hi)\n" +
+			"(2,2,Hello)";
+	}
+
 	public static class KeySelector1 implements KeySelector<POJO, Long> {
 		private static final long serialVersionUID = 1L;
 
@@ -715,6 +745,50 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
 			for(Tuple3<Integer, Long, String> t : second) {
 				for(String s : strs) {
 					out.collect(new Tuple3<Integer, Long, String>(t.f0, t.f1, s));
+				}
+			}
+		}
+	}
+
+	public static class CoGroupAtomic1 implements CoGroupFunction<Tuple3<Integer, Long, String>, Integer, Tuple3<Integer, Long, String>> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void coGroup(Iterable<Tuple3<Integer, Long, String>> first, Iterable<Integer> second, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+			List<Integer> ints = new ArrayList<Integer>();
+
+			for (Integer i : second) {
+				ints.add(i);
+			}
+
+			for (Tuple3<Integer, Long, String> t : first) {
+				for (Integer i : ints) {
+					if (t.f0.equals(i)) {
+						out.collect(t);
+					}
+				}
+			}
+		}
+	}
+
+	public static class CoGroupAtomic2 implements CoGroupFunction<Integer, Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void coGroup(Iterable<Integer> first, Iterable<Tuple3<Integer, Long, String>> second, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+			List<Integer> ints = new ArrayList<Integer>();
+
+			for (Integer i : first) {
+				ints.add(i);
+			}
+
+			for (Tuple3<Integer, Long, String> t : second) {
+				for (Integer i : ints) {
+					if (t.f0.equals(i)) {
+						out.collect(t);
+					}
 				}
 			}
 		}

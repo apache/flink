@@ -585,6 +585,78 @@ public class JoinOperatorTest {
 					}
 				);
 	}
+
+	@Test
+	public void testJoinKeyAtomic1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		ds1.join(ds2).where("*").equalTo(0);
+	}
+
+	@Test
+	public void testJoinKeyAtomic2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.join(ds2).where(0).equalTo("*");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		ds1.join(ds2).where("*", "invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.join(ds2).where(0).equalTo("*", "invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic3() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		ds1.join(ds2).where("invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic4() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.join(ds2).where(0).equalTo("invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic5() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<ArrayList<Integer>> ds1 = env.fromElements(new ArrayList<Integer>());
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.join(ds2).where("*").equalTo("*");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testJoinKeyInvalidAtomic6() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<ArrayList<Integer>> ds2 = env.fromElements(new ArrayList<Integer>());
+
+		ds1.join(ds2).where("*").equalTo("*");
+	}
 	
 	@Test
 	public void testJoinProjection1() {
