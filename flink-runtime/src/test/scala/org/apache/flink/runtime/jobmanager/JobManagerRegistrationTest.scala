@@ -37,7 +37,7 @@ import scala.language.postfixOps
  * It also tests the JobManager's response to heartbeats from TaskManagers it does
  * not know.
  */
-class TaskManagerRegistrationTest(_system: ActorSystem) extends TestKit(_system) with
+class JobManagerRegistrationTest(_system: ActorSystem) extends TestKit(_system) with
 ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
   def this() = this(AkkaUtils.createLocalActorSystem(new Configuration()))
@@ -51,8 +51,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     "assign a TaskManager a unique instance ID" in {
       val jm = startTestingJobManager(_system)
 
-      val tmDummy1 = _system.actorOf(Props(classOf[TaskManagerRegistrationTest.DummyActor]))
-      val tmDummy2 = _system.actorOf(Props(classOf[TaskManagerRegistrationTest.DummyActor]))
+      val tmDummy1 = _system.actorOf(Props(classOf[JobManagerRegistrationTest.DummyActor]))
+      val tmDummy2 = _system.actorOf(Props(classOf[JobManagerRegistrationTest.DummyActor]))
 
       try {
         val connectionInfo1 = new InstanceConnectionInfo(InetAddress.getLocalHost, 10000)
@@ -99,7 +99,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     "handle repeated registration calls" in {
 
       val jm = startTestingJobManager(_system)
-      val tmDummy = _system.actorOf(Props(classOf[TaskManagerRegistrationTest.DummyActor]))
+      val tmDummy = _system.actorOf(Props(classOf[JobManagerRegistrationTest.DummyActor]))
 
       try {
         val connectionInfo = new InstanceConnectionInfo(InetAddress.getLocalHost,1)
@@ -128,7 +128,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
   }
 }
 
-object TaskManagerRegistrationTest {
+object JobManagerRegistrationTest {
 
   /** Simply dummy actor that swallows all messages */
   class DummyActor extends Actor {

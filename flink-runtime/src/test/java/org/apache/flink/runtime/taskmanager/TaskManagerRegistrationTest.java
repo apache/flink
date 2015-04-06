@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.InvalidActorNameException;
 import akka.actor.Kill;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
@@ -308,9 +309,22 @@ public class TaskManagerRegistrationTest {
 				// now start the second fake JobManager and expect that
 				// the TaskManager registers again
 				// the second fake JM needs to have the same actor URL
-				final ActorRef fakeJobManager2 = actorSystem.actorOf(fakeJmProps, jobManagerName);
+				ActorRef fakeJobManager2 = null;
+
+				// since we cannot reliably wait until the actor is unregistered (name is
+				// available again) we loop with multiple tries for 20 seconds
+				long deadline = 20000000000L + System.nanoTime();
+				do {
+					try {
+						fakeJobManager2 = actorSystem.actorOf(fakeJmProps, jobManagerName);
+					} catch (InvalidActorNameException e) {
+						// wait and retry
+						Thread.sleep(100);
+					}
+				} while (fakeJobManager2 == null && System.nanoTime() < deadline);
 
 				// expect the next registration
+				final ActorRef jm2Closure = fakeJobManager2;
 				new Within(new FiniteDuration(10, TimeUnit.SECONDS)) {
 
 					@Override
@@ -318,8 +332,8 @@ public class TaskManagerRegistrationTest {
 						expectMsgClass(RegisterTaskManager.class);
 
 						// we accept the registration
-						taskManager.tell(new AcknowledgeRegistration(fakeJobManager2, new InstanceID(), 45234),
-										fakeJobManager2);
+						taskManager.tell(new AcknowledgeRegistration(jm2Closure, new InstanceID(), 45234),
+								jm2Closure);
 					}
 				};
 
