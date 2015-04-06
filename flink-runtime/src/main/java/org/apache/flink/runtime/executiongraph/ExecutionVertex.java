@@ -599,7 +599,7 @@ public class ExecutionVertex implements Serializable {
 		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, getTaskName(),
 				subTaskIndex, getTotalNumberOfParallelSubtasks(), getExecutionGraph().getJobConfiguration(),
 				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
-				producedPartitions, consumedPartitions, jarFiles, targetSlot.getSlotNumber(), operatorState);
+				producedPartitions, consumedPartitions, jarFiles, targetSlot.getRoot().getSlotNumber(), operatorState);
 	}
 
 	// --------------------------------------------------------------------------------------------
