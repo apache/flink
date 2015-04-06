@@ -110,8 +110,14 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
 
     val localExecution = numTaskManagers == 1
 
-    TaskManager.startTaskManagerActor(config, system, HOSTNAME,
-        TaskManager.TASK_MANAGER_NAME + index, singleActorSystem, localExecution,
+    val jobManagerAkkaUrl: Option[String] = if (singleActorSystem) {
+      Some(jobManagerActor.path.toString)
+    } else {
+      None
+    }
+
+    TaskManager.startTaskManagerComponentsAndActor(config, system, HOSTNAME,
+        Some(TaskManager.TASK_MANAGER_NAME + index), jobManagerAkkaUrl, localExecution,
          classOf[TestingTaskManager])
   }
 

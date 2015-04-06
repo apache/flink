@@ -139,7 +139,7 @@ public abstract class AbstractProcessFailureRecoveryTest {
 
 			// we wait for the JobManager to have the two TaskManagers available
 			// wait for at most 20 seconds
-			waitUntilNumTaskManagersAreRegistered(jmActor, 2, 20000);
+			waitUntilNumTaskManagersAreRegistered(jmActor, 2, 30000);
 
 			// the program will set a marker file in each of its parallel tasks once they are ready, so that
 			// this coordinating code is aware of this.
@@ -174,7 +174,7 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			new PipeForwarder(taskManagerProcess3.getErrorStream(), processOutput3);
 
 			// we wait for the third TaskManager to register (20 seconds max)
-			waitUntilNumTaskManagersAreRegistered(jmActor, 3, 20000);
+			waitUntilNumTaskManagersAreRegistered(jmActor, 3, 30000);
 
 			// kill one of the previous TaskManagers, triggering a failure and recovery
 			taskManagerProcess1.destroy();
@@ -369,7 +369,7 @@ public abstract class AbstractProcessFailureRecoveryTest {
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 100);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 
-				TaskManager.runTaskManager(cfg, TaskManager.class);
+				TaskManager.selectNetworkInterfaceAndRunTaskManager(cfg, TaskManager.class);
 
 				// wait forever
 				Object lock = new Object();

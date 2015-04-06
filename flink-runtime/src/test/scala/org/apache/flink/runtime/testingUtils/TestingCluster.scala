@@ -67,7 +67,17 @@ class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolea
 
     val tmActorName = TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
 
-    TaskManager.startTaskManagerActor(configuration, system, HOSTNAME, tmActorName,
-      singleActorSystem, numTaskManagers == 1, classOf[TestingTaskManager])
+    val jobManagerPath: Option[String] = if (singleActorSystem) {
+      Some(jobManagerActor.path.toString)
+    } else {
+      None
+    }
+
+    TaskManager.startTaskManagerComponentsAndActor(configuration, system,
+                                                   HOSTNAME,
+                                                   Some(tmActorName),
+                                                   jobManagerPath,
+                                                   numTaskManagers == 1,
+                                                   classOf[TestingTaskManager])
   }
 }

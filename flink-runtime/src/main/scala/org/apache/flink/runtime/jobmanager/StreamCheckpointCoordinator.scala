@@ -18,19 +18,19 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import java.lang.Long
+import java.lang.{Long => JLong}
 
 import akka.actor._
-import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.ActorLogMessages
-import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph, ExecutionVertex}
+import org.apache.flink.runtime.execution.ExecutionState
+import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionVertex}
 import org.apache.flink.runtime.jobgraph.JobStatus._
 import org.apache.flink.runtime.jobgraph.JobVertexID
+import org.apache.flink.runtime.messages.CheckpointingMessages._
 import org.apache.flink.runtime.state.StateHandle
 
 import scala.collection.JavaConversions._
 import scala.collection.immutable.TreeMap
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{FiniteDuration, _}
 
 /**
@@ -63,15 +63,18 @@ import scala.concurrent.duration.{FiniteDuration, _}
  */
 
 class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
-                         val vertices: Iterable[ExecutionVertex],
-                         var acks: Map[(JobVertexID,Int),List[Long]],
-                         var states: Map[(JobVertexID, Integer, Long), 
-                                 StateHandle],
-                         val interval: FiniteDuration,var curId: Long,var ackId: Long)
-        extends Actor with ActorLogMessages with ActorLogging {
-  
+                                  val vertices: Iterable[ExecutionVertex],
+                                  var acks: Map[(JobVertexID,Int),List[JLong]],
+                                  var states: Map[(JobVertexID, Integer, JLong), StateHandle],
+                                  val interval: FiniteDuration,
+                                  var curId: JLong,
+                                  var ackId: JLong)
+extends Actor with ActorLogMessages with ActorLogging {
+
+  implicit private val executor = context.dispatcher
+
   override def receiveWithLogMessages: Receive = {
-    
+
     case InitBarrierScheduler =>
       context.system.scheduler.schedule(interval,interval,self,BarrierTimeout)
       context.system.scheduler.schedule(2 * interval,2 * interval,self,CompactAndUpdate)
@@ -87,7 +90,7 @@ class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
           curId += 1
           log.debug("Sending Barrier to vertices of Job " + executionGraph.getJobName)
           vertices.filter(v => v.getJobVertex.getJobVertex.isInputVertex &&
-                  v.getExecutionState == RUNNING).foreach(vertex
+                  v.getExecutionState == ExecutionState.RUNNING).foreach(vertex
           => vertex.getCurrentAssignedResource.getInstance.getTaskManager
                     ! BarrierReq(vertex.getCurrentExecutionAttempt.getAttemptId,curId))
         case _ =>
@@ -105,16 +108,17 @@ class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
               acks += (jobVertexID,instanceID) -> (checkpointID :: acklist)
             case None =>
           }
-          log.debug(acks.toString)
+          log.debug(acks.toString())
       
     case CompactAndUpdate =>
-      val barrierCount = acks.values.foldLeft(TreeMap[Long,Int]().withDefaultValue(0))((dict,myList)
+      val barrierCount =
+        acks.values.foldLeft(TreeMap[JLong,Int]().withDefaultValue(0))((dict,myList)
       => myList.foldLeft(dict)((dict2,elem) => dict2.updated(elem,dict2(elem) + 1)))
       val keysToKeep = barrierCount.filter(_._2 == acks.size).keys
-      ackId = if(!keysToKeep.isEmpty) keysToKeep.max else ackId
+      ackId = if(keysToKeep.nonEmpty) keysToKeep.max else ackId
       acks.keys.foreach(x => acks = acks.updated(x,acks(x).filter(_ >= ackId)))
       states = states.filterKeys(_._3 >= ackId)
-      log.debug("Last global barrier is " + ackId)
+      log.debug("[FT-MONITOR] Last global barrier is " + ackId)
       executionGraph.loadOperatorStates(states)
       
   }
@@ -128,7 +132,7 @@ object StreamCheckpointCoordinator {
     val vertices: Iterable[ExecutionVertex] = getExecutionVertices(executionGraph)
     val monitor = context.system.actorOf(Props(new StreamCheckpointCoordinator(executionGraph,
       vertices,vertices.map(x => ((x.getJobVertex.getJobVertexId,x.getParallelSubtaskIndex),
-              List.empty[Long])).toMap, Map() ,interval,0L,-1L)))
+              List.empty[JLong])).toMap, Map() ,interval,0L,-1L)))
     monitor ! InitBarrierScheduler
     monitor
   }
@@ -145,14 +149,3 @@ case class BarrierTimeout()
 case class InitBarrierScheduler()
 
 case class CompactAndUpdate()
-
-case class BarrierReq(attemptID: ExecutionAttemptID,checkpointID: Long)
-
-case class BarrierAck(jobID: JobID,jobVertexID: JobVertexID,instanceID: Int,checkpointID: Long)
-
-case class StateBarrierAck(jobID: JobID, jobVertexID: JobVertexID, instanceID: Integer,
-                           checkpointID: Long, states: StateHandle)
-       
-
-
-

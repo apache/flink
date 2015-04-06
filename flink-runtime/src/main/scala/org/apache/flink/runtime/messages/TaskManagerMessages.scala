@@ -18,115 +18,66 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.core.io.InputSplit
-import org.apache.flink.runtime.deployment.{InputChannelDeploymentDescriptor, TaskDeploymentDescriptor}
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceID
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 
+/**
+ * Miscellaneous actor messages exchanged with the TaskManager.
+ */
 object TaskManagerMessages {
 
   /**
-   * Cancels the task associated with [[attemptID]]. The result is sent back to the sender as a
-   * [[TaskOperationResult]] message.
-   *
-   * @param attemptID
+   * Tells the task manager to send a heartbeat message to the job manager.
    */
-  case class CancelTask(attemptID: ExecutionAttemptID)
+  case object SendHeartbeat {
 
-  /**
-   * Submits a task to the task manager. The submission result is sent back to the sender as a
-   * [[TaskOperationResult]] message.
-   *
-   * @param tasks task deployment descriptor which contains the task relevant information
-   */
-  case class SubmitTask(tasks: TaskDeploymentDescriptor)
-
-  /**
-   * Contains the next input split for a task. This message is a response to
-   * [[org.apache.flink.runtime.messages.JobManagerMessages.RequestNextInputSplit]].
-   *
-   * @param splitData
-   */
-  case class NextInputSplit(splitData: Array[Byte])
-
-  /**
-   * Unregisters the task identified by [[executionID]] from the task manager.
-   *
-   * @param executionID
-   */
-  case class UnregisterTask(executionID: ExecutionAttemptID)
-
-  /**
-   * Updates the reader of the task identified by
-   * [[executionID]] from the task manager.
-   */
-  sealed trait UpdateTask{
-    def executionID: ExecutionAttemptID
-  }
-
-  case class UpdateTaskSinglePartitionInfo(
-    executionID: ExecutionAttemptID,
-    resultId: IntermediateDataSetID,
-    partitionInfo: InputChannelDeploymentDescriptor)
-    extends UpdateTask
-
-  case class UpdateTaskMultiplePartitionInfos(
-    executionID: ExecutionAttemptID,
-    partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)])
-    extends UpdateTask
-
-  def createUpdateTaskMultiplePartitionInfos(
-    executionID: ExecutionAttemptID,
-    resultIDs: java.util.List[IntermediateDataSetID],
-    partitionInfos: java.util.List[InputChannelDeploymentDescriptor]):
-  UpdateTaskMultiplePartitionInfos = {
-    require(resultIDs.size() == partitionInfos.size(), "ResultIDs must have the same length as" +
-      "partitionInfos.")
-
-    import scala.collection.JavaConverters.asScalaBufferConverter
-    new UpdateTaskMultiplePartitionInfos(executionID,
-      resultIDs.asScala.zip(partitionInfos.asScala))
+    /**
+     * Accessor for the case object instance, to simplify Java interoperability.
+     * @return The SendHeartbeat case object instance.
+     */
+    def get() : SendHeartbeat.type = SendHeartbeat
   }
 
   /**
-   * Fails all intermediate result partitions identified by [[executionID]] from the task manager.
+   * Reports liveliness of the TaskManager instance with the given instance ID to the
+   * This message is sent to the job. This message reports the TaskManagers
+   * metrics, as a byte array.
    *
-   * @param executionID
-   */
-  case class FailIntermediateResultPartitions(executionID: ExecutionAttemptID)
-
-  /**
-   * Reports whether a task manager operation has been successful or not. This message will be
-   * sent to the sender as a response to [[SubmitTask]] and [[CancelTask]].
-   *
-   * @param executionID identifying the respective task
-   * @param success indicating whether the operation has been successful
-   * @param description
-   */
-  case class TaskOperationResult(executionID: ExecutionAttemptID, success: Boolean,
-                                 description: String = ""){
-    def this(executionID: ExecutionAttemptID, success: Boolean) = this(executionID, success, "")
-  }
-
-  /**
-   * Reports liveliness of an instance with [[instanceID]] to the
-   * [[org.apache.flink.runtime.instance.InstanceManager]]. This message is sent to the job
-   * manager which forwards it to the InstanceManager.
-   *
-   * @param instanceID
-   * @param metricsReport utf-8 encoded JSON report from the metricRegistry.
+   * @param instanceID The instance ID of the reporting TaskManager.
+   * @param metricsReport utf-8 encoded JSON metrics report from the metricRegistry.
    */
   case class Heartbeat(instanceID: InstanceID, metricsReport: Array[Byte])
 
+
+  // --------------------------------------------------------------------------
+  //  Utility messages used for notifications during TaskManager startup
+  // --------------------------------------------------------------------------
+
   /**
-   * Sends StackTrace Message of an instance with [[instanceID]]. This message is a response to
-   * [[org.apache.flink.runtime.messages.TaskManagerMessages.SendStackTrace]].
+   * Tells the TaskManager to send a stack trace of all threads to the sender.
+   * The response to this message is the [[StackTrace]] message.
+   */
+  case object SendStackTrace {
+
+    /**
+     * Accessor for the case object instance, to simplify Java interoperability.
+     * @return The SendStackTrace case object instance.
+     */
+    def get() : SendStackTrace.type = SendStackTrace
+  }
+
+  /**
+   * Communicates the stack trace of the TaskManager with the given ID.
+   * This message is the response to [[SendStackTrace]].
    *
-   * @param instanceID
-   * @param stackTrace
+   * @param instanceID The ID of the responding task manager.
+   * @param stackTrace The stack trace, as a string.
    */
   case class StackTrace(instanceID: InstanceID, stackTrace: String)
+
+
+  // --------------------------------------------------------------------------
+  //  Utility messages used for notifications during TaskManager startup
+  // --------------------------------------------------------------------------
 
   /**
    * Requests a notification from the task manager as soon as the task manager has been
@@ -141,55 +92,23 @@ object TaskManagerMessages {
    */
   case object RegisteredAtJobManager
 
-  /**
-   * Registers the sender as task manager at the job manager.
-   */
-  case object RegisterAtJobManager
 
-  /**
-   * Makes the task manager sending a heartbeat message to the job manager.
-   */
-  case object SendHeartbeat
-
-  /**
-   * Logs the current memory usage as debug level output.
-   */
-  case object LogMemoryUsage
-
-  /**
-   * Makes the task manager sending a stack trace message to the sender.
-   */
-  case object SendStackTrace
-
-  /**
-   * Fail the specified task externally
-   *
-   * @param executionID identifying the task to fail
-   * @param cause reason for the external failure
-   */
-  case class FailTask(executionID: ExecutionAttemptID, cause: Throwable)
-  
   // --------------------------------------------------------------------------
-  // Utility methods to allow simpler case object access from Java
+  //  Utility getters for case objects to simplify access from Java
   // --------------------------------------------------------------------------
-  
-  def getNotifyWhenRegisteredAtJobManagerMessage : AnyRef = {
-    NotifyWhenRegisteredAtJobManager
-  }
-  
-  def getRegisteredAtJobManagerMessage : AnyRef = {
-    RegisteredAtJobManager
-  }
-  
-  def getRegisterAtJobManagerMessage : AnyRef = {
-    RegisterAtJobManager
-  }
 
-  def getSendHeartbeatMessage : AnyRef = {
-    SendHeartbeat
-  }
+  /**
+   * Accessor for the case object instance, to simplify Java interoperability.
+   * @return The NotifyWhenRegisteredAtJobManager case object instance.
+   */
+  def getNotifyWhenRegisteredAtJobManagerMessage:
+            NotifyWhenRegisteredAtJobManager.type = NotifyWhenRegisteredAtJobManager
 
-  def getLogMemoryUsageMessage : AnyRef = {
-    RegisteredAtJobManager
-  }
+  /**
+   * Accessor for the case object instance, to simplify Java interoperability.
+   * @return The RegisteredAtJobManager case object instance.
+   */
+  def getRegisteredAtJobManagerMessage:
+            RegisteredAtJobManager.type = RegisteredAtJobManager
+
 }

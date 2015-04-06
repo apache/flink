@@ -37,14 +37,14 @@ trait ActorLogMessages {
         _receiveWithLogMessages(x)
       }
       else {
-        log.debug(s"Received message $x at ${that.self.path} from ${that.sender}.")
+        log.debug(s"Received message $x at ${that.self.path} from ${that.sender()}.")
 
         val start = System.nanoTime()
 
         _receiveWithLogMessages(x)
 
         val duration = (System.nanoTime() - start) / 1000000
-        log.debug(s"Handled message $x in $duration ms from ${that.sender}.")
+        log.debug(s"Handled message $x in $duration ms from ${that.sender()}.")
       }
     }
   }

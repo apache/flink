@@ -26,8 +26,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.BarrierTransceiver;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
-import org.apache.flink.runtime.jobmanager.BarrierAck;
-import org.apache.flink.runtime.jobmanager.StateBarrierAck;
+import org.apache.flink.runtime.messages.CheckpointingMessages;
 import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.runtime.state.StateHandle;
@@ -116,12 +115,12 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 		if (configuration.getStateMonitoring() && !states.isEmpty()) {
 			getEnvironment().getJobManager().tell(
-					new StateBarrierAck(getEnvironment().getJobID(), getEnvironment()
+					new CheckpointingMessages.StateBarrierAck(getEnvironment().getJobID(), getEnvironment()
 							.getJobVertexId(), context.getIndexOfThisSubtask(), barrierID,
 							new LocalStateHandle(states)), ActorRef.noSender());
 		} else {
 			getEnvironment().getJobManager().tell(
-					new BarrierAck(getEnvironment().getJobID(), getEnvironment().getJobVertexId(),
+					new CheckpointingMessages.BarrierAck(getEnvironment().getJobID(), getEnvironment().getJobVertexId(),
 							context.getIndexOfThisSubtask(), barrierID), ActorRef.noSender());
 		}
 

@@ -101,7 +101,8 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 			// take IP textual representation
 			this.hostName = this.fqdnHostName;
 			LOG.warn("No hostname could be resolved for the IP address {}, using IP address as host name. "
-					+ "Local input split assignment (such as for HDFS files) may be impacted.");
+					+ "Local input split assignment (such as for HDFS files) may be impacted.",
+					this.inetAddress.getHostAddress());
 		}
 		else {
 			this.hostName = NetUtils.getHostnameFromFQDN(this.fqdnHostName);

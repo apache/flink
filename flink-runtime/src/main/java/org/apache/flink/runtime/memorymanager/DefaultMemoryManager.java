@@ -165,6 +165,12 @@ public class DefaultMemoryManager implements MemoryManager {
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 
+	@Override
+	public boolean isShutdown() {
+		return this.isShutDown;
+	}
+
+	@Override
 	public boolean verifyEmpty() {
 		synchronized (this.lock) {
 			return this.freeSegments.size() == this.totalNumPages;

@@ -184,7 +184,7 @@ public abstract class Slot {
 		return "(" + slotNumber + ")" + (getParent() != null ? getParent().hierarchy() : "");
 	}
 
-	private static final String getStateName(int state) {
+	private static String getStateName(int state) {
 		switch (state) {
 			case ALLOCATED_AND_ALIVE:
 				return "ALLOCATED/ALIVE";

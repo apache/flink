@@ -64,7 +64,7 @@ object ExecutionGraphMessages {
   /**
    * Denotes the job state change of a job.
    *
-   * @param jobID identifying the correspong job
+   * @param jobID identifying the corresponding job
    * @param newJobStatus
    * @param timestamp
    * @param error

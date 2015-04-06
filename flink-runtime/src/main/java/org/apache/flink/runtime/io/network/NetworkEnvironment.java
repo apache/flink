@@ -49,7 +49,7 @@ import java.io.IOException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.FailTask;
+import static org.apache.flink.runtime.messages.TaskMessages.FailTask;
 
 /**
  * Network I/O components of each {@link TaskManager} instance. The network environment contains
@@ -165,6 +165,7 @@ public class NetworkEnvironment {
 			{
 				// good, not currently associated. start the individual components
 
+				LOG.debug("Starting result partition manager and network connection manager");
 				this.partitionManager = new ResultPartitionManager();
 				this.taskEventDispatcher = new TaskEventDispatcher();
 				this.partitionConsumableNotifier = new JobManagerResultPartitionConsumableNotifier(
@@ -176,6 +177,7 @@ public class NetworkEnvironment {
 															: new LocalConnectionManager();
 
 				try {
+					LOG.debug("Starting network connection manager");
 					connectionManager.start(partitionManager, taskEventDispatcher, networkBufferPool);
 				}
 				catch (Throwable t) {
@@ -312,7 +314,7 @@ public class NetworkEnvironment {
 	}
 
 	public void unregisterTask(Task task) {
-		LOG.debug("Unregistering task {} ({}) from network environment (state: {}).",
+		LOG.debug("Unregister task {} from network environment (state: {}).",
 				task.getTaskNameWithSubtasks(), task.getExecutionState());
 
 		final ExecutionAttemptID executionId = task.getExecutionId();

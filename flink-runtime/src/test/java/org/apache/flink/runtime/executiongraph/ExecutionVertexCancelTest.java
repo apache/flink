@@ -42,8 +42,8 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
+import org.apache.flink.runtime.messages.TaskMessages;
+import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -644,10 +644,10 @@ public class ExecutionVertexCancelTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception {
-			if(message instanceof TaskManagerMessages.SubmitTask){
-				TaskDeploymentDescriptor tdd = ((TaskManagerMessages.SubmitTask) message).tasks();
+			if(message instanceof TaskMessages.SubmitTask){
+				TaskDeploymentDescriptor tdd = ((TaskMessages.SubmitTask) message).tasks();
 				getSender().tell(new TaskOperationResult(tdd.getExecutionId(), true), getSelf());
-			}else if(message instanceof TaskManagerMessages.CancelTask){
+			}else if(message instanceof TaskMessages.CancelTask){
 				index++;
 				if(index >= results.length){
 					getSender().tell(new Status.Failure(new IOException("RPC call failed.")), getSelf());

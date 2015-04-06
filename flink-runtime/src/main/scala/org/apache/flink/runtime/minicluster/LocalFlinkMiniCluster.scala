@@ -100,8 +100,18 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
       TaskManager.TASK_MANAGER_NAME
     }
 
-    TaskManager.startTaskManagerActor(config, system, HOSTNAME, taskManagerActorName,
-      singleActorSystem, localExecution, classOf[TaskManager])
+    val jobManagerPath: Option[String] = if (singleActorSystem) {
+      Some(jobManagerActor.path.toString)
+    } else {
+      None
+    }
+
+    TaskManager.startTaskManagerComponentsAndActor(config, system,
+                                                   HOSTNAME, // network interface to bind to
+                                                   Some(taskManagerActorName), // actor name
+                                                   jobManagerPath, // job manager akka URL
+                                                   localExecution, // start network stack?
+                                                   classOf[TaskManager])
   }
 
   def getJobClient(): ActorRef = {

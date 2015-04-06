@@ -22,9 +22,12 @@ import akka.actor.{Terminated, ActorRef}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
+import org.apache.flink.runtime.io.disk.iomanager.IOManager
+import org.apache.flink.runtime.io.network.NetworkEnvironment
+import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.Messages.Disconnect
-import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask
-import org.apache.flink.runtime.taskmanager.{NetworkEnvironmentConfiguration, TaskManagerConfiguration, TaskManager}
+import org.apache.flink.runtime.messages.TaskMessages.UnregisterTask
+import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
@@ -35,11 +38,15 @@ import scala.language.postfixOps
 /**
  * Subclass of the [[TaskManager]] to support testing messages
  */
-class TestingTaskManager(connectionInfo: InstanceConnectionInfo,
+class TestingTaskManager(config: TaskManagerConfiguration,
+                         connectionInfo: InstanceConnectionInfo,
                          jobManagerAkkaURL: String,
-                         taskManagerConfig: TaskManagerConfiguration,
-                         networkConfig: NetworkEnvironmentConfiguration)
-  extends TaskManager(connectionInfo, jobManagerAkkaURL, taskManagerConfig, networkConfig) {
+                         memoryManager: DefaultMemoryManager,
+                         ioManager: IOManager,
+                         network: NetworkEnvironment,
+                         numberOfSlots: Int)
+  extends TaskManager(config, connectionInfo, jobManagerAkkaURL,
+                      memoryManager, ioManager, network, numberOfSlots) {
 
 
   val waitForRemoval = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
@@ -81,12 +88,12 @@ class TestingTaskManager(connectionInfo: InstanceConnectionInfo,
         bcVarManager.getNumberOfVariablesWithReferences)
 
     case RequestNumActiveConnections =>
-      networkEnvironment match {
-        case Some(ne) => sender ! ResponseNumActiveConnections(
-          ne.getConnectionManager.getNumberOfActiveConnections)
-
-        case None => sender ! ResponseNumActiveConnections(0)
-      }
+      val numActive = if (network.isAssociated) {
+                        network.getConnectionManager.getNumberOfActiveConnections
+                      } else {
+                        0
+                      }
+      sender ! ResponseNumActiveConnections(numActive)
 
     case NotifyWhenJobRemoved(jobID) =>
       if(runningTasks.values.exists(_.getJobID == jobID)){
@@ -129,7 +136,7 @@ class TestingTaskManager(connectionInfo: InstanceConnectionInfo,
       if (!disconnectDisabled) {
         super.receiveWithLogMessages(msg)
 
-        val jobManager = sender
+        val jobManager = sender()
 
         waitForJobManagerToBeTerminated.remove(jobManager.path.name) foreach {
           _ foreach {

@@ -25,7 +25,6 @@ import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGra
 import org.apache.flink.runtime.instance.{InstanceID, Instance}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertexID}
-import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 import scala.collection.JavaConverters._
 
@@ -53,14 +52,6 @@ object JobManagerMessages {
   case class CancelJob(jobID: JobID)
 
   /**
-   * Denotes a state change of a task at the JobManager. The update success is acknowledged by a
-   * boolean value which is sent back to the sender.
-   *
-   * @param taskExecutionState
-   */
-  case class UpdateTaskExecutionState(taskExecutionState: TaskExecutionState)
-
-  /**
    * Requesting next input split for the
    * [[org.apache.flink.runtime.executiongraph.ExecutionJobVertex]]
    * of the job specified by [[jobID]]. The next input split is sent back to the sender as a
@@ -71,6 +62,14 @@ object JobManagerMessages {
    */
   case class RequestNextInputSplit(jobID: JobID, vertexID: JobVertexID, executionAttempt:
   ExecutionAttemptID)
+
+  /**
+   * Contains the next input split for a task. This message is a response to
+   * [[org.apache.flink.runtime.messages.JobManagerMessages.RequestNextInputSplit]].
+   *
+   * @param splitData
+   */
+  case class NextInputSplit(splitData: Array[Byte])
 
   /**
    * Notifies the [[org.apache.flink.runtime.jobmanager.JobManager]] about available data for a

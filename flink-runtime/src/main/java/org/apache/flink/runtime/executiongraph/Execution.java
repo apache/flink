@@ -43,7 +43,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
+import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -68,12 +68,13 @@ import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.FailIntermediateResultPartitions;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.UpdateTask;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.UpdateTaskSinglePartitionInfo;
-import static org.apache.flink.runtime.messages.TaskManagerMessages.createUpdateTaskMultiplePartitionInfos;
+
+import static org.apache.flink.runtime.messages.TaskMessages.CancelTask;
+import static org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
+import static org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
+import static org.apache.flink.runtime.messages.TaskMessages.UpdatePartitionInfo;
+import static org.apache.flink.runtime.messages.TaskMessages.UpdateTaskSinglePartitionInfo;
+import static org.apache.flink.runtime.messages.TaskMessages.createUpdateTaskMultiplePartitionInfos;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times (for recovery,
@@ -526,7 +527,7 @@ public class Execution implements Serializable {
 					final InputChannelDeploymentDescriptor descriptor = new InputChannelDeploymentDescriptor(
 							partitionId, partitionLocation);
 
-					final UpdateTask updateTaskMessage = new UpdateTaskSinglePartitionInfo(
+					final UpdatePartitionInfo updateTaskMessage = new UpdateTaskSinglePartitionInfo(
 							consumer.getAttemptId(), partition.getIntermediateResult().getId(), descriptor);
 
 					sendUpdateTaskRpcCall(consumerSlot, updateTaskMessage);
@@ -685,7 +686,7 @@ public class Execution implements Serializable {
 				inputChannelDeploymentDescriptors.add(partialInputChannelDeploymentDescriptor.createInputChannelDeploymentDescriptor(this));
 			}
 
-			UpdateTask updateTaskMessage =
+			UpdatePartitionInfo updateTaskMessage =
 					createUpdateTaskMultiplePartitionInfos(attemptId, resultIDs,
 							inputChannelDeploymentDescriptors);
 
@@ -845,7 +846,7 @@ public class Execution implements Serializable {
 	}
 
 	private void sendUpdateTaskRpcCall(final SimpleSlot consumerSlot,
-									final UpdateTask updateTaskMsg) {
+										final UpdatePartitionInfo updateTaskMsg) {
 
 		if (consumerSlot != null) {
 			final Instance instance = consumerSlot.getInstance();

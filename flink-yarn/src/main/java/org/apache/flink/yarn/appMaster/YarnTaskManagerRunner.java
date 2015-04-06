@@ -87,7 +87,7 @@ public class YarnTaskManagerRunner {
 			@Override
 			public Object run() {
 				try {
-					TaskManager.runTaskManager(configuration, YarnTaskManager.class);
+					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, YarnTaskManager.class);
 				}
 				catch (Throwable t) {
 					LOG.error("Error while starting the TaskManager", t);

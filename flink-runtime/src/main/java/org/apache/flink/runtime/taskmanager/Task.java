@@ -30,8 +30,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask;
+import org.apache.flink.runtime.messages.TaskMessages;
+import org.apache.flink.runtime.messages.TaskMessages.UnregisterTask;
 import org.apache.flink.runtime.profiling.TaskManagerProfiler;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -304,7 +304,7 @@ public class Task {
 				}
 			}
 			else {
-				throw new RuntimeException("unexpected state for cancelling: " + current);
+				throw new RuntimeException("unexpected state for failing the task: " + current);
 			}
 		}
 	}
@@ -361,7 +361,7 @@ public class Task {
 											Throwable optionalError) {
 		LOG.info("Update execution state of {} ({}) to {}.", this.getTaskName(),
 				this.getExecutionId(), executionState);
-		taskManager.tell(new JobManagerMessages.UpdateTaskExecutionState(
+		taskManager.tell(new TaskMessages.UpdateTaskExecutionState(
 				new TaskExecutionState(jobId, executionId, executionState, optionalError)),
 				ActorRef.noSender());
 

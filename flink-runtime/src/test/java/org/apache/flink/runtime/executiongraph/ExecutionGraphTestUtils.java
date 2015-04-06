@@ -43,8 +43,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
+import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
+import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
+import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
+import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -113,16 +115,16 @@ public class ExecutionGraphTestUtils {
 		public TaskDeploymentDescriptor lastTDD;
 		@Override
 		public void onReceive(Object msg) throws Exception {
-			if (msg instanceof TaskManagerMessages.SubmitTask) {
-				TaskManagerMessages.SubmitTask submitTask = (TaskManagerMessages.SubmitTask) msg;
+			if (msg instanceof SubmitTask) {
+				SubmitTask submitTask = (SubmitTask) msg;
 				lastTDD = submitTask.tasks();
 
 				getSender().tell(new TaskOperationResult(submitTask.tasks().getExecutionId(), true), getSelf());
-			} else if (msg instanceof TaskManagerMessages.CancelTask) {
-				TaskManagerMessages.CancelTask cancelTask = (TaskManagerMessages.CancelTask) msg;
+			} else if (msg instanceof CancelTask) {
+				CancelTask cancelTask = (CancelTask) msg;
 				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
 			}
-			else if (msg instanceof TaskManagerMessages.FailIntermediateResultPartitions) {
+			else if (msg instanceof FailIntermediateResultPartitions) {
 				getSender().tell(new Object(), getSelf());
 			}
 		}
@@ -133,13 +135,13 @@ public class ExecutionGraphTestUtils {
 	public static class SimpleFailingTaskManager extends UntypedActor {
 		@Override
 		public void onReceive(Object msg) throws Exception {
-			if (msg instanceof TaskManagerMessages.SubmitTask) {
-				TaskManagerMessages.SubmitTask submitTask = (TaskManagerMessages.SubmitTask) msg;
+			if (msg instanceof SubmitTask) {
+				SubmitTask submitTask = (SubmitTask) msg;
 
 				getSender().tell(new TaskOperationResult(submitTask.tasks().getExecutionId(),
 						false, ERROR_MESSAGE),	getSelf());
-			} else if (msg instanceof TaskManagerMessages.CancelTask) {
-				TaskManagerMessages.CancelTask cancelTask = (TaskManagerMessages.CancelTask) msg;
+			} else if (msg instanceof CancelTask) {
+				CancelTask cancelTask = (CancelTask) msg;
 				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
 			}
 		}

@@ -30,8 +30,10 @@ import org.apache.flink.runtime.client.{JobStatusMessage, JobSubmissionException
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
+import org.apache.flink.runtime.messages.CheckpointingMessages.{StateBarrierAck, BarrierAck}
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
+import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
@@ -46,9 +48,9 @@ import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
-import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, NextInputSplit, Heartbeat}
+import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, Heartbeat}
 import org.apache.flink.runtime.profiling.ProfilingUtils
-import org.apache.flink.util.InstantiationUtil
+import org.apache.flink.util.{ExceptionUtils, InstantiationUtil}
 
 import org.slf4j.LoggerFactory
 
@@ -76,7 +78,7 @@ import scala.collection.JavaConverters._
  *  is indicated by [[CancellationSuccess]] and a failure by [[CancellationFailure]]
  *
  * - [[UpdateTaskExecutionState]] is sent by a TaskManager to update the state of an
- * [[org.apache.flink.runtime.executiongraph.ExecutionVertex]] contained in the [[ExecutionGraph]].
+     ExecutionVertex contained in the [[ExecutionGraph]].
  * A successful update is acknowledged by true and otherwise false.
  *
  * - [[RequestNextInputSplit]] requests the next input split for a running task on a
@@ -103,17 +105,17 @@ class JobManager(val flinkConfiguration: Configuration,
 
   /** List of current jobs running jobs */
   val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
-  
+
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
    */
   override def preStart(): Unit = {
-    LOG.info(s"Starting JobManager at ${self.path}.")
+    LOG.info(s"Starting JobManager at ${self.path.toSerializationFormat}.")
   }
 
   override def postStop(): Unit = {
-    log.info(s"Stopping job manager ${self.path}.")
+    log.info(s"Stopping JobManager ${self.path.toSerializationFormat}.")
 
     // disconnect the registered task managers
     instanceManager.getAllRegisteredInstances.asScala.foreach {
@@ -148,29 +150,38 @@ class JobManager(val flinkConfiguration: Configuration,
    */
   override def receiveWithLogMessages: Receive = {
 
-    case RegisterTaskManager(connectionInfo, hardwareInformation, numberOfSlots) =>
-      val taskManager = sender
+    case RegisterTaskManager(taskManager, connectionInfo, hardwareInformation, numberOfSlots) =>
 
       if (instanceManager.isRegistered(taskManager)) {
         val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
-        taskManager ! AlreadyRegistered(instanceID, libraryCacheManager.getBlobServerPort, profiler)
-      } else {
 
-        val instanceID = try {
-           instanceManager.registerTaskManager(taskManager, connectionInfo,
+        // IMPORTANT: Send the response to the "sender", which is not the
+        //            TaskManager actor, but the ask future!
+        sender() ! AlreadyRegistered(self, instanceID, libraryCacheManager.getBlobServerPort)
+      }
+      else {
+        try {
+          val instanceID = instanceManager.registerTaskManager(taskManager, connectionInfo,
             hardwareInformation, numberOfSlots)
-        } catch {
+
+          // IMPORTANT: Send the response to the "sender", which is not the
+          //            TaskManager actor, but the ask future!
+          sender() ! AcknowledgeRegistration(self, instanceID,
+                                             libraryCacheManager.getBlobServerPort)
+
+          // to be notified when the taskManager is no longer reachable
+          context.watch(taskManager)
+        }
+        catch {
           // registerTaskManager throws an IllegalStateException if it is already shut down
           // let the actor crash and restart itself in this case
-          case ex: Exception => throw new RuntimeException(s"Could not register the task manager " +
-            s"${taskManager.path} at the instance manager.", ex)
+          case e: Exception =>
+            log.error(e, "Failed to register TaskManager at instance manager")
+
+            // IMPORTANT: Send the response to the "sender", which is not the
+            //            TaskManager actor, but the ask future!
+            sender() ! RefuseRegistration(ExceptionUtils.stringifyException(e))
         }
-
-        // to be notified when the taskManager is no longer reachable
-        context.watch(taskManager)
-
-        taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort,
-          profiler)
       }
 
     case RequestNumberRegisteredTaskManager =>
@@ -205,7 +216,7 @@ class JobManager(val flinkConfiguration: Configuration,
       } else {
         currentJobs.get(taskExecutionState.getJobID) match {
           case Some((executionGraph, _)) =>
-            val originalSender = sender
+            val originalSender = sender()
 
             Future {
               val result = executionGraph.updateState(taskExecutionState)
@@ -302,7 +313,7 @@ class JobManager(val flinkConfiguration: Configuration,
             }
 
             removeJob(jobID)
-            
+
           }
         case None =>
           removeJob(jobID)
@@ -320,7 +331,7 @@ class JobManager(val flinkConfiguration: Configuration,
           jobExecution._1.getStateCheckpointerActor forward  msg
         case None =>
       }
-      
+
     case ScheduleOrUpdateConsumers(jobId, partitionId) =>
       currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
@@ -343,7 +354,7 @@ class JobManager(val flinkConfiguration: Configuration,
       } catch {
         case t: Throwable =>
           log.error(t, "Could not process accumulator event of job {} received from {}.",
-            accumulatorEvent.getJobID, sender.path)
+            accumulatorEvent.getJobID, sender().path)
       }
 
     case RequestAccumulatorResults(jobID) =>
@@ -396,9 +407,10 @@ class JobManager(val flinkConfiguration: Configuration,
 
     case Heartbeat(instanceID, metricsReport) =>
       try {
+        log.debug("Received hearbeat message from {}", instanceID)
         instanceManager.reportHeartBeat(instanceID, metricsReport)
       } catch {
-        case t: Throwable => log.error(t, "Could not report heart beat from {}.", sender.path)
+        case t: Throwable => log.error(t, "Could not report heart beat from {}.", sender().path)
       }
 
     case RequestStackTrace(instanceID) =>
@@ -414,10 +426,10 @@ class JobManager(val flinkConfiguration: Configuration,
       }
 
     case RequestJobManagerStatus =>
-      sender ! JobManagerStatusAlive
+      sender() ! JobManagerStatusAlive
 
     case Disconnect(msg) =>
-      val taskManager = sender
+      val taskManager = sender()
 
       if (instanceManager.isRegistered(taskManager)) {
         log.info("Task manager {} wants to disconnect, because {}.", taskManager.path, msg)
@@ -474,7 +486,7 @@ class JobManager(val flinkConfiguration: Configuration,
         executionGraph = currentJobs.getOrElseUpdate(jobGraph.getJobID,
           (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
             jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader),
-            JobInfo(sender, System.currentTimeMillis())))._1
+            JobInfo(sender(), System.currentTimeMillis())))._1
 
         // configure the execution graph
         val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {
@@ -486,7 +498,7 @@ class JobManager(val flinkConfiguration: Configuration,
         executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode)
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
-        
+
         executionGraph.setCheckpointingEnabled(jobGraph.isCheckpointingEnabled)
         executionGraph.setCheckpointingInterval(jobGraph.getCheckpointingInterval)
 
@@ -532,15 +544,15 @@ class JobManager(val flinkConfiguration: Configuration,
         }
 
         // give an actorContext
-        executionGraph.setParentContext(context);
-        
+        executionGraph.setParentContext(context)
+
         // get notified about job status changes
         executionGraph.registerJobStatusListener(self)
 
         if (listenToEvents) {
           // the sender wants to be notified about state changes
-          executionGraph.registerExecutionListener(sender)
-          executionGraph.registerJobStatusListener(sender)
+          executionGraph.registerExecutionListener(sender())
+          executionGraph.registerJobStatusListener(sender())
         }
 
         // done with submitting the job
@@ -769,9 +781,12 @@ object JobManager {
       if (executionMode == JobManagerMode.LOCAL) {
         LOG.info("Starting embedded TaskManager for JobManager's LOCAL execution mode")
 
-        val taskManagerActor = TaskManager.startTaskManagerActor(
-          configuration, jobManagerSystem, listeningAddress,
-          TaskManager.TASK_MANAGER_NAME, true, true, classOf[TaskManager])
+        val taskManagerActor = TaskManager.startTaskManagerComponentsAndActor(
+                        configuration, jobManagerSystem,
+                        listeningAddress,
+                        Some(TaskManager.TASK_MANAGER_NAME),
+                        Some(jobManager.path.toString),
+                        true, classOf[TaskManager])
 
         LOG.debug("Starting TaskManager process reaper")
         jobManagerSystem.actorOf(
@@ -965,6 +980,25 @@ object JobManager {
   def startJobManagerActors(configuration: Configuration,
                             actorSystem: ActorSystem): (ActorRef, ActorRef) = {
 
+    startJobManagerActors(configuration,actorSystem, Some(JOB_MANAGER_NAME), Some(ARCHIVE_NAME))
+  }
+  /**
+   * Starts the JobManager and job archiver based on the given configuration, in the
+   * given actor system.
+   *
+   * @param configuration The configuration for the JobManager
+   * @param actorSystem The actor system running the JobManager
+   * @param jobMangerActorName Optionally the name of the JobManager actor. If none is given,
+   *                          the actor will have the name generated by the actor system.
+   * @param archiverActorName Optionally the name of the archive actor. If none is given,
+   *                          the actor will have the name generated by the actor system.
+   * @return A tuple of references (JobManager Ref, Archiver Ref)
+   */
+  def startJobManagerActors(configuration: Configuration,
+                            actorSystem: ActorSystem,
+                            jobMangerActorName: Option[String],
+                            archiverActorName: Option[String]): (ActorRef, ActorRef) = {
+
     val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
       profilerProps, executionRetries, delayBetweenRetries,
       timeout, _) = createJobManagerComponents(configuration)
@@ -972,13 +1006,20 @@ object JobManager {
     val profiler: Option[ActorRef] =
                  profilerProps.map( props => actorSystem.actorOf(props, PROFILER_NAME) )
 
-    val archiver: ActorRef = actorSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
+    // start the archiver wither with the given name, or without (avoid name conflicts)
+    val archiver: ActorRef = archiverActorName match {
+      case Some(actorName) => actorSystem.actorOf(archiveProps, actorName)
+      case None => actorSystem.actorOf(archiveProps)
+    }
 
     val jobManagerProps = Props(classOf[JobManager], configuration, instanceManager, scheduler,
         libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
         delayBetweenRetries, timeout)
 
-    val jobManager = startActor(jobManagerProps, actorSystem)
+    val jobManager: ActorRef = jobMangerActorName match {
+      case Some(actorName) => actorSystem.actorOf(jobManagerProps, actorName)
+      case None => actorSystem.actorOf(jobManagerProps)
+    }
 
     (jobManager, archiver)
   }

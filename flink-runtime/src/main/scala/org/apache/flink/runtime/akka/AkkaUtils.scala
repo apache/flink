@@ -44,6 +44,17 @@ object AkkaUtils {
   var globalExecutionContext: ExecutionContext = ExecutionContext.global
 
   /**
+   * Creates a local actor system without remoting.
+   *
+   * @param configuration instance containing the user provided configuration values
+   * @return The created actor system
+   */
+  def createLocalActorSystem(configuration: Configuration): ActorSystem = {
+    val akkaConfig = getAkkaConfig(configuration, None)
+    createActorSystem(akkaConfig)
+  }
+
+  /**
    * Creates an actor system. If a listening address is specified, then the actor system will listen
    * on that address for messages from a remote actor system. If not, then a local actor system
    * will be instantiated.

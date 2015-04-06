@@ -139,7 +139,7 @@ public class TaskManagerProcessReapingTest {
 			// wait for max 5 seconds for the process to terminate
 			{
 				long now = System.currentTimeMillis();
-				long deadline = now + 5000;
+				long deadline = now + 10000;
 
 				while (now < deadline && isProcessAlive(taskManagerProcess)) {
 					Thread.sleep(100);

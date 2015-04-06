@@ -31,14 +31,14 @@ import org.junit.Test
 
 import scala.concurrent.duration.Duration
 
+/**
+ * Tests that a lookup of a local JobManager fails within a given timeout if the JobManager
+ * actor is not reachable.
+ */
 class JobManagerConnectionTest {
 
   private val timeout = 1000
 
-  /**
-   * Tests that a lookup of a local JobManager fails within a given timeout if the JobManager
-   * actor is not reachable.
-   */
   @Test
   def testResolveUnreachableActorLocalHost() : Unit = {
     // startup a test actor system listening at an arbitrary address
@@ -54,7 +54,7 @@ class JobManagerConnectionTest {
       }
 
       val endpoint = new InetSocketAddress(InetAddress.getByName("127.0.0.1"), freePort)
-      val config = getConfigWithLowTimeout()
+      val config = createConfigWithLowTimeout()
 
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {
         () => {
@@ -90,7 +90,7 @@ class JobManagerConnectionTest {
     try {
       // some address that is not running a JobManager
       val endpoint = new InetSocketAddress(InetAddress.getByName("10.254.254.254"), 2)
-      val config = getConfigWithLowTimeout()
+      val config = createConfigWithLowTimeout()
 
       mustReturnWithinTimeout(Duration(5*timeout, TimeUnit.MILLISECONDS)) {
         () => {
@@ -114,7 +114,7 @@ class JobManagerConnectionTest {
     }
   }
 
-  private def getConfigWithLowTimeout() : Configuration = {
+  private def createConfigWithLowTimeout() : Configuration = {
     val config = new Configuration()
     config.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT,
                      Duration(timeout, TimeUnit.MILLISECONDS).toSeconds + " s")
