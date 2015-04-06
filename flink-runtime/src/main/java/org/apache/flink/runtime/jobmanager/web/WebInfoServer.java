@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.web;
 
 import java.io.File;
@@ -25,22 +24,21 @@ import java.io.IOException;
 import java.net.URL;
 
 import akka.actor.ActorRef;
+
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.handler.ResourceHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.eclipse.jetty.http.security.Constraint;
-import org.eclipse.jetty.security.ConstraintMapping;
-import org.eclipse.jetty.security.ConstraintSecurityHandler;
-import org.eclipse.jetty.security.HashLoginService;
-import org.eclipse.jetty.security.authentication.BasicAuthenticator;
+
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -49,25 +47,17 @@ import scala.concurrent.duration.FiniteDuration;
  */
 public class WebInfoServer {
 
-	/**
-	 * Web root dir in the jar
-	 */
+	/** Web root dir in the jar */
 	private static final String WEB_ROOT_DIR = "web-docs-infoserver";
 
-	/**
-	 * The log for this class.
-	 */
+	/** The log for this class. */
 	private static final Logger LOG = LoggerFactory.getLogger(WebInfoServer.class);
 
-	/**
-	 * The jetty server serving all requests.
-	 */
+	/** The jetty server serving all requests. */
 	private final Server server;
 
-	/**
-	 * The assigned port where jetty is running.
-	 */
-	private int assignedPort;
+	/** The assigned port where jetty is running. */
+	private int assignedPort = -1;
 
 	/**
 	 * Creates a new web info server. The server runs the servlets that implement the logic
@@ -126,11 +116,9 @@ public class WebInfoServer {
 		// ----- the handlers for the servlets -----
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletContext.setContextPath("/");
-		servletContext.addServlet(new ServletHolder(new JobManagerInfoServlet(jobmanager,
-				archive, timeout)), "/jobsInfo");
+		servletContext.addServlet(new ServletHolder(new JobManagerInfoServlet(jobmanager, archive, timeout)), "/jobsInfo");
 		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(logDirFiles)), "/logInfo");
-		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(config, jobmanager, timeout)),
-				"/setupInfo");
+		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(config, jobmanager, timeout)), "/setupInfo");
 		servletContext.addServlet(new ServletHolder(new MenuServlet()), "/menu");
 
 
@@ -141,47 +129,9 @@ public class WebInfoServer {
 
 		// ----- add the handlers to the list handler -----
 		HandlerList handlers = new HandlerList();
-		handlers.addHandler(servletContext);
 		handlers.addHandler(resourceHandler);
-
-		// ----- create the login module with http authentication -----
-
-		File af = null;
-		String authFile = config.getString(ConfigConstants.JOB_MANAGER_WEB_ACCESS_FILE_KEY, null);
-		if (authFile != null) {
-			af = new File(authFile);
-			if (!af.exists()) {
-				LOG.error("The specified file '" + af.getAbsolutePath()
-					+ "' with the authentication information is missing. Starting server without HTTP authentication.");
-				af = null;
-			}
-		}
-		if (af != null) {
-			HashLoginService loginService = new HashLoginService("Flink Jobmanager Interface", authFile);
-			server.addBean(loginService);
-
-			Constraint constraint = new Constraint();
-			constraint.setName(Constraint.__BASIC_AUTH);
-			constraint.setAuthenticate(true);
-			constraint.setRoles(new String[] { "user" });
-
-			ConstraintMapping mapping = new ConstraintMapping();
-			mapping.setPathSpec("/*");
-			mapping.setConstraint(constraint);
-
-			ConstraintSecurityHandler sh = new ConstraintSecurityHandler();
-			sh.addConstraintMapping(mapping);
-			sh.setAuthenticator(new BasicAuthenticator());
-			sh.setLoginService(loginService);
-			sh.setStrict(true);
-
-			// set the handers: the server hands the request to the security handler,
-			// which hands the request to the other handlers when authenticated
-			sh.setHandler(handlers);
-			server.setHandler(sh);
-		} else {
-			server.setHandler(handlers);
-		}
+		handlers.addHandler(servletContext);
+		server.setHandler(handlers);
 	}
 
 	/**
@@ -192,13 +142,22 @@ public class WebInfoServer {
 	 */
 	public void start() throws Exception {
 		server.start();
-		final Connector connector = server.getConnectors()[0];
-		assignedPort = connector.getLocalPort(); // we have to use getLocalPort() instead of getPort() http://stackoverflow.com/questions/8884865/how-to-discover-jetty-7-running-port
-		String host = connector.getHost();
-		if(host == null) { // as per method documentation
-			host = "0.0.0.0";
+		
+		final Connector[] connectors = server.getConnectors();
+		if (connectors != null && connectors.length > 0) {
+			Connector conn = connectors[0];
+
+			// we have to use getLocalPort() instead of getPort() http://stackoverflow.com/questions/8884865/how-to-discover-jetty-7-running-port
+			this.assignedPort = conn.getLocalPort(); 
+			String host = conn.getHost();
+			if (host == null) { // as per method documentation
+				host = "0.0.0.0";
+			}
+			LOG.info("Started web info server for JobManager on {}:{}", host, assignedPort);
 		}
-		LOG.info("Started web info server for JobManager on {}:{}", host, assignedPort);
+		else {
+			LOG.warn("Unable to determine local endpoint of web frontend server");
+		}
 	}
 
 	/**
@@ -206,7 +165,7 @@ public class WebInfoServer {
 	 */
 	public void stop() throws Exception {
 		server.stop();
-		assignedPort = 0;
+		assignedPort = -1;
 	}
 
 	public int getServerPort() {

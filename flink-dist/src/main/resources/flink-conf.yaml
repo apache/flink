@@ -68,6 +68,9 @@ jobmanager.web.port: 8081
 
 webclient.port: 8080
 
+# Temporary: Uncomment this to be able to use the new web frontend
+#jobmanager.new-web-frontend: true
+
 
 #==============================================================================
 # Streaming state checkpointing

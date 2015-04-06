@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.jobmanager
 
+import java.util
+
 import akka.actor.Actor
+
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.jobgraph.JobStatus
+import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.messages.ArchiveMessages._
@@ -100,6 +104,22 @@ class MemoryArchivist(private val max_entries: Int)
 
     case RequestJobCounts =>
       sender ! (finishedCnt, canceledCnt, failedCnt)
+
+    case _ : RequestJobsOverview =>
+      try {
+        sender ! createJobsOverview()
+      }
+      catch {
+        case t: Throwable => log.error("Exception while creating the jobs overview", t)
+      }
+
+    case _ : RequestJobsWithIDsOverview =>
+      try {
+        sender ! createJobsWithIDsOverview()
+      }
+      catch {
+        case t: Throwable => log.error("Exception while creating the jobs overview", t)
+      }
   }
 
   /**
@@ -109,6 +129,51 @@ class MemoryArchivist(private val max_entries: Int)
     // let the actor crash
     throw new RuntimeException("Received unknown message " + message)
   }
+
+
+  // --------------------------------------------------------------------------
+  //  Request Responses
+  // --------------------------------------------------------------------------
+  
+  private def createJobsOverview() : JobsOverview = {
+    var runningOrPending = 0
+    var finished = 0
+    var canceled = 0
+    var failed = 0
+    
+    graphs.values.foreach {
+      _.getState() match {
+        case JobStatus.FINISHED => finished += 1
+        case JobStatus.CANCELED => canceled += 1
+        case JobStatus.FAILED => failed += 1
+        case _ => runningOrPending += 1
+      }
+    }
+    
+    new JobsOverview(runningOrPending, finished, canceled, failed)
+  }
+
+  private def createJobsWithIDsOverview() : JobsWithIDsOverview = {
+    val runningOrPending = new util.ArrayList[JobID]()
+    val finished = new util.ArrayList[JobID]()
+    val canceled = new util.ArrayList[JobID]()
+    val failed = new util.ArrayList[JobID]()
+
+    graphs.values.foreach { graph =>
+      graph.getState() match {
+        case JobStatus.FINISHED => finished.add(graph.getJobID)
+        case JobStatus.CANCELED => canceled.add(graph.getJobID)
+        case JobStatus.FAILED => failed.add(graph.getJobID)
+        case _ => runningOrPending.add(graph.getJobID)
+      }
+    }
+
+    new JobsWithIDsOverview(runningOrPending, finished, canceled, failed)
+  }
+  
+  // --------------------------------------------------------------------------
+  //  Utilities
+  // --------------------------------------------------------------------------
 
   /**
    * Remove old ExecutionGraphs belonging to a jobID
