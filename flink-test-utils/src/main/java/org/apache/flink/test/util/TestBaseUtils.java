@@ -351,6 +351,8 @@ public class TestBaseUtils {
 			}
 		} catch (URISyntaxException e) {
 			throw new IllegalArgumentException("This path does not describe a valid local file URI.");
+		} catch (NullPointerException e) {
+			throw new IllegalArgumentException("This path does not describe a valid local file URI.");
 		}
 	}
 

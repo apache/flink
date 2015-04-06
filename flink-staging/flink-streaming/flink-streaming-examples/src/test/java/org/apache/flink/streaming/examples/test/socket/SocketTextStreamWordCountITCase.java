@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.examples.test.socket;
 
+import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.streaming.examples.socket.SocketTextStreamWordCount;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
@@ -29,14 +30,15 @@ import java.net.Socket;
 public class SocketTextStreamWordCountITCase extends StreamingProgramTestBase {
 
 	private static final String HOST = "localhost";
-	private static final String PORT = "9999";
+	private static Integer port;
 	protected String resultPath;
 
 	private ServerSocket temporarySocket;
 
 	@Override
 	protected void preSubmit() throws Exception {
-		temporarySocket = createSocket(HOST, Integer.valueOf(PORT), WordCountData.TEXT);
+		port = NetUtils.getAvailablePort();
+		temporarySocket = createSocket(HOST, port, WordCountData.TEXT);
 		resultPath = getTempDirPath("result");
 	}
 
@@ -48,7 +50,7 @@ public class SocketTextStreamWordCountITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		SocketTextStreamWordCount.main(new String[]{HOST, PORT, resultPath});
+		SocketTextStreamWordCount.main(new String[]{HOST, port.toString(), resultPath});
 	}
 
 	public ServerSocket createSocket(String host, int port, String contents) throws Exception {

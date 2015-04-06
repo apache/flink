@@ -27,7 +27,7 @@ public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void preSubmit() throws Exception {
-		setParallelism(1);
+		setParallelism(1); //needed to ensure total ordering for windows
 		textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
 		resultPath = getTempDirPath("result");
 	}

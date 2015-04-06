@@ -27,7 +27,6 @@ public class SessionWindowingITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void preSubmit() throws Exception {
-		setParallelism(2);
 		resultPath = getTempDirPath("result");
 	}
 
