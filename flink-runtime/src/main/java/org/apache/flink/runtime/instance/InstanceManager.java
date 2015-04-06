@@ -20,8 +20,8 @@ package org.apache.flink.runtime.instance;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -70,8 +70,8 @@ public class InstanceManager {
 	 * Creates an new instance manager.
 	 */
 	public InstanceManager() {
-		this.registeredHostsById = new HashMap<InstanceID, Instance>();
-		this.registeredHostsByConnection = new HashMap<ActorRef, Instance>();
+		this.registeredHostsById = new LinkedHashMap<InstanceID, Instance>();
+		this.registeredHostsByConnection = new LinkedHashMap<ActorRef, Instance>();
 		this.deadHosts = new HashSet<ActorRef>();
 	}
 
@@ -202,6 +202,18 @@ public class InstanceManager {
 
 	public int getTotalNumberOfSlots() {
 		return this.totalNumberOfAliveTaskSlots;
+	}
+	
+	public int getNumberOfAvailableSlots() {
+		synchronized (this.lock) {
+			int numSlots = 0;
+			
+			for (Instance i : this.registeredHostsById.values()) {
+				numSlots += i.getNumberOfAvailableSlots();
+			}
+			
+			return numSlots;
+		}
 	}
 
 	public Collection<Instance> getAllRegisteredInstances() {

@@ -216,9 +216,7 @@ public class TestBaseUtils {
 		}
 		return readers;
 	}
-
-
-
+	
 	public static BufferedInputStream[] getResultInputStream(String resultPath) throws IOException {
 		return getResultInputStream(resultPath, new String[]{});
 	}
@@ -480,9 +478,9 @@ public class TestBaseUtils {
 			cienv.putAll(newenv);
 		} catch (NoSuchFieldException e) {
 			try {
-				Class[] classes = Collections.class.getDeclaredClasses();
+				Class<?>[] classes = Collections.class.getDeclaredClasses();
 				Map<String, String> env = System.getenv();
-				for (Class cl : classes) {
+				for (Class<?> cl : classes) {
 					if ("java.util.Collections$UnmodifiableMap".equals(cl.getName())) {
 						Field field = cl.getDeclaredField("m");
 						field.setAccessible(true);
