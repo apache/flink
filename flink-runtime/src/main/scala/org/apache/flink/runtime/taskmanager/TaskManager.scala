@@ -1899,11 +1899,7 @@ object TaskManager {
         try{
           val osMXBean = ManagementFactory.getOperatingSystemMXBean().
             asInstanceOf[com.sun.management.OperatingSystemMXBean]
-          if(containsMethodInImpl(osMXBean,"getProcessCpuLoad")) {
-            return osMXBean.getProcessCpuLoad()
-          } else {
-            return -1
-          }
+          return fetchCPULoad(osMXBean).asInstanceOf[Double]
         } catch {
           case t:Throwable => {
             if (t.isInstanceOf[java.lang.ClassCastException]){
@@ -1920,20 +1916,20 @@ object TaskManager {
   }
 
   /**
-   * Checks whether a method exists in an object's class implementation
-   *  without raising any exc eptions
+   * Returns CPU Load if getProcessCpuLoad method is present
+   * in the implementation of OperatingSystemMXBean
+   * else returns -1
    *
    * @param obj
-   * @param methodName
    * @return
    */
-  private def containsMethodInImpl(obj: Any,methodName: String): Boolean = {
-    val methodsList = obj.getClass().getMethods()
+  private def fetchCPULoad(obj: Any): Any = {
+    val methodsList = classOf[com.sun.management.OperatingSystemMXBean].getMethods()
     for(method <- methodsList){
-      if(method.getName() == methodName) {
-        return true
+      if(method.getName() == "getProcessCpuLoad") {
+        return method.invoke(obj)
       }
     }
-    return false
+    return -1
   }
 }
