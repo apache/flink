@@ -30,7 +30,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismTest;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.types.IntegerRecord;
+import org.apache.flink.types.IntValue;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -131,7 +131,7 @@ public class ScheduleOrUpdateConsumersTest {
 
 		public final static String CONFIG_KEY = "number-of-times-to-send";
 
-		private List<RecordWriter<IntegerRecord>> writers = Lists.newArrayListWithCapacity(2);
+		private List<RecordWriter<IntValue>> writers = Lists.newArrayListWithCapacity(2);
 
 		private int numberOfTimesToSend;
 
@@ -139,11 +139,11 @@ public class ScheduleOrUpdateConsumersTest {
 		public void registerInputOutput() {
 			// The order of intermediate result creation in the job graph specifies which produced
 			// result partition is pipelined/blocking.
-			final RecordWriter<IntegerRecord> pipelinedWriter =
-					new RecordWriter<IntegerRecord>(getEnvironment().getWriter(0));
+			final RecordWriter<IntValue> pipelinedWriter =
+					new RecordWriter<IntValue>(getEnvironment().getWriter(0));
 
-			final RecordWriter<IntegerRecord> blockingWriter =
-					new RecordWriter<IntegerRecord>(getEnvironment().getWriter(1));
+			final RecordWriter<IntValue> blockingWriter =
+					new RecordWriter<IntValue>(getEnvironment().getWriter(1));
 
 			writers.add(pipelinedWriter);
 			writers.add(blockingWriter);
@@ -153,11 +153,11 @@ public class ScheduleOrUpdateConsumersTest {
 
 		@Override
 		public void invoke() throws Exception {
-			final IntegerRecord subtaskIndex = new IntegerRecord(
+			final IntValue subtaskIndex = new IntValue(
 					getEnvironment().getIndexInSubtaskGroup());
 
 			// Produce the first intermediate result and then the second in a serial fashion.
-			for (RecordWriter<IntegerRecord> writer : writers) {
+			for (RecordWriter<IntValue> writer : writers) {
 				try {
 					for (int i = 0; i < numberOfTimesToSend; i++) {
 						writer.emit(subtaskIndex);

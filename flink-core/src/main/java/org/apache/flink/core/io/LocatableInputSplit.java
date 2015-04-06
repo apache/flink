@@ -23,6 +23,7 @@ import java.util.Arrays;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.StringUtils;
 
 /**
  * A locatable input split is an input split referring to input data which is located on one or more hosts.
@@ -90,8 +91,8 @@ public class LocatableInputSplit implements InputSplit, java.io.Serializable {
 	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.splitNumber);
 		out.writeInt(this.hostnames.length);
-		for (int i = 0; i < this.hostnames.length; i++) {
-			StringRecord.writeString(out, this.hostnames[i]);
+		for (String hostname : this.hostnames) {
+			StringUtils.writeNullableString(hostname, out);
 		}
 	}
 
@@ -105,7 +106,7 @@ public class LocatableInputSplit implements InputSplit, java.io.Serializable {
 		} else {
 			this.hostnames = new String[numHosts];
 			for (int i = 0; i < numHosts; i++) {
-				this.hostnames[i] = StringRecord.readString(in);
+				this.hostnames[i] = StringUtils.readNullableString(in);
 			}
 		}
 	}

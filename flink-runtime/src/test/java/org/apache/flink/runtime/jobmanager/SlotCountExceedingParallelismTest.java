@@ -30,7 +30,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.types.IntegerRecord;
+import org.apache.flink.types.IntValue;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -130,19 +130,19 @@ public class SlotCountExceedingParallelismTest {
 
 		public final static String CONFIG_KEY = "number-of-times-to-send";
 
-		private RecordWriter<IntegerRecord> writer;
+		private RecordWriter<IntValue> writer;
 
 		private int numberOfTimesToSend;
 
 		@Override
 		public void registerInputOutput() {
-			writer = new RecordWriter<IntegerRecord>(getEnvironment().getWriter(0));
+			writer = new RecordWriter<IntValue>(getEnvironment().getWriter(0));
 			numberOfTimesToSend = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
 		}
 
 		@Override
 		public void invoke() throws Exception {
-			final IntegerRecord subtaskIndex = new IntegerRecord(
+			final IntValue subtaskIndex = new IntValue(
 					getEnvironment().getIndexInSubtaskGroup());
 
 			try {
@@ -164,7 +164,7 @@ public class SlotCountExceedingParallelismTest {
 
 		public final static String CONFIG_KEY = "number-of-indexes-to-receive";
 
-		private RecordReader<IntegerRecord> reader;
+		private RecordReader<IntValue> reader;
 
 		private int numberOfSubtaskIndexesToReceive;
 
@@ -173,9 +173,9 @@ public class SlotCountExceedingParallelismTest {
 
 		@Override
 		public void registerInputOutput() {
-			reader = new RecordReader<IntegerRecord>(
+			reader = new RecordReader<IntValue>(
 					getEnvironment().getInputGate(0),
-					IntegerRecord.class);
+					IntValue.class);
 
 			numberOfSubtaskIndexesToReceive = getTaskConfiguration().getInteger(CONFIG_KEY, 0);
 			receivedSubtaskIndexes = new BitSet(numberOfSubtaskIndexesToReceive);
@@ -184,7 +184,7 @@ public class SlotCountExceedingParallelismTest {
 		@Override
 		public void invoke() throws Exception {
 			try {
-				IntegerRecord record;
+				IntValue record;
 
 				int numberOfReceivedSubtaskIndexes = 0;
 

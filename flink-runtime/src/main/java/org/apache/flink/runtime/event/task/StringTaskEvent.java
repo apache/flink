@@ -20,26 +20,24 @@ package org.apache.flink.runtime.event.task;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.StringUtils;
 
 /**
  * This class provides a simple implementation of an event that holds a string value.
- * 
  */
 public class StringTaskEvent extends TaskEvent {
 
 	/**
 	 * The string encapsulated by this event.
 	 */
-	private String message = null;
+	private String message;
 
 	/**
 	 * The default constructor implementation. It should only be used for deserialization.
 	 */
-	public StringTaskEvent() {
-	}
+	public StringTaskEvent() {}
 
 	/**
 	 * Constructs a new string task event with the given string message.
@@ -62,22 +60,18 @@ public class StringTaskEvent extends TaskEvent {
 
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
-
-		StringRecord.writeString(out, this.message);
+	public void write(DataOutputView out) throws IOException {
+		StringUtils.writeNullableString(this.message, out);
 	}
-
 
 	@Override
 	public void read(final DataInputView in) throws IOException {
-
-		this.message = StringRecord.readString(in);
+		this.message = StringUtils.readNullableString(in);
 	}
 
 
 	@Override
 	public int hashCode() {
-
 		if (this.message == null) {
 			return 0;
 		}
@@ -88,19 +82,13 @@ public class StringTaskEvent extends TaskEvent {
 
 	@Override
 	public boolean equals(final Object obj) {
-
 		if (!(obj instanceof StringTaskEvent)) {
 			return false;
 		}
 
 		final StringTaskEvent ste = (StringTaskEvent) obj;
-
 		if (this.message == null) {
-			if (ste.getString() == null) {
-				return true;
-			}
-
-			return false;
+			return ste.getString() == null;
 		}
 
 		return this.message.equals(ste.getString());

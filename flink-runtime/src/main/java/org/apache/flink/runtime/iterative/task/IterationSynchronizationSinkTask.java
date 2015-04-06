@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.types.IntValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -37,7 +38,6 @@ import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.runtime.types.IntegerRecord;
 import org.apache.flink.types.Value;
 
 import com.google.common.base.Preconditions;
@@ -52,7 +52,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 
 	private static final Logger log = LoggerFactory.getLogger(IterationSynchronizationSinkTask.class);
 
-	private MutableRecordReader<IntegerRecord> headEventReader;
+	private MutableRecordReader<IntValue> headEventReader;
 	
 	private SyncEventHandler eventHandler;
 
@@ -73,7 +73,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	
 	@Override
 	public void registerInputOutput() {
-		this.headEventReader = new MutableRecordReader<IntegerRecord>(getEnvironment().getInputGate(0));
+		this.headEventReader = new MutableRecordReader<IntValue>(getEnvironment().getInputGate(0));
 	}
 
 	@Override
@@ -101,7 +101,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 				getEnvironment().getUserClassLoader());
 		headEventReader.registerTaskEventListener(eventHandler, WorkerDoneEvent.class);
 
-		IntegerRecord dummy = new IntegerRecord();
+		IntValue dummy = new IntValue();
 		
 		while (!terminationRequested()) {
 
@@ -182,7 +182,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		return false;
 	}
 
-	private void readHeadEventChannel(IntegerRecord rec) throws IOException {
+	private void readHeadEventChannel(IntValue rec) throws IOException {
 		// reset the handler
 		eventHandler.resetEndOfSuperstep();
 		

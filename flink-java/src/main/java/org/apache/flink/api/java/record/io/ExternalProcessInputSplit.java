@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.record.io;
 
 import java.io.IOException;
 
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.StringUtils;
 
 /**
  * The ExternalProcessInputSplit contains all informations for {@link org.apache.flink.api.common.io.InputFormat} that read their data from external processes.
@@ -68,12 +67,12 @@ public class ExternalProcessInputSplit extends GenericInputSplit {
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
-		this.extProcessCommand = StringRecord.readString(in);
+		this.extProcessCommand = StringUtils.readNullableString(in);
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
-		StringRecord.writeString(out, this.extProcessCommand);
+		StringUtils.writeNullableString(this.extProcessCommand, out);
 	}
 }

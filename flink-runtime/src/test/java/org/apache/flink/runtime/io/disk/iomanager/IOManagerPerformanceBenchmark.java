@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.BufferedInputStream;
@@ -32,6 +31,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
+import org.apache.flink.types.IntValue;
 import org.junit.Assert;
 
 import org.slf4j.Logger;
@@ -39,24 +39,14 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.DefaultMemoryManagerTest;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- *
- *
- */
+
 public class IOManagerPerformanceBenchmark {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(IOManagerPerformanceBenchmark.class);
@@ -246,7 +236,7 @@ public class IOManagerPerformanceBenchmark {
 		
 	private void speedTestStream(int bufferSize) throws IOException {
 		final FileIOChannel.ID tmpChannel = ioManager.createChannel();
-		final IntegerRecord rec = new IntegerRecord(0);
+		final IntValue rec = new IntValue(0);
 		
 		File tempFile = null;
 		DataOutputStream daos = null;
