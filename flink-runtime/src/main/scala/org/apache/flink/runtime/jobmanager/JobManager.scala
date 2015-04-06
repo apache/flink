@@ -20,9 +20,12 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.{IOException, File}
 import java.net.InetSocketAddress
+import java.util
 import java.util.Collections
 
 import akka.actor.Status.{Success, Failure}
+import akka.pattern.ask
+
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.{JobID, ExecutionConfig}
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
@@ -38,11 +41,13 @@ import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.checkpoint.{AcknowledgeCheckpoint, AbstractCheckpointMessage}
+import org.apache.flink.runtime.messages.webmonitor._
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.{SerializedValue, EnvironmentInformation}
+import org.apache.flink.runtime.webmonitor.WebRuntimeMonitorFactory
 import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -353,6 +358,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
 
       sender ! RunningJobs(executionGraphs)
 
+    case message: InfoMessage => handleInfoRequestMessage(message, sender())
+
     case RequestRunningJobsStatus =>
       try {
         val jobs = currentJobs map {
@@ -476,7 +483,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
         executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode)
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
-        
+        executionGraph.setJsonPlan(jobGraph.getJsonPlan)
+
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits
         if (log.isDebugEnabled) {
@@ -631,6 +639,115 @@ class JobManager(protected val flinkConfiguration: Configuration,
       // unknown checkpoint message
       case _ => unhandled(actorMessage)
     }
+  }
+
+  /**
+   * Dedicated handler for monitor info request messages.
+   *
+   * @param actorMessage The info request message.
+   */
+  private def handleInfoRequestMessage(actorMessage: InfoMessage, theSender: ActorRef): Unit = {
+    try {
+      actorMessage match {
+
+        case _ : RequestJobsOverview =>
+          // get our own overview
+          val ourJobs = createJobStatusOverview()
+          
+          // get the overview from the archive
+          val future = (archive ? RequestJobsOverview.getInstance())(timeout)
+
+          future.onSuccess {
+            case archiveOverview: JobsOverview =>
+              theSender ! new JobsOverview(ourJobs, archiveOverview)
+          }(context.dispatcher)
+
+        case _ : RequestJobsWithIDsOverview =>
+          // get our own overview
+          val ourJobs = createJobStatusWithIDsOverview()
+
+          // get the overview from the archive
+          val future = (archive ? RequestJobsWithIDsOverview.getInstance())(timeout)
+
+          future.onSuccess {
+            case archiveOverview: JobsWithIDsOverview =>
+              theSender ! new JobsWithIDsOverview(ourJobs, archiveOverview)
+          }(context.dispatcher)
+
+        case _ : RequestStatusOverview =>
+
+          val ourJobs = createJobStatusOverview()
+          
+          val numTMs = instanceManager.getNumberOfRegisteredTaskManagers()
+          val numSlotsTotal = instanceManager.getTotalNumberOfSlots()
+          val numSlotsAvailable = instanceManager.getNumberOfAvailableSlots()
+          
+          // add to that the jobs from the archive
+          val future = (archive ? RequestJobsOverview.getInstance())(timeout)
+          future.onSuccess {
+            case archiveOverview: JobsOverview =>
+              theSender ! new StatusOverview(numTMs, numSlotsTotal, numSlotsAvailable, 
+                ourJobs, archiveOverview)
+          }(context.dispatcher)
+
+        case _ : RequestStatusWithJobIDsOverview =>
+
+          val ourJobs = createJobStatusWithIDsOverview()
+
+          val numTMs = instanceManager.getNumberOfRegisteredTaskManagers()
+          val numSlotsTotal = instanceManager.getTotalNumberOfSlots()
+          val numSlotsAvailable = instanceManager.getNumberOfAvailableSlots()
+
+          // add to that the jobs from the archive
+          val future = (archive ? RequestJobsWithIDsOverview.getInstance())(timeout)
+          future.onSuccess {
+            case archiveOverview: JobsWithIDsOverview =>
+              theSender ! new StatusWithJobIDsOverview(numTMs, numSlotsTotal, numSlotsAvailable,
+                ourJobs, archiveOverview)
+          }(context.dispatcher)
+          
+        case _ => throw new Exception("Unrecognized info message " + actorMessage)
+      }
+    }
+    catch {
+      case e: Throwable => log.error(s"Error responding to message $actorMessage", e)
+    }
+  }
+  
+  private def createJobStatusOverview() : JobsOverview = {
+    var runningOrPending = 0
+    var finished = 0
+    var canceled = 0
+    var failed = 0
+
+    currentJobs.values.foreach {
+      _._1.getState() match {
+        case JobStatus.FINISHED => finished += 1
+        case JobStatus.CANCELED => canceled += 1
+        case JobStatus.FAILED => failed += 1
+        case _ => runningOrPending += 1
+      }
+    }
+
+    new JobsOverview(runningOrPending, finished, canceled, failed)
+  }
+
+  private def createJobStatusWithIDsOverview() : JobsWithIDsOverview = {
+    val runningOrPending = new util.ArrayList[JobID]()
+    val finished = new util.ArrayList[JobID]()
+    val canceled = new util.ArrayList[JobID]()
+    val failed = new util.ArrayList[JobID]()
+
+    currentJobs.values.foreach { case (graph, _) =>
+      graph.getState() match {
+        case JobStatus.FINISHED => finished.add(graph.getJobID)
+        case JobStatus.CANCELED => canceled.add(graph.getJobID)
+        case JobStatus.FAILED => failed.add(graph.getJobID)
+        case _ => runningOrPending.add(graph.getJobID)
+      }
+    }
+
+    new JobsWithIDsOverview(runningOrPending, finished, canceled, failed)
   }
   
   /**
@@ -893,6 +1010,13 @@ object JobManager {
         val webServer = new WebInfoServer(configuration, jobManager, archiver)
         webServer.start()
       }
+
+      if (configuration.getBoolean(ConfigConstants.JOB_MANAGER_NEW_WEB_FRONTEND_KEY, false)) {
+        LOG.info("Starting NEW JobManger web frontend")
+        // start the new web frontend. we need to load this dynamically
+        // because it is not in the same project/dependencies
+        startWebRuntimeMonitor(configuration, jobManager, archiver)
+      }
     }
     catch {
       case t: Throwable => {
@@ -1059,7 +1183,7 @@ object JobManager {
    * given actor system.
    *
    * @param configuration The configuration for the JobManager
-   * @param actorSystem Teh actor system running the JobManager
+   * @param actorSystem The actor system running the JobManager
    * @return A tuple of references (JobManager Ref, Archiver Ref)
    */
   def startJobManagerActors(configuration: Configuration,
@@ -1205,5 +1329,25 @@ object JobManager {
 
     val timeout = AkkaUtils.getLookupTimeout(config)
     getJobManagerRemoteReference(address, system, timeout)
+  }
+
+  // --------------------------------------------------------------------------
+  //  Utilities
+  // --------------------------------------------------------------------------
+
+  def startWebRuntimeMonitor(config: Configuration,
+                             jobManager: ActorRef,
+                             archiver: ActorRef): Unit = {
+    // try to load the class
+    val classname = "org.apache.flink.runtime.webmonitor.WebFrontendBootstrapper"
+    val factory = WebRuntimeMonitorFactory.tryLoadFactory(classname, LOG.logger)
+
+    if (factory != null) {
+      try {
+        factory.startWebRuntimeMonitor(config, jobManager, archiver)
+      } catch {
+        case e: Exception => LOG.error("Failed to start the web runtime monitor", e)
+      }
+    }
   }
 }

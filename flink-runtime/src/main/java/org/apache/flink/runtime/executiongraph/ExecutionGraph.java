@@ -197,6 +197,7 @@ public class ExecutionGraph implements Serializable {
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
 	
+	private String jsonPlan;
 	
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
@@ -360,6 +361,17 @@ public class ExecutionGraph implements Serializable {
 	 */
 	public List<BlobKey> getRequiredJarFiles() {
 		return this.requiredJarFiles;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+
+	public void setJsonPlan(String jsonPlan) {
+		this.jsonPlan = jsonPlan;
+	}
+
+	public String getJsonPlan() {
+		return jsonPlan;
 	}
 
 	public Scheduler getScheduler() {

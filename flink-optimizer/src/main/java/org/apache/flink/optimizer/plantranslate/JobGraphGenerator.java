@@ -48,6 +48,7 @@ import org.apache.flink.optimizer.plan.WorksetPlanNode;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
@@ -220,6 +221,9 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		} catch (IOException e) {
 			throw new RuntimeException("Config object could not be written to Job Configuration: " + e);
 		}
+
+		String jsonPlan = new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(program);
+		graph.setJsonPlan(jsonPlan);
 
 		// release all references again
 		this.vertices = null;
