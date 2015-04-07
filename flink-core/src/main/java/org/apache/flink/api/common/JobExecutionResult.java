@@ -27,12 +27,13 @@ import java.util.Map;
 public class JobExecutionResult extends JobSubmissionResult {
 
 	private long netRuntime;
+
 	private Map<String, Object> accumulatorResults;
 
 	/**
 	 * Creates a new JobExecutionResult.
 	 *
-	 * @param jobID
+	 * @param jobID The job's ID.
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer)
 	 * @param accumulators A map of all accumulators produced by the job.
 	 */
@@ -93,7 +94,4 @@ public class JobExecutionResult extends JobSubmissionResult {
 		}
 		return (Integer) result;
 	}
-
-
-	// TODO Create convenience methods for the other shipped accumulator types
 }

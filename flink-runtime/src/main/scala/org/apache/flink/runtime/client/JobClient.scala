@@ -24,7 +24,6 @@ import java.net.{InetAddress, InetSocketAddress}
 import akka.actor.Status.{Success, Failure}
 import akka.actor._
 import akka.pattern.{Patterns, ask}
-import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -46,6 +45,7 @@ class JobClient(jobManager: ActorRef) extends
 Actor with ActorLogMessages with ActorLogging {
 
   override def receiveWithLogMessages: Receive = {
+
     case SubmitJobDetached(jobGraph) =>
       jobManager forward SubmitJob(jobGraph, registerForEvents = false)
 
@@ -53,7 +53,7 @@ Actor with ActorLogMessages with ActorLogging {
       jobManager forward cancelJob
 
     case SubmitJobAndWait(jobGraph, listen) =>
-      val listener = context.actorOf(Props(classOf[JobClientListener], sender))
+      val listener = context.actorOf(Props(classOf[JobClientListener], sender()))
       jobManager.tell(SubmitJob(jobGraph, registerForEvents = listen), listener)
 
     case RequestBlobManagerPort =>
@@ -88,8 +88,8 @@ ActorLogging {
 
     case Success(_) =>
 
-    case JobResultSuccess(jobId, duration, accumulatorResults) =>
-      jobSubmitter ! new JobExecutionResult(jobId, duration, accumulatorResults)
+    case JobResultSuccess(result) =>
+      jobSubmitter ! result
       self ! PoisonPill
 
     case msg =>
@@ -191,8 +191,8 @@ object JobClient {
   /**
    * Sends a [[JobGraph]] to the JobClient actor specified by jobClient which submits it then to
    * the JobManager. The method blocks until the job has finished or the JobManager is no longer
-   * alive. In the former case, the [[JobExecutionResult]] is returned and in the latter case a
-   * [[JobExecutionException]] is thrown.
+   * alive. In the former case, the [[SerializedJobExecutionResult]] is returned and in the latter
+   * case a [[JobExecutionException]] is thrown.
    *
    * @param jobGraph JobGraph describing the Flink job
    * @param listenToStatusEvents true if the JobClient shall print status events of the
@@ -204,14 +204,16 @@ object JobClient {
    * @return The job execution result
    */
   @throws(classOf[JobExecutionException])
-  def submitJobAndWait(jobGraph: JobGraph, listenToStatusEvents: Boolean, jobClient: ActorRef)
-                      (implicit timeout: FiniteDuration): JobExecutionResult = {
+  def submitJobAndWait(jobGraph: JobGraph,
+                       listenToStatusEvents: Boolean,
+                       jobClient: ActorRef,
+                       timeout: FiniteDuration): SerializedJobExecutionResult = {
 
     var waitForAnswer = true
-    var answer: JobExecutionResult = null
+    var answer: SerializedJobExecutionResult = null
 
     val result = (jobClient ? SubmitJobAndWait(jobGraph, listenToEvents = listenToStatusEvents))(
-      AkkaUtils.INF_TIMEOUT).mapTo[JobExecutionResult]
+      AkkaUtils.INF_TIMEOUT).mapTo[SerializedJobExecutionResult]
 
     while (waitForAnswer) {
       try {
@@ -241,12 +243,13 @@ object JobClient {
    *
    * @param jobGraph Flink job
    * @param jobClient ActorRef to the JobClient
-   * @param timeout Tiemout for futures
+   * @param timeout Timeout for futures
    * @return The submission response
    */
   @throws(classOf[JobExecutionException])
-  def submitJobDetached(jobGraph: JobGraph, jobClient: ActorRef)(implicit timeout: FiniteDuration):
-  Unit = {
+  def submitJobDetached(jobGraph: JobGraph,
+                        jobClient: ActorRef,
+                        timeout: FiniteDuration): Unit = {
 
     val response = (jobClient ? SubmitJobDetached(jobGraph))(timeout)
 
@@ -255,7 +258,7 @@ object JobClient {
     } catch {
       case timeout: TimeoutException =>
         throw new JobTimeoutException(jobGraph.getJobID,
-          "Timeout while waiting for the submission result.", timeout);
+          "Timeout while submitting the job to the JobManager.", timeout);
     }
   }
 

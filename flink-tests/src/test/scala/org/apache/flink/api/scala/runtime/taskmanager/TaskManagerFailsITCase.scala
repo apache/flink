@@ -218,7 +218,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsgType[Success]
 
           val result = expectMsgType[JobResultSuccess]
-          result.jobID should equal(jobGraph2.getJobID)
+          result.result.getJobId() should equal(jobGraph2.getJobID)
         }
       } finally {
         cluster.stop()

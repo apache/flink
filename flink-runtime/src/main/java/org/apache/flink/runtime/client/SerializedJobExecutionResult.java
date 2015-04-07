@@ -1,0 +1,85 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.runtime.client;
+
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.util.SerializedValue;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * A variant of the {@link org.apache.flink.api.common.JobExecutionResult} that holds
+ * its accumulator data in serialized form.
+ */
+public class SerializedJobExecutionResult implements java.io.Serializable {
+
+	private static final long serialVersionUID = -6301865617099921789L;
+
+	private final JobID jobId;
+
+	private final Map<String, SerializedValue<Object>> accumulatorResults;
+
+	private final long netRuntime;
+
+	/**
+	 * Creates a new SerializedJobExecutionResult.
+	 *
+	 * @param jobID The job's ID.
+	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer)
+	 * @param accumulators A map of all accumulator results produced by the job, in serialized form
+	 */
+	public SerializedJobExecutionResult(JobID jobID, long netRuntime,
+										Map<String, SerializedValue<Object>> accumulators) {
+		this.jobId = jobID;
+		this.netRuntime = netRuntime;
+		this.accumulatorResults = accumulators;
+	}
+
+	public JobID getJobId() {
+		return jobId;
+	}
+
+	public long getNetRuntime() {
+		return netRuntime;
+	}
+
+	public Map<String, SerializedValue<Object>> getSerializedAccumulatorResults() {
+		return this.accumulatorResults;
+	}
+
+	public JobExecutionResult toJobExecutionResult(ClassLoader loader) throws IOException, ClassNotFoundException {
+		Map<String, Object> accumulators = null;
+		if (accumulatorResults != null) {
+			accumulators = accumulatorResults.isEmpty() ?
+									Collections.<String, Object>emptyMap() :
+									new HashMap<String, Object>(this.accumulatorResults.size());
+
+			for (Map.Entry<String, SerializedValue<Object>> entry : this.accumulatorResults.entrySet()) {
+				Object o = entry.getValue() == null ? null : entry.getValue().deserializeValue(loader);
+				accumulators.put(entry.getKey(), o);
+			}
+		}
+
+		return new JobExecutionResult(jobId, netRuntime, accumulators);
+	}
+}

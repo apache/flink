@@ -176,6 +176,8 @@ public class ExecutionGraph implements Serializable {
 	 * Once this value has reached the number of vertices, the job is done. */
 	private int nextVertexToFinish;
 
+
+
 	private ActorContext parentContext;
 
 	private  ActorRef stateCheckpointerActor;

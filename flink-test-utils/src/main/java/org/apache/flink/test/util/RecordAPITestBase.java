@@ -29,6 +29,7 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Assert;
 import org.junit.Test;
@@ -120,9 +121,10 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 			Assert.assertNotNull("Obtained null JobGraph", jobGraph);
 
 			try {
-			ActorRef client = this.executor.getJobClient();
-			this.jobExecutionResult = JobClient.submitJobAndWait(jobGraph, false, client,
-					executor.timeout());
+				ActorRef client = this.executor.getJobClient();
+				SerializedJobExecutionResult result =
+						JobClient.submitJobAndWait(jobGraph, false, client, executor.timeout());
+				this.jobExecutionResult = result.toJobExecutionResult(getClass().getClassLoader());
 			}
 			catch (Exception e) {
 				System.err.println(e.getMessage());

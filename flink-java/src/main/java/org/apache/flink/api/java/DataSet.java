@@ -18,11 +18,14 @@
 
 package org.apache.flink.api.java;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -399,7 +402,8 @@ public abstract class DataSet<T> {
 	}
 
 
-	 /* Convenience method to get the elements of a DataSet as a List
+	/**
+	 * Convenience method to get the elements of a DataSet as a List
 	 * As DataSet can contain a lot of data, this method should be used with caution.
 	 *
 	 * @return A List containing the elements of the DataSet
@@ -407,15 +411,31 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.Utils.CollectHelper
 	 */
 	public List<T> collect() throws Exception {
+		// validate that our type is actually serializable
+		Class<?> typeClass = getType().getTypeClass();
+		ClassLoader cl = typeClass.getClassLoader() == null ? ClassLoader.getSystemClassLoader()
+															: typeClass.getClassLoader();
+
+		if (!java.io.Serializable.class.isAssignableFrom(typeClass)) {
+			throw new UnsupportedOperationException("collect() can only be used with serializable data types. "
+					+ "The DataSet type '" + typeClass.getName() + "' does not implement java.io.Serializable.");
+		}
 
 		final String id = new AbstractID().toString();
 
-		this.flatMap(new Utils.CollectHelper<T>(id)).output(
-				new DiscardingOutputFormat<T>());
+		this.flatMap(new Utils.CollectHelper<T>(id)).output(new DiscardingOutputFormat<T>());
+		JobExecutionResult res = getExecutionEnvironment().execute();
 
-		JobExecutionResult res = this.getExecutionEnvironment().execute();
-
-		return (List<T>) res.getAccumulatorResult(id);
+		ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
+		try {
+			return SerializedListAccumulator.deserializeList(accResult, cl);
+		}
+		catch (ClassNotFoundException e) {
+			throw new RuntimeException("Cannot find type class of collected data type.", e);
+		}
+		catch (IOException e) {
+			throw new RuntimeException("Serialization error while deserializing collected data", e);
+		}
 	}
 
 	/**

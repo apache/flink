@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
@@ -70,9 +71,14 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 		}
 		try {
 			ActorRef client = executor.getJobClient();
-			latestResult = JobClient.submitJobAndWait(jobGraph, false, client, executor.timeout());
+
+			SerializedJobExecutionResult result =
+					JobClient.submitJobAndWait(jobGraph, false, client, executor.timeout());
+
+			latestResult = result.toJobExecutionResult(getClass().getClassLoader());
 			return latestResult;
-		} catch(JobExecutionException e) {
+		}
+		catch(JobExecutionException e) {
 			if (e.getMessage().contains("GraphConversionException")) {
 				throw new Exception(CANNOT_EXECUTE_EMPTY_JOB, e);
 			} else {

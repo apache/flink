@@ -19,8 +19,7 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.api.common.JobID
-import org.apache.flink.runtime.accumulators.AccumulatorEvent
-import org.apache.flink.runtime.client.JobStatusMessage
+import org.apache.flink.runtime.client.{SerializedJobExecutionResult, JobStatusMessage}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{InstanceID, Instance}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
@@ -91,46 +90,6 @@ object JobManagerMessages {
   case class ConsumerNotificationResult(success: Boolean, error: Option[Throwable] = None)
 
   /**
-   * Reports the accumulator results of the individual tasks to the job manager.
-   *
-   * @param accumulatorEvent
-   */
-  case class ReportAccumulatorResult(accumulatorEvent: AccumulatorEvent)
-
-  /**
-   * Requests the accumulator results of the job identified by [[jobID]] from the job manager.
-   * The result is sent back to the sender as a [[AccumulatorResultsResponse]] message.
-   *
-   * @param jobID
-   */
-  case class RequestAccumulatorResults(jobID: JobID)
-
-  sealed trait AccumulatorResultsResponse{
-    val jobID: JobID
-  }
-
-  /**
-   * Contains the retrieved accumulator results from the job manager. This response is triggered
-   * by [[RequestAccumulatorResults]].
-   *
-   * @param jobID
-   * @param results
-   */
-  case class AccumulatorResultsFound(jobID: JobID, results: Map[String,
-    Object]) extends AccumulatorResultsResponse{
-    def asJavaMap: java.util.Map[String, Object] = {
-      import scala.collection.JavaConverters._
-      results.asJava
-    }
-  }
-
-  /**
-   * Denotes that no accumulator results for [[jobID]] could be found at the job manager.
-   * @param jobID
-   */
-  case class AccumulatorResultsNotFound(jobID: JobID) extends AccumulatorResultsResponse
-
-  /**
    * Requests the current [[JobStatus]] of the job identified by [[jobID]]. This message triggers
    * as response a [[JobStatusResponse]] message.
    *
@@ -170,13 +129,9 @@ object JobManagerMessages {
 
   /**
    * Denotes a successful job execution.
-   *
-   * @param jobID
-   * @param runtime
-   * @param accumulatorResults
    */
-  case class JobResultSuccess(jobID: JobID, runtime: Long,
-                              accumulatorResults: java.util.Map[String, AnyRef]) {}
+  case class JobResultSuccess(result: SerializedJobExecutionResult)
+
 
   sealed trait CancellationResponse{
     def jobID: JobID

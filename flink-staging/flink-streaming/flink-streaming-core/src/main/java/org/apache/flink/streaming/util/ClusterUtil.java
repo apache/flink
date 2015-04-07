@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.slf4j.Logger;
@@ -61,11 +62,11 @@ public class ClusterUtil {
 			exec = new LocalFlinkMiniCluster(configuration, true);
 			ActorRef jobClient = exec.getJobClient();
 
-			return JobClient.submitJobAndWait(jobGraph, true, jobClient, exec.timeout());
-
-		} catch (Exception e) {
-			throw e;
-		} finally {
+			SerializedJobExecutionResult result =
+					JobClient.submitJobAndWait(jobGraph, true, jobClient, exec.timeout());
+			return result.toJobExecutionResult(ClusterUtil.class.getClassLoader());
+		}
+		finally {
 			if (exec != null) {
 				exec.stop();
 			}

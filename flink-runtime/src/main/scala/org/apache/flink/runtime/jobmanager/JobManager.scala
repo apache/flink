@@ -20,13 +20,15 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.{IOException, File}
 import java.net.InetSocketAddress
+import java.util.Collections
 
 import akka.actor.Status.{Success, Failure}
 import org.apache.flink.api.common.{JobID, ExecutionConfig}
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult
 import org.apache.flink.runtime.blob.BlobServer
-import org.apache.flink.runtime.client.{JobStatusMessage, JobSubmissionException, JobExecutionException, JobCancellationException}
+import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
@@ -34,11 +36,12 @@ import org.apache.flink.runtime.messages.CheckpointingMessages.{StateBarrierAck,
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
+import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.flink.runtime.util.{SerializedValue, EnvironmentInformation}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -297,14 +300,25 @@ class JobManager(val flinkConfiguration: Configuration,
           // is the client waiting for the job result?
             newJobStatus match {
               case JobStatus.FINISHED =>
-                val accumulatorResults = accumulatorManager.getJobAccumulatorResults(jobID)
-                jobInfo.client ! JobResultSuccess(jobID, jobInfo.duration, accumulatorResults)
+                val accumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
+                  accumulatorManager.getJobAccumulatorResultsSerialized(jobID)
+                } catch {
+                  case e: Exception =>
+                    log.error(e, "Cannot fetch serialized accumulators for job {}", jobID)
+                    Collections.emptyMap()
+                }
+                val result = new SerializedJobExecutionResult(jobID, jobInfo.duration,
+                                                              accumulatorResults)
+                jobInfo.client ! JobResultSuccess(result)
+
               case JobStatus.CANCELED =>
                 jobInfo.client ! Failure(new JobCancellationException(jobID,
                   "Job was cancelled.", error))
+
               case JobStatus.FAILED =>
                 jobInfo.client ! Failure(new JobExecutionException(jobID,
                   "Job execution failed.", error))
+
               case x =>
                 val exception = new JobExecutionException(jobID, s"$x is not a " +
                   "terminal state.")
@@ -343,24 +357,6 @@ class JobManager(val flinkConfiguration: Configuration,
           sender ! Failure(new IllegalStateException("Cannot find execution graph for job ID " +
             s"$jobId to schedule or update consumers."))
       }
-
-    case ReportAccumulatorResult(accumulatorEvent) =>
-      try {
-        accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID,
-          accumulatorEvent.getAccumulators(
-            libraryCacheManager.getClassLoader(accumulatorEvent.getJobID)
-          )
-        )
-      } catch {
-        case t: Throwable =>
-          log.error(t, "Could not process accumulator event of job {} received from {}.",
-            accumulatorEvent.getJobID, sender().path)
-      }
-
-    case RequestAccumulatorResults(jobID) =>
-      import scala.collection.JavaConverters._
-      sender ! AccumulatorResultsFound(jobID, accumulatorManager.getJobAccumulatorResults
-        (jobID).asScala.toMap)
 
     case RequestJobStatus(jobID) =>
       currentJobs.get(jobID) match {
@@ -412,6 +408,8 @@ class JobManager(val flinkConfiguration: Configuration,
       } catch {
         case t: Throwable => log.error(t, "Could not report heart beat from {}.", sender().path)
       }
+
+    case message: AccumulatorMessage => handleAccumulatorMessage(message)
 
     case RequestStackTrace(instanceID) =>
       val taskManager = instanceManager.getRegisteredInstanceById(instanceID).getTaskManager
@@ -605,6 +603,65 @@ class JobManager(val flinkConfiguration: Configuration,
   override def unhandled(message: Any): Unit = {
     // let the actor crash
     throw new RuntimeException("Received unknown message " + message)
+  }
+
+  /**
+   * Handle messages that request or report accumulators.
+   *
+   * @param message The accumulator message.
+   */
+  private def handleAccumulatorMessage(message: AccumulatorMessage): Unit = {
+
+    message match {
+      case ReportAccumulatorResult(jobId, _, accumulatorEvent) =>
+        val classLoader = try {
+          libraryCacheManager.getClassLoader(jobId)
+        } catch {
+          case e: Exception =>
+            log.error(e, "Dropping accumulators. No class loader available for job " + jobId)
+            return
+        }
+
+        if (classLoader != null) {
+          try {
+            val accumulators = accumulatorEvent.deserializeValue(classLoader)
+            accumulatorManager.processIncomingAccumulators(jobId, accumulators)
+          }
+          catch {
+            case e: Exception => log.error(e, "Cannot update accumulators for job " + jobId)
+          }
+        } else {
+          log.error("Dropping accumulators. No class loader available for job " + jobId)
+        }
+
+      case RequestAccumulatorResults(jobID) =>
+        try {
+          val accumulatorValues: java.util.Map[String, SerializedValue[Object]] =
+            accumulatorManager.getJobAccumulatorResultsSerialized(jobID)
+
+          sender() ! AccumulatorResultsFound(jobID, accumulatorValues)
+        }
+        catch {
+          case e: Exception =>
+            log.error(e, "Cannot serialize accumulator result")
+            sender() ! AccumulatorResultsErroneous(jobID, e)
+        }
+
+      case RequestAccumulatorResultsStringified(jobId) =>
+        try {
+          val accumulatorValues: Array[StringifiedAccumulatorResult] =
+            accumulatorManager.getJobAccumulatorResultsStringified(jobId)
+
+          sender() ! AccumulatorResultStringsFound(jobId, accumulatorValues)
+        }
+        catch {
+          case e: Exception =>
+            log.error(e, "Cannot fetch accumulator result")
+            sender() ! AccumulatorResultsErroneous(jobId, e)
+        }
+
+      case x => unhandled(x)
+    }
   }
 
   /**

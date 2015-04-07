@@ -19,6 +19,7 @@
 package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -26,7 +27,6 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
-import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
@@ -97,11 +97,11 @@ public class Utils {
 		private static final long serialVersionUID = 1L;
 
 		private final String id;
-		private final ListAccumulator<T> accumulator;
+		private final SerializedListAccumulator<T> accumulator;
 
 		public CollectHelper(String id) {
 			this.id = id;
-			this.accumulator = new ListAccumulator<T>();
+			this.accumulator = new SerializedListAccumulator<T>();
 		}
 
 		@Override

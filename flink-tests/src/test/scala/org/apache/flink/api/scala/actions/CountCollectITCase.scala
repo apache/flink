@@ -39,7 +39,7 @@ class CountCollectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val inputDS = env.fromElements(input: _*)
 
     // count
-    val numEntries = inputDS.count
+    val numEntries = inputDS.count()
     assertEquals(input.length, numEntries)
 
     // collect
@@ -60,7 +60,7 @@ class CountCollectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val result = inputDS1 cross inputDS2
 
-    val numEntries = result.count
+    val numEntries = result.count()
     assertEquals(input1.length * input2.length, numEntries)
 
     val list = result.collect()

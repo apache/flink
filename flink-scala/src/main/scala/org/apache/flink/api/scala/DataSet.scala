@@ -17,9 +17,10 @@
  */
 package org.apache.flink.api.scala
 
-import java.lang
 import org.apache.commons.lang3.Validate
+
 import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
@@ -39,10 +40,9 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.{AbstractID, Collector}
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.reflect.ClassTag
 
+import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
 /**
  * The DataSet, the basic abstraction of Flink. This represents a collection of elements of a
@@ -522,7 +522,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   @throws(classOf[Exception])
   def count(): Long = {
     val id = new AbstractID().toString
-    javaSet.flatMap(new CountHelper[T](id)).output(new DiscardingOutputFormat[lang.Long])
+    javaSet.flatMap(new CountHelper[T](id)).output(new DiscardingOutputFormat[java.lang.Long])
     val res = getExecutionEnvironment.execute()
     res.getAccumulatorResult[Long](id)
   }
@@ -537,11 +537,33 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   @throws(classOf[Exception])
   def collect(): Seq[T] = {
+    val typeClass: Class[_] = getType().getTypeClass()
+    val cl: ClassLoader = if (typeClass.getClassLoader == null) ClassLoader.getSystemClassLoader
+                            else typeClass.getClassLoader
+
+    if (typeClass != null && !classOf[java.io.Serializable].isAssignableFrom(typeClass)) {
+      throw new UnsupportedOperationException(
+        "collect() can only be used with serializable data types. " +
+        "The DataSet type '" + typeClass.getName + "' does not implement java.io.Serializable.")
+    }
+
     val id = new AbstractID().toString
     javaSet.flatMap(new Utils.CollectHelper[T](id)).output(new DiscardingOutputFormat[T])
     val res = getExecutionEnvironment.execute()
 
-    res.getAccumulatorResult(id).asInstanceOf[java.util.List[T]].asScala
+    val accResult: java.util.ArrayList[Array[Byte]] = res.getAccumulatorResult(id)
+
+    try {
+      SerializedListAccumulator.deserializeList(accResult, cl).asScala
+    }
+    catch {
+      case e: ClassNotFoundException => {
+        throw new RuntimeException("Cannot find type class of collected data type.", e)
+      }
+      case e: java.io.IOException => {
+        throw new RuntimeException("Serialization error while deserializing collected data", e)
+      }
+    }
   }
 
   /**

@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.operators.testutils;
 
 import akka.actor.ActorRef;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegment;
@@ -254,5 +255,10 @@ public class MockEnvironment implements Environment {
 	@Override
 	public BroadcastVariableManager getBroadcastVariableManager() {
 		return this.bcVarManager;
+	}
+
+	@Override
+	public void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators) {
+		// discard, this is only for testing
 	}
 }

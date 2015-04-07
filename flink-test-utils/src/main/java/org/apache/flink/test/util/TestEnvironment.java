@@ -29,6 +29,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Assert;
 
@@ -53,11 +54,11 @@ public class TestEnvironment extends ExecutionEnvironment {
 			JobGraph jobGraph = jgg.compileJobGraph(op);
 
 			ActorRef client = this.executor.getJobClient();
-			JobExecutionResult result = JobClient.submitJobAndWait(jobGraph, false, client,
-					executor.timeout());
+			SerializedJobExecutionResult result =
+					JobClient.submitJobAndWait(jobGraph, false, client, executor.timeout());
 
-			this.latestResult = result;
-			return result;
+			this.latestResult = result.toJobExecutionResult(getClass().getClassLoader());
+			return this.latestResult;
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

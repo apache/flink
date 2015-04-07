@@ -58,8 +58,6 @@ public class PackagedProgramEndToEndITCase {
 			fwClusters.write(KMeansData.INITIAL_CENTERS);
 			fwClusters.close();
 
-			
-
 			// run KMeans
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
@@ -70,11 +68,10 @@ public class PackagedProgramEndToEndITCase {
 
 			ex.executeJar(JAR_PATH,
 					"org.apache.flink.test.util.testjar.KMeansForTest",
-					new String[] {
-							points.toURI().toString(),
-							clusters.toURI().toString(),
-							outFile.toURI().toString(),
-							"25"});
+					points.toURI().toString(),
+					clusters.toURI().toString(),
+					outFile.toURI().toString(),
+					"25");
 
 		} catch (Exception e) {
 			e.printStackTrace();

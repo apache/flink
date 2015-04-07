@@ -16,12 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.accumulators;
-
-import java.io.Serializable;
+package org.apache.flink.runtime.accumulators;
 
 /**
- * Similar to Accumulator, but the type of items to add and the result value
- * must be the same.
+ * Container class that transports the result of an accumulator as set of strings.
  */
-public interface SimpleAccumulator<T extends Serializable> extends Accumulator<T,T> {}
+public class StringifiedAccumulatorResult implements java.io.Serializable{
+
+	private static final long serialVersionUID = -4642311296836822611L;
+
+	private final String name;
+	private final String type;
+	private final String value;
+
+	public StringifiedAccumulatorResult(String name, String type, String value) {
+		this.name = name;
+		this.type = type;
+		this.value = value;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public String getType() {
+		return type;
+	}
+
+	public String getValue() {
+		return value;
+	}
+}

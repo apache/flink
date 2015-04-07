@@ -26,6 +26,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.Tasks;
@@ -80,11 +81,14 @@ public class JobSubmissionFailsITCase {
 	}
 
 	private JobExecutionResult submitJob(JobGraph jobGraph, ActorRef jobClient) throws Exception {
-		if(detached) {
+		if (detached) {
 			JobClient.submitJobDetached(jobGraph, jobClient, TestingUtils.TESTING_DURATION());
 			return null;
-		} else {
-			return JobClient.submitJobAndWait(jobGraph, false, jobClient, TestingUtils.TESTING_DURATION());
+		}
+		else {
+			SerializedJobExecutionResult result =
+					JobClient.submitJobAndWait(jobGraph, false, jobClient, TestingUtils.TESTING_DURATION());
+			return result.toJobExecutionResult(getClass().getClassLoader());
 		}
 	}
 

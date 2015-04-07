@@ -121,7 +121,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(Success(jobGraph.getJobID))
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph.getJobID)
+          result.result.getJobId() should equal(jobGraph.getJobID)
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
@@ -152,7 +152,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph.getJobID)
+          result.result.getJobId() should equal(jobGraph.getJobID)
         }
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
         expectMsg(true)
@@ -187,7 +187,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph.getJobID)
+          result.result.getJobId() should equal(jobGraph.getJobID)
         }
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
         expectMsg(true)

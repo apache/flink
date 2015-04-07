@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.examples.java.relational;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -206,14 +204,14 @@ public class EmptyFieldsCountAccumulator {
 		 * Increases the result vector component at the specified position by 1.
 		 */
 		@Override
-		public void add(final Integer position) {
+		public void add(Integer position) {
 			updateResultVector(position, 1);
 		}
 
 		/**
 		 * Increases the result vector component at the specified position by the specified delta.
 		 */
-		private void updateResultVector(final int position, final int delta) {
+		private void updateResultVector(int position, int delta) {
 			// inflate the vector to contain the given position
 			while (this.resultVector.size() <= position) {
 				this.resultVector.add(0);
@@ -245,31 +243,8 @@ public class EmptyFieldsCountAccumulator {
 		}
 
 		@Override
-		public void write(final ObjectOutputStream out) throws IOException {
-			// binary serialization of the result vector:
-			// [number of components, component 0, component 1, ...]
-			out.writeInt(this.resultVector.size());
-			for (final Integer component : this.resultVector) {
-				out.writeInt(component);
-			}
-		}
-
-		@Override
-		public void read(final ObjectInputStream in) throws IOException {
-			// binary deserialization of the result vector
-			final int size = in.readInt();
-			for (int numReadComponents = 0; numReadComponents < size; numReadComponents++) {
-				final int component = in.readInt();
-				this.resultVector.add(component);
-			}
-		}
-
-		@Override
 		public Accumulator<Integer, ArrayList<Integer>> clone() {
-			VectorAccumulator result = new VectorAccumulator(new ArrayList<Integer>(resultVector));
-
-			return result;
+			return new VectorAccumulator(new ArrayList<Integer>(resultVector));
 		}
-
 	}
 }

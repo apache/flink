@@ -18,9 +18,7 @@
 
 package org.apache.flink.test.accumulators;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,10 +34,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.InputViewObjectInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewObjectOutputStreamWrapper;
-import org.apache.flink.runtime.util.SerializableHashSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
@@ -155,7 +149,9 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 				// getRuntimeContext().getAggregator("custom",
 				// DoubleSumAggregator.class);
 				Assert.fail("Should not be able to obtain previously created counter with different type");
-			} catch (UnsupportedOperationException ex) {
+			}
+			catch (UnsupportedOperationException ex) {
+				// expected!
 			}
 
 			// Test counter used in open() and closed()
@@ -222,11 +218,11 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 	/**
 	 * Custom accumulator
 	 */
-	public static class SetAccumulator<T extends IOReadableWritable> implements Accumulator<T, SerializableHashSet<T>> {
+	public static class SetAccumulator<T> implements Accumulator<T, HashSet<T>> {
 
 		private static final long serialVersionUID = 1L;
 
-		private SerializableHashSet<T> set = new SerializableHashSet<T>();
+		private HashSet<T> set = new HashSet<T>();
 
 		@Override
 		public void add(T value) {
@@ -234,7 +230,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public SerializableHashSet<T> getLocalValue() {
+		public HashSet<T> getLocalValue() {
 			return this.set;
 		}
 
@@ -244,27 +240,15 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void merge(Accumulator<T, SerializableHashSet<T>> other) {
+		public void merge(Accumulator<T, HashSet<T>> other) {
 			// build union
-			this.set.addAll(((SetAccumulator<T>) other).getLocalValue());
+			this.set.addAll(other.getLocalValue());
 		}
 
 		@Override
-		public void write(ObjectOutputStream out) throws IOException {
-			this.set.write(new OutputViewObjectOutputStreamWrapper(out));
-		}
-
-		@Override
-		public void read(ObjectInputStream in) throws IOException {
-			this.set.read(new InputViewObjectInputStreamWrapper(in));
-		}
-
-		@Override
-		public Accumulator<T, SerializableHashSet<T>> clone() {
+		public Accumulator<T, HashSet<T>> clone() {
 			SetAccumulator<T> result = new SetAccumulator<T>();
-
 			result.set.addAll(set);
-
 			return result;
 		}
 	}

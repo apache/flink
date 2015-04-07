@@ -20,7 +20,6 @@ package org.apache.flink.runtime.execution;
 
 import akka.actor.ActorRef;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;

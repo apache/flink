@@ -30,6 +30,7 @@ import org.apache.flink.api.common.Program;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.optimizer.DataStatistics;
@@ -182,8 +183,10 @@ public class LocalExecutor extends PlanExecutor {
 
 				ActorRef jobClient = flink.getJobClient();
 
-				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution,
-						jobClient, flink.timeout());
+				SerializedJobExecutionResult result =
+						JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, jobClient, flink.timeout());
+
+				return result.toJobExecutionResult(ClassLoader.getSystemClassLoader());
 			}
 			finally {
 				if (shutDownAtEnd) {

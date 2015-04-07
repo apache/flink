@@ -84,7 +84,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph.getJobID)
+          result.result.getJobId() should equal(jobGraph.getJobID)
         }
       } catch {
         case t: Throwable =>
@@ -127,7 +127,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph.getJobID)
+          result.result.getJobId() should equal(jobGraph.getJobID)
         }
       } catch {
         case t: Throwable =>
@@ -189,7 +189,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph.getJobID)
+          result.result.getJobId() should equal(jobGraph.getJobID)
         }
       } catch {
         case t: Throwable =>

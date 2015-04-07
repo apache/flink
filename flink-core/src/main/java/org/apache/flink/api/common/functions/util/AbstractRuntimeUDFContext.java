@@ -110,7 +110,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	@Override
 	public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
 		if (accumulators.containsKey(name)) {
-			throw new UnsupportedOperationException("The counter '" + name
+			throw new UnsupportedOperationException("The accumulator '" + name
 					+ "' already exists and cannot be added.");
 		}
 		accumulators.put(name, accumulator);
@@ -141,8 +141,8 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	
 	@SuppressWarnings("unchecked")
 	private <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name,
-			Class<? extends Accumulator<V, A>> accumulatorClass) {
-
+			Class<? extends Accumulator<V, A>> accumulatorClass)
+	{
 		Accumulator<?, ?> accumulator = accumulators.get(name);
 
 		if (accumulator != null) {
@@ -151,10 +151,9 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 			// Create new accumulator
 			try {
 				accumulator = accumulatorClass.newInstance();
-			} catch (InstantiationException e) {
-				e.printStackTrace();
-			} catch (IllegalAccessException e) {
-				e.printStackTrace();
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Cannot create accumulator " + accumulatorClass.getName());
 			}
 			accumulators.put(name, accumulator);
 		}

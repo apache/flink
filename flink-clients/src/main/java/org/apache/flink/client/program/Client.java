@@ -47,6 +47,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +75,7 @@ public class Client {
 
 	/**
 	 * If != -1, this field specifies the total number of available slots on the cluster
-	 * conntected to the client.
+	 * connected to the client.
 	 */
 	private int maxSlots = -1;
 
@@ -83,7 +84,7 @@ public class Client {
 	 */
 	private JobID lastJobId = null;
 
-	private ClassLoader userCodeClassLoader; // TODO: use userCodeClassloader to deserialize accumulator results.
+	private ClassLoader userCodeClassLoader;
 	
 	// ------------------------------------------------------------------------
 	//                            Construction
@@ -343,7 +344,15 @@ public class Client {
 
 		try{
 			if (wait) {
-				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client, timeout);
+				SerializedJobExecutionResult result =
+						JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client, timeout);
+				try {
+					return result.toJobExecutionResult(this.userCodeClassLoader);
+				}
+				catch (Exception e) {
+					throw new ProgramInvocationException(
+							"Failed to deserialize the accumulator result after the job execution", e);
+				}
 			}
 			else {
 				JobClient.submitJobDetached(jobGraph, client, timeout);

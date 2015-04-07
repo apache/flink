@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.accumulators;
 
 import java.io.Serializable;
@@ -69,13 +68,27 @@ public class AccumulatorHelper {
 	 * Compare both classes and throw {@link UnsupportedOperationException} if
 	 * they differ
 	 */
+	@SuppressWarnings("rawtypes")
 	public static void compareAccumulatorTypes(Object name,
-			@SuppressWarnings("rawtypes") Class<? extends Accumulator> first,
-			@SuppressWarnings("rawtypes") Class<? extends Accumulator> second)
-			throws UnsupportedOperationException {
+												Class<? extends Accumulator> first,
+												Class<? extends Accumulator> second)
+			throws UnsupportedOperationException
+	{
+		if (first == null || second == null) {
+			throw new NullPointerException();
+		}
+
 		if (first != second) {
-			throw new UnsupportedOperationException("The accumulator object '" + name
-					+ "' was created with two different types: " + first + " and " + second);
+			if (!first.getName().equals(second.getName())) {
+				throw new UnsupportedOperationException("The accumulator object '" + name
+					+ "' was created with two different types: " + first.getName() + " and " + second.getName());
+			} else {
+				// damn, name is the same, but different classloaders
+				throw new UnsupportedOperationException("The accumulator object '" + name
+						+ "' was created with two different classes: " + first + " and " + second
+						+ " Both have the same type (" + first.getName() + ") but different classloaders: "
+						+ first.getClassLoader() + " and " + second.getClassLoader());
+			}
 		}
 	}
 

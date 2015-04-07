@@ -47,7 +47,7 @@ class SumMinMaxITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .map{ t => (t._1, t._2) }
 
 
-    val result: Seq[(Int, Long)] = aggregateDs.collect
+    val result: Seq[(Int, Long)] = aggregateDs.collect()
 
     assertEquals(1, result.size)
     assertEquals((231, 6L), result.head)
@@ -66,7 +66,7 @@ class SumMinMaxITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .filter(_._3 != null)
       .map { t => (t._2, t._1) }
 
-    val result : Seq[(Long, Int)] = aggregateDs.collect.sortWith((a, b) => a._1 < b._1)
+    val result : Seq[(Long, Int)] = aggregateDs.collect().sortWith((a, b) => a._1 < b._1)
 
     val expected : Seq[(Long, Int)] = Seq((1L, 1), (2L, 5), (3L, 15), (4L, 34), (5L, 65), (6L, 111))
     assertEquals(expected, result)
@@ -86,7 +86,7 @@ class SumMinMaxITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .filter(_._3 != null)
       .map { t => t._1 }
 
-    val result: Seq[Int] = aggregateDs.collect
+    val result: Seq[Int] = aggregateDs.collect()
 
     assertEquals(1, result.size)
     assertEquals(Seq(1), result)
