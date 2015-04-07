@@ -566,7 +566,7 @@ public class TaskManagerTest {
 			if (message instanceof RegistrationMessages.RegisterTaskManager) {
 				final InstanceID iid = new InstanceID();
 				final ActorRef self = getSelf();
-				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(self, iid, -1), self);
+				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(self, iid, 12345), self);
 			}
 			else if(message instanceof TaskMessages.UpdateTaskExecutionState){
 				getSender().tell(true, getSelf());

@@ -608,6 +608,16 @@ extends Actor with ActorLogMessages with ActorLogging {
                                       id: InstanceID,
                                       blobPort: Int): Unit = {
 
+    if (jobManager == null) {
+      throw new NullPointerException("jobManager may not be null")
+    }
+    if (id == null) {
+      throw new NullPointerException("instance ID may not be null")
+    }
+    if (blobPort <= 0 || blobPort > 65535) {
+      throw new IllegalArgumentException("blob port is out of range: " + blobPort)
+    }
+
     // sanity check that we are not currently registered with a different JobManager
     if (isConnected) {
       if (currentJobManager.get == jobManager) {
@@ -644,9 +654,8 @@ extends Actor with ActorLogMessages with ActorLogging {
 
     // start a blob service, if a blob server is specified
     if (blobPort > 0) {
-      val address = new InetSocketAddress(
-        currentJobManager.flatMap(_.path.address.host).getOrElse("localhost"),
-        blobPort)
+      val jmHost = jobManager.path.address.host.getOrElse("localhost")
+      val address = new InetSocketAddress(jmHost, blobPort)
 
       LOG.info("Determined BLOB server address to be {}. Starting BLOB cache.", address)
 
