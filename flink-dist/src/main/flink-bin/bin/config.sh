@@ -25,7 +25,7 @@
 manglePath() {
     UNAME=$(uname -s)
     if [ "${UNAME:0:6}" == "CYGWIN" ]; then
-        echo `cygpath -w $1`
+        echo `cygpath -w "$1"`
     else
         echo $1
     fi
@@ -35,7 +35,7 @@ manglePathList() {
     UNAME=$(uname -s)
     # a path list, for example a java classpath
     if [ "${UNAME:0:6}" == "CYGWIN" ]; then
-        echo `cygpath -wp $1`
+        echo `cygpath -wp "$1"`
     else
         echo $1
     fi
