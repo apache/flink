@@ -67,8 +67,9 @@ public abstract class HadoopOutputFormatBase<K, V, T> implements OutputFormat<T>
 
 	@Override
 	public void configure(Configuration parameters) {
-		if(this.mapredOutputFormat instanceof Configurable)
+		if(this.mapredOutputFormat instanceof Configurable){
 			((Configurable)this.mapredOutputFormat).setConf(this.jobConf);
+		}
 	}
 
 	/**
