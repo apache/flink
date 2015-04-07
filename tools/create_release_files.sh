@@ -70,7 +70,7 @@ rm CHANGELOG
 # FOR MAC: find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
 find . -name 'pom.xml' -type f -exec sed -i 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
 
-git commit --author="Robert Metzger <rmetzger@apache.org>" -am "Commit for release $RELEASE_VERSION"
+git commit --author="Ufuk Celebi <uce@apache.org>" -am "Commit for release $RELEASE_VERSION"
 # sry for hardcoding my name, but this makes releasing even faster
 git remote add asf_push https://$USER_NAME@git-wip-us.apache.org/repos/asf/flink.git
 RELEASE_HASH=`git rev-parse HEAD`
