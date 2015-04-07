@@ -17,6 +17,18 @@
 # limitations under the License.
 ################################################################################
 
+constructFlinkClassPath() {
+
+    for jarfile in "$FLINK_LIB_DIR"/*.jar ; do
+        if [[ $FLINK_CLASSPATH = "" ]]; then
+            FLINK_CLASSPATH=$jarfile;
+        else
+            FLINK_CLASSPATH=$FLINK_CLASSPATH:$jarfile
+        fi
+    done
+
+    echo $FLINK_CLASSPATH
+}
 
 # These are used to mangle paths that are passed to java when using 
 # cygwin. Cygwin paths are like linux paths, i.e. /path/to/somewhere
@@ -186,9 +198,6 @@ fi
 # DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
 # KEY_JOBM_HEAP_MB and KEY_TASKM_HEAP_MB for that!
 JVM_ARGS=""
-
-# Default classpath 
-CLASSPATH=`manglePathList $( echo $FLINK_LIB_DIR/*.jar . | sed 's/ /:/g' )`
 
 # Auxilliary function which extracts the name of host from a line which
 # also potentialy includes topology information and the instance type
