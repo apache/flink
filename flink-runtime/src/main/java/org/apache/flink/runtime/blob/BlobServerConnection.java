@@ -30,6 +30,7 @@ import java.net.SocketException;
 import java.security.MessageDigest;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.shaded.com.google.common.io.Files;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -307,24 +308,18 @@ class BlobServerConnection extends Thread {
 					md.update(buf, 0, bytesExpected);
 				}
 			}
-
+			fos.close();
 
 			if (contentAddressable == NAME_ADDRESSABLE) {
 				File storageFile = this.blobServer.getStorageLocation(jobID, key);
-				if (!incomingFile.renameTo(storageFile)) {
-					throw new IOException(String.format("Cannot move staging file %s to BLOB file %s",
-							incomingFile.getAbsolutePath(), storageFile.getAbsolutePath()));
-				}
+				Files.move(incomingFile, storageFile);
 				incomingFile = null;
 				outputStream.write(RETURN_OKAY);
 			}
 			else {
 				BlobKey blobKey = new BlobKey(md.digest());
 				File storageFile = blobServer.getStorageLocation(blobKey);
-				if (!incomingFile.renameTo(storageFile)) {
-					throw new IOException(String.format("Cannot move staging file %s to BLOB file %s",
-							incomingFile.getAbsolutePath(), storageFile.getAbsolutePath()));
-				}
+				Files.move(incomingFile, storageFile);
 				incomingFile = null;
 
 				// Return computed key to client for validation
