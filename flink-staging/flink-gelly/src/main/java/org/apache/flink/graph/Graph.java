@@ -28,10 +28,11 @@ import java.util.Arrays;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -722,8 +723,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @return a dataset of a T
 	 * @throws IllegalArgumentException
 	 */
-	public <T> DataSet<T> reduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
-			EdgeDirection direction) throws IllegalArgumentException {
+	public <T> DataSet<T> groupReduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
+											 EdgeDirection direction) throws IllegalArgumentException {
 
 		switch (direction) {
 		case IN:
@@ -753,8 +754,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @return a dataset of T
 	 * @throws IllegalArgumentException
 	 */
-	public <T> DataSet<T> reduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
-			EdgeDirection direction) throws IllegalArgumentException {
+	public <T> DataSet<T> groupReduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
+											 EdgeDirection direction) throws IllegalArgumentException {
 
 		switch (direction) {
 		case IN:
@@ -796,7 +797,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 
 		public void reduce(Iterable<Tuple2<K, Edge<K, EV>>> edges, Collector<T> out) throws Exception {
-			out.collect(function.iterateEdges(edges));
+			function.iterateEdges(edges, out);
 		}
 
 		@Override
@@ -832,7 +833,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,
 				Iterable<Edge<K, EV>> edges, Collector<T> out) throws Exception {
-			out.collect(function.iterateEdges(vertex.iterator().next(), edges));
+			function.iterateEdges(vertex.iterator().next(), edges, out);
 		}
 
 		@Override
@@ -880,7 +881,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 				}
 			};
 
-			out.collect(function.iterateEdges(vertex.iterator().next(),	edgesIterable));
+			function.iterateEdges(vertex.iterator().next(),	edgesIterable, out);
 		}
 
 		@Override
@@ -1238,8 +1239,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @return a dataset of a T
 	 * @throws IllegalArgumentException
 	 */
-	public <T> DataSet<T> reduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
-			EdgeDirection direction) throws IllegalArgumentException {
+	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
+												 EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
 			// create <edge-sourceVertex> pairs
@@ -1281,8 +1282,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @return a dataset of a T
 	 * @throws IllegalArgumentException
 	 */
-	public <T> DataSet<T> reduceOnNeighbors(NeighborsFunction<K, VV, EV, T> neighborsFunction,
-			EdgeDirection direction) throws IllegalArgumentException {
+	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunction<K, VV, EV, T> neighborsFunction,
+												 EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
 			// create <edge-sourceVertex> pairs
@@ -1322,8 +1323,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 
 		public void reduce(Iterable<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edges, Collector<T> out) throws Exception {
-			out.collect(function.iterateNeighbors(edges));
-
+			function.iterateNeighbors(edges, out);
 		}
 
 		@Override
@@ -1368,7 +1368,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors,
 				Collector<T> out) throws Exception {
-			out.collect(function.iterateNeighbors(vertex.iterator().next(),	neighbors));
+			function.iterateNeighbors(vertex.iterator().next(),	neighbors, out);
 		}
 
 		@Override
@@ -1417,13 +1417,134 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 				}
 			};
 
-			out.collect(function.iterateNeighbors(vertex.iterator().next(),
-					neighborsIterable));
+			function.iterateNeighbors(vertex.iterator().next(), neighborsIterable, out);
 		}
 
 		@Override
 		public TypeInformation<T> getProducedType() {
 			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class,	function.getClass(), 3, null, null);
+		}
+	}
+
+	/**
+	 * Compute an aggregate over the neighbors (edges and vertices) of each
+	 * vertex. The function applied on the neighbors only has access to the
+	 * vertex id (not the vertex value).
+	 *
+	 * @param reduceNeighborsFunction the function to apply to the neighborhood
+	 * @param direction the edge direction (in-, out-, all-)
+	 * @return a dataset containing one value per vertex
+	 * @throws IllegalArgumentException
+	 */
+	public DataSet reduceOnNeighbors(ReduceNeighborsFunction<K, VV, EV> reduceNeighborsFunction,
+									 EdgeDirection direction) throws IllegalArgumentException {
+		switch (direction) {
+			case IN:
+				// create <edge-sourceVertex> pairs
+				final DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithSources = edges
+						.join(this.vertices).where(0).equalTo(0)
+						.with(new ProjectVertexIdJoin<K, VV, EV>(1));
+				return edgesWithSources.groupBy(0).reduce(new ApplyNeighborReduceFunction<K,VV,EV>(reduceNeighborsFunction))
+						.map(new ApplyNeighborhoodMapFunction<K, VV, EV>());
+			case OUT:
+				// create <edge-targetVertex> pairs
+				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithTargets = edges
+						.join(this.vertices).where(1).equalTo(0)
+						.with(new ProjectVertexIdJoin<K, VV, EV>(0));
+				return edgesWithTargets.groupBy(0).reduce(new ApplyNeighborReduceFunction<K, VV, EV>(reduceNeighborsFunction))
+						.map(new ApplyNeighborhoodMapFunction<K, VV, EV>());
+			case ALL:
+				// create <edge-sourceOrTargetVertex> pairs
+				DataSet<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edgesWithNeighbors = edges
+						.flatMap(new EmitOneEdgeWithNeighborPerNode<K, VV, EV>())
+						.join(this.vertices).where(1).equalTo(0)
+						.with(new ProjectEdgeWithNeighbor<K, VV, EV>());
+
+				return edgesWithNeighbors.groupBy(0).reduce(new ApplyNeighborReduceFunction<K, VV, EV>(reduceNeighborsFunction))
+						.map(new ApplyNeighborhoodMapFunction<K, VV, EV>());
+			default:
+				throw new IllegalArgumentException("Illegal edge direction");
+		}
+	}
+
+	private static final class ApplyNeighborReduceFunction<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
+			implements ReduceFunction<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> {
+
+		private ReduceNeighborsFunction<K, VV, EV> function;
+
+		public ApplyNeighborReduceFunction(ReduceNeighborsFunction<K, VV, EV> fun) {
+			this.function = fun;
+		}
+
+		@Override
+		public Tuple3<K, Edge<K, EV>, Vertex<K, VV>> reduce(Tuple3<K, Edge<K, EV>, Vertex<K, VV>> first,
+															Tuple3<K, Edge<K, EV>, Vertex<K, VV>> second) throws Exception {
+			return function.reduceNeighbors(first, second);
+		}
+	}
+
+	public static final class ApplyNeighborhoodMapFunction<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
+			implements MapFunction<Tuple3<K, Edge<K, EV>, Vertex<K, VV>> ,Tuple2<K, VV>> {
+
+		@Override
+		public Tuple2<K, VV> map(Tuple3<K, Edge<K, EV>, Vertex<K, VV>> edgesWithSrc) throws Exception {
+			return new Tuple2<K, VV>(edgesWithSrc.f0, edgesWithSrc.f2.getValue());
+		}
+	}
+
+	/**
+	 * Compute an aggregate over the edges of each vertex. The function applied
+	 * on the edges only has access to the vertex id (not the vertex value).
+	 *
+	 * @param reduceEdgesFunction
+	 *            the function to apply to the neighborhood
+	 * @param direction
+	 *            the edge direction (in-, out-, all-)
+	 * @return a dataset containing one value per vertex
+	 * @throws IllegalArgumentException
+	 */
+	public DataSet reduceOnEdges(ReduceEdgesFunction<K, EV> reduceEdgesFunction,
+								 EdgeDirection direction) throws IllegalArgumentException {
+
+		switch (direction) {
+			case IN:
+				return edges.map(new ProjectVertexIdMap<K, EV>(1))
+						.groupBy(0).reduce(new ApplyReduceFunction<K, EV>(reduceEdgesFunction))
+						.map(new ApplyEdgesMapFunction());
+			case OUT:
+				return edges.map(new ProjectVertexIdMap<K, EV>(0))
+						.groupBy(0).reduce(new ApplyReduceFunction<K, EV>(reduceEdgesFunction))
+						.map(new ApplyEdgesMapFunction());
+			case ALL:
+				return edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>())
+						.groupBy(0).reduce(new ApplyReduceFunction<K, EV>(reduceEdgesFunction))
+						.map(new ApplyEdgesMapFunction());
+			default:
+				throw new IllegalArgumentException("Illegal edge direction");
+		}
+	}
+
+	private static final class ApplyReduceFunction<K extends Comparable<K> & Serializable, EV extends Serializable>
+			implements ReduceFunction<Tuple2<K, Edge<K, EV>>> {
+
+		private ReduceEdgesFunction<K, EV> function;
+
+		public ApplyReduceFunction(ReduceEdgesFunction<K, EV> fun) {
+			this.function = fun;
+		}
+
+		@Override
+		public Tuple2<K, Edge<K, EV>> reduce(Tuple2<K, Edge<K, EV>> first, Tuple2<K, Edge<K, EV>> second) throws Exception {
+			return function.reduceEdges(first, second);
+		}
+	}
+
+	public static final class ApplyEdgesMapFunction<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
+			implements MapFunction<Tuple2<K, Edge<K, EV>> ,Tuple2<K, EV>> {
+
+		@Override
+		public Tuple2<K, EV> map(Tuple2<K, Edge<K, EV>> edge) throws Exception {
+			return new Tuple2<K, EV>(edge.f0, edge.f1.getValue());
 		}
 	}
 }

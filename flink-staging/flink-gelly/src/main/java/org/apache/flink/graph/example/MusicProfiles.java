@@ -100,7 +100,7 @@ public class MusicProfiles implements ProgramDescription {
 		 * Get the top track (most listened) for each user
 		 */
 		DataSet<Tuple2<String, String>> usersWithTopTrack = userSongGraph
-				.reduceOnEdges(new GetTopSongPerUser(), EdgeDirection.OUT)
+				.groupReduceOnEdges(new GetTopSongPerUser(), EdgeDirection.OUT)
 				.filter(new FilterSongNodes());
 
 		if (fileOutput) {
@@ -185,8 +185,8 @@ public class MusicProfiles implements ProgramDescription {
 	public static final class GetTopSongPerUser	implements EdgesFunctionWithVertexValue<String, NullValue, Integer,
 		Tuple2<String, String>> {
 
-		public Tuple2<String, String> iterateEdges(Vertex<String, NullValue> vertex, 
-				Iterable<Edge<String, Integer>> edges) {
+		public void iterateEdges(Vertex<String, NullValue> vertex,
+				Iterable<Edge<String, Integer>> edges, Collector<Tuple2<String, String>> out) throws Exception {
 
 			int maxPlaycount = 0;
 			String topSong = "";
@@ -196,7 +196,7 @@ public class MusicProfiles implements ProgramDescription {
 					topSong = edge.getTarget();
 				}
 			}
-			return new Tuple2<String, String>(vertex.getId(), topSong);
+			out.collect(new Tuple2<String, String>(vertex.getId(), topSong));
 		}
 	}
 
