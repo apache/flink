@@ -481,6 +481,11 @@ public class StreamGraph extends StreamingPlan {
 	 */
 	public JobGraph getJobGraph(String jobGraphName) {
 
+		// temporarily forbid checkpointing for iterative jobs
+		if (isIterative() && isCheckpointingEnabled()){
+			throw new UnsupportedOperationException("Checkpointing is currently not supported for iterative jobs!");
+		}
+
 		this.jobName = jobGraphName;
 
 		WindowingOptimizer.optimizeGraph(this);
@@ -557,6 +562,8 @@ public class StreamGraph extends StreamingPlan {
 	public long getIterationTimeout(Integer vertexID) {
 		return iterationTimeouts.get(vertexID);
 	}
+
+	public boolean isIterative() { return !iterationIds.isEmpty(); }
 
 	public String getOperatorName(Integer vertexID) {
 		return operatorNames.get(vertexID);
