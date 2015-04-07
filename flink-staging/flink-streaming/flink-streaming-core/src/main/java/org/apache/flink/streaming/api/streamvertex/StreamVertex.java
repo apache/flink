@@ -96,13 +96,11 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	@Override
 	public void broadcastBarrierFromSource(long id) {
-		if (this.isRunning) {
-			// Only called at input vertices
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Received barrier from jobmanager: " + id);
-			}
-			actOnBarrier(id);
+		// Only called at input vertices
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Received barrier from jobmanager: " + id);
 		}
+		actOnBarrier(id);
 	}
 
 	/**
@@ -190,10 +188,10 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 			}
 			throw e;
 		} finally {
+			this.isRunning = false;
 			// Cleanup
 			outputHandler.flushOutputs();
 			clearBuffers();
-			this.isRunning = false;
 		}
 
 	}
@@ -288,7 +286,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	 * @param id
 	 */
 	private synchronized void actOnBarrier(long id) {
-		if (this.isRunning) {
+		if (isRunning) {
 			try {
 				outputHandler.broadcastBarrier(id);
 				confirmBarrier(id);
@@ -296,7 +294,10 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 					LOG.debug("Superstep " + id + " processed: " + StreamVertex.this);
 				}
 			} catch (Exception e) {
-				throw new RuntimeException(e);
+				// Only throw any exception if the vertex is still running
+				if (isRunning) {
+					throw new RuntimeException(e);
+				}
 			}
 		}
 	}
