@@ -190,6 +190,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+-----------------------------------------------------------------------
+                            Janino
+-----------------------------------------------------------------------
+
+Janino - An embedded Java[TM] compiler
+
+Copyright (c) 2001-2010, Arno Unkrig
+All rights reserved.
 
 -----------------------------------------------------------------------
                          The Netty Project
