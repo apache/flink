@@ -29,6 +29,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.util.Collector;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -102,6 +103,210 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 					"3,1\n" +
 					"4,3\n" + 
 					"5,3\n";
+	}
+
+	@Test
+	public void testAllOutNeighbors() throws Exception {
+		/*
+		 * Get the all the out-neighbors for each vertex
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithAllOutNeighbors =
+				graph.reduceOnEdges(new SelectOutNeighbors(), EdgeDirection.OUT);
+		verticesWithAllOutNeighbors.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "1,2\n" +
+				"1,3\n" +
+				"2,3\n" +
+				"3,4\n" +
+				"3,5\n" +
+				"4,5\n" +
+				"5,1";
+	}
+
+	@Test
+	public void testAllOutNeighborsNoValue() throws Exception {
+		/*
+		 * Get the all the out-neighbors for each vertex except for the vertex with id 5.
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithAllOutNeighbors =
+				graph.reduceOnEdges(new SelectOutNeighborsExcludeFive(), EdgeDirection.OUT);
+		verticesWithAllOutNeighbors.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "1,2\n" +
+				"1,3\n" +
+				"2,3\n" +
+				"3,4\n" +
+				"3,5\n" +
+				"4,5";
+	}
+
+	@Test
+	public void testAllOutNeighborsWithValueGreaterThanTwo() throws Exception {
+		/*
+		 * Get the all the out-neighbors for each vertex that have a value greater than two.
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithAllOutNeighbors =
+				graph.reduceOnEdges(new SelectOutNeighborsValueGreaterThanTwo(), EdgeDirection.OUT);
+		verticesWithAllOutNeighbors.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "3,4\n" +
+				"3,5\n" +
+				"4,5\n" +
+				"5,1";
+	}
+
+	@Test
+	public void testAllInNeighbors() throws Exception {
+		/*
+		 * Get the all the in-neighbors for each vertex
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithAllInNeighbors =
+				graph.reduceOnEdges(new SelectInNeighbors(), EdgeDirection.IN);
+		verticesWithAllInNeighbors.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "1,5\n" +
+				"2,1\n" +
+				"3,1\n" +
+				"3,2\n" +
+				"4,3\n" +
+				"5,3\n" +
+				"5,4";
+	}
+
+	@Test
+	public void testAllInNeighborsNoValue() throws Exception {
+		/*
+		 * Get the all the in-neighbors for each vertex except for the vertex with id 5.
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithAllInNeighbors =
+				graph.reduceOnEdges(new SelectInNeighborsExceptFive(), EdgeDirection.IN);
+		verticesWithAllInNeighbors.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "1,5\n" +
+				"2,1\n" +
+				"3,1\n" +
+				"3,2\n" +
+				"4,3";
+	}
+
+	@Test
+	public void testAllInNeighborsWithValueGreaterThanTwo() throws Exception {
+		/*
+		 * Get the all the in-neighbors for each vertex that have a value greater than two.
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithAllInNeighbors =
+				graph.reduceOnEdges(new SelectInNeighborsValueGreaterThanTwo(), EdgeDirection.IN);
+		verticesWithAllInNeighbors.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "3,1\n" +
+				"3,2\n" +
+				"4,3\n" +
+				"5,3\n" +
+				"5,4";
+	}
+
+	@Test
+	public void testAllNeighbors() throws Exception {
+		/*
+		 * Get the all the neighbors for each vertex
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
+				graph.reduceOnEdges(new SelectNeighbors(), EdgeDirection.ALL);
+		verticesWithAllNeighbors.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "1,2\n" +
+				"1,3\n" +
+				"1,5\n" +
+				"2,1\n" +
+				"2,3\n" +
+				"3,1\n" +
+				"3,2\n" +
+				"3,4\n" +
+				"3,5\n" +
+				"4,3\n" +
+				"4,5\n" +
+				"5,1\n" +
+				"5,3\n" +
+				"5,4";
+	}
+
+	@Test
+	public void testAllNeighborsNoValue() throws Exception {
+		/*
+		 * Get the all the neighbors for each vertex except for vertices with id 5 and 2.
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
+				graph.reduceOnEdges(new SelectNeighborsExceptFiveAndTwo(), EdgeDirection.ALL);
+		verticesWithAllNeighbors.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "1,2\n" +
+				"1,3\n" +
+				"1,5\n" +
+				"3,1\n" +
+				"3,2\n" +
+				"3,4\n" +
+				"3,5\n" +
+				"4,3\n" +
+				"4,5";
+	}
+
+	@Test
+	public void testAllNeighborsWithValueGreaterThanFour() throws Exception {
+		/*
+		 * Get the all the neighbors for each vertex that have a value greater than four.
+         */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
+				graph.reduceOnEdges(new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
+		verticesWithAllNeighbors.writeAsCsv(resultPath);
+		env.execute();
+
+		expectedResult = "5,1\n" +
+				"5,3\n" +
+				"5,4";
 	}
 
 	@Test
@@ -195,28 +400,29 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class SelectMinWeightNeighbor implements EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
 
-		public Tuple2<Long, Long> iterateEdges(
-				Vertex<Long, Long> v,
-				Iterable<Edge<Long, Long>> edges) {
+		@Override
+		public void iterateEdges(Vertex<Long, Long> v,
+				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
 			
 			long weight = Long.MAX_VALUE;
-			long minNeighorId = 0;
-			
+			long minNeighborId = 0;
+
 			for (Edge<Long, Long> edge: edges) {
 				if (edge.getValue() < weight) {
 					weight = edge.getValue();
-					minNeighorId = edge.getTarget();
+					minNeighborId = edge.getTarget();
 				}
 			}
-			return new Tuple2<Long, Long>(v.getId(), minNeighorId);
+			out.collect(new Tuple2<Long, Long>(v.getId(), minNeighborId));
 		}
 	}
 
 	@SuppressWarnings("serial")
 	private static final class SelectMaxWeightNeighbor implements EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
 
-		public Tuple2<Long, Long> iterateEdges(Vertex<Long, Long> v,
-				Iterable<Edge<Long, Long>> edges) {
+		@Override
+		public void iterateEdges(Vertex<Long, Long> v,
+				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
 			
 			long weight = Long.MIN_VALUE;
 
@@ -225,37 +431,41 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 					weight = edge.getValue();
 				}
 			}
-			return new Tuple2<Long, Long>(v.getId(), weight);
+			out.collect(new Tuple2<Long, Long>(v.getId(), weight));
 		}
 	}
 
 	@SuppressWarnings("serial")
 	private static final class SelectMinWeightNeighborNoValue implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
 
-		public Tuple2<Long, Long> iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges) {
+		@Override
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception  {
 
 			long weight = Long.MAX_VALUE;
-			long minNeighorId = 0;
+			long minNeighborId = 0;
 			long vertexId = -1;
 			long i=0;
 
 			for (Tuple2<Long, Edge<Long, Long>> edge: edges) {
 				if (edge.f1.getValue() < weight) {
 					weight = edge.f1.getValue();
-					minNeighorId = edge.f1.getTarget();
+					minNeighborId = edge.f1.getTarget();
 				}
 				if (i==0) {
 					vertexId = edge.f0;
 				} i++;
 			}
-			return new Tuple2<Long, Long>(vertexId, minNeighorId);
+			out.collect(new Tuple2<Long, Long>(vertexId, minNeighborId));
 		}
 	}
 
 	@SuppressWarnings("serial")
 	private static final class SelectMaxWeightNeighborNoValue implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
 
-		public Tuple2<Long, Long> iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges) {
+		@Override
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
 			
 			long weight = Long.MIN_VALUE;
 			long vertexId = -1;
@@ -269,16 +479,16 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 					vertexId = edge.f0;
 				} i++;
 			}
-			return new Tuple2<Long, Long>(vertexId, weight);
+			out.collect(new Tuple2<Long, Long>(vertexId, weight));
 		}
 	}
 
 	@SuppressWarnings("serial")
 	private static final class SelectMinWeightInNeighbor implements EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
 
-		public Tuple2<Long, Long> iterateEdges(
-				Vertex<Long, Long> v,
-				Iterable<Edge<Long, Long>> edges) {
+		@Override
+		public void iterateEdges(Vertex<Long, Long> v,
+				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
 			
 			long weight = Long.MAX_VALUE;
 			long minNeighorId = 0;
@@ -289,14 +499,16 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 					minNeighorId = edge.getSource();
 				}
 			}
-			return new Tuple2<Long, Long>(v.getId(), minNeighorId);
+			out.collect(new Tuple2<Long, Long>(v.getId(), minNeighorId));
 		}
 	}
 
 	@SuppressWarnings("serial")
 	private static final class SelectMinWeightInNeighborNoValue implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
 
-		public Tuple2<Long, Long> iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges) {
+		@Override
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
 			
 			long weight = Long.MAX_VALUE;
 			long minNeighorId = 0;
@@ -312,7 +524,146 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 					vertexId = edge.f0;
 				} i++;
 			}
-			return new Tuple2<Long, Long>(vertexId, minNeighorId);
+			out.collect(new Tuple2<Long, Long>(vertexId, minNeighorId));
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SelectOutNeighbors implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
+
+		@Override
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
+
+			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
+				out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getTarget()));
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SelectOutNeighborsExcludeFive implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
+
+		@Override
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
+
+			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
+				if(edge.f0 != 5) {
+					out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getTarget()));
+				}
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SelectOutNeighborsValueGreaterThanTwo implements
+			EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
+
+		@Override
+		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
+			for (Edge<Long, Long> edge: edges) {
+				if(v.getValue() > 2) {
+					out.collect(new Tuple2<Long, Long>(v.getId(), edge.getTarget()));
+				}
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SelectInNeighbors implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
+
+		@Override
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
+
+			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
+				out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getSource()));
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SelectInNeighborsExceptFive implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
+
+		@Override
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
+
+			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
+				if(edge.f0 != 5) {
+					out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getSource()));
+				}
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SelectInNeighborsValueGreaterThanTwo implements
+			EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
+
+		@Override
+		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
+			for (Edge<Long, Long> edge: edges) {
+				if(v.getValue() > 2) {
+					out.collect(new Tuple2<Long, Long>(v.getId(), edge.getSource()));
+				}
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SelectNeighbors implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
+
+		@Override
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
+			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
+				if (edge.f0 == edge.f1.getTarget()) {
+					out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getSource()));
+				} else {
+					out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getTarget()));
+				}
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SelectNeighborsExceptFiveAndTwo implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
+
+		@Override
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
+			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
+				if(edge.f0 != 5 && edge.f0 != 2) {
+					if (edge.f0 == edge.f1.getTarget()) {
+						out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getSource()));
+					} else {
+						out.collect(new Tuple2<Long, Long>(edge.f0, edge.f1.getTarget()));
+					}
+				}
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	private static final class SelectNeighborsValueGreaterThanFour implements
+			EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
+
+		@Override
+		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
+								 Collector<Tuple2<Long, Long>> out) throws Exception {
+			for(Edge<Long, Long> edge : edges) {
+				if(v.getValue() > 4) {
+					if(v.getId().equals(edge.getTarget())) {
+						out.collect(new Tuple2<Long, Long>(v.getId(), edge.getSource()));
+					} else {
+						out.collect(new Tuple2<Long, Long>(v.getId(), edge.getTarget()));
+					}
+				}
+			}
 		}
 	}
 }

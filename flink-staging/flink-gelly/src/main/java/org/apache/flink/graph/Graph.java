@@ -28,10 +28,10 @@ import java.util.Arrays;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -792,7 +792,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 
 		public void reduce(Iterable<Tuple2<K, Edge<K, EV>>> edges, Collector<T> out) throws Exception {
-			out.collect(function.iterateEdges(edges));
+			function.iterateEdges(edges, out);
 		}
 
 		@Override
@@ -828,7 +828,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,
 				Iterable<Edge<K, EV>> edges, Collector<T> out) throws Exception {
-			out.collect(function.iterateEdges(vertex.iterator().next(), edges));
+			function.iterateEdges(vertex.iterator().next(), edges, out);
 		}
 
 		@Override
@@ -876,7 +876,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 				}
 			};
 
-			out.collect(function.iterateEdges(vertex.iterator().next(),	edgesIterable));
+			function.iterateEdges(vertex.iterator().next(),	edgesIterable, out);
 		}
 
 		@Override
@@ -1293,8 +1293,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 
 		public void reduce(Iterable<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> edges, Collector<T> out) throws Exception {
-			out.collect(function.iterateNeighbors(edges));
-
+			function.iterateNeighbors(edges, out);
 		}
 
 		@Override
@@ -1339,7 +1338,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors,
 				Collector<T> out) throws Exception {
-			out.collect(function.iterateNeighbors(vertex.iterator().next(),	neighbors));
+			function.iterateNeighbors(vertex.iterator().next(),	neighbors, out);
 		}
 
 		@Override
@@ -1388,8 +1387,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 				}
 			};
 
-			out.collect(function.iterateNeighbors(vertex.iterator().next(),
-					neighborsIterable));
+			function.iterateNeighbors(vertex.iterator().next(), neighborsIterable, out);
 		}
 
 		@Override

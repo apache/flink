@@ -21,6 +21,7 @@ package org.apache.flink.graph;
 import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.util.Collector;
 
 /**
  * Interface to be implemented by the function applied to a vertex neighborhood
@@ -35,5 +36,5 @@ import org.apache.flink.api.common.functions.Function;
 public interface EdgesFunctionWithVertexValue<K extends Comparable<K> & Serializable, 
 	VV extends Serializable, EV extends Serializable, O> extends Function, Serializable {
 
-	O iterateEdges(Vertex<K, VV> v, Iterable<Edge<K, EV>> edges) throws Exception;
+	void iterateEdges(Vertex<K, VV> v, Iterable<Edge<K, EV>> edges, Collector<O> out) throws Exception;
 }
