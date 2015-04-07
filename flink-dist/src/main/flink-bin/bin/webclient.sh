@@ -32,21 +32,7 @@ fi
 
 JVM_ARGS="$JVM_ARGS -Xmx512m"
 
-# auxilliary function to construct the classpath for the webclient
-constructWebclientClassPath() {
-
-	for jarfile in "$FLINK_LIB_DIR"/*.jar ; do
-		if [[ $FLINK_WEBCLIENT_CLASSPATH = "" ]]; then
-			FLINK_WEBCLIENT_CLASSPATH=$jarfile;
-		else
-			FLINK_WEBCLIENT_CLASSPATH=$FLINK_WEBCLIENT_CLASSPATH:$jarfile
-		fi
-	done
-
-	echo $FLINK_WEBCLIENT_CLASSPATH
-}
-
-FLINK_WEBCLIENT_CLASSPATH=`manglePathList "$(constructWebclientClassPath)"`
+FLINK_WEBCLIENT_CLASSPATH=`constructFlinkClassPath`
 
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-webclient-$HOSTNAME.log
 out=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-webclient-$HOSTNAME.out
@@ -64,7 +50,7 @@ case $STARTSTOP in
                         fi
                 fi
                 echo Starting Flink webclient
-		$JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "$FLINK_WEBCLIENT_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS" org.apache.flink.client.WebFrontend --configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
+		$JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$FLINK_WEBCLIENT_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.client.WebFrontend --configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
 		echo $! > $pid
 	;;
 
