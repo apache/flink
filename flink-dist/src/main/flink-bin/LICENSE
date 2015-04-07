@@ -224,33 +224,27 @@ under the Apache License (v 2.0):
  - Apache Commons CLI (http://commons.apache.org/cli/)
  - Apache Commons FileUpload (http://commons.apache.org/fileupload/)
  - Apache Commons IO (http://commons.apache.org/io/)
- - Apache Commons Lang v.3.3.2 (http://commons.apache.org/proper/commons-lang/)
+ - Apache Commons Lang 3 v.3.3.2 (http://commons.apache.org/proper/commons-lang/)
  - Apache Commons Math (http://commons.apache.org/proper/commons-math/)
- - Apache Avro (http://avro.apache.org)
+ - Apache log4j 1.2 (http://logging.apache.org/log4j/1.2/)
+ - Apache Avro v1.7.6 (http://avro.apache.org)
  - Apache Hadoop (http://hadoop.apache.org)
- - Apache HBase Client (http://hbase.apache.org)
- - Apache Derby (http://db.apache.org/derby/)
- - Apache Kafka (http://kafka.apache.org)
- - Apache Flume (http://flume.apache.org)
  - Apache Sling (http://sling.apache.org)
  - Apache Thrift (http://thrift.apache.org)
  - Google Guava (https://code.google.com/p/guava-libraries/)
  - Google Protocol Buffers (https://github.com/google/protobuf/)
  - Netty v4.0.21 (http://netty.io)
- - Powermock (http://www.powermock.org)
  - Javassist (http://www.javassist.org)
  - Kryo-Serializers (https://github.com/magro/kryo-serializers/)
  - Joda-Time (http://www.joda.org/joda-time/)
  - Chill_2.10 v0.5.1 (https://github.com/twitter/chill)
- - Jetty Web Container (http://www.eclipse.org/jetty/)
+ - Jetty Server, Jetty Security, Jetty Servlet (http://www.eclipse.org/jetty/)
  - Amazon Web Services SDK for Java (http://aws.amazon.com/sdkforjava/)
- - ScalaTest (http://www.scalatest.org)
  - StartBootstrap (http://startbootstrap.com)
  - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
- - Twitter Hosebird Client (hbc) (https://github.com/twitter/hbc)
  - Jettison (http://jettison.codehaus.org)
  - Akka (http://akka.io)
- - Breeze (https://github.com/scalanlp/breeze)
+ - Metrics (https://github.com/dropwizard/metrics)
  
 
 -----------------------------------------------------------------------
@@ -272,6 +266,7 @@ The Apache Flink project bundles the following components under the MIT License:
  - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
  - D3 dagre renderer (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2012-2013 Chris Pettitt
  - spymemcached (http://code.google.com/p/spymemcached/) - Copyright (c) 2006-2009  Dustin Sallings, Copyright (c) 2009-2011  Couchbase, Inc.
+ - scopt (https://github.com/scopt/scopt) - Copyright (c) scopt contributors
 
 
 All rights reserved.
@@ -303,12 +298,8 @@ The Apache Flink project bundles the following components under
 BSD-style licenses:
  
 [3-clause BSD license]
- - core (com.github.fommil.netlib:core:1.1.2 - https://github.com/fommil/netlib-java/core)
  - Kryo (https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
  - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
- - LevelDB JNI (https://github.com/fusesource/leveldbjni/) - Copyright (c) 2011, FuseSource Corp.
- - Memcached (https://github.com/memcached/memcached) - Copyright (c) 2003, Danga Interactive, Inc.
- - Redis (http://redis.io/) - Copyright (c) 2009, Salvatore Sanfilippo and Pieter Noordhuis
  
 [BSD-like License]
  - Scala Library (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
@@ -349,21 +340,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 
 -----------------------------------------------------------------------
- Mozilla Public License  - v 1.1
------------------------------------------------------------------------
-
-The Apache Flink project bundles the following components
-under the Mozilla Public License (v 1.1)
-
- - RabbitMQ (http://www.rabbitmq.com) 
-      The Initial Developer of the Original Code is GoPivotal,Ltd.
-      Copyright (c) 2007-2013 GoPivotal, Inc.  All Rights Reserved.
- 
-You may obtain a copy of the Mozilla Public License (v 1.1) at
-http://www.mozilla.org/MPL/
-
-
------------------------------------------------------------------------
  Eclipse Public License  - v 1.0
 -----------------------------------------------------------------------
 
@@ -375,6 +351,7 @@ under the Eclipse Public License (v 1.0)
 
 You may obtain a copy of the Eclipse Public License (v 1.0) at
 https://www.eclipse.org/legal/epl-v10.html
+
 
 -----------------------------------------------------------------------
  The Open Font License
@@ -541,37 +518,3 @@ JSON in Java
    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
    DEALINGS IN THE SOFTWARE.
 
------------------------------------------------------------------------
- For Apache Kafka
------------------------------------------------------------------------
-
-Apache Kafka depends on SBT licensed under the following license
-
-SBT LICENSE
-
-Copyright (c) 2008, 2009, 2010 Mark Harrah, Jason Zaugg
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-3. The name of the author may not be used to endorse or promote products
-   derived from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
------------------------------------------------------------------------
