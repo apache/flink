@@ -34,7 +34,6 @@ import org.apache.flink.graph.example.utils.JaccardSimilarityMeasureData;
 import org.apache.flink.types.NullValue;
 
 import java.util.HashSet;
-import java.util.Iterator;
 
 /**
  * Given a directed, unweighted graph, return a weighted graph where the edge values are equal
@@ -110,19 +109,13 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 		public Vertex<Long, HashSet<Long>> iterateEdges(Iterable<Tuple2<Long, Edge<Long, Double>>> edges) throws Exception {
 
 			HashSet<Long> neighborsHashSet = new HashSet<Long>();
-			Tuple2<Long, Edge<Long, Double>> next = null;
-			Iterator<Tuple2<Long, Edge<Long, Double>>> edgesIterator = edges.iterator();
+			long vertexId = -1;
 
-			while (edgesIterator.hasNext()) {
-				next = edgesIterator.next();
-				if(next.f1.getSource() == next.f0) {
-					neighborsHashSet.add(next.f1.getTarget());
-				} else {
-					neighborsHashSet.add(next.f1.getSource());
-				}
+			for(Tuple2<Long, Edge<Long, Double>> edge : edges) {
+				neighborsHashSet.add(getNeighborID(edge));
+				vertexId = edge.f0;
 			}
-
-			return new Vertex<Long, HashSet<Long>>(next.f0, neighborsHashSet);
+			return new Vertex<Long, HashSet<Long>>(vertexId, neighborsHashSet);
 		}
 	}
 
@@ -155,6 +148,19 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 			long intersection = unionPlusIntersection - union;
 
 			return new Tuple3<Long, Long, Double>(source.getId(), target.getId(), (double) intersection/union);
+		}
+	}
+
+	/**
+	 * Helper method that extracts the neighborId given an edge.
+	 * @param edge
+	 * @return
+	 */
+	private static Long getNeighborID(Tuple2<Long, Edge<Long, Double>> edge) {
+		if(edge.f1.getSource() == edge.f0) {
+			return edge.f1.getTarget();
+		} else {
+			return edge.f1.getSource();
 		}
 	}
 
