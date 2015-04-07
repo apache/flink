@@ -18,19 +18,18 @@
 package org.apache.flink.api.table.codegen
 
 import java.util.concurrent.atomic.AtomicInteger
+
+import org.codehaus.janino.SimpleCompiler
+import org.slf4j.LoggerFactory
+
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.{RenamingProxyTypeInfo, RowTypeInfo}
 import org.apache.flink.api.table.{ExpressionException, expressions}
-import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, BasicTypeInfo, TypeInformation}
-
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, PojoTypeInfo}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.slf4j.LoggerFactory
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 /** Base class for all code generation classes. This provides the functionality for generating
   * code from an [[Expression]] tree. Derived classes must embed this in a lambda function
@@ -48,65 +47,64 @@ abstract class ExpressionCodeGenerator[R](
     cl: ClassLoader) {
   protected val log = LoggerFactory.getLogger(classOf[ExpressionCodeGenerator[_]])
 
-  import scala.reflect.runtime.{universe => ru}
   import scala.reflect.runtime.universe._
+  import scala.reflect.runtime.{universe => ru}
 
   if (cl == null) {
     throw new IllegalArgumentException("ClassLoader must not be null.")
   }
 
-  import scala.tools.reflect.ToolBox
+  val compiler = new SimpleCompiler()
+  compiler.setParentClassLoader(cl)
 
-  protected val (mirror, toolBox) = ReflectionLock.synchronized {
-    val mirror = runtimeMirror(cl)
-    (mirror, mirror.mkToolBox())
-  }
 
   // This is to be implemented by subclasses, we have it like this
   // so that we only call it from here with the Scala Reflection Lock.
   protected def generateInternal(): R
 
   final def generate(): R = {
-    ReflectionLock.synchronized {
-      generateInternal()
-    }
+    generateInternal()
   }
 
-  val cache = mutable.HashMap[Expression, GeneratedExpression]()
-
   protected def generateExpression(expr: Expression): GeneratedExpression = {
-    // doesn't work yet, because we insert the same code twice and reuse variable names
-    //    cache.getOrElseUpdate(expr, generateExpressionInternal(expr))
     generateExpressionInternal(expr)
   }
 
   protected def generateExpressionInternal(expr: Expression): GeneratedExpression = {
     //  protected def generateExpression(expr: Expression): GeneratedExpression = {
-    val nullTerm = freshTermName("isNull")
-    val resultTerm = freshTermName("result")
+    val nullTerm = freshName("isNull")
+    val resultTerm = freshName("result")
 
     // For binary predicates that must only be evaluated when both operands are non-null.
     // This will write to nullTerm and resultTerm, so don't use those term names
     // after using this function
     def generateIfNonNull(left: Expression, right: Expression, resultType: TypeInformation[_])
-                         (expr: (TermName, TermName) => Tree): Seq[Tree] = {
+                         (expr: (String, String) => String): String = {
       val leftCode = generateExpression(left)
       val rightCode = generateExpression(right)
 
+      val leftTpe = typeTermForTypeInfo(left.typeInfo)
+      val rightTpe = typeTermForTypeInfo(right.typeInfo)
+      val resultTpe = typeTermForTypeInfo(resultType)
 
       if (nullCheck) {
-        leftCode.code ++ rightCode.code ++ q"""
-        val $nullTerm = ${leftCode.nullTerm}|| ${rightCode.nullTerm}
-        val $resultTerm = if ($nullTerm) {
-          ${defaultPrimitive(resultType)}
-        } else {
-          ${expr(leftCode.resultTerm, rightCode.resultTerm)}
-        }
-        """.children
+        leftCode.code + "\n" + 
+          rightCode.code + "\n" +
+          s"""
+            |boolean $nullTerm = ${leftCode.nullTerm} || ${rightCode.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm) {
+            |  $resultTerm = ${defaultPrimitive(resultType)}
+            |} else {
+            |  $resultTerm = ${expr(leftCode.resultTerm, rightCode.resultTerm)}
+            |}
+          """.stripMargin
       } else {
-        leftCode.code ++ rightCode.code :+ q"""
-        val $resultTerm = ${expr(leftCode.resultTerm, rightCode.resultTerm)}
-        """
+        leftCode.code + "\n" +
+          rightCode.code + "\n" +
+          s"""
+            |$resultTpe $resultTerm = ${expr(leftCode.resultTerm, rightCode.resultTerm)};
+          """.stripMargin
       }
     }
 
@@ -114,92 +112,94 @@ abstract class ExpressionCodeGenerator[R](
       case expressions.Naming(namedExpr, _) => namedExpr
       case _ => expr
     }
+    
+    val resultTpe = typeTermForTypeInfo(cleanedExpr.typeInfo)
 
-    val code: Seq[Tree] = cleanedExpr match {
+    val code: String = cleanedExpr match {
 
       case expressions.Literal(null, typeInfo) =>
         if (nullCheck) {
-          q"""
-            val $nullTerm = true
-            val resultTerm = null
-          """.children
+          s"""
+            |boolean $nullTerm = true;
+            |$resultTpe resultTerm = null;
+          """.stripMargin
         } else {
-          Seq( q"""
-            val resultTerm = null
-          """)
+          s"""
+            |$resultTpe resultTerm = null;
+          """.stripMargin
         }
 
       case expressions.Literal(intValue: Int, INT_TYPE_INFO) =>
         if (nullCheck) {
-          q"""
-            val $nullTerm = false
-            val $resultTerm = $intValue
-          """.children
+          s"""
+            |boolean $nullTerm = false;
+            |$resultTpe $resultTerm = $intValue;
+          """.stripMargin
         } else {
-          Seq( q"""
-            val $resultTerm = $intValue
-          """)
+          s"""
+            |$resultTpe $resultTerm = $intValue;
+          """.stripMargin
         }
 
       case expressions.Literal(longValue: Long, LONG_TYPE_INFO) =>
         if (nullCheck) {
-          q"""
-            val $nullTerm = false
-            val $resultTerm = $longValue
-          """.children
+          s"""
+            |boolean $nullTerm = false;
+            |$resultTpe $resultTerm = ${longValue}L;
+          """.stripMargin
         } else {
-          Seq( q"""
-            val $resultTerm = $longValue
-          """)
+          s"""
+            |$resultTpe $resultTerm = ${longValue}L;
+          """.stripMargin
         }
 
 
       case expressions.Literal(doubleValue: Double, DOUBLE_TYPE_INFO) =>
         if (nullCheck) {
-          q"""
-            val $nullTerm = false
-            val $resultTerm = $doubleValue
-          """.children
+          s"""
+            |val $nullTerm = false
+            |$resultTpe $resultTerm = $doubleValue;
+          """.stripMargin
         } else {
-          Seq( q"""
-              val $resultTerm = $doubleValue
-          """)
+          s"""
+            |$resultTpe $resultTerm = $doubleValue;
+          """.stripMargin
         }
 
       case expressions.Literal(floatValue: Float, FLOAT_TYPE_INFO) =>
         if (nullCheck) {
-          q"""
-            val $nullTerm = false
-            val $resultTerm = $floatValue
-          """.children
+          s"""
+            |val $nullTerm = false
+            |$resultTpe $resultTerm = ${floatValue}f;
+          """.stripMargin
         } else {
-          Seq( q"""
-              val $resultTerm = $floatValue
-          """)
+          s"""
+            |$resultTpe $resultTerm = ${floatValue}f;
+          """.stripMargin
         }
 
       case expressions.Literal(strValue: String, STRING_TYPE_INFO) =>
         if (nullCheck) {
-          q"""
-            val $nullTerm = false
-            val $resultTerm = $strValue
-          """.children
+          s"""
+            |val $nullTerm = false
+            |$resultTpe $resultTerm = "$strValue";
+          """.stripMargin
         } else {
-          Seq( q"""
-              val $resultTerm = $strValue
-          """)
+          s"""
+            |$resultTpe $resultTerm = "$strValue";
+          """.stripMargin
         }
 
       case expressions.Literal(boolValue: Boolean, BOOLEAN_TYPE_INFO) =>
         if (nullCheck) {
-          q"""
-            val $nullTerm = false
-            val $resultTerm = $boolValue
-          """.children
+          s"""
+            |val $nullTerm = false
+            |$resultTpe $resultTerm = $boolValue;
+          """.stripMargin
         } else {
-          Seq( q"""
-              val $resultTerm = $boolValue
-          """)
+          s"""
+            $resultTpe $resultTerm = $boolValue;
+          """.stripMargin
         }
 
       case Substring(str, beginIndex, endIndex) =>
@@ -207,120 +207,88 @@ abstract class ExpressionCodeGenerator[R](
         val beginIndexCode = generateExpression(beginIndex)
         val endIndexCode = generateExpression(endIndex)
         if (nullCheck) {
-          strCode.code ++ beginIndexCode.code ++ endIndexCode.code ++ q"""
-            val $nullTerm =
-              ${strCode.nullTerm}|| ${beginIndexCode.nullTerm}|| ${endIndexCode.nullTerm}
-            if ($nullTerm) {
-              ${defaultPrimitive(str.typeInfo)}
-            } else {
-              val $resultTerm = if (${endIndexCode.resultTerm} == Int.MaxValue) {
-                 (${strCode.resultTerm}).substring(${beginIndexCode.resultTerm})
+          strCode.code +
+            beginIndexCode.code +
+            endIndexCode.code +
+            s"""
+              boolean $nullTerm =
+                ${strCode.nullTerm} || ${beginIndexCode.nullTerm} || ${endIndexCode.nullTerm};
+              $resultTpe $resultTerm;
+              if ($nullTerm) {
+                $resultTerm = ${defaultPrimitive(str.typeInfo)};
               } else {
-                (${strCode.resultTerm}).substring(
-                  ${beginIndexCode.resultTerm},
-                  ${endIndexCode.resultTerm})
+                if (${endIndexCode.resultTerm} == Int.MaxValue) {
+                   $resultTerm = (${strCode.resultTerm}).substring(${beginIndexCode.resultTerm});
+                } else {
+                  $resultTerm = (${strCode.resultTerm}).substring(
+                    ${beginIndexCode.resultTerm},
+                    ${endIndexCode.resultTerm});
+                }
               }
-            }
-          """.children
+            """.stripMargin
         } else {
-          strCode.code ++ beginIndexCode.code ++ endIndexCode.code :+ q"""
-            val $resultTerm = if (${endIndexCode.resultTerm} == Int.MaxValue) {
-              (${strCode.resultTerm}).substring(${beginIndexCode.resultTerm})
-            } else {
-              (${strCode.resultTerm}).substring(
-                ${beginIndexCode.resultTerm},
-                ${endIndexCode.resultTerm})
-            }
-          """
+          strCode.code +
+            beginIndexCode.code +
+            endIndexCode.code +
+            s"""
+              $resultTpe $resultTerm;
+
+              if (${endIndexCode.resultTerm} == Integer.MAX_VALUE) {
+                $resultTerm = (${strCode.resultTerm}).substring(${beginIndexCode.resultTerm});
+              } else {
+                $resultTerm = (${strCode.resultTerm}).substring(
+                  ${beginIndexCode.resultTerm},
+                  ${endIndexCode.resultTerm});
+              }
+            """
         }
 
       case expressions.Cast(child: Expression, STRING_TYPE_INFO) =>
         val childGen = generateExpression(child)
         val castCode = if (nullCheck) {
-          q"""
-            val $nullTerm = ${childGen.nullTerm}
-            val $resultTerm = if ($nullTerm == null) {
-              null
-            } else {
-              ${childGen.resultTerm}.toString
-            }
-          """.children
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm;
+            |if ($nullTerm == null) {
+            |  $resultTerm = null;
+            |} else {
+            |  $resultTerm = "" + ${childGen.resultTerm};
+            |}
+          """.stripMargin
         } else {
-          Seq( q"""
-            val $resultTerm = ${childGen.resultTerm}.toString
-          """)
+          s"""
+            |$resultTpe $resultTerm = "" + ${childGen.resultTerm};
+          """.stripMargin
         }
-        childGen.code ++ castCode
+        childGen.code + castCode
 
-      case expressions.Cast(child: Expression, INT_TYPE_INFO) =>
+      case expressions.Cast(child: Expression, tpe: BasicTypeInfo[_]) =>
         val childGen = generateExpression(child)
         val castCode = if (nullCheck) {
-          q"""
-            val $nullTerm = ${childGen.nullTerm}
-            val $resultTerm = ${childGen.resultTerm}.toInt
-          """.children
+          s"""
+            |boolean $nullTerm = ${childGen.nullTerm};
+            |$resultTpe $resultTerm =
+            |  ${tpe.getTypeClass.getCanonicalName}.valueOf(${childGen.resultTerm});
+          """.stripMargin
         } else {
-          Seq( q"""
-            val $resultTerm = ${childGen.resultTerm}.toInt
-          """)
+          s"""
+            |$resultTpe $resultTerm =
+            |  ${tpe.getTypeClass.getCanonicalName}.valueOf(${childGen.resultTerm});
+          """.stripMargin
         }
-        childGen.code ++ castCode
-
-      case expressions.Cast(child: Expression, LONG_TYPE_INFO) =>
-        val childGen = generateExpression(child)
-        val castCode = if (nullCheck) {
-          q"""
-            val $nullTerm = ${childGen.nullTerm}
-            val $resultTerm = ${childGen.resultTerm}.toLong
-          """.children
-        } else {
-          Seq( q"""
-            val $resultTerm = ${childGen.resultTerm}.toLong
-          """)
-        }
-        childGen.code ++ castCode
-
-      case expressions.Cast(child: Expression, FLOAT_TYPE_INFO) =>
-        val childGen = generateExpression(child)
-        val castCode = if (nullCheck) {
-          q"""
-            val $nullTerm = ${childGen.nullTerm}
-            val $resultTerm = ${childGen.resultTerm}.toFloat
-          """.children
-        } else {
-          Seq( q"""
-            val $resultTerm = ${childGen.resultTerm}.toFloat
-          """)
-        }
-        childGen.code ++ castCode
-
-      case expressions.Cast(child: Expression, DOUBLE_TYPE_INFO) =>
-        val childGen = generateExpression(child)
-        val castCode = if (nullCheck) {
-          q"""
-            val $nullTerm = ${childGen.nullTerm}
-            val $resultTerm = ${childGen.resultTerm}.toDouble
-          """.children
-        } else {
-          Seq( q"""
-            val $resultTerm = ${childGen.resultTerm}.toDouble
-          """)
-        }
-        childGen.code ++ castCode
+        childGen.code + castCode
 
       case ResolvedFieldReference(fieldName, fieldTpe: TypeInformation[_]) =>
         inputs find { i => i._2.hasField(fieldName)} match {
           case Some((inputName, inputTpe)) =>
             val fieldCode = getField(newTermName(inputName), inputTpe, fieldName, fieldTpe)
             if (nullCheck) {
-              q"""
-                val $resultTerm = $fieldCode
-                val $nullTerm = $resultTerm == null
-              """.children
+              s"""
+                |$resultTpe $resultTerm = $fieldCode;
+                |boolean $nullTerm = $resultTerm == null;
+              """.stripMargin
             } else {
-              Seq( q"""
-                val $resultTerm = $fieldCode
-              """)
+              s"""$resultTpe $resultTerm = $fieldCode;"""
             }
 
           case None => throw new ExpressionException("Could not get accessor for " + fieldName
@@ -329,184 +297,196 @@ abstract class ExpressionCodeGenerator[R](
 
       case GreaterThan(left, right) =>
         generateIfNonNull(left, right, BOOLEAN_TYPE_INFO) {
-          (leftTerm, rightTerm) => q"$leftTerm > $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm > $rightTerm"
         }
 
       case GreaterThanOrEqual(left, right) =>
         generateIfNonNull(left, right, BOOLEAN_TYPE_INFO) {
-          (leftTerm, rightTerm) => q"$leftTerm >= $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm >= $rightTerm"
         }
 
       case LessThan(left, right) =>
         generateIfNonNull(left, right, BOOLEAN_TYPE_INFO) {
-          (leftTerm, rightTerm) => q"$leftTerm < $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm < $rightTerm"
         }
 
       case LessThanOrEqual(left, right) =>
         generateIfNonNull(left, right, BOOLEAN_TYPE_INFO) {
-          (leftTerm, rightTerm) => q"$leftTerm <= $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm <= $rightTerm"
         }
 
       case EqualTo(left, right) =>
         generateIfNonNull(left, right, BOOLEAN_TYPE_INFO) {
-          (leftTerm, rightTerm) => q"$leftTerm == $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm == $rightTerm"
         }
 
       case NotEqualTo(left, right) =>
         generateIfNonNull(left, right, BOOLEAN_TYPE_INFO) {
-          (leftTerm, rightTerm) => q"$leftTerm != $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm != $rightTerm"
         }
 
       case And(left, right) =>
         generateIfNonNull(left, right, BOOLEAN_TYPE_INFO) {
-          (leftTerm, rightTerm) => q"$leftTerm && $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm && $rightTerm"
         }
 
       case Or(left, right) =>
         generateIfNonNull(left, right, BOOLEAN_TYPE_INFO) {
-          (leftTerm, rightTerm) => q"$leftTerm || $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm || $rightTerm"
         }
 
       case Plus(left, right) =>
         generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => q"$leftTerm + $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm + $rightTerm"
         }
 
       case Minus(left, right) =>
         generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => q"$leftTerm - $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm - $rightTerm"
         }
 
       case Div(left, right) =>
         generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => q"$leftTerm / $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm / $rightTerm"
         }
 
       case Mul(left, right) =>
         generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => q"$leftTerm * $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm * $rightTerm"
         }
 
       case Mod(left, right) =>
         generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => q"$leftTerm % $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm % $rightTerm"
         }
 
       case UnaryMinus(child) =>
         val childCode = generateExpression(child)
         if (nullCheck) {
-          childCode.code ++ q"""
-            val $nullTerm = ${childCode.nullTerm}
-            if ($nullTerm) {
-              ${defaultPrimitive(child.typeInfo)}
-            } else {
-              val $resultTerm = -(${childCode.resultTerm})
-            }
-          """.children
+          childCode.code +
+            s"""
+              |boolean $nullTerm = ${childCode.nullTerm};
+              |if ($nullTerm) {
+              |  ${defaultPrimitive(child.typeInfo)};
+              |} else {
+              |  $resultTpe $resultTerm = -(${childCode.resultTerm});
+              |}
+            """.stripMargin
         } else {
-          childCode.code :+ q"""
-              val $resultTerm = -(${childCode.resultTerm})
-          """
+          childCode.code +
+            s"""
+              |$resultTpe $resultTerm = -(${childCode.resultTerm});
+            """.stripMargin
         }
 
       case BitwiseAnd(left, right) =>
         generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => q"$leftTerm & $rightTerm"
+          (leftTerm, rightTerm) => s"(int) $leftTerm & (int) $rightTerm"
         }
 
       case BitwiseOr(left, right) =>
         generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => q"$leftTerm | $rightTerm"
+          (leftTerm, rightTerm) => s"(int) $leftTerm | (int) $rightTerm"
         }
 
       case BitwiseXor(left, right) =>
         generateIfNonNull(left, right, expr.typeInfo) {
-          (leftTerm, rightTerm) => q"$leftTerm ^ $rightTerm"
+          (leftTerm, rightTerm) => s"(int) $leftTerm ^ (int) $rightTerm"
         }
 
       case BitwiseNot(child) =>
         val childCode = generateExpression(child)
         if (nullCheck) {
-          childCode.code ++ q"""
-            val $nullTerm = ${childCode.nullTerm}
-            if ($nullTerm) {
-              ${defaultPrimitive(child.typeInfo)}
-            } else {
-              val $resultTerm = ~(${childCode.resultTerm})
-            }
-          """.children
+          childCode.code +
+            s"""
+              |boolean $nullTerm = ${childCode.nullTerm};
+              |if ($nullTerm) {
+              |  ${defaultPrimitive(child.typeInfo)};
+              |} else {
+              |  $resultTpe $resultTerm = ~((int) ${childCode.resultTerm});
+              |}
+            """.stripMargin
         } else {
-          childCode.code :+ q"""
-              val $resultTerm = ~(${childCode.resultTerm})
-          """
+          childCode.code +
+            s"""
+              |$resultTpe $resultTerm = ~((int) ${childCode.resultTerm});
+            """.stripMargin
         }
 
       case Not(child) =>
         val childCode = generateExpression(child)
         if (nullCheck) {
-          childCode.code ++ q"""
-            val $nullTerm = ${childCode.nullTerm}
-            if ($nullTerm) {
-              ${defaultPrimitive(child.typeInfo)}
-            } else {
-              val $resultTerm = !(${childCode.resultTerm})
-            }
-          """.children
+          childCode.code +
+            s"""
+              |boolean $nullTerm = ${childCode.nullTerm};
+              |if ($nullTerm) {
+              |  ${defaultPrimitive(child.typeInfo)};
+              |} else {
+              |  $resultTpe $resultTerm = !(${childCode.resultTerm});
+              |}
+            """.stripMargin
         } else {
-          childCode.code :+ q"""
-              val $resultTerm = !(${childCode.resultTerm})
-          """
+          childCode.code +
+            s"""
+              |$resultTpe $resultTerm = !(${childCode.resultTerm});
+            """.stripMargin
         }
 
       case IsNull(child) =>
         val childCode = generateExpression(child)
         if (nullCheck) {
-          childCode.code ++ q"""
-            val $nullTerm = ${childCode.nullTerm}
-            if ($nullTerm) {
-              ${defaultPrimitive(child.typeInfo)}
-            } else {
-              val $resultTerm = (${childCode.resultTerm}) == null
-            }
-          """.children
+          childCode.code +
+            s"""
+              |boolean $nullTerm = ${childCode.nullTerm};
+              |if ($nullTerm) {
+              |  ${defaultPrimitive(child.typeInfo)};
+              |} else {
+              |  $resultTpe $resultTerm = (${childCode.resultTerm}) == null;
+              |}
+            """.stripMargin
         } else {
-          childCode.code :+ q"""
-              val $resultTerm = (${childCode.resultTerm}) == null
-          """
+          childCode.code +
+            s"""
+              |$resultTpe $resultTerm = (${childCode.resultTerm}) == null;
+            """.stripMargin
         }
 
       case IsNotNull(child) =>
         val childCode = generateExpression(child)
         if (nullCheck) {
-          childCode.code ++ q"""
-            val $nullTerm = ${childCode.nullTerm}
-            if ($nullTerm) {
-              ${defaultPrimitive(child.typeInfo)}
-            } else {
-              val $resultTerm = (${childCode.resultTerm}) != null
-            }
-          """.children
+          childCode.code +
+            s"""
+              |boolean $nullTerm = ${childCode.nullTerm};
+              |if ($nullTerm) {
+              |  ${defaultPrimitive(child.typeInfo)};
+              |} else {
+              |  $resultTpe $resultTerm = (${childCode.resultTerm}) != null;
+              |}
+            """.stripMargin
         } else {
-          childCode.code :+ q"""
-              val $resultTerm = (${childCode.resultTerm}) != null
-          """
+          childCode.code +
+            s"""
+              |$resultTpe $resultTerm = (${childCode.resultTerm}) != null;
+            """.stripMargin
         }
 
       case Abs(child) =>
         val childCode = generateExpression(child)
         if (nullCheck) {
-          childCode.code ++ q"""
-            val $nullTerm = ${childCode.nullTerm}
-            if ($nullTerm) {
-              ${defaultPrimitive(child.typeInfo)}
-            } else {
-              val $resultTerm = Math.abs(${childCode.resultTerm})
-            }
-          """.children
+          childCode.code +
+            s"""
+              |boolean $nullTerm = ${childCode.nullTerm};
+              |if ($nullTerm) {
+              |  ${defaultPrimitive(child.typeInfo)};
+              |} else {
+              |  $resultTpe $resultTerm = Math.abs(${childCode.resultTerm});
+              |}
+            """.stripMargin
         } else {
-          childCode.code :+ q"""
-              val $resultTerm = Math.abs(${childCode.resultTerm})
-          """
+          childCode.code +
+            s"""
+              |$resultTpe $resultTerm = Math.abs(${childCode.resultTerm});
+            """.stripMargin
         }
 
       case _ => throw new ExpressionException("Could not generate code for expression " + expr)
@@ -515,34 +495,33 @@ abstract class ExpressionCodeGenerator[R](
     GeneratedExpression(code, resultTerm, nullTerm)
   }
 
-  case class GeneratedExpression(code: Seq[Tree], resultTerm: TermName, nullTerm: TermName)
+  case class GeneratedExpression(code: String, resultTerm: String, nullTerm: String)
 
-  // We don't have c.freshName
-  // According to http://docs.scala-lang.org/overviews/quasiquotes/hygiene.html
-  // it's coming for 2.11. We can't wait that long...
-  def freshTermName(name: String): TermName = {
-    newTermName(s"$name$$${freshNameCounter.getAndIncrement}")
+  def freshName(name: String): String = {
+    s"$name$$${freshNameCounter.getAndIncrement}"
   }
 
   val freshNameCounter = new AtomicInteger
 
   protected def getField(
-                          inputTerm: TermName,
-                          inputType: CompositeType[_],
-                          fieldName: String,
-                          fieldType: TypeInformation[_]): Tree = {
+    inputTerm: TermName,
+    inputType: CompositeType[_],
+    fieldName: String,
+    fieldType: TypeInformation[_]): String = {
     val accessor = fieldAccessorFor(inputType, fieldName)
+    val fieldTpe = typeTermForTypeInfo(fieldType)
+
     accessor match {
       case ObjectFieldAccessor(fieldName) =>
         val fieldTerm = newTermName(fieldName)
-        q"$inputTerm.$fieldTerm.asInstanceOf[${typeTermForTypeInfo(fieldType)}]"
+        s"($fieldTpe) $inputTerm.$fieldTerm"
 
       case ObjectMethodAccessor(methodName) =>
         val methodTerm = newTermName(methodName)
-        q"$inputTerm.$methodTerm().asInstanceOf[${typeTermForTypeInfo(fieldType)}]"
+        s"($fieldTpe) $inputTerm.$methodTerm()"
 
       case ProductAccessor(i) =>
-        q"$inputTerm.productElement($i).asInstanceOf[${typeTermForTypeInfo(fieldType)}]"
+        s"($fieldTpe) $inputTerm.productElement($i)"
 
     }
   }
@@ -561,7 +540,7 @@ abstract class ExpressionCodeGenerator[R](
         ProductAccessor(elementType.getFieldIndex(fieldName))
 
       case cc: CaseClassTypeInfo[_] =>
-        ObjectFieldAccessor(fieldName)
+        ObjectMethodAccessor(fieldName)
 
       case javaTup: TupleTypeInfo[_] =>
         ObjectFieldAccessor(fieldName)
@@ -576,60 +555,43 @@ abstract class ExpressionCodeGenerator[R](
     }
   }
 
-  protected def defaultPrimitive(tpe: TypeInformation[_]) = tpe match {
-    case BasicTypeInfo.INT_TYPE_INFO => ru.Literal(Constant(-1))
-    case BasicTypeInfo.LONG_TYPE_INFO => ru.Literal(Constant(1L))
-    case BasicTypeInfo.SHORT_TYPE_INFO => ru.Literal(Constant(-1.toShort))
-    case BasicTypeInfo.BYTE_TYPE_INFO => ru.Literal(Constant(-1.toByte))
-    case BasicTypeInfo.FLOAT_TYPE_INFO => ru.Literal(Constant(-1.0.toFloat))
-    case BasicTypeInfo.DOUBLE_TYPE_INFO => ru.Literal(Constant(-1.toDouble))
-    case BasicTypeInfo.BOOLEAN_TYPE_INFO => ru.Literal(Constant(false))
-    case BasicTypeInfo.STRING_TYPE_INFO => ru.Literal(Constant("<empty>"))
-    case BasicTypeInfo.CHAR_TYPE_INFO => ru.Literal(Constant('\0'))
-    case _ => ru.Literal(Constant(null))
+  protected def defaultPrimitive(tpe: TypeInformation[_]): String = tpe match {
+    case BasicTypeInfo.INT_TYPE_INFO => "-1"
+    case BasicTypeInfo.LONG_TYPE_INFO => "-1"
+    case BasicTypeInfo.SHORT_TYPE_INFO => "-1"
+    case BasicTypeInfo.BYTE_TYPE_INFO => "-1"
+    case BasicTypeInfo.FLOAT_TYPE_INFO => "-1.0f"
+    case BasicTypeInfo.DOUBLE_TYPE_INFO => "-1.0d"
+    case BasicTypeInfo.BOOLEAN_TYPE_INFO => "false"
+    case BasicTypeInfo.STRING_TYPE_INFO => "\"<empty>\""
+    case BasicTypeInfo.CHAR_TYPE_INFO => "'\\0'"
+    case _ => "null"
   }
 
-  protected def typeTermForTypeInfo(typeInfo: TypeInformation[_]): Tree = {
-    val tpe = typeForTypeInfo(typeInfo)
-    tq"$tpe"
-  }
+  protected def typeTermForTypeInfo(tpe: TypeInformation[_]): String = tpe match {
 
-  // We need two separate methods here because typeForTypeInfo is recursive when generating
-  // the type for a type with generic parameters.
-  protected def typeForTypeInfo(tpe: TypeInformation[_]): Type = tpe match {
+//    case BasicTypeInfo.INT_TYPE_INFO => "int"
+//    case BasicTypeInfo.LONG_TYPE_INFO => "long"
+//    case BasicTypeInfo.SHORT_TYPE_INFO => "short"
+//    case BasicTypeInfo.BYTE_TYPE_INFO => "byte"
+//    case BasicTypeInfo.FLOAT_TYPE_INFO => "float"
+//    case BasicTypeInfo.DOUBLE_TYPE_INFO => "double"
+//    case BasicTypeInfo.BOOLEAN_TYPE_INFO => "boolean"
+//    case BasicTypeInfo.CHAR_TYPE_INFO => "char"
 
     // From PrimitiveArrayTypeInfo we would get class "int[]", scala reflections
     // does not seem to like this, so we manually give the correct type here.
-    case PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO => typeOf[Array[Int]]
-    case PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO => typeOf[Array[Long]]
-    case PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO => typeOf[Array[Short]]
-    case PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO => typeOf[Array[Byte]]
-    case PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO => typeOf[Array[Float]]
-    case PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO => typeOf[Array[Double]]
-    case PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO => typeOf[Array[Boolean]]
-    case PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO => typeOf[Array[Char]]
+    case PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO => "int[]"
+    case PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO => "long[]"
+    case PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO => "short[]"
+    case PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO => "byte[]"
+    case PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO => "float[]"
+    case PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO => "double[]"
+    case PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO => "boolean[]"
+    case PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO => "char[]"
 
     case _ =>
-      val clazz = mirror.staticClass(tpe.getTypeClass.getCanonicalName)
-
-      clazz.selfType.erasure match {
-        case ExistentialType(_, underlying) => underlying
-
-        case tpe@TypeRef(prefix, sym, Nil) =>
-          // Non-generic type, just return the type
-          tpe
-
-        case TypeRef(prefix, sym, emptyParams) =>
-          val genericTypeInfos = tpe.getGenericParameters.asScala
-          if (emptyParams.length != genericTypeInfos.length) {
-            throw new RuntimeException("Number of type parameters does not match.")
-          }
-          val typeParams = genericTypeInfos.map(typeForTypeInfo)
-          // TODO: remove, added only for migration of the line below, as suggested by the compiler
-          import compat._
-          TypeRef(prefix, sym, typeParams.toList)
-      }
+      tpe.getTypeClass.getCanonicalName
 
   }
-
 }

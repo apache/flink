@@ -47,6 +47,7 @@ public class JavaTableExample {
 			return "WC " + word + " " + count;
 		}
 	}
+
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 		TableEnvironment tableEnv = new TableEnvironment();

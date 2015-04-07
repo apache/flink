@@ -216,7 +216,7 @@ case class Table(private[flink] val operation: PlanNode) {
   }
 
   /**
-   * Joins to [[Table]]s. Similar to an SQL join. The fields of the two joined
+   * Joins two [[Table]]s. Similar to an SQL join. The fields of the two joined
    * operations must not overlap, use [[as]] to rename fields if necessary. You can use
    * where and select clauses after a join to further specify the behaviour of the join.
    *

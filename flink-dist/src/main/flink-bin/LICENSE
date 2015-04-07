@@ -300,6 +300,7 @@ BSD-style licenses:
 [3-clause BSD license]
  - Kryo (https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
  - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
+ - Janino (http://docs.codehaus.org/display/JANINO/Home) - Copyright (c) 2001-2010, Arno Unkrig
  
 [BSD-like License]
  - Scala Library (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
