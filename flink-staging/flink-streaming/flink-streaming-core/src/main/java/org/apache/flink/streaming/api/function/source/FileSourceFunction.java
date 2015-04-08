@@ -67,7 +67,7 @@ public class FileSourceFunction extends RichParallelSourceFunction<String> {
 				String record = serializer.createInstance();
 
 				format.open(split);
-				while (!format.reachedEnd()) {
+				while (isRunning && !format.reachedEnd()) {
 					if ((record = format.nextRecord(record)) != null) {
 						collector.collect(record);
 					}
