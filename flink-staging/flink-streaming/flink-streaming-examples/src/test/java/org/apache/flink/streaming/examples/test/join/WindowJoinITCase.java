@@ -38,7 +38,10 @@ public class WindowJoinITCase extends StreamingProgramTestBase {
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WindowJoinData.WINDOW_JOIN_RESULTS, resultPath);
+		// since the two sides of the join might have different speed
+		// the exact output can not be checked just whether it is well-formed
+		// checks that the result lines look like e.g. (bob, 2, 2015)
+		checkLinesAgainstRegexp(resultPath, "^\\([a-z]+,(\\d),(\\d)+\\)");
 	}
 
 	@Override

@@ -56,11 +56,6 @@ public class WindowJoinData {
 			"(jerry,2138)\n" + "(alice,7503)\n" + "(alice,6424)\n" + "(tom,140)\n" + "(john,9802)\n" +
 			"(grace,2977)\n" + "(grace,889)\n" + "(john,1338)";
 
-	public static final String WINDOW_JOIN_RESULTS = "(bob,2,9018)\n" + "(bob,2,5472)\n" + "(bob,2,4685)\n" +
-			"(bob,2,710)\n" + "(bob,2,5936)\n" + "(bob,2,9896)\n" + "(bob,2,2048)\n" + "(bob,2,958)\n" +
-			"(bob,2,5258)\n" + "(bob,2,609)\n" + "(bob,2,1022)\n" + "(bob,2,6213)\n" + "(bob,2,3720)\n" +
-			"(bob,2,7612)\n" + "(bob,2,8302)\n" + "(bob,2,3968)\n" + "(bob,2,7461)";
-
 	private WindowJoinData() {
 	}
 }
