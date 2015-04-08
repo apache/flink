@@ -30,7 +30,7 @@ under the License.
 
 You can run Flink using Tez as an execution environment. Flink on Tez 
 is currently included in *flink-staging* in alpha. All classes are
-localted in the *org.apache.flink.tez* package.
+located in the *org.apache.flink.tez* package.
 
 ## Why Flink on Tez
 
@@ -55,7 +55,7 @@ remote execution on YARN.
 ## Local execution
 
 The `LocalTezEnvironment` can be used run programs using the local
-mode provided by Tez. This is for example WordCount using Tez local mode.
+mode provided by Tez. This example shows how WordCount can be run using the Tez local mode.
 It is identical to a normal Flink WordCount, except that the `LocalTezEnvironment` is used.
 To run in local Tez mode, you can simply run a Flink on Tez program
 from your IDE (e.g., right click and run).
@@ -65,7 +65,7 @@ public class WordCountExample {
     public static void main(String[] args) throws Exception {
         final LocalTezEnvironment env = LocalTezEnvironment.create();
 
-	    DataSet<String> text = env.fromElements(
+        DataSet<String> text = env.fromElements(
             "Who's there?",
             "I think I hear them. Stand, ho! Who's there?");
 
@@ -113,14 +113,15 @@ public class WordCountExample {
  
 - Edit the tez-site.xml configuration file, adding an entry that points to the
   location of the file. E.g., assuming that the file is in the directory `/apps/`, 
-  add the following entry to tez-site.xml
-    ~~~<property>
-      <name>tez.aux.uris</name>
-      <value>${fs.default.name}/apps/flink-tez-x.y.z-flink-fat-jar.jar</value>
-    </property>
-    ~~~
+  add the following entry to tez-site.xml:
+    {% highlight xml %}
+<property>
+  <name>tez.aux.uris</name>
+  <value>${fs.default.name}/apps/flink-tez-x.y.z-flink-fat-jar.jar</value>
+</property>
+    {% endhighlight %}  
     
-- At this point, you should be able to run the pre-packaged examples, e.g., run WordCount as:
+- At this point, you should be able to run the pre-packaged examples, e.g., run WordCount:
   {% highlight bash %}
   $ hadoop jar /path/to/flink-tez-x.y.z-flink-fat-jar.jar wc hdfs:/path/to/text hdfs:/path/to/output
   {% endhighlight %}  
@@ -130,7 +131,7 @@ public class WordCountExample {
 
 Application packaging is currently a bit different than in Flink standalone mode.
   Flink programs that run on Tez need to be packaged in a "fat jar"
-  file that contain the Flink client and executed via the `hadoop jar` command.
+  file that contain the Flink client. This jar can then be executed via the `hadoop jar` command.
   An easy way to do that is to use the provided `flink-tez-quickstart` maven archetype.
   Create a new project as
   
@@ -193,7 +194,7 @@ Application packaging is currently a bit different than in Flink standalone mode
   {% endhighlight %}
   
   The project contains an example called `YarnJob.java` that provides the skeleton 
-  for a Flink-on-Tez job. Programs execution is done currently via Hadoop's `ProgramDriver`, 
+  for a Flink-on-Tez job. Program execution is currently done using Hadoop's `ProgramDriver`, 
   see the `Driver.java` class for an example. Create the fat jar using 
   `mvn -DskipTests clean package`. The resulting jar will be located in the `target/` directory. 
   You can now execute a job as follows:
@@ -210,7 +211,7 @@ $ hadoop jar flink-on-tez/target/flink-on-tez-0.1-flink-fat-jar.jar yarnjob [com
       public static void main(String[] args) throws Exception {
           final RemoteTezEnvironment env = RemoteTezEnvironment.create();
   
-  	    DataSet<String> text = env.fromElements(
+          DataSet<String> text = env.fromElements(
               "Who's there?",
               "I think I hear them. Stand, ho! Who's there?");
   
