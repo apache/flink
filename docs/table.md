@@ -1,5 +1,5 @@
 ---
-title: "Language-Integrated Queries (Table API)"
+title: "Table API - Relational Queries"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,7 +23,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-**Language-Integrated Queries are an experimental feature**
+**The Table API an experimental feature**
 
 Flink provides an API that allows specifying operations using SQL-like expressions. Instead of 
 manipulating `DataSet` or `DataStream` you work with `Table` on which relational operations can
@@ -67,7 +67,7 @@ This is another example that shows how you
 can join to Tables:
 
 {% highlight scala %}
-case class MyResult(a: String, b: Int)
+case class MyResult(a: String, d: Int)
 
 val input1 = env.fromElements(...).toTable('a, 'b)
 val input2 = env.fromElements(...).toTable('c, 'd)
@@ -87,6 +87,21 @@ When using Java, Tables can be converted to and from DataSet and DataStream usin
 This example is equivalent to the above Scala Example:
 
 {% highlight java %}
+
+public class WC {
+
+  public WC(String word, int count) {
+    this.word = word; this.count = count;
+  }
+
+  public WC() {} // empty constructor to satisfy POJO requirements
+
+  public String word;
+  public int count;
+}
+
+...
+
 ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 TableEnvironment tableEnv = new TableEnvironment();
 
