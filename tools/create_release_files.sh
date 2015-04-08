@@ -67,8 +67,9 @@ rm CHANGELOG
 #rm -rf .git
 
 #find . -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
-# FOR MAC: find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
-find . -name 'pom.xml' -type f -exec sed -i 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+# FOR MAC:
+find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+#find . -name 'pom.xml' -type f -exec sed -i 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
 
 git commit --author="Ufuk Celebi <uce@apache.org>" -am "Commit for release $RELEASE_VERSION"
 # sry for hardcoding my name, but this makes releasing even faster
