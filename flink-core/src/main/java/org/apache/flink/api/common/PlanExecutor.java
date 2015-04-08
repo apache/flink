@@ -20,6 +20,7 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.configuration.Configuration;
 
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -169,9 +170,12 @@ public abstract class PlanExecutor {
 	 * @param clientConfiguration The configuration for the client (Akka, default.parallelism).
 	 * @param jarFiles A list of jar files that contain the user-defined function (UDF) classes and all classes used
 	 *                 from within the UDFs.
+	 * @param globalClasspaths A list of URLs that are added to the classpath of each user code classloader of the
+	 *                 program. Paths must specify a protocol (e.g. file://) and be accessible on all nodes.
 	 * @return A remote executor.
 	 */
-	public static PlanExecutor createRemoteExecutor(String hostname, int port, Configuration clientConfiguration, String... jarFiles) {
+	public static PlanExecutor createRemoteExecutor(String hostname, int port, Configuration clientConfiguration,
+			URL[] jarFiles, URL[] globalClasspaths) {
 		if (hostname == null) {
 			throw new IllegalArgumentException("The hostname must not be null.");
 		}
@@ -181,13 +185,17 @@ public abstract class PlanExecutor {
 		
 		Class<? extends PlanExecutor> reClass = loadExecutorClass(REMOTE_EXECUTOR_CLASS);
 		
-		List<String> files = (jarFiles == null || jarFiles.length == 0) ? Collections.<String>emptyList()
-																		: Arrays.asList(jarFiles); 
-		
+		List<URL> files = (jarFiles == null || jarFiles.length == 0) ?
+				Collections.<URL>emptyList() : Arrays.asList(jarFiles);
+		List<URL> paths = (globalClasspaths == null || globalClasspaths.length == 0) ?
+				Collections.<URL>emptyList() : Arrays.asList(globalClasspaths);
+
 		try {
 			PlanExecutor executor = (clientConfiguration == null) ?
-					reClass.getConstructor(String.class, int.class, List.class).newInstance(hostname, port, files) :
-					reClass.getConstructor(String.class, int.class, List.class, Configuration.class).newInstance(hostname, port, files, clientConfiguration);
+					reClass.getConstructor(String.class, int.class, List.class)
+						.newInstance(hostname, port, files) :
+					reClass.getConstructor(String.class, int.class, Configuration.class, List.class, List.class)
+						.newInstance(hostname, port, clientConfiguration, files, paths);
 			return executor;
 		}
 		catch (Throwable t) {

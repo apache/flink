@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.classloading.jar;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -40,14 +41,14 @@ import org.apache.flink.core.io.InputSplitAssigner;
 public class CustomInputSplitProgram {
 	
 	public static void main(String[] args) throws Exception {
-		
-		final String jarFile = args[0];
-		final String host = args[1];
-		final int port = Integer.parseInt(args[2]);
-		final int parallelism = Integer.parseInt(args[3]);
-		
-		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
-		env.setParallelism(parallelism);
+		final String[] jarFile = (args[0].equals(""))? null : new String[] { args[0] };
+		final URL[] classpath = (args[1].equals(""))? null : new URL[] { new URL(args[1]) };
+		final String host = args[2];
+		final int port = Integer.parseInt(args[3]);
+		final int parallelism = Integer.parseInt(args[4]);
+
+		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, parallelism, null,
+				jarFile, classpath);
 		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> data = env.createInput(new CustomInputFormat());
@@ -59,7 +60,7 @@ public class CustomInputSplitProgram {
 					return new Tuple2<Integer, Double>(value, value * 0.5);
 				}
 			})
-			.output(new DiscardingOutputFormat<Tuple2<Integer,Double>>());
+			.output(new DiscardingOutputFormat<Tuple2<Integer, Double>>());
 
 		env.execute();
 	}

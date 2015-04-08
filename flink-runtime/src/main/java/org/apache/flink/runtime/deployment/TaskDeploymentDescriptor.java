@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.Serializable;
+import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 
@@ -77,6 +78,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The list of JAR files required to run this task. */
 	private final List<BlobKey> requiredJarFiles;
+	
+	/** The list of classpaths required to run this task. */
+	private final List<URL> requiredClasspaths;
 
 	private final SerializedValue<StateHandle<?>> operatorState;
 	
@@ -89,13 +93,13 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
-			List<BlobKey> requiredJarFiles, int targetSlotNumber,
-			SerializedValue<StateHandle<?>> operatorState) {
+			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
+			int targetSlotNumber, SerializedValue<StateHandle<?>> operatorState) {
 
 		checkArgument(indexInSubtaskGroup >= 0);
 		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
 		checkArgument(targetSlotNumber >= 0);
-		
+
 		this.jobID = checkNotNull(jobID);
 		this.vertexID = checkNotNull(vertexID);
 		this.executionId = checkNotNull(executionId);
@@ -108,6 +112,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.producedPartitions = checkNotNull(producedPartitions);
 		this.inputGates = checkNotNull(inputGates);
 		this.requiredJarFiles = checkNotNull(requiredJarFiles);
+		this.requiredClasspaths = checkNotNull(requiredClasspaths);
 		this.targetSlotNumber = targetSlotNumber;
 		this.operatorState = operatorState;
 	}
@@ -118,11 +123,12 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
-			List<BlobKey> requiredJarFiles, int targetSlotNumber) {
+			List<BlobKey> requiredJarFiles, List<URL> requiredClasspaths,
+			int targetSlotNumber) {
 
 		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
-				inputGates, requiredJarFiles, targetSlotNumber, null);
+				inputGates, requiredJarFiles, requiredClasspaths, targetSlotNumber, null);
 	}
 
 	/**
@@ -206,6 +212,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public List<BlobKey> getRequiredJarFiles() {
 		return requiredJarFiles;
+	}
+
+	public List<URL> getRequiredClasspaths() {
+		return requiredClasspaths;
 	}
 
 	@Override

@@ -21,6 +21,7 @@ package org.apache.flink.client;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
@@ -49,53 +50,66 @@ import org.apache.flink.configuration.Configuration;
  * remotely execute program parts.</p>
  */
 public class RemoteExecutor extends PlanExecutor {
-		
+
 	private final Object lock = new Object();
-	
-	private final List<String> jarFiles;
+
+	private final List<URL> jarFiles;
+
+	private final List<URL> globalClasspaths;
 
 	private final Configuration clientConfiguration;
 
 	private Client client;
-	
+
 	private int defaultParallelism = 1;
-	
-	
+
+
 	public RemoteExecutor(String hostname, int port) {
-		this(hostname, port, Collections.<String>emptyList(), new Configuration());
+		this(hostname, port, new Configuration(), Collections.<URL>emptyList(),
+				Collections.<URL>emptyList());
 	}
-	
-	public RemoteExecutor(String hostname, int port, String jarFile) {
-		this(hostname, port, Collections.singletonList(jarFile), new Configuration());
+
+	public RemoteExecutor(String hostname, int port, URL jarFile) {
+		this(hostname, port, new Configuration(), Collections.singletonList(jarFile),
+				Collections.<URL>emptyList());
 	}
-	
-	public RemoteExecutor(String hostport, String jarFile) {
-		this(getInetFromHostport(hostport), Collections.singletonList(jarFile), new Configuration());
+
+	public RemoteExecutor(String hostport, URL jarFile) {
+		this(getInetFromHostport(hostport), new Configuration(), Collections.singletonList(jarFile),
+				Collections.<URL>emptyList());
 	}
-	
-	public RemoteExecutor(String hostname, int port, List<String> jarFiles) {
-		this(new InetSocketAddress(hostname, port), jarFiles, new Configuration());
+
+	public RemoteExecutor(String hostname, int port, List<URL> jarFiles) {
+		this(new InetSocketAddress(hostname, port), new Configuration(), jarFiles,
+				Collections.<URL>emptyList());
 	}
 
 	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration) {
-		this(hostname, port, Collections.<String>emptyList(), clientConfiguration);
+		this(hostname, port, clientConfiguration, Collections.<URL>emptyList(),
+				Collections.<URL>emptyList());
 	}
 
-	public RemoteExecutor(String hostname, int port, String jarFile, Configuration clientConfiguration) {
-		this(hostname, port, Collections.singletonList(jarFile), clientConfiguration);
+	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration, URL jarFile) {
+		this(hostname, port, clientConfiguration, Collections.singletonList(jarFile),
+				Collections.<URL>emptyList());
 	}
 
-	public RemoteExecutor(String hostport, String jarFile, Configuration clientConfiguration) {
-		this(getInetFromHostport(hostport), Collections.singletonList(jarFile), clientConfiguration);
+	public RemoteExecutor(String hostport, Configuration clientConfiguration, URL jarFile) {
+		this(getInetFromHostport(hostport), clientConfiguration,
+				Collections.singletonList(jarFile), Collections.<URL>emptyList());
 	}
 
-	public RemoteExecutor(String hostname, int port, List<String> jarFiles, Configuration clientConfiguration) {
-		this(new InetSocketAddress(hostname, port), jarFiles, clientConfiguration);
+	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration,
+			List<URL> jarFiles, List<URL> globalClasspaths) {
+		this(new InetSocketAddress(hostname, port), clientConfiguration, jarFiles, globalClasspaths);
 	}
 
-	public RemoteExecutor(InetSocketAddress inet, List<String> jarFiles, Configuration clientConfiguration) {
-		this.jarFiles = jarFiles;
+	public RemoteExecutor(InetSocketAddress inet, Configuration clientConfiguration,
+			List<URL> jarFiles, List<URL> globalClasspaths) {
 		this.clientConfiguration = clientConfiguration;
+		this.jarFiles = jarFiles;
+		this.globalClasspaths = globalClasspaths;
+
 
 		clientConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, inet.getHostName());
 		clientConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, inet.getPort());
@@ -171,7 +185,7 @@ public class RemoteExecutor extends PlanExecutor {
 			throw new IllegalArgumentException("The plan may not be null.");
 		}
 
-		JobWithJars p = new JobWithJars(plan, this.jarFiles);
+		JobWithJars p = new JobWithJars(plan, this.jarFiles, this.globalClasspaths);
 		return executePlanWithJars(p);
 	}
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.client.program;
 
-import java.io.File;
+import java.net.URL;
 import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
@@ -41,16 +41,21 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private final Client client;
 
-	private final List<File> jarFilesToAttach;
+	private final List<URL> jarFilesToAttach;
 
+	private final List<URL> classpathsToAttach;
+	
 	private final ClassLoader userCodeClassLoader;
 
 	private final boolean wait;
-
-
-	public ContextEnvironment(Client remoteConnection, List<File> jarFiles, ClassLoader userCodeClassLoader, boolean wait) {
+	
+	
+	
+	public ContextEnvironment(Client remoteConnection, List<URL> jarFiles, List<URL> classpaths,
+			ClassLoader userCodeClassLoader, boolean wait) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
+		this.classpathsToAttach = classpaths;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.wait = wait;
 	}
@@ -58,7 +63,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
-		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.userCodeClassLoader);
+		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
+				this.userCodeClassLoader);
 
 		if (wait) {
 			this.lastJobExecutionResult = client.runBlocking(toRun, getParallelism());
@@ -101,17 +107,21 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		return this.client;
 	}
 	
-	public List<File> getJars(){
+	public List<URL> getJars(){
 		return jarFilesToAttach;
+	}
+
+	public List<URL> getClasspaths(){
+		return classpathsToAttach;
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	static void setAsContext(Client client, List<File> jarFilesToAttach, 
+	static void setAsContext(Client client, List<URL> jarFilesToAttach, List<URL> classpathsToAttach,
 				ClassLoader userCodeClassLoader, int defaultParallelism, boolean wait)
 	{
-		ContextEnvironmentFactory factory =
-				new ContextEnvironmentFactory(client, jarFilesToAttach, userCodeClassLoader, defaultParallelism, wait);
+		ContextEnvironmentFactory factory = new ContextEnvironmentFactory(client, jarFilesToAttach,
+				classpathsToAttach, userCodeClassLoader, defaultParallelism, wait);
 		initializeContextEnvironment(factory);
 	}
 	
@@ -130,7 +140,9 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		
 		private final Client client;
 		
-		private final List<File> jarFilesToAttach;
+		private final List<URL> jarFilesToAttach;
+
+		private final List<URL> classpathsToAttach;
 		
 		private final ClassLoader userCodeClassLoader;
 		
@@ -139,11 +151,13 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		private final boolean wait;
 		
 
-		public ContextEnvironmentFactory(Client client, List<File> jarFilesToAttach, 
-				ClassLoader userCodeClassLoader, int defaultParallelism, boolean wait)
+		public ContextEnvironmentFactory(Client client, List<URL> jarFilesToAttach,
+				List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
+				boolean wait)
 		{
 			this.client = client;
 			this.jarFilesToAttach = jarFilesToAttach;
+			this.classpathsToAttach = classpathsToAttach;
 			this.userCodeClassLoader = userCodeClassLoader;
 			this.defaultParallelism = defaultParallelism;
 			this.wait = wait;
@@ -151,7 +165,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		
 		@Override
 		public ExecutionEnvironment createExecutionEnvironment() {
-			ContextEnvironment env = new ContextEnvironment(client, jarFilesToAttach, userCodeClassLoader, wait);
+			ContextEnvironment env = new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach,
+					userCodeClassLoader, wait);
 			if (defaultParallelism > 0) {
 				env.setParallelism(defaultParallelism);
 			}

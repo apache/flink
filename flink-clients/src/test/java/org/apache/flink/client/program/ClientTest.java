@@ -53,6 +53,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.net.URL;
 import java.util.Collections;
 import java.util.UUID;
 
@@ -82,7 +83,7 @@ public class ClientTest {
 		env.generateSequence(1, 1000).output(new DiscardingOutputFormat<Long>());
 		
 		Plan plan = env.createProgramPlan();
-		JobWithJars jobWithJars = new JobWithJars(plan, Collections.<String>emptyList());
+		JobWithJars jobWithJars = new JobWithJars(plan, Collections.<URL>emptyList(),  Collections.<URL>emptyList());
 
 		program = mock(PackagedProgram.class);
 		when(program.getPlanWithJars()).thenReturn(jobWithJars);

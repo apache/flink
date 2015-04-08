@@ -57,6 +57,9 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -167,11 +170,14 @@ public class FlinkClient {
 			throw new AlreadyAliveException();
 		}
 
-		final File uploadedJarFile = new File(uploadedJarLocation);
+		final URI uploadedJarUri;
+		final URL uploadedJarUrl;
 		try {
-			JobWithJars.checkJarFile(uploadedJarFile);
+			uploadedJarUri = new File(uploadedJarLocation).getAbsoluteFile().toURI();
+			uploadedJarUrl = uploadedJarUri.toURL();
+			JobWithJars.checkJarFile(uploadedJarUrl);
 		} catch (final IOException e) {
-			throw new RuntimeException("Problem with jar file " + uploadedJarFile.getAbsolutePath(), e);
+			throw new RuntimeException("Problem with jar file " + uploadedJarLocation, e);
 		}
 
 		/* set storm configuration */
@@ -180,7 +186,7 @@ public class FlinkClient {
 		}
 
 		final JobGraph jobGraph = topology.getStreamGraph().getJobGraph(name);
-		jobGraph.addJar(new Path(uploadedJarFile.getAbsolutePath()));
+		jobGraph.addJar(new Path(uploadedJarUri));
 
 		final Configuration configuration = jobGraph.getJobConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHost);
@@ -195,7 +201,8 @@ public class FlinkClient {
 
 		try {
 			ClassLoader classLoader = JobWithJars.buildUserCodeClassLoader(
-					Lists.newArrayList(uploadedJarFile),
+					Lists.newArrayList(uploadedJarUrl),
+					Collections.<URL>emptyList(),
 					this.getClass().getClassLoader());
 			client.runDetached(jobGraph, classLoader);
 		} catch (final ProgramInvocationException e) {

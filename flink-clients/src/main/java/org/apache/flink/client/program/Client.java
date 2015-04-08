@@ -18,8 +18,9 @@
 
 package org.apache.flink.client.program;
 
-import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -282,7 +283,8 @@ public class Client {
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
-			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism, true);
+			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getClasspaths(),
+				prog.getUserCodeClassLoader(), parallelism, true);
 
 			// invoke here
 			try {
@@ -308,7 +310,8 @@ public class Client {
 		}
 		else if (prog.isUsingInteractiveMode()) {
 			LOG.info("Starting program in interactive mode");
-			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism, false);
+			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getClasspaths(),
+				prog.getUserCodeClassLoader(), parallelism, false);
 
 			// invoke here
 			try {
@@ -348,7 +351,7 @@ public class Client {
 		}
 
 		OptimizedPlan optPlan = getOptimizedPlan(compiler, program, parallelism);
-		return runBlocking(optPlan, program.getJarFiles(), classLoader);
+		return runBlocking(optPlan, program.getJarFiles(), program.getClasspaths(), classLoader);
 	}
 
 	/**
@@ -373,21 +376,21 @@ public class Client {
 		}
 
 		OptimizedPlan optimizedPlan = getOptimizedPlan(compiler, program, parallelism);
-		return runDetached(optimizedPlan, program.getJarFiles(), classLoader);
+		return runDetached(optimizedPlan, program.getJarFiles(), program.getClasspaths(), classLoader);
 	}
 	
 
-	public JobExecutionResult runBlocking(OptimizedPlan compiledPlan, List<File> libraries, ClassLoader classLoader)
-			throws ProgramInvocationException
+	public JobExecutionResult runBlocking(OptimizedPlan compiledPlan, List<URL> libraries, List<URL> classpaths,
+			ClassLoader classLoader) throws ProgramInvocationException
 	{
-		JobGraph job = getJobGraph(compiledPlan, libraries);
+		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths);
 		return runBlocking(job, classLoader);
 	}
 
-	public JobSubmissionResult runDetached(OptimizedPlan compiledPlan, List<File> libraries, ClassLoader classLoader)
-			throws ProgramInvocationException
+	public JobSubmissionResult runDetached(OptimizedPlan compiledPlan, List<URL> libraries, List<URL> classpaths,
+			ClassLoader classLoader) throws ProgramInvocationException
 	{
-		JobGraph job = getJobGraph(compiledPlan, libraries);
+		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths);
 		return runDetached(job, classLoader);
 	}
 
@@ -538,16 +541,16 @@ public class Client {
 	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
 	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file.
 	 */
-	private static OptimizedPlan getOptimizedPlan(Optimizer compiler, JobWithJars prog, int parallelism) throws CompilerException,
-																					ProgramInvocationException {
+	private static OptimizedPlan getOptimizedPlan(Optimizer compiler, JobWithJars prog, int parallelism)
+			throws CompilerException, ProgramInvocationException {
 		return getOptimizedPlan(compiler, prog.getPlan(), parallelism);
 	}
 
 	public static JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan) throws ProgramInvocationException {
-		return getJobGraph(optPlan, prog.getAllLibraries());
+		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths());
 	}
 
-	private static JobGraph getJobGraph(FlinkPlan optPlan, List<File> jarFiles) {
+	private static JobGraph getJobGraph(FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths) {
 		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
@@ -556,9 +559,15 @@ public class Client {
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
 		}
 
-		for (File jar : jarFiles) {
-			job.addJar(new Path(jar.getAbsolutePath()));
+		for (URL jar : jarFiles) {
+			try {
+				job.addJar(new Path(jar.toURI()));
+			} catch (URISyntaxException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
 		}
+ 
+		job.setClasspaths(classpaths);
 
 		return job;
 	}

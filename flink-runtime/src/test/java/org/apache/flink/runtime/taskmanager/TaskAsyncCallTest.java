@@ -47,6 +47,7 @@ import org.junit.Test;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
+import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -153,6 +154,7 @@ public class TaskAsyncCallTest {
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.<BlobKey>emptyList(),
+				Collections.<URL>emptyList(),
 				0);
 
 		ActorGateway taskManagerGateway = DummyActorGateway.INSTANCE;

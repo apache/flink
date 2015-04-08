@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,7 +90,7 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
- * Implementation of a simple command line fronted for executing programs.
+ * Implementation of a simple command line frontend for executing programs.
  */
 public class CliFrontend {
 
@@ -702,6 +703,7 @@ public class CliFrontend {
 	{
 		String[] programArgs = options.getProgramArgs();
 		String jarFilePath = options.getJarFilePath();
+		List<URL> classpaths = options.getClasspaths();
 
 		if (jarFilePath == null) {
 			throw new IllegalArgumentException("The program JAR file was not specified.");
@@ -721,8 +723,8 @@ public class CliFrontend {
 		String entryPointClass = options.getEntryPointClassName();
 
 		return entryPointClass == null ?
-				new PackagedProgram(jarFile, programArgs) :
-				new PackagedProgram(jarFile, entryPointClass, programArgs);
+				new PackagedProgram(jarFile, classpaths, programArgs) :
+				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
 	}
 
 	/**

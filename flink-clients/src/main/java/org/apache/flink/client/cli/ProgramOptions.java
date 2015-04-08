@@ -19,11 +19,16 @@ package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
 
+import java.net.URL;
+import java.net.MalformedURLException;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import static org.apache.flink.client.cli.CliFrontendParser.ARGS_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.CLASS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.CLASSPATH_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.LOGGING_OPTION;
 
@@ -35,6 +40,8 @@ public abstract class ProgramOptions extends CommandLineOptions {
 	private final String jarFilePath;
 
 	private final String entryPointClass;
+
+	private final List<URL> classpaths;
 
 	private final String[] programArgs;
 
@@ -61,6 +68,18 @@ public abstract class ProgramOptions extends CommandLineOptions {
 		}
 
 		this.programArgs = args;
+
+		List<URL> classpaths = new ArrayList<URL>();
+		if (line.hasOption(CLASSPATH_OPTION.getOpt())) {
+			for (String path : line.getOptionValues(CLASSPATH_OPTION.getOpt())) {
+				try {
+					classpaths.add(new URL(path));
+				} catch (MalformedURLException e) {
+					throw new CliArgsException("Bad syntax for classpath: " + path);
+				}
+			}
+		}
+		this.classpaths = classpaths;
 
 		this.entryPointClass = line.hasOption(CLASS_OPTION.getOpt()) ?
 				line.getOptionValue(CLASS_OPTION.getOpt()) : null;
@@ -94,6 +113,10 @@ public abstract class ProgramOptions extends CommandLineOptions {
 
 	public String getEntryPointClassName() {
 		return entryPointClass;
+	}
+
+	public List<URL> getClasspaths() {
+		return classpaths;
 	}
 
 	public String[] getProgramArgs() {

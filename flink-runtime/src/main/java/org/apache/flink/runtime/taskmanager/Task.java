@@ -59,6 +59,7 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -139,6 +140,9 @@ public class Task implements Runnable {
 
 	/** The jar files used by this task */
 	private final List<BlobKey> requiredJarFiles;
+
+	/** The classpaths used by this task */
+	private final List<URL> requiredClasspaths;
 
 	/** The name of the class that holds the invokable code */
 	private final String nameOfInvokableClass;
@@ -245,6 +249,7 @@ public class Task implements Runnable {
 		this.jobConfiguration = checkNotNull(tdd.getJobConfiguration());
 		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
 		this.requiredJarFiles = checkNotNull(tdd.getRequiredJarFiles());
+		this.requiredClasspaths = checkNotNull(tdd.getRequiredClasspaths());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
 		this.operatorState = tdd.getOperatorState();
 
@@ -702,7 +707,7 @@ public class Task implements Runnable {
 		long startDownloadTime = System.currentTimeMillis();
 
 		// triggers the download of all missing jar files from the job manager
-		libraryCache.registerTask(jobId, executionId, requiredJarFiles);
+		libraryCache.registerTask(jobId, executionId, requiredJarFiles, requiredClasspaths);
 
 		LOG.debug("Register task {} at library cache manager took {} milliseconds",
 				executionId, System.currentTimeMillis() - startDownloadTime);
