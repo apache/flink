@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.execution;
 
 import akka.actor.ActorRef;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -80,7 +81,8 @@ public interface Environment {
 	int getNumberOfSubtasks();
 
 	/**
-	 * Returns the index of this subtask in the subtask group.
+	 * Returns the index of this subtask in the subtask group. The index
+	 * is between 0 and {@link #getNumberOfSubtasks()} - 1.
 	 *
 	 * @return the index of this subtask in the subtask group
 	 */
@@ -89,7 +91,8 @@ public interface Environment {
 	/**
 	 * Returns the input split provider assigned to this environment.
 	 *
-	 * @return the input split provider or <code>null</code> if no such provider has been assigned to this environment.
+	 * @return The input split provider or {@code null} if no such
+	 *         provider has been assigned to this environment.
 	 */
 	InputSplitProvider getInputSplitProvider();
 
@@ -114,12 +117,15 @@ public interface Environment {
 	 */
 	String getTaskName();
 
-	String getTaskNameWithSubtasks();
-
 	/**
-	 * Returns the proxy object for the accumulator protocol.
+	 * Returns the name of the task running in this environment, appended
+	 * with the subtask indicator, such as "MyTask (3/6)", where
+	 * 3 would be ({@link #getIndexInSubtaskGroup()} + 1), and 6 would be
+	 * {@link #getNumberOfSubtasks()}.
+	 *
+	 * @return The name of the task running in this environment, with subtask indicator.
 	 */
-	ActorRef getJobManager();
+	String getTaskNameWithSubtasks();
 
 	/**
 	 * Returns the user code class loader
@@ -130,6 +136,17 @@ public interface Environment {
 
 	BroadcastVariableManager getBroadcastVariableManager();
 
+	/**
+	 * Reports the given set of accumulators to the JobManager.
+	 *
+	 * @param accumulators The accumulators to report.
+	 */
+	void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators);
+
+	// --------------------------------------------------------------------------------------------
+	//  Fields relevant to the I/O system. Should go into Task
+	// --------------------------------------------------------------------------------------------
+
 	ResultPartitionWriter getWriter(int index);
 
 	ResultPartitionWriter[] getAllWriters();
@@ -137,5 +154,14 @@ public interface Environment {
 	InputGate getInputGate(int index);
 
 	InputGate[] getAllInputGates();
+
+
+	/**
+	 * Returns the proxy object for the accumulator protocol.
+	 */
+	// THIS DOES NOT BELONG HERE, THIS TOTALLY BREAKS COMPONENTIZATION.
+	// THE EXECUTED TASKS HAVE BEEN KEPT INDEPENDENT OF ANY RPC OR ACTOR
+	// COMMUNICATION !!!
+	ActorRef getJobManager();
 
 }
