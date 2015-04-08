@@ -98,7 +98,6 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private int feedbackDataInput; // workset or bulk partial solution
 
-	private RuntimeAccumulatorRegistry accumulatorRegistry;
 	private Map<String, Accumulator<?, ?>> lastGlobalState = null;
 	
 	// --------------------------------------------------------------------------------------------
@@ -243,8 +242,19 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			feedbackTypeSerializer = this.getInputSerializer(feedbackDataInput);
 			excludeFromReset(feedbackDataInput);
 
+			IterationAccumulatorBroker.instance().handIn(brokerKey,
+					new RuntimeAccumulatorRegistry());
+
+
 			int initialSolutionSetInput;
 			if (isWorksetIteration) {
+
+				// add accumulator for workset termination criterion
+				worksetAccumulator = new LongCounter();
+				getIterationAccumulators().addAccumulator(
+						WorksetEmptyConvergenceCriterion.ACCUMULATOR_NAME,
+						worksetAccumulator);
+				
 				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
 				solutionTypeSerializer = config.getSolutionSetSerializer(getUserCodeClassLoader());
 
@@ -279,20 +289,6 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 					solutionSetUpdateBarrier = new SolutionSetUpdateBarrier();
 					SolutionSetUpdateBarrierBroker.instance().handIn(brokerKey, solutionSetUpdateBarrier);
 				}
-			}
-			
-			// register the global accumulator registry
-			accumulatorRegistry = new RuntimeAccumulatorRegistry();
-
-			IterationAccumulatorBroker.instance().handIn(brokerKey,
-					accumulatorRegistry);
-
-			// setup workset accumulator
-			if (isWorksetIteration) {
-				worksetAccumulator = new LongCounter();
-				getIterationAccumulators().addAccumulator(
-						WorksetEmptyConvergenceCriterion.ACCUMULATOR_NAME,
-						worksetAccumulator);
 			}
 
 			DataInputView superstepResult = null;
@@ -365,7 +361,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 					}
 					
 					incrementIterationCounter();
-					accumulatorRegistry
+					getIterationAccumulators()
 							.updateGlobalAccumulatorsAndReset(lastGlobalState);
 					lastGlobalState = null;
 
