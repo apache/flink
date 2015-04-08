@@ -138,7 +138,7 @@ case class Table(private[flink] val operation: PlanNode) {
    * Example:
    *
    * {{{
-   *   in.filter("name === 'Fred'")
+   *   in.filter("name = 'Fred'")
    * }}}
    */
   def filter(predicate: String): Table = {
@@ -153,7 +153,7 @@ case class Table(private[flink] val operation: PlanNode) {
    * Example:
    *
    * {{{
-   *   in.filter(name === "Fred")
+   *   in.where('name === "Fred")
    * }}}
    */
   def where(predicate: Expression): Table = {
@@ -167,7 +167,7 @@ case class Table(private[flink] val operation: PlanNode) {
    * Example:
    *
    * {{{
-   *   in.filter("name === 'Fred'")
+   *   in.filter("name = 'Fred'")
    * }}}
    */
   def where(predicate: String): Table = {
