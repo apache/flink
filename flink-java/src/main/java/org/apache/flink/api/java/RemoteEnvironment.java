@@ -25,6 +25,10 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.configuration.Configuration;
 
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
+
 /**
  * An {@link ExecutionEnvironment} that sends programs to a cluster for execution. The environment
  * needs to be created with the address and port of the JobManager of the Flink cluster that
@@ -44,7 +48,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	protected final int port;
 
 	/** The jar files that need to be attached to each job */
-	private final String[] jarFiles;
+	private final URL[] jarFiles;
 
 	/** The configuration used by the client that connects to the cluster */
 	private Configuration clientConfiguration;
@@ -55,20 +59,40 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	/** Optional shutdown hook, used in session mode to eagerly terminate the last session */
 	private Thread shutdownHook;
 
+	/** The classpaths that need to be attached to each job */
+	private final URL[] globalClasspaths;
+
 	/**
 	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
 	 * given host name and port.
-	 * 
+	 *
 	 * <p>Each program execution will have all the given JAR files in its classpath.
-	 * 
+	 *
 	 * @param host The host name or address of the master (JobManager), where the program should be executed.
-	 * @param port The port of the master (JobManager), where the program should be executed. 
+	 * @param port The port of the master (JobManager), where the program should be executed.
 	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
 	 *                 provided in the JAR files.
-	 */	
+	 */
 	public RemoteEnvironment(String host, int port, String... jarFiles) {
-		this(host, port, null, jarFiles);
+		this(host, port, null, jarFiles, null);
+	}
+
+	/**
+	 * Creates a new RemoteEnvironment that points to the master (JobManager) described by the
+	 * given host name and port.
+	 *
+	 * <p>Each program execution will have all the given JAR files in its classpath.
+	 *
+	 * @param host The host name or address of the master (JobManager), where the program should be executed.
+	 * @param port The port of the master (JobManager), where the program should be executed.
+	 * @param clientConfig The configuration used by the client that connects to the cluster.
+	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
+	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
+	 *                 provided in the JAR files.
+	 */
+	public RemoteEnvironment(String host, int port, Configuration clientConfig, String[] jarFiles) {
+		this(host, port, clientConfig, jarFiles, null);
 	}
 
 	/**
@@ -83,8 +107,13 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	 * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the program uses
 	 *                 user-defined functions, user-defined input formats, or any libraries, those must be
 	 *                 provided in the JAR files.
+	 * @param globalClasspaths The paths of directories and JAR files that are added to each user code 
+	 *                 classloader on all nodes in the cluster. Note that the paths must specify a 
+	 *                 protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
+	 *                 The protocol must be supported by the {@link java.net.URLClassLoader}.
 	 */
-	public RemoteEnvironment(String host, int port, Configuration clientConfig, String... jarFiles) {
+	public RemoteEnvironment(String host, int port, Configuration clientConfig,
+			String[] jarFiles, URL[] globalClasspaths) {
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
 					"The RemoteEnvironment cannot be instantiated when running in a pre-defined context " +
@@ -99,8 +128,21 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 
 		this.host = host;
 		this.port = port;
-		this.jarFiles = jarFiles;
 		this.clientConfiguration = clientConfig == null ? new Configuration() : clientConfig;
+		if (jarFiles != null) {
+			this.jarFiles = new URL[jarFiles.length];
+			for (int i = 0; i < jarFiles.length; i++) {
+				try {
+					this.jarFiles[i] = new File(jarFiles[i]).getAbsoluteFile().toURI().toURL();
+				} catch (MalformedURLException e) {
+					throw new IllegalArgumentException("JAR file path invalid", e);
+				}
+			}
+		}
+		else {
+			this.jarFiles = null;
+		}
+		this.globalClasspaths = globalClasspaths;
 	}
 
 	// ------------------------------------------------------------------------
@@ -146,7 +188,8 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	
 	private void ensureExecutorCreated() throws Exception {
 		if (executor == null) {
-			executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration, jarFiles);
+			executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration,
+				jarFiles, globalClasspaths);
 			executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		}
 		

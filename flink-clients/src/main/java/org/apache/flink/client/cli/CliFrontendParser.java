@@ -47,6 +47,12 @@ public class CliFrontendParser {
 			"Class with the program entry point (\"main\" method or \"getPlan()\" method. Only needed if the " +
 					"JAR file does not specify the class in its manifest.");
 
+	static final Option CLASSPATH_OPTION = new Option("C", "classpath", true, "Adds a URL to each user code " +
+			"classloader  on all nodes in the cluster. The paths must specify a protocol (e.g. file://) and be " +
+					"accessible on all nodes (e.g. by means of a NFS share). You can use this option multiple " +
+					"times for specifying more than one URL. The protocol must be supported by the " +
+					"{@link java.net.URLClassLoader}.");
+
 	static final Option PARALLELISM_OPTION = new Option("p", "parallelism", true,
 			"The parallelism with which to run the program. Optional flag to override the default value " +
 					"specified in the configuration.");
@@ -77,6 +83,9 @@ public class CliFrontendParser {
 
 		CLASS_OPTION.setRequired(false);
 		CLASS_OPTION.setArgName("classname");
+
+		CLASSPATH_OPTION.setRequired(false);
+		CLASSPATH_OPTION.setArgName("url");
 
 		ADDRESS_OPTION.setRequired(false);
 		ADDRESS_OPTION.setArgName("host:port");
@@ -110,6 +119,7 @@ public class CliFrontendParser {
 	public static Options getProgramSpecificOptions(Options options) {
 		options.addOption(JAR_OPTION);
 		options.addOption(CLASS_OPTION);
+		options.addOption(CLASSPATH_OPTION);
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
@@ -121,6 +131,7 @@ public class CliFrontendParser {
 
 	private static Options getProgramSpecificOptionsWithoutDeprecatedOptions(Options options) {
 		options.addOption(CLASS_OPTION);
+		options.addOption(CLASSPATH_OPTION);
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(LOGGING_OPTION);
 		return options;

@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,10 +52,11 @@ public class TaskDeploymentDescriptorTest {
 			final List<ResultPartitionDeploymentDescriptor> producedResults = new ArrayList<ResultPartitionDeploymentDescriptor>(0);
 			final List<InputGateDeploymentDescriptor> inputGates = new ArrayList<InputGateDeploymentDescriptor>(0);
 			final List<BlobKey> requiredJars = new ArrayList<BlobKey>(0);
+			final List<URL> requiredClasspaths = new ArrayList<URL>(0);
 	
 			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, execId, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				invokableClass.getName(), producedResults, inputGates, requiredJars, 47);
+				invokableClass.getName(), producedResults, inputGates, requiredJars, requiredClasspaths, 47);
 	
 			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
 	
@@ -73,6 +75,7 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getInputGates(), copy.getInputGates());
 
 			assertEquals(orig.getRequiredJarFiles(), copy.getRequiredJarFiles());
+			assertEquals(orig.getRequiredClasspaths(), copy.getRequiredClasspaths());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

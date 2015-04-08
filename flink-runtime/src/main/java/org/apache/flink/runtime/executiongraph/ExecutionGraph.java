@@ -56,6 +56,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -141,6 +142,10 @@ public class ExecutionGraph implements Serializable {
 	/** A list of all libraries required during the job execution. Libraries have to be stored
 	 * inside the BlobService and are referenced via the BLOB keys. */
 	private final List<BlobKey> requiredJarFiles;
+
+	/** A list of all classpaths required during the job execution. Classpaths have to be
+	 * accessible on all nodes in the cluster. */
+	private final List<URL> requiredClasspaths;
 
 	/** Listeners that receive messages when the entire job switches it status (such as from
 	 * RUNNING to FINISHED) */
@@ -239,6 +244,7 @@ public class ExecutionGraph implements Serializable {
 			jobConfig,
 			timeout,
 			new ArrayList<BlobKey>(),
+			new ArrayList<URL>(),
 			ExecutionGraph.class.getClassLoader()
 		);
 	}
@@ -250,6 +256,7 @@ public class ExecutionGraph implements Serializable {
 			Configuration jobConfig,
 			FiniteDuration timeout,
 			List<BlobKey> requiredJarFiles,
+			List<URL> requiredClasspaths,
 			ClassLoader userClassLoader) {
 
 		if (executionContext == null || jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
@@ -275,6 +282,7 @@ public class ExecutionGraph implements Serializable {
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 
 		this.requiredJarFiles = requiredJarFiles;
+		this.requiredClasspaths = requiredClasspaths;
 
 		this.timeout = timeout;
 	}
@@ -427,8 +435,15 @@ public class ExecutionGraph implements Serializable {
 		return this.requiredJarFiles;
 	}
 
-	// --------------------------------------------------------------------------------------------
+	/**
+	 * Returns a list of classpaths referring to the directories/JAR files required to run this job
+	 * @return list of classpaths referring to the directories/JAR files required to run this job
+	 */
+	public List<URL> getRequiredClasspaths() {
+		return this.requiredClasspaths;
+	}
 
+	// --------------------------------------------------------------------------------------------
 
 	public void setJsonPlan(String jsonPlan) {
 		this.jsonPlan = jsonPlan;

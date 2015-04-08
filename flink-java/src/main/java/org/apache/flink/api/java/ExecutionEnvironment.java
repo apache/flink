@@ -1152,7 +1152,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	public static ExecutionEnvironment createRemoteEnvironment(
 			String host, int port, Configuration clientConfiguration, String... jarFiles) {
-		return new RemoteEnvironment(host, port, clientConfiguration, jarFiles);
+		return new RemoteEnvironment(host, port, clientConfiguration, jarFiles, null);
 	}
 
 	/**

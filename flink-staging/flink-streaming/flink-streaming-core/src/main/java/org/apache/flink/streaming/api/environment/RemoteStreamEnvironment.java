@@ -19,7 +19,12 @@ package org.apache.flink.streaming.api.environment;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.InvalidProgramException;
@@ -40,12 +45,20 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
 
+	/** The hostname of the JobManager */
 	private final String host;
+
+	/** The port of the JobManager main actor system */
 	private final int port;
-	private final List<File> jarFiles;
-	
+
 	/** The configuration used to parametrize the client that connects to the remote cluster */
 	private final Configuration config;
+
+	/** The jar files that need to be attached to each job */
+	private final List<URL> jarFiles;
+	
+	/** The classpaths that need to be attached to each job */
+	private final List<URL> globalClasspaths;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -87,6 +100,34 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            provided in the JAR files.
 	 */
 	public RemoteStreamEnvironment(String host, int port, Configuration config, String... jarFiles) {
+		this(host, port, config, jarFiles, null);
+	}
+
+	/**
+	 * Creates a new RemoteStreamEnvironment that points to the master
+	 * (JobManager) described by the given host name and port.
+	 *
+	 * @param host
+	 *            The host name or address of the master (JobManager), where the
+	 *            program should be executed.
+	 * @param port
+	 *            The port of the master (JobManager), where the program should
+	 *            be executed.
+	 * @param config
+	 *            The configuration used to parametrize the client that connects to the
+	 *            remote cluster.
+	 * @param jarFiles
+	 *            The JAR files with code that needs to be shipped to the
+	 *            cluster. If the program uses user-defined functions,
+	 *            user-defined input formats, or any libraries, those must be
+	 *            provided in the JAR files.
+	 * @param globalClasspaths 
+	 *            The paths of directories and JAR files that are added to each user code 
+	 *            classloader on all nodes in the cluster. Note that the paths must specify a 
+	 *            protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
+	 *            The protocol must be supported by the {@link java.net.URLClassLoader}.
+	 */
+	public RemoteStreamEnvironment(String host, int port, Configuration config, String[] jarFiles, URL[] globalClasspaths) {
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
 					"The RemoteEnvironment cannot be used when submitting a program through a client, " +
@@ -103,16 +144,23 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		this.host = host;
 		this.port = port;
 		this.config = config == null ? new Configuration() : config;
-		this.jarFiles = new ArrayList<File>(jarFiles.length);
+		this.jarFiles = new ArrayList<>(jarFiles.length);
 		for (String jarFile : jarFiles) {
-			File file = new File(jarFile);
 			try {
-				JobWithJars.checkJarFile(file);
+				URL jarFileUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
+				this.jarFiles.add(jarFileUrl);
+				JobWithJars.checkJarFile(jarFileUrl);
+			} catch (MalformedURLException e) {
+				throw new IllegalArgumentException("JAR file path is invalid '" + jarFile + "'", e);
+			} catch (IOException e) {
+				throw new RuntimeException("Problem with jar file " + jarFile, e);
 			}
-			catch (IOException e) {
-				throw new RuntimeException("Problem with jar file " + file.getAbsolutePath(), e);
-			}
-			this.jarFiles.add(file);
+		}
+		if (globalClasspaths == null) {
+			this.globalClasspaths = Collections.emptyList();
+		}
+		else {
+			this.globalClasspaths = Arrays.asList(globalClasspaths);
 		}
 	}
 
@@ -135,11 +183,16 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
 
-		for (File file : jarFiles) {
-			jobGraph.addJar(new Path(file.getAbsolutePath()));
+		for (URL jarFile : jarFiles) {
+			try {
+				jobGraph.addJar(new Path(jarFile.toURI()));
+			} catch (URISyntaxException e) {
+				throw new ProgramInvocationException("URL is invalid", e);
+			}
 		}
 
-		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, getClass().getClassLoader());
+		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths,
+			getClass().getClassLoader());
 		
 		Configuration configuration = new Configuration();
 		configuration.addAll(jobGraph.getJobConfiguration());

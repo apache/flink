@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobgraph;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -94,6 +95,9 @@ public class JobGraph implements Serializable {
 	
 	/** The settings for asynchronous snapshots */
 	private JobSnapshottingSettings snapshotSettings;
+
+	/** List of classpaths required to run this job. */
+	private List<URL> classpaths = Collections.<URL>emptyList();
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -348,7 +352,20 @@ public class JobGraph implements Serializable {
 	public JobVertex findVertexByID(JobVertexID id) {
 		return this.taskVertices.get(id);
 	}
-	
+
+	/**
+	 * Sets the classpaths required to run the job on a task manager.
+	 * 
+	 * @param paths paths of the directories/JAR files required to run the job on a task manager
+	 */
+	public void setClasspaths(List<URL> paths) {
+		classpaths = paths;
+	}
+
+	public List<URL> getClasspaths() {
+		return classpaths;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	public List<JobVertex> getVerticesSortedTopologicallyFromSources() throws InvalidProgramException {

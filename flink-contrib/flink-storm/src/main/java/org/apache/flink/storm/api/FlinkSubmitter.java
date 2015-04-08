@@ -23,6 +23,8 @@ import backtype.storm.generated.InvalidTopologyException;
 import backtype.storm.generated.SubmitOptions;
 import backtype.storm.utils.Utils;
 
+import java.net.URISyntaxException;
+import java.net.URL;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
@@ -99,6 +101,7 @@ public class FlinkSubmitter {
 		final String serConf = JSONValue.toJSONString(stormConf);
 
 		final FlinkClient client = FlinkClient.getConfiguredClient(stormConf);
+
 		try {
 			if (client.getTopologyJobId(name) != null) {
 				throw new RuntimeException("Topology with name `" + name + "` already exists on cluster");
@@ -106,11 +109,13 @@ public class FlinkSubmitter {
 			String localJar = System.getProperty("storm.jar");
 			if (localJar == null) {
 				try {
-					for (final File file : ((ContextEnvironment) ExecutionEnvironment.getExecutionEnvironment())
+					for (final URL url : ((ContextEnvironment) ExecutionEnvironment.getExecutionEnvironment())
 							.getJars()) {
 						// TODO verify that there is only one jar
-						localJar = file.getAbsolutePath();
+						localJar = new File(url.toURI()).getAbsolutePath();
 					}
+				} catch (final URISyntaxException e) {
+					// ignore
 				} catch (final ClassCastException e) {
 					// ignore
 				}

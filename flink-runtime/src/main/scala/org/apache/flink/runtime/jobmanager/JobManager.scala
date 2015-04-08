@@ -618,7 +618,8 @@ class JobManager(
         // because this makes sure that the uploaded jar files are removed in case of
         // unsuccessful
         try {
-          libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
+          libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys,
+            jobGraph.getClasspaths)
         }
         catch {
           case t: Throwable =>
@@ -657,6 +658,7 @@ class JobManager(
               jobGraph.getJobConfiguration,
               timeout,
               jobGraph.getUserJarBlobKeys,
+              jobGraph.getClasspaths,
               userCodeLoader)
             val jobInfo = JobInfo(
               client,

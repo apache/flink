@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import java.io.File;
+import java.net.URL;
 import java.util.List;
 
 import org.apache.flink.api.common.JobExecutionResult;
@@ -36,7 +36,9 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
 
-	private final List<File> jars;
+	private final List<URL> jars;
+
+	private final List<URL> classpaths;
 	
 	private final Client client;
 
@@ -44,12 +46,15 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	
 	private final boolean wait;
 
-	protected StreamContextEnvironment(Client client, List<File> jars, int parallelism, boolean wait) {
+	protected StreamContextEnvironment(Client client, List<URL> jars, List<URL> classpaths, int parallelism,
+			boolean wait) {
 		this.client = client;
 		this.jars = jars;
+		this.classpaths = classpaths;
 		this.wait = wait;
 		
-		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(jars, getClass().getClassLoader());
+		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(jars, classpaths,
+				getClass().getClassLoader());
 		
 		if (parallelism > 0) {
 			setParallelism(parallelism);
@@ -84,9 +89,11 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 		transformations.clear();
 
 		// attach all necessary jar files to the JobGraph
-		for (File file : jars) {
-			jobGraph.addJar(new Path(file.getAbsolutePath()));
+		for (URL file : jars) {
+			jobGraph.addJar(new Path(file.toURI()));
 		}
+
+		jobGraph.setClasspaths(classpaths);
 
 		// execute the programs
 		if (wait) {

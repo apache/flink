@@ -49,6 +49,7 @@ import org.slf4j.Logger;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -644,11 +645,13 @@ public class ExecutionVertex implements Serializable {
 		}
 
 		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
+		List<URL> classpaths = getExecutionGraph().getRequiredClasspaths();
 
 		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, getTaskName(),
 				subTaskIndex, getTotalNumberOfParallelSubtasks(), getExecutionGraph().getJobConfiguration(),
 				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
-				producedPartitions, consumedPartitions, jarFiles, targetSlot.getRoot().getSlotNumber(), operatorState);
+				producedPartitions, consumedPartitions, jarFiles, classpaths, targetSlot.getRoot().getSlotNumber(),
+				operatorState);
 	}
 
 	// --------------------------------------------------------------------------------------------
