@@ -52,17 +52,17 @@ under the License.
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-java</artifactId>
-            <version>0.9-SNAPSHOT</version>
+            <version>0.9.0-milestone-1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-clients</artifactId>
-            <version>0.9-SNAPSHOT</version>
+            <version>0.9.0-milestone-1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-tez</artifactId>
-            <version>0.9-SNAPSHOT</version>
+            <version>0.9.0-milestone-1</version>
         </dependency>
     </dependencies>
 
