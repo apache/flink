@@ -29,8 +29,8 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.security.MessageDigest;
 
+import com.google.common.io.Files;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.shaded.com.google.common.io.Files;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
