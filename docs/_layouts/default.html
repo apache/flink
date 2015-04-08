@@ -54,13 +54,29 @@ under the License.
           {% include sidenav.html %}
         </div>  
         <div class="col-md-9">
-          <h1>{{ page.title }}</h1>
-	  
-          {{ content }}
-	  
-        <!-- Disqus Area -->
-          <div style="padding-top:30px" id="disqus_thread"></div>
-      
+          <div class="row">
+            <script>
+              (function() {
+                var cx = '000888944958067045520:z90hn2izm0k';
+                var gcse = document.createElement('script');
+                gcse.type = 'text/javascript';
+                gcse.async = true;
+                gcse.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') +
+                    '//www.google.com/cse/cse.js?cx=' + cx;
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(gcse, s);
+              })();
+            </script>
+            <gcse:search></gcse:search>
+          </div>
+          <div class="row">
+            <h1>{{ page.title }}</h1>
+  	  
+            {{ content }}
+  	  
+            <!-- Disqus Area -->
+            <div style="padding-top:30px" id="disqus_thread"></div>
+        
             <script type="text/javascript">
                 /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
                 var disqus_shortname = 'stratosphere-eu'; // required: replace example with your forum shortname
@@ -75,15 +91,12 @@ under the License.
             <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
           </div>
         </div>
-
         <div class="footer">
           {% capture footer %}{% include footer.md %}{% endcapture %}
           {{ footer | markdownify }}
         </div>
       </div>
     </div>
-
-    
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -93,8 +106,6 @@ under the License.
 
       ga('create', 'UA-52545728-1', 'auto');
       ga('send', 'pageview');
-
     </script>
-
   </body>
 </html>
