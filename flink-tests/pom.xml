@@ -339,7 +339,7 @@ under the License.
 						<configuration>
 							<archive>
 								<manifest>
-									<mainClass>org.apache.flink.test.util.testjar.KMeansForTest</mainClass>
+									<mainClass>org.apache.flink.test.classloading.jar.KMeansForTest</mainClass>
 								</manifest>
 							</archive>
 							<finalName>kmeans</finalName>
@@ -398,24 +398,6 @@ under the License.
 				<version>2.5</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
-						<id>remove-kmeans-test-dependencies</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>clean</goal>
-						</goals>
-						<configuration>
-							<excludeDefaultDirectories>true</excludeDefaultDirectories>
-							<filesets>
-								<fileset>
-									<directory>${project.build.testOutputDirectory}</directory>
-									<includes>
-										<include>**/testjar/*.class</include>
-									</includes>
-								</fileset>
-							</filesets>
-						</configuration>
-					</execution>
-					<execution>
 						<id>remove-classloading-test-dependencies</id>
 						<phase>process-test-classes</phase>
 						<goals>
@@ -463,7 +445,7 @@ under the License.
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<ignore></ignore>
+										<ignore/>
 									</action>
 								</pluginExecution>
 								<pluginExecution>

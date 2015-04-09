@@ -18,33 +18,59 @@
 
 package org.apache.flink.test.classloading;
 
+import java.io.File;
+
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.File;
-
-public class StreamingClassLoaderITCase {
+public class ClassLoaderITCase {
 	
-	private static final String JAR_FILE = "target/streamingclassloader-test-jar.jar";
+	private static final String INPUT_SPLITS_PROG_JAR_FILE = "target/customsplit-test-jar.jar";
+
+	private static final String STREAMING_PROG_JAR_FILE = "target/streamingclassloader-test-jar.jar";
+
+	private static final String KMEANS_JAR_PATH = "target/kmeans-test-jar.jar";
 	
 	@Test
-	public void testStreamingJob() {
+	public void testJobWithCustomInputFormat() {
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
 			
 			ForkableFlinkMiniCluster testCluster = new ForkableFlinkMiniCluster(config, false);
+
 			try {
 				int port = testCluster.getJobManagerRPCPort();
 
-				PackagedProgram prog = new PackagedProgram(new File(JAR_FILE),
-						new String[] { JAR_FILE, "localhost", String.valueOf(port) } );
-				prog.invokeInteractiveModeForExecution();
+				PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE),
+						new String[] { INPUT_SPLITS_PROG_JAR_FILE,
+										"localhost",
+										String.valueOf(port),
+										"4" // parallelism
+									} );
+				inputSplitTestProg.invokeInteractiveModeForExecution();
+
+				PackagedProgram streamingProg = new PackagedProgram(new File(STREAMING_PROG_JAR_FILE),
+						new String[] { STREAMING_PROG_JAR_FILE, "localhost", String.valueOf(port) } );
+				streamingProg.invokeInteractiveModeForExecution();
+
+				PackagedProgram kMeansProg = new PackagedProgram(new File(KMEANS_JAR_PATH),
+						new String[] { KMEANS_JAR_PATH,
+										"localhost",
+										String.valueOf(port),
+										"4", // parallelism
+										KMeansData.DATAPOINTS,
+										KMeansData.INITIAL_CENTERS,
+										"25"
+									} );
+				kMeansProg.invokeInteractiveModeForExecution();
 			}
 			finally {
 				testCluster.shutdown();

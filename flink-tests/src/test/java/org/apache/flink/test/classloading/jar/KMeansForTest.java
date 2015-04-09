@@ -16,61 +16,65 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.util.testjar;
+package org.apache.flink.test.classloading.jar;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.Program;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.localDistributed.PackagedProgramEndToEndITCase;
 
 import java.io.Serializable;
 import java.util.Collection;
 
 /**
- * This class belongs to the {@link PackagedProgramEndToEndITCase} test.
+ * This class belongs to the {@link org.apache.flink.test.classloading.ClassLoaderITCase} test.
  *
- * <p> It's removed by Maven from classpath, so other tests must not depend on it.
+ * It tests dynamic class loading for:
+ * <ul>
+ *     <li>Custom Functions</li>
+ *     <li>Custom Data Types</li>
+ *     <li>Custom Accumulators</li>
+ *     <li>Custom Types in collect()</li>
+ * </ul>
+ *
+ * <p>
+ * It's removed by Maven from classpath, so other tests must not depend on it.
  */
 @SuppressWarnings("serial")
-public class KMeansForTest implements Program {
+public class KMeansForTest {
 
 	// *************************************************************************
 	//     PROGRAM
 	// *************************************************************************
 
-	@Override
-	public Plan getPlan(String... args) {
-		if (args.length < 4) {
+	public static void main(String[] args) throws Exception {
+		if (args.length < 7) {
 			throw new IllegalArgumentException("Missing parameters");
 		}
 
-		final String pointsPath = args[0];
-		final String centersPath = args[1];
-		final String outputPath = args[2];
-		final int numIterations = Integer.parseInt(args[3]);
+		final String jarFile = args[0];
+		final String host = args[1];
+		final int port = Integer.parseInt(args[2]);
 
+		final int parallelism = Integer.parseInt(args[3]);
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+		final String pointsData = args[4];
+		final String centersData = args[5];
+		final int numIterations = Integer.parseInt(args[6]);
+
+		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
+		env.setParallelism(parallelism);
 
 		// get input data
-		DataSet<Point> points = env.readCsvFile(pointsPath)
-				.fieldDelimiter("|")
-				.includeFields(true, true)
-				.types(Double.class, Double.class)
+		DataSet<Point> points = env.fromElements(pointsData.split("\n"))
 				.map(new TuplePointConverter());
 
-		DataSet<Centroid> centroids = env.readCsvFile(centersPath)
-				.fieldDelimiter("|")
-				.includeFields(true, true, true)
-				.types(Integer.class, Double.class, Double.class)
+		DataSet<Centroid> centroids = env.fromElements(centersData.split("\n"))
 				.map(new TupleCentroidConverter());
 
 		// set number of bulk iterations for KMeans algorithm
@@ -79,24 +83,21 @@ public class KMeansForTest implements Program {
 		DataSet<Centroid> newCentroids = points
 				// compute closest centroid for each point
 				.map(new SelectNearestCenter()).withBroadcastSet(loop, "centroids")
-						// count and sum point coordinates for each centroid
+
+				// count and sum point coordinates for each centroid (test pojo return type)
 				.map(new CountAppender())
-						// !test if key expressions are working!
+
+				// !test if key expressions are working!
 				.groupBy("field0").reduce(new CentroidAccumulator())
-						// compute new centroids from point counts and coordinate sums
+
+				// compute new centroids from point counts and coordinate sums
 				.map(new CentroidAverager());
 
 		// feed new centroids back into next iteration
 		DataSet<Centroid> finalCentroids = loop.closeWith(newCentroids);
 
-		DataSet<Tuple2<Integer, Point>> clusteredPoints = points
-				// assign points to final clusters
-				.map(new SelectNearestCenter()).withBroadcastSet(finalCentroids, "centroids");
-
-		// emit result
-		clusteredPoints.writeAsCsv(outputPath, "\n", " ");
-
-		return env.createProgramPlan();
+		// test that custom data type collects are working
+		finalCentroids.collect();
 	}
 
 	// *************************************************************************
@@ -173,31 +174,37 @@ public class KMeansForTest implements Program {
 	// *************************************************************************
 
 	/** Converts a Tuple2<Double,Double> into a Point. */
-	public static final class TuplePointConverter extends RichMapFunction<Tuple2<Double, Double>, Point> {
+	public static final class TuplePointConverter extends RichMapFunction<String, Point> {
 
 		@Override
-		public Point map(Tuple2<Double, Double> t) throws Exception {
-			return new Point(t.f0, t.f1);
+		public Point map(String str) {
+			String[] fields = str.split("\\|");
+			return new Point(Double.parseDouble(fields[1]), Double.parseDouble(fields[2]));
 		}
 	}
 
 	/** Converts a Tuple3<Integer, Double,Double> into a Centroid. */
-	public static final class TupleCentroidConverter extends RichMapFunction<Tuple3<Integer, Double, Double>, Centroid> {
+	public static final class TupleCentroidConverter extends RichMapFunction<String, Centroid> {
 
 		@Override
-		public Centroid map(Tuple3<Integer, Double, Double> t) throws Exception {
-			return new Centroid(t.f0, t.f1, t.f2);
+		public Centroid map(String str) {
+			String[] fields = str.split("\\|");
+			return new Centroid(Integer.parseInt(fields[0]), Double.parseDouble(fields[1]), Double.parseDouble(fields[2]));
 		}
 	}
 
 	/** Determines the closest cluster center for a data point. */
 	public static final class SelectNearestCenter extends RichMapFunction<Point, Tuple2<Integer, Point>> {
+
 		private Collection<Centroid> centroids;
+		private CustomAccumulator acc;
 
 		/** Reads the centroid values from a broadcast variable into a collection. */
 		@Override
 		public void open(Configuration parameters) throws Exception {
 			this.centroids = getRuntimeContext().getBroadcastVariable("centroids");
+			this.acc = new CustomAccumulator();
+			 getRuntimeContext().addAccumulator("myAcc", this.acc);
 		}
 
 		@Override
@@ -219,6 +226,7 @@ public class KMeansForTest implements Program {
 			}
 
 			// emit a new record with the center id and the data point.
+			acc.add(1L);
 			return new Tuple2<Integer, Point>(closestCentroidId, p);
 		}
 	}
@@ -262,6 +270,38 @@ public class KMeansForTest implements Program {
 		@Override
 		public Centroid map(DummyTuple3IntPointLong value) {
 			return new Centroid(value.field0, value.field1.div(value.field2));
+		}
+	}
+
+	public static class CustomAccumulator implements SimpleAccumulator<Long> {
+
+		private long value;
+
+		@Override
+		public void add(Long value) {
+			this.value += value;
+		}
+
+		@Override
+		public Long getLocalValue() {
+			return this.value;
+		}
+
+		@Override
+		public void resetLocal() {
+			this.value = 0L;
+		}
+
+		@Override
+		public void merge(Accumulator<Long, Long> other) {
+			this.value += other.getLocalValue();
+		}
+
+		@Override
+		public Accumulator<Long, Long> clone() {
+			CustomAccumulator acc = new CustomAccumulator();
+			acc.value = this.value;
+			return acc;
 		}
 	}
 }
