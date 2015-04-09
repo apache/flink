@@ -51,7 +51,7 @@ class MultipleLinearRegressionITSuite
     val inputDS = env.fromCollection(data)
     val model = learner.fit(inputDS, parameters)
 
-    val weightList = model.weights.collect
+    val weightList = model.weights.collect()
 
     weightList.size should equal(1)
 
@@ -63,7 +63,7 @@ class MultipleLinearRegressionITSuite
     }
     weight0 should be (expectedWeight0 +- 0.4)
 
-    val srs = model.squaredResidualSum(inputDS).collect(0)
+    val srs = model.squaredResidualSum(inputDS).collect().apply(0)
 
     srs should be (expectedSquaredResidualSum +- 2)
   }
@@ -87,7 +87,7 @@ class MultipleLinearRegressionITSuite
 
     val model = pipeline.fit(inputDS, parameters)
 
-    val weightList = model.weights.collect
+    val weightList = model.weights.collect()
 
     weightList.size should equal(1)
 
@@ -102,7 +102,7 @@ class MultipleLinearRegressionITSuite
 
     val transformedInput = polynomialBase.transform(inputDS, parameters)
 
-    val srs = model.squaredResidualSum(transformedInput).collect(0)
+    val srs = model.squaredResidualSum(transformedInput).collect().apply(0)
 
     srs should be(RegressionData.expectedPolynomialSquaredResidualSum +- 5)
   }

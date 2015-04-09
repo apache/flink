@@ -520,7 +520,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * @see org.apache.flink.api.java.Utils.CountHelper
    */
   @throws(classOf[Exception])
-  def count: Long = {
+  def count(): Long = {
     val id = new AbstractID().toString
     javaSet.flatMap(new CountHelper[T](id)).output(new DiscardingOutputFormat[lang.Long])
     val res = getExecutionEnvironment.execute()
@@ -531,12 +531,12 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Convenience method to get the elements of a DataSet as a List
    * As DataSet can contain a lot of data, this method should be used with caution.
    *
-   * @return A List containing the elements of the DataSet
+   * @return A Seq containing the elements of the DataSet
    *
    * @see org.apache.flink.api.java.Utils.CollectHelper
    */
   @throws(classOf[Exception])
-  def collect: mutable.Buffer[T] = {
+  def collect(): Seq[T] = {
     val id = new AbstractID().toString
     javaSet.flatMap(new Utils.CollectHelper[T](id)).output(new DiscardingOutputFormat[T])
     val res = getExecutionEnvironment.execute()

@@ -42,7 +42,7 @@ class CoCoAITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val model = learner.fit(trainingDS)
 
-    val weightVector = model.weights.collect(0)
+    val weightVector = model.weights.collect().apply(0)
 
     weightVector.valuesIterator.zip(Classification.expectedWeightVector.valueIterator).foreach {
       case (weight, expectedWeight) =>

@@ -43,7 +43,7 @@ class CountCollectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     assertEquals(input.length, numEntries)
 
     // collect
-    val list = inputDS.collect
+    val list = inputDS.collect()
     assertArrayEquals(input.toArray, list.toArray)
   }
 
@@ -63,7 +63,7 @@ class CountCollectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val numEntries = result.count
     assertEquals(input1.length * input2.length, numEntries)
 
-    val list = result.collect
+    val list = result.collect()
 
     val marker = Array.fill(input1.length, input2.length)(false)
 

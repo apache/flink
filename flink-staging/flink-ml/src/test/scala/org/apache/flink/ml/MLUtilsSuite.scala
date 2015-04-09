@@ -57,7 +57,7 @@ class MLUtilsSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val svmInput = env.readLibSVM(inputFilePath)
 
-    val labeledVectors = svmInput.collect
+    val labeledVectors = svmInput.collect()
 
     labeledVectors.size should be(expectedLabeledVectors.size)
 
