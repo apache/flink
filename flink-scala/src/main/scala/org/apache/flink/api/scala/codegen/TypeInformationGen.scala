@@ -222,10 +222,39 @@ private[flink] trait TypeInformationGen[C <: Context] {
         }
       case _ =>
         reify {
-          ObjectArrayTypeInfo.getInfoFor(
-            arrayClazz.splice,
-            elementTypeInfo.splice.asInstanceOf[TypeInformation[_]])
-            .asInstanceOf[TypeInformation[T]]
+          val elementType = elementTypeInfo.splice.asInstanceOf[TypeInformation[_]]
+          val result = elementType match {
+            case BasicTypeInfo.BOOLEAN_TYPE_INFO =>
+              PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO
+
+            case BasicTypeInfo.BYTE_TYPE_INFO =>
+              PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
+
+            case BasicTypeInfo.CHAR_TYPE_INFO =>
+              PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO
+
+            case BasicTypeInfo.DOUBLE_TYPE_INFO =>
+              PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO
+
+            case BasicTypeInfo.FLOAT_TYPE_INFO =>
+              PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO
+
+            case BasicTypeInfo.INT_TYPE_INFO =>
+              PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO
+
+            case BasicTypeInfo.LONG_TYPE_INFO =>
+              PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO
+
+            case BasicTypeInfo.SHORT_TYPE_INFO =>
+              PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO
+
+            case BasicTypeInfo.STRING_TYPE_INFO =>
+              BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO
+
+            case _ =>
+              ObjectArrayTypeInfo.getInfoFor(elementType)
+          }
+          result.asInstanceOf[TypeInformation[T]]
         }
     }
   }
