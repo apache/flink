@@ -16,35 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.test.join;
+package org.apache.flink.streaming.examples.test.windowing;
 
-import org.apache.flink.streaming.examples.join.WindowJoin;
-import org.apache.flink.streaming.examples.join.util.WindowJoinData;
+import org.apache.flink.streaming.examples.windowing.WindowWordCount;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.testdata.WordCountData;
 
-public class WindowJoinITCase extends StreamingProgramTestBase {
+public class WindowWordCountITCase extends StreamingProgramTestBase {
 
-	protected String gradesPath;
-	protected String salariesPath;
+	protected String textPath;
 	protected String resultPath;
+	protected String windowSize = "250";
+	protected String slideSize = "150";
 
 	@Override
 	protected void preSubmit() throws Exception {
-		gradesPath = createTempFile("gradesText.txt", WindowJoinData.GRADES_INPUT);
-		salariesPath = createTempFile("salariesText.txt", WindowJoinData.SALARIES_INPUT);
+		textPath = createTempFile("text.txt", WordCountData.TEXT);
 		resultPath = getTempDirPath("result");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		// since the two sides of the join might have different speed
+		// since the parallel tokenizers might have different speed
 		// the exact output can not be checked just whether it is well-formed
-		// checks that the result lines look like e.g. (bob, 2, 2015)
-		checkLinesAgainstRegexp(resultPath, "^\\([a-z]+,(\\d),(\\d)+\\)");
+		// checks that the result lines look like e.g. (faust, 2)
+		checkLinesAgainstRegexp(resultPath, "^\\([a-z]+,(\\d)+\\)");
 	}
 
 	@Override
 	protected void testProgram() throws Exception {
-		WindowJoin.main(new String[]{gradesPath, salariesPath, resultPath});
+		WindowWordCount.main(new String[]{textPath, resultPath, windowSize, slideSize});
 	}
 }

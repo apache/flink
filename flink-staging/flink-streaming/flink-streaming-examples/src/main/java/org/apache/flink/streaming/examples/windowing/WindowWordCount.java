@@ -46,6 +46,10 @@ import org.apache.flink.streaming.examples.wordcount.WordCount;
  */
 public class WindowWordCount {
 
+	// window parameters with default values
+	private static int windowSize = 250;
+	private static int slideSize = 150;
+
 	// *************************************************************************
 	// PROGRAM
 	// *************************************************************************
@@ -65,8 +69,8 @@ public class WindowWordCount {
 		DataStream<Tuple2<String, Integer>> counts =
 		// split up the lines in pairs (2-tuples) containing: (word,1)
 		text.flatMap(new WordCount.Tokenizer())
-				// create windows of 250 records slided every 150 records
-				.window(Count.of(250)).every(Count.of(150))
+				// create windows of windowSize records slided every slideSize records
+				.window(Count.of(windowSize)).every(Count.of(slideSize))
 				// group by the tuple field "0" and sum up tuple field "1"
 				.groupBy(0).sum(1)
 				// flatten the windows to a single stream
@@ -97,17 +101,23 @@ public class WindowWordCount {
 		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
-			if (args.length == 2) {
+			if (args.length >= 2 && args.length <= 4) {
 				textPath = args[0];
 				outputPath = args[1];
+				if (args.length >= 3){
+					windowSize = Integer.parseInt(args[2]);
+
+					// if no slide size is specified use the
+					slideSize = args.length == 3 ? windowSize : Integer.parseInt(args[2]);
+				}
 			} else {
-				System.err.println("Usage: WindowWordCount <text path> <result path>");
+				System.err.println("Usage: WindowWordCount <text path> <result path> [<window size>] [<slide size>]");
 				return false;
 			}
 		} else {
 			System.out.println("Executing WindowWordCount example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: WindowWordCount <text path> <result path>");
+			System.out.println("  Usage: WindowWordCount <text path> <result path> [<window size>] [<slide size>]");
 		}
 		return true;
 	}
