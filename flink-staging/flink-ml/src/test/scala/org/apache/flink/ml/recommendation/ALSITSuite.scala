@@ -54,7 +54,7 @@ class ALSITSuite
       case (userID, itemID, rating) => (userID, itemID)
     })
 
-    val predictions = model.transform(testData).collect
+    val predictions = model.transform(testData).collect()
 
     predictions.length should equal(expectedResult.length)
 
@@ -70,7 +70,7 @@ class ALSITSuite
       }
     }
 
-    val risk = model.empiricalRisk(inputDS).collect(0)
+    val risk = model.empiricalRisk(inputDS).collect().apply(0)
 
     risk should be(expectedEmpiricalRisk +- 1)
   }

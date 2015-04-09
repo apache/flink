@@ -55,7 +55,7 @@ class PolynomialBaseITSuite
     (2.0 -> DenseVector (8.0, 4.0, 2.0) )
     ) toMap
 
-    val result = transformedDS.collect
+    val result = transformedDS.collect()
 
     for (entry <- result) {
     expectedMap.contains (entry.label) should be (true)
@@ -86,7 +86,7 @@ class PolynomialBaseITSuite
 
     val transformedDS = transformer.transform(inputDS)
 
-    val result = transformedDS.collect
+    val result = transformedDS.collect()
 
     for(entry <- result) {
       expectedMap.contains(entry.label) should be(true)
@@ -111,7 +111,7 @@ class PolynomialBaseITSuite
 
     val transformedDS = transformer.transform(inputDS)
 
-    val result = transformedDS.collect
+    val result = transformedDS.collect()
 
     val expectedMap = List(
       (1.0 -> DenseVector()),
