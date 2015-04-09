@@ -29,6 +29,32 @@ If you quickly want to try out the system, please look at one of the available q
 a thorough introduction of the Flink API please refer to the
 [Programming Guide](programming_guide.html).
 
+## Stack
+
+This is an overview of Flink's stack. Click on any component to go to the respective documentation.
+
+<img src="img/overview-stack-0.9.png" width="893" height="450" alt="Stack" usemap="#overview-stack">
+
+<map name="overview-stack">
+  <area shape="rect" coords="188,0,263,200" alt="Graph API: Gelly" href="gelly_guide.html">
+  <!-- <area shape="rect" coords="268,0,343,200" alt="Flink ML" href="ml.htm"> -->
+  <area shape="rect" coords="348,0,423,200" alt="Table" href="table.html">
+
+  <area shape="rect" coords="188,205,538,260" alt="DataSet API (Java/Scala)" href="programming_guide.html">
+  <area shape="rect" coords="543,205,893,260" alt="DataStream API (Java/Scala)" href="streaming_guide.html">
+
+  <area shape="rect" coords="188,275,538,330" alt="Optimizer" href="optimizer.html">
+  <!-- <area shape="rect" coords="543,275,893,330" alt="Stream Builder" href="streambuilder.html"> -->
+
+  <area shape="rect" coords="188,335,893,385" alt="Flink Runtime" href="internal_general_arch.html">
+
+  <area shape="rect" coords="188,405,328,455" alt="Local" href="local_execution.html">
+  <area shape="rect" coords="333,405,473,455" alt="Remote" href="cluster_execution.html">
+  <area shape="rect" coords="478,405,638,455" alt="Embedded" href="local_execution.html">
+  <area shape="rect" coords="643,405,765,455" alt="YARN" href="yarn_setup.html">
+  <area shape="rect" coords="770,405,893,455" alt="Tez" href="flink_on_tez_guide.html">
+</map>
+
 ## Download
 
 You can download Flink from the [downloads]({{ site.FLINK_DOWNLOAD_URL }}) page
