@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.table.test;
 
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.table.Table;
 import org.apache.flink.api.table.Row;
 import org.apache.flink.api.java.DataSet;
@@ -127,6 +128,28 @@ public class CastingITCase extends MultipleProgramsTestBase {
 		env.execute();
 
 		expected = "2,2,2,2,2.0,2.0,Hello";
+	}
+
+	@Test
+	public void testCastFromString() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSource<Tuple3<String, String, String>> input =
+				env.fromElements(new Tuple3<String, String, String>("1", "true", "2.0"));
+
+		Table table =
+				tableEnv.fromDataSet(input);
+
+		Table result = table.select(
+				"f0.cast(BYTE), f0.cast(SHORT), f0.cast(INT), f0.cast(LONG), f2.cast(DOUBLE), f2.cast(FLOAT), f1.cast(BOOL)");
+
+		DataSet<Row> ds = tableEnv.toDataSet(result, Row.class);
+		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		env.execute();
+
+		expected = "1,1,1,1,2.0,2.0,true\n";
 	}
 }
 
