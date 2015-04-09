@@ -51,6 +51,13 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<!-- Needed for the streaming wordcount example -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-yarn</artifactId>

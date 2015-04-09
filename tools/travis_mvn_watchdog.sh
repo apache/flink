@@ -200,7 +200,7 @@ upload_artifacts_s3
 cd ../../
 
 
-UBERJAR=`find . | grep flink-dist | head -n 1`
+UBERJAR=`find . | grep flink-dist  | grep jar | head -n 1`
 if [ -z "$UBERJAR" ] ; then
 	echo "Uberjar not found. Assuming failed build";
 else 

@@ -41,6 +41,8 @@ import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -93,7 +95,6 @@ public abstract class YarnTestBase {
 	protected static File flinkUberjar;
 
 	protected static final Configuration yarnConfiguration;
-	protected static final String oldHome = System.getProperty("user.home");
 
 	static {
 		yarnConfiguration = new YarnConfiguration();
@@ -273,25 +274,27 @@ public abstract class YarnTestBase {
 		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
-				// scan each file for prohibited strings.
-				File f = new File(dir.getAbsolutePath()+ "/" + name);
-				try {
-					Scanner scanner = new Scanner(f);
-					while (scanner.hasNextLine()) {
-						final String lineFromFile = scanner.nextLine();
-						for (String aProhibited : prohibited) {
-							if (lineFromFile.contains(aProhibited)) {
-								LOG.warn("Prohibited String '{}' in line '{}'", aProhibited, lineFromFile);
-								return true;
-							}
+			// scan each file for prohibited strings.
+			File f = new File(dir.getAbsolutePath()+ "/" + name);
+			try {
+				Scanner scanner = new Scanner(f);
+				while (scanner.hasNextLine()) {
+					final String lineFromFile = scanner.nextLine();
+					for (String aProhibited : prohibited) {
+						if (lineFromFile.contains(aProhibited)) {
+							// logging in FATAL to see the actual message in TRAVIS tests.
+							Marker fatal = MarkerFactory.getMarker("FATAL");
+							LOG.error(fatal, "Prohibited String '{}' in line '{}'", aProhibited, lineFromFile);
+							return true;
 						}
-
 					}
-				} catch (FileNotFoundException e) {
-					LOG.warn("Unable to locate file: "+e.getMessage()+" file: "+f.getAbsolutePath());
-				}
 
-				return false;
+				}
+			} catch (FileNotFoundException e) {
+				LOG.warn("Unable to locate file: "+e.getMessage()+" file: "+f.getAbsolutePath());
+			}
+
+			return false;
 			}
 		});
 		if(foundFile != null) {
@@ -404,6 +407,7 @@ public abstract class YarnTestBase {
 		final int START_TIMEOUT_SECONDS = 60;
 
 		Runner runner = new Runner(args, type);
+		runner.setName("Frontend (CLI/YARN Client) runner thread (runWithArgs()).");
 		runner.start();
 
 		for(int second = 0; second <  START_TIMEOUT_SECONDS; second++) {
@@ -430,7 +434,7 @@ public abstract class YarnTestBase {
 	/**
 	 * The test has been passed once the "terminateAfterString" has been seen.
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode) {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -450,14 +454,14 @@ public abstract class YarnTestBase {
 			String outContentString = outContent.toString();
 			String errContentString = errContent.toString();
 			if(failOnStrings != null) {
-				for(int i = 0; i < failOnStrings.length; i++) {
-					if(outContentString.contains(failOnStrings[i])
-							|| errContentString.contains(failOnStrings[i])) {
-						LOG.warn("Failing test. Output contained illegal string '"+ failOnStrings[i]+"'");
+				for (String failOnString : failOnStrings) {
+					if (outContentString.contains(failOnString)
+							|| errContentString.contains(failOnString)) {
+						LOG.warn("Failing test. Output contained illegal string '" + failOnString + "'");
 						sendOutput();
 						// stopping runner.
 						runner.sendStop();
-						Assert.fail("Output contained illegal string '"+ failOnStrings[i]+"'");
+						Assert.fail("Output contained illegal string '" + failOnString + "'");
 					}
 				}
 			}
@@ -480,13 +484,15 @@ public abstract class YarnTestBase {
 			// check if thread died
 			if(!runner.isAlive()) {
 				sendOutput();
-				Assert.fail("Runner thread died before the test was finished. Return value = "+runner.getReturnValue());
+				Assert.fail("Runner thread died before the test was finished. Return value = " +runner.getReturnValue());
 			}
 		}
-
 		sendOutput();
 		Assert.assertTrue("During the timeout period of " + START_TIMEOUT_SECONDS + " seconds the " +
 				"expected string did not show up", expectedStringSeen);
+
+		// check for 0 return code
+		Assert.assertTrue("Expecting return value == "+returnCode, runner.getReturnValue() == returnCode);
 		LOG.info("Test was successful");
 	}
 
