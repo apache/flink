@@ -1165,12 +1165,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			MessagingFunction<K, VV, M, EV> messagingFunction,
 			int maximumNumberOfIterations) {
 
-		VertexCentricIteration<K, VV, M, EV> iteration = VertexCentricIteration.withEdges(
-				edges, vertexUpdateFunction, messagingFunction, maximumNumberOfIterations);
-
-		DataSet<Vertex<K, VV>> newVertices = vertices.runOperation(iteration);
-
-		return new Graph<K, VV, EV>(newVertices, this.edges, this.context);
+		return this.runVertexCentricIteration(vertexUpdateFunction, messagingFunction,
+			maximumNumberOfIterations, null);
 	}
 
 	/**
