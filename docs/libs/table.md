@@ -123,7 +123,58 @@ DataSet<WC> result = tableEnv.toDataSet(filtered, WC.class);
 When using Java, the embedded DSL for specifying expressions cannot be used. Only String expressions
 are supported. They support exactly the same feature set as the expression DSL.
 
-Please refer to the Javadoc for a full list of supported operations and a description of the
-expression syntax. 
+## Expression Syntax
 
+A `Table` supports to following operations: `select`, `where`, `groupBy`, `join` (Plus `filter` as
+an alias for `where`.). These are also documented in the [Javadoc](http://flink.apache.org/docs/latest/api/java/org/apache/flink/api/table/Table.html) 
+of Table.
+
+Some of these expect an expression. These can either be specified using an embedded Scala DSL or
+a String expression. Please refer to the examples above to learn how expressions can be
+formulated.
+
+This is the complete EBNF grammar for expressions:
+
+{% highlight ebnf %}
+
+expression = single expression , { "," , single expression } ;
+
+single expression = alias | logic ;
+
+alias = logic | logic , "AS" , field reference ;
+
+logic = comparison , [ ( "&&" | "||" ) , comparison ] ;
+
+comparison = term , [ ( "=" | "!=" | ">" | ">=" | "<" | "<=" ) , term ] ;
+
+term = product , [ ( "+" | "-" ) , product ] ;
+
+product = binary bitwise , [ ( "*" | "/" | "%" ) , binary bitwise ] ;
+
+binary bitwise = unary , [ ( "&" | "!" | "^" ) , unary ] ;
+
+unary = [ "!" | "-" | "~" ] , suffix ;
+
+suffix = atom | aggregation | cast | as | substring ;
+
+aggregation = atom , [ ".sum" | ".min" | ".max" | ".count" | "avg" ] ;
+
+cast = atom , ".cast(" , data type , ")" ;
+
+data type = "BYTE" | "SHORT" | "INT" | "LONG" | "FLOAT" | "DOUBLE" | "BOOL" | "BOOLEAN" | "STRING" ;
+
+as = atom , ".as(" , field reference , ")" ;
+
+substring = atom , ".substring(" , substring start , ["," substring end] , ")" ;
+
+substring start = single expression ;
+
+substring end = single expression ;
+
+atom = ( "(" , single expression , ")" ) | literal | field reference ;
+
+{% endhighlight %}
+
+Here, `literal` is a valid Java literal and `field reference` specifies a column in the data. The
+column names follow Java identifier syntax.
 

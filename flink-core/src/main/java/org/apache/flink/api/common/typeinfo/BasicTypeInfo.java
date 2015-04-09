@@ -91,7 +91,7 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	 * Returns whether this type should be automatically casted to
 	 * the target type in an arithmetic operation.
 	 */
-	public boolean canCastTo(BasicTypeInfo<?> to) {
+	public boolean shouldAutocastTo(BasicTypeInfo<?> to) {
 		for (Class<?> possibleTo: possibleCastTargetTypes) {
 			if (possibleTo.equals(to.getTypeClass())) {
 				return true;
