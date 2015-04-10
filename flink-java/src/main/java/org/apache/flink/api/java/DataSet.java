@@ -42,6 +42,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.FormattingMapper;
@@ -411,24 +412,15 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.Utils.CollectHelper
 	 */
 	public List<T> collect() throws Exception {
-		// validate that our type is actually serializable
-		Class<?> typeClass = getType().getTypeClass();
-		ClassLoader cl = typeClass.getClassLoader() == null ? ClassLoader.getSystemClassLoader()
-															: typeClass.getClassLoader();
-
-		if (!java.io.Serializable.class.isAssignableFrom(typeClass)) {
-			throw new UnsupportedOperationException("collect() can only be used with serializable data types. "
-					+ "The DataSet type '" + typeClass.getName() + "' does not implement java.io.Serializable.");
-		}
-
 		final String id = new AbstractID().toString();
-
-		this.flatMap(new Utils.CollectHelper<T>(id)).output(new DiscardingOutputFormat<T>());
+		final TypeSerializer<T> serializer = getType().createSerializer(getExecutionEnvironment().getConfig());
+		
+		this.flatMap(new Utils.CollectHelper<T>(id, serializer)).output(new DiscardingOutputFormat<T>());
 		JobExecutionResult res = getExecutionEnvironment().execute();
 
 		ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
 		try {
-			return SerializedListAccumulator.deserializeList(accResult, cl);
+			return SerializedListAccumulator.deserializeList(accResult, serializer);
 		}
 		catch (ClassNotFoundException e) {
 			throw new RuntimeException("Cannot find type class of collected data type.", e);

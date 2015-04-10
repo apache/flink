@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 
 import java.lang.reflect.Field;
@@ -97,21 +98,24 @@ public class Utils {
 		private static final long serialVersionUID = 1L;
 
 		private final String id;
-		private final SerializedListAccumulator<T> accumulator;
+		private final TypeSerializer<T> serializer;
+		
+		private SerializedListAccumulator<T> accumulator;
 
-		public CollectHelper(String id) {
+		public CollectHelper(String id, TypeSerializer<T> serializer) {
 			this.id = id;
-			this.accumulator = new SerializedListAccumulator<T>();
+			this.serializer = serializer;
 		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
+			this.accumulator = new SerializedListAccumulator<T>();
 			getRuntimeContext().addAccumulator(id, accumulator);
 		}
 
 		@Override
 		public void flatMap(T value, Collector<T> out) throws Exception {
-			accumulator.add(value);
+			accumulator.add(value, serializer);
 		}
 	}
 

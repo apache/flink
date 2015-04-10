@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
+import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
@@ -537,24 +538,18 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   @throws(classOf[Exception])
   def collect(): Seq[T] = {
-    val typeClass: Class[_] = getType().getTypeClass()
-    val cl: ClassLoader = if (typeClass.getClassLoader == null) ClassLoader.getSystemClassLoader
-                            else typeClass.getClassLoader
-
-    if (typeClass != null && !classOf[java.io.Serializable].isAssignableFrom(typeClass)) {
-      throw new UnsupportedOperationException(
-        "collect() can only be used with serializable data types. " +
-        "The DataSet type '" + typeClass.getName + "' does not implement java.io.Serializable.")
-    }
-
     val id = new AbstractID().toString
-    javaSet.flatMap(new Utils.CollectHelper[T](id)).output(new DiscardingOutputFormat[T])
+    val serializer = getType().createSerializer(getExecutionEnvironment.getConfig)
+    
+    javaSet.flatMap(new Utils.CollectHelper[T](id, serializer))
+           .output(new DiscardingOutputFormat[T])
+    
     val res = getExecutionEnvironment.execute()
 
     val accResult: java.util.ArrayList[Array[Byte]] = res.getAccumulatorResult(id)
 
     try {
-      SerializedListAccumulator.deserializeList(accResult, cl).asScala
+      SerializedListAccumulator.deserializeList(accResult, serializer).asScala
     }
     catch {
       case e: ClassNotFoundException => {

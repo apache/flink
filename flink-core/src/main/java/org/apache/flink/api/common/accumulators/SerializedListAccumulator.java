@@ -18,8 +18,14 @@
 
 package org.apache.flink.api.common.accumulators;
 
-import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,40 +43,30 @@ public class SerializedListAccumulator<T> implements Accumulator<T, ArrayList<by
 	private static final long serialVersionUID = 1L;
 
 	private ArrayList<byte[]> localValue = new ArrayList<byte[]>();
+	
 
 	@Override
 	public void add(T value) {
-		if (value == null) {
-			throw new NullPointerException("Value to accumulate must nor be null");
-		}
-
+		throw new UnsupportedOperationException();
+	}
+	
+	public void add(T value, TypeSerializer<T> serializer) throws IOException {
 		try {
-			byte[] byteArray = InstantiationUtil.serializeObject(value);
-			localValue.add(byteArray);
+			ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+			OutputViewDataOutputStreamWrapper out = 
+					new OutputViewDataOutputStreamWrapper(new DataOutputStream(outStream));
+			
+			serializer.serialize(value, out);
+			localValue.add(outStream.toByteArray());
 		}
 		catch (IOException e) {
-			throw new RuntimeException("Serialization of accumulated value failed", e);
+			throw new IOException("Failed to serialize value '" + value + '\'', e);
 		}
 	}
 
 	@Override
 	public ArrayList<byte[]> getLocalValue() {
 		return localValue;
-	}
-
-	public ArrayList<T> deserializeLocalValue(ClassLoader classLoader) {
-		try {
-			ArrayList<T> arrList = new ArrayList<T>(localValue.size());
-			for (byte[] byteArr : localValue) {
-				@SuppressWarnings("unchecked")
-				T item = (T) InstantiationUtil.deserializeObject(byteArr, classLoader);
-				arrList.add(item);
-			}
-			return arrList;
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Cannot deserialize accumulator list element", e);
-		}
 	}
 
 	@Override
@@ -91,12 +87,15 @@ public class SerializedListAccumulator<T> implements Accumulator<T, ArrayList<by
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> List<T> deserializeList(ArrayList<byte[]> data, ClassLoader loader)
+	public static <T> List<T> deserializeList(ArrayList<byte[]> data, TypeSerializer<T> serializer)
 			throws IOException, ClassNotFoundException
 	{
 		List<T> result = new ArrayList<T>(data.size());
 		for (byte[] bytes : data) {
-			result.add((T) InstantiationUtil.deserializeObject(bytes, loader));
+			ByteArrayInputStream inStream = new ByteArrayInputStream(bytes);
+			InputViewDataInputStreamWrapper in = new InputViewDataInputStreamWrapper(new DataInputStream(inStream));
+			T val = serializer.deserialize(in);
+			result.add(val);
 		}
 		return result;
 	}

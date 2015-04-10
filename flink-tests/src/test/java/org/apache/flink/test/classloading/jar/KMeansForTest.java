@@ -28,7 +28,6 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 
-import java.io.Serializable;
 import java.util.Collection;
 
 /**
@@ -107,7 +106,7 @@ public class KMeansForTest {
 	/**
 	 * A simple two-dimensional point.
 	 */
-	public static class Point implements Serializable {
+	public static class Point {
 
 		public double x, y;
 
