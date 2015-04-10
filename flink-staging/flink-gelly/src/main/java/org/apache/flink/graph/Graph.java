@@ -68,7 +68,7 @@ import org.apache.flink.types.NullValue;
  * @see org.apache.flink.graph.Vertex
  * 
  * @param <K> the key type for edge and vertex identifiers
- * @param <VV> the value type for vertexes
+ * @param <VV> the value type for vertices
  * @param <EV> the value type for edges
  */
 @SuppressWarnings("serial")
@@ -79,8 +79,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	private final DataSet<Edge<K, EV>> edges;
 
 	/**
-	 * Creates a graph from two DataSets: vertices and edges and allow setting
-	 * the undirected property
+	 * Creates a graph from two DataSets: vertices and edges
 	 * 
 	 * @param vertices a DataSet of vertices.
 	 * @param edges a DataSet of edges.
