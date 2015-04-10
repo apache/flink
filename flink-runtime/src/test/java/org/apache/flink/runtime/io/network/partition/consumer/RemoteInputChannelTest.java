@@ -21,13 +21,10 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import com.google.common.collect.Lists;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.junit.Test;
-import org.mockito.Matchers;
 
 import java.io.IOException;
 import java.util.List;
@@ -37,7 +34,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -73,7 +69,7 @@ public class RemoteInputChannelTest {
 		verify(inputGate, times(2)).onAvailableBuffer(eq(inputChannel));
 	}
 
-	@Test(timeout = 120 * 1000)
+	@Test
 	public void testConcurrentOnBufferAndRelease() throws Exception {
 		// Config
 		// Repeatedly spawn two tasks: one to queue buffers and the other to release the channel
