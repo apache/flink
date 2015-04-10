@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector;
 
 /**
  * Interface to be implemented by the function applied to a vertex neighborhood
- * in the {@link Graph#reduceOnEdges(EdgesFunction, EdgeDirection)} method.
+ * in the {@link Graph#groupReduceOnEdges(EdgesFunction, EdgeDirection)} method.
  *
  * @param <K> the vertex key type
  * @param <EV> the edge value type

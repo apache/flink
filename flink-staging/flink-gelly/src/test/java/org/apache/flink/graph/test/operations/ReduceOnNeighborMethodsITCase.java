@@ -20,6 +20,7 @@ package org.apache.flink.graph.test.operations;
 
 import java.util.Iterator;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -29,6 +30,7 @@ import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.NeighborsFunction;
 import org.apache.flink.graph.NeighborsFunctionWithVertexValue;
+import org.apache.flink.graph.ReduceNeighborsFunction;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -75,7 +77,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
-				graph.reduceOnNeighbors(new SumOutNeighbors(), EdgeDirection.OUT);
+				graph.groupReduceOnNeighbors(new SumOutNeighbors(), EdgeDirection.OUT);
 
 		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
 		env.execute();
@@ -97,7 +99,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum = 
-				graph.reduceOnNeighbors(new SumInNeighbors(), EdgeDirection.IN);		
+				graph.groupReduceOnNeighbors(new SumInNeighbors(), EdgeDirection.IN);
 
 		verticesWithSum.writeAsCsv(resultPath);
 		env.execute();
@@ -120,7 +122,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
-				graph.reduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
+				graph.groupReduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
 
 		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
 		env.execute();
@@ -143,7 +145,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
-				graph.reduceOnNeighbors(new SumOutNeighborsIdGreaterThanThree(), EdgeDirection.OUT);
+				graph.groupReduceOnNeighbors(new SumOutNeighborsIdGreaterThanThree(), EdgeDirection.OUT);
 
 		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
 		env.execute();
@@ -162,7 +164,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum =
-				graph.reduceOnNeighbors(new SumInNeighborsIdGreaterThanThree(), EdgeDirection.IN);
+				graph.groupReduceOnNeighbors(new SumInNeighborsIdGreaterThanThree(), EdgeDirection.IN);
 
 		verticesWithSum.writeAsCsv(resultPath);
 		env.execute();
@@ -182,7 +184,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
-				graph.reduceOnNeighbors(new SumAllNeighborsIdGreaterThanThree(), EdgeDirection.ALL);
+				graph.groupReduceOnNeighbors(new SumAllNeighborsIdGreaterThanThree(), EdgeDirection.ALL);
 
 		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
 		env.execute();
@@ -270,7 +272,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
-				graph.reduceOnNeighbors(new SumOutNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.OUT);
+				graph.groupReduceOnNeighbors(new SumOutNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.OUT);
 
 		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
 		env.execute();
@@ -294,7 +296,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
-				graph.reduceOnNeighbors(new SumInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.IN);
+				graph.groupReduceOnNeighbors(new SumInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.IN);
 		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
 		env.execute();
 
@@ -317,7 +319,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
-				graph.reduceOnNeighbors(new SumAllNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.ALL);
+				graph.groupReduceOnNeighbors(new SumAllNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.ALL);
 
 		verticesWithSumOfAllNeighborValues.writeAsCsv(resultPath);
 		env.execute();
@@ -341,7 +343,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
-				graph.reduceOnNeighbors(new SumOutNeighborsMultipliedByTwo(), EdgeDirection.OUT);
+				graph.groupReduceOnNeighbors(new SumOutNeighborsMultipliedByTwo(), EdgeDirection.OUT);
 
 		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
 		env.execute();
@@ -368,7 +370,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum =
-				graph.reduceOnNeighbors(new SumInNeighborsSubtractOne(), EdgeDirection.IN);
+				graph.groupReduceOnNeighbors(new SumInNeighborsSubtractOne(), EdgeDirection.IN);
 
 		verticesWithSum.writeAsCsv(resultPath);
 		env.execute();
@@ -396,7 +398,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
-				graph.reduceOnNeighbors(new SumAllNeighborsAddFive(), EdgeDirection.ALL);
+				graph.groupReduceOnNeighbors(new SumAllNeighborsAddFive(), EdgeDirection.ALL);
 
 		verticesWithSumOfOutNeighborValues.writeAsCsv(resultPath);
 		env.execute();
@@ -522,62 +524,39 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SumOutNeighborsNoValue implements NeighborsFunction<Long, Long, Long, 
-		Tuple2<Long, Long>> {
+	private static final class SumOutNeighborsNoValue implements ReduceNeighborsFunction<Long, Long, Long> {
 
 		@Override
-		public void iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-									 Collector<Tuple2<Long, Long>> out) throws Exception {
-
-			long sum = 0;
-			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-					neighbors.iterator();
-			while(neighborsIterator.hasNext()) {
-				next = neighborsIterator.next();
-				sum += next.f2.getValue();
-			}
-			out.collect(new Tuple2<Long, Long>(next.f0, sum));
+		public Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> reduceNeighbors(Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> firstNeighbor,
+																				  Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> secondNeighbor) {
+			long sum = firstNeighbor.f2.getValue() + secondNeighbor.f2.getValue();
+			return new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>(firstNeighbor.f0, firstNeighbor.f1,
+					new Vertex<Long, Long>(firstNeighbor.f0, sum));
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SumInNeighborsNoValue implements NeighborsFunction<Long, Long, Long, 
-		Tuple2<Long, Long>> {
+	private static final class SumInNeighborsNoValue implements ReduceNeighborsFunction<Long, Long, Long> {
 
 		@Override
-		public void iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-									 Collector<Tuple2<Long, Long>> out) throws Exception {
-
-			long sum = 0;
-			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-					neighbors.iterator();
-			while(neighborsIterator.hasNext()) {
-				next = neighborsIterator.next();
-				sum += next.f2.getValue() * next.f1.getValue();
-			}
-			out.collect(new Tuple2<Long, Long>(next.f0, sum));
+		public Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> reduceNeighbors(Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> firstNeighbor,
+																				  Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> secondNeighbor) {
+			long sum = firstNeighbor.f2.getValue() * firstNeighbor.f1.getValue() +
+					secondNeighbor.f2.getValue() * secondNeighbor.f1.getValue();
+			return new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>(firstNeighbor.f0, firstNeighbor.f1,
+					new Vertex<Long, Long>(firstNeighbor.f0, sum));
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SumAllNeighborsNoValue implements NeighborsFunction<Long, Long, Long, 
-		Tuple2<Long, Long>> {
+	private static final class SumAllNeighborsNoValue implements ReduceNeighborsFunction<Long, Long, Long> {
 
 		@Override
-		public void iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-									 Collector<Tuple2<Long, Long>> out) throws Exception {
-	
-			long sum = 0;
-			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
-			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
-					neighbors.iterator();
-			while(neighborsIterator.hasNext()) {
-				next = neighborsIterator.next();
-				sum += next.f2.getValue();
-			}
-			out.collect(new Tuple2<Long, Long>(next.f0, sum));
+		public Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> reduceNeighbors(Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> firstNeighbor,
+																				  Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> secondNeighbor) {
+			long sum = firstNeighbor.f2.getValue() + secondNeighbor.f2.getValue();
+			return new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>(firstNeighbor.f0, firstNeighbor.f1,
+					new Vertex<Long, Long>(firstNeighbor.f0, sum));
 		}
 	}
 

@@ -100,7 +100,7 @@ public class MusicProfiles implements ProgramDescription {
 		 * Get the top track (most listened) for each user
 		 */
 		DataSet<Tuple2<String, String>> usersWithTopTrack = userSongGraph
-				.reduceOnEdges(new GetTopSongPerUser(), EdgeDirection.OUT)
+				.groupReduceOnEdges(new GetTopSongPerUser(), EdgeDirection.OUT)
 				.filter(new FilterSongNodes());
 
 		if (fileOutput) {

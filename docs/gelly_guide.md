@@ -269,7 +269,10 @@ Neighborhood Methods
 
 Neighborhood methods allow vertices to perform an aggregation on their first-hop neighborhood.
 
-`reduceOnEdges()` can be used to compute an aggregation on the neighboring edges of a vertex, while `reduceOnNeighbors()` has access on both the neighboring edges and vertices. The neighborhood scope is defined by the `EdgeDirection` parameter, which takes the values `IN`, `OUT` or `ALL`. `IN` will gather all in-coming edges (neighbors) of a vertex, `OUT` will gather all out-going edges (neighbors), while `ALL` will gather all edges (neighbors).
+`groupReduceOnEdges()` can be used to compute an aggregation on the neighboring edges of a vertex, while `groupReduceOnNeighbors()` has access on both the neighboring edges and vertices. The neighborhood scope is defined by the `EdgeDirection` parameter, which takes the values `IN`, `OUT` or `ALL`. `IN` will gather all in-coming edges (neighbors) of a vertex, `OUT` will gather all out-going edges (neighbors), while `ALL` will gather all edges (neighbors).
+
+The `groupReduceOnEdges()` and `groupReduceOnNeighbors()` methods return zero, one or more values per vertex.
+When returning a single value per vertex, `reduceOnEdges()` or `reduceOnNeighbors()` should be called as they are more efficient.
 
 For example, assume that you want to select the minimum weight of all out-edges for each vertex in the following graph:
 
@@ -282,7 +285,7 @@ The following code will collect the out-edges for each vertex and apply the `Sel
 {% highlight java %}
 Graph<Long, Long, Double> graph = ...
 
-DataSet<Tuple2<Long, Double>> minWeights = graph.reduceOnEdges(
+DataSet<Tuple2<Long, Double>> minWeights = graph.groupReduceOnEdges(
 				new SelectMinWeight(), EdgeDirection.OUT);
 
 // user-defined function to select the minimum weight
@@ -319,20 +322,15 @@ DataSet<Tuple2<Long, Long>> verticesWithSum = graph.reduceOnNeighbors(
 				new SumValues(), EdgeDirection.IN);
 
 // user-defined function to sum the neighbor values
-static final class SumValues implements NeighborsFunction<Long, Long, Double, Tuple2<Long, Long>> {
-		
-	public void iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Double>,
-		Vertex<Long, Long>>> neighbors, Collector<Tuple2<Long, Long>> out) {
-		
-		long sum = 0;
-		long vertexId = -1;
+static final class SumValues implements ReduceNeighborsFunction<Long, Long, Double> {
 
-		for (Tuple3<Long, Edge<Long, Double>, Vertex<Long, Long>> neighbor : neighbors) {
-			vertexId = neighbor.f0;
-			sum += neighbor.f2.getValue();
-		}
-		out.collect(new Tuple2<Long, Long>(vertexId, sum));
-	}
+    public Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> reduceNeighbors(Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> firstNeighbor,
+    																		Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> secondNeighbor) {
+
+    	long sum = firstNeighbor.f2.getValue() + secondNeighbor.f2.getValue();
+    	return new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>(firstNeighbor.f0, firstNeighbor.f1,
+    			new Vertex<Long, Long>(firstNeighbor.f0, sum));
+    }
 }
 {% endhighlight %}
 
@@ -340,9 +338,7 @@ static final class SumValues implements NeighborsFunction<Long, Long, Double, Tu
     <img alt="reduceOnNeighbors Example" width="70%" src="img/gelly-reduceOnNeighbors.png"/>
 </p>
 
-When the aggregation computation does not require access to the vertex value (for which the aggregation is performed), it is advised to use the more efficient `EdgesFunction` and `NeighborsFunction` for the user-defined functions. When access to the vertex value is required, one should use `EdgesFunctionWithVertexValue` and `NeighborsFunctionWithVertexValue` instead. 
-
-The neighborhood methods return zero, one or more values per vertex.
+When the aggregation computation does not require access to the vertex value (for which the aggregation is performed), it is advised to use the more efficient `EdgesFunction` and `NeighborsFunction` for the user-defined functions. When access to the vertex value is required, one should use `EdgesFunctionWithVertexValue` and `NeighborsFunctionWithVertexValue` instead.
 
 [Back to top](#top)
 
