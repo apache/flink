@@ -123,7 +123,13 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		checkForLogString("The Flink YARN client has been started in detached mode");
 
 		Assert.assertFalse("The runner should detach.", runner.isAlive());
-		sleep(5000); // wait for 5 seconds to make sure the the app has been started completely before we kill it
+
+		LOG.info("Waiting until two containers are running");
+		// wait until two containers are running
+		while(getRunningContainers() < 2) {
+			sleep(500);
+		}
+		LOG.info("Two containers are running. Killing the application");
 
 		// kill application "externally".
 		try {

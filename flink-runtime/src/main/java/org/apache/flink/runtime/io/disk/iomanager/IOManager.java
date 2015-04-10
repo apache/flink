@@ -103,7 +103,14 @@ public abstract class IOManager {
 				shutdown();
 			}
 		};
-		Runtime.getRuntime().addShutdownHook(this.shutdownHook);
+		try {
+			Runtime.getRuntime().addShutdownHook(this.shutdownHook);
+		} catch (IllegalStateException e) {
+			// race, JVM is in shutdown already, we can safely ignore this
+			LOG.debug("Unable to add shutdown hook, shutdown already in progress", e);
+		} catch (Throwable t) {
+			LOG.warn("Error while adding shutdown hook for IOManager", t);
+		}
 	}
 
 	/**
@@ -132,6 +139,7 @@ public abstract class IOManager {
 			}
 			catch (IllegalStateException e) {
 				// race, JVM is in shutdown already, we can safely ignore this
+				LOG.debug("Unable to remove shutdown hook, shutdown already in progress", e);
 			}
 			catch (Throwable t) {
 				LOG.warn("Exception while unregistering IOManager's shutdown hook.", t);
