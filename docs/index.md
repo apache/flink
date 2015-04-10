@@ -18,7 +18,7 @@ software distributed under the License is distributed on an
 KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
--->
+--> 
 
 Apache Flink is a platform for efficient, distributed, general-purpose data processing.
 It features powerful programming abstractions in Java and Scala, a high-performance runtime, and
@@ -57,11 +57,8 @@ This is an overview of Flink's stack. Click on any component to go to the respec
 
 ## Download
 
-You can download Flink from the [downloads]({{ site.FLINK_DOWNLOAD_URL }}) page
-of the [project website]({{ site.FLINK_WEBSITE_URL }}). This documentation is for version {{ site.FLINK_VERSION_SHORT }}. Be careful
-when picking a version, there are different versions depending on the Hadoop and/or
-HDFS version that you want to use with Flink. Please refer to [building](building.html) if you
-want to build Flink yourself from the source.
+This documentation is for the next upcoming major release version {{ site.FLINK_VERSION_THIS_SHORT }} of Apache Flink.
 
-In Version {{ site.FLINK_VERSION_SHORT}} the Scala API uses Scala {{ site.FLINK_SCALA_VERSION_SHORT }}. Please make
-sure to use a compatible version.
+You can download the latest pre-built snapshot version from the [downloads]({{ site.FLINK_DOWNLOAD_URL }}#latest) page of the [project website]({{ site.FLINK_WEBSITE_URL }}).
+
+The Scala API uses Scala {{ site.FLINK_SCALA_VERSION_SHORT }}. Please make sure to use a compatible version.
