@@ -36,6 +36,8 @@ public class FlumeSource<OUT> extends ConnectorSource<OUT> {
 	String port;
 	volatile boolean finished = false;
 
+	private volatile boolean isRunning = false;
+
 	FlumeSource(String host, int port, DeserializationSchema<OUT> deserializationSchema) {
 		super(deserializationSchema);
 		this.host = host;
@@ -131,15 +133,17 @@ public class FlumeSource<OUT> extends ConnectorSource<OUT> {
 	 */
 	@Override
 	public void run(Collector<OUT> collector) throws Exception {
+		isRunning = true;
 		configureAvroSource(collector);
 		avroSource.start();
-		while (!finished) {
+		while (!finished && isRunning) {
 			this.wait();
 		}
 	}
 
 	@Override
 	public void cancel() {
+		isRunning = false;
 	}
 
 }

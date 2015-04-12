@@ -66,6 +66,8 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	private transient Map<Integer, KafkaOffset> partitions;
 
+	private volatile boolean isRunning = false;
+
 	/**
 	 * Creates a persistent Kafka source that consumes a topic.
 	 * If there is are no new messages on the topic, this consumer will wait
@@ -203,8 +205,9 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	@Override
 	public void run(Collector<OUT> collector) throws Exception {
+		isRunning = true;
 		MessageWithMetadata msg;
-		while (iterator.hasNext()) {
+		while (isRunning && iterator.hasNext()) {
 			msg = iterator.nextWithOffset();
 			OUT out = schema.deserialize(msg.getMessage());
 
