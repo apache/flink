@@ -87,6 +87,8 @@ public class WordCountExample {
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
+import org.apache.flink.api.scala._
+
 object WordCount {
   def main(args: Array[String]) {
 
@@ -174,6 +176,21 @@ If you want to add Flink to an existing Maven project, add the following entry t
   <version>{{site.FLINK_VERSION_SHORT }}</version>
 </dependency>
 {% endhighlight %}
+
+**Important:** When working with the Scala API you must have one of these two imports:
+{% highlight scala %}
+import org.apache.flink.api.scala._
+{% endhighlight %}
+
+or
+
+{% highlight scala %}
+import org.apache.flink.api.scala.createTypeInformation
+{% endhighlight %}
+
+The reason is that Flink analyzes the types that are used in a program and generates serializers
+and comparaters for them. By having either of those imports you enable an implicit conversion
+that creates the type information for Flink operations.
 </div>
 </div>
 
