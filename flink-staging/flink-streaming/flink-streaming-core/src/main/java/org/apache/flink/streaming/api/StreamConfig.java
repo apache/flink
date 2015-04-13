@@ -44,20 +44,20 @@ public class StreamConfig implements Serializable {
 	private static final String OUTPUT_NAME = "outputName_";
 	private static final String VERTEX_NAME = "vertexID";
 	private static final String OPERATOR_NAME = "operatorName";
-	private static final String ITERATION_ID = "iteration-id";
+	private static final String ITERATION_ID = "iterationId";
 	private static final String OUTPUT_SELECTOR_WRAPPER = "outputSelectorWrapper";
-	private static final String SERIALIZEDUDF = "serializedudf";
-	private static final String USER_FUNCTION = "userfunction";
+	private static final String SERIALIZEDUDF = "serializedUDF";
+	private static final String USER_FUNCTION = "userFunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
 	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
 	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out_1";
 	private static final String TYPE_SERIALIZER_OUT_2 = "typeSerializer_out_2";
 	private static final String ITERATON_WAIT = "iterationWait";
-	private static final String NONCHAINED_OUTPUTS = "NONCHAINED_OUTPUTS";
-	private static final String EDGES_IN_ORDER = "rwOrder";
-	private static final String OUT_STREAM_EDGES = "out stream edges";
-	private static final String IN_STREAM_EDGES = "out stream edges";
+	private static final String NONCHAINED_OUTPUTS = "nonChainedOutputs";
+	private static final String EDGES_IN_ORDER = "edgesInOrder";
+	private static final String OUT_STREAM_EDGES = "outStreamEdges";
+	private static final String IN_STREAM_EDGES = "inStreamEdges";
 
 	// DEFAULT VALUES
 	private static final long DEFAULT_TIMEOUT = 100;
