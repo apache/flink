@@ -81,6 +81,7 @@ public class SimpleRecoveryITCase {
 
 				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
+				env.getConfig().disableSysoutLogging();
 
 				env.generateSequence(1, 10)
 						.rebalance()
@@ -110,6 +111,7 @@ public class SimpleRecoveryITCase {
 
 				env.setParallelism(4);
 				env.setNumberOfExecutionRetries(0);
+				env.getConfig().disableSysoutLogging();
 
 				env.generateSequence(1, 10)
 						.rebalance()
@@ -156,6 +158,7 @@ public class SimpleRecoveryITCase {
 
 			env.setParallelism(4);
 			env.setNumberOfExecutionRetries(1);
+			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 10)
 					.rebalance()
@@ -200,6 +203,7 @@ public class SimpleRecoveryITCase {
 
 			env.setParallelism(4);
 			env.setNumberOfExecutionRetries(5);
+			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 10)
 					.rebalance()

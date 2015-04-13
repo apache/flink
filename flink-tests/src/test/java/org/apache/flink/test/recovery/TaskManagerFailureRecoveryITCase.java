@@ -87,6 +87,7 @@ public class TaskManagerFailureRecoveryITCase {
 
 			env.setParallelism(PARALLELISM);
 			env.setNumberOfExecutionRetries(1);
+			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 10)
 					.map(new FailingMapper<Long>())
