@@ -78,9 +78,9 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		env.execute();
 	
 		expectedResult = "1,2\n" +
-				"2,3\n" + 
+				"2,3\n" +
 				"3,4\n" +
-				"4,5\n" + 
+				"4,5\n" +
 				"5,1\n";
 	}
 
@@ -335,8 +335,8 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testLowestWeightOutNeighborNoValue() throws Exception {
 		/*
-		 * Get the lowest-weight out-neighbor
-		 * for each vertex
+		 * Get the lowest-weight out of all the out-neighbors
+		 * of each vertex
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
@@ -347,33 +347,33 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		verticesWithLowestOutNeighbor.writeAsCsv(resultPath);
 		env.execute();
 
-		expectedResult = "1,2\n" +
-				"2,3\n" + 
-				"3,4\n" +
-				"4,5\n" + 
-				"5,1\n";
+		expectedResult = "1,12\n" +
+				"2,23\n" +
+				"3,34\n" +
+				"4,45\n" +
+				"5,51\n";
 	}
 
 	@Test
 	public void testLowestWeightInNeighborNoValue() throws Exception {
 		/*
-		 * Get the lowest-weight in-neighbor
-		 * for each vertex
+		 * Get the lowest-weight out of all the in-neighbors
+		 * of each vertex
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
-				graph.groupReduceOnEdges(new SelectMinWeightInNeighborNoValue(), EdgeDirection.IN);
+				graph.reduceOnEdges(new SelectMinWeightInNeighborNoValue(), EdgeDirection.IN);
 		verticesWithLowestOutNeighbor.writeAsCsv(resultPath);
 		env.execute();
 
-		expectedResult = "1,5\n" +
-				"2,1\n" + 
-				"3,1\n" +
-				"4,3\n" + 
-				"5,3\n";
+		expectedResult = "1,51\n" +
+				"2,12\n" +
+				"3,13\n" +
+				"4,34\n" +
+				"5,35\n";
 	}
 
 	@Test
@@ -455,25 +455,6 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 	@SuppressWarnings("serial")
 	private static final class SelectMaxWeightNeighborNoValue implements ReduceEdgesFunction<Long, Long> {
 
-//		@Override
-//		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-//								 Collector<Tuple2<Long, Long>> out) throws Exception {
-//
-//			long weight = Long.MIN_VALUE;
-//			long vertexId = -1;
-//			long i=0;
-//
-//			for (Tuple2<Long, Edge<Long, Long>> edge: edges) {
-//				if (edge.f1.getValue() > weight) {
-//					weight = edge.f1.getValue();
-//				}
-//				if (i==0) {
-//					vertexId = edge.f0;
-//				} i++;
-//			}
-//			out.collect(new Tuple2<Long, Long>(vertexId, weight));
-//		}
-
 		@Override
 		public Tuple2<Long, Edge<Long, Long>> reduceEdges(Tuple2<Long, Edge<Long, Long>> firstEdge,
 														  Tuple2<Long, Edge<Long, Long>> secondEdge) {
@@ -506,27 +487,16 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SelectMinWeightInNeighborNoValue implements EdgesFunction<Long, Long, Tuple2<Long, Long>> {
+	private static final class SelectMinWeightInNeighborNoValue implements ReduceEdgesFunction<Long, Long> {
 
 		@Override
-		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
-			
-			long weight = Long.MAX_VALUE;
-			long minNeighorId = 0;
-			long vertexId = -1;
-			long i=0;
-
-			for (Tuple2<Long, Edge<Long, Long>> edge: edges) {
-				if (edge.f1.getValue() < weight) {
-					weight = edge.f1.getValue();
-					minNeighorId = edge.f1.getSource();
-				}
-				if (i==0) {
-					vertexId = edge.f0;
-				} i++;
+		public Tuple2<Long, Edge<Long, Long>> reduceEdges(Tuple2<Long, Edge<Long, Long>> firstEdge,
+														  Tuple2<Long, Edge<Long, Long>> secondEdge) {
+			if(firstEdge.f1.getValue() < secondEdge.f1.getValue()) {
+				return firstEdge;
+			} else {
+				return secondEdge;
 			}
-			out.collect(new Tuple2<Long, Long>(vertexId, minNeighorId));
 		}
 	}
 
