@@ -20,7 +20,7 @@ package org.apache.flink.streaming.util;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 public class MockSource<T> {
 

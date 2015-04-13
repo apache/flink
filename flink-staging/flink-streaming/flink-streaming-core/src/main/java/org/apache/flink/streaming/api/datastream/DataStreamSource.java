@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
  * The DataStreamSource represents the starting point of a DataStream.
@@ -32,11 +32,11 @@ public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataS
 	boolean isParallel;
 
 	public DataStreamSource(StreamExecutionEnvironment environment, String operatorType,
-			TypeInformation<OUT> outTypeInfo, StreamInvokable<?, OUT> invokable,
+			TypeInformation<OUT> outTypeInfo, StreamOperator<?, OUT> operator,
 			boolean isParallel, String sourceName) {
-		super(environment, operatorType, outTypeInfo, invokable);
+		super(environment, operatorType, outTypeInfo, operator);
 
-		environment.getStreamGraph().addSource(getId(), invokable, null, outTypeInfo,
+		environment.getStreamGraph().addSource(getId(), operator, null, outTypeInfo,
 				sourceName);
 
 		this.isParallel = isParallel;

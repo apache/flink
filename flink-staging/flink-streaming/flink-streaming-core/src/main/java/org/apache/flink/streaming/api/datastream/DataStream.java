@@ -50,39 +50,39 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.StreamGraph;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
-import org.apache.flink.streaming.api.datastream.temporaloperator.StreamCrossOperator;
-import org.apache.flink.streaming.api.datastream.temporaloperator.StreamJoinOperator;
+import org.apache.flink.streaming.api.datastream.temporal.StreamCrossOperator;
+import org.apache.flink.streaming.api.datastream.temporal.StreamJoinOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType;
-import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
-import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
-import org.apache.flink.streaming.api.function.sink.FileSinkFunctionByMillis;
-import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.api.function.sink.SocketClientSink;
-import org.apache.flink.streaming.api.invokable.SinkInvokable;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.operator.CounterInvokable;
-import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
-import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.StreamFoldInvokable;
-import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
+import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
+import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
+import org.apache.flink.streaming.api.functions.sink.FileSinkFunctionByMillis;
+import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.operators.StreamCounter;
+import org.apache.flink.streaming.api.operators.StreamFilter;
+import org.apache.flink.streaming.api.operators.StreamFlatMap;
+import org.apache.flink.streaming.api.operators.StreamFold;
+import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamReduce;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
-import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.partitioner.DistributePartitioner;
-import org.apache.flink.streaming.partitioner.FieldsPartitioner;
-import org.apache.flink.streaming.partitioner.GlobalPartitioner;
-import org.apache.flink.streaming.partitioner.ShufflePartitioner;
-import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.DistributePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
@@ -511,7 +511,7 @@ public class DataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType(),
 				Utils.getCallLocationName(), true);
 
-		return transform("Map", outType, new MapInvokable<OUT, R>(clean(mapper)));
+		return transform("Map", outType, new StreamMap<OUT, R>(clean(mapper)));
 	}
 
 	/**
@@ -535,7 +535,7 @@ public class DataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
 				getType(), Utils.getCallLocationName(), true);
 
-		return transform("Flat Map", outType, new FlatMapInvokable<OUT, R>(clean(flatMapper)));
+		return transform("Flat Map", outType, new StreamFlatMap<OUT, R>(clean(flatMapper)));
 
 	}
 
@@ -553,7 +553,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 
-		return transform("Reduce", getType(), new StreamReduceInvokable<OUT>(clean(reducer)));
+		return transform("Reduce", getType(), new StreamReduce<OUT>(clean(reducer)));
 
 	}
 
@@ -573,7 +573,7 @@ public class DataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType(),
 				Utils.getCallLocationName(), false);
 
-		return transform("Fold", outType, new StreamFoldInvokable<OUT, R>(clean(folder),
+		return transform("Fold", outType, new StreamFold<OUT, R>(clean(folder),
 				initialValue, outType));
 	}
 
@@ -592,7 +592,7 @@ public class DataStream<OUT> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		return transform("Filter", getType(), new FilterInvokable<OUT>(clean(filter)));
+		return transform("Filter", getType(), new StreamFilter<OUT>(clean(filter)));
 
 	}
 
@@ -902,7 +902,7 @@ public class DataStream<OUT> {
 	public SingleOutputStreamOperator<Long, ?> count() {
 		TypeInformation<Long> outTypeInfo = BasicTypeInfo.LONG_TYPE_INFO;
 
-		return transform("Count", outTypeInfo, new CounterInvokable<OUT>());
+		return transform("Count", outTypeInfo, new StreamCounter<OUT>());
 	}
 
 	/**
@@ -1175,36 +1175,36 @@ public class DataStream<OUT> {
 
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
-		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
+		StreamReduce<OUT> operator = new StreamReduce<OUT>(aggregate);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Aggregation", getType(),
-				invokable);
+				operator);
 
 		return returnStream;
 	}
 
 	/**
-	 * Method for passing user defined invokables along with the type
+	 * Method for passing user defined operators along with the type
 	 * informations that will transform the DataStream.
 	 * 
 	 * @param operatorName
 	 *            name of the operator, for logging purposes
 	 * @param outTypeInfo
 	 *            the output type of the operator
-	 * @param invokable
+	 * @param operator
 	 *            the object containing the transformation logic
 	 * @param <R>
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, StreamInvokable<OUT, R> invokable) {
+			TypeInformation<R> outTypeInfo, StreamOperator<OUT, R> operator) {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
-				operatorName, outTypeInfo, invokable);
+				operatorName, outTypeInfo, operator);
 
-		streamGraph.addOperator(returnStream.getId(), invokable, getType(), outTypeInfo,
+		streamGraph.addOperator(returnStream.getId(), operator, getType(), outTypeInfo,
 				operatorName);
 
 		connectGraph(inputStream, returnStream.getId(), 0);
@@ -1261,12 +1261,12 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> addSink(SinkFunction<OUT> sinkFunction) {
 
-		StreamInvokable<OUT, OUT> sinkInvokable = new SinkInvokable<OUT>(clean(sinkFunction));
+		StreamOperator<OUT, OUT> sinkOperator = new StreamSink<OUT>(clean(sinkFunction));
 
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
-				sinkInvokable);
+				sinkOperator);
 
-		streamGraph.addOperator(returnStream.getId(), sinkInvokable, getType(), null,
+		streamGraph.addOperator(returnStream.getId(), sinkOperator, getType(), null,
 				"Stream Sink");
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);

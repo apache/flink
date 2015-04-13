@@ -23,31 +23,40 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream,
   SingleOutputStreamOperator, GroupedDataStream}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
+
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.streaming.api.invokable.operator._
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.functions.ReduceFunction
-import org.apache.flink.streaming.api.invokable.StreamInvokable
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.common.functions.FoldFunction
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.common.functions.FilterFunction
-import org.apache.flink.streaming.api.function.sink.SinkFunction
+import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.{ EvictionPolicy, TriggerPolicy }
+
 import scala.collection.JavaConversions._
+
 import java.util.HashMap
-import org.apache.flink.streaming.api.function.aggregation.SumFunction
-import org.apache.flink.streaming.api.function.aggregation.AggregationFunction
-import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
+
+import org.apache.flink.streaming.api.functions.aggregation.SumFunction
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
-import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy
+import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.StreamReduce
+import org.apache.flink.streaming.api.operators.StreamGroupedReduce
+import org.apache.flink.streaming.api.operators.StreamFlatMap
+import org.apache.flink.streaming.api.operators.StreamGroupedFold
+import org.apache.flink.streaming.api.operators.StreamMap
+import org.apache.flink.streaming.api.operators.StreamFold
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -329,9 +338,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
 
     val invokable = jStream match {
-      case groupedStream: GroupedDataStream[_] => new GroupedReduceInvokable(reducer,
+      case groupedStream: GroupedDataStream[_] => new StreamGroupedReduce(reducer,
         groupedStream.getKeySelector())
-      case _ => new StreamReduceInvokable(reducer)
+      case _ => new StreamReduce(reducer)
     }
     new DataStream[Product](jStream.transform("aggregation", jStream.getType(),
       invokable)).asInstanceOf[DataStream[T]]
@@ -357,7 +366,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       def map(in: T): R = cleanFun(in)
     }
 
-    javaStream.transform("map", implicitly[TypeInformation[R]], new MapInvokable[T, R](mapper))
+    javaStream.transform("map", implicitly[TypeInformation[R]], new StreamMap[T, R](mapper))
   }
 
   /**
@@ -368,7 +377,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new NullPointerException("Map function must not be null.")
     }
 
-    javaStream.transform("map", implicitly[TypeInformation[R]], new MapInvokable[T, R](mapper))
+    javaStream.transform("map", implicitly[TypeInformation[R]], new StreamMap[T, R](mapper))
   }
 
   /**
@@ -380,7 +389,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
    javaStream.transform("flatMap", implicitly[TypeInformation[R]], 
-       new FlatMapInvokable[T, R](flatMapper))
+       new StreamFlatMap[T, R](flatMapper))
   }
 
   /**
@@ -423,9 +432,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     javaStream match {
       case ds: GroupedDataStream[_] => javaStream.transform("reduce",
-        javaStream.getType(), new GroupedReduceInvokable[T](reducer, ds.getKeySelector()))
+        javaStream.getType(), new StreamGroupedReduce[T](reducer, ds.getKeySelector()))
       case _ => javaStream.transform("reduce", javaStream.getType(),
-        new StreamReduceInvokable[T](reducer))
+        new StreamReduce[T](reducer))
     }
   }
 
@@ -455,10 +464,10 @@ class DataStream[T](javaStream: JavaStream[T]) {
     }
     javaStream match {
       case ds: GroupedDataStream[_] => javaStream.transform("fold",
-        implicitly[TypeInformation[R]], new GroupedFoldInvokable[T,R](folder, ds.getKeySelector(), 
+        implicitly[TypeInformation[R]], new StreamGroupedFold[T,R](folder, ds.getKeySelector(), 
             initialValue, implicitly[TypeInformation[R]]))
       case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
-        new StreamFoldInvokable[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
+        new StreamFold[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
     }
   }
 

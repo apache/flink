@@ -19,17 +19,17 @@
 package org.apache.flink.streaming.api.scala
 
 import java.util
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.streaming.api.datastream.{ConnectedDataStream => JavaCStream}
-import org.apache.flink.streaming.api.function.co.{CoFlatMapFunction, CoMapFunction, CoReduceFunction, CoWindowFunction}
-import org.apache.flink.streaming.api.invokable.operator.co.{CoFlatMapInvokable, CoMapInvokable, CoReduceInvokable}
+import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction, CoReduceFunction, CoWindowFunction}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.util.Collector
-
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.reflect.ClassTag
+import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap
+import org.apache.flink.streaming.api.operators.co.CoStreamMap
+import org.apache.flink.streaming.api.operators.co.CoStreamReduce
 
 class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
 
@@ -55,7 +55,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     }
 
     new DataStream(javaStream.addCoFunction("map", implicitly[TypeInformation[R]],
-      new CoMapInvokable[IN1, IN2, R](comapper)))
+      new CoStreamMap[IN1, IN2, R](comapper)))
   }
 
   /**
@@ -79,7 +79,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     }
 
     new DataStream(javaStream.addCoFunction("map", implicitly[TypeInformation[R]],
-      new CoMapInvokable[IN1, IN2, R](coMapper)))
+      new CoStreamMap[IN1, IN2, R](coMapper)))
   }
 
   /**
@@ -103,7 +103,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
     new DataStream[R](javaStream.addCoFunction("flatMap", implicitly[TypeInformation[R]],
-      new CoFlatMapInvokable[IN1, IN2, R](coFlatMapper)))
+      new CoStreamFlatMap[IN1, IN2, R](coFlatMapper)))
   }
 
   /**
@@ -269,7 +269,7 @@ class ConnectedDataStream[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     }
 
     new DataStream[R](javaStream.addCoFunction("coReduce", implicitly[TypeInformation[R]],
-      new CoReduceInvokable[IN1, IN2, R](coReducer)))
+      new CoStreamReduce[IN1, IN2, R](coReducer)))
   }
 
   /**

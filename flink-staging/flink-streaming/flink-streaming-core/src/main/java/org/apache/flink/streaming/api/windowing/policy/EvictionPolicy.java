@@ -40,7 +40,7 @@ public interface EvictionPolicy<DATA> extends Serializable {
 	 * @param triggered
 	 *            Information whether the UDF was triggered or not
 	 * @param bufferSize
-	 *            The current size of the element buffer at the invokable
+	 *            The current size of the element buffer at the operator
 	 * @return The number of elements to be deleted from the buffer
 	 */
 	public int notifyEviction(DATA datapoint, boolean triggered, int bufferSize);

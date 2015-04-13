@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.collector.selector;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.streaming.api.StreamEdge;
+import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.util.Collector;
 
 public class BroadcastOutputSelectorWrapper<OUT> implements OutputSelectorWrapper<OUT> {

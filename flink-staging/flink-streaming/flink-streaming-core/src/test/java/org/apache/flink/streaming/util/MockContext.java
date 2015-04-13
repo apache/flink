@@ -26,13 +26,13 @@ import java.util.List;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.StreamConfig;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.api.streamvertex.StreamTaskContext;
-import org.apache.flink.streaming.io.CoReaderIterator;
-import org.apache.flink.streaming.io.IndexedReaderIterator;
+import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.runtime.io.CoReaderIterator;
+import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -104,16 +104,16 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 		return iterator;
 	}
 
-	public static <IN, OUT> List<OUT> createAndExecute(StreamInvokable<IN, OUT> invokable,
+	public static <IN, OUT> List<OUT> createAndExecute(StreamOperator<IN, OUT> operator,
 			List<IN> inputs) {
 		MockContext<IN, OUT> mockContext = new MockContext<IN, OUT>(inputs);
-		invokable.setup(mockContext);
+		operator.setup(mockContext);
 		try {
-			invokable.open(null);
-			invokable.invoke();
-			invokable.close();
+			operator.open(null);
+			operator.run();
+			operator.close();
 		} catch (Exception e) {
-			throw new RuntimeException("Cannot invoke invokable.", e);
+			throw new RuntimeException("Cannot invoke operator.", e);
 		}
 
 		return mockContext.getOutputs();

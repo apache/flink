@@ -29,22 +29,22 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.function.WindowMapFunction;
-import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
-import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.windowing.EmptyWindowFilter;
-import org.apache.flink.streaming.api.invokable.operator.windowing.ParallelGroupedMerge;
-import org.apache.flink.streaming.api.invokable.operator.windowing.ParallelMerge;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowFlattener;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowFolder;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMapper;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowMerger;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowPartExtractor;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowPartitioner;
-import org.apache.flink.streaming.api.invokable.operator.windowing.WindowReducer;
+import org.apache.flink.streaming.api.functions.WindowMapFunction;
+import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
+import org.apache.flink.streaming.api.operators.StreamFilter;
+import org.apache.flink.streaming.api.operators.StreamFlatMap;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
+import org.apache.flink.streaming.api.operators.windowing.EmptyWindowFilter;
+import org.apache.flink.streaming.api.operators.windowing.ParallelGroupedMerge;
+import org.apache.flink.streaming.api.operators.windowing.ParallelMerge;
+import org.apache.flink.streaming.api.operators.windowing.WindowFlattener;
+import org.apache.flink.streaming.api.operators.windowing.WindowFolder;
+import org.apache.flink.streaming.api.operators.windowing.WindowMapper;
+import org.apache.flink.streaming.api.operators.windowing.WindowMerger;
+import org.apache.flink.streaming.api.operators.windowing.WindowPartExtractor;
+import org.apache.flink.streaming.api.operators.windowing.WindowPartitioner;
+import org.apache.flink.streaming.api.operators.windowing.WindowReducer;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.api.windowing.StreamWindowTypeInfo;
 import org.apache.flink.streaming.api.windowing.WindowUtils.WindowKey;
@@ -93,7 +93,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 		// If we merged a non-grouped reduce transformation we need to reduce
 		// again
-		if (!isGrouped() && out.discretizedStream.invokable instanceof WindowMerger) {
+		if (!isGrouped() && out.discretizedStream.operator instanceof WindowMerger) {
 			return out.transform(WindowTransformation.REDUCEWINDOW, "Window Reduce", out.getType(),
 					new WindowReducer<OUT>(discretizedStream.clean(reduceFunction)));
 		} else {
@@ -147,7 +147,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 				.addCoFunction(
 						"CoFlatMap",
 						reduced.discretizedStream.getType(),
-						new CoFlatMapInvokable<StreamWindow<OUT>, Tuple2<Integer, Integer>, StreamWindow<OUT>>(
+						new CoStreamFlatMap<StreamWindow<OUT>, Tuple2<Integer, Integer>, StreamWindow<OUT>>(
 								parallelMerger));
 	}
 
@@ -182,15 +182,15 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 	private <R> DiscretizedStream<R> transform(WindowTransformation transformation,
 			String operatorName, TypeInformation<R> retType,
-			StreamInvokable<StreamWindow<OUT>, StreamWindow<R>> invokable) {
+			StreamOperator<StreamWindow<OUT>, StreamWindow<R>> operator) {
 
 		return wrap(discretizedStream.transform(operatorName, new StreamWindowTypeInfo<R>(retType),
-				invokable), transformation);
+				operator), transformation);
 	}
 
 	private DiscretizedStream<OUT> filterEmpty(DiscretizedStream<OUT> input) {
 		return wrap(input.discretizedStream.transform("Filter", input.discretizedStream.getType(),
-				new FilterInvokable<StreamWindow<OUT>>(new EmptyWindowFilter<OUT>())
+				new StreamFilter<StreamWindow<OUT>>(new EmptyWindowFilter<OUT>())
 						.withoutInputCopy()), input.isPartitioned);
 	}
 
@@ -198,7 +198,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	private DataStream<Tuple2<Integer, Integer>> extractPartsByID(DiscretizedStream<OUT> input) {
 		return input.discretizedStream.transform("ExtractParts", new TupleTypeInfo(Tuple2.class,
 				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
-				new FlatMapInvokable<StreamWindow<OUT>, Tuple2<Integer, Integer>>(
+				new StreamFlatMap<StreamWindow<OUT>, Tuple2<Integer, Integer>>(
 						new WindowPartExtractor<OUT>()).withoutInputCopy());
 	}
 

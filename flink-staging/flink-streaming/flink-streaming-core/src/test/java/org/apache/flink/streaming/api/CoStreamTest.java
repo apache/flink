@@ -30,8 +30,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
@@ -89,7 +89,7 @@ public class CoStreamTest {
 					public boolean filter(Tuple2<Integer, Integer> value) throws Exception {
 						return true;
 					}
-				}).setChainingStrategy(StreamInvokable.ChainingStrategy.NEVER).groupBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
+				}).setChainingStrategy(StreamOperator.ChainingStrategy.NEVER).groupBy(new KeySelector<Tuple2<Integer, Integer>, Integer>() {
 
 					private static final long serialVersionUID = 1L;
 
