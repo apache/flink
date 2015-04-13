@@ -28,16 +28,21 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 
+import kafka.consumer.ConsumerConfig;
 import org.apache.commons.lang.SerializationUtils;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSink;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSource;
@@ -158,7 +163,7 @@ public class KafkaITCase {
 
 			@Override
 			public void invoke(Tuple2<Long, String> value) throws Exception {
-				LOG.debug("Got " + value);
+				LOG.debug("Got value = " + value);
 				String[] sp = value.f1.split("-");
 				int v = Integer.parseInt(sp[1]);
 
@@ -237,14 +242,14 @@ public class KafkaITCase {
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
 				new PersistentKafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, new TupleSerializationSchema(), 5000, 100, Offset.FROM_BEGINNING));
-		consuming.addSink(new SinkFunction<Tuple2<Long, String>>() {
+		consuming.addSink(new RichSinkFunction<Tuple2<Long, String>>() {
 			int elCnt = 0;
 			int start = -1;
 			BitSet validator = new BitSet(101);
 
 			@Override
 			public void invoke(Tuple2<Long, String> value) throws Exception {
-				LOG.debug("Got " + value);
+				LOG.info("Got value " + value);
 				String[] sp = value.f1.split("-");
 				int v = Integer.parseInt(sp[1]);
 
@@ -265,6 +270,12 @@ public class KafkaITCase {
 					throw new SuccessException();
 				}
 			}
+
+			@Override
+			public void close() throws Exception {
+				super.close();
+				Assert.assertTrue("No element received", elCnt > 0);
+			}
 		});
 
 		// add producing topology
@@ -278,6 +289,8 @@ public class KafkaITCase {
 				int cnt = 0;
 				while (running) {
 					collector.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
+					LOG.info("Produced " + cnt);
+
 					try {
 						Thread.sleep(100);
 					} catch (InterruptedException ignored) {
@@ -310,6 +323,117 @@ public class KafkaITCase {
 
 		LOG.info("Finished KafkaITCase.tupleTestTopology()");
 	}
+
+	/**
+	 * Test Flink's Kafka integration also with very big records (30MB)
+	 *
+	 * see http://stackoverflow.com/questions/21020347/kafka-sending-a-15mb-message
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void bigRecordTestTopology() throws Exception {
+
+		LOG.info("Starting KafkaITCase.bigRecordTestTopology()");
+
+		String topic = "bigRecordTestTopic";
+		createTestTopic(topic, 1, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+
+		// add consuming topology:
+		Utils.TypeInformationSerializationSchema<Tuple2<Long, byte[]>> serSchema = new Utils.TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig());
+		Properties consumerProps = new Properties();
+		consumerProps.setProperty("fetch.message.max.bytes", Integer.toString(1024 * 1024 * 30));
+		consumerProps.setProperty("zookeeper.connect", zookeeperConnectionString);
+		consumerProps.setProperty("group.id", "test");
+
+		ConsumerConfig cc = new ConsumerConfig(consumerProps);
+		DataStreamSource<Tuple2<Long, byte[]>> consuming = env.addSource(
+				new PersistentKafkaSource<Tuple2<Long, byte[]>>(topic, serSchema, Offset.FROM_BEGINNING, cc));
+
+		consuming.addSink(new SinkFunction<Tuple2<Long, byte[]>>() {
+			int elCnt = 0;
+
+			@Override
+			public void invoke(Tuple2<Long, byte[]> value) throws Exception {
+				elCnt++;
+				if(value.f0 == -1) {
+					// we should have seen 11 elements now.
+					if(elCnt == 11) {
+						throw new SuccessException();
+					} else {
+						throw new RuntimeException("There have been "+elCnt+" elements");
+					}
+				}
+				if(elCnt > 10) {
+					throw new RuntimeException("More than 10 elements seen: "+elCnt);
+				}
+			}
+		});
+
+		// add producing topology
+		DataStream<Tuple2<Long, byte[]>> stream = env.addSource(new RichSourceFunction<Tuple2<Long, byte[]>>() {
+			private static final long serialVersionUID = 1L;
+			boolean running = true;
+
+			@Override
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+			}
+
+			@Override
+			public void run(Collector<Tuple2<Long, byte[]>> collector) throws Exception {
+				LOG.info("Starting source.");
+				long cnt = 0;
+				Random rnd = new Random(1337);
+				while (running) {
+					//
+					byte[] wl = new byte[Math.abs(rnd.nextInt(1024 * 1024 * 30))];
+					collector.collect(new Tuple2<Long, byte[]>(cnt++, wl));
+					LOG.info("Emitted cnt=" + (cnt - 1) + " with byte.length = " + wl.length);
+
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException ignored) {
+					}
+					if(cnt == 10) {
+						// signal end
+						collector.collect(new Tuple2<Long, byte[]>(-1L, new byte[]{1}));
+						running = false;
+					}
+				}
+			}
+
+			@Override
+			public void cancel() {
+				LOG.info("Source got cancel()");
+				running = false;
+			}
+		});
+
+		stream.addSink(new KafkaSink<Tuple2<Long, byte[]>>(zookeeperConnectionString, topic,
+				new Utils.TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig()))
+		);
+
+		try {
+			env.setParallelism(1);
+			env.execute();
+		} catch (JobExecutionException good) {
+			Throwable t = good.getCause();
+			int limit = 0;
+			while (!(t instanceof SuccessException)) {
+				t = t.getCause();
+				if (limit++ == 20) {
+					LOG.warn("Test failed with exception", good);
+					Assert.fail("Test failed with: " + good.getMessage());
+				}
+			}
+		}
+
+		LOG.info("Finished KafkaITCase.bigRecordTestTopology()");
+	}
+
 
 	private static boolean partitionerHasBeenCalled = false;
 
@@ -616,8 +740,7 @@ public class KafkaITCase {
 					// check if everything in the bitset is set to true
 					int nc;
 					if ((nc = validator.nextClearBit(0)) != numOfMessagesToReceive) {
-//						throw new RuntimeException("The bitset was not set to 1 on all elements. Next clear:" + nc + " Set: " + validator);
-						System.out.println("The bitset was not set to 1 on all elements. Next clear:" + nc + " Set: " + validator);
+						throw new RuntimeException("The bitset was not set to 1 on all elements. Next clear:" + nc + " Set: " + validator);
 					}
 					throw new SuccessException();
 				} else if (elCnt == numOfMessagesToReceive) {
@@ -698,6 +821,8 @@ public class KafkaITCase {
 		kafkaProperties.put("broker.id", Integer.toString(brokerId));
 		kafkaProperties.put("log.dir", tmpFolder.toString());
 		kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
+		kafkaProperties.put("message.max.bytes", "" + (35 * 1024 * 1024));
+		kafkaProperties.put("replica.fetch.max.bytes", "" + (35 * 1024 * 1024));
 		KafkaConfig kafkaConfig = new KafkaConfig(kafkaProperties);
 
 		KafkaServer server = new KafkaServer(kafkaConfig, new KafkaLocalSystemTime());

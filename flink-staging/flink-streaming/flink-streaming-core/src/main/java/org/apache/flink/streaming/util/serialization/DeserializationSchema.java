@@ -28,7 +28,7 @@ public interface DeserializationSchema<T> extends Serializable {
 	 *            The incoming message in a byte array
 	 * @return The deserialized message in the required format.
 	 */
-	public T deserialize(byte[] message);
+	T deserialize(byte[] message);
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
@@ -38,5 +38,5 @@ public interface DeserializationSchema<T> extends Serializable {
 	 *            The element to test for end signal
 	 * @return The end signal, if true the stream shuts down
 	 */
-	public boolean isEndOfStream(T nextElement);
+	boolean isEndOfStream(T nextElement);
 }

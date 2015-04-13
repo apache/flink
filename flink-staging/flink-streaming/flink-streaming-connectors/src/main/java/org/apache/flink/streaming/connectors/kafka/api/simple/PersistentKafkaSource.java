@@ -17,13 +17,18 @@
 
 package org.apache.flink.streaming.connectors.kafka.api.simple;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import com.google.common.base.Preconditions;
-
+import kafka.consumer.ConsumerConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.OperatorState;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.ConnectorSource;
 import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaConsumerIterator;
 import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaIdleConsumerIterator;
@@ -33,7 +38,6 @@ import org.apache.flink.streaming.connectors.kafka.api.simple.offset.CurrentOffs
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.GivenOffset;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.KafkaOffset;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.Offset;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
@@ -50,24 +54,18 @@ import org.slf4j.LoggerFactory;
 public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	private static final long serialVersionUID = 1L;
-
 	private static final Logger LOG = LoggerFactory.getLogger(PersistentKafkaSource.class);
 
-	private final String topicId;
-	private final String zookeeperServerAddress;
-	private final int zookeeperSyncTimeMillis;
-	private final int waitOnEmptyFetchMillis;
-	private final KafkaOffset startingOffset;
+	public static final String WAIT_ON_EMPTY_FETCH_KEY = "flink.waitOnEmptyFetchMillis";
 
-	private int connectTimeoutMs = 100000;
-	private int bufferSize = 64 * 1024;
+	private final String topicId;
+	private final KafkaOffset startingOffset;
+	private transient ConsumerConfig consumerConfig; // ConsumerConfig is not serializable.
 
 	private transient KafkaConsumerIterator iterator;
 	private transient OperatorState<Map<Integer, KafkaOffset>> kafkaOffSet;
 
 	private transient Map<Integer, KafkaOffset> partitions;
-
-	private volatile boolean isRunning = false;
 
 	/**
 	 * Creates a persistent Kafka source that consumes a topic.
@@ -109,10 +107,13 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 		this(zookeeperAddress, topicId, deserializationSchema, zookeeperSyncTimeMillis, waitOnEmptyFetchMillis, Offset.FROM_CURRENT);
 	}
 
+
 	/**
 	 * Creates a persistent Kafka source that consumes a topic.
 	 * If there is are no new messages on the topic, this consumer will wait
 	 * waitOnEmptyFetchMillis milliseconds before trying to fetch messages again.
+	 *
+	 * THIS CONSTRUCTOR IS DEPRECATED: USE the constructor with the ConsumerConfig.
 	 *
 	 * @param zookeeperAddress
 	 * 		Address of the Zookeeper host (with port number).
@@ -127,18 +128,44 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 	 * @param startOffsetType
 	 * 		The offset to start from (beginning or current).
 	 */
-	public PersistentKafkaSource(String zookeeperAddress, String topicId,
-			DeserializationSchema<OUT> deserializationSchema, int zookeeperSyncTimeMillis,
-			int waitOnEmptyFetchMillis, Offset startOffsetType) {
+	@Deprecated
+	public PersistentKafkaSource(String zookeeperAddress, String topicId,DeserializationSchema<OUT> deserializationSchema, int zookeeperSyncTimeMillis, int waitOnEmptyFetchMillis, Offset startOffsetType) {
+		this(topicId, deserializationSchema, startOffsetType, legacyParametersToConsumerConfig(zookeeperAddress, zookeeperSyncTimeMillis, waitOnEmptyFetchMillis));
+	}
+
+	private static ConsumerConfig legacyParametersToConsumerConfig(String zookeeperAddress, int zookeeperSyncTimeMillis, int waitOnEmptyFetchMillis) {
+		Properties props = new Properties();
+		props.setProperty("zookeeper.sync.time.ms", Integer.toString(zookeeperSyncTimeMillis));
+		props.setProperty(WAIT_ON_EMPTY_FETCH_KEY, Integer.toString(waitOnEmptyFetchMillis));
+		props.setProperty("zookeeper.connect", zookeeperAddress);
+		props.setProperty("group.id", "flink-persistent-kafka-source");
+		return new ConsumerConfig(props);
+	}
+
+	/**
+	 * Creates a persistent Kafka source that consumes a topic.
+	 * If there is are no new messages on the topic, this consumer will wait
+	 * waitOnEmptyFetchMillis milliseconds before trying to fetch messages again.
+	 *
+	 * @param topicId
+	 * 		ID of the Kafka topic.
+	 * @param deserializationSchema
+	 * 		User defined deserialization schema.
+	 * @param startOffsetType
+	 * 		The offset to start from (beginning or current).
+	 * @param consumerConfig
+	 * 		Additional configuration for the PersistentKafkaSource.
+	 * 		NOTE: This source will only respect certain configuration values from the config!
+	 */
+	public PersistentKafkaSource(String topicId, DeserializationSchema<OUT> deserializationSchema, Offset startOffsetType, ConsumerConfig consumerConfig) {
 		super(deserializationSchema);
-		Preconditions.checkNotNull(zookeeperAddress, "The Zookeeper address can not be null");
 		Preconditions.checkNotNull(topicId, "The topic id can not be null");
 		Preconditions.checkNotNull(deserializationSchema, "The deserialization schema can not be null");
-		Preconditions.checkArgument(zookeeperSyncTimeMillis > 0, "The sync time must be positive");
-		Preconditions.checkArgument(waitOnEmptyFetchMillis > 0, "The wait time must be positive");
+		Preconditions.checkNotNull(consumerConfig, "ConsumerConfig can not be null");
+
+		this.consumerConfig = consumerConfig;
 
 		this.topicId = topicId;
-		this.zookeeperServerAddress = zookeeperAddress;
 
 		switch (startOffsetType) {
 			case FROM_BEGINNING:
@@ -151,20 +178,17 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 				this.startingOffset = new CurrentOffset();
 				break;
 		}
-
-		this.zookeeperSyncTimeMillis = zookeeperSyncTimeMillis;
-		this.waitOnEmptyFetchMillis = waitOnEmptyFetchMillis;
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public void open(Configuration parameters) throws InterruptedException {
+		LOG.info("Starting PersistentKafkaSource");
 		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 		int indexOfSubtask = context.getIndexOfThisSubtask();
 		int numberOfSubtasks = context.getNumberOfParallelSubtasks();
 
-		KafkaTopicUtils kafkaTopicUtils =
-				new KafkaTopicUtils(zookeeperServerAddress, zookeeperSyncTimeMillis, zookeeperSyncTimeMillis);
+		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils(consumerConfig.zkConnect(), consumerConfig.zkSyncTimeMs(), consumerConfig.zkConnectionTimeoutMs());
 
 		int numberOfPartitions = kafkaTopicUtils.getNumberOfPartitions(topicId);
 
@@ -187,10 +211,10 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 				context.registerState("kafka", kafkaOffSet);
 			}
 
-			iterator = new KafkaMultiplePartitionsIterator(topicId, partitions, kafkaTopicUtils, waitOnEmptyFetchMillis, connectTimeoutMs, bufferSize);
+			iterator = new KafkaMultiplePartitionsIterator(topicId, partitions, kafkaTopicUtils, this.consumerConfig);
 
 			if (LOG.isInfoEnabled()) {
-				LOG.info("KafkaSource ({}/{}) listening to partitions {} of topic {}.",
+				LOG.info("PersistentKafkaSource ({}/{}) listening to partitions {} of topic {}.",
 						indexOfSubtask + 1, numberOfSubtasks, partitions.keySet(), topicId);
 			}
 		}
@@ -200,9 +224,8 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	@Override
 	public void run(Collector<OUT> collector) throws Exception {
-		isRunning = true;
 		MessageWithMetadata msg;
-		while (isRunning && iterator.hasNext()) {
+		while (iterator.hasNext()) {
 			msg = iterator.nextWithOffset();
 			OUT out = schema.deserialize(msg.getMessage());
 
@@ -218,17 +241,21 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 		}
 	}
 
-	public void setConnectTimeoutMs(int connectTimeoutMs) {
-		Preconditions.checkArgument(connectTimeoutMs > 0, "The timeout must be positive");
-		this.connectTimeoutMs = connectTimeoutMs;
-	}
-
-	public void setBufferSize(int bufferSize) {
-		Preconditions.checkArgument(connectTimeoutMs > 0, "The buffer size must be positive");
-		this.bufferSize = bufferSize;
-	}
-
 	@Override
 	public void cancel() {
+		LOG.info("PersistentKafkaSource has been cancelled");
+	}
+
+	private void writeObject(ObjectOutputStream out)
+			throws IOException, ClassNotFoundException {
+		out.defaultWriteObject();
+		out.writeObject(consumerConfig.props().props());
+	}
+
+	private void readObject(ObjectInputStream in)
+			throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		Properties props = (Properties) in.readObject();
+		consumerConfig = new ConsumerConfig(props);
 	}
 }

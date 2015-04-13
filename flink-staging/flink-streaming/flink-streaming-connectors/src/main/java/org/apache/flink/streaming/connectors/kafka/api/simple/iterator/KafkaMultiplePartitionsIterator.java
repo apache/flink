@@ -21,8 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import kafka.consumer.ConsumerConfig;
 import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaTopicUtils;
 import org.apache.flink.streaming.connectors.kafka.api.simple.MessageWithMetadata;
+import org.apache.flink.streaming.connectors.kafka.api.simple.PersistentKafkaSource;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.KafkaOffset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,15 +34,14 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaMultiplePartitionsIterator.class);
 
 	protected List<KafkaSinglePartitionIterator> partitions;
-	protected final int waitOnEmptyFetch;
+	protected final ConsumerConfig consumerConfig;
 
 	public KafkaMultiplePartitionsIterator(String topic,
 										Map<Integer, KafkaOffset> partitionsWithOffset,
-										KafkaTopicUtils kafkaTopicUtils,
-										int waitOnEmptyFetch, int connectTimeoutMs, int bufferSize) {
+										KafkaTopicUtils kafkaTopicUtils, ConsumerConfig consumerConfig) {
 		partitions = new ArrayList<KafkaSinglePartitionIterator>(partitionsWithOffset.size());
 
-		this.waitOnEmptyFetch = waitOnEmptyFetch;
+		this.consumerConfig = consumerConfig;
 
 		for (Map.Entry<Integer, KafkaOffset> partitionWithOffset : partitionsWithOffset.entrySet()) {
 			partitions.add(new KafkaSinglePartitionIterator(
@@ -48,8 +49,7 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 					partitionWithOffset.getKey(),
 					partitionWithOffset.getValue(),
 					kafkaTopicUtils,
-					connectTimeoutMs,
-					bufferSize));
+					this.consumerConfig));
 		}
 	}
 
@@ -91,7 +91,7 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 			// do not wait if a new message has been fetched
 			if (!gotNewMessage) {
 				try {
-					Thread.sleep(waitOnEmptyFetch);
+					Thread.sleep(consumerConfig.props().getInt(PersistentKafkaSource.WAIT_ON_EMPTY_FETCH_KEY));
 				} catch (InterruptedException e) {
 					LOG.warn("Interrupted while waiting for new messages", e);
 				}

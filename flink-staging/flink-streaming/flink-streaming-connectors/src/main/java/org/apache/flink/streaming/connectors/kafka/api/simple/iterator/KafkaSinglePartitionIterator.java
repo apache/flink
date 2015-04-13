@@ -26,6 +26,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import kafka.consumer.ConsumerConfig;
 import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaTopicUtils;
 import org.apache.flink.streaming.connectors.kafka.api.simple.MessageWithMetadata;
 import org.apache.flink.streaming.connectors.kafka.api.simple.offset.CurrentOffset;
@@ -64,13 +65,11 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 	private List<String> replicaBrokers;
 	private String clientName;
 	private Broker leadBroker;
-	private final int connectTimeoutMs;
-	private final int bufferSize;
+	private final ConsumerConfig consumerConfig;
 
 	private KafkaOffset initialOffset;
 	private transient Iterator<MessageAndOffset> iter;
 	private transient FetchResponse fetchResponse;
-	private volatile boolean isRunning;
 
 	/**
 	 * Constructor with configurable wait time on empty fetch. For connecting to the Kafka service
@@ -84,19 +83,14 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 	 * 		Offset to start consuming at
 	 * @param kafkaTopicUtils
 	 * 		Util for receiving topic metadata
-	 * @param connectTimeoutMs
-	 * 		Connection timeout in milliseconds
-	 * @param bufferSize
-	 * 		Size of buffer
 	 */
 	public KafkaSinglePartitionIterator(String topic, int partition, KafkaOffset initialOffset,
-			KafkaTopicUtils kafkaTopicUtils, int connectTimeoutMs, int bufferSize) {
+			KafkaTopicUtils kafkaTopicUtils, ConsumerConfig consumerConfig) {
 
 		Set<String> brokerAddresses = kafkaTopicUtils.getBrokerAddresses(topic, partition);
 		this.hosts = new ArrayList<String>(brokerAddresses);
 
-		this.connectTimeoutMs = connectTimeoutMs;
-		this.bufferSize = bufferSize;
+		this.consumerConfig = consumerConfig;
 		this.topic = topic;
 		this.partition = partition;
 
@@ -119,7 +113,6 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 		}
 
 		PartitionMetadata metadata;
-		isRunning = true;
 		do {
 			metadata = findLeader(hosts, topic, partition);
 			try {
@@ -127,8 +120,7 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 			} catch (InterruptedException e) {
 				throw new InterruptedException("Establishing connection to Kafka failed");
 			}
-		} while (isRunning && metadata == null);
-		isRunning = false;
+		} while (metadata == null);
 
 		if (metadata.leader() == null) {
 			throw new RuntimeException("Can't find Leader for Topic and Partition. (at " + hosts + ")");
@@ -137,13 +129,12 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 		leadBroker = metadata.leader();
 		clientName = "Client_" + topic + "_" + partition;
 
-		consumer = new SimpleConsumer(leadBroker.host(), leadBroker.port(), connectTimeoutMs, bufferSize, clientName);
+		consumer = new SimpleConsumer(leadBroker.host(), leadBroker.port(), consumerConfig.socketTimeoutMs(), consumerConfig.socketReceiveBufferBytes(), clientName);
 
 		try {
 			readOffset = initialOffset.getOffset(consumer, topic, partition, clientName);
 		} catch (NotLeaderForPartitionException e) {
 			do {
-
 				metadata = findLeader(hosts, topic, partition);
 
 				try {
@@ -254,7 +245,7 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 
 	private void resetFetchResponse(long offset) throws InterruptedException, ClosedChannelException {
 		FetchRequest req = new FetchRequestBuilder().clientId(clientName)
-				.addFetch(topic, partition, offset, 100000).build();
+				.addFetch(topic, partition, offset, consumerConfig.fetchMessageMaxBytes()).build();
 
 		fetchResponse = consumer.fetch(req);
 
@@ -283,10 +274,9 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 		consumer.close();
 		consumer = null;
 		leadBroker = findNewLeader(leadBroker, topic, partition);
-		consumer = new SimpleConsumer(leadBroker.host(), leadBroker.port(), 100000, 64 * 1024, clientName);
+		consumer = new SimpleConsumer(leadBroker.host(), leadBroker.port(), consumerConfig.socketTimeoutMs(), consumerConfig.socketReceiveBufferBytes(), clientName);
 	}
 
-	@SuppressWarnings("ConstantConditions")
 	private PartitionMetadata findLeader(List<String> addresses, String a_topic,
 			int a_partition) {
 
@@ -304,7 +294,7 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 
 			SimpleConsumer consumer = null;
 			try {
-				consumer = new SimpleConsumer(host, port, connectTimeoutMs, bufferSize, "leaderLookup");
+				consumer = new SimpleConsumer(host, port, consumerConfig.socketTimeoutMs(), consumerConfig.socketReceiveBufferBytes(), "leaderLookup");
 				List<String> topics = Collections.singletonList(a_topic);
 
 				TopicMetadataRequest req = new TopicMetadataRequest(topics);
@@ -343,7 +333,6 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 		return returnMetaData;
 	}
 
-	@SuppressWarnings({"ConstantConditions", "UnusedAssignment"})
 	private Broker findNewLeader(Broker a_oldLeader, String a_topic, int a_partition) throws InterruptedException {
 		for (int i = 0; i < 3; i++) {
 			if (LOG.isInfoEnabled()) {
@@ -370,7 +359,7 @@ public class KafkaSinglePartitionIterator implements KafkaConsumerIterator, Seri
 				}
 			}
 		}
-		throw new InterruptedException("Unable to find new leader after Broker failure.");
+		throw new RuntimeException("Unable to find new leader after Broker failure.");
 	}
 
 }

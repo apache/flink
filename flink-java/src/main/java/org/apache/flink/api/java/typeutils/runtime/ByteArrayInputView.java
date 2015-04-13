@@ -24,9 +24,9 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 
-class TestInputView extends DataInputStream implements DataInputView {
+public class ByteArrayInputView extends DataInputStream implements DataInputView {
 
-	public TestInputView(byte[] data) {
+	public ByteArrayInputView(byte[] data) {
 		super(new ByteArrayInputStream(data));
 	}
 
