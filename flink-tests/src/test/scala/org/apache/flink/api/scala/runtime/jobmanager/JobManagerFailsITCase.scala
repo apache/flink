@@ -18,24 +18,23 @@
 
 package org.apache.flink.api.scala.runtime.jobmanager
 
-import akka.actor.Status.{Success, Failure}
+import akka.actor.Status.Success
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.client.JobExecutionException
-import org.apache.flink.runtime.jobgraph.{JobGraph, AbstractJobVertex}
-import org.apache.flink.runtime.jobmanager.Tasks.{NoOpInvokable, BlockingNoOpInvokable}
-import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated,
-NotifyWhenJobManagerTerminated}
-import org.apache.flink.runtime.testingUtils.TestingUtils
-import org.apache.flink.test.util.ForkableFlinkMiniCluster
 import org.junit.Ignore
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, JobGraph}
+import org.apache.flink.runtime.jobmanager.Tasks.{BlockingNoOpInvokable, NoOpInvokable}
+import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobManagerTerminated, NotifyWhenJobManagerTerminated}
+import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.apache.flink.test.util.ForkableFlinkMiniCluster
 
 @Ignore("Contains a bug with Akka 2.2.1")
 @RunWith(classOf[JUnitRunner])
@@ -136,9 +135,9 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskmanagers)
     config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
-    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
+    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "20 s")
     config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "8000 ms")
-    config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
+    config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 20)
 
     new ForkableFlinkMiniCluster(config, singleActorSystem = false)
   }
