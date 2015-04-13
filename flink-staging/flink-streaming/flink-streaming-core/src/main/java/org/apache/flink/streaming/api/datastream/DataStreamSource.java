@@ -32,8 +32,13 @@ public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataS
 	boolean isParallel;
 
 	public DataStreamSource(StreamExecutionEnvironment environment, String operatorType,
-			TypeInformation<OUT> outTypeInfo, StreamInvokable<?, ?> invokable, boolean isParallel) {
+			TypeInformation<OUT> outTypeInfo, StreamInvokable<?, OUT> invokable,
+			boolean isParallel, String sourceName) {
 		super(environment, operatorType, outTypeInfo, invokable);
+
+		environment.getStreamGraph().addSource(getId(), invokable, null, outTypeInfo,
+				sourceName);
+
 		this.isParallel = isParallel;
 		if (!isParallel) {
 			setParallelism(1);

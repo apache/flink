@@ -76,7 +76,8 @@ public class StreamCrossOperator<I1, I2> extends
 
 		@SuppressWarnings("unchecked")
 		public CrossWindow<I1, I2> every(long length) {
-			((CoWindowInvokable<I1, I2, ?>) streamGraph.getInvokable(id)).setSlideSize(length);
+			((CoWindowInvokable<I1, I2, ?>) streamGraph.getVertex(id).getInvokable())
+					.setSlideSize(length);
 			return this;
 		}
 

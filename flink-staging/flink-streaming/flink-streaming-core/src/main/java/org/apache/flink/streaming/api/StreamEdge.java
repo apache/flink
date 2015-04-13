@@ -24,7 +24,8 @@ import org.apache.flink.streaming.partitioner.StreamPartitioner;
 
 /**
  * An edge in the streaming topology. One edge like this does not necessarily
- * gets converted to a connection between two job vertices (due to chaining/optimization).
+ * gets converted to a connection between two job vertices (due to
+ * chaining/optimization).
  */
 public class StreamEdge implements Serializable {
 
@@ -32,8 +33,8 @@ public class StreamEdge implements Serializable {
 
 	final private String edgeId;
 
-	final private int sourceVertex;
-	final private int targetVertex;
+	final private StreamNode sourceVertex;
+	final private StreamNode targetVertex;
 
 	/**
 	 * The type number of the input for co-tasks.
@@ -41,31 +42,38 @@ public class StreamEdge implements Serializable {
 	final private int typeNumber;
 
 	/**
-	 * A list of output names that the target vertex listens to (if there is output selection).
+	 * A list of output names that the target vertex listens to (if there is
+	 * output selection).
 	 */
 	final private List<String> selectedNames;
 	final private StreamPartitioner<?> outputPartitioner;
 
-	public StreamEdge(int sourceVertex, int targetVertex, int typeNumber, List<String> selectedNames, StreamPartitioner<?> outputPartitioner) {
+	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
+			List<String> selectedNames, StreamPartitioner<?> outputPartitioner) {
 		this.sourceVertex = sourceVertex;
 		this.targetVertex = targetVertex;
 		this.typeNumber = typeNumber;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
 
-		this.edgeId = sourceVertex + "_"
-				+ targetVertex + "_"
-				+ typeNumber + "_"
-				+ selectedNames + "_"
-				+ outputPartitioner;
+		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
+				+ "_" + outputPartitioner;
 	}
 
-	public int getSourceVertex() {
+	public StreamNode getSourceVertex() {
 		return sourceVertex;
 	}
 
-	public int getTargetVertex() {
+	public StreamNode getTargetVertex() {
 		return targetVertex;
+	}
+
+	public int getSourceID() {
+		return sourceVertex.getID();
+	}
+
+	public int getTargetID() {
+		return targetVertex.getID();
 	}
 
 	public int getTypeNumber() {
@@ -105,12 +113,8 @@ public class StreamEdge implements Serializable {
 
 	@Override
 	public String toString() {
-		return "(" +
-				sourceVertex +
-				" -> " + targetVertex +
-				", typeNumber=" + typeNumber +
-				", selectedNames=" + selectedNames +
-				", outputPartitioner=" + outputPartitioner +
-				')';
+		return "(" + sourceVertex + " -> " + targetVertex + ", typeNumber=" + typeNumber
+				+ ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
+				+ ')';
 	}
 }

@@ -282,7 +282,7 @@ public class DataStream<OUT> {
 	 */
 	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
 		for (DataStream<OUT> ds : this.mergedStreams) {
-			streamGraph.setOutputSelector(ds.getId(), clean(outputSelector));
+			streamGraph.addOutputSelector(ds.getId(), clean(outputSelector));
 		}
 
 		return new SplitDataStream<OUT>(this);
@@ -1204,8 +1204,8 @@ public class DataStream<OUT> {
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
 				operatorName, outTypeInfo, invokable);
 
-		streamGraph.addStreamVertex(returnStream.getId(), invokable, getType(), outTypeInfo,
-				operatorName, returnStream.getParallelism());
+		streamGraph.addOperator(returnStream.getId(), invokable, getType(), outTypeInfo,
+				operatorName);
 
 		connectGraph(inputStream, returnStream.getId(), 0);
 
@@ -1244,7 +1244,7 @@ public class DataStream<OUT> {
 	 */
 	protected <X> void connectGraph(DataStream<X> inputStream, Integer outputID, int typeNumber) {
 		for (DataStream<X> stream : inputStream.mergedStreams) {
-			streamGraph.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
+			streamGraph.addEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
 					inputStream.userDefinedNames);
 		}
 
@@ -1266,8 +1266,8 @@ public class DataStream<OUT> {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
 				sinkInvokable);
 
-		streamGraph.addStreamVertex(returnStream.getId(), sinkInvokable, getType(), null,
-				"Stream Sink", returnStream.getParallelism());
+		streamGraph.addOperator(returnStream.getId(), sinkInvokable, getType(), null,
+				"Stream Sink");
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);
 

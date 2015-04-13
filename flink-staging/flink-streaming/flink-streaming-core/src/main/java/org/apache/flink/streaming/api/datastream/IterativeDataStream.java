@@ -92,12 +92,9 @@ public class IterativeDataStream<IN> extends
 	}
 
 	private <X> void addIterationSource(DataStream<X> dataStream) {
-
-		DataStream<X> iterationSource = new DataStreamSource<X>(environment, "Iteration Source",
-				null, null, true);
-
-		streamGraph.addIterationHead(iterationSource.getId(), dataStream.getId(), iterationID,
-				dataStream.getParallelism(), waitTime);
+		Integer id = ++counter;
+		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, waitTime);
+		streamGraph.setParallelism(id, dataStream.getParallelism());
 	}
 
 	@Override

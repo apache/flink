@@ -43,7 +43,6 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment,
 			String operatorType, TypeInformation<OUT> outTypeInfo, StreamInvokable<?, ?> invokable) {
 		super(environment, operatorType, outTypeInfo);
-		setBufferTimeout(environment.getBufferTimeout());
 		this.isSplit = false;
 		this.invokable = invokable;
 	}

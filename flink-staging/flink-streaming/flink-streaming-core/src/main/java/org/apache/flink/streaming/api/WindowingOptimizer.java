@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -43,36 +42,39 @@ public class WindowingOptimizer {
 
 	@SuppressWarnings("rawtypes")
 	private static void removeMergeBeforeFlatten(StreamGraph streamGraph) {
-		Set<Entry<Integer, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
+		Set<Tuple2<Integer, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
 		List<Integer> flatteners = new ArrayList<Integer>();
 
-		for (Entry<Integer, StreamInvokable<?, ?>> entry : invokables) {
-			if (entry.getValue() instanceof WindowFlattener) {
-				flatteners.add(entry.getKey());
+		for (Tuple2<Integer, StreamInvokable<?, ?>> entry : invokables) {
+			if (entry.f1 instanceof WindowFlattener) {
+				flatteners.add(entry.f0);
 			}
 		}
 
-		for (Integer flattener : flatteners) {
+		for (Integer flattenerID : flatteners) {
 			// Flatteners should have exactly one input
-			Integer input = streamGraph.getInEdges(flattener).get(0).getSourceVertex();
+			StreamNode input = streamGraph.getVertex(flattenerID).getInEdges().get(0)
+					.getSourceVertex();
 
 			// Check whether the flatten is applied after a merge
-			if (streamGraph.getInvokable(input) instanceof WindowMerger) {
+			if (input.getInvokable() instanceof WindowMerger) {
 
 				// Mergers should have exactly one input
-				Integer mergeInput = streamGraph.getInEdges(input).get(0).getSourceVertex();
-				streamGraph.setEdge(mergeInput, flattener, new DistributePartitioner(true), 0,
-						new ArrayList<String>());
+				StreamNode mergeInput = input.getInEdges().get(0).getSourceVertex();
+
+				// We connect the merge input to the flattener directly
+				streamGraph.addEdge(mergeInput.getID(), flattenerID,
+						new DistributePartitioner(true), 0, new ArrayList<String>());
 
 				// If the merger is only connected to the flattener we delete it
 				// completely, otherwise we only remove the edge
-				if (streamGraph.getOutEdges(input).size() > 1) {
-					streamGraph.removeEdge(input, flattener);
+				if (input.getOutEdges().size() > 1) {
+					streamGraph.removeEdge(streamGraph.getEdge(input.getID(), flattenerID));
 				} else {
 					streamGraph.removeVertex(input);
 				}
 
-				streamGraph.setParallelism(flattener, streamGraph.getParallelism(mergeInput));
+				streamGraph.setParallelism(flattenerID, mergeInput.getParallelism());
 			}
 		}
 
@@ -80,14 +82,14 @@ public class WindowingOptimizer {
 
 	private static void setDiscretizerReuse(StreamGraph streamGraph) {
 
-		Set<Entry<Integer, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
+		Set<Tuple2<Integer, StreamInvokable<?, ?>>> invokables = streamGraph.getInvokables();
 		List<Tuple2<Integer, StreamDiscretizer<?>>> discretizers = new ArrayList<Tuple2<Integer, StreamDiscretizer<?>>>();
 
 		// Get the discretizers
-		for (Entry<Integer, StreamInvokable<?, ?>> entry : invokables) {
-			if (entry.getValue() instanceof StreamDiscretizer) {
-				discretizers.add(new Tuple2<Integer, StreamDiscretizer<?>>(entry.getKey(),
-						(StreamDiscretizer<?>) entry.getValue()));
+		for (Tuple2<Integer, StreamInvokable<?, ?>> entry : invokables) {
+			if (entry.f1 instanceof StreamDiscretizer) {
+				discretizers.add(new Tuple2<Integer, StreamDiscretizer<?>>(entry.f0,
+						(StreamDiscretizer<?>) entry.f1));
 			}
 		}
 
@@ -96,10 +98,10 @@ public class WindowingOptimizer {
 		for (Tuple2<Integer, StreamDiscretizer<?>> discretizer : discretizers) {
 			boolean inMatching = false;
 			for (Tuple2<StreamDiscretizer<?>, List<Integer>> matching : matchingDiscretizers) {
-				Set<Integer> discretizerInEdges = new HashSet<Integer>(
-						streamGraph.getInEdgeIndices(discretizer.f0));
-				Set<Integer> matchingInEdges = new HashSet<Integer>(
-						streamGraph.getInEdgeIndices(matching.f1.get(0)));
+				Set<Integer> discretizerInEdges = new HashSet<Integer>(streamGraph.getVertex(
+						discretizer.f0).getInEdgeIndices());
+				Set<Integer> matchingInEdges = new HashSet<Integer>(streamGraph.getVertex(
+						matching.f1.get(0)).getInEdgeIndices());
 
 				if (discretizer.f1.equals(matching.f0)
 						&& discretizerInEdges.equals(matchingInEdges)) {
@@ -127,28 +129,23 @@ public class WindowingOptimizer {
 		}
 	}
 
-	private static void replaceDiscretizer(StreamGraph streamGraph, Integer toReplace,
-			Integer replaceWith) {
+	private static void replaceDiscretizer(StreamGraph streamGraph, Integer toReplaceID,
+			Integer replaceWithID) {
 		// Convert to array to create a copy
-		List<Integer> outEdges = new ArrayList<Integer>(streamGraph.getOutEdgeIndices(toReplace));
+		List<StreamEdge> outEdges = new ArrayList<StreamEdge>(streamGraph.getVertex(toReplaceID)
+				.getOutEdges());
 
 		int numOutputs = outEdges.size();
 
 		// Reconnect outputs
 		for (int i = 0; i < numOutputs; i++) {
-			Integer output = outEdges.get(i);
+			StreamEdge outEdge = outEdges.get(i);
 
-			streamGraph.setEdge(replaceWith, output,
-					streamGraph.getEdge(toReplace, output).getPartitioner(), 0, new ArrayList<String>());
-			streamGraph.removeEdge(toReplace, output);
+			streamGraph.addEdge(replaceWithID, outEdge.getTargetID(), outEdge.getPartitioner(), 0,
+					new ArrayList<String>());
 		}
 
-		List<Integer> inEdges = new ArrayList<Integer>(streamGraph.getInEdgeIndices(toReplace));
-		// Remove inputs
-		for (Integer input : inEdges) {
-			streamGraph.removeEdge(input, toReplace);
-		}
-
-		streamGraph.removeVertex(toReplace);
+		// Remove the other discretizer
+		streamGraph.removeVertex(streamGraph.getVertex(toReplaceID));
 	}
 }

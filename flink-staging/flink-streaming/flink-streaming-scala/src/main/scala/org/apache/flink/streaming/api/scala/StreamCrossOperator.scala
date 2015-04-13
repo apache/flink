@@ -99,8 +99,8 @@ object StreamCrossOperator {
     }
 
     override def every(length: Long): CrossWindow[I1, I2] = {
-      val builder = javaStream.getExecutionEnvironment().getStreamGraph()
-      val invokable = builder.getInvokable(javaStream.getId())
+      val graph = javaStream.getExecutionEnvironment().getStreamGraph()
+      val invokable = graph.getVertex(javaStream.getId()).getInvokable()
       invokable.asInstanceOf[CoWindowInvokable[_,_,_]].setSlideSize(length)
       this
     }
