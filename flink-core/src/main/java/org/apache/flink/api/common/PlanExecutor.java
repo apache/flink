@@ -27,13 +27,34 @@ import java.util.List;
 
 /**
  * A PlanExecutor runs a plan. The specific implementation (such as the org.apache.flink.client.LocalExecutor
- * and org.apache.flink.client.RemoteExecutor) determines where and how to run the plan. 
+ * and org.apache.flink.client.RemoteExecutor) determines where and how to run the plan.
+ * 
+ * The concrete implementations are loaded dynamically, because they depend on the full set of
+ * dependencies of all runtime classes.
  */
 public abstract class PlanExecutor {
-
+	
 	private static final String LOCAL_EXECUTOR_CLASS = "org.apache.flink.client.LocalExecutor";
 	private static final String REMOTE_EXECUTOR_CLASS = "org.apache.flink.client.RemoteExecutor";
+
+	// ------------------------------------------------------------------------
+	//  Config Options
+	// ------------------------------------------------------------------------
 	
+	/** If true, all execution progress updates are not only logged, but also printed to System.out */
+	private boolean printUpdatesToSysout = true;
+	
+	public void setPrintStatusDuringExecution(boolean printStatus) {
+		this.printUpdatesToSysout = printStatus;
+	}
+	
+	public boolean isPrintingStatusDuringExecution() {
+		return this.printUpdatesToSysout;
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Program Execution
+	// ------------------------------------------------------------------------
 	
 	/**
 	 * Execute the given plan and return the runtime in milliseconds.
@@ -55,7 +76,11 @@ public abstract class PlanExecutor {
 	 * @throws Exception Thrown, if the executor could not connect to the compiler.
 	 */
 	public abstract String getOptimizerPlanAsJSON(Plan plan) throws Exception;
-	
+
+
+	// ------------------------------------------------------------------------
+	//  Executor Factories
+	// ------------------------------------------------------------------------
 	
 	/**
 	 * Creates an executor that runs the plan locally in a multi-threaded environment.
@@ -69,7 +94,8 @@ public abstract class PlanExecutor {
 			return leClass.getConstructor(Configuration.class).newInstance(configuration);
 		}
 		catch (Throwable t) {
-			throw new RuntimeException("An error occurred while loading the local executor (" + LOCAL_EXECUTOR_CLASS + ").", t);
+			throw new RuntimeException("An error occurred while loading the local executor ("
+					+ LOCAL_EXECUTOR_CLASS + ").", t);
 		}
 	}
 
@@ -93,13 +119,15 @@ public abstract class PlanExecutor {
 		
 		Class<? extends PlanExecutor> reClass = loadExecutorClass(REMOTE_EXECUTOR_CLASS);
 		
-		List<String> files = (jarFiles == null || jarFiles.length == 0) ? Collections.<String>emptyList() : Arrays.asList(jarFiles); 
+		List<String> files = (jarFiles == null || jarFiles.length == 0) ? Collections.<String>emptyList()
+																		: Arrays.asList(jarFiles); 
 		
 		try {
 			return reClass.getConstructor(String.class, int.class, List.class).newInstance(hostname, port, files);
 		}
 		catch (Throwable t) {
-			throw new RuntimeException("An error occurred while loading the remote executor (" + REMOTE_EXECUTOR_CLASS + ").", t);
+			throw new RuntimeException("An error occurred while loading the remote executor ("
+					+ REMOTE_EXECUTOR_CLASS + ").", t);
 		}
 	}
 	
@@ -109,7 +137,8 @@ public abstract class PlanExecutor {
 			return leClass.asSubclass(PlanExecutor.class);
 		}
 		catch (ClassNotFoundException cnfe) {
-			throw new RuntimeException("Could not load the executor class (" + className + "). Do you have the 'flink-clients' project in your dependencies?");
+			throw new RuntimeException("Could not load the executor class (" + className
+					+ "). Do you have the 'flink-clients' project in your dependencies?");
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("An error occurred while loading the executor (" + className + ").", t);

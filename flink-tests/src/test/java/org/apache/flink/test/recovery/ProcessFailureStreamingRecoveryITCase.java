@@ -72,6 +72,7 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 									.createRemoteEnvironment("localhost", jobManagerPort);
 		env.setParallelism(PARALLELISM);
+		env.getConfig().disableSysoutLogging();
 		env.setNumberOfExecutionRetries(1);
 		env.enableCheckpointing(200);
 

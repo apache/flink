@@ -55,12 +55,9 @@ public class LocalExecutor extends PlanExecutor {
 
 	// ---------------------------------- config options ------------------------------------------
 	
-
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
 	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
-
-	private boolean printStatusDuringExecution = true;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -85,12 +82,12 @@ public class LocalExecutor extends PlanExecutor {
 		this.defaultOverwriteFiles = defaultOverwriteFiles;
 	}
 	
-	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
+	public void setTaskManagerNumSlots(int taskManagerNumSlots) {
+		this.taskManagerNumSlots = taskManagerNumSlots; 
+	}
 
-	public int getTaskManagerNumSlots() { return this.taskManagerNumSlots; }
-
-	public void setPrintStatusDuringExecution(boolean printStatus) {
-		this.printStatusDuringExecution = printStatus;
+	public int getTaskManagerNumSlots() {
+		return this.taskManagerNumSlots;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -178,7 +175,8 @@ public class LocalExecutor extends PlanExecutor {
 				JobGraphGenerator jgg = new JobGraphGenerator();
 				JobGraph jobGraph = jgg.compileJobGraph(op);
 				
-				SerializedJobExecutionResult result = flink.submitJobAndWait(jobGraph, printStatusDuringExecution);
+				boolean sysoutPrint = isPrintingStatusDuringExecution();
+				SerializedJobExecutionResult result = flink.submitJobAndWait(jobGraph,sysoutPrint);
 				return result.toJobExecutionResult(ClassLoader.getSystemClassLoader());
 			}
 			finally {
@@ -275,17 +273,5 @@ public class LocalExecutor extends PlanExecutor {
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 		List<DataSinkNode> sinks = Optimizer.createPreOptimizedPlan(plan);
 		return gen.getPactPlanAsJSON(sinks);
-	}
-
-	/**
-	 * By default, local environments do not overwrite existing files.
-	 * 
-	 * NOTE: This method must be called prior to initializing the LocalExecutor or a 
-	 * {@link org.apache.flink.api.java.LocalEnvironment}.
-	 * 
-	 * @param overwriteByDefault True to overwrite by default, false to not overwrite by default.
-	 */
-	public static void setOverwriteFilesByDefault(boolean overwriteByDefault) {
-		DEFAULT_OVERWRITE = overwriteByDefault;
 	}
 }

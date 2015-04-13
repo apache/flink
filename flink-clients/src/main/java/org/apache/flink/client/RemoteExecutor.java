@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client;
 
 import java.io.File;
@@ -39,7 +38,18 @@ import org.apache.flink.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The RemoteExecutor is a {@link org.apache.flink.api.common.PlanExecutor} that takes the program
+ * and ships it to a remote Flink cluster for execution.
+ * 
+ * The RemoteExecutor is pointed at the JobManager and gets the program and (if necessary) the
+ * set of libraries that need to be shipped together with the program.
+ * 
+ * The RemoteExecutor is used in the {@link org.apache.flink.api.java.RemoteEnvironment} to
+ * remotely execute program parts.
+ */
 public class RemoteExecutor extends PlanExecutor {
+	
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutor.class);
 
 	private final List<String> jarFiles;
@@ -65,22 +75,6 @@ public class RemoteExecutor extends PlanExecutor {
 		this.jarFiles = jarFiles;
 		this.address = inet;
 	}
-	
-	public static InetSocketAddress getInetFromHostport(String hostport) {
-		// from http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
-		URI uri;
-		try {
-			uri = new URI("my://" + hostport);
-		} catch (URISyntaxException e) {
-			throw new RuntimeException("Could not identify hostname and port", e);
-		}
-		String host = uri.getHost();
-		int port = uri.getPort();
-		if (host == null || port == -1) {
-			throw new RuntimeException("Could not identify hostname and port");
-		}
-		return new InetSocketAddress(host, port);
-	}
 
 	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
@@ -90,8 +84,10 @@ public class RemoteExecutor extends PlanExecutor {
 	
 	public JobExecutionResult executePlanWithJars(JobWithJars p) throws Exception {
 		Client c = new Client(this.address, new Configuration(), p.getUserCodeClassLoader(), -1);
+		c.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
+		
 		JobSubmissionResult result = c.run(p, -1, true);
-		if(result instanceof JobExecutionResult) {
+		if (result instanceof JobExecutionResult) {
 			return (JobExecutionResult) result;
 		} else {
 			LOG.warn("The Client didn't return a JobExecutionResult");
@@ -104,6 +100,8 @@ public class RemoteExecutor extends PlanExecutor {
 		PackagedProgram program = new PackagedProgram(jarFile, assemblerClass, args);
 		
 		Client c = new Client(this.address, new Configuration(), program.getUserCodeClassLoader(), -1);
+		c.setPrintStatusDuringExecution(isPrintingStatusDuringExecution());
+		
 		JobSubmissionResult result = c.run(program.getPlanWithJars(), -1, true);
 		if(result instanceof JobExecutionResult) {
 			return (JobExecutionResult) result;
@@ -122,4 +120,24 @@ public class RemoteExecutor extends PlanExecutor {
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		return jsonGen.getOptimizerPlanAsJSON(op);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//   Utilities
+	// --------------------------------------------------------------------------------------------
+	public static InetSocketAddress getInetFromHostport(String hostport) {
+		// from http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
+		URI uri;
+		try {
+			uri = new URI("my://" + hostport);
+		} catch (URISyntaxException e) {
+			throw new RuntimeException("Could not identify hostname and port", e);
+		}
+		String host = uri.getHost();
+		int port = uri.getPort();
+		if (host == null || port == -1) {
+			throw new RuntimeException("Could not identify hostname and port");
+		}
+		return new InetSocketAddress(host, port);
+	}
+	
 }

@@ -66,6 +66,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 		
 		PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, jarFiles);
+		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		return executor.executePlan(p);
 	}
 	

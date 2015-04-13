@@ -68,6 +68,7 @@ public class KMeansForTest {
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
 		env.setParallelism(parallelism);
+		env.getConfig().disableSysoutLogging();
 
 		// get input data
 		DataSet<Point> points = env.fromElements(pointsData.split("\n"))

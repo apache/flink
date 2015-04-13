@@ -76,6 +76,9 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean serializeGenericTypesWithAvro = false;
 
+	/** If set to true, progress updates are printed to System.out during execution */
+	private boolean printProgressDuringExecution = true;
+
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in lists to ensure they are registered in order in all kryo instances.
 
@@ -281,8 +284,6 @@ public class ExecutionConfig implements Serializable {
 		return serializeGenericTypesWithAvro;
 	}
 
-
-
 	/**
 	 * Enables reusing objects that Flink internally uses for deserialization and passing
 	 * data to user-code functions. Keep in mind that this can lead to bugs when the
@@ -307,6 +308,35 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public boolean isObjectReuseEnabled() {
 		return objectReuse;
+	}
+
+	/**
+	 * Enables the printing of progress update messages to {@code System.out}
+	 * 
+	 * @return The ExecutionConfig object, to allow for function chaining.
+	 */
+	public ExecutionConfig enableSysoutLogging() {
+		this.printProgressDuringExecution = true;
+		return this;
+	}
+
+	/**
+	 * Disables the printing of progress update messages to {@code System.out}
+	 *
+	 * @return The ExecutionConfig object, to allow for function chaining.
+	 */
+	public ExecutionConfig disableSysoutLogging() {
+		this.printProgressDuringExecution = false;
+		return this;
+	}
+
+	/**
+	 * Gets whether progress update messages should be printed to {@code System.out}
+	 * 
+	 * @return True, if progress update messages should be printed, false otherwise.
+	 */
+	public boolean isSysoutLoggingEnabled() {
+		return this.printProgressDuringExecution;
 	}
 
 	// --------------------------------------------------------------------------------------------

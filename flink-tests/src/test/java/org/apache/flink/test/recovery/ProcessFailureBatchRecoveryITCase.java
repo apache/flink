@@ -67,6 +67,7 @@ public class ProcessFailureBatchRecoveryITCase extends AbstractProcessFailureRec
 		env.setParallelism(PARALLELISM);
 		env.setNumberOfExecutionRetries(1);
 		env.getConfig().setExecutionMode(executionMode);
+		env.getConfig().disableSysoutLogging();
 
 		final long NUM_ELEMENTS = 100000L;
 		final DataSet<Long> result = env.generateSequence(1, NUM_ELEMENTS)
