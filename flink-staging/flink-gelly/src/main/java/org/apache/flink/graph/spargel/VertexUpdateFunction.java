@@ -41,6 +41,8 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 
 	private static final long serialVersionUID = 1L;
 	
+	private boolean lastVertexCollected = false;
+	
 	// --------------------------------------------------------------------------------------------
 	//  Public API Methods
 	// --------------------------------------------------------------------------------------------
@@ -80,6 +82,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	public void setNewVertexValue(VertexValue newValue) {
 		outVal.f1 = newValue;
 		out.collect(outVal);
+		this.lastVertexCollected = true;
 	}
 	
 	/**
@@ -124,6 +127,10 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 		return this.runtimeContext.<T>getBroadcastVariable(name);
 	}
 	
+	public boolean lastVertexCollected() {
+		return lastVertexCollected;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  internal methods
 	// --------------------------------------------------------------------------------------------
@@ -142,5 +149,6 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	void setOutput(Vertex<VertexKey, VertexValue> val, Collector<Vertex<VertexKey, VertexValue>> out) {
 		this.out = out;
 		this.outVal = val;
+		this.lastVertexCollected = false;
 	}
 }
