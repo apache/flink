@@ -20,6 +20,9 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorContext;
 import akka.actor.ActorRef;
+import akka.dispatch.OnComplete;
+import akka.pattern.Patterns;
+import org.apache.commons.collections.map.DefaultedMap;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -29,24 +32,32 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.StreamCheckpointCoordinator;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple3;
+import scala.concurrent.ExecutionContext;
+import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -155,7 +166,7 @@ public class ExecutionGraph implements Serializable {
 
 	/** The mode of scheduling. Decides how to select the initial set of tasks to be deployed.
 	 * May indicate to deploy all sources, or to deploy everything, or to deploy via backtracking
-	 * from results than need to be materialized. */
+	 * from results that need to be materialized. */
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 
 
@@ -185,6 +196,12 @@ public class ExecutionGraph implements Serializable {
 	private boolean checkpointingEnabled;
 
 	private long checkpointingInterval = 5000;
+
+	/**
+	 * Akka dispatcher of the ExecutionGraph (for asynchronous Futures)
+	 */
+	private ExecutionContext dispatcher;
+
 
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
 		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>());
@@ -224,7 +241,7 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public void setStateCheckpointerActor(ActorRef stateCheckpointerActor) {
 		this.stateCheckpointerActor = stateCheckpointerActor;
 	}
@@ -255,6 +272,13 @@ public class ExecutionGraph implements Serializable {
 		this.delayBeforeRetrying = delayBeforeRetrying;
 	}
 
+	/**
+	 * Akka dispatcher of the ExecutionGraph (for asynchronous Futures)
+	 */
+	public void setDispatcher(ExecutionContext dispatcher) {
+		this.dispatcher = dispatcher;
+	}
+
 	public long getDelayBeforeRetrying() {
 		return delayBeforeRetrying;
 	}
@@ -264,21 +288,21 @@ public class ExecutionGraph implements Serializable {
 			LOG.debug(String.format("Attaching %d topologically sorted vertices to existing job graph with %d "
 					+ "vertices and %d intermediate results.", topologiallySorted.size(), tasks.size(), intermediateResults.size()));
 		}
-		
+
 		final long createTimestamp = System.currentTimeMillis();
-		
+
 		for (AbstractJobVertex jobVertex : topologiallySorted) {
-			
+
 			// create the execution job vertex and attach it to the graph
 			ExecutionJobVertex ejv = new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
 			ejv.connectToPredecessors(this.intermediateResults);
-			
+
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
 			if (previousTask != null) {
 				throw new JobException(String.format("Encountered two job vertices with ID %s : previous=[%s] / new=[%s]",
 						jobVertex.getID(), ejv, previousTask));
 			}
-			
+
 			for (IntermediateResult res : ejv.getProducedDataSets()) {
 				IntermediateResult previousDataSet = this.intermediateResults.putIfAbsent(res.getId(), res);
 				if (previousDataSet != null) {
@@ -286,7 +310,7 @@ public class ExecutionGraph implements Serializable {
 							res.getId(), res, previousDataSet));
 				}
 			}
-			
+
 			this.verticesInCreationOrder.add(ejv);
 		}
 	}
@@ -349,7 +373,7 @@ public class ExecutionGraph implements Serializable {
 		// we return a specific iterator that does not fail with concurrent modifications
 		// the list is append only, so it is safe for that
 		final int numElements = this.verticesInCreationOrder.size();
-		
+
 		return new Iterable<ExecutionJobVertex>() {
 			@Override
 			public Iterator<ExecutionJobVertex> iterator() {
@@ -412,28 +436,141 @@ public class ExecutionGraph implements Serializable {
 		return scheduleMode;
 	}
 
+	/**
+	 * Scheduling to be performed when an ExecutionVertex is encountered that cannot be resumed
+	 */
+	private interface ScheduleAction {
+		void schedule(ExecutionVertex ev);
+	}
+
+	/**
+	 * Hook executed after backtracking finishes
+	 */
+	private interface PostBacktrackingHook {
+		void execute();
+	}
+
+	/**
+	 * Holds the status of an availability of an IntermediateResultPartition
+	 */
+	private enum PartitionInfo {
+		UNKNOWN,
+		AVAILABLE,
+		NOT_AVAILABLE
+	}
+	/**
+	 * Visit the ExecutionGraph from the sink using a pre-order depth-first iterative traversal.
+	 * @param partitionStack The stack containing the next intermediate results to traverse.
+	 * @param partitionStatus  Map containing the status of all intermediate result partition already requested
+	 * @param scheduleAction Schedule action to be executed on the sinks
+	 * @param whenFinished Hook to be executed after backtracking has finished
+	 */
+	private void scheduleUsingBacktracking(
+			final Deque<IntermediateResultPartition> partitionStack,
+			final Map<IntermediateResultPartitionID, PartitionInfo> partitionStatus,
+			final ScheduleAction scheduleAction,
+			final PostBacktrackingHook whenFinished)  {
+
+		while (!partitionStack.isEmpty()) {
+			// get new intermediate result
+			final IntermediateResultPartition partition = partitionStack.pop();
+
+			final IntermediateResultPartitionID partitionID = partition.getPartitionId();
+			final ExecutionVertex producer = partition.getProducer();
+
+			// check for intermediate results received by the producer
+			final List<IntermediateResult> nextLevelInputs = producer.getJobVertex().getInputs();
+
+			// at the source, we have to schedule
+			if (nextLevelInputs.size() == 0) {
+				scheduleAction.schedule(producer);
+			}
+
+			final List<IntermediateResultPartition> nextPartitions = new ArrayList<IntermediateResultPartition>();
+			// push the intermediate results further down to the stack (depth-first)
+			for (IntermediateResult result : nextLevelInputs) {
+				for (IntermediateResultPartition nextPartition : result.getPartitions()) {
+					nextPartitions.add(nextPartition);
+				}
+			}
+
+			PartitionInfo partitionAvailable = partitionStatus.get(partitionID);
+
+			/** check for intermediate result **/
+			if (partition.isLocationAvailable() && partitionAvailable != PartitionInfo.NOT_AVAILABLE) {
+				ActorRef taskManager = partition.getLocation().getTaskManager();
+				// pin ResulPartition for this intermediate result
+				Future<Object> future = Patterns.ask(
+						taskManager,
+						new TaskMessages.LockResultPartition(partition.getPartitionId()), 5000 // 5 seconds timeout
+				);
+
+				future.onComplete(new OnComplete<Object>() {
+					@Override
+					public void onComplete(Throwable failure, Object success) {
+						//System.out.println("id: " + partition.getPartitionId() + " received reply: " + success);
+						if (success instanceof TaskMessages.LockResultPartitionReply &&
+								((TaskMessages.LockResultPartitionReply) success).locked()) {
+							// we found a partition and locked it
+							partitionStatus.put(partitionID, PartitionInfo.AVAILABLE);
+							LOG.debug("Resuming from IntermediateResultPartition " + partition.getPartitionId());
+							//scheduleAction.schedule(producer);
+						} else {
+							// intermediate result not available
+							partitionStatus.put(partitionID, PartitionInfo.NOT_AVAILABLE);
+							producer.getCurrentExecutionAttempt().setScheduled();
+							// push next level results to the stack to backtrack further
+							for (IntermediateResultPartition nextPartition : nextPartitions) {
+								partitionStack.push(nextPartition);
+							}
+						}
+						// continue with backtracking
+						scheduleUsingBacktracking(partitionStack, partitionStatus, scheduleAction, whenFinished);
+						// TODO try again in case of errors?
+					}
+				}, dispatcher);
+
+				// interrupt backtracking here and continue once future is complete
+				return;
+
+			} else {
+				producer.getCurrentExecutionAttempt().setScheduled();
+				// push next level results to the stack to backtrack further
+				for (IntermediateResultPartition nextPartition : nextPartitions) {
+					partitionStack.push(nextPartition);
+				}
+			}
+
+		}
+
+		// backtracking finished
+		LOG.debug("Finished backtracking.");
+		whenFinished.execute();
+
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Actions
 	// --------------------------------------------------------------------------------------------
 
-	public void scheduleForExecution(Scheduler scheduler) throws JobException {
+	@SuppressWarnings("unchecked")
+	public void scheduleForExecution(final Scheduler scheduler) throws JobException {
 		if (scheduler == null) {
 			throw new IllegalArgumentException("Scheduler must not be null.");
 		}
-		
+
 		if (this.scheduler != null && this.scheduler != scheduler) {
 			throw new IllegalArgumentException("Cannot use different schedulers for the same job");
 		}
-		
+
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
 			this.scheduler = scheduler;
 
 			switch (scheduleMode) {
 
 				case FROM_SOURCES:
-					// initially, we simply take the ones without inputs.
-					// next, we implement the logic to go back from vertices that need computation
-					// to the ones we need to start running
+					// simply take the ones without inputs (sources) and let them initiate other
+					// task scheduling through the availability of their results
 					for (ExecutionJobVertex ejv : this.tasks.values()) {
 						if (ejv.getJobVertex().isInputVertex()) {
 							ejv.scheduleAll(scheduler, allowQueuedScheduling);
@@ -441,16 +578,83 @@ public class ExecutionGraph implements Serializable {
 					}
 
 					break;
-
+					//
 				case ALL:
+					// simply schedule all nodes in a topological order
 					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
 						ejv.scheduleAll(scheduler, allowQueuedScheduling);
 					}
 
 					break;
-
+					//
 				case BACKTRACKING:
-					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
+					/**
+					 * here, we implement the logic to go back from vertices that need computation
+					 * to the ones we need to start running (backtracking)
+					 */
+					// create a list of sinks to start back tracking from
+					List<ExecutionJobVertex> sinks = new ArrayList<ExecutionJobVertex>();
+
+					// add all sinks found to the stack
+					for (ExecutionJobVertex ejv : this.tasks.values()) {
+						// start from the sinks that do not produce intermediate results and track
+						// back to the first available intermediate result (possibly none)
+						// schedule only if we have intermediate results available
+						if (ejv.getJobVertex().isOutputVertex()) {
+							sinks.add(ejv);
+						}
+					}
+
+					// stack for tracking nodes in traversal
+					Deque<IntermediateResultPartition> partitionStack = new ArrayDeque<IntermediateResultPartition>();
+					// push all intermediate results to the stack which are reachable from this level
+					for (ExecutionJobVertex node : sinks) {
+						if (node.getInputs().size() > 0) {
+							for (IntermediateResult result : node.getInputs()) {
+								for (IntermediateResultPartition partition : result.getPartitions()) {
+									partitionStack.push(partition);
+								}
+							}
+						} else {
+							// a single ExecutionJobVertex with no input and no output intermediate results
+							// should only exist in test cases (see JobManagerITCase)
+							node.scheduleAll(scheduler, allowQueuedScheduling);
+						}
+					}
+
+					// Map to store the result of requests to partitions
+					Map<IntermediateResultPartitionID, PartitionInfo> partitionStatus =
+							new HashMap<IntermediateResultPartitionID, PartitionInfo>();
+					// provide a default value for the partition status
+					partitionStatus = DefaultedMap.decorate(partitionStatus, PartitionInfo.UNKNOWN);
+
+					ScheduleAction scheduleAction = new ScheduleAction() {
+						@Override
+						public void schedule(ExecutionVertex ev) {
+							try {
+								ev.scheduleForExecution(scheduler, allowQueuedScheduling);
+							} catch (NoResourceAvailableException e) {
+								e.printStackTrace();
+								fail(e);
+							}
+						}
+					};
+
+					PostBacktrackingHook whenFinished = new PostBacktrackingHook() {
+						@Override
+						public void execute() {}
+					};
+
+					scheduleUsingBacktracking(
+							partitionStack,
+							partitionStatus,
+							scheduleAction,
+							whenFinished);
+
+					break;
+					//
+				default:
+					throw new JobException("Unsupported scheduling mode.");
 			}
 
 			if (checkpointingEnabled) {
@@ -466,7 +670,7 @@ public class ExecutionGraph implements Serializable {
 	public void cancel() {
 		while (true) {
 			JobStatus current = state;
-			
+
 			if (current == JobStatus.RUNNING || current == JobStatus.CREATED) {
 				if (transitionState(current, JobStatus.CANCELLING)) {
 					for (ExecutionJobVertex ejv : verticesInCreationOrder) {
@@ -500,10 +704,10 @@ public class ExecutionGraph implements Serializable {
 					// set the state of the job to failed
 					transitionState(JobStatus.FAILING, JobStatus.FAILED, t);
 				}
-				
+
 				return;
 			}
-			
+
 			// no need to treat other states
 		}
 	}
@@ -538,20 +742,20 @@ public class ExecutionGraph implements Serializable {
 				// - the second (after it could grab the lock) tries to advance the position again
 				return;
 			}
-			
+
 			// see if we are the next to finish and then progress until the next unfinished one
 			if (verticesInCreationOrder.get(nextPos) == ev) {
 				do {
 					nextPos++;
 				}
 				while (nextPos < verticesInCreationOrder.size() && verticesInCreationOrder.get(nextPos).isInFinalState());
-				
+
 				nextVertexToFinish = nextPos;
-				
+
 				if (nextPos == verticesInCreationOrder.size()) {
-					
+
 					// we are done, transition to the final state
-					
+
 					while (true) {
 						JobStatus current = this.state;
 						if (current == JobStatus.RUNNING && transitionState(current, JobStatus.FINISHED)) {
@@ -621,7 +825,7 @@ public class ExecutionGraph implements Serializable {
 			return false;
 		}
 	}
-	
+
 	public void loadOperatorStates(Map<Tuple3<JobVertexID, Integer, Long> , StateHandle> states) {
 		synchronized (this.progressLock) {
 			for (Map.Entry<Tuple3<JobVertexID, Integer, Long>, StateHandle> state : states.entrySet())
@@ -728,7 +932,7 @@ public class ExecutionGraph implements Serializable {
 					throw new IllegalStateException("Execution Graph left the state FAILED while trying to restart.");
 				}
 			}
-			
+
 			synchronized (progressLock) {
 				if (state != JobStatus.RESTARTING) {
 					throw new IllegalStateException("Can only restart job from state restarting.");
@@ -756,7 +960,7 @@ public class ExecutionGraph implements Serializable {
 			fail(t);
 		}
 	}
-	
+
 	/**
 	 * This method cleans fields that are irrelevant for the archived execution attempt.
 	 */
@@ -764,19 +968,19 @@ public class ExecutionGraph implements Serializable {
 		if (!state.isTerminalState()) {
 			throw new IllegalStateException("Can only archive the job from a terminal state");
 		}
-		
+
 		userClassLoader = null;
-		
+
 		for (ExecutionJobVertex vertex : verticesInCreationOrder) {
 			vertex.prepareForArchiving();
 		}
-		
+
 		intermediateResults.clear();
 		currentExecutions.clear();
 		requiredJarFiles.clear();
 		jobStatusListenerActors.clear();
 		executionListenerActors.clear();
-		
+
 		scheduler = null;
 		parentContext = null;
 		stateCheckpointerActor = null;

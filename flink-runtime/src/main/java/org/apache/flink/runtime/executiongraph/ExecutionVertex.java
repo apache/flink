@@ -219,7 +219,7 @@ public class ExecutionVertex implements Serializable {
 	public StateHandle getOperatorState() {
 		return operatorState;
 	}
-	
+
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
 	}
@@ -464,6 +464,13 @@ public class ExecutionVertex implements Serializable {
 
 		if (partition == null) {
 			throw new IllegalStateException("Unknown partition " + partitionId + ".");
+		} else {
+			// store the location of the ResultPartition
+			SimpleSlot slot = currentExecution.getAssignedResource();
+			if (slot != null) {
+				Instance taskManager = slot.getInstance();
+				partition.setLocation(taskManager);
+			}
 		}
 
 		if (partition.getIntermediateResult().getResultType().isPipelined()) {

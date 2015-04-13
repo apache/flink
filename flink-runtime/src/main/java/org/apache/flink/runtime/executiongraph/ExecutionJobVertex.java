@@ -257,7 +257,7 @@ public class ExecutionJobVertex implements Serializable {
 	//---------------------------------------------------------------------------------------------
 	//  Actions
 	//---------------------------------------------------------------------------------------------
-	
+
 	public void scheduleAll(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
 		
 		ExecutionVertex[] vertices = this.taskVertices;

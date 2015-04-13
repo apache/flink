@@ -20,7 +20,7 @@ package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.deployment.{TaskDeploymentDescriptor, InputChannelDeploymentDescriptor}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
+import org.apache.flink.runtime.jobgraph.{IntermediateResultPartitionID, IntermediateDataSetID}
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 /**
@@ -117,6 +117,21 @@ object TaskMessages {
   case class FailIntermediateResultPartitions(executionID: ExecutionAttemptID)
     extends TaskMessage
 
+  /**
+   * Check availability of an intermediate result partition
+   * @param partitionID
+   * @see ExecutionVertex.scheduleOrUpdateConsumers
+   */
+  case class LockResultPartition(partitionID: IntermediateResultPartitionID)
+    extends TaskMessage
+
+  /**
+   * Pin/lock an ResultPartition for resuming
+   * @param partitionID
+   * @param locked
+   */
+  case class LockResultPartitionReply(partitionID: IntermediateResultPartitionID, locked: Boolean)
+    extends TaskMessage
 
   // --------------------------------------------------------------------------
   //  Report Messages

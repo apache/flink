@@ -121,6 +121,10 @@ public class IntermediateResult {
 
 	void resetForNewExecution() {
 		this.numberOfRunningProducers.set(numParallelProducers);
+		// reset previously stored locations
+		for (IntermediateResultPartition partition : partitions) {
+			partition.setLocation(null);
+		}
 	}
 
 	int decrementNumberOfRunningProducersAndGetRemaining() {
