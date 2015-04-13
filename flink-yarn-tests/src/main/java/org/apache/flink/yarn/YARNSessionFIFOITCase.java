@@ -476,8 +476,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			LOG.info("The job has finished. TaskManager output file found {}", taskmanagerOut.getAbsolutePath());
 			String content = FileUtils.readFileToString(taskmanagerOut);
 			// check for some of the wordcount outputs.
-			Assert.assertTrue("Expected string '(all,2)' not found ", content.contains("(all,2)"));
-			Assert.assertTrue("Expected string '(mind,1)' not found", content.contains("(mind,1)"));
+			Assert.assertTrue("Expected string '(all,2)' not found in string '"+content+"'", content.contains("(all,2)"));
+			Assert.assertTrue("Expected string '(mind,1)' not found in string'"+content+"'", content.contains("(mind,1)"));
 
 			// check if the heap size for the TaskManager was set correctly
 			File jobmanagerLog = YarnTestBase.findFile("..", new FilenameFilter() {
@@ -489,10 +489,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
 			// expecting 512 mb, because TM was started with 1024, we cut off 50% (NOT THE DEFAULT VALUE).
-			Assert.assertTrue("Expected string 'Starting TM with command=$JAVA_HOME/bin/java -Xmx512m' not found in JobManager log",
+			Assert.assertTrue("Expected string 'Starting TM with command=$JAVA_HOME/bin/java -Xmx512m' not found in JobManager log: '"+jobmanagerLog+"'",
 					content.contains("Starting TM with command=$JAVA_HOME/bin/java -Xmx512m"));
 			Assert.assertTrue("Expected string ' (2/2) (attempt #0) to ' not found in JobManager log." +
-							"This string checks that the job has been started with a parallelism of 2.",
+							"This string checks that the job has been started with a parallelism of 2. Log contents: '"+jobmanagerLog+"'",
 					content.contains(" (2/2) (attempt #0) to "));
 
 			// make sure the detached app is really finished.
