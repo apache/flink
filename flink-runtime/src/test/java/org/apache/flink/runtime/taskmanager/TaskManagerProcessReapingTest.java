@@ -113,7 +113,7 @@ public class TaskManagerProcessReapingTest {
 			for (int i = 0; i < 40; i++) {
 				try {
 					taskManagerRef = TaskManager.getTaskManagerRemoteReference(
-							taskManagerActorName, jmActorSystem, new FiniteDuration(5, TimeUnit.SECONDS));
+							taskManagerActorName, jmActorSystem, new FiniteDuration(25, TimeUnit.SECONDS));
 					break;
 				}
 				catch (Throwable t) {

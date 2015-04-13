@@ -112,9 +112,9 @@ public abstract class AbstractProcessFailureRecoveryTest {
 			Tuple2<String, Object> localAddress = new Tuple2<String, Object>("localhost", jobManagerPort);
 
 			Configuration jmConfig = new Configuration();
-			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1 s");
-			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4 s");
-			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 2);
+			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms");
+			jmConfig.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
+			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 7);
 			jmConfig.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "4 s");
 
 			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<Tuple2<String, Object>>(localAddress));

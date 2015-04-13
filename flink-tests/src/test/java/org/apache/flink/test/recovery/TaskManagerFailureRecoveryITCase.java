@@ -74,8 +74,8 @@ public class TaskManagerFailureRecoveryITCase {
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
 
 			config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "500 ms");
-			config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
-			config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 2);
+			config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "20 s");
+			config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 20);
 
 			cluster = new ForkableFlinkMiniCluster(config, false);
 

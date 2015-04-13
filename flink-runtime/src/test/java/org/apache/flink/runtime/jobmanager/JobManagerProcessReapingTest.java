@@ -102,7 +102,7 @@ public class JobManagerProcessReapingTest {
 				try {
 					jobManagerRef = JobManager.getJobManagerRemoteReference(
 							new InetSocketAddress("localhost", jobManagerPort),
-							localSystem, new FiniteDuration(5, TimeUnit.SECONDS));
+							localSystem, new FiniteDuration(25, TimeUnit.SECONDS));
 					break;
 				}
 				catch (Throwable t) {
