@@ -102,7 +102,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           tm ! NotifyWhenJobManagerTerminated(jm)
@@ -117,7 +117,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
           cluster.waitForTaskManagersToBeRegistered()
 
-          jm ! SubmitJob(jobGraph2)
+          jm ! SubmitJob(jobGraph2, false)
 
           val failure = expectMsgType[Success]
 

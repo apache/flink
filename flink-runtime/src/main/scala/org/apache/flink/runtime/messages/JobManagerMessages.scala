@@ -37,10 +37,10 @@ object JobManagerMessages {
    * then the sender will be registered as listener for the state change messages.
    * The submission result will be sent back to the sender as a success message.
    *
-   * @param jobGraph
+   * @param jobGraph The job to be submitted to the JobManager
    * @param registerForEvents if true, then register for state change events
    */
-  case class SubmitJob(jobGraph: JobGraph, registerForEvents: Boolean = false)
+  case class SubmitJob(jobGraph: JobGraph, registerForEvents: Boolean)
 
   /**
    * Cancels a job with the given [[jobID]] at the JobManager. The result of the cancellation is

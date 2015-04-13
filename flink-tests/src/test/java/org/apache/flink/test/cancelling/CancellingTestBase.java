@@ -19,17 +19,12 @@
 
 package org.apache.flink.test.cancelling;
 
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobCancellationException;
-import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.Assert;
@@ -44,11 +39,9 @@ import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
+
 import org.junit.After;
 import org.junit.Before;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * 
@@ -106,33 +99,46 @@ public abstract class CancellingTestBase {
 		runAndCancelJob(plan, msecsTillCanceling, DEFAULT_CANCEL_FINISHED_INTERVAL);
 	}
 		
-	public void runAndCancelJob(Plan plan, int msecsTillCanceling, int maxTimeTillCanceled) throws Exception {
+	public void runAndCancelJob(Plan plan, final int msecsTillCanceling, int maxTimeTillCanceled) throws Exception {
 		try {
 			// submit job
 			final JobGraph jobGraph = getJobGraph(plan);
-			final ActorRef client = this.executor.getJobClient();
-			final ActorSystem actorSystem = executor.getJobClientActorSystem();
+			
+			final Thread currentThread = Thread.currentThread();
+			final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+			
 			boolean jobSuccessfullyCancelled = false;
 
-			Future<Object> result = Patterns.ask(client, new JobClientMessages.SubmitJobAndWait
-					(jobGraph, false), new Timeout(AkkaUtils.getDefaultTimeout()));
-
-			actorSystem.scheduler().scheduleOnce(new FiniteDuration(msecsTillCanceling,
-							TimeUnit.MILLISECONDS), client, new JobManagerMessages.CancelJob(jobGraph.getJobID()),
-					actorSystem.dispatcher(), ActorRef.noSender());
+			// trigger the cancelling asynchronous
+			new Thread() {
+				@Override
+				public void run() {
+					try {
+						Thread.sleep(msecsTillCanceling);
+						executor.getJobManager().tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()), ActorRef.noSender());
+					}
+					catch (Throwable t) {
+						error.set(t);
+						currentThread.interrupt();
+					}
+				}
+			}.run();
 
 			try {
-				Await.result(result, AkkaUtils.getDefaultTimeout());
-			} catch (JobCancellationException exception) {
+				executor.submitJobAndWait(jobGraph, false);
+			}
+			catch (JobCancellationException exception) {
 				jobSuccessfullyCancelled = true;
-			} catch (Exception e) {
+			}
+			catch (Exception e) {
 				throw new IllegalStateException("Job failed.", e);
 			}
 
 			if (!jobSuccessfullyCancelled) {
 				throw new IllegalStateException("Job was not successfully cancelled.");
 			}
-		}catch(Exception e){
+		}
+		catch(Exception e) {
 			LOG.error("Exception found in runAndCancelJob.", e);
 			Assert.fail(StringUtils.stringifyException(e));
 		}

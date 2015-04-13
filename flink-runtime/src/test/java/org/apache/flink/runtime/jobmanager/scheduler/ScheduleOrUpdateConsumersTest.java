@@ -18,9 +18,8 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import akka.actor.ActorRef;
 import com.google.common.collect.Lists;
-import org.apache.flink.runtime.client.JobClient;
+
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismTest;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.types.IntValue;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -46,7 +46,6 @@ public class ScheduleOrUpdateConsumersTest {
 	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
 	private static TestingCluster flink;
-	private static ActorRef jobClient;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
@@ -54,11 +53,6 @@ public class ScheduleOrUpdateConsumersTest {
 				NUMBER_OF_SLOTS_PER_TM,
 				NUMBER_OF_TMS,
 				TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-
-		jobClient = JobClient.createJobClientFromConfig(
-				flink.configuration(),
-				true,
-				flink.jobManagerActorSystem());
 	}
 
 	@AfterClass
@@ -122,7 +116,7 @@ public class ScheduleOrUpdateConsumersTest {
 				pipelinedReceiver,
 				blockingReceiver);
 
-		JobClient.submitJobAndWait(jobGraph, false, jobClient, TestingUtils.TESTING_DURATION());
+		flink.submitJobAndWait(jobGraph, false, TestingUtils.TESTING_DURATION());
 	}
 
 	// ---------------------------------------------------------------------------------------------

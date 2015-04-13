@@ -24,11 +24,15 @@ import akka.pattern.Patterns.gracefulStop
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
+import org.apache.flink.api.common.JobSubmissionResult
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.client.{JobExecutionException, JobClient, SerializedJobExecutionResult}
+import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Await}
 
 /**
@@ -162,10 +166,8 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
   def awaitTermination(): Unit = {
     jobManagerActorSystem.awaitTermination()
 
-    if(!singleActorSystem) {
-      taskManagerActorSystems foreach {
-        _.awaitTermination()
-      }
+    taskManagerActorSystems foreach {
+      _.awaitTermination()
     }
   }
 
@@ -177,5 +179,28 @@ abstract class FlinkMiniCluster(val userConfiguration: Configuration,
     }
 
     Await.ready(Future.sequence(futures), timeout)
+  }
+
+  @throws(classOf[JobExecutionException])
+  def submitJobAndWait(jobGraph: JobGraph, printUpdates: Boolean)
+                                                                : SerializedJobExecutionResult = {
+
+    submitJobAndWait(jobGraph, printUpdates, timeout)
+  }
+  
+  @throws(classOf[JobExecutionException])
+  def submitJobAndWait(jobGraph: JobGraph, printUpdates: Boolean, timeout: FiniteDuration)
+                                                                 : SerializedJobExecutionResult = {
+
+    val clientActorSystem = if (singleActorSystem) jobManagerActorSystem
+    else JobClient.startJobClientActorSystem(configuration)
+
+    JobClient.submitJobAndWait(clientActorSystem, jobManagerActor, jobGraph, timeout, printUpdates)
+  }
+
+  @throws(classOf[JobExecutionException])
+  def submitJobDetached(jobGraph: JobGraph) : JobSubmissionResult = {
+    JobClient.submitJobDetached(jobManagerActor, jobGraph, timeout)
+    new JobSubmissionResult(jobGraph.getJobID)
   }
 }

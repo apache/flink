@@ -101,7 +101,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
@@ -148,7 +148,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
@@ -191,7 +191,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try{
         within(TestingUtils.TESTING_DURATION){
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           tm ! PoisonPill
@@ -213,7 +213,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
           expectMsg(RegisteredAtJobManager)
 
-          jm ! SubmitJob(jobGraph2)
+          jm ! SubmitJob(jobGraph2, false)
 
           expectMsgType[Success]
 

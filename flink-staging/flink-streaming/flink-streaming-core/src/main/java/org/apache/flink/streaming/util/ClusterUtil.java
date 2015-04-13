@@ -20,14 +20,11 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import akka.actor.ActorRef;
 
 public class ClusterUtil {
 
@@ -60,10 +57,8 @@ public class ClusterUtil {
 
 		try {
 			exec = new LocalFlinkMiniCluster(configuration, true);
-			ActorRef jobClient = exec.getJobClient();
 
-			SerializedJobExecutionResult result =
-					JobClient.submitJobAndWait(jobGraph, true, jobClient, exec.timeout());
+			SerializedJobExecutionResult result = exec.submitJobAndWait(jobGraph, true);
 			return result.toJobExecutionResult(ClusterUtil.class.getClassLoader());
 		}
 		finally {

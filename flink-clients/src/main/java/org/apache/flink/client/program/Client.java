@@ -49,10 +49,10 @@ import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.JobManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -316,27 +316,41 @@ public class Client {
 
 	public JobSubmissionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
 		this.lastJobId = jobGraph.getJobID();
-		final String hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		if (hostname == null) {
-			throw new ProgramInvocationException("Could not find hostname of job manager.");
-		}
 
-		FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
-
-		final ActorSystem actorSystem;
-		final ActorRef client;
-
+		InetSocketAddress jobManagerAddress;
 		try {
-			Tuple2<ActorSystem, ActorRef> pair = JobClient.startActorSystemAndActor(configuration, false);
-			actorSystem = pair._1();
-			client = pair._2();
+			jobManagerAddress = JobClient.getJobManagerAddress(configuration);
+		}
+		catch (IOException e) {
+			throw new ProgramInvocationException(e.getMessage(), e);
+		}
+		LOG.info("JobManager actor system address is " + jobManagerAddress);
+		
+		LOG.info("Starting client actor system");
+		final ActorSystem actorSystem;
+		try {
+			actorSystem = JobClient.startJobClientActorSystem(configuration);
 		}
 		catch (Exception e) {
-			throw new ProgramInvocationException("Could not build up connection to JobManager.", e);
+			throw new ProgramInvocationException("Could start client actor system.", e);
 		}
 
+		LOG.info("Looking up JobManager");
+		ActorRef jobManager;
 		try {
-			JobClient.uploadJarFiles(jobGraph, hostname, client, timeout);
+			jobManager = JobManager.getJobManagerRemoteReference(jobManagerAddress, actorSystem, configuration);
+		}
+		catch (IOException e) {
+			throw new ProgramInvocationException("Failed to resolve JobManager", e);
+		}
+		LOG.info("JobManager runs at " + jobManager.path());
+
+		FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
+		LOG.info("Communication between client and JobManager will have a timeout of " + timeout);
+
+		LOG.info("Checking and uploading JAR files");
+		try {
+			JobClient.uploadJarFiles(jobGraph, jobManager, timeout);
 		}
 		catch (IOException e) {
 			throw new ProgramInvocationException("Could not upload the program's JAR files to the JobManager.", e);
@@ -344,8 +358,8 @@ public class Client {
 
 		try{
 			if (wait) {
-				SerializedJobExecutionResult result =
-						JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client, timeout);
+				SerializedJobExecutionResult result = JobClient.submitJobAndWait(actorSystem, 
+						jobManager, jobGraph, timeout, printStatusDuringExecution);
 				try {
 					return result.toJobExecutionResult(this.userCodeClassLoader);
 				}
@@ -355,8 +369,8 @@ public class Client {
 				}
 			}
 			else {
-				JobClient.submitJobDetached(jobGraph, client, timeout);
-				// return a "Fake" execution result with the JobId
+				JobClient.submitJobDetached(jobManager, jobGraph, timeout);
+				// return a dummy execution result with the JobId
 				return new JobSubmissionResult(jobGraph.getJobID());
 			}
 		}

@@ -23,7 +23,6 @@ import akka.actor.Props;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -38,6 +37,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.NetUtils;
 import org.junit.After;
 
@@ -224,7 +224,13 @@ public class ClientTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception {
-			getSender().tell(new Status.Success(new JobID()), getSelf());
+			if (message instanceof JobManagerMessages.SubmitJob) {
+				JobID jid = ((JobManagerMessages.SubmitJob) message).jobGraph().getJobID();
+				getSender().tell(new Status.Success(jid), getSelf());
+			}
+			else {
+				getSender().tell(new Status.Failure(new Exception("Unknown message " + message)), getSelf());
+			}
 		}
 	}
 

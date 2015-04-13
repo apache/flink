@@ -39,7 +39,6 @@ import org.apache.flink.util.Collector;
 /**
  * Tests whether the system recovers from a runtime exception from the user code.
  */
-@SuppressWarnings("deprecation")
 public class TaskFailureITCase extends FailingTestBase {
 
 	private static final int parallelism = 4;
@@ -51,7 +50,8 @@ public class TaskFailureITCase extends FailingTestBase {
 											"1 1\n9 1\n5 9\n4 4\n4 4\n6 6\n7 7\n8 8\n";
 
 	// expected result of working map job
-	private static final String MAP_RESULT = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
+	private static final String MAP_RESULT = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n" +
+											"3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
 
 	private String inputPath;
 	private String resultPath;

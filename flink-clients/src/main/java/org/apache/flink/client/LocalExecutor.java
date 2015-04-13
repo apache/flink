@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client;
 
 import java.util.List;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
@@ -29,7 +27,6 @@ import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -180,12 +177,8 @@ public class LocalExecutor extends PlanExecutor {
 				
 				JobGraphGenerator jgg = new JobGraphGenerator();
 				JobGraph jobGraph = jgg.compileJobGraph(op);
-
-				ActorRef jobClient = flink.getJobClient();
-
-				SerializedJobExecutionResult result =
-						JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, jobClient, flink.timeout());
-
+				
+				SerializedJobExecutionResult result = flink.submitJobAndWait(jobGraph, printStatusDuringExecution);
 				return result.toJobExecutionResult(ClassLoader.getSystemClassLoader());
 			}
 			finally {

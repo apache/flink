@@ -26,26 +26,24 @@ import org.apache.flink.runtime.jobgraph.JobGraph
 object JobClientMessages {
 
   /**
-   * This message submits a jobGraph to the JobClient which sends it to the JobManager. The
-   * JobClient waits until the job has been executed. If listenToEvents is true,
-   * then the JobClient prints all state change messages to the console. The
-   * JobClient sends the result of the execution back to the sender. If the execution is
-   * successful then a [[org.apache.flink.runtime.messages.JobManagerMessages.JobResult]] is sent
-   * back. If a [[org.apache.flink.runtime.messages.JobManagerMessages.SubmissionFailure]]
-   * happens, then the cause is sent back to the sender().
+   * This message is sent to the JobClient (via ask) to submit a job and
+   * get a response when the job execution has finished.
+   * 
+   * The response to this message is a
+   * [[org.apache.flink.runtime.client.SerializedJobExecutionResult]]
    *
-   * @param jobGraph containing the job description
-   * @param listenToEvents if true then print state change messages
+   * @param jobGraph The job to be executed.
    */
-  case class SubmitJobAndWait(jobGraph: JobGraph, listenToEvents: Boolean = false)
+  case class SubmitJobAndWait(jobGraph: JobGraph)
 
   /**
-   * This message submits a jobGraph to the JobClient which sends it to the JobManager. The
-   * JobClient awaits the
-   * [[org.apache.flink.runtime.messages.JobManagerMessages.SubmissionResponse]]
-   * from the JobManager and sends it back to the sender().
+   * This message is sent to the JobClient (via ask) to submit a job and 
+   * return as soon as the result of the submit operation is known. 
    *
-   * @param jobGraph containing the job description
+   * The response to this message is a
+   * [[org.apache.flink.api.common.JobSubmissionResult]]
+   *
+   * @param jobGraph The job to be executed.
    */
   case class SubmitJobDetached(jobGraph: JobGraph)
 }

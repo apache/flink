@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import akka.actor.ActorRef;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -45,7 +43,6 @@ public class SlotCountExceedingParallelismTest {
 	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
 	private static TestingCluster flink;
-	private static ActorRef jobClient;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
@@ -53,11 +50,6 @@ public class SlotCountExceedingParallelismTest {
 				NUMBER_OF_SLOTS_PER_TM,
 				NUMBER_OF_TMS,
 				TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-
-		jobClient = JobClient.createJobClientFromConfig(
-				flink.configuration(),
-				true,
-				flink.jobManagerActorSystem());
 	}
 
 	@AfterClass
@@ -85,11 +77,7 @@ public class SlotCountExceedingParallelismTest {
 	// ---------------------------------------------------------------------------------------------
 
 	private void submitJobGraphAndWait(final JobGraph jobGraph) throws JobExecutionException {
-		JobClient.submitJobAndWait(
-				jobGraph,
-				false,
-				jobClient,
-				TestingUtils.TESTING_DURATION());
+		flink.submitJobAndWait(jobGraph, false, TestingUtils.TESTING_DURATION());
 	}
 
 	private JobGraph createTestJobGraph(
