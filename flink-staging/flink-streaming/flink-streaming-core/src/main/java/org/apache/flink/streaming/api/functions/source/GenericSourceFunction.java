@@ -21,5 +21,5 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 public interface GenericSourceFunction<T> {
 
-	public TypeInformation<T> getType();
+	TypeInformation<T> getType();
 }

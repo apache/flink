@@ -56,7 +56,6 @@ public abstract class StreamOperator<IN, OUT> implements Serializable {
 	protected TypeSerializer<IN> objectSerializer;
 	protected StreamRecord<IN> nextRecord;
 	protected IN nextObject;
-	protected boolean isMutable;
 
 	public Collector<OUT> collector;
 	protected Function userFunction;
