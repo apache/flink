@@ -21,7 +21,7 @@ import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.streamvertex.MockRecordWriter;
+import org.apache.flink.streaming.api.streamtask.MockRecordWriter;
 import org.mockito.Mockito;
 
 public class MockRecordWriterFactory {

@@ -19,7 +19,6 @@
 package org.apache.flink.api.java.table
 
 import java.lang.reflect.Modifier
-
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -29,7 +28,7 @@ import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.typeinfo.RowTypeInfo
 import org.apache.flink.api.table.{ExpressionException, Row, Table}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.invokable.operator.MapInvokable
+import org.apache.flink.streaming.api.operators.StreamMap
 
 /**
  * [[PlanTranslator]] for creating [[Table]]s from Java [[DataStream]]s and
@@ -109,7 +108,7 @@ class JavaStreamingTranslator extends PlanTranslator {
 
     val opName = s"select(${outputFields.mkString(",")})"
 
-    resultSet.transform(opName, outputType, new MapInvokable[Row, A](function))
+    resultSet.transform(opName, outputType, new StreamMap[Row, A](function))
   }
 
   private def translateInternal(op: PlanNode): DataStream[Row] = {
@@ -220,7 +219,7 @@ class JavaStreamingTranslator extends PlanTranslator {
 
     val opName = s"select(${fields.mkString(",")})"
 
-    input.transform(opName, resultType, new MapInvokable[I, Row](function))
+    input.transform(opName, resultType, new StreamMap[I, Row](function))
   }
 
   private def createJoin[L, R](

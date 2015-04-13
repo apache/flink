@@ -25,10 +25,10 @@ import scala.reflect.ClassTag
 import org.apache.commons.lang.Validate
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.function.source.{ FromElementsFunction, SourceFunction }
+import org.apache.flink.streaming.api.functions.source.{ FromElementsFunction, SourceFunction }
 import org.apache.flink.util.Collector
 import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.streaming.api.function.source.FileMonitoringFunction.WatchType
+import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 

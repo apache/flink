@@ -22,8 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.StreamInvokable.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
 
 /**
  * The SingleOutputStreamOperator represents a user defined transformation
@@ -38,13 +38,13 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		DataStream<OUT> {
 
 	protected boolean isSplit;
-	protected StreamInvokable<?, ?> invokable;
+	protected StreamOperator<?, ?> operator;
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment,
-			String operatorType, TypeInformation<OUT> outTypeInfo, StreamInvokable<?, ?> invokable) {
+			String operatorType, TypeInformation<OUT> outTypeInfo, StreamOperator<?, ?> operator) {
 		super(environment, operatorType, outTypeInfo);
 		this.isSplit = false;
-		this.invokable = invokable;
+		this.operator = operator;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -52,7 +52,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		super(dataStream);
 		if (dataStream instanceof SingleOutputStreamOperator) {
 			this.isSplit = ((SingleOutputStreamOperator<OUT, ?>) dataStream).isSplit;
-			this.invokable = ((SingleOutputStreamOperator<OUT, ?>) dataStream).invokable;
+			this.operator = ((SingleOutputStreamOperator<OUT, ?>) dataStream).operator;
 		}
 	}
 
@@ -119,7 +119,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	public SingleOutputStreamOperator<OUT, O> setChainingStrategy(ChainingStrategy strategy) {
-		this.invokable.setChainingStrategy(strategy);
+		this.operator.setChainingStrategy(strategy);
 		return this;
 	}
 	

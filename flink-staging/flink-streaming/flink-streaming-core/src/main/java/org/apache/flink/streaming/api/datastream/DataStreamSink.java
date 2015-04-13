@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
  * Represents the end of a DataStream.
@@ -30,8 +30,8 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
 public class DataStreamSink<IN> extends SingleOutputStreamOperator<IN, DataStreamSink<IN>> {
 
 	protected DataStreamSink(StreamExecutionEnvironment environment, String operatorType,
-			TypeInformation<IN> outTypeInfo, StreamInvokable<?,?> invokable) {
-		super(environment, operatorType, outTypeInfo, invokable);
+			TypeInformation<IN> outTypeInfo, StreamOperator<?,?> operator) {
+		super(environment, operatorType, outTypeInfo, operator);
 	}
 
 	protected DataStreamSink(DataStream<IN> dataStream) {

@@ -23,20 +23,20 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.StreamGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
-import org.apache.flink.streaming.api.function.co.CoMapFunction;
-import org.apache.flink.streaming.api.function.co.CoReduceFunction;
-import org.apache.flink.streaming.api.function.co.CoWindowFunction;
-import org.apache.flink.streaming.api.function.co.RichCoMapFunction;
-import org.apache.flink.streaming.api.function.co.RichCoReduceFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedReduceInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
+import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
+import org.apache.flink.streaming.api.functions.co.CoWindowFunction;
+import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
+import org.apache.flink.streaming.api.functions.co.RichCoReduceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
+import org.apache.flink.streaming.api.operators.co.CoStreamGroupedReduce;
+import org.apache.flink.streaming.api.operators.co.CoStreamMap;
+import org.apache.flink.streaming.api.operators.co.CoStreamOperator;
+import org.apache.flink.streaming.api.operators.co.CoStreamReduce;
+import org.apache.flink.streaming.api.operators.co.CoStreamWindow;
 import org.apache.flink.streaming.api.windowing.helper.SystemTimestamp;
 import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 
@@ -247,7 +247,7 @@ public class ConnectedDataStream<IN1, IN2> {
 				CoMapFunction.class, false, true, getInputType1(), getInputType2(),
 				Utils.getCallLocationName(), true);
 
-		return addCoFunction("Co-Map", outTypeInfo, new CoMapInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Map", outTypeInfo, new CoStreamMap<IN1, IN2, OUT>(
 				clean(coMapper)));
 
 	}
@@ -274,7 +274,7 @@ public class ConnectedDataStream<IN1, IN2> {
 				CoFlatMapFunction.class, false, true, getInputType1(), getInputType2(),
 				Utils.getCallLocationName(), true);
 
-		return addCoFunction("Co-Flat Map", outTypeInfo, new CoFlatMapInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Flat Map", outTypeInfo, new CoStreamFlatMap<IN1, IN2, OUT>(
 				clean(coFlatMapper)));
 	}
 
@@ -300,7 +300,7 @@ public class ConnectedDataStream<IN1, IN2> {
 				CoReduceFunction.class, false, true, getInputType1(), getInputType2(),
 				Utils.getCallLocationName(), true);
 
-		return addCoFunction("Co-Reduce", outTypeInfo, getReduceInvokable(clean(coReducer)));
+		return addCoFunction("Co-Reduce", outTypeInfo, getReduceOperator(clean(coReducer)));
 
 	}
 
@@ -368,21 +368,21 @@ public class ConnectedDataStream<IN1, IN2> {
 				CoWindowFunction.class, false, true, getInputType1(), getInputType2(),
 				Utils.getCallLocationName(), true);
 
-		return addCoFunction("Co-Window", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Window", outTypeInfo, new CoStreamWindow<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 
 	}
 
-	protected <OUT> CoInvokable<IN1, IN2, OUT> getReduceInvokable(
+	protected <OUT> CoStreamOperator<IN1, IN2, OUT> getReduceOperator(
 			CoReduceFunction<IN1, IN2, OUT> coReducer) {
-		CoReduceInvokable<IN1, IN2, OUT> invokable;
+		CoStreamReduce<IN1, IN2, OUT> operator;
 		if (isGrouped) {
-			invokable = new CoGroupedReduceInvokable<IN1, IN2, OUT>(clean(coReducer), keySelector1,
+			operator = new CoStreamGroupedReduce<IN1, IN2, OUT>(clean(coReducer), keySelector1,
 					keySelector2);
 		} else {
-			invokable = new CoReduceInvokable<IN1, IN2, OUT>(clean(coReducer));
+			operator = new CoStreamReduce<IN1, IN2, OUT>(clean(coReducer));
 		}
-		return invokable;
+		return operator;
 	}
 
 	public <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCombine(
@@ -397,19 +397,19 @@ public class ConnectedDataStream<IN1, IN2> {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
 
-		return addCoFunction("Co-Window", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
+		return addCoFunction("Co-Window", outTypeInfo, new CoStreamWindow<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 
 	}
 
 	public <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(String functionName,
-			TypeInformation<OUT> outTypeInfo, CoInvokable<IN1, IN2, OUT> functionInvokable) {
+			TypeInformation<OUT> outTypeInfo, CoStreamOperator<IN1, IN2, OUT> operator) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
-				environment, functionName, outTypeInfo, functionInvokable);
+				environment, functionName, outTypeInfo, operator);
 
-		dataStream1.streamGraph.addCoOperator(returnStream.getId(), functionInvokable, getInputType1(),
+		dataStream1.streamGraph.addCoOperator(returnStream.getId(), operator, getInputType1(),
 				getInputType2(), outTypeInfo, functionName);
 
 		dataStream1.connectGraph(dataStream1, returnStream.getId(), 1);

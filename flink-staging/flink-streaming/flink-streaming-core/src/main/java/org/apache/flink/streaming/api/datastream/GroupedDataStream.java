@@ -24,10 +24,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
-import org.apache.flink.streaming.api.invokable.operator.GroupedFoldInvokable;
-import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable;
-import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
+import org.apache.flink.streaming.api.operators.StreamGroupedFold;
+import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
  * A GroupedDataStream represents a {@link DataStream} which has been
@@ -71,7 +71,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 */
 	@Override
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return transform("Grouped Reduce", getType(), new GroupedReduceInvokable<OUT>(
+		return transform("Grouped Reduce", getType(), new StreamGroupedReduce<OUT>(
 				clean(reducer), keySelector));
 	}
 
@@ -97,7 +97,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType(),
 				Utils.getCallLocationName(), false);
 
-		return transform("Grouped Fold", outType, new GroupedFoldInvokable<OUT, R>(clean(folder),
+		return transform("Grouped Fold", outType, new StreamGroupedFold<OUT, R>(clean(folder),
 				keySelector, initialValue, outType));
 	}
 
@@ -214,11 +214,11 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	@Override
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
-		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(clean(aggregate),
+		StreamGroupedReduce<OUT> operator = new StreamGroupedReduce<OUT>(clean(aggregate),
 				keySelector);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Grouped Aggregation",
-				getType(), invokable);
+				getType(), operator);
 
 		return returnStream;
 	}

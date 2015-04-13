@@ -22,8 +22,8 @@ import java.io.IOException;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.io.StreamRecordWriter;
+import org.apache.flink.streaming.runtime.io.StreamRecordWriter;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
@@ -36,7 +36,6 @@ public class StreamOutput<OUT> implements Collector<OUT> {
 	private RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
 	private SerializationDelegate<StreamRecord<OUT>> serializationDelegate;
 	private StreamRecord<OUT> streamRecord;
-	private int channelID;
 
 	public StreamOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
 			int channelID, SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
@@ -48,7 +47,6 @@ public class StreamOutput<OUT> implements Collector<OUT> {
 		} else {
 			throw new RuntimeException("Serializer cannot be null");
 		}
-		this.channelID = channelID;
 		this.output = output;
 	}
 
@@ -59,7 +57,6 @@ public class StreamOutput<OUT> implements Collector<OUT> {
 	@Override
 	public void collect(OUT record) {
 		streamRecord.setObject(record);
-		streamRecord.newId(channelID);
 		serializationDelegate.setInstance(streamRecord);
 
 		try {
