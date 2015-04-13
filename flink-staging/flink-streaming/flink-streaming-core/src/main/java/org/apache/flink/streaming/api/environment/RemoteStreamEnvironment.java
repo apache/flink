@@ -69,11 +69,12 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		this.host = host;
 		this.port = port;
 		this.jarFiles = new ArrayList<File>();
-		for (int i = 0; i < jarFiles.length; i++) {
-			File file = new File(jarFiles[i]);
+		for (String jarFile : jarFiles) {
+			File file = new File(jarFile);
 			try {
 				JobWithJars.checkJarFile(file);
-			} catch (IOException e) {
+			}
+			catch (IOException e) {
 				throw new RuntimeException("Problem with jar file " + file.getAbsolutePath(), e);
 			}
 			this.jarFiles.add(file);
@@ -113,7 +114,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		Configuration configuration = jobGraph.getJobConfiguration();
 		Client client = new Client(new InetSocketAddress(host, port), configuration,
 				JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()), -1);
-
+		client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
+		
 		try {
 			JobSubmissionResult result = client.run(jobGraph, true);
 			if(result instanceof JobExecutionResult) {

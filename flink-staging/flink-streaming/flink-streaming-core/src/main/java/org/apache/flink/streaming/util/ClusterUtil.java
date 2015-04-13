@@ -42,9 +42,8 @@ public class ClusterUtil {
 	 *            memorySize
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize)
-			throws Exception {
-
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize,
+																boolean printDuringExecution) throws Exception {
 		Configuration configuration = jobGraph.getJobConfiguration();
 
 		LocalFlinkMiniCluster exec = null;
@@ -58,7 +57,7 @@ public class ClusterUtil {
 		try {
 			exec = new LocalFlinkMiniCluster(configuration, true);
 
-			SerializedJobExecutionResult result = exec.submitJobAndWait(jobGraph, true);
+			SerializedJobExecutionResult result = exec.submitJobAndWait(jobGraph, printDuringExecution);
 			return result.toJobExecutionResult(ClusterUtil.class.getClassLoader());
 		}
 		finally {
@@ -68,7 +67,8 @@ public class ClusterUtil {
 		}
 	}
 
-	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
-		return runOnMiniCluster(jobGraph, numOfSlots, -1);
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int numOfSlots,
+														boolean printDuringExecution) throws Exception {
+		return runOnMiniCluster(jobGraph, numOfSlots, -1, printDuringExecution);
 	}
 }

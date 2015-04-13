@@ -100,6 +100,7 @@ public class StreamCheckpointingITCase {
 																	"localhost", cluster.getJobManagerRPCPort());
 			env.setParallelism(PARALLELISM);
 			env.enableCheckpointing(200);
+			env.getConfig().disableSysoutLogging();
 
 			DataStream<String> stream = env.addSource(new RichParallelSourceFunction<String>() {
 

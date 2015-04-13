@@ -22,8 +22,6 @@ import org.apache.flink.streaming.util.ClusterUtil;
 
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
-	protected static ClassLoader userClassLoader;
-
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a
 	 * default name.
@@ -32,7 +30,8 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	@Override
 	public JobExecutionResult execute() throws Exception {
-		return ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(), getParallelism());
+		return ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(), getParallelism(),
+																getConfig().isSysoutLoggingEnabled());
 	}
 
 	/**
@@ -45,6 +44,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		return ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(jobName), getParallelism());
+		return ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(jobName), getParallelism(),
+																		getConfig().isSysoutLoggingEnabled());
 	}
 }
