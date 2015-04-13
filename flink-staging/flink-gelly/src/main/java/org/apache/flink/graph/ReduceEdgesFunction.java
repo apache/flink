@@ -18,6 +18,7 @@
 
 package org.apache.flink.graph;
 
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.io.Serializable;
@@ -30,7 +31,7 @@ import java.io.Serializable;
  * @param <EV> the edge value type
  */
 public interface ReduceEdgesFunction<K extends Comparable<K> & Serializable,
-		EV extends Serializable> {
+		EV extends Serializable> extends Function, Serializable {
 
 	Tuple2<K, Edge<K, EV>> reduceEdges(Tuple2<K, Edge<K, EV>> firstEdge, Tuple2<K, Edge<K, EV>> secondEdge);
 }

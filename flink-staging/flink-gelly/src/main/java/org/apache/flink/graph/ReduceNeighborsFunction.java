@@ -36,5 +36,5 @@ public interface ReduceNeighborsFunction <K extends Comparable<K> & Serializable
 		EV extends Serializable> extends Function, Serializable {
 
 	Tuple3<K, Edge<K, EV>, Vertex<K, VV>> reduceNeighbors(Tuple3<K, Edge<K, EV>, Vertex<K, VV>> firstNeighbor,
-														  Tuple3<K, Edge<K, EV>, Vertex<K, VV>> secondNeighbor);
+														Tuple3<K, Edge<K, EV>, Vertex<K, VV>> secondNeighbor);
 }

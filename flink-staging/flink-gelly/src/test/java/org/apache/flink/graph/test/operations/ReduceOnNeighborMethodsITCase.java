@@ -20,7 +20,6 @@ package org.apache.flink.graph.test.operations;
 
 import java.util.Iterator;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -227,7 +226,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum = 
-				graph.reduceOnNeighbors(new SumInNeighborsNoValue(), EdgeDirection.IN);
+				graph.groupReduceOnNeighbors(new SumInNeighborsNoValue(), EdgeDirection.IN);
 		verticesWithSum.writeAsCsv(resultPath);
 		env.execute();
 	
@@ -536,15 +535,21 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SumInNeighborsNoValue implements ReduceNeighborsFunction<Long, Long, Long> {
+	private static final class SumInNeighborsNoValue implements NeighborsFunction<Long, Long, Long,
+			Tuple2<Long, Long>> {
 
 		@Override
-		public Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> reduceNeighbors(Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> firstNeighbor,
-																				  Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> secondNeighbor) {
-			long sum = firstNeighbor.f2.getValue() * firstNeighbor.f1.getValue() +
-					secondNeighbor.f2.getValue() * secondNeighbor.f1.getValue();
-			return new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>(firstNeighbor.f0, firstNeighbor.f1,
-					new Vertex<Long, Long>(firstNeighbor.f0, sum));
+		public void iterateNeighbors(Iterable<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
+									 Collector<Tuple2<Long, Long>> out) throws Exception {
+			long sum = 0;
+			Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> next = null;
+			Iterator<Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>> neighborsIterator =
+					neighbors.iterator();
+			while(neighborsIterator.hasNext()) {
+				next = neighborsIterator.next();
+				sum += next.f2.getValue() * next.f1.getValue();
+			}
+			out.collect(new Tuple2<Long, Long>(next.f0, sum));
 		}
 	}
 

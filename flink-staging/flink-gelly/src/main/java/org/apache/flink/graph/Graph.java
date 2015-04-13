@@ -720,7 +720,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @throws IllegalArgumentException
 	 */
 	public <T> DataSet<T> groupReduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
-											 EdgeDirection direction) throws IllegalArgumentException {
+											EdgeDirection direction) throws IllegalArgumentException {
 
 		switch (direction) {
 		case IN:
@@ -751,7 +751,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @throws IllegalArgumentException
 	 */
 	public <T> DataSet<T> groupReduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
-											 EdgeDirection direction) throws IllegalArgumentException {
+											EdgeDirection direction) throws IllegalArgumentException {
 
 		switch (direction) {
 		case IN:
@@ -1211,7 +1211,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @throws IllegalArgumentException
 	 */
 	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunctionWithVertexValue<K, VV, EV, T> neighborsFunction,
-												 EdgeDirection direction) throws IllegalArgumentException {
+												EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
 			// create <edge-sourceVertex> pairs
@@ -1254,7 +1254,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @throws IllegalArgumentException
 	 */
 	public <T> DataSet<T> groupReduceOnNeighbors(NeighborsFunction<K, VV, EV, T> neighborsFunction,
-												 EdgeDirection direction) throws IllegalArgumentException {
+												EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
 			// create <edge-sourceVertex> pairs
@@ -1408,7 +1408,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @throws IllegalArgumentException
 	 */
 	public DataSet reduceOnNeighbors(ReduceNeighborsFunction<K, VV, EV> reduceNeighborsFunction,
-									 EdgeDirection direction) throws IllegalArgumentException {
+									EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 			case IN:
 				// create <edge-sourceVertex> pairs
@@ -1475,7 +1475,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @throws IllegalArgumentException
 	 */
 	public DataSet reduceOnEdges(ReduceEdgesFunction<K, EV> reduceEdgesFunction,
-								 EdgeDirection direction) throws IllegalArgumentException {
+								EdgeDirection direction) throws IllegalArgumentException {
 
 		switch (direction) {
 			case IN:
