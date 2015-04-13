@@ -71,6 +71,11 @@ public abstract class ResultSubpartition {
 
 	abstract public void finish() throws IOException;
 
+	/**
+	 * Releases the memory of the SubPartiton.
+	 * Should only be called by the parenting ResultPartition.
+	 * @throws IOException
+	 */
 	abstract public void release() throws IOException;
 
 	abstract public ResultSubpartitionView createReadView(BufferProvider bufferProvider) throws IOException;

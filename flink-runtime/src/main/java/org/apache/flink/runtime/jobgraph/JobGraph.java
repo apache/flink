@@ -303,7 +303,7 @@ public class JobGraph implements Serializable {
 			while (iter.hasNext()) {
 				AbstractJobVertex vertex = iter.next();
 				
-				if (vertex.hasNoConnectedInputs()) {
+				if (vertex.isInputVertex() || vertex.resumesFromIntermediateResult()) {
 					sorted.add(vertex);
 					iter.remove();
 				}
@@ -455,6 +455,16 @@ public class JobGraph implements Serializable {
 			if (bc != null) {
 				bc.close();
 			}
+		}
+	}
+
+	/**
+	 * Sets the default parallelism of all job vertices in this JobGraph.
+	 * @param parallelism
+	 */
+	public void setParallelism(int parallelism) {
+		for (AbstractJobVertex ejv : taskVertices.values()) {
+			ejv.setParallelism(parallelism);
 		}
 	}
 }

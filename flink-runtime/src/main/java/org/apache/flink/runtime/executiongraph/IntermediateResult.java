@@ -108,7 +108,8 @@ public class IntermediateResult {
 		numConsumers++;
 
 		for (IntermediateResultPartition p : partitions) {
-			if (p.addConsumerGroup() != index) {
+			int consumerGroupIndex = p.addConsumerGroup();
+			if (consumerGroupIndex != index && !resultType.isPersistent()) {
 				throw new RuntimeException("Inconsistent consumer mapping between intermediate result partitions.");
 			}
 		}

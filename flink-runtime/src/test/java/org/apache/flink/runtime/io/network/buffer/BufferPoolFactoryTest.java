@@ -128,5 +128,4 @@ public class BufferPoolFactoryTest {
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), second.getNumBuffers());
 	}
-
 }

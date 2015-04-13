@@ -167,6 +167,8 @@ public class NetworkEnvironment {
 
 				LOG.debug("Starting result partition manager and network connection manager");
 				this.partitionManager = new ResultPartitionManager();
+				// inject partition manager
+				this.networkBufferPool.setResultPartitionManager(partitionManager);
 				this.taskEventDispatcher = new TaskEventDispatcher();
 				this.partitionConsumableNotifier = new JobManagerResultPartitionConsumableNotifier(
 													jobManagerRef, taskManagerRef, new Timeout(jobManagerTimeout));

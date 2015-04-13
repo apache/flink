@@ -220,7 +220,7 @@ public class ExecutionVertex implements Serializable {
 	public StateHandle getOperatorState() {
 		return operatorState;
 	}
-	
+
 	public ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
 	}
@@ -498,6 +498,11 @@ public class ExecutionVertex implements Serializable {
 		else {
 			throw new IllegalArgumentException("ScheduleOrUpdateConsumers msg is only valid for" +
 					"pipelined partitions.");
+			/**
+			 * Scheduling of blocking partitions are triggered through the markFinished method in
+			 * @see Execution
+			 */
+
 		}
 	}
 
@@ -539,24 +544,15 @@ public class ExecutionVertex implements Serializable {
 	 * Returns all blocking result partitions whose receivers can be scheduled/updated.
 	 */
 	List<IntermediateResultPartition> finishAllBlockingPartitions() {
-		List<IntermediateResultPartition> finishedBlockingPartitions = null;
+		List<IntermediateResultPartition> finishedBlockingPartitions = new LinkedList<IntermediateResultPartition>();
 
 		for (IntermediateResultPartition partition : resultPartitions.values()) {
 			if (partition.getResultType().isBlocking() && partition.markFinished()) {
-				if (finishedBlockingPartitions == null) {
-					finishedBlockingPartitions = new LinkedList<IntermediateResultPartition>();
-				}
-
 				finishedBlockingPartitions.add(partition);
 			}
 		}
 
-		if (finishedBlockingPartitions == null) {
-			return Collections.emptyList();
-		}
-		else {
-			return finishedBlockingPartitions;
-		}
+		return finishedBlockingPartitions;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -630,6 +626,20 @@ public class ExecutionVertex implements Serializable {
 	// --------------------------------------------------------------------------------------------
 	//  Utilities
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Gets all IntermediateResultPartitions required by this Execution Vertex
+	 * @return list of intermediate result partitions
+	 */
+	public List<IntermediateResultPartition> getInputs() {
+		List<IntermediateResultPartition> intermediateResultPartitions = new ArrayList<IntermediateResultPartition>();
+		for (ExecutionEdge[] edgeList : inputEdges) {
+			for (ExecutionEdge edge : edgeList) {
+				intermediateResultPartitions.add(edge.getSource());
+			}
+		}
+		return intermediateResultPartitions;
+	}
 
 	/**
 	 * Creates a simple name representation in the style 'taskname (x/y)', where

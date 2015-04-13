@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
@@ -60,6 +61,19 @@ public class IntermediateResultPartition {
 		return partitionId;
 	}
 
+	public boolean isLocationAvailable() {
+		Instance instance = getLocation();
+		return instance != null && instance.isAlive();
+	}
+
+	/**
+	 * Last reported location of a ResultPartition for this IntermediateResultPartition
+	 * @return Instance which contains the task manager location
+	 */
+	public Instance getLocation() {
+		return producer.getCurrentExecutionAttempt().getResultPartitionLocation();
+	}
+
 	ResultPartitionType getResultType() {
 		return totalResult.getResultType();
 	}
@@ -76,8 +90,8 @@ public class IntermediateResultPartition {
 		int pos = consumers.size();
 
 		// NOTE: currently we support only one consumer per result!!!
-		if (pos != 0) {
-			throw new RuntimeException("Currently, each intermediate result can only have one consumer.");
+		if (!getResultType().isPersistent() && pos > 0) {
+			throw new RuntimeException("Currently, each intermediate result can only have one consumer (for non-blocking result partitions).");
 		}
 
 		consumers.add(new ArrayList<ExecutionEdge>());
@@ -86,6 +100,14 @@ public class IntermediateResultPartition {
 
 	void addConsumer(ExecutionEdge edge, int consumerNumber) {
 		consumers.get(consumerNumber).add(edge);
+	}
+
+	public int getNumConsumers() {
+		int numConsumers = 0;
+		for (List<ExecutionEdge> consumerGroup : consumers) {
+			numConsumers += consumerGroup.size();
+		}
+		return numConsumers;
 	}
 
 	boolean markFinished() {

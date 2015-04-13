@@ -47,7 +47,7 @@ import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
+import org.apache.flink.runtime.jobgraph.{ScheduleMode, JobGraph, JobStatus}
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -477,8 +477,9 @@ class JobManager(val flinkConfiguration: Configuration,
         executionGraph = currentJob match {
           case Some((graph, _)) if !graph.getState.isTerminalState =>
               throw new Exception("Job still running")
-          case Some((graph, _)) if graph.getJobID == jobId =>
-            // resume here
+          case Some((graph, _)) if graph.getJobID == jobId &&
+                                   graph.getScheduleMode == ScheduleMode.BACKTRACKING =>
+            graph.prepareForResuming()
             graph
           case _ =>
             removeCurrentJob()

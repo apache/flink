@@ -25,8 +25,11 @@ import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.{ExecutionStateChanged,
+JobStatusChanged}
+import org.apache.flink.runtime.messages.JobManagerMessages.ScheduleOrUpdateConsumers
 import org.apache.flink.runtime.messages.Messages.Disconnect
+import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 
@@ -54,6 +57,8 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
   val waitForJobStatus = scala.collection.mutable.HashMap[JobID,
     collection.mutable.HashMap[JobStatus, Set[ActorRef]]]()
+
+  val waitForTaskScheduled = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
 
   var disconnectDisabled = false
 
