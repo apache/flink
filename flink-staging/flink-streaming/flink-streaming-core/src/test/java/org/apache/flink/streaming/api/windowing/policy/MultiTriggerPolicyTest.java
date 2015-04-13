@@ -17,16 +17,22 @@
 
 package org.apache.flink.streaming.api.windowing.policy;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import com.google.common.collect.Sets;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
+import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
+import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
-import org.apache.flink.streaming.api.windowing.helper.Timestamp;
-import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
-import org.junit.Test;
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class MultiTriggerPolicyTest {
 
@@ -135,7 +141,7 @@ public class MultiTriggerPolicyTest {
 	 * correctly.
 	 */
 	@Test
-	public void testActiveTriggerRunnables() {
+	public void testActiveTriggerRunnables() throws InterruptedException {
 		TriggerPolicy<Integer> firstPolicy = new ActiveTriggerWithRunnable(1);
 		TriggerPolicy<Integer> secondPolicy = new ActiveTriggerWithRunnable(2);
 		TriggerPolicy<Integer> thirdPolicy = new ActiveTriggerWithRunnable(3);
@@ -143,7 +149,7 @@ public class MultiTriggerPolicyTest {
 		ActiveTriggerPolicy<Integer> multiTrigger = new MultiTriggerPolicy<Integer>(firstPolicy,
 				secondPolicy, thirdPolicy);
 
-		MyCallbackClass cb = new MyCallbackClass();
+		MyCallbackClass cb = new MyCallbackClass(3);
 		Runnable runnable = multiTrigger.createActiveTriggerRunnable(cb);
 		new Thread(runnable).start();
 
@@ -168,7 +174,7 @@ public class MultiTriggerPolicyTest {
 	@SuppressWarnings("serial")
 	private class ActiveTriggerWithRunnable implements ActiveTriggerPolicy<Integer> {
 
-		int id;
+		private final int id;
 
 		public ActiveTriggerWithRunnable(int id) {
 			this.id = id;
@@ -203,37 +209,37 @@ public class MultiTriggerPolicyTest {
 	 */
 	private class MyCallbackClass implements ActiveTriggerCallback {
 
-		List<Integer> received = new LinkedList<Integer>();
+		private final Set<Integer> received = Sets
+				.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+
+		private final CountDownLatch sync;
+
+		public MyCallbackClass(int numberOfExpectedElements) {
+			checkArgument(numberOfExpectedElements >= 0);
+			this.sync = new CountDownLatch(numberOfExpectedElements);
+		}
 
 		@Override
 		public void sendFakeElement(Object datapoint) {
 			received.add((Integer) datapoint);
+
+			sync.countDown();
 		}
 
-		public boolean check(int timeout, int... ids) {
-			int totalTime = 0;
+		public boolean check(int timeout, int... expectedIds) throws InterruptedException {
+			// Wait for all elements
+			sync.await(timeout, TimeUnit.MILLISECONDS);
 
-			while (totalTime <= timeout) {
-				boolean result = true;
-				for (int id : ids) {
-					if (!received.contains(id)) {
-						result = false;
-					}
-				}
+			// Check received all expected ids
+			assertEquals(expectedIds.length, received.size());
 
-				if (result) {
-					return true;
-				} else {
-					try {
-						Thread.sleep(1000);
-						totalTime += 1000;
-					} catch (InterruptedException e) {
-						// ignore it here
-					}
+			for (int id : expectedIds) {
+				if (!received.contains(id)) {
+					return false;
 				}
 			}
-			return false;
-		}
 
+			return true;
+		}
 	}
 }
