@@ -472,6 +472,7 @@ Gelly has a growing collection of graph algorithms for easily analyzing large-sc
 * Single-Source Shortest Paths
 * Label Propagation
 * Simple Community Detection
+* Connected Components
 
 Gelly's library methods can be used by simply calling the `run()` method on the input graph:
 
