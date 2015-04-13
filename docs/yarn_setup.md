@@ -28,9 +28,9 @@ under the License.
 Start a YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 
 ~~~bash
-wget {{ site.FLINK_WGET_URL_YARN_STABLE }}
-tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2.tgz
-cd flink-{{ site.FLINK_VERSION_SHORT }}/
+wget {{ site.FLINK_WGET_URL_YARN_THIS }}
+tar xvzf flink-{{ site.FLINK_VERSION_THIS_HADOOP2 }}-bin-hadoop2.tgz
+cd flink-{{ site.FLINK_VERSION_THIS_HADOOP2 }}/
 ./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
 ~~~
 
@@ -41,10 +41,10 @@ Once the session has been started, you can submit jobs to the cluster using the 
 ## Quickstart: Run a Flink job on YARN
 
 ~~~bash
-wget {{ site.FLINK_WGET_URL_YARN_STABLE }}
-tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2.tgz
-cd flink-{{ site.FLINK_VERSION_SHORT }}/
-./bin/flink -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar
+wget {{ site.FLINK_WGET_URL_YARN_THIS }}
+tar xvzf flink-{{ site.FLINK_VERSION_THIS_HADOOP2 }}-bin-hadoop2.tgz
+cd flink-{{ site.FLINK_VERSION_THIS_HADOOP2 }}/
+./bin/flink -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/flink-java-examples-{{ site.FLINK_VERSION_THIS_HADOOP2 }}-WordCount.jar
 ~~~
 
 ## Apache Flink on Hadoop YARN using a YARN Session
@@ -71,11 +71,11 @@ Download the YARN tgz package on the [download page]({{site.baseurl}}/downloads.
 Extract the package using:
 
 ~~~bash
-tar xvzf flink-{{ site.FLINK_VERSION_SHORT }}-bin-hadoop2.tgz
-cd flink-{{site.FLINK_VERSION_SHORT }}/
+tar xvzf flink-{{ site.FLINK_VERSION_THIS_HADOOP2 }}-bin-hadoop2.tgz
+cd flink-{{site.FLINK_VERSION_THIS_HADOOP2 }}/
 ~~~
 
-If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). You can find the result of the build in `flink-dist/target/flink-{{ site.FLINK_VERSION_SHORT }}-bin/flink-{{ site.FLINK_VERSION_SHORT }}/` (*Note: The version might be different for you* ).
+If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). You can find the result of the build in `flink-dist/target/flink-{{ site.FLINK_VERSION_THIS_HADOOP2 }}-bin/flink-{{ site.FLINK_VERSION_THIS_HADOOP2 }}/` (*Note: The version might be different for you* ).
 
 
 #### Start a Session
@@ -172,7 +172,7 @@ Use the *run* action to submit a job to YARN. The client is able to determine th
 ~~~bash
 wget -O apache-license-v2.txt http://www.apache.org/licenses/LICENSE-2.0.txt
 hadoop fs -copyFromLocal LICENSE-2.0.txt hdfs:/// ...
-./bin/flink run ./examples/flink-java-examples-{{site.FLINK_VERSION_SHORT }}-WordCount.jar \
+./bin/flink run ./examples/flink-java-examples-{{site.FLINK_VERSION_THIS_HADOOP2 }}-WordCount.jar \
         hdfs:///..../apache-license-v2.txt hdfs:///.../wordcount-result.txt
 ~~~
 
@@ -198,7 +198,7 @@ Please note that the client then expects the `-yn` value to be set (number of Ta
 ***Example:***
 
 ~~~bash
-./bin/flink run -m yarn-cluster -yn 2 ./examples/flink-java-examples-{{site.FLINK_VERSION_STABLE }}-WordCount.jar 
+./bin/flink run -m yarn-cluster -yn 2 ./examples/flink-java-examples-{{site.FLINK_VERSION_THIS_HADOOP2 }}-WordCount.jar 
 ~~~
 
 The command line options of the YARN session are also available with the `./bin/flink` tool. They are prefixed with a `y` or `yarn` (for the long argument options).

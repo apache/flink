@@ -25,6 +25,9 @@
 FLINK_VERSION_THIS_HADOOP1: "0.9-hadoop1-SNAPSHOT"
 FLINK_VERSION_THIS_HADOOP2: "0.9-SNAPSHOT"
 FLINK_VERSION_THIS_SHORT: "0.9"
+FLINK_WGET_URL_YARN_THIS: http://stratosphere-bin.s3-website-us-east-1.amazonaws.com/flink-0.9-SNAPSHOT-bin-hadoop2.tgz
+
+
 
 FLINK_VERSION_HADOOP1_STABLE: "0.8.1-hadoop1" # this variable can point to a SNAPSHOT version in the git source.
 FLINK_VERSION_SHORT: "0.8.1"
