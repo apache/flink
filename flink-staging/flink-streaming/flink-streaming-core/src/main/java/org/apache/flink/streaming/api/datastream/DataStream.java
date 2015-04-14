@@ -595,7 +595,7 @@ public class DataStream<OUT> {
 	 * 
 	 * @param filter
 	 *            The FilterFunction that is called for each element of the
-	 *            DataSet.
+	 *            DataStream.
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
