@@ -33,6 +33,19 @@ public class LongParser extends FieldParser<Long> {
 		boolean neg = false;
 
 		final int delimLimit = limit - delimiter.length + 1;
+
+		int delimCount = 0;
+		for (int i = 0; i < delimiter.length; i++) {
+			if (bytes[startPos + i] == delimiter[i]) {
+				delimCount++;
+			} else {
+				break;
+			}
+		}
+		if (delimCount == delimiter.length) {
+			setErrorState(ParseErrorState.EMPTY_STRING);
+			return -1;
+		}
 		
 		if (bytes[startPos] == '-') {
 			neg = true;

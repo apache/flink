@@ -43,9 +43,9 @@ public class DoubleParser extends FieldParser<Double> {
 		
 		String str = new String(bytes, startPos, i-startPos);
 		if (str.length() == 0) {
-			this.result = 0;
-			return (i == limit) ? limit : i + delimiter.length;
-		} 
+			setErrorState(ParseErrorState.EMPTY_STRING);
+			return -1;
+		}
 		try {
 			this.result = Double.parseDouble(str);
 			return (i == limit) ? limit : i + delimiter.length;
@@ -53,8 +53,7 @@ public class DoubleParser extends FieldParser<Double> {
 		catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
-		}
-		
+		}		
 	}
 	
 	@Override

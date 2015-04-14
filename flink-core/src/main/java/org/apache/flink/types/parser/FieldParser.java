@@ -64,7 +64,10 @@ public abstract class FieldParser<T> {
 		UNTERMINATED_QUOTED_STRING,
 
 		/** The parser found characters between the end of the quoted string and the delimiter. */
-		UNQUOTED_CHARS_AFTER_QUOTED_STRING
+		UNQUOTED_CHARS_AFTER_QUOTED_STRING,
+		
+		/** The string is empty. */
+		EMPTY_STRING
 	}
 	
 	private ParseErrorState errorState = ParseErrorState.NONE;
