@@ -79,7 +79,7 @@ case $STARTSTOP in
         rotateLogFile $log
         rotateLogFile $out
 
-        echo Starting job manager
+        echo "Starting Job Manager"
         $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_JM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.runtime.jobmanager.JobManager --executionMode $EXECUTIONMODE --configDir "$FLINK_CONF_DIR"  > "$out" 2>&1 < /dev/null &
         echo $! > $pid
 
@@ -88,18 +88,18 @@ case $STARTSTOP in
     (stop)
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Stopping job manager
+                echo "Stopping job manager"
                 kill `cat $pid`
             else
-                echo No job manager to stop
+                echo "No job manager to stop"
             fi
         else
-            echo No job manager to stop
+            echo "No job manager to stop"
         fi
     ;;
 
     (*)
-        echo Please specify start or stop
+        echo "Please specify 'start (cluster|local)' or stop"
     ;;
 
 esac
