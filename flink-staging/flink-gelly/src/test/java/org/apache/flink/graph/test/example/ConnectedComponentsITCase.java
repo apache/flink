@@ -20,8 +20,8 @@ package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.graph.example.MinVertexIdPropagationExample;
-import org.apache.flink.graph.example.utils.MinVertexIdPropagationData;
+import org.apache.flink.graph.example.ConnectedComponentsExample;
+import org.apache.flink.graph.example.utils.ConnectedComponentsData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -34,7 +34,7 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 
 @RunWith(Parameterized.class)
-public class MinVertexIdPropagationITCase extends MultipleProgramsTestBase {
+public class ConnectedComponentsITCase extends MultipleProgramsTestBase {
 
 	private String edgesPath;
 
@@ -45,7 +45,7 @@ public class MinVertexIdPropagationITCase extends MultipleProgramsTestBase {
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	public MinVertexIdPropagationITCase(TestExecutionMode mode) {
+	public ConnectedComponentsITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
@@ -54,14 +54,14 @@ public class MinVertexIdPropagationITCase extends MultipleProgramsTestBase {
 		resultPath = tempFolder.newFile().toURI().toString();
 
 		File edgesFile = tempFolder.newFile();
-		Files.write(MinVertexIdPropagationData.EDGES, edgesFile, Charsets.UTF_8);
+		Files.write(ConnectedComponentsData.EDGES, edgesFile, Charsets.UTF_8);
 		edgesPath = edgesFile.toURI().toString();
 	}
 
 	@Test
 	public void testMinVertexIdPropagationExample() throws Exception {
-		MinVertexIdPropagationExample.main(new String[]{edgesPath, resultPath, MinVertexIdPropagationData.MAX_ITERATIONS + ""});
-		expected = MinVertexIdPropagationData.VERTICES_WITH_MIN_ID;
+		ConnectedComponentsExample.main(new String[]{edgesPath, resultPath, ConnectedComponentsData.MAX_ITERATIONS + ""});
+		expected = ConnectedComponentsData.VERTICES_WITH_MIN_ID;
 	}
 
 	@After

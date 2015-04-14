@@ -27,26 +27,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Provides the default data sets used for the Minimum vertex ID propagation example program.
+ * Provides the default data sets used for the connected components example program.
  * If no parameters are given to the program, the default data sets are used.
  */
-public class MinVertexIdPropagationData {
+public class ConnectedComponentsData {
 
 	public static final Integer MAX_ITERATIONS = 4;
 
 	public static final String EDGES = "1	2\n" + "2	3\n" + "2	4\n" + "3	4";
 
-	public static DataSet<Edge<Integer, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
-		List<Edge<Integer, NullValue>> edges = new ArrayList<Edge<Integer, NullValue>>();
-		edges.add(new Edge<Integer, NullValue>(1, 2, NullValue.getInstance()));
-		edges.add(new Edge<Integer, NullValue>(2, 3, NullValue.getInstance()));
-		edges.add(new Edge<Integer, NullValue>(2, 4, NullValue.getInstance()));
-		edges.add(new Edge<Integer, NullValue>(3, 4, NullValue.getInstance()));
+	public static DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
+		List<Edge<Long, NullValue>> edges = new ArrayList<Edge<Long, NullValue>>();
+		edges.add(new Edge<Long, NullValue>(1L, 2L, NullValue.getInstance()));
+		edges.add(new Edge<Long, NullValue>(2L, 3L, NullValue.getInstance()));
+		edges.add(new Edge<Long, NullValue>(2L, 4L, NullValue.getInstance()));
+		edges.add(new Edge<Long, NullValue>(3L, 4L, NullValue.getInstance()));
 
 		return env.fromCollection(edges);
 	}
 
 	public static final String VERTICES_WITH_MIN_ID = "1,1\n" + "2,1\n" + "3,1\n" + "4,1";
 
-	private MinVertexIdPropagationData() {}
+	private ConnectedComponentsData() {}
 }

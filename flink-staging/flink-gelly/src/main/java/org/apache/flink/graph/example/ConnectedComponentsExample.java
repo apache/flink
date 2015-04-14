@@ -26,12 +26,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.example.utils.MinVertexIdPropagationData;
-import org.apache.flink.graph.library.MinVertexIdPropagation;
+import org.apache.flink.graph.example.utils.ConnectedComponentsData;
+import org.apache.flink.graph.library.ConnectedComponents;
 import org.apache.flink.types.NullValue;
 
 /**
- * This example shows how to use the {@link org.apache.flink.graph.library.MinVertexIdPropagation}
+ * This example shows how to use the {@link org.apache.flink.graph.library.ConnectedComponents}
  * library method:
  * <ul>
  * 	<li> with the edge data set given as a parameter
@@ -44,12 +44,12 @@ import org.apache.flink.types.NullValue;
  * For example: <code>1\t2\n1\t3\n</code> defines two edges,
  * 1-2 with and 1-3.
  *
- * Usage <code>MinVertexIdPropagation &lt;edge path&gt; &lt;result path&gt;
+ * Usage <code>ConnectedComponents &lt;edge path&gt; &lt;result path&gt;
  * &lt;number of iterations&gt; </code><br>
  * If no parameters are provided, the program is run with default data from
- * {@link org.apache.flink.graph.example.utils.MinVertexIdPropagationData}
+ * {@link org.apache.flink.graph.example.utils.ConnectedComponentsData}
  */
-public class MinVertexIdPropagationExample implements ProgramDescription {
+public class ConnectedComponentsExample implements ProgramDescription {
 
 	@SuppressWarnings("serial")
 	public static void main(String [] args) throws Exception {
@@ -60,17 +60,17 @@ public class MinVertexIdPropagationExample implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Edge<Integer, NullValue>> edges = getEdgesDataSet(env);
+		DataSet<Edge<Long, NullValue>> edges = getEdgesDataSet(env);
 
-		Graph<Integer, Integer, NullValue> graph = Graph.fromDataSet(edges, new MapFunction<Integer, Integer>() {
+		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new MapFunction<Long, Long>() {
 			@Override
-			public Integer map(Integer value) throws Exception {
+			public Long map(Long value) throws Exception {
 				return value;
 			}
 		}, env);
 
-		DataSet<Vertex<Integer, Integer>> verticesWithMinIds = graph
-				.run(new MinVertexIdPropagation(maxIterations)).getVertices();
+		DataSet<Vertex<Long, Long>> verticesWithMinIds = graph
+				.run(new ConnectedComponents(maxIterations)).getVertices();
 
 		// emit result
 		if (fileOutput) {
@@ -79,12 +79,12 @@ public class MinVertexIdPropagationExample implements ProgramDescription {
 			verticesWithMinIds.print();
 		}
 
-		env.execute("Minimum Vertex ID Propagation Example");
+		env.execute("Connected Components Example");
 	}
 
 	@Override
 	public String getDescription() {
-		return "Minimum Vertex ID Propagation Example";
+		return "Connected Components Example";
 	}
 
 	// *************************************************************************
@@ -94,12 +94,12 @@ public class MinVertexIdPropagationExample implements ProgramDescription {
 	private static boolean fileOutput = false;
 	private static String edgeInputPath = null;
 	private static String outputPath = null;
-	private static Integer maxIterations = MinVertexIdPropagationData.MAX_ITERATIONS;
+	private static Integer maxIterations = ConnectedComponentsData.MAX_ITERATIONS;
 
 	private static boolean parseParameters(String [] args) {
 		if(args.length > 0) {
 			if(args.length != 3) {
-				System.err.println("Usage MinVertexIdPropagation <edge path> <output path> " +
+				System.err.println("Usage ConnectedComponents <edge path> <output path> " +
 						"<num iterations>");
 				return false;
 			}
@@ -110,31 +110,31 @@ public class MinVertexIdPropagationExample implements ProgramDescription {
 			maxIterations = Integer.parseInt(args[2]);
 
 		} else {
-			System.out.println("Executing MinVertexIdPropagation example with default parameters and built-in default data.");
+			System.out.println("Executing ConnectedComponents example with default parameters and built-in default data.");
 			System.out.println("Provide parameters to read input data from files.");
-			System.out.println("Usage MinVertexIdPropagation <edge path> <output path> " +
+			System.out.println("Usage ConnectedComponents <edge path> <output path> " +
 					"<num iterations>");
 		}
 
 		return true;
 	}
 
-	private static DataSet<Edge<Integer, NullValue>> getEdgesDataSet(ExecutionEnvironment env) {
+	private static DataSet<Edge<Long, NullValue>> getEdgesDataSet(ExecutionEnvironment env) {
 
 		if(fileOutput) {
 			return env.readCsvFile(edgeInputPath)
 					.ignoreComments("#")
 					.fieldDelimiter("\t")
 					.lineDelimiter("\n")
-					.types(Integer.class, Integer.class)
-					.map(new MapFunction<Tuple2<Integer, Integer>, Edge<Integer, NullValue>>() {
+					.types(Long.class, Long.class)
+					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
 						@Override
-						public Edge<Integer, NullValue> map(Tuple2<Integer, Integer> value) throws Exception {
-							return new Edge<Integer, NullValue>(value.f0, value.f1, NullValue.getInstance());
+						public Edge<Long, NullValue> map(Tuple2<Long, Long> value) throws Exception {
+							return new Edge<Long, NullValue>(value.f0, value.f1, NullValue.getInstance());
 						}
 					});
 		} else {
-			return MinVertexIdPropagationData.getDefaultEdgeDataSet(env);
+			return ConnectedComponentsData.getDefaultEdgeDataSet(env);
 		}
 	}
 }

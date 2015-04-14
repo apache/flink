@@ -26,46 +26,46 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.types.NullValue;
 
 /**
- * Minimum Vertex ID propagation algorithm.
+ * Connected components algorithm.
  *
- * Initially, each vertex will have its own ID as a value. The vertices propagate their
- * current minimum ID in iterations, each time adopting a new value from the received neighbor IDs,
+ * Initially, each vertex will have its own ID as a value(is its own component). The vertices propagate their
+ * current component ID in iterations, each time adopting a new value from the received neighbor IDs,
  * provided that the value is less than the current minimum.
  *
  * The algorithm converges when vertices no longer update their value or when the maximum number of iterations
  * is reached.
  */
 @SuppressWarnings("serial")
-public class MinVertexIdPropagation implements GraphAlgorithm<Integer, Integer, NullValue>{
+public class ConnectedComponents implements GraphAlgorithm<Long, Long, NullValue>{
 
 	private Integer maxIterations;
 
-	public MinVertexIdPropagation(Integer maxIterations) {
+	public ConnectedComponents(Integer maxIterations) {
 		this.maxIterations = maxIterations;
 	}
 
 	@Override
-	public Graph<Integer, Integer, NullValue> run(Graph<Integer, Integer, NullValue> graph) throws Exception {
+	public Graph<Long, Long, NullValue> run(Graph<Long, Long, NullValue> graph) throws Exception {
 
-		Graph<Integer, Integer, NullValue> undirectedGraph = graph.getUndirected();
+		Graph<Long, Long, NullValue> undirectedGraph = graph.getUndirected();
 
 		// initialize vertex values and run the Vertex Centric Iteration
-		return undirectedGraph.runVertexCentricIteration(new MinNeighborUpdater(),
-				new MinMessenger(), maxIterations);
+		return undirectedGraph.runVertexCentricIteration(new CCUpdater(),
+				new CCMessenger(), maxIterations);
 	}
 
 	/**
 	 * Updates the value of a vertex by picking the minimum neighbor ID out of all the incoming messages.
 	 */
-	public static final class MinNeighborUpdater extends VertexUpdateFunction<Integer, Integer, Integer> {
+	public static final class CCUpdater extends VertexUpdateFunction<Long, Long, Long> {
 
 		@Override
-		public void updateVertex(Integer id, Integer currentMin, MessageIterator<Integer> messages) throws Exception {
-			int min = Integer.MAX_VALUE;
+		public void updateVertex(Long id, Long currentMin, MessageIterator<Long> messages) throws Exception {
+			long min = Long.MAX_VALUE;
 
 			// iterate over all received messages
 			while (messages.hasNext()) {
-				int next = messages.next();
+				long next = messages.next();
 				min = next < min ? next : min;
 			}
 
@@ -79,10 +79,10 @@ public class MinVertexIdPropagation implements GraphAlgorithm<Integer, Integer, 
 	/**
 	 * Distributes the minimum ID associated with a given vertex among all the target vertices.
 	 */
-	public static final class MinMessenger extends MessagingFunction<Integer, Integer, Integer, NullValue> {
+	public static final class CCMessenger extends MessagingFunction<Long, Long, Long, NullValue> {
 
 		@Override
-		public void sendMessages(Integer id, Integer currentMin) throws Exception {
+		public void sendMessages(Long id, Long currentMin) throws Exception {
 			// send current minimum to neighbors
 			sendMessageToAllNeighbors(currentMin);
 		}
