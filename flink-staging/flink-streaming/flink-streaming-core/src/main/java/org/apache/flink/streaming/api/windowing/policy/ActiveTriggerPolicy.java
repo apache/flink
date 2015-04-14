@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.windowing.helper.Timestamp;
  * 
  * 2) An active trigger has a factory method for a runnable. This factory method
  * gets called at the start up of the operator. The returned runnable will be
- * executed in its own thread and can submit fake elements at any time threw an
+ * executed in its own thread and can submit fake elements at any time through an
  * {@link ActiveTriggerCallback}. This allows to have time based triggers based
  * on any system internal time measure. Triggers are not called on fake
  * datapoint. A fake datapoints is always considered as triggered.
@@ -62,7 +62,7 @@ public interface ActiveTriggerPolicy<DATA> extends TriggerPolicy<DATA> {
 	/**
 	 * This is the factory method for a runnable. This factory method gets
 	 * called at the start up of the operator. The returned runnable will be
-	 * executed in its own thread and can submit fake elements at any time threw
+	 * executed in its own thread and can submit fake elements at any time through
 	 * an {@link ActiveTriggerCallback}. This allows to have time based triggers
 	 * based on any system internal time measure. Triggers are not called on
 	 * fake datapoints. A fake datapoint is always considered as triggered.
