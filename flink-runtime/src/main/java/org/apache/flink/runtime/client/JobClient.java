@@ -140,7 +140,7 @@ public class JobClient {
 					new JobClientMessages.SubmitJobAndWait(jobGraph),
 					new Timeout(AkkaUtils.INF_TIMEOUT()));
 
-			Object answer = Await.result(future, timeout);
+			Object answer = Await.result(future, AkkaUtils.INF_TIMEOUT());
 
 			if (answer instanceof JobManagerMessages.JobResultSuccess) {
 				LOG.info("Job execution complete");
@@ -161,7 +161,8 @@ public class JobClient {
 			throw e;
 		}
 		catch (TimeoutException e) {
-			throw new JobTimeoutException(jobGraph.getJobID(), "Lost connection to JobManager", e);
+			throw new JobTimeoutException(jobGraph.getJobID(), "Timeout while waiting for JobManager answer. " +
+					"Job time exceeded " + AkkaUtils.INF_TIMEOUT(), e);
 		}
 		catch (Throwable t) {
 			throw new JobExecutionException(jobGraph.getJobID(),
