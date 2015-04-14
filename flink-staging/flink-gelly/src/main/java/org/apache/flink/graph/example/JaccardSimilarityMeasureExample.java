@@ -32,6 +32,7 @@ import org.apache.flink.graph.EdgesFunction;
 import org.apache.flink.graph.Triplet;
 import org.apache.flink.graph.example.utils.JaccardSimilarityMeasureData;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.util.Collector;
 
 import java.util.HashSet;
 
@@ -68,7 +69,7 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 		Graph<Long, NullValue, Double> graph = Graph.fromDataSet(edges, env);
 
 		DataSet<Vertex<Long, HashSet<Long>>> verticesWithNeighbors =
-				graph.reduceOnEdges(new GatherNeighbors(), EdgeDirection.ALL);
+				graph.groupReduceOnEdges(new GatherNeighbors(), EdgeDirection.ALL);
 
 		Graph<Long, HashSet<Long>, Double> graphWithVertexValues = Graph.fromDataSet(verticesWithNeighbors, edges, env);
 
@@ -106,7 +107,8 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 	private static final class GatherNeighbors implements EdgesFunction<Long, Double, Vertex<Long, HashSet<Long>>> {
 
 		@Override
-		public Vertex<Long, HashSet<Long>> iterateEdges(Iterable<Tuple2<Long, Edge<Long, Double>>> edges) throws Exception {
+		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Double>>> edges,
+														Collector<Vertex<Long, HashSet<Long>>> out) throws Exception {
 
 			HashSet<Long> neighborsHashSet = new HashSet<Long>();
 			long vertexId = -1;
@@ -115,7 +117,7 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 				neighborsHashSet.add(getNeighborID(edge));
 				vertexId = edge.f0;
 			}
-			return new Vertex<Long, HashSet<Long>>(vertexId, neighborsHashSet);
+			out.collect(new Vertex<Long, HashSet<Long>>(vertexId, neighborsHashSet));
 		}
 	}
 
