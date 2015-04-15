@@ -44,17 +44,20 @@ import org.apache.flink.util.Collector
   *
   * @example
   * {{{
-  *                                    val trainingDS: DataSet[Vector] = env.fromCollection(data)
+  *                                          val trainingDS: DataSet[Vector] = env.fromCollection
+  *                                          (data)
   *
-  *                                    val transformer = StandardScaler().setMean(10.0).setStd(2.0)
+  *                                          val transformer = StandardScaler().setMean(10.0).setStd
+  *                                          (2.0)
   *
-  *                                    transformer.transform(trainingDS)
+  *                                          transformer.transform(trainingDS)
   * }}}
   *
   * =Parameters=
   *
   * - [[StandardScaler.Mean]]: The mean value of transformed data set; by default equal to 0
-  * - [[StandardScaler.Std]]: The standard deviation of the transformed data set; by default equal to 1
+  * - [[StandardScaler.Std]]: The standard deviation of the transformed data set; by default
+  * equal to 1
   */
 class StandardScaler extends Transformer[Vector, Vector] with Serializable {
 
@@ -106,18 +109,19 @@ class StandardScaler extends Transformer[Vector, Vector] with Serializable {
     *
     *
     * @param dataSet The data set for which we want to calculate mean and variance
-    * @return  DataSet containing a single tuple of two vectors (meanVector, stdVector). The first vector represents
-    *          the mean vector and the second is the standard deviation vector.
+    * @return  DataSet containing a single tuple of two vectors (meanVector, stdVector).
+    *          The first vector represents the mean vector and the second is the standard
+    *          deviation vector.
     */
-  private def extractFeatureMetrics(dataSet: DataSet[Vector]): DataSet[(linalg.Vector[Double], linalg.Vector[Double])
-    ] = {
+  private def extractFeatureMetrics(dataSet: DataSet[Vector]):
+  DataSet[(linalg.Vector[Double], linalg.Vector[Double])] = {
 
-    val metrics = dataSet.combineGroup(new GroupCombineFunction[Vector, (Double, linalg.Vector[Double], linalg
-    .Vector[Double])] {
+    val metrics = dataSet.combineGroup(new GroupCombineFunction[Vector,
+      (Double, linalg.Vector[Double], linalg.Vector[Double])] {
 
-      override def combine(vector: Iterable[Vector], out: Collector[(Double, linalg.Vector[Double], linalg
-      .Vector[Double])]):
-      Unit = {
+      override def combine(vector: Iterable[Vector],
+        out: Collector[(Double, linalg.Vector[Double], linalg.Vector[Double])]): Unit = {
+
         var counter = 0.0
         var T: linalg.Vector[Double] = null
         var S: linalg.Vector[Double] = null
@@ -139,10 +143,10 @@ class StandardScaler extends Transformer[Vector, Vector] with Serializable {
         out.collect(counter, T, S)
       }
     }).reduce(new CalculateMetrics())
-      .map(new MapFunction[(Double, linalg.Vector[Double], linalg.Vector[Double]), (linalg.Vector[Double], linalg
-    .Vector[Double])] {
-      override def map(metrics: (Double, linalg.Vector[Double], linalg.Vector[Double])): (linalg.Vector[Double],
-        linalg.Vector[Double]) = {
+      .map(new MapFunction[(Double, linalg.Vector[Double], linalg.Vector[Double]),
+      (linalg.Vector[Double], linalg.Vector[Double])] {
+      override def map(metrics: (Double, linalg.Vector[Double], linalg.Vector[Double])):
+      (linalg.Vector[Double], linalg.Vector[Double]) = {
         val varianceVector = sqrt(metrics._3 :/ metrics._1)
         return (metrics._2 :/ metrics._1, varianceVector)
       }
@@ -157,9 +161,10 @@ class StandardScaler extends Transformer[Vector, Vector] with Serializable {
     * @return A data set containing a single tuple of three elements:
     *         (totalNumberOfElements,featuresMeanVector,featuresStdVector)
     */
-  final class CalculateMetrics extends ReduceFunction[(Double, linalg.Vector[Double], linalg.Vector[Double])] {
-    override def reduce(metrics1: (Double, linalg.Vector[Double], linalg.Vector[Double]), metrics2: (Double, linalg
-    .Vector[Double], linalg.Vector[Double])):
+  final class CalculateMetrics extends ReduceFunction[(Double, linalg.Vector[Double],
+    linalg.Vector[Double])] {
+    override def reduce(metrics1: (Double, linalg.Vector[Double], linalg.Vector[Double]),
+      metrics2: (Double, linalg.Vector[Double], linalg.Vector[Double])):
     (Double, linalg.Vector[Double], linalg.Vector[Double]) = {
       val temp1 = metrics1._1 / (metrics2._1 * (metrics1._1 + metrics2._1))
       val temp2 = (metrics1._1 + metrics2._1) / metrics1._1
