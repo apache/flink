@@ -26,8 +26,8 @@ under the License.
 ## The Processes
 
 When the Flink system is started, it bring up the *JobManager* and one or more *TaskManagers*. The JobManager
-is the coordinator of the Flink system, while the TaskManagers are the worksers that execute parts of the
-parallel programs. When starting the systen in *local* mode, a single JobManager and TaskManager are brought
+is the coordinator of the Flink system, while the TaskManagers are the workers that execute parts of the
+parallel programs. When starting the system in *local* mode, a single JobManager and TaskManager are brought
 up within the same JVM.
 
 When a program is submitted, a client is created that performs the pre-processing and turns the program
@@ -43,7 +43,7 @@ illustrates the different actors in the system very coarsely.
 An alternative view on the system is given by the stack below. The different layers of the stack build on
 top of each other and raise the abstraction level of the program representations they accept:
 
-- The **runtime** layer receive a program in the form of a *JobGraph*. A JobGraph is a generic parallel
+- The **runtime** layer receives a program in the form of a *JobGraph*. A JobGraph is a generic parallel
 data flow with arbitrary tasks that consume and produce data streams.
 
 - The **optimizer** and **common api** layer takes programs in the form of operator DAGs. The operators are
