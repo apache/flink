@@ -129,9 +129,7 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 	 * 		The offset to start from (beginning or current).
 	 */
 	@Deprecated
-	public PersistentKafkaSource(String zookeeperAddress, String topicId,
-						  DeserializationSchema<OUT> deserializationSchema, int zookeeperSyncTimeMillis,
-						  int waitOnEmptyFetchMillis, Offset startOffsetType) {
+	public PersistentKafkaSource(String zookeeperAddress, String topicId,DeserializationSchema<OUT> deserializationSchema, int zookeeperSyncTimeMillis, int waitOnEmptyFetchMillis, Offset startOffsetType) {
 		this(topicId, deserializationSchema, startOffsetType, legacyParametersToConsumerConfig(zookeeperAddress, zookeeperSyncTimeMillis, waitOnEmptyFetchMillis));
 	}
 
