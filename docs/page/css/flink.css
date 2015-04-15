@@ -1,0 +1,122 @@
+/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/
+/*=============================================================================
+                         Navbar at the top of the page
+=============================================================================*/
+
+/* Padding at top because of the fixed navbar. */
+body {
+	padding-top: 70px;
+}
+
+/* Our logo. */
+.navbar-logo {
+	padding: 5px 15px 5px 15px;
+}
+.navbar-logo img {
+	height: 40px;
+}
+
+/* Links */
+.navbar-default .navbar-nav > li > a {
+	color: black;
+	font-weight: bold;
+}
+.navbar-default .navbar-nav > li > a:hover {
+	background: #E7E7E7;
+}
+
+.navbar-collapse .dropdown-header {
+	color: black;
+}
+
+.version {
+	display: block-inline;
+	font-size: 90%;
+}
+
+/*=============================================================================
+                        Navbar at the side of the page
+=============================================================================*/
+
+/* Move the side nav a little bit down to align with the main heading */
+#markdown-toc {
+	font-size: 90%;
+}
+
+/* Custom list styling */
+#markdown-toc, #markdown-toc ul {
+	list-style: none;
+	display: block;
+	position: relative;
+	padding-left: 0;
+	margin-bottom: 0;
+}
+
+/* All element */
+#markdown-toc li > a {
+	display: block;
+	padding: 5px 10px;
+	border: 1px solid #E5E5E5;
+	margin:-1px;
+}
+#markdown-toc li > a:hover,
+#markdown-toc li > a:focus {
+  text-decoration: none;
+  background-color: #eee;
+}
+
+/* 1st-level elements */
+#markdown-toc > li > a {
+	font-weight: bold;
+}
+
+/* 2nd-level element */
+#markdown-toc > li li > a {
+	padding-left: 20px; /* A little more indentation*/
+}
+
+/* >= 3rd-level element */
+#markdown-toc > li li li {
+	display: none; /* hide */
+}
+
+#markdown-toc li:last-child > a {
+	border-bottom: 1px solid #E5E5E5;
+}
+
+/*=============================================================================
+                                    Text
+=============================================================================*/
+
+h2, h3 {
+	padding-top: 1em;
+	padding-bottom: 5px;
+	border-bottom: 1px solid #E5E5E5;
+}
+
+
+code {
+	background: none;
+	color: black;
+}
+
+pre {
+	font-size: 85%;
+}

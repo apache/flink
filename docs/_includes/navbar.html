@@ -16,52 +16,106 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<nav class="navbar navbar-default navbar-static-top" role="navigation">
-  <div class="container">
-    <div class="row">
-      <div class="col-md-1 af-mobile-nav-bar">
-        {% comment %}
-        We might be on an externally hosted documentation site.
-        Please keep the site.FLINK_WEBSITE_URL below to ensure a link back to the Flink website.
-        {% endcomment %}
-	<a href="{{ site.FLINK_WEBSITE_URL }}/index.html" title="Home">
-	  <img class="hidden-xs hidden-sm img-responsive"
-	       src="{{ site.baseurl }}/img/logo.png" alt="Apache Flink Logo">
-	</a>	
-	<div class="row visible-xs">
-	  <div class="col-xs-3">
-	    <a href="{{ site.baseurl }}/index.html" title="Home">
-	      <img class="hidden-x hidden-sm img-responsive"
-		   src="{{ site.baseurl }}/img/logo.png" alt="Apache Flink Logo">
-	    </a>	
-	  </div>
-	  <div class="col-xs-5"></div>
-	  <div class="col-xs-4">
-	    <div class="af-mobile-btn">
-	      <span class="glyphicon glyphicon-plus"></span>
-	    </div>
-	  </div>
-	</div>
-    </div>
-      <!-- Navigation -->
-      <div class="col-md-11">
-	<div class="collapse navbar-collapse" id="navbar-collapse-1">
-	  <ul class="nav navbar-nav">
+{% capture setup %}{{site.baseurl}}/setup{% endcapture %}
+{% capture apis %}{{site.baseurl}}/apis{% endcapture %}
+{% capture libs %}{{site.baseurl}}/libs{% endcapture %}
+{% capture internals %}{{site.baseurl}}/internals{% endcapture %}
+    <!-- Top navbar. -->
+    <nav class="navbar navbar-default navbar-fixed-top">
+      <div class="container">
+        <!-- The logo. -->
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <div class="navbar-logo">
+            <a href="{{ site.baseurl }}/"><img alt="Apache Flink" src="{{ site.baseurl }}/page/img/navbar-brand-logo.jpg"></a>
+          </div>
+        </div><!-- /.navbar-header -->
 
-	    <li>
-	      <a href="{{ site.baseurl }}/index.html" class="{% if page.url contains 'index.html' %}active{% endif %}">Documentation</a>
-	    </li>
+        <!-- The navigation links. -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+          <ul class="nav navbar-nav">
+            <li{% if page.url == '/index.html' %} class="active"{% endif %}><a href="{{ site.baseurl}}/index.html">Overview<span class="hidden-sm hidden-xs"> {{ site.version_short }}</span></a></li>
 
-	    <li>
-	      <a href="{{ site.baseurl }}/api/java/index.html">Javadoc</a>
-	    </li>
+            <!-- Setup -->
+            <li class="dropdown{% if page.url contains setup %} active{% endif %}">
+              <a href="{{ setup }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Setup <span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+                <li><a href="{{ setup }}/building.html">Get Flink 0.9-SNAPSHOT</a></li>
 
-	    <li>
-	      <a href="{{ site.baseurl }}/api/scala/index.html#org.apache.flink.api.scala.package">Scaladoc</a>
-	    </li>
-	  </ul>
-	</div>
-      </div>
-    </div>
-  </div>
-</nav>
+                <li class="divider"></li>
+                <li role="presentation" class="dropdown-header"><strong>Deployment</strong></li>
+                <li><a href="{{ setup }}/local_setup.html" class="active">Local</a></li>
+                <li><a href="{{ setup }}/cluster_setup.html">Cluster (Standalone)</a></li>
+                <li><a href="{{ setup }}/yarn_setup.html">YARN</a></li>
+                <li><a href="{{ setup }}/gce_setup.html">GCloud</a></li>
+                <li><a href="{{ setup }}/flink_on_tez.html">Flink on Tez <span class="badge">Beta</span></a></li>
+
+                <li class="divider"></li>
+                <li><a href="{{ setup }}/config.html">Configuration</a></li>
+              </ul>
+            </li>
+
+            <!-- Programming Guides -->
+            <li class="dropdown{% if page.url contains apis %} active{% endif %}">
+              <a href="{{ apis }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Programming Guides <span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+                <li><a href="{{ apis }}/programming_guide.html"><strong>Batch: DataSet API</strong></a></li>
+                <li><a href="{{ apis }}/streaming_guide.html"><strong>Streaming: DataStream API</strong> <span class="badge">Beta</span></a></li>
+                <li><a href="{{ apis }}/python.html">Python API <span class="badge">Beta</span></a></li>
+                
+                <li class="divider"></li>
+                <li><a href="{{ apis }}/dataset_transformations.html">Dataset Transformations</a></li>
+                <li><a href="{{ apis }}/example_connectors.html">Connectors</a></li>
+                <li><a href="{{ apis }}/examples.html">Examples</a></li>
+                <li><a href="{{ apis }}/local_execution.html">Local Execution</a></li>
+                <li><a href="{{ apis }}/cluster_execution.html">Cluster Execution</a></li>
+                <li><a href="{{ apis }}/cli.html">Command Line Interface</a></li>
+                <li><a href="{{ apis }}/web_client.html">Web Client</a></li>
+                <li><a href="{{ apis }}/iterations.html">Iterations</a></li>
+                <li><a href="{{ apis }}/java8.html">Java 8</a></li>
+                <li><a href="{{ apis }}/hadoop_compatibility.html">Hadoop Compatability <span class="badge">Beta</span></a></li>
+              </ul>
+            </li>
+
+            <!-- Libraries -->
+            <li class="dropdown{% if page.url contains libs %} active{% endif %}">
+              <a href="{{ libs }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Libraries <span class="caret"></span></a>
+                <ul class="dropdown-menu" role="menu">
+                  <li><a href="{{ libs }}/spargel_guide.html">Graphs: Spargel</a></li>
+                  <li><a href="{{ libs }}/gelly_guide.html">Graphs: Gelly <span class="badge">Beta</span></a></li>
+                  <li><a href="{{ libs }}/ml/">Machine Learning <span class="badge">Beta</span></a></li>
+                  <li><a href="{{ libs }}/table.html">Relational: Table <span class="badge">Beta</span></a></li>
+              </ul>
+            </li>
+
+            <!-- Internals -->
+            <li class="dropdown{% if page.url contains internals %} active{% endif %}">
+              <a href="{{ internals }}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Internals <span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+                <li role="presentation" class="dropdown-header"><strong>Contribute</strong></li>
+                <li><a href="{{ internals }}/how_to_contribute.html">How to Contribute</a></li>
+                <li><a href="{{ internals }}/coding_guidelines.html">Coding Guidelines</a></li>
+                <li><a href="{{ internals }}/ide_setup.html">IDE Setup</a></li>
+                <li><a href="{{ internals }}/logging.html">Logging</a></li>
+                <li class="divider"></li>
+                <li role="presentation" class="dropdown-header"><strong>Internals</strong></li>
+                <li><a href="{{ internals }}/general_arch.html">Architecture &amp; Process Model</a></li>
+                <li><a href="{{ internals }}/types_serialization.html">Type Extraction &amp; Serialization</a></li>
+                <li><a href="{{ internals }}/job_scheduling.html">Jobs &amp; Scheduling</a></li>
+                <li><a href="{{ internals }}/add_operator.html">How-To: Add an Operator</a></li>
+              </ul>
+            </li>
+          </ul>
+          <form class="navbar-form navbar-right hidden-sm hidden-md" role="search" action="search-results.html">
+            <div class="form-group">
+              <input type="text" class="form-control" name="q" placeholder="Search all pages">
+            </div>
+            <button type="submit" class="btn btn-default">Search</button>
+          </form>
+        </div><!-- /.navbar-collapse -->
+      </div><!-- /.container -->
+    </nav>
