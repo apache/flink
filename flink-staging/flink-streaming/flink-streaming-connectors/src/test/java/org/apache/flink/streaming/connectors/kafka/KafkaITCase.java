@@ -336,7 +336,7 @@ public class KafkaITCase {
 
 		LOG.info("Starting KafkaITCase.bigRecordTestTopology()");
 
-		String topic = "tupleTestTopic";
+		String topic = "bigRecordTestTopic";
 		createTestTopic(topic, 1, 1);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
