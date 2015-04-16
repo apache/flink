@@ -158,7 +158,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 		// check whether the numVertices option is set and, if so, compute the total number of vertices
 		// and set it within the messaging and update functions
 
-		if (this.configuration !=null && this.configuration.isOptNumVertices()) {
+		if (this.configuration != null && this.configuration.isOptNumVertices()) {
 			try {
 				long numberOfVertices = graph.numberOfVertices();
 				messagingFunction.setNumberOfVertices(numberOfVertices);

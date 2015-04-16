@@ -38,8 +38,8 @@ public class Vertex<K extends Comparable<K> & Serializable, V extends Serializab
 	private Long outDegree;
 
 	public Vertex(){
-		inDegree = 0L;
-		outDegree = 0L;
+		inDegree = -1L;
+		outDegree = -1L;
 	}
 
 	public Vertex(K k, V val) {
@@ -65,7 +65,10 @@ public class Vertex<K extends Comparable<K> & Serializable, V extends Serializab
 		this.f1 = val;
 	}
 
-	public Long getInDegree() {
+	public Long getInDegree() throws Exception{
+		if(inDegree == -1) {
+			throw new InaccessibleMethodException("The degree option was not set");
+		}
 		return inDegree;
 	}
 
@@ -73,7 +76,10 @@ public class Vertex<K extends Comparable<K> & Serializable, V extends Serializab
 		this.inDegree = inDegree;
 	}
 
-	public Long getOutDegree() {
+	public Long getOutDegree() throws Exception{
+		if(outDegree == -1) {
+			throw new InaccessibleMethodException("The degree option was not set");
+		}
 		return outDegree;
 	}
 
