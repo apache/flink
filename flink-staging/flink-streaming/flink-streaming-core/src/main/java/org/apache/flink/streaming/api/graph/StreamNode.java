@@ -60,7 +60,7 @@ public class StreamNode implements Serializable {
 
 	private Class<? extends AbstractInvokable> jobVertexClass;
 
-	private InputFormat<String, ?> inputFormat;
+	private InputFormat<?, ?> inputFormat;
 
 	public StreamNode(StreamExecutionEnvironment env, Integer ID, StreamOperator<?> operator,
 			String operatorName, List<OutputSelector<?>> outputSelector,
@@ -194,11 +194,11 @@ public class StreamNode implements Serializable {
 		return jobVertexClass;
 	}
 
-	public InputFormat<String, ?> getInputFormat() {
+	public InputFormat<?, ?> getInputFormat() {
 		return inputFormat;
 	}
 
-	public void setInputFormat(InputFormat<String, ?> inputFormat) {
+	public void setInputFormat(InputFormat<?, ?> inputFormat) {
 		this.inputFormat = inputFormat;
 	}
 
