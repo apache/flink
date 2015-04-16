@@ -29,6 +29,11 @@ import org.apache.flink.streaming.connectors.kafka.api.simple.offset.KafkaOffset
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Iterator over multiple Kafka partitions.
+ *
+ * This is needed when num partitions > num kafka sources.
+ */
 public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaMultiplePartitionsIterator.class);
@@ -55,9 +60,13 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 
 	@Override
 	public void initialize() throws InterruptedException {
+		LOG.info("Initializing iterator with {} partitions", partitions.size());
+		String partInfo = "";
 		for (KafkaSinglePartitionIterator partition : partitions) {
 			partition.initialize();
+			partInfo += partition.toString() + " ";
 		}
+		LOG.info("Initialized partitions {}", partInfo);
 	}
 
 	@Override
@@ -91,7 +100,7 @@ public class KafkaMultiplePartitionsIterator implements KafkaConsumerIterator {
 			// do not wait if a new message has been fetched
 			if (!gotNewMessage) {
 				try {
-					Thread.sleep(consumerConfig.props().getInt(PersistentKafkaSource.WAIT_ON_EMPTY_FETCH_KEY));
+					Thread.sleep(consumerConfig.props().getInt(PersistentKafkaSource.WAIT_ON_EMPTY_FETCH_KEY), consumerConfig.fetchWaitMaxMs());
 				} catch (InterruptedException e) {
 					LOG.warn("Interrupted while waiting for new messages", e);
 				}

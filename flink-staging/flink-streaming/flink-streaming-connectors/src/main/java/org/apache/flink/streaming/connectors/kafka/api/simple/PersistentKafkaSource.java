@@ -57,15 +57,20 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(PersistentKafkaSource.class);
 
 	public static final String WAIT_ON_EMPTY_FETCH_KEY = "flink.waitOnEmptyFetchMillis";
+	public static final String WAIT_ON_FAILED_LEADER_MS_KEY = "flink.waitOnFailedLeaderDetection";
+	public static final int WAIT_ON_FAILED_LEADER__MS_DEFAULT = 2000;
+
+	public static final String MAX_FAILED_LEADER_RETRIES_KEY = "flink.maxLeaderDetectionRetries";
+	public static final int MAX_FAILED_LEADER_RETRIES_DEFAULT = 3;
 
 	private final String topicId;
 	private final KafkaOffset startingOffset;
 	private transient ConsumerConfig consumerConfig; // ConsumerConfig is not serializable.
 
 	private transient KafkaConsumerIterator iterator;
-	private transient OperatorState<Map<Integer, KafkaOffset>> kafkaOffSet;
+	private transient OperatorState<Map<Integer, KafkaOffset>> kafkaOffSetOperatorState;
 
-	private transient Map<Integer, KafkaOffset> partitions;
+	private transient Map<Integer, KafkaOffset> partitionOffsets;
 
 	/**
 	 * Creates a persistent Kafka source that consumes a topic.
@@ -180,6 +185,8 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 		}
 	}
 
+	// ---------------------- Source lifecycle methods (open / run / cancel ) -----------------
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void open(Configuration parameters) throws InterruptedException {
@@ -193,29 +200,32 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 		int numberOfPartitions = kafkaTopicUtils.getNumberOfPartitions(topicId);
 
 		if (indexOfSubtask >= numberOfPartitions) {
+			LOG.info("Creating idle consumer because this subtask ({}) is higher than the number partitions ({})", indexOfSubtask + 1, numberOfPartitions);
 			iterator = new KafkaIdleConsumerIterator();
 		} else {
 			if (context.containsState("kafka")) {
-				kafkaOffSet = (OperatorState<Map<Integer, KafkaOffset>>) context.getState("kafka");
+				LOG.info("Initializing PersistentKafkaSource from existing state.");
+				kafkaOffSetOperatorState = (OperatorState<Map<Integer, KafkaOffset>>) context.getState("kafka");
 
-				partitions = kafkaOffSet.getState();
+				partitionOffsets = kafkaOffSetOperatorState.getState();
 			} else {
-				partitions = new HashMap<Integer, KafkaOffset>();
+				LOG.info("No existing state found. Creating new");
+				partitionOffsets = new HashMap<Integer, KafkaOffset>();
 
 				for (int partitionIndex = indexOfSubtask; partitionIndex < numberOfPartitions; partitionIndex += numberOfSubtasks) {
-					partitions.put(partitionIndex, startingOffset);
+					partitionOffsets.put(partitionIndex, startingOffset);
 				}
 
-				kafkaOffSet = new OperatorState<Map<Integer, KafkaOffset>>(partitions);
+				kafkaOffSetOperatorState = new OperatorState<Map<Integer, KafkaOffset>>(partitionOffsets);
 
-				context.registerState("kafka", kafkaOffSet);
+				context.registerState("kafka", kafkaOffSetOperatorState);
 			}
 
-			iterator = new KafkaMultiplePartitionsIterator(topicId, partitions, kafkaTopicUtils, this.consumerConfig);
+			iterator = new KafkaMultiplePartitionsIterator(topicId, partitionOffsets, kafkaTopicUtils, this.consumerConfig);
 
 			if (LOG.isInfoEnabled()) {
-				LOG.info("PersistentKafkaSource ({}/{}) listening to partitions {} of topic {}.",
-						indexOfSubtask + 1, numberOfSubtasks, partitions.keySet(), topicId);
+				LOG.info("PersistentKafkaSource ({}/{}) listening to partitionOffsets {} of topic {}.",
+						indexOfSubtask + 1, numberOfSubtasks, partitionOffsets.keySet(), topicId);
 			}
 		}
 
@@ -236,8 +246,8 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 			collector.collect(out);
 
 			// TODO avoid object creation
-			partitions.put(msg.getPartition(), new GivenOffset(msg.getOffset()));
-			kafkaOffSet.update(partitions);
+			partitionOffsets.put(msg.getPartition(), new GivenOffset(msg.getOffset()));
+			kafkaOffSetOperatorState.update(partitionOffsets);
 		}
 	}
 
@@ -245,6 +255,10 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 	public void cancel() {
 		LOG.info("PersistentKafkaSource has been cancelled");
 	}
+
+
+
+	// ---------------------- (Java)Serialization methods for the consumerConfig -----------------
 
 	private void writeObject(ObjectOutputStream out)
 			throws IOException, ClassNotFoundException {

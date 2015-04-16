@@ -21,6 +21,9 @@ import org.apache.flink.streaming.connectors.kafka.api.simple.MessageWithMetadat
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * No-op iterator. Used when more source tasks are available than Kafka partitions
+ */
 public class KafkaIdleConsumerIterator implements KafkaConsumerIterator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaIdleConsumerIterator.class);

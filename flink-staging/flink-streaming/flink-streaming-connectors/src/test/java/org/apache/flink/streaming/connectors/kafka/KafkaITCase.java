@@ -670,8 +670,7 @@ public class KafkaITCase {
 		createTestTopic(topic, 2, 2);
 
 		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils(zookeeperConnectionString);
-		final String leaderToShutDown =
-				kafkaTopicUtils.waitAndGetPartitionMetadata(topic, 0).leader().get().connectionString();
+		final String leaderToShutDown = kafkaTopicUtils.waitAndGetPartitionMetadata(topic, 0).leader().get().connectionString();
 
 		final Thread brokerShutdown = new Thread(new Runnable() {
 			@Override
@@ -711,13 +710,14 @@ public class KafkaITCase {
 		consuming.addSink(new SinkFunction<String>() {
 			int elCnt = 0;
 			int start = 0;
-			int numOfMessagesToReceive = 100;
+			int numOfMessagesToBeCorrect = 100;
+			int stopAfterMessages = 150;
 
-			BitSet validator = new BitSet(numOfMessagesToReceive + 1);
+			BitSet validator = new BitSet(numOfMessagesToBeCorrect + 1);
 
 			@Override
 			public void invoke(String value) throws Exception {
-				LOG.debug("Got " + value);
+				LOG.info("Got message = " + value + " leader has shut down "+leaderHasShutDown+" el cnt = "+elCnt+" to rec"+ numOfMessagesToBeCorrect);
 				String[] sp = value.split("-");
 				int v = Integer.parseInt(sp[1]);
 
@@ -736,16 +736,15 @@ public class KafkaITCase {
 					shutdownKafkaBroker = true;
 				}
 
-				if (elCnt == numOfMessagesToReceive && leaderHasShutDown) {
-					// check if everything in the bitset is set to true
-					int nc;
-					if ((nc = validator.nextClearBit(0)) != numOfMessagesToReceive) {
-						throw new RuntimeException("The bitset was not set to 1 on all elements. Next clear:" + nc + " Set: " + validator);
+				if(leaderHasShutDown) { // it only makes sence to check once the shutdown is completed
+					if (elCnt >= stopAfterMessages ) {
+						// check if everything in the bitset is set to true
+						int nc;
+						if ((nc = validator.nextClearBit(0)) < numOfMessagesToBeCorrect) {
+							throw new RuntimeException("The bitset was not set to 1 on all elements to be checked. Next clear:" + nc + " Set: " + validator);
+						}
+						throw new SuccessException();
 					}
-					throw new SuccessException();
-				} else if (elCnt == numOfMessagesToReceive) {
-					numOfMessagesToReceive += 50;
-					LOG.info("Waiting for more messages till {}", numOfMessagesToReceive);
 				}
 			}
 		});
@@ -759,7 +758,9 @@ public class KafkaITCase {
 				LOG.info("Starting source.");
 				int cnt = 0;
 				while (running) {
-					collector.collect("kafka-" + cnt++);
+					String msg = "kafka-" + cnt++;
+					collector.collect(msg);
+					LOG.info("sending message = "+msg);
 
 					if ((cnt - 1) % 20 == 0) {
 						LOG.debug("Sending message #{}", cnt - 1);

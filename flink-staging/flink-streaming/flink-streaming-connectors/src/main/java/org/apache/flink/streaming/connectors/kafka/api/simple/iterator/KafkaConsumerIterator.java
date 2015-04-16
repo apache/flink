@@ -24,9 +24,9 @@ import org.apache.flink.streaming.connectors.kafka.api.simple.MessageWithMetadat
  */
 public interface KafkaConsumerIterator {
 
-	public void initialize() throws InterruptedException;
+	void initialize() throws InterruptedException;
 
-	public boolean hasNext();
+	boolean hasNext();
 
 	/**
 	 * Returns the next message received from Kafka as a
@@ -34,7 +34,7 @@ public interface KafkaConsumerIterator {
 	 *
 	 * @return next message as a byte array.
 	 */
-	public byte[] next() throws InterruptedException;
+	byte[] next() throws InterruptedException;
 
 	/**
 	 * Returns the next message and its offset received from
@@ -42,5 +42,5 @@ public interface KafkaConsumerIterator {
 	 *
 	 * @return next message and its offset.
 	 */
-	public MessageWithMetadata nextWithOffset() throws InterruptedException;
+	MessageWithMetadata nextWithOffset() throws InterruptedException;
 }

@@ -19,6 +19,9 @@ package org.apache.flink.streaming.connectors.kafka.api.simple.offset;
 
 import kafka.javaapi.consumer.SimpleConsumer;
 
+/**
+ * Offset given by a message read from Kafka.
+ */
 public class GivenOffset extends KafkaOffset {
 
 	private static final long serialVersionUID = 1L;
