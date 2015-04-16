@@ -95,31 +95,62 @@ public class VertexCentricConfiguration extends IterationConfiguration {
 		return this.bcVarsMessaging;
 	}
 
-	// ----------------------------------------------------------------------------------
-	// The direction, degrees and the total number of vertices should be optional.
-	// The user can access them by setting the direction, degrees or the numVertices options.
-	// ----------------------------------------------------------------------------------
-
+	/**
+	 * Gets whether the degrees option is set.
+	 * By default, the degrees option is not set.
+	 *
+	 * @return True, if the degree option is set, false otherwise.
+	 */
 	public boolean isOptDegrees() {
 		return optDegrees;
 	}
 
+	/**
+	 * Sets the degree option.
+	 * By default, the degrees option is not set.
+	 *
+	 * @param optDegrees True, to set this option, false otherwise.
+	 */
 	public void setOptDegrees(boolean optDegrees) {
 		this.optDegrees = optDegrees;
 	}
 
+	/**
+	 * Gets whether the number of vertices option is set.
+	 * By default, the number of vertices option is not set.
+	 *
+	 * @return True, if the number of vertices option is set, false otherwise.
+	 */
 	public boolean isOptNumVertices() {
 		return optNumVertices;
 	}
 
+	/**
+	 * Sets the number of vertices option.
+	 * By default, the number of vertices option is not set.
+	 *
+	 * @param optNumVertices True, to set this option, false otherwise.
+	 */
 	public void setOptNumVertices(boolean optNumVertices) {
 		this.optNumVertices = optNumVertices;
 	}
 
+	/**
+	 * Gets the direction in which messages are sent in the MessagingFunction.
+	 * By default the messaging direction is OUT.
+	 *
+	 * @return an EdgeDirection, which can be either IN, OUT or ALL.
+	 */
 	public EdgeDirection getDirection() {
 		return direction;
 	}
 
+	/**
+	 * Sets the direction in which messages are sent in the MessagingFunction.
+	 * By default the messaging direction is OUT.
+	 *
+	 * @param direction - IN, OUT or ALL
+	 */
 	public void setDirection(EdgeDirection direction) {
 		this.direction = direction;
 	}

@@ -35,8 +35,8 @@ public class Vertex<K, V> extends Tuple2<K, V> {
 	private Long outDegree;
 
 	public Vertex(){
-		inDegree = 0L;
-		outDegree = 0L;
+		inDegree = -1L;
+		outDegree = -1L;
 	}
 
 	public Vertex(K k, V val) {
@@ -62,7 +62,11 @@ public class Vertex<K, V> extends Tuple2<K, V> {
 		this.f1 = val;
 	}
 
-	public Long getInDegree() {
+	public Long getInDegree() throws Exception{
+		if(inDegree == -1) {
+			throw new InaccessibleMethodException("The degree option was not set. To access the degrees, " +
+					"call iterationConfiguration.setOptDegrees(true).");
+		}
 		return inDegree;
 	}
 
@@ -70,7 +74,11 @@ public class Vertex<K, V> extends Tuple2<K, V> {
 		this.inDegree = inDegree;
 	}
 
-	public Long getOutDegree() {
+	public Long getOutDegree() throws Exception{
+		if(outDegree == -1) {
+			throw new InaccessibleMethodException("The degree option was not set. To access the degrees, " +
+					"call iterationConfiguration.setOptDegrees(true).");
+		}
 		return outDegree;
 	}
 
