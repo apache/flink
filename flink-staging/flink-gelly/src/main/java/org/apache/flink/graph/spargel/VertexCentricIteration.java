@@ -67,8 +67,9 @@ import com.google.common.base.Preconditions;
  *   edges of the vertex. The outgoing edges may optionally have an associated value, such as a weight.</li>
  * </ul>
  * <p>
- * Vertex-centric graph iterations are instantiated by the
- * {@link #withEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method.
+ *
+ * Vertex-centric graph iterations are are run by calling
+ * {@link Graph#runVertexCentricIteration(VertexUpdateFunction, MessagingFunction, int)}.
  *
  * @param <VertexKey> The type of the vertex key (the vertex identifier).
  * @param <VertexValue> The type of the vertex value (the state of the vertex).
@@ -156,7 +157,7 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 		// check whether the numVertices option is set and, if so, compute the total number of vertices
 		// and set it within the messaging and update functions
 
-		if (this.configuration !=null && this.configuration.isOptNumVertices()) {
+		if (this.configuration != null && this.configuration.isOptNumVertices()) {
 			try {
 				long numberOfVertices = graph.numberOfVertices();
 				messagingFunction.setNumberOfVertices(numberOfVertices);
@@ -175,14 +176,12 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 		// retrieve the direction in which the updates are made and in which the messages are sent
 		EdgeDirection messagingDirection = messagingFunction.getDirection();
 
-		DataSet<Tuple2<VertexKey, Message>> messages = null;
-
 		// check whether the degrees option is set and, if so, compute the in and the out degrees and
 		// add them to the vertex value
 		if(this.configuration != null && this.configuration.isOptDegrees()) {
-			return createResultVerticesWithDegrees(graph, messagingDirection, messages, messageTypeInfo);
+			return createResultVerticesWithDegrees(graph, messagingDirection, messageTypeInfo);
 		} else {
-			return createResultSimpleVertex(messagingDirection, messages, messageTypeInfo);
+			return createResultSimpleVertex(messagingDirection, messageTypeInfo);
 		}
 	}
 
@@ -554,13 +553,13 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 	 * Creates the operator that represents this vertex centric graph computation for a simple vertex.
 	 *
 	 * @param messagingDirection
-	 * @param messages
 	 * @param messageTypeInfo
 	 * @return the operator
 	 */
 	private DataSet<Vertex<VertexKey, VertexValue>> createResultSimpleVertex(EdgeDirection messagingDirection,
-																			DataSet<Tuple2<VertexKey, Message>> messages,
 																			TypeInformation<Tuple2<VertexKey, Message>> messageTypeInfo) {
+		DataSet<Tuple2<VertexKey, Message>> messages;
+
 		TypeInformation<Vertex<VertexKey, VertexValue>> vertexTypes = initialVertices.getType();
 
 		final DeltaIteration<Vertex<VertexKey, VertexValue>, Vertex<VertexKey, VertexValue>> iteration =
@@ -599,15 +598,15 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 	 *
 	 * @param graph
 	 * @param messagingDirection
-	 * @param messages
 	 * @param messageTypeInfo
 	 * @return the operator
 	 */
 	private DataSet<Vertex<VertexKey, VertexValue>> createResultVerticesWithDegrees(
 			Graph<VertexKey, VertexValue, EdgeValue> graph,
 			EdgeDirection messagingDirection,
-			DataSet<Tuple2<VertexKey, Message>> messages,
 			TypeInformation<Tuple2<VertexKey, Message>> messageTypeInfo) {
+
+		DataSet<Tuple2<VertexKey, Message>> messages;
 
 		this.updateFunction.setOptDegrees(this.configuration.isOptDegrees());
 

@@ -352,11 +352,11 @@ When the aggregation computation does not require access to the vertex value (fo
 Vertex-centric Iterations
 -----------
 
-Gelly wraps Flink's [Spargel API](spargel_guide.html) to provide methods for vertex-centric iterations.
-Like in Spargel, the user only needs to implement two functions: a `VertexUpdateFunction`, which defines how a vertex will update its value
-based on the received messages and a `MessagingFunction`, which allows a vertex to send out messages for the next superstep.
-These functions and the maximum number of iterations to run are given as parameters to Gelly's `runVertexCentricIteration`.
-This method will execute the vertex-centric iteration on the input Graph and return a new Graph, with updated vertex values:
+Gelly wraps Flink's [Spargel API](spargel_guide.html) to provide methods for vertex-centric iterations. Like in Spargel, the user only needs to implement two functions: a `VertexUpdateFunction`, which defines how a vertex will update its value based on the received messages and a `MessagingFunction`, which allows a vertex to send out messages for the next superstep.
+These functions and the maximum number of iterations to run are given as parameters to Gelly's `runVertexCentricIteration`. This method will execute the vertex-centric iteration on the input Graph and return a new Graph, with updated vertex values:
+
+A vertex-centric iteration can be extended with information such as the total number of vertices, the in degree and out degree.
+Additionally, the  neighborhood type (in/out/all) over which to run the vertex-centric iteration can be specified. By default, the updates from the in-neighbors are used to modify the current vertex's state and messages are sent to out-neighbors.
 
 {% highlight java %}
 Graph<Long, Double, Double> graph = ...
@@ -387,6 +387,14 @@ and can be specified using the `setName()` method.
 all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `VertexUpdateFunction` and `MessagingFunction`.
 
 * <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables]({{site.baseurl}}/apis/programming_guide.html#broadcast-variables) to the `VertexUpdateFunction` and `MessagingFunction`, using the `addBroadcastSetForUpdateFunction()` and `addBroadcastSetForMessagingFunction()` methods, respectively.
+
+* <strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property can be set using the `setOptNumVertices()` method.
+The number of vertices can then be accessed in the vertex update function and in the messaging function using the `getNumberOfVertices()` method.
+
+* <strong>Degrees</strong>: Accessing the in/out degree for a vertex within an iteration. This property can be set using the `setOptDegrees()` method.
+The in/out degrees can then be accessed in the vertex update function and in the messaging function, per vertex using `vertex.getInDegree()` or `vertex.getOutDegree()`.
+
+* <strong>Messaging Direction</strong>: By default, a vertex sends messages to its out-neighbors and updates its value based on messages received from its in-neighbors. This configuration option allows users to change the messaging direction to either `EdgeDirection.IN`, `EdgeDirection.OUT`, `EdgeDirection.ALL`. The messaging direction also dictates the update direction which would be `EdgeDirection.OUT`, `EdgeDirection.IN` and `EdgeDirection.ALL`, respectively. This property can be set using the `setDirection()` method.
 
 {% highlight java %}
 
@@ -438,64 +446,82 @@ public static final class Messenger extends MessagingFunction {...}
 
 {% endhighlight %}
 
-### Vertex-Centric Iteration Extensions
-A vertex-centric iteration can be extended with information such as the total number of vertices,
-the in degree and out degree. Additionally, the  neighborhood type (in/out/all) over which to
-run the vertex-centric iteration can be specified. By default, the updates from the in-neighbors are used
-to modify the current vertex's state and messages are sent to out-neighbors.
-
-In order to activate these options, the following parameters must be set to true:
-
-<strong>Number of Vertices</strong>: Accessing the total number of vertices within the iteration. This property
-can be set using the `setOptNumVertices()` method.
-
-The number of vertices can then be accessed in the vertex update function and in the messaging function
-using the `getNumberOfVertices()` method.
-
-<strong>Degrees</strong>: Accessing the in/out degree for a vertex within an iteration. This property can be set
-using the `setOptDegrees()` method.
-
-The in/out degrees can then be accessed in the vertex update function and in the messaging function, per vertex
-using `vertex.getInDegree()` or `vertex.getOutDegree()`.
-
-<strong>Messaging Direction</strong>: The direction in which messages are sent. This can be either EdgeDirection.IN,
-EdgeDirection.OUT, EdgeDirection.ALL. The messaging direction also dictates the update direction which would be
-EdgeDirection.OUT, EdgeDirection.IN and EdgeDirection.ALL, respectively. This property can be set using the
-`setDirection()` method.
+The following example illustrates the usage of the degree as well as the number of vertices options.
 
 {% highlight java %}
+
 Graph<Long, Double, Double> graph = ...
 
-// create the vertex-centric iteration
-VertexCentricIteration<Long, Double, Double, Double> iteration =
-			graph.createVertexCentricIteration(
-			new VertexDistanceUpdater(), new MinDistanceMessenger(), maxIterations);
-
-// set the messaging direction
-iteration.setDirection(EdgeDirection.IN);
+// configure the iteration
+IterationConfiguration parameters = new IterationConfiguration();
 
 // set the number of vertices option to true
-iteration.setOptNumVertices(true);
+parameters.setOptNumVertices(true);
 
 // set the degree option to true
-iteration.setOptDegrees(true);
+parameters.setOptDegrees(true);
 
-// run the computation
-graph.runVertexCentricIteration(iteration);
+// run the vertex-centric iteration, also passing the configuration parameters
+Graph<Long, Double, Double> result =
+			graph.runVertexCentricIteration(
+			new VertexUpdater(), new Messenger(), maxIterations, parameters);
 
 // user-defined functions
-public static final class VertexDistanceUpdater {
+public static final class VertexUpdater {
 	...
 	// get the number of vertices
 	long numVertices = getNumberOfVertices();
 	...
 }
 
-public static final class MinDistanceMessenger {
+public static final class Messenger {
 	...
 	// decrement the number of out-degrees
 	outDegree = vertex.getOutDegree() - 1;
 	...
+}
+
+{% endhighlight %}
+
+The following example illustrates the usage of the edge direction option. Vertices update their values to contain a list of all their in-neighbors.
+
+{% highlight java %}
+
+Graph<Long, HashSet<Long>, Double> graph = ...
+
+// configure the iteration
+IterationConfiguration parameters = new IterationConfiguration();
+
+// set the messaging direction
+parameters.setDirection(EdgeDirection.IN);
+
+// run the vertex-centric iteration, also passing the configuration parameters
+DataSet<Vertex<Long, HashSet<Long>>> result =
+			graph.runVertexCentricIteration(
+			new VertexUpdater(), new Messenger(), maxIterations, parameters)
+			.getVertices();
+
+// user-defined functions
+public static final class VertexUpdater {
+	@Override
+    public void updateVertex(Vertex<Long, HashSet<Long>> vertex, MessageIterator<Long> messages) throws Exception {
+    	vertex.getValue().clear();
+
+    	for(long msg : messages) {
+    		vertex.getValue().add(msg);
+    	}
+
+    	setNewVertexValue(vertex.getValue());
+    }
+}
+
+public static final class Messenger {
+	@Override
+    public void sendMessages(Vertex<Long, HashSet<Long>> vertex) throws Exception {
+    	for (Edge<Long, Long> edge : getEdges()) {
+    		sendMessageTo(edge.getSource(), vertex.getId());
+    	}
+    }
 }
 
 {% endhighlight %}

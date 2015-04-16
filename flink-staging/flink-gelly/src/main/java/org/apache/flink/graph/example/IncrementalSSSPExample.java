@@ -20,11 +20,8 @@ package org.apache.flink.graph.example;
 
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
@@ -34,12 +31,21 @@ import org.apache.flink.graph.spargel.IterationConfiguration;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
+import org.apache.flink.graph.utils.Tuple2ToVertexMap;
+import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
- * Incremental Single Sink Shortest Paths Example.
+ * Incremental Single Sink Shortest Paths Example. Shortest Paths are incrementally updated
+ * upon edge removal.
+ *
+ * This example illustrates the usage of vertex-centric iteration's
+ * messaging direction configuration option.
  *
  * The program takes as input the resulted graph after a SSSP computation,
  * an edge to be removed and the initial graph(i.e. before SSSP was computed).
+ * In the following description, SP-graph is used as an abbreviation for
+ * the graph resulted from the SSSP computation. We denote the edges that belong to this
+ * graph by SP-edges.
  *
  * - If the removed edge does not belong to the SP-graph, no computation is necessary.
  * The edge is simply removed from the graph.
@@ -55,7 +61,8 @@ import org.apache.flink.graph.spargel.VertexUpdateFunction;
  * or when we reach a vertex with no SP-in-neighbors.
  *
  * Usage <code>IncrementalSSSPExample &lt;vertex path&gt; &lt;edge path&gt; &lt;edges in SSSP&gt;
- * &lt;edge to be removed&gt; &lt;result path&gt; &lt;number of iterations&gt;</code><br>
+ * &lt;src id edge to be removed&gt; &lt;trg id edge to be removed&gt; &lt;val edge to be removed&gt;
+ * &lt;result path&gt; &lt;number of iterations&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link org.apache.flink.graph.example.utils.IncrementalSSSPData}
  */
@@ -137,7 +144,7 @@ public class IncrementalSSSPExample implements ProgramDescription {
 	 * @param edgesInSSSP
 	 * @return
 	 */
-	private static boolean isInSSSP(final Edge<Long, Double> edgeToBeRemoved, DataSet<Edge<Long, Double>> edgesInSSSP) throws Exception {
+	public static boolean isInSSSP(final Edge<Long, Double> edgeToBeRemoved, DataSet<Edge<Long, Double>> edgesInSSSP) throws Exception {
 
 		return edgesInSSSP.filter(new FilterFunction<Edge<Long, Double>>() {
 			@Override
@@ -204,7 +211,11 @@ public class IncrementalSSSPExample implements ProgramDescription {
 
 	private static String edgesInSSSPInputPath = null;
 
-	private static String edgeToBeRemoved = null;
+	private static Long srcEdgeToBeRemoved = null;
+
+	private static Long trgEdgeToBeRemoved = null;
+
+	private static Double valEdgeToBeRemoved = null;
 
 	private static String outputPath = null;
 
@@ -212,19 +223,23 @@ public class IncrementalSSSPExample implements ProgramDescription {
 
 	private static boolean parseParameters(String[] args) {
 		if (args.length > 0) {
-			if (args.length == 6) {
+			if (args.length == 8) {
 				fileOutput = true;
 				verticesInputPath = args[0];
 				edgesInputPath = args[1];
 				edgesInSSSPInputPath = args[2];
-				edgeToBeRemoved = args[3];
-				outputPath = args[4];
-				maxIterations = Integer.parseInt(args[5]);
+				srcEdgeToBeRemoved = Long.parseLong(args[3]);
+				trgEdgeToBeRemoved = Long.parseLong(args[4]);
+				valEdgeToBeRemoved = Double.parseDouble(args[5]);
+				outputPath = args[6];
+				maxIterations = Integer.parseInt(args[7]);
 			} else {
 				System.out.println("Executing IncrementalSSSP example with default parameters and built-in default data.");
 				System.out.println("Provide parameters to read input data from files.");
 				System.out.println("See the documentation for the correct format of input files.");
-				System.out.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> <edge to be removed> <output path> <max iterations>");
+				System.out.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
+						"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
+						"<output path> <max iterations>");
 
 				return false;
 			}
@@ -237,15 +252,10 @@ public class IncrementalSSSPExample implements ProgramDescription {
 			return env.readCsvFile(verticesInputPath)
 					.lineDelimiter("\n")
 					.types(Long.class, Double.class)
-					.map(new MapFunction<Tuple2<Long, Double>, Vertex<Long, Double>>() {
-
-						@Override
-						public Vertex<Long, Double> map(Tuple2<Long, Double> tuple2) throws Exception {
-							return new Vertex<Long, Double>(tuple2.f0, tuple2.f1);
-						}
-					});
+					.map(new Tuple2ToVertexMap<Long, Double>());
 		} else {
-			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> <edge to be removed> " +
+			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
+					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
 					"<output path> <max iterations>");
 			return IncrementalSSSPData.getDefaultVertexDataSet(env);
 		}
@@ -256,15 +266,10 @@ public class IncrementalSSSPExample implements ProgramDescription {
 			return env.readCsvFile(edgesInputPath)
 					.lineDelimiter("\n")
 					.types(Long.class, Long.class, Double.class)
-					.map(new MapFunction<Tuple3<Long, Long, Double>, Edge<Long, Double>>() {
-
-						@Override
-						public Edge<Long, Double> map(Tuple3<Long, Long, Double> tuple3) throws Exception {
-							return new Edge(tuple3.f0, tuple3.f1, tuple3.f2);
-						}
-					});
+					.map(new Tuple3ToEdgeMap<Long, Double>());
 		} else {
-			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> <edge to be removed> " +
+			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
+					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
 					"<output path> <max iterations>");
 			return IncrementalSSSPData.getDefaultEdgeDataSet(env);
 		}
@@ -275,15 +280,10 @@ public class IncrementalSSSPExample implements ProgramDescription {
 			return env.readCsvFile(edgesInSSSPInputPath)
 					.lineDelimiter("\n")
 					.types(Long.class, Long.class, Double.class)
-					.map(new MapFunction<Tuple3<Long, Long, Double>, Edge<Long, Double>>() {
-
-						@Override
-						public Edge<Long, Double> map(Tuple3<Long, Long, Double> tuple3) throws Exception {
-							return new Edge(tuple3.f0, tuple3.f1, tuple3.f2);
-						}
-					});
+					.map(new Tuple3ToEdgeMap<Long, Double>());
 		} else {
-			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> <edge to be removed> " +
+			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
+					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
 					"<output path> <max iterations>");
 			return IncrementalSSSPData.getDefaultEdgesInSSSP(env);
 		}
@@ -291,12 +291,10 @@ public class IncrementalSSSPExample implements ProgramDescription {
 
 	private static Edge<Long, Double> getEdgeToBeRemoved() {
 		if (fileOutput) {
-			String [] edgeComponents =  edgeToBeRemoved.split(",");
-
-			return new Edge<Long, Double>(Long.parseLong(edgeComponents[0]), Long.parseLong(edgeComponents[1]),
-					Double.parseDouble(edgeComponents[2]));
+			return new Edge<Long, Double>(srcEdgeToBeRemoved, trgEdgeToBeRemoved, valEdgeToBeRemoved);
 		} else {
-			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> <edge to be removed> " +
+			System.err.println("Usage: IncrementalSSSP <vertex path> <edge path> <edges in SSSP> " +
+					"<src id edge to be removed> <trg id edge to be removed> <val edge to be removed> " +
 					"<output path> <max iterations>");
 			return IncrementalSSSPData.getDefaultEdgeToBeRemoved();
 		}

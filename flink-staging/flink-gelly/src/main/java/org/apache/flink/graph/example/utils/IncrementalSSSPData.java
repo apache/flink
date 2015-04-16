@@ -34,7 +34,7 @@ public class IncrementalSSSPData {
 
 	public static final int NUM_VERTICES = 5;
 
-	public static final String VERTICES = "1,6.0\n" + "2,2.0\n" + "3,3.0\n" + "4,1.0\n" + "5, 0.0";
+	public static final String VERTICES = "1,6.0\n" + "2,2.0\n" + "3,3.0\n" + "4,1.0\n" + "5,0.0";
 
 	public static DataSet<Vertex<Long, Double>> getDefaultVertexDataSet(ExecutionEnvironment env) {
 
@@ -77,7 +77,11 @@ public class IncrementalSSSPData {
 		return env.fromCollection(edges);
 	}
 
-	public static final String EDGE_TO_BE_REMOVED = "2,5,2.0";
+	public static final String SRC_EDGE_TO_BE_REMOVED = "2";
+
+	public static final String TRG_EDGE_TO_BE_REMOVED = "5";
+
+	public static final String VAL_EDGE_TO_BE_REMOVED = "2.0";
 
 	public static final Edge<Long, Double> getDefaultEdgeToBeRemoved() {
 

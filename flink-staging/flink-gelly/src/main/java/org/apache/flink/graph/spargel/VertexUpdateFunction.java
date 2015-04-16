@@ -24,6 +24,7 @@ import java.util.Collection;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.graph.InaccessibleMethodException;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
@@ -46,9 +47,13 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	//  inside an iteration.
 	// --------------------------------------------------------------------------------------------
 
-	private long numberOfVertices;
+	private long numberOfVertices = -1L;
 
-	public long getNumberOfVertices() {
+	public long getNumberOfVertices() throws Exception{
+		if (numberOfVertices == -1) {
+			throw new InaccessibleMethodException("The number of vertices option is not set. " +
+					"To access the number of vertices, call iterationConfiguration.setOptNumVertices(true).");
+		}
 		return numberOfVertices;
 	}
 
