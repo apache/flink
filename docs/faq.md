@@ -103,8 +103,9 @@ parallelism has to be 1 and set it accordingly.
 
 The parallelism can be set in numerous ways to ensure a fine-grained control
 over the execution of a Flink program. See
-[Configuration](config.html#common-options) for detailed instructions on how to
-set the parallelism.
+the [Configuration guide](config.html#common-options) for detailed instructions on how to
+set the parallelism. Also check out [this figure](config.html#configuring-taskmanager-processing-slots) detailing 
+how the processing slots and parallelism are related to each other.
 
 ## Errors
 

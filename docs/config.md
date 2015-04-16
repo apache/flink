@@ -370,8 +370,7 @@ system, such as */tmp* in Linux systems.
 
 ### Configuring TaskManager processing slots
 
-A processing slot allows Flink to execute a distributed DataSet transformation, such as a
-data source or a map-transformation.
+Flink executes a program in parallel by splitting it into subtasks and scheduling these subtasks to processing slots.
 
 Each Flink TaskManager provides processing slots in the cluster. The number of slots
 is typically proportional to the number of available CPU cores __of each__ TaskManager.
@@ -383,6 +382,4 @@ The command line value therefore is called `-p` (for parallelism). In addition, 
 to [set the number of slots in the programming APIs](programming_guide.html#parallel-execution) for 
 the whole application and individual operators.
 
-Flink is currently scheduling an application to slots by "filling" them up. 
-If the cluster has 20 machines with 2 slots each (40 slots in total) but the application is running
-with a parallelism of 20, only 10 machines will process data.
+<img src="img/slots_parallelism.svg" class="img-responsive" />
