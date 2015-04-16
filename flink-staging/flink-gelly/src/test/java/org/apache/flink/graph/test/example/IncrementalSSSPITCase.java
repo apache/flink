@@ -20,8 +20,15 @@ package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.graph.Edge;
+import org.apache.flink.graph.EdgeDirection;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.IncrementalSSSPExample;
 import org.apache.flink.graph.example.utils.IncrementalSSSPData;
+import org.apache.flink.graph.spargel.IterationConfiguration;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -73,8 +80,50 @@ public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testIncrementalSSSPExample() throws Exception {
 		IncrementalSSSPExample.main(new String[]{verticesPath, edgesPath, edgesInSSSPPath,
-				IncrementalSSSPData.EDGE_TO_BE_REMOVED, resultPath, IncrementalSSSPData.NUM_VERTICES + ""});
+				IncrementalSSSPData.SRC_EDGE_TO_BE_REMOVED, IncrementalSSSPData.TRG_EDGE_TO_BE_REMOVED,
+				IncrementalSSSPData.VAL_EDGE_TO_BE_REMOVED,resultPath, IncrementalSSSPData.NUM_VERTICES + ""});
 		expected = IncrementalSSSPData.RESULTED_VERTICES;
+	}
+
+	@Test
+	public void testIncrementalSSSPNonSPEdge() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Vertex<Long, Double>> vertices = IncrementalSSSPData.getDefaultVertexDataSet(env);
+		DataSet<Edge<Long, Double>> edges = IncrementalSSSPData.getDefaultEdgeDataSet(env);
+		DataSet<Edge<Long, Double>> edgesInSSSP = IncrementalSSSPData.getDefaultEdgesInSSSP(env);
+		// the edge to be removed is a non-SP edge
+		Edge<Long, Double> edgeToBeRemoved = new Edge<Long, Double>(3L, 5L, 5.0);
+
+		Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
+		// Assumption: all minimum weight paths are kept
+		Graph<Long, Double, Double> ssspGraph = Graph.fromDataSet(vertices, edgesInSSSP, env);
+		// remove the edge
+		graph.removeEdge(edgeToBeRemoved);
+
+		// configure the iteration
+		IterationConfiguration parameters = new IterationConfiguration();
+
+		if(IncrementalSSSPExample.isInSSSP(edgeToBeRemoved, edgesInSSSP)) {
+
+			parameters.setDirection(EdgeDirection.IN);
+			parameters.setOptDegrees(true);
+
+			// run the vertex centric iteration to propagate info
+			Graph<Long, Double, Double> result = ssspGraph.runVertexCentricIteration(
+					new IncrementalSSSPExample.VertexDistanceUpdater(),
+					new IncrementalSSSPExample.InvalidateMessenger(edgeToBeRemoved),
+					IncrementalSSSPData.NUM_VERTICES, parameters);
+
+			DataSet<Vertex<Long, Double>> resultedVertices = result.getVertices();
+
+			resultedVertices.writeAsCsv(resultPath, "\n", ",");
+			env.execute();
+		} else {
+			vertices.writeAsCsv(resultPath, "\n", ",");
+			env.execute();
+		}
+
+		expected = IncrementalSSSPData.VERTICES;
 	}
 
 	@After

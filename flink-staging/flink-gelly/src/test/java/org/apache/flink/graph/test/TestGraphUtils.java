@@ -249,6 +249,28 @@ public class TestGraphUtils {
 		return vertices;
 	}
 
+	public static final List<Vertex<Long, Boolean>> getLongBooleanVertices() {
+		List<Vertex<Long, Boolean>> vertices = new ArrayList<Vertex<Long, Boolean>>();
+		vertices.add(new Vertex<Long, Boolean>(1L, true));
+		vertices.add(new Vertex<Long, Boolean>(2L, true));
+		vertices.add(new Vertex<Long, Boolean>(3L, true));
+		vertices.add(new Vertex<Long, Boolean>(4L, true));
+		vertices.add(new Vertex<Long, Boolean>(5L, true));
+
+		return vertices;
+	}
+
+	public static final List<Vertex<Long, Tuple3<Long, Long, Boolean>>> getLongVerticesWithDegrees() {
+		List<Vertex<Long, Tuple3<Long, Long, Boolean>>> vertices = new ArrayList<Vertex<Long, Tuple3<Long, Long, Boolean>>>();
+		vertices.add(new Vertex<Long, Tuple3<Long, Long, Boolean>>(1L, new Tuple3<Long, Long, Boolean>(1L, 2L, true)));
+		vertices.add(new Vertex<Long, Tuple3<Long, Long, Boolean>>(2L, new Tuple3<Long, Long, Boolean>(1L, 1L, true)));
+		vertices.add(new Vertex<Long, Tuple3<Long, Long, Boolean>>(3L, new Tuple3<Long, Long, Boolean>(2L, 2L, true)));
+		vertices.add(new Vertex<Long, Tuple3<Long, Long, Boolean>>(4L, new Tuple3<Long, Long, Boolean>(1L, 1L, true)));
+		vertices.add(new Vertex<Long, Tuple3<Long, Long, Boolean>>(5L, new Tuple3<Long, Long, Boolean>(2L, 1L, true)));
+
+		return vertices;
+	}
+
 	public static final DataSet<Edge<Long, Long>> getDisconnectedLongLongEdgeData(
 				ExecutionEnvironment env) {
 			List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
