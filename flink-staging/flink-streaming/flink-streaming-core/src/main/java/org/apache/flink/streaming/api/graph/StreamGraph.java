@@ -304,7 +304,7 @@ public class StreamGraph extends StreamingPlan {
 		getStreamNode(vertexID).setOperator(operatorObject);
 	}
 
-	public void setInputFormat(Integer vertexID, InputFormat<String, ?> inputFormat) {
+	public void setInputFormat(Integer vertexID, InputFormat<?, ?> inputFormat) {
 		getStreamNode(vertexID).setInputFormat(inputFormat);
 	}
 
