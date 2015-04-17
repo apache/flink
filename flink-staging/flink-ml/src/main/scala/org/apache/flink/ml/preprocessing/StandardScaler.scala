@@ -18,7 +18,6 @@
 
 package org.apache.flink.ml.preprocessing
 
-import java.lang.Iterable
 import breeze.linalg
 import breeze.linalg.DenseVector
 import breeze.numerics.sqrt
@@ -30,7 +29,6 @@ import org.apache.flink.ml.common.{Parameter, ParameterMap, Transformer}
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.Vector
 import org.apache.flink.ml.preprocessing.StandardScaler.{Mean, Std}
-import org.apache.flink.util.Collector
 
 /** Scales observations, so that all features have a user-specified mean and standard deviation.
   * By default for StandardScaler transformer mean=0.0 and std=1.0.
@@ -44,13 +42,11 @@ import org.apache.flink.util.Collector
   *
   * @example
   * {{{
-  *                                          val trainingDS: DataSet[Vector] = env.fromCollection
-  *                                          (data)
+  *                        val trainingDS: DataSet[Vector] = env.fromCollection(data)
   *
-  *                                          val transformer = StandardScaler().setMean(10.0).setStd
-  *                                          (2.0)
+  *                        val transformer = StandardScaler().setMean(10.0).setStd(2.0)
   *
-  *                                          transformer.transform(trainingDS)
+  *                        transformer.transform(trainingDS)
   * }}}
   *
   * =Parameters=
@@ -66,7 +62,16 @@ class StandardScaler extends Transformer[Vector, Vector] with Serializable {
     this
   }
 
+  /**
+   *
+   * @param std the user-specified std value. In case the user gives 0.0 value as input,
+   *            the std is set to the default value: 1.0.
+   * @return the StandardScaler object with its std value set to the user-specified value
+   */
   def setStd(std: Double): StandardScaler = {
+    if (std == 0.0) {
+      return this
+    }
     parameters.add(Std, std)
     this
   }
@@ -116,65 +121,47 @@ class StandardScaler extends Transformer[Vector, Vector] with Serializable {
   private def extractFeatureMetrics(dataSet: DataSet[Vector]):
   DataSet[(linalg.Vector[Double], linalg.Vector[Double])] = {
 
-    val metrics = dataSet.combineGroup(new GroupCombineFunction[Vector,
-      (Double, linalg.Vector[Double], linalg.Vector[Double])] {
+    val metrics = dataSet.map(new MapFunction[Vector, (Double, linalg.Vector[Double], linalg
+    .Vector[Double])] {
 
-      override def combine(vector: Iterable[Vector],
-        out: Collector[(Double, linalg.Vector[Double], linalg.Vector[Double])]): Unit = {
-
-        var counter = 0.0
-        var T: linalg.Vector[Double] = null
-        var S: linalg.Vector[Double] = null
-        val iter = vector.iterator()
-
-        while (iter.hasNext) {
-          counter += 1.0
-          val tempVector = iter.next().asBreeze
-          if (counter == 1.0) {
-            T = tempVector
-            S = DenseVector.zeros[Double](tempVector.size)
-          }
-          else {
-            T :+= tempVector
-            val temp = tempVector :* counter :- T
-            S :+= (temp :* temp) :* (1 / (counter * (counter - 1.0)))
-          }
-        }
-        out.collect(counter, T, S)
+      override def map(inputVector: Vector):
+      (Double, linalg.Vector[Double], linalg.Vector[Double]) = {
+        return (1, inputVector.asBreeze, DenseVector.zeros[Double](inputVector.size))
       }
-    }).reduce(new CalculateMetrics())
-      .map(new MapFunction[(Double, linalg.Vector[Double], linalg.Vector[Double]),
+    }).reduce(new ReduceFunction[(Double, linalg.Vector[Double], linalg.Vector[Double])] {
+
+      override def reduce(metrics1: (Double, linalg.Vector[Double], linalg.Vector[Double]),
+        metrics2: (Double, linalg.Vector[Double], linalg.Vector[Double])):
+      (Double, linalg.Vector[Double], linalg.Vector[Double]) = {
+
+        /* We use formula 1.5b of the cited technical report for the combination of partial
+         * sum of squares. According to 1.5b:
+         * val temp1 : m/n(m+n)
+         * val temp2 : n/m
+         */
+        val temp1 = metrics1._1 / (metrics2._1 * (metrics1._1 + metrics2._1))
+        val temp2 = metrics2._1 / metrics1._1
+        val tempVector = (metrics1._2 * temp2) :- metrics2._2
+
+        val tempS = (metrics1._3 :+ metrics2._3) :+ (tempVector :* tempVector) * temp1
+        return (metrics1._1 + metrics2._1, metrics1._2 :+ metrics2._2, tempS)
+      }
+    }).map(new MapFunction[(Double, linalg.Vector[Double], linalg.Vector[Double]),
       (linalg.Vector[Double], linalg.Vector[Double])] {
+
       override def map(metrics: (Double, linalg.Vector[Double], linalg.Vector[Double])):
       (linalg.Vector[Double], linalg.Vector[Double]) = {
-        val varianceVector = sqrt(metrics._3 :/ metrics._1)
-        return (metrics._2 :/ metrics._1, varianceVector)
+        val varianceVector = sqrt(metrics._3 / metrics._1)
+        for (i <- 0 until varianceVector.size) {
+          if (varianceVector(i) == 0.0) {
+            varianceVector.update(i, 1.0)
+          }
+        }
+        return (metrics._2 / metrics._1, varianceVector)
       }
     })
     metrics
   }
-
-  /** CalculateMetrics extends ReduceFunction.
-    * This reduce function takes as input all the calculated sub-results as a
-    * tuple of three elements (numberOfElements,featuresMeanSubVector,featuresStdSubVector>
-    *
-    * @return A data set containing a single tuple of three elements:
-    *         (totalNumberOfElements,featuresMeanVector,featuresStdVector)
-    */
-  final class CalculateMetrics extends ReduceFunction[(Double, linalg.Vector[Double],
-    linalg.Vector[Double])] {
-    override def reduce(metrics1: (Double, linalg.Vector[Double], linalg.Vector[Double]),
-      metrics2: (Double, linalg.Vector[Double], linalg.Vector[Double])):
-    (Double, linalg.Vector[Double], linalg.Vector[Double]) = {
-      val temp1 = metrics1._1 / (metrics2._1 * (metrics1._1 + metrics2._1))
-      val temp2 = (metrics1._1 + metrics2._1) / metrics1._1
-      val tempVector = (metrics1._2 :* temp2) - metrics2._2
-
-      val tempS = (metrics1._3 + metrics2._3) + (tempVector :* tempVector) :* temp1
-      return (metrics1._1 + metrics2._1, metrics1._2 + metrics2._2, tempS)
-    }
-  }
-
 }
 
 object StandardScaler {

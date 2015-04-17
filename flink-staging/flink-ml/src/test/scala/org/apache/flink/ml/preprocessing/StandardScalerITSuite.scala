@@ -17,9 +17,13 @@
  */
 package org.apache.flink.ml.preprocessing
 
+import breeze.linalg
+import breeze.numerics.sqrt
+import breeze.numerics.sqrt._
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.math.{Vector, DenseVector}
 import org.apache.flink.test.util.FlinkTestBase
+import org.apache.flink.ml.math.Breeze._
 import org.scalatest._
 
 
@@ -32,7 +36,7 @@ class StandardScalerITSuite
 
   import StandardScalerData._
 
-  it should "first center and then properly scale the given vectors" in {
+  it should "scale the vectors to have mean equal to 0 and std equal to 1" in {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -40,14 +44,59 @@ class StandardScalerITSuite
     val transformer = new StandardScaler()
     val scaledVectors = transformer.transform(dataSet).collect
 
-    scaledVectors.length should equal(expectedVectors.length)
+    scaledVectors.length should equal(data.length)
 
-    scaledVectors zip expectedVectors foreach {
-      case (scaledVector, expectedVector) => {
-        for (i <- 0 until scaledVector.size) {
-          scaledVector(i) should be(expectedVector(i) +- (0.000001))
-        }
-      }
+    val numberOfFeatures = scaledVectors(0).size
+    var scaledMean: linalg.Vector[Double] = linalg.DenseVector.zeros(numberOfFeatures)
+    var scaledStd: linalg.Vector[Double] = linalg.DenseVector.zeros(numberOfFeatures)
+
+    for (vector <- scaledVectors) {
+      scaledMean += vector.asBreeze
+    }
+    scaledMean /= scaledVectors.size.asInstanceOf[Double]
+
+    for (vector <- scaledVectors) {
+      val temp = vector.asBreeze - scaledMean
+      scaledStd += temp :* temp
+    }
+    scaledStd /= scaledVectors.size.asInstanceOf[Double]
+    scaledStd = sqrt(scaledStd)
+
+    for (i <- 0 until numberOfFeatures) {
+      scaledMean(i) should be(0.0 +- (0.0000000000001))
+      scaledStd(i) should be(1.0 +- (0.0000000000001))
+    }
+  }
+
+  it should "scale the vectors to have mean equal to 10 and standard deviation equal to 2" in {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val dataSet = env.fromCollection(data)
+    val transformer = new StandardScaler().setMean(10.0).setStd(2.0)
+    val scaledVectors = transformer.transform(dataSet).collect
+
+    scaledVectors.length should equal(data.length)
+
+    val numberOfFeatures = scaledVectors(0).size
+    var scaledMean: linalg.Vector[Double] = linalg.DenseVector.zeros(numberOfFeatures)
+    var scaledStd: linalg.Vector[Double] = linalg.DenseVector.zeros(numberOfFeatures)
+
+    for (vector <- scaledVectors) {
+      scaledMean += vector.asBreeze
+    }
+    scaledMean /= scaledVectors.size.asInstanceOf[Double]
+
+    for (vector <- scaledVectors) {
+      val temp = vector.asBreeze - scaledMean
+      scaledStd += temp :* temp
+    }
+    scaledStd /= scaledVectors.size.asInstanceOf[Double]
+    scaledStd = sqrt(scaledStd)
+
+    for (i <- 0 until numberOfFeatures) {
+      scaledMean(i) should be(10.0 +- (0.0000000000001))
+      scaledStd(i) should be(2.0 +- (0.0000000000001))
     }
   }
 }
@@ -101,55 +150,5 @@ object StandardScalerData {
     DenseVector(Array(852.00, 2.00)),
     DenseVector(Array(1852.00, 4.00)),
     DenseVector(Array(1203.00, 3.00))
-  )
-
-  val expectedVectors: Seq[Vector] = List(
-    DenseVector(Array(0.131415422021048, -0.226093367577688)),
-    DenseVector(Array(-0.509640697590685, -0.226093367577688)),
-    DenseVector(Array(0.507908698618414, -0.226093367577688)),
-    DenseVector(Array(-0.743677058718778, -1.554391902096608)),
-    DenseVector(Array(1.271070745775239, 1.102205166941232)),
-    DenseVector(Array(-0.019945050665056, 1.102205166941232)),
-    DenseVector(Array(-0.593588522777936, -0.226093367577688)),
-    DenseVector(Array(-0.729685754520903, -0.226093367577688)),
-    DenseVector(Array(-0.789466781548187, -0.226093367577688)),
-    DenseVector(Array(-0.644465992588391, -0.226093367577688)),
-    DenseVector(Array(-0.077182204201818, 1.102205166941232)),
-    DenseVector(Array(-0.000865999486135, -0.226093367577688)),
-    DenseVector(Array(-0.140779041464887, -0.226093367577688)),
-    DenseVector(Array(3.150993255271550, 2.430503701460152)),
-    DenseVector(Array(-0.931923697017461, -0.226093367577688)),
-    DenseVector(Array(0.380715024092277, 1.102205166941232)),
-    DenseVector(Array(-0.865782986263870, -1.554391902096608)),
-    DenseVector(Array(-0.972625672865825, -0.226093367577688)),
-    DenseVector(Array(0.773743478378042, 1.102205166941232)),
-    DenseVector(Array(1.310500784878341, 1.102205166941232)),
-    DenseVector(Array(-0.297227261132036, -0.226093367577688)),
-    DenseVector(Array(-0.143322914955409, -1.554391902096608)),
-    DenseVector(Array(-0.504552950609640, -0.226093367577688)),
-    DenseVector(Array(-0.049199595806068, 1.102205166941232)),
-    DenseVector(Array(2.403094449057862, -0.226093367577688)),
-    DenseVector(Array(-1.145609070221372, -0.226093367577688)),
-    DenseVector(Array(-0.690255715417800, -0.226093367577688)),
-    DenseVector(Array(0.668172728521347, -0.226093367577688)),
-    DenseVector(Array(0.253521349566139, -0.226093367577688)),
-    DenseVector(Array(0.809357707245360, -0.226093367577688)),
-    DenseVector(Array(-0.205647815473217, -1.554391902096608)),
-    DenseVector(Array(-1.272802744747510, -2.882690436615528)),
-    DenseVector(Array(0.050011470324320, 1.102205166941232)),
-    DenseVector(Array(1.445326079876047, -0.226093367577688)),
-    DenseVector(Array(-0.241262044340535, 1.102205166941232)),
-    DenseVector(Array(-0.716966387068289, -0.226093367577688)),
-    DenseVector(Array(-0.968809862630041, -0.226093367577688)),
-    DenseVector(Array(0.167029650888366, 1.102205166941232)),
-    DenseVector(Array(2.816473891267809, 1.102205166941232)),
-    DenseVector(Array(0.205187753246207, 1.102205166941232)),
-    DenseVector(Array(-0.428236745893957, -1.554391902096608)),
-    DenseVector(Array(0.301854945886072, -0.226093367577688)),
-    DenseVector(Array(0.720322135077064, 1.102205166941232)),
-    DenseVector(Array(-1.018415395695235, -0.226093367577688)),
-    DenseVector(Array(-1.461049383046193, -1.554391902096608)),
-    DenseVector(Array(-0.189112637784819, 1.102205166941232)),
-    DenseVector(Array(-1.014599585459451, -0.226093367577688))
   )
 }
