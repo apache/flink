@@ -29,14 +29,13 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
-import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.gsa.RichEdge;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
 /**
- * This is an implementation of the connected components algorithm, using a gather-sum-apply iteration
+ * This is an implementation of the Connected Components algorithm, using a gather-sum-apply iteration
  */
 public class GSAConnectedComponentsExample implements ProgramDescription {
 
@@ -52,8 +51,8 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Vertex<Long, Long>> vertices = getVertexDataSet(env);
 		DataSet<Edge<Long, NullValue>> edges = getEdgeDataSet(env);
+		DataSet<Vertex<Long, Long>> vertices = edges.flatMap(new InitVerticesMapper()).distinct();
 
 		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(vertices, edges, env);
 
@@ -67,9 +66,8 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 		ApplyFunction<Long, NullValue, Long> apply = new ConnectedComponentsApply();
 
 		// Execute the GSA iteration
-		GatherSumApplyIteration<Long, Long, NullValue, Long> iteration =
-				graph.createGatherSumApplyIteration(gather, sum, apply, maxIterations);
-		Graph<Long, Long, NullValue> result = graph.runGatherSumApplyIteration(iteration);
+		Graph<Long, Long, NullValue> result =
+				graph.runGatherSumApplyIteration(gather, sum, apply, maxIterations);
 
 		// Extract the vertices as the result
 		DataSet<Vertex<Long, Long>> greedyGraphColoring = result.getVertices();
@@ -82,6 +80,16 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 		}
 
 		env.execute("GSA Connected Components");
+	}
+
+	private static final class InitVerticesMapper
+			implements FlatMapFunction<Edge<Long, NullValue>, Vertex<Long, Long>>{
+
+		@Override
+		public void flatMap(Edge<Long, NullValue> edge, Collector<Vertex<Long, Long>> out) throws Exception {
+			out.collect(new Vertex<Long, Long>(edge.getSource(), edge.getSource()));
+			out.collect(new Vertex<Long, Long>(edge.getTarget(), edge.getTarget()));
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -122,7 +130,6 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 	// --------------------------------------------------------------------------------------------
 
 	private static boolean fileOutput = false;
-	private static String vertexInputPath = null;
 	private static String edgeInputPath = null;
 	private static String outputPath = null;
 
@@ -130,55 +137,30 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 
 	private static boolean parseParameters(String[] args) {
 
-		if(args.length > 0) {
+		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
 
-			if(args.length != 4) {
-				System.err.println("Usage: GSAConnectedComponentsExample <vertex path> <edge path> " +
+			if (args.length != 3) {
+				System.err.println("Usage: GSAConnectedComponentsExample <edge path> " +
 						"<result path> <max iterations>");
 				return false;
 			}
 
-			vertexInputPath = args[0];
-			edgeInputPath = args[1];
-			outputPath = args[2];
-			maxIterations = Integer.parseInt(args[3]);
+			edgeInputPath = args[0];
+			outputPath = args[1];
+			maxIterations = Integer.parseInt(args[2]);
 		} else {
 			System.out.println("Executing GSA Connected Components example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: GSAConnectedComponentsExample <vertex path> <edge path> "
-					+ "<result path> <max iterations>");
+			System.out.println("  Usage: GSAConnectedComponentsExample <edge path> <result path> <max iterations>");
 		}
 		return true;
 	}
 
-	private static DataSet<Vertex<Long, Long>> getVertexDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
-			return env
-					.readCsvFile(vertexInputPath)
-					.fieldDelimiter(" ")
-					.lineDelimiter("\n")
-					.types(Long.class, Long.class)
-					.map(new MapFunction<Tuple2<Long, Long>, Vertex<Long, Long>>() {
-						@Override
-						public Vertex<Long, Long> map(Tuple2<Long, Long> value) throws Exception {
-							return new Vertex<Long, Long>(value.f0, value.f1);
-						}
-					});
-		}
-
-		return env.generateSequence(0, 5).map(new MapFunction<Long, Vertex<Long, Long>>() {
-			@Override
-			public Vertex<Long, Long> map(Long value) throws Exception {
-				return new Vertex<Long, Long>(value, value);
-			}
-		});
-	}
-
 	private static DataSet<Edge<Long, NullValue>> getEdgeDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
+		if (fileOutput) {
 			return env.readCsvFile(edgeInputPath)
 					.fieldDelimiter(" ")
 					.lineDelimiter("\n")
@@ -202,7 +184,7 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 
 	@Override
 	public String getDescription() {
-		return "GSA Greedy Graph Coloring";
+		return "GSA Connected Components";
 	}
 
 }
