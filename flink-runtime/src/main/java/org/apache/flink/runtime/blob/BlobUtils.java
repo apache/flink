@@ -65,7 +65,7 @@ public class BlobUtils {
 	 */
 	static File initStorageDirectory(String storageDirectory) {
 		File baseDir;
-		if (storageDirectory == null || storageDirectory.isEmpty()) {
+		if (storageDirectory == null || storageDirectory.trim().isEmpty()) {
 			baseDir = new File(System.getProperty("java.io.tmpdir"));
 		}
 		else {
