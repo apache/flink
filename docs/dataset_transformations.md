@@ -567,7 +567,7 @@ DataSet<Tuple2<String, Integer>> combinedWords = groupedInput.combineGroup(new G
 
 DataSet<Tuple2<String, Integer>> groupedCombinedWords = combinedWords.groupBy(0); // group by words again
 
-DataSet<Tuple2<String, Integer>> output = combinedWords.groupReduce(new GroupReduceFunction() { // group reduce with full data exchange
+DataSet<Tuple2<String, Integer>> output = combinedWords.reduceGroup(new GroupReduceFunction() { // group reduce with full data exchange
 
     public void reduce(Iterable<Tuple2<String, Integer>>, Collector<Tuple2<String, Integer>>) {
         int count = 0;
@@ -586,7 +586,7 @@ DataSet<Tuple2<String, Integer>> output = combinedWords.groupReduce(new GroupRed
 val input: DataSet[String] = [..] // The words received as input
 val groupedInput: DataSet[String] = input.groupBy(0)
 
-val combinedWords: DataSet[(String, Int)] = groupedInput.groupCombine {
+val combinedWords: DataSet[(String, Int)] = groupedInput.combineGroup {
     (words, out: Collector[(String, Int)]) =>
         var count = 0
         for (word <- words) {
@@ -597,7 +597,7 @@ val combinedWords: DataSet[(String, Int)] = groupedInput.groupCombine {
 
 val groupedCombinedWords: DataSet[(String, Int)] = combinedWords.groupBy(0)
 
-val output: DataSet[(String, Int)] = groupedInput.groupCombine {
+val output: DataSet[(String, Int)] = groupedInput.reduceGroup {
     (words, out: Collector[(String, Int)]) =>
         var count = 0
         for ((word, Int) <- words) {
