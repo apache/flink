@@ -55,7 +55,7 @@ import org.apache.flink.api.scala.table._
 case class WC(word: String, count: Int)
 val input = env.fromElements(WC("hello", 1), WC("hello", 1), WC("ciao", 1))
 val expr = input.toTable
-val result = expr.groupBy('word).select('word, 'count.sum as count).toSet[WC]
+val result = expr.groupBy('word).select('word, 'count.sum as 'count).toSet[WC]
 {% endhighlight %}
 
 The expression DSL uses Scala symbols to refer to field names and we use code generation to
