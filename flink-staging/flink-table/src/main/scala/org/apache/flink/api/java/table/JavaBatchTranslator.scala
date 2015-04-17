@@ -85,7 +85,7 @@ class JavaBatchTranslator extends PlanTranslator {
     val outputNames = outputType.getFieldNames.toSeq
 
     if (resultNames.toSet != outputNames.toSet) {
-      throw new ExpressionException(s"Expression result type $resultType does not have the same" +
+      throw new ExpressionException(s"Expression result type $resultType does not have the same " +
         s"fields as output type $outputType")
     }
 
