@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 import com.google.common.base.Joiner;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.FlinkYarnSessionCli;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
@@ -61,6 +62,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.yarn.UtilsTest.addTestAppender;
 import static org.apache.flink.yarn.UtilsTest.checkForLogString;
@@ -193,6 +196,22 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			JSONObject parsed = new JSONObject(config);
 			Assert.assertEquals("veryFancy", parsed.getString("fancy-configuration-value"));
 			Assert.assertEquals("3", parsed.getString("yarn.maximum-failed-containers"));
+
+			// -------------- FLINK-1902: check if jobmanager hostname/port are shown in web interface
+			// first, get the hostname/port
+			String oC = outContent.toString();
+			Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
+			Matcher matches = p.matcher(oC);
+			String hostname = null;
+			String port = null;
+			while(matches.find()) {
+				hostname = matches.group(1);
+				port = matches.group(2);
+			}
+			LOG.info("Extracted hostname:port: {} {}", hostname, port);
+
+			Assert.assertEquals("unable to find hostname in " + parsed, hostname, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY));
+			Assert.assertEquals("unable to find port in " + parsed, port, parsed.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY));
 
 			// test logfile access
 			String logs = TestBaseUtils.getFromHTTP(url + "logInfo");
@@ -604,5 +623,4 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		yarnCluster.shutdown();
 		LOG.info("Finished testJavaAPI()");
 	}
-
 }
