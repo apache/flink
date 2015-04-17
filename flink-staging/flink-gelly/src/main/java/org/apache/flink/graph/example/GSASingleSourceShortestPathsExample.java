@@ -19,10 +19,10 @@
 package org.apache.flink.graph.example;
 
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
@@ -30,11 +30,9 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
-import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.gsa.RichEdge;
-
-import java.io.Serializable;
+import org.apache.flink.util.Collector;
 
 /**
  * This is an implementation of the Single Source Shortest Paths algorithm, using a gather-sum-apply iteration
@@ -53,8 +51,10 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Vertex<Long, Double>> vertices = getVertexDataSet(env);
 		DataSet<Edge<Long, Double>> edges = getEdgeDataSet(env);
+		DataSet<Vertex<Long, Double>> vertices = edges
+				.flatMap(new InitVerticesMapper(srcVertexId))
+				.distinct();
 
 		Graph<Long, Double, Double> graph = Graph.fromDataSet(vertices, edges, env);
 
@@ -68,10 +68,8 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 		ApplyFunction<Double, Double, Double> apply = new SingleSourceShortestPathApply();
 
 		// Execute the GSA iteration
-		GatherSumApplyIteration<Long, Double, Double, Double> iteration = graph.createGatherSumApplyIteration(
-				gather, sum, apply, maxIterations);
-		Graph<Long, Double, Double> result = graph.mapVertices(new InitVerticesMapper<Long>(srcVertexId))
-				.runGatherSumApplyIteration(iteration);
+		Graph<Long, Double, Double> result = graph
+				.runGatherSumApplyIteration(gather, sum, apply, maxIterations);
 
 		// Extract the vertices as the result
 		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = result.getVertices();
@@ -86,20 +84,27 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 		env.execute("GSA Single Source Shortest Paths Example");
 	}
 
-	public static final class InitVerticesMapper<K extends Comparable<K> & Serializable>
-			implements MapFunction<Vertex<K, Double>, Double> {
+	private static final class InitVerticesMapper
+			implements FlatMapFunction<Edge<Long, Double>, Vertex<Long, Double>>{
 
-		private K srcVertexId;
+		private long srcVertexId;
 
-		public InitVerticesMapper(K srcId) {
+		public InitVerticesMapper(long srcId) {
 			this.srcVertexId = srcId;
 		}
 
-		public Double map(Vertex<K, Double> value) {
-			if (value.f0.equals(srcVertexId)) {
-				return 0.0;
+		@Override
+		public void flatMap(Edge<Long, Double> edge, Collector<Vertex<Long, Double>> out) throws Exception {
+			if (edge.getSource() == srcVertexId) {
+				out.collect(new Vertex<Long, Double>(edge.getSource(), 0.0));
 			} else {
-				return Double.POSITIVE_INFINITY;
+				out.collect(new Vertex<Long, Double>(edge.getSource(), Double.POSITIVE_INFINITY));
+			}
+
+			if (edge.getTarget() == srcVertexId) {
+				out.collect(new Vertex<Long, Double>(edge.getTarget(), 0.0));
+			} else {
+				out.collect(new Vertex<Long, Double>(edge.getTarget(), Double.POSITIVE_INFINITY));
 			}
 		}
 	}
@@ -139,7 +144,6 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 	// --------------------------------------------------------------------------------------------
 
 	private static boolean fileOutput = false;
-	private static String vertexInputPath = null;
 	private static String edgeInputPath = null;
 	private static String outputPath = null;
 
@@ -148,51 +152,32 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 
 	private static boolean parseParameters(String[] args) {
 
-		if(args.length > 0) {
+		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
 
-			if(args.length != 5) {
-				System.err.println("Usage: GSASingleSourceShortestPathsExample <vertex path> <edge path> " +
+			if (args.length != 4) {
+				System.err.println("Usage: GSASingleSourceShortestPathsExample <edge path> " +
 						"<result path> <src vertex> <max iterations>");
 				return false;
 			}
 
-			vertexInputPath = args[0];
-			edgeInputPath = args[1];
-			outputPath = args[2];
-			srcVertexId = Long.parseLong(args[3]);
-			maxIterations = Integer.parseInt(args[4]);
+			edgeInputPath = args[0];
+			outputPath = args[1];
+			srcVertexId = Long.parseLong(args[2]);
+			maxIterations = Integer.parseInt(args[3]);
 		} else {
 			System.out.println("Executing GSA Single Source Shortest Paths example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: GSASingleSourceShortestPathsExample <vertex path> <edge path> "
-					+ "<result path> <src vertex> <max iterations>");
+			System.out.println("  Usage: GSASingleSourceShortestPathsExample <edge path> <result path> <src vertex> "
+					+ "<max iterations>");
 		}
 		return true;
 	}
 
-	private static DataSet<Vertex<Long, Double>> getVertexDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
-			return env
-					.readCsvFile(vertexInputPath)
-					.fieldDelimiter(" ")
-					.lineDelimiter("\n")
-					.types(Long.class, Double.class)
-					.map(new MapFunction<Tuple2<Long, Double>, Vertex<Long, Double>>() {
-						@Override
-						public Vertex<Long, Double> map(Tuple2<Long, Double> value) throws Exception {
-							return new Vertex<Long, Double>(value.f0, value.f1);
-						}
-					});
-		} else {
-			return SingleSourceShortestPathsData.getDefaultVertexDataSet(env);
-		}
-	}
-
 	private static DataSet<Edge<Long, Double>> getEdgeDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
+		if (fileOutput) {
 			return env.readCsvFile(edgeInputPath)
 					.fieldDelimiter(" ")
 					.lineDelimiter("\n")

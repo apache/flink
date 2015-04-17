@@ -57,9 +57,6 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 	private final ApplyFunction<VV, EV, M> apply;
 	private final int maximumNumberOfIterations;
 
-	private String name;
-	private int parallelism = -1;
-
 	// ----------------------------------------------------------------------------------
 
 	private GatherSumApplyIteration(GatherFunction<VV, EV, M> gather, SumFunction<VV, EV, M> sum,
@@ -76,45 +73,6 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 		this.apply = apply;
 		this.edgeDataSet = edges;
 		this.maximumNumberOfIterations = maximumNumberOfIterations;
-	}
-
-
-	/**
-	 * Sets the name for the gather-sum-apply iteration. The name is displayed in logs and messages.
-	 *
-	 * @param name The name for the iteration.
-	 */
-	public void setName(String name) {
-		this.name = name;
-	}
-
-	/**
-	 * Gets the name from this gather-sum-apply iteration.
-	 *
-	 * @return The name of the iteration.
-	 */
-	public String getName() {
-		return name;
-	}
-
-	/**
-	 * Sets the degree of parallelism for the iteration.
-	 *
-	 * @param parallelism The degree of parallelism.
-	 */
-	public void setParallelism(int parallelism) {
-		Validate.isTrue(parallelism > 0 || parallelism == -1,
-				"The degree of parallelism must be positive, or -1 (use default).");
-		this.parallelism = parallelism;
-	}
-
-	/**
-	 * Gets the iteration's degree of parallelism.
-	 *
-	 * @return The iterations parallelism, or -1, if not set.
-	 */
-	public int getParallelism() {
-		return parallelism;
 	}
 
 	// --------------------------------------------------------------------------------------------
