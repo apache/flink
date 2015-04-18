@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
 import org.apache.flink.streaming.api.functions.co.CoWindowFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
@@ -41,6 +42,12 @@ public class TypeFillTest {
 	@Test
 	public void test() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		try {
+			env.addSource(new TestSource<Integer>()).print();
+			fail();
+		} catch (Exception e) {
+		}
 
 		DataStream<Long> source = env.generateSequence(1, 10);
 
@@ -76,6 +83,7 @@ public class TypeFillTest {
 		} catch (Exception e) {
 		}
 
+		env.addSource(new TestSource<Integer>()).returns("Integer");
 		source.map(new TestMap<Long, Long>()).returns(Long.class).print();
 		source.flatMap(new TestFlatMap<Long, Long>()).returns("Long").print();
 		source.connect(source).map(new TestCoMap<Long, Long, Integer>()).returns("Integer").print();
@@ -102,6 +110,19 @@ public class TypeFillTest {
 			map.returns("String");
 			fail();
 		} catch (Exception e) {
+		}
+
+	}
+
+	private class TestSource<T> implements SourceFunction<T> {
+
+		@Override
+		public void run(Collector<T> collector) throws Exception {
+
+		}
+
+		@Override
+		public void cancel() {
 		}
 
 	}
