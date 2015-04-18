@@ -41,7 +41,7 @@ public class FloatParser extends FieldParser<Float> {
 		}
 		
 		String str = new String(bytes, startPos, i-startPos);
-		if (str.length() == 0) {
+		if (str.trim().length() == 0) {
 			setErrorState(ParseErrorState.EMPTY_STRING);
 			return -1;
 		} 
@@ -52,7 +52,7 @@ public class FloatParser extends FieldParser<Float> {
 		catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);
 			return -1;
-		}		
+		}
 	}
 	
 	@Override

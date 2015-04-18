@@ -34,19 +34,6 @@ public class LongParser extends FieldParser<Long> {
 
 		final int delimLimit = limit - delimiter.length + 1;
 
-		int delimCount = 0;
-		for (int i = 0; i < delimiter.length; i++) {
-			if (bytes[startPos + i] == delimiter[i]) {
-				delimCount++;
-			} else {
-				break;
-			}
-		}
-		if (delimCount == delimiter.length) {
-			setErrorState(ParseErrorState.EMPTY_STRING);
-			return -1;
-		}
-		
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
@@ -57,39 +44,52 @@ public class LongParser extends FieldParser<Long> {
 				return -1;
 			}
 		}
-		
+
+		boolean isWhiteSpaceOnly = true;
 		for (int i = startPos; i < limit; i++) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
-				this.result = neg ? -val : val;
-				return i + delimiter.length;
+				if (!isWhiteSpaceOnly) {
+					this.result = neg ? -val : val;
+					return i + delimiter.length;
+				} else {
+					setErrorState(ParseErrorState.EMPTY_STRING);
+					return -1;
+				}
 			}
-			if (bytes[i] < 48 || bytes[i] > 57) {
-				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
-				return -1;
-			}
-			val *= 10;
-			val += bytes[i] - 48;
-			
-			// check for overflow / underflow
-			if (val < 0) {
-				// this is an overflow/underflow, unless we hit exactly the Long.MIN_VALUE
-				if (neg && val == Long.MIN_VALUE) {
-					this.result = Long.MIN_VALUE;
-					
-					if (i+1 >= limit) {
-						return limit; 
-					} else if (i+1 < delimLimit && delimiterNext(bytes, i+1, delimiter)) {
-						return i + 1 + delimiter.length;
+			if (bytes[i] != 9 && bytes[i] != 32) { // if not whitespace
+				if (bytes[i] < 48 || bytes[i] > 57) {
+					setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
+					return -1;
+				}
+				isWhiteSpaceOnly = false;
+				val *= 10;
+				val += bytes[i] - 48;
+
+				// check for overflow / underflow
+				if (val < 0) {
+					// this is an overflow/underflow, unless we hit exactly the Long.MIN_VALUE
+					if (neg && val == Long.MIN_VALUE) {
+						this.result = Long.MIN_VALUE;
+
+						if (i + 1 >= limit) {
+							return limit;
+						} else if (i + 1 < delimLimit && delimiterNext(bytes, i + 1, delimiter)) {
+							return i + 1 + delimiter.length;
+						} else {
+							setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
+							return -1;
+						}
 					} else {
 						setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
 						return -1;
 					}
 				}
-				else {
-					setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
-					return -1;
-				}
 			}
+		}
+
+		if (isWhiteSpaceOnly) {
+			setErrorState(ParseErrorState.EMPTY_STRING);
+			return -1;
 		}
 		
 		this.result = neg ? -val : val;
