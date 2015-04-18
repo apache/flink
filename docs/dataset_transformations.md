@@ -193,6 +193,21 @@ DataSet<Tuple3<Integer, Double, String>> in = // [...]
 DataSet<Tuple2<String, Integer>> out = in.project(2,0);
 ~~~
 
+#### Projection with Type Hint
+
+Note that the Java compiler cannot infer the return type of `project` operator. This can cause a problem if you call another operator on a result of `project` operator such as:
+
+~~~java
+DataSet<Tuple5<String,String,String,String,String>> ds = ....
+DataSet<Tuple1<String>> ds2 = ds.project(0).distinct(0);
+~~~
+
+This problem can be overcome by hinting the return type of `project` operator like this:
+
+~~~java
+DataSet<Tuple1<String>> ds2 = ds.<Tuple1<String>>project(0).distinct(0);
+~~~
+
 ### Transformations on Grouped DataSet
 
 The reduce operations can operate on grouped data sets. Specifying the key to
