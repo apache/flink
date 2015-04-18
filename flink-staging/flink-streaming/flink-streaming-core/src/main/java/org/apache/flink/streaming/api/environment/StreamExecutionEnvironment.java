@@ -22,11 +22,10 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
-import com.esotericsoftware.kryo.Serializer;
-
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -34,6 +33,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
@@ -44,6 +44,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType;
 import org.apache.flink.streaming.api.functions.source.FileReadFunction;
 import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
@@ -53,10 +54,11 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+
+import com.esotericsoftware.kryo.Serializer;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -420,7 +422,7 @@ public abstract class StreamExecutionEnvironment {
 	public DataStream<String> readFileStream(String filePath, long intervalMillis,
 			WatchType watchType) {
 		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
-				filePath, intervalMillis, watchType), null, "File Stream");
+				filePath, intervalMillis, watchType), "File Stream");
 
 		return source.flatMap(new FileReadFunction());
 	}
@@ -448,7 +450,7 @@ public abstract class StreamExecutionEnvironment {
 
 		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
-		return addSource(function, outTypeInfo, "Elements source");
+		return addSource(function, "Elements source").returns(outTypeInfo);
 	}
 
 	/**
@@ -475,7 +477,7 @@ public abstract class StreamExecutionEnvironment {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getForObject(data.iterator().next());
 		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
-		return addSource(function, outTypeInfo, "Collection Source");
+		return addSource(function, "Collection Source").returns(outTypeInfo);
 	}
 
 	/**
@@ -508,7 +510,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter,
 			long maxRetry) {
-		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry), null,
+		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry),
 				"Socket Stream");
 	}
 
@@ -560,13 +562,13 @@ public abstract class StreamExecutionEnvironment {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return addSource(new GenSequenceFunction(from, to), null, "Sequence Source");
+		return addSource(new GenSequenceFunction(from, to), "Sequence Source");
 	}
 
 	private DataStreamSource<String> addFileSource(InputFormat<String, ?> inputFormat,
 			TypeInformation<String> typeInfo) {
 		FileSourceFunction function = new FileSourceFunction(inputFormat, typeInfo);
-		DataStreamSource<String> returnStream = addSource(function, null, "File Source");
+		DataStreamSource<String> returnStream = addSource(function, "File Source");
 		streamGraph.setInputFormat(returnStream.getId(), inputFormat);
 		return returnStream;
 	}
@@ -588,31 +590,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
-		return addSource(function, null);
-	}
-
-	/**
-	 * Ads a data source with a custom type information thus opening a
-	 * {@link DataStream}. Only in very special cases does the user need to
-	 * support type information. Otherwise use
-	 * {@link #addSource(SourceFunction)} </p> By default sources have a
-	 * parallelism of 1. To enable parallel execution, the user defined source
-	 * should implement {@link ParallelSourceFunction} or extend
-	 * {@link RichParallelSourceFunction}. In these cases the resulting source
-	 * will have the parallelism of the environment. To change this afterwards
-	 * call {@link DataStreamSource#setParallelism(int)}
-	 * 
-	 * @param function
-	 *            the user defined function
-	 * @param outTypeInfo
-	 *            the user defined type information for the stream
-	 * @param <OUT>
-	 *            type of the returned stream
-	 * @return the data stream constructed
-	 */
-	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
-			TypeInformation<OUT> outTypeInfo) {
-		return addSource(function, outTypeInfo, "Custom Source");
+		return addSource(function, "Custom source");
 	}
 
 	/**
@@ -623,8 +601,6 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param function
 	 *            the user defined function
-	 * @param outTypeInfo
-	 *            the user defined type information for the stream
 	 * @param sourceName
 	 *            Name of the data source
 	 * @param <OUT>
@@ -632,15 +608,18 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	@SuppressWarnings("unchecked")
-	private <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
-			TypeInformation<OUT> outTypeInfo, String sourceName) {
+	private <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName) {
 
-		if (outTypeInfo == null) {
-			if (function instanceof GenericSourceFunction) {
-				outTypeInfo = ((GenericSourceFunction<OUT>) function).getType();
-			} else {
+		TypeInformation<OUT> outTypeInfo;
+
+		if (function instanceof GenericSourceFunction) {
+			outTypeInfo = ((GenericSourceFunction<OUT>) function).getType();
+		} else {
+			try {
 				outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class,
 						function.getClass(), 0, null, null);
+			} catch (InvalidTypesException e) {
+				outTypeInfo = (TypeInformation<OUT>) new MissingTypeInfo("Custom source", e);
 			}
 		}
 
@@ -649,8 +628,8 @@ public abstract class StreamExecutionEnvironment {
 		ClosureCleaner.clean(function, true);
 		StreamOperator<OUT, OUT> sourceOperator = new StreamSource<OUT>(function);
 
-		return new DataStreamSource<OUT>(this, sourceName, outTypeInfo, sourceOperator,
-				isParallel, sourceName);
+		return new DataStreamSource<OUT>(this, sourceName, outTypeInfo, sourceOperator, isParallel,
+				sourceName);
 	}
 
 	// --------------------------------------------------------------------------------------------

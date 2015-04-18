@@ -133,7 +133,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		return reduced.discretizedStream
 				.groupBy(new WindowKey<OUT>())
 				.connect(numOfParts.groupBy(0))
-				.addCoFunction(
+				.transform(
 						"CoFlatMap",
 						reduced.discretizedStream.getType(),
 						new CoStreamFlatMap<StreamWindow<OUT>, Tuple2<Integer, Integer>, StreamWindow<OUT>>(

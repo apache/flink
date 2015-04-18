@@ -365,8 +365,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
       val cleanFun = clean(fun)
       def map(in: T): R = cleanFun(in)
     }
-
-    javaStream.transform("map", implicitly[TypeInformation[R]], new StreamMap[T, R](mapper))
+    
+    map(mapper)
   }
 
   /**
@@ -377,7 +377,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
       throw new NullPointerException("Map function must not be null.")
     }
 
-    javaStream.transform("map", implicitly[TypeInformation[R]], new StreamMap[T, R](mapper))
+    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
+    javaStream.map(mapper).returns(outType).asInstanceOf[JavaStream[R]]
   }
 
   /**
@@ -388,8 +389,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (flatMapper == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
-   javaStream.transform("flatMap", implicitly[TypeInformation[R]], 
-       new StreamFlatMap[T, R](flatMapper))
+    
+    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
+    javaStream.flatMap(flatMapper).returns(outType).asInstanceOf[JavaStream[R]]
   }
 
   /**
@@ -430,12 +432,8 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (reducer == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
-    javaStream match {
-      case ds: GroupedDataStream[_] => javaStream.transform("reduce",
-        javaStream.getType(), new StreamGroupedReduce[T](reducer, ds.getKeySelector()))
-      case _ => javaStream.transform("reduce", javaStream.getType(),
-        new StreamReduce[T](reducer))
-    }
+ 
+    javaStream.reduce(reducer)
   }
 
   /**
@@ -462,13 +460,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
     if (folder == null) {
       throw new NullPointerException("Fold function must not be null.")
     }
-    javaStream match {
-      case ds: GroupedDataStream[_] => javaStream.transform("fold",
-        implicitly[TypeInformation[R]], new StreamGroupedFold[T,R](folder, ds.getKeySelector(), 
-            initialValue, implicitly[TypeInformation[R]]))
-      case _ => javaStream.transform("fold", implicitly[TypeInformation[R]],
-        new StreamFold[T,R](folder, initialValue, implicitly[TypeInformation[R]]))
-    }
+    
+    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
+    javaStream.fold(initialValue, folder).returns(outType).asInstanceOf[JavaStream[R]]
   }
 
   /**

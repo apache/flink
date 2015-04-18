@@ -123,7 +123,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * 
 	 * @return The type of the first input
 	 */
-	public TypeInformation<IN1> getInputType1() {
+	public TypeInformation<IN1> getType1() {
 		return dataStream1.getType();
 	}
 
@@ -132,7 +132,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * 
 	 * @return The type of the second input
 	 */
-	public TypeInformation<IN2> getInputType2() {
+	public TypeInformation<IN2> getType2() {
 		return dataStream2.getType();
 	}
 
@@ -244,10 +244,10 @@ public class ConnectedDataStream<IN1, IN2> {
 	public <OUT> SingleOutputStreamOperator<OUT, ?> map(CoMapFunction<IN1, IN2, OUT> coMapper) {
 
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coMapper,
-				CoMapFunction.class, false, true, getInputType1(), getInputType2(),
+				CoMapFunction.class, false, true, getType1(), getType2(),
 				Utils.getCallLocationName(), true);
 
-		return addCoFunction("Co-Map", outTypeInfo, new CoStreamMap<IN1, IN2, OUT>(
+		return transform("Co-Map", outTypeInfo, new CoStreamMap<IN1, IN2, OUT>(
 				clean(coMapper)));
 
 	}
@@ -271,10 +271,10 @@ public class ConnectedDataStream<IN1, IN2> {
 			CoFlatMapFunction<IN1, IN2, OUT> coFlatMapper) {
 
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coFlatMapper,
-				CoFlatMapFunction.class, false, true, getInputType1(), getInputType2(),
+				CoFlatMapFunction.class, false, true, getType1(), getType2(),
 				Utils.getCallLocationName(), true);
 
-		return addCoFunction("Co-Flat Map", outTypeInfo, new CoStreamFlatMap<IN1, IN2, OUT>(
+		return transform("Co-Flat Map", outTypeInfo, new CoStreamFlatMap<IN1, IN2, OUT>(
 				clean(coFlatMapper)));
 	}
 
@@ -297,10 +297,10 @@ public class ConnectedDataStream<IN1, IN2> {
 	public <OUT> SingleOutputStreamOperator<OUT, ?> reduce(CoReduceFunction<IN1, IN2, OUT> coReducer) {
 
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coReducer,
-				CoReduceFunction.class, false, true, getInputType1(), getInputType2(),
+				CoReduceFunction.class, false, true, getType1(), getType2(),
 				Utils.getCallLocationName(), true);
 
-		return addCoFunction("Co-Reduce", outTypeInfo, getReduceOperator(clean(coReducer)));
+		return transform("Co-Reduce", outTypeInfo, getReduceOperator(clean(coReducer)));
 
 	}
 
@@ -365,10 +365,10 @@ public class ConnectedDataStream<IN1, IN2> {
 		}
 		
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getBinaryOperatorReturnType(coWindowFunction,
-				CoWindowFunction.class, false, true, getInputType1(), getInputType2(),
+				CoWindowFunction.class, false, true, getType1(), getType2(),
 				Utils.getCallLocationName(), true);
 
-		return addCoFunction("Co-Window", outTypeInfo, new CoStreamWindow<IN1, IN2, OUT>(
+		return transform("Co-Window", outTypeInfo, new CoStreamWindow<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 
 	}
@@ -397,20 +397,20 @@ public class ConnectedDataStream<IN1, IN2> {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
 
-		return addCoFunction("Co-Window", outTypeInfo, new CoStreamWindow<IN1, IN2, OUT>(
+		return transform("Co-Window", outTypeInfo, new CoStreamWindow<IN1, IN2, OUT>(
 				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
 
 	}
 
-	public <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(String functionName,
+	public <OUT> SingleOutputStreamOperator<OUT, ?> transform(String functionName,
 			TypeInformation<OUT> outTypeInfo, CoStreamOperator<IN1, IN2, OUT> operator) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
 				environment, functionName, outTypeInfo, operator);
 
-		dataStream1.streamGraph.addCoOperator(returnStream.getId(), operator, getInputType1(),
-				getInputType2(), outTypeInfo, functionName);
+		dataStream1.streamGraph.addCoOperator(returnStream.getId(), operator, getType1(),
+				getType2(), outTypeInfo, functionName);
 
 		dataStream1.connectGraph(dataStream1, returnStream.getId(), 1);
 		dataStream1.connectGraph(dataStream2, returnStream.getId(), 2);

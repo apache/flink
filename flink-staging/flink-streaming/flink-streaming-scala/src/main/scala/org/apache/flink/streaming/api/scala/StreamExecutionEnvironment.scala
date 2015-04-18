@@ -261,7 +261,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     val sourceFunction = new FromElementsFunction[T](scala.collection.JavaConversions
         .asJavaCollection(data))
         
-    javaEnv.addSource(sourceFunction, typeInfo)
+    javaEnv.addSource(sourceFunction).returns(typeInfo)
   }
 
   /**
@@ -277,7 +277,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     Validate.notNull(function, "Function must not be null.")
     val cleanFun = StreamExecutionEnvironment.clean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.addSource(cleanFun, typeInfo)
+    javaEnv.addSource(cleanFun).returns(typeInfo)
   }
   
    /**

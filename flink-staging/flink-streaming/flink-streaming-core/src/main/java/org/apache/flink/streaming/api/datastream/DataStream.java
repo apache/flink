@@ -93,7 +93,7 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
  * <ul>
  * <li>{@link DataStream#map},</li>
  * <li>{@link DataStream#filter}, or</li>
- * <li>{@link DataStream#aggregate}.</li>
+ * <li>{@link DataStream#sum}.</li>
  * </ul>
  * 
  * @param <OUT>
