@@ -120,10 +120,6 @@ class TypedCollector(object):
     def __init__(self, con):
         self._connection = con
 
-    def collectBytes(self, value):
-        size = pack(">I", len(value))
-        self._connection.write(b"".join([Types.TYPE_BYTES, size, value]))
-
     def collect(self, value):
         if not isinstance(value, (list, tuple)):
             self._send_field(value)

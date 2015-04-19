@@ -31,8 +31,8 @@ public class PythonCombineIdentity<IN> extends RichGroupReduceFunction<IN, IN> {
 		streamer = null;
 	}
 
-	public PythonCombineIdentity(int id, byte[] operator, String metaInformation) {
-		streamer = new PythonStreamer(this, id, operator, metaInformation);
+	public PythonCombineIdentity(int id) {
+		streamer = new PythonStreamer(this, id);
 	}
 
 	@Override
