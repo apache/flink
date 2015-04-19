@@ -19,7 +19,6 @@
 package org.apache.flink.ml.preprocessing
 
 import breeze.linalg
-import breeze.linalg.DenseVector
 import breeze.numerics.sqrt
 import breeze.numerics.sqrt._
 import org.apache.flink.api.common.functions._
@@ -42,11 +41,11 @@ import org.apache.flink.ml.preprocessing.StandardScaler.{Mean, Std}
   *
   * @example
   * {{{
-  *                        val trainingDS: DataSet[Vector] = env.fromCollection(data)
+  *                           val trainingDS: DataSet[Vector] = env.fromCollection(data)
   *
-  *                        val transformer = StandardScaler().setMean(10.0).setStd(2.0)
+  *                           val transformer = StandardScaler().setMean(10.0).setStd(2.0)
   *
-  *                        transformer.transform(trainingDS)
+  *                           transformer.transform(trainingDS)
   * }}}
   *
   * =Parameters=
@@ -121,44 +120,28 @@ class StandardScaler extends Transformer[Vector, Vector] with Serializable {
   private def extractFeatureMetrics(dataSet: DataSet[Vector]):
   DataSet[(linalg.Vector[Double], linalg.Vector[Double])] = {
 
-    val metrics = dataSet.map(new MapFunction[Vector, (Double, linalg.Vector[Double], linalg
-    .Vector[Double])] {
-
-      override def map(inputVector: Vector):
-      (Double, linalg.Vector[Double], linalg.Vector[Double]) = {
-        return (1, inputVector.asBreeze, DenseVector.zeros[Double](inputVector.size))
-      }
-    }).reduce(new ReduceFunction[(Double, linalg.Vector[Double], linalg.Vector[Double])] {
-
-      override def reduce(metrics1: (Double, linalg.Vector[Double], linalg.Vector[Double]),
-        metrics2: (Double, linalg.Vector[Double], linalg.Vector[Double])):
-      (Double, linalg.Vector[Double], linalg.Vector[Double]) = {
-
-        /* We use formula 1.5b of the cited technical report for the combination of partial
+    val metrics = dataSet.map(v => (1.0, v.asBreeze, linalg.Vector.zeros[Double](v.size)))
+      .reduce((metrics1, metrics2) => {
+      /* We use formula 1.5b of the cited technical report for the combination of partial
          * sum of squares. According to 1.5b:
          * val temp1 : m/n(m+n)
          * val temp2 : n/m
          */
-        val temp1 = metrics1._1 / (metrics2._1 * (metrics1._1 + metrics2._1))
-        val temp2 = metrics2._1 / metrics1._1
-        val tempVector = (metrics1._2 * temp2) :- metrics2._2
+      val temp1 = metrics1._1 / (metrics2._1 * (metrics1._1 + metrics2._1))
+      val temp2 = metrics2._1 / metrics1._1
+      val tempVector = (metrics1._2 * temp2) :- metrics2._2
 
-        val tempS = (metrics1._3 :+ metrics2._3) :+ (tempVector :* tempVector) * temp1
-        return (metrics1._1 + metrics2._1, metrics1._2 :+ metrics2._2, tempS)
-      }
-    }).map(new MapFunction[(Double, linalg.Vector[Double], linalg.Vector[Double]),
-      (linalg.Vector[Double], linalg.Vector[Double])] {
+      val tempS = (metrics1._3 :+ metrics2._3) :+ (tempVector :* tempVector) * temp1
+      (metrics1._1 + metrics2._1, metrics1._2 :+ metrics2._2, tempS)
 
-      override def map(metrics: (Double, linalg.Vector[Double], linalg.Vector[Double])):
-      (linalg.Vector[Double], linalg.Vector[Double]) = {
-        val varianceVector = sqrt(metrics._3 / metrics._1)
-        for (i <- 0 until varianceVector.size) {
-          if (varianceVector(i) == 0.0) {
-            varianceVector.update(i, 1.0)
-          }
+    }).map(t => {
+      val varianceVector = sqrt(t._3 / t._1)
+      for (i <- 0 until varianceVector.size) {
+        if (varianceVector(i) == 0.0) {
+          varianceVector.update(i, 1.0)
         }
-        return (metrics._2 / metrics._1, varianceVector)
       }
+      (t._2 / t._1, varianceVector)
     })
     metrics
   }
