@@ -24,7 +24,7 @@ import java.io.Serializable;
 
 public abstract class GatherFunction<VV extends Serializable, EV extends Serializable, M> implements Serializable {
 
-	public abstract M gather(RichEdge<VV, EV> richEdge);
+	public abstract M gather(Neighbor<VV, EV> neighbor);
 
 	/**
 	 * This method is executed once per superstep before the vertex update function is invoked for each vertex.

@@ -83,8 +83,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	private final DataSet<Edge<K, EV>> edges;
 
 	/**
-	 * Creates a graph from two DataSets: vertices and edges and allow setting
-	 * the undirected property
+	 * Creates a graph from two DataSets: vertices and edges
 	 * 
 	 * @param vertices a DataSet of vertices.
 	 * @param edges a DataSet of edges.
@@ -919,7 +918,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	/**
-	 * @return Singleton DataSet containing the edge count
+	 * @return a long integer representing the number of edges
 	 */
 	public long numberOfEdges() throws Exception {
 		return edges.count();
@@ -1013,13 +1012,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	private static final class EmitFirstReducer<K> implements GroupReduceFunction<Tuple2<K, K>, Tuple2<K, K>> {
 		public void reduce(Iterable<Tuple2<K, K>> values, Collector<Tuple2<K, K>> out) {
 			out.collect(values.iterator().next());
-		}
-	}
-
-	private static final class CheckIfOneComponentMapper implements	MapFunction<Integer, Boolean> {
-		@Override
-		public Boolean map(Integer n) {
-			return (n == 1);
 		}
 	}
 
