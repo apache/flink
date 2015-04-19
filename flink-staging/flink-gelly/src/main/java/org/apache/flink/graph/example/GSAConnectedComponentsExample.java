@@ -30,7 +30,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.SumFunction;
-import org.apache.flink.graph.gsa.RichEdge;
+import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
@@ -70,13 +70,13 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 				graph.runGatherSumApplyIteration(gather, sum, apply, maxIterations);
 
 		// Extract the vertices as the result
-		DataSet<Vertex<Long, Long>> greedyGraphColoring = result.getVertices();
+		DataSet<Vertex<Long, Long>> connectedComponents = result.getVertices();
 
 		// emit result
 		if (fileOutput) {
-			greedyGraphColoring.writeAsCsv(outputPath, "\n", " ");
+			connectedComponents.writeAsCsv(outputPath, "\n", " ");
 		} else {
-			greedyGraphColoring.print();
+			connectedComponents.print();
 		}
 
 		env.execute("GSA Connected Components");
@@ -99,7 +99,7 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 	private static final class ConnectedComponentsGather
 			extends GatherFunction<Long, NullValue, Long> {
 		@Override
-		public Long gather(RichEdge<Long, NullValue> richEdge) {
+		public Long gather(Neighbor<Long, NullValue> richEdge) {
 
 			return richEdge.getSrcVertexValue();
 		}

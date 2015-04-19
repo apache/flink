@@ -31,7 +31,7 @@ import org.apache.flink.graph.example.utils.SingleSourceShortestPathsData;
 import org.apache.flink.graph.gsa.ApplyFunction;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.SumFunction;
-import org.apache.flink.graph.gsa.RichEdge;
+import org.apache.flink.graph.gsa.Neighbor;
 import org.apache.flink.util.Collector;
 
 /**
@@ -116,7 +116,7 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 	private static final class SingleSourceShortestPathGather
 			extends GatherFunction<Double, Double, Double> {
 		@Override
-		public Double gather(RichEdge<Double, Double> richEdge) {
+		public Double gather(Neighbor<Double, Double> richEdge) {
 			return richEdge.getSrcVertexValue() + richEdge.getEdgeValue();
 		}
 	};

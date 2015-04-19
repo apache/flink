@@ -28,12 +28,12 @@ import java.io.Serializable;
  * @param <VV> the vertex value type
  * @param <EV> the edge value type
  */
-public class RichEdge<VV extends Serializable, EV extends Serializable>
+public class Neighbor<VV extends Serializable, EV extends Serializable>
 		extends Tuple2<VV, EV> {
 
-	public RichEdge() {}
+	public Neighbor() {}
 
-	public RichEdge(VV src, EV edge) {
+	public Neighbor(VV src, EV edge) {
 		super(src, edge);
 	}
 

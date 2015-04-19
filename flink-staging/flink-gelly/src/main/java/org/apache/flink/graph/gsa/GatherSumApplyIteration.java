@@ -117,15 +117,15 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 		final DeltaIteration<Vertex<K, VV>, Vertex<K, VV>> iteration =
 				vertexDataSet.iterateDelta(vertexDataSet, maximumNumberOfIterations, zeroKeyPos);
 
-		// Prepare the rich edges
-		DataSet<Tuple2<Vertex<K, VV>, Edge<K, EV>>> richEdges = iteration
+		// Prepare the neighbors
+		DataSet<Tuple2<Vertex<K, VV>, Edge<K, EV>>> neighbors = iteration
 				.getWorkset()
 				.join(edgeDataSet)
 				.where(0)
 				.equalTo(0);
 
 		// Gather, sum and apply
-		DataSet<Tuple2<K, M>> gatheredSet = richEdges.map(gatherUdf);
+		DataSet<Tuple2<K, M>> gatheredSet = neighbors.map(gatherUdf);
 		DataSet<Tuple2<K, M>> summedSet = gatheredSet.groupBy(0).reduce(sumUdf);
 		DataSet<Vertex<K, VV>> appliedSet = summedSet
 				.join(iteration.getSolutionSet())
@@ -178,12 +178,12 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 		}
 
 		@Override
-		public Tuple2<K, M> map(Tuple2<Vertex<K, VV>, Edge<K, EV>> richEdge) throws Exception {
-			RichEdge<VV, EV> userRichEdge = new RichEdge<VV, EV>(richEdge.f0.getValue(),
-					richEdge.f1.getValue());
+		public Tuple2<K, M> map(Tuple2<Vertex<K, VV>, Edge<K, EV>> neighborTuple) throws Exception {
+			Neighbor<VV, EV> neighbor = new Neighbor<VV, EV>(neighborTuple.f0.getValue(),
+					neighborTuple.f1.getValue());
 
-			K key = richEdge.f1.getTarget();
-			M result = this.gatherFunction.gather(userRichEdge);
+			K key = neighborTuple.f1.getTarget();
+			M result = this.gatherFunction.gather(neighbor);
 			return new Tuple2<K, M>(key, result);
 		}
 
