@@ -393,16 +393,18 @@ public class WindowedDataStream<OUT> {
 				.setParallelism(parallelism)
 				.transform(windowBuffer.getClass().getSimpleName(),
 						new StreamWindowTypeInfo<OUT>(getType()), bufferOperator)
-				.setParallelism(parallelism), groupByKey, transformation, false);
+				.setParallelism(parallelism), groupByKey, transformation,
+				WindowUtils.isParallelPolicy(getTrigger(), getEviction(),
+						dataStream.getParallelism()));
 
 	}
 
 	/**
-	 * Returns the parallelism for the stream discretizer. The
-	 * returned parallelism is either 1 for for non-parallel global policies (or
-	 * when the input stream is non-parallel), environment parallelism for the
-	 * policies that can run in parallel (such as, any ditributed policy, reduce
-	 * by count or time).
+	 * Returns the parallelism for the stream discretizer. The returned
+	 * parallelism is either 1 for for non-parallel global policies (or when the
+	 * input stream is non-parallel), environment parallelism for the policies
+	 * that can run in parallel (such as, any ditributed policy, reduce by count
+	 * or time).
 	 * 
 	 * @param transformation
 	 *            The applied transformation
@@ -445,7 +447,12 @@ public class WindowedDataStream<OUT> {
 		// discretized stream, we also pass the type of the windowbuffer
 		DiscretizedStream<OUT> discretized = discretize(transformation, windowBuffer);
 
-		return discretized.timeReduce(reduceFunction, windowBuffer instanceof PreAggregator);
+		if (!(windowBuffer instanceof PreAggregator)) {
+			throw new RuntimeException(
+					"Error in preaggregator logic, parallel time reduce should always be preaggregated");
+		}
+
+		return discretized.timeReduce(reduceFunction);
 
 	}
 
@@ -529,31 +536,30 @@ public class WindowedDataStream<OUT> {
 							WindowUtils.getTimeStampWrapper(trigger));
 				}
 
-			} else if(WindowUtils.isJumpingCountPolicy(trigger, eviction)){
-				if(groupByKey == null){
-					return new JumpingCountPreReducer<OUT>((ReduceFunction<OUT>) transformation.getUDF(), getType()
-							.createSerializer(getExecutionConfig()),
+			} else if (WindowUtils.isJumpingCountPolicy(trigger, eviction)) {
+				if (groupByKey == null) {
+					return new JumpingCountPreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(), getType()
+									.createSerializer(getExecutionConfig()),
 							WindowUtils.getSlideSize(trigger) - WindowUtils.getWindowSize(eviction));
 				} else {
 					return new JumpingCountGroupedPreReducer<OUT>(
-							(ReduceFunction<OUT>) transformation.getUDF(),
-							groupByKey,
-							getType().createSerializer(getExecutionConfig()),
+							(ReduceFunction<OUT>) transformation.getUDF(), groupByKey, getType()
+									.createSerializer(getExecutionConfig()),
 							WindowUtils.getSlideSize(trigger) - WindowUtils.getWindowSize(eviction));
 				}
-			} else if(WindowUtils.isJumpingTimePolicy(trigger, eviction)){
-				if(groupByKey == null) {
-					return new JumpingTimePreReducer<OUT>((ReduceFunction<OUT>) transformation.getUDF(),
-							getType().createSerializer(getExecutionConfig()),
-							WindowUtils.getSlideSize(trigger),
-							WindowUtils.getWindowSize(eviction),
+			} else if (WindowUtils.isJumpingTimePolicy(trigger, eviction)) {
+				if (groupByKey == null) {
+					return new JumpingTimePreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(), getType()
+									.createSerializer(getExecutionConfig()),
+							WindowUtils.getSlideSize(trigger), WindowUtils.getWindowSize(eviction),
 							WindowUtils.getTimeStampWrapper(trigger));
 				} else {
-					return new JumpingTimeGroupedPreReducer<OUT>((ReduceFunction<OUT>) transformation.getUDF(),
-							groupByKey,
-							getType().createSerializer(getExecutionConfig()),
-							WindowUtils.getSlideSize(trigger),
-							WindowUtils.getWindowSize(eviction),
+					return new JumpingTimeGroupedPreReducer<OUT>(
+							(ReduceFunction<OUT>) transformation.getUDF(), groupByKey, getType()
+									.createSerializer(getExecutionConfig()),
+							WindowUtils.getSlideSize(trigger), WindowUtils.getWindowSize(eviction),
 							WindowUtils.getTimeStampWrapper(trigger));
 				}
 			}

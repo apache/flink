@@ -106,31 +106,20 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 	 * 
 	 * @param reduceFunction
 	 *            The reduce function to be applied on the windows
-	 * @param isPreAggregated
-	 *            Flag whether the window buffer was a pre-aggregator or not
 	 * @return
 	 */
-	protected DiscretizedStream<OUT> timeReduce(ReduceFunction<OUT> reduceFunction,
-			boolean isPreAggregated) {
-
-		// We partition the windowed stream if it is not already pre-aggregated
-		DiscretizedStream<OUT> partitioned = isPreAggregated ? this : partition(transformation);
+	protected DiscretizedStream<OUT> timeReduce(ReduceFunction<OUT> reduceFunction) {
 
 		// Since we also emit the empty windows for bookkeeping, we need to
 		// filter them out
-		DiscretizedStream<OUT> nonEmpty = filterEmpty(partitioned);
+		DiscretizedStream<OUT> nonEmpty = filterEmpty(this);
 
 		// We extract the number of parts from each window we will merge using
 		// this afterwards
-		DataStream<Tuple2<Integer, Integer>> numOfParts = extractPartsByID(partitioned);
-
-		// We reduce the windows if not pre-aggregated
-		DiscretizedStream<OUT> reduced = isPreAggregated ? nonEmpty : nonEmpty.transform(
-				WindowTransformation.REDUCEWINDOW, "Window Reduce", nonEmpty.getType(),
-				new WindowReducer<OUT>(reduceFunction));
+		DataStream<Tuple2<Integer, Integer>> numOfParts = extractPartsByID(this);
 
 		// We merge the windows by the number of parts
-		return wrap(parallelMerge(numOfParts, reduced, reduceFunction), false);
+		return wrap(parallelMerge(numOfParts, nonEmpty, reduceFunction), false);
 
 	}
 
@@ -215,8 +204,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 			return out;
 		} else if (transformation == WindowTransformation.REDUCEWINDOW
-				&& parallelism != discretizedStream.getExecutionEnvironment()
-						.getParallelism()) {
+				&& parallelism != discretizedStream.getExecutionEnvironment().getParallelism()) {
 			DiscretizedStream<OUT> out = transform(transformation, "Window partitioner", getType(),
 					new WindowPartitioner<OUT>(parallelism)).setParallelism(parallelism);
 
@@ -224,7 +212,6 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 			return out;
 		} else {
-			this.isPartitioned = false;
 			return this;
 		}
 	}
