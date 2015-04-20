@@ -1332,11 +1332,30 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Writes a DataSet to the standard error stream (stderr).This uses [[AnyRef.toString]] on
+   * *
+   * Writes a DataSet to the standard output stream (stdout) with a sink identifier prefixed.
+   * This uses [[AnyRef.toString]] on each element.
+   * @param sinkIdentifier The string to prefix the output with.
+   */
+  def print(sinkIdentifier: String): DataSink[T] = {
+    output(new PrintingOutputFormat[T](sinkIdentifier, false))
+  }
+
+  /**
+   * Writes a DataSet to the standard error stream (stderr). This uses [[AnyRef.toString]] on
    * each element.
    */
   def printToErr(): DataSink[T] = {
     output(new PrintingOutputFormat[T](true))
+  }
+
+  /**
+   * Writes a DataSet to the standard error stream (stderr) with a sink identifier prefixed.
+   * This uses [[AnyRef.toString]] on each element.
+   * @param sinkIdentifier The string to prefix the output with.
+   */
+  def printToErr(sinkIdentifier: String): DataSink[T] = {
+      output(new PrintingOutputFormat[T](sinkIdentifier, true))
   }
 }
 
