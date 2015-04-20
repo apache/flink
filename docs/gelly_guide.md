@@ -274,10 +274,8 @@ while `groupReduceOnNeighbors()` has access to both the neighboring edges and ve
 is defined by the `EdgeDirection` parameter, which takes the values `IN`, `OUT` or `ALL`. `IN` will gather all in-coming edges (neighbors) of a vertex, `OUT` will gather all out-going edges (neighbors), while `ALL` will gather all edges (neighbors).
 
 The `groupReduceOnEdges()` and `groupReduceOnNeighbors()` methods return zero, one or more values per vertex.
-When returning a single value per vertex, `reduceOnEdges()` or `reduceOnNeighbors()` should be called
-as they are more efficient. Nevertheless, when the reduce on edges modifies the value produced per vertex, for
-instance by multiplying it with a constant, `groupReduceOnEdges()` or `groupReduceOnNeighbors()` must be used
-as illustrated in the third code snippet.
+
+When the user-defined function to be applied on the neighborhood is associative and commutative, it is highly advised to use the `reduceOnEdges()` and `reduceOnNeighbors()` methods. These methods exploit combiners internally, significantly improving performance.
 
 For example, assume that you want to select the minimum weight of all out-edges for each vertex in the following graph:
 
@@ -294,22 +292,20 @@ DataSet<Tuple2<Long, Double>> minWeights = graph.groupReduceOnEdges(
 				new SelectMinWeight(), EdgeDirection.OUT);
 
 // user-defined function to select the minimum weight
-static final class SelectMinWeightNeighbor implements EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
+static final class SelectMinWeight implements EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v,
 				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
 
-			long weight = Long.MAX_VALUE;
-			long minNeighborId = 0;
+			long minWeight = Long.MAX_VALUE;
 
 			for (Edge<Long, Long> edge: edges) {
-				if (edge.getValue() < weight) {
-					weight = edge.getValue();
-					minNeighborId = edge.getTarget();
+				if (edge.getValue() < minWeight) {
+					minWeight = edge.getValue();
 				}
 			}
-			out.collect(new Tuple2<Long, Long>(v.getId(), minNeighborId));
+			out.collect(new Tuple2<Long, Long>(v.getId(), minWeight));
 		}
 	}
 {% endhighlight %}

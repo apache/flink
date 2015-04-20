@@ -78,9 +78,9 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		env.execute();
 	
 		expectedResult = "1,2\n" +
-				"2,3\n" + 
+				"2,3\n" +
 				"3,4\n" +
-				"4,5\n" + 
+				"4,5\n" +
 				"5,1\n";
 	}
 
