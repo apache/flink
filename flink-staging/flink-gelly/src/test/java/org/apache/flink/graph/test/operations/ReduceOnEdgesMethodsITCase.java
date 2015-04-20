@@ -440,10 +440,10 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 	private static final class SelectMinWeightNeighborNoValue implements ReduceEdgesFunction<Long, Long> {
 
 		@Override
-		public Tuple2<Long, Edge<Long, Long>> reduceEdges(Tuple2<Long, Edge<Long, Long>> firstEdge,
-														  Tuple2<Long, Edge<Long, Long>> secondEdge) {
+		public Tuple2<Long, Long> reduceEdges(Tuple2<Long, Long> firstEdge,
+											  Tuple2<Long, Long> secondEdge) {
 
-			if(firstEdge.f1.getValue() < secondEdge.f1.getValue()) {
+			if(firstEdge.f1 < secondEdge.f1) {
 				return firstEdge;
 			} else {
 				return secondEdge;
@@ -456,9 +456,9 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 	private static final class SelectMaxWeightNeighborNoValue implements ReduceEdgesFunction<Long, Long> {
 
 		@Override
-		public Tuple2<Long, Edge<Long, Long>> reduceEdges(Tuple2<Long, Edge<Long, Long>> firstEdge,
-														  Tuple2<Long, Edge<Long, Long>> secondEdge) {
-			if(firstEdge.f1.getValue() > secondEdge.f1.getValue()) {
+		public Tuple2<Long, Long> reduceEdges(Tuple2<Long, Long> firstEdge,
+											  Tuple2<Long, Long> secondEdge) {
+			if(firstEdge.f1 > secondEdge.f1) {
 				return firstEdge;
 			} else {
 				return secondEdge;
@@ -474,15 +474,15 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
 			
 			long weight = Long.MAX_VALUE;
-			long minNeighorId = 0;
+			long minNeighborId = 0;
 			
 			for (Edge<Long, Long> edge: edges) {
 				if (edge.getValue() < weight) {
 					weight = edge.getValue();
-					minNeighorId = edge.getSource();
+					minNeighborId = edge.getSource();
 				}
 			}
-			out.collect(new Tuple2<Long, Long>(v.getId(), minNeighorId));
+			out.collect(new Tuple2<Long, Long>(v.getId(), minNeighborId));
 		}
 	}
 
@@ -490,9 +490,9 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 	private static final class SelectMinWeightInNeighborNoValue implements ReduceEdgesFunction<Long, Long> {
 
 		@Override
-		public Tuple2<Long, Edge<Long, Long>> reduceEdges(Tuple2<Long, Edge<Long, Long>> firstEdge,
-														  Tuple2<Long, Edge<Long, Long>> secondEdge) {
-			if(firstEdge.f1.getValue() < secondEdge.f1.getValue()) {
+		public Tuple2<Long, Long> reduceEdges(Tuple2<Long, Long> firstEdge,
+											  Tuple2<Long, Long> secondEdge) {
+			if(firstEdge.f1 < secondEdge.f1) {
 				return firstEdge;
 			} else {
 				return secondEdge;

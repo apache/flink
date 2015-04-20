@@ -19,7 +19,7 @@
 package org.apache.flink.graph;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.io.Serializable;
 
@@ -32,9 +32,8 @@ import java.io.Serializable;
  * @param <VV> the vertex value type
  * @param <EV> the edge value type
  */
-public interface ReduceNeighborsFunction <K extends Comparable<K> & Serializable, VV extends Serializable,
-		EV extends Serializable> extends Function, Serializable {
+public interface ReduceNeighborsFunction <K extends Comparable<K> & Serializable, VV extends Serializable> extends Function, Serializable {
 
-	Tuple3<K, Edge<K, EV>, Vertex<K, VV>> reduceNeighbors(Tuple3<K, Edge<K, EV>, Vertex<K, VV>> firstNeighbor,
-														Tuple3<K, Edge<K, EV>, Vertex<K, VV>> secondNeighbor);
+	Tuple2<K, VV> reduceNeighbors(Tuple2<K, VV> firstNeighbor,
+								Tuple2<K, VV> secondNeighbor);
 }
