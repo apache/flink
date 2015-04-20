@@ -52,22 +52,13 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Edge<Long, NullValue>> edges = getEdgeDataSet(env);
-		DataSet<Vertex<Long, Long>> vertices = edges.flatMap(new InitVerticesMapper()).distinct();
 
-		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(vertices, edges, env);
-
-		// Simply return the vertex value of each vertex
-		GatherFunction<Long, NullValue, Long> gather = new ConnectedComponentsGather();
-
-		// Select the lower value among neighbors
-		SumFunction<Long, NullValue, Long> sum = new ConnectedComponentsSum();
-
-		// Set the lower value for each vertex
-		ApplyFunction<Long, NullValue, Long> apply = new ConnectedComponentsApply();
+		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new InitVertices(), env);
 
 		// Execute the GSA iteration
 		Graph<Long, Long, NullValue> result =
-				graph.runGatherSumApplyIteration(gather, sum, apply, maxIterations);
+				graph.runGatherSumApplyIteration(new GatherNeighborIds(), new SelectMinId(),
+						new UpdateComponentId(), maxIterations);
 
 		// Extract the vertices as the result
 		DataSet<Vertex<Long, Long>> connectedComponents = result.getVertices();
@@ -82,13 +73,11 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 		env.execute("GSA Connected Components");
 	}
 
-	private static final class InitVerticesMapper
-			implements FlatMapFunction<Edge<Long, NullValue>, Vertex<Long, Long>>{
+	@SuppressWarnings("serial")
+	private static final class InitVertices	implements MapFunction<Long, Long> {
 
-		@Override
-		public void flatMap(Edge<Long, NullValue> edge, Collector<Vertex<Long, Long>> out) throws Exception {
-			out.collect(new Vertex<Long, Long>(edge.getSource(), edge.getSource()));
-			out.collect(new Vertex<Long, Long>(edge.getTarget(), edge.getTarget()));
+		public Long map(Long vertexId) {
+			return vertexId;
 		}
 	}
 
@@ -96,29 +85,26 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 	//  Connected Components UDFs
 	// --------------------------------------------------------------------------------------------
 
-	private static final class ConnectedComponentsGather
-			extends GatherFunction<Long, NullValue, Long> {
-		@Override
-		public Long gather(Neighbor<Long, NullValue> richEdge) {
+	@SuppressWarnings("serial")
+	private static final class GatherNeighborIds extends GatherFunction<Long, NullValue, Long> {
 
-			return richEdge.getSrcVertexValue();
+		public Long gather(Neighbor<Long, NullValue> neighbor) {
+			return neighbor.getSrcVertexValue();
 		}
 	};
 
-	private static final class ConnectedComponentsSum
-			extends SumFunction<Long, NullValue, Long> {
-		@Override
-		public Long sum(Long newValue, Long currentValue) {
+	@SuppressWarnings("serial")
+	private static final class SelectMinId extends SumFunction<Long, NullValue, Long> {
 
+		public Long sum(Long newValue, Long currentValue) {
 			return Math.min(newValue, currentValue);
 		}
 	};
 
-	private static final class ConnectedComponentsApply
-			extends ApplyFunction<Long, NullValue, Long> {
-		@Override
-		public void apply(Long summedValue, Long origValue) {
+	@SuppressWarnings("serial")
+	private static final class UpdateComponentId extends ApplyFunction<Long, NullValue, Long> {
 
+		public void apply(Long summedValue, Long origValue) {
 			if (summedValue < origValue) {
 				setResult(summedValue);
 			}
@@ -159,14 +145,15 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 		return true;
 	}
 
+	@SuppressWarnings("serial")
 	private static DataSet<Edge<Long, NullValue>> getEdgeDataSet(ExecutionEnvironment env) {
 		if (fileOutput) {
 			return env.readCsvFile(edgeInputPath)
-					.fieldDelimiter(" ")
+					.fieldDelimiter("\t")
 					.lineDelimiter("\n")
 					.types(Long.class, Long.class)
 					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
-						@Override
+
 						public Edge<Long, NullValue> map(Tuple2<Long, Long> value) throws Exception {
 							return new Edge<Long, NullValue>(value.f0, value.f1, NullValue.getInstance());
 						}
@@ -186,5 +173,4 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 	public String getDescription() {
 		return "GSA Connected Components";
 	}
-
 }
