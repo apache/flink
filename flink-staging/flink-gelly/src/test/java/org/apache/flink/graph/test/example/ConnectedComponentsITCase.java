@@ -21,7 +21,7 @@ package org.apache.flink.graph.test.example;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import org.apache.flink.graph.example.ConnectedComponentsExample;
-import org.apache.flink.graph.example.utils.ConnectedComponentsData;
+import org.apache.flink.graph.example.utils.ConnectedComponentsExampleData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -54,14 +54,14 @@ public class ConnectedComponentsITCase extends MultipleProgramsTestBase {
 		resultPath = tempFolder.newFile().toURI().toString();
 
 		File edgesFile = tempFolder.newFile();
-		Files.write(ConnectedComponentsData.EDGES, edgesFile, Charsets.UTF_8);
+		Files.write(ConnectedComponentsExampleData.EDGES, edgesFile, Charsets.UTF_8);
 		edgesPath = edgesFile.toURI().toString();
 	}
 
 	@Test
-	public void testMinVertexIdPropagationExample() throws Exception {
-		ConnectedComponentsExample.main(new String[]{edgesPath, resultPath, ConnectedComponentsData.MAX_ITERATIONS + ""});
-		expected = ConnectedComponentsData.VERTICES_WITH_MIN_ID;
+	public void testConnectedComponentsExample() throws Exception {
+		ConnectedComponentsExample.main(new String[]{edgesPath, resultPath, ConnectedComponentsExampleData.MAX_ITERATIONS + ""});
+		expected = ConnectedComponentsExampleData.VERTICES_WITH_MIN_ID;
 	}
 
 	@After

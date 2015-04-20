@@ -63,10 +63,8 @@ public class ConnectedComponents implements GraphAlgorithm<Long, Long, NullValue
 		public void updateVertex(Long id, Long currentMin, MessageIterator<Long> messages) throws Exception {
 			long min = Long.MAX_VALUE;
 
-			// iterate over all received messages
-			while (messages.hasNext()) {
-				long next = messages.next();
-				min = next < min ? next : min;
+			for (long msg : messages) {
+				min = Math.min(min, msg);
 			}
 
 			// update vertex value, if new minimum
