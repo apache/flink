@@ -374,6 +374,20 @@ public static final class MinDistanceMessenger {...}
 
 ### Migrating Spargel Code to Gelly
 Due to the natural mapping of Spargel components to Gelly components, applications can easily be migrated from one API to the other.
+General guidelines:
+* <strong>Vertex and Edge Abstractions</strong>: In Spargel, vertices and edges are defined using tuples (Tuple2 for vertices, Tuple2 for edges without values, Tuple3 for edges with values). Gelly presents a more intuitive vertex and edge representation by introducing the `Vertex` and `Edge` types. A `Vertex` is defined by an id and a value. If no value is provided, the value type should be set to `NullValue`. An `Edge` is defined by a source id,  a target id and a value. Since the source and target values are of the same type, only two type parameters are needed. If no value is provided, the value type should be set to `NullValue`.
+
+* <strong>Methods for Plain Edges and for Valued Edges</strong>: In Spargel, there are separate methods for edges with values and edges without values when running the vertex centric iteration (i.e. `withValuedEdges()`, `withPlainEdges()`). In Gelly, this distinction no longer needs to be made because an edge with no value will simply have a `NullValue` type.
+
+* <strong>OutgoingEdge versus Edge</strong>: Spargel's `OutgoingEdge` is replaced by `Edge` in Gelly.
+
+* <strong>Running a Vertex Centric Iteration</strong>: In Spargel, an iteration is ran by calling the `runOperation()` method on a `VertexCentricIteration`. The edge type (plain or valued) dictates the method to be called. The arguments are: a data set of edges, the vertex update function, the messaging function and the maximum number of iterations. The result is a DataSet<Tuple2<vertexId, vertexValue>> representing the updated vertices.
+In Gelly, an iteration is ran by calling `runVertexCentricIteration()` on a graph. The parameters given to this method are the vertex update function, the messaging function and the maximum number of iterations. The result is a new graph with updated vertex values.
+
+* <strong>Configuring a Vertex Centric Iteration</strong>: In Spargel, an iteration is configured by directly setting a set of parameters on the VertexCentricIteration instance (e.g. `iteration.setName("Spargel Iteration")`). In Gelly, a vertex-centric iteration is configured using the `IterationConfiguration` object (e.g. iterationConfiguration.setName("Gelly Iteration")). An instance of this object is then passed as a final parameter to the `runVertexCentricIteration()` method.
+
+* <strong>Record API</strong>: Spargel's Record API was completely removed from Gelly.
+
 In the following section, we present a step-by-step tutorial for moving the connected components algorithm from Spargel to Gelly.
 
 In Spargel, the edges and vertices are defined by a `DataSet<Tuple2<IdType, EdgeValue>>` and a `DataSet<Tuple2<IdType, VertexValue>>` respectively.
@@ -396,7 +410,7 @@ Hence, the need for `IdAssigner()` user defined function which is simply a map t
     <img alt="Spargel Example Input" width="75%" src="img/spargel_example_input.png" />
 </p>
 
-In Gelly, the edges and vertices have a more intuitive definition: edges and vertices being represented by separate types `Edge`, `Vertex`.
+In Gelly, the edges and vertices have a more intuitive definition: they are represented by separate types `Edge`, `Vertex`.
 After defining the edge data set, we can create a Graph from it.
 
 {% highlight java %}
