@@ -1823,8 +1823,10 @@ DataSet:
   are obtained by calling a user-defined *format()* method for each element.
 - `writeAsCsv(...)` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field
   delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
-- `print()` / `printToErr()` - Prints the *toString()* value of each element on the
-  standard out / strandard error stream.
+- `print()` / `printToErr()` / `print(String msg)` / `printToErr(String msg)` - Prints the *toString()* value
+of each element on the standard out / strandard error stream. Optionally, a prefix (msg) can be provided which is
+prepended to the output. This can help to distinguish between different calls to *print*. If the parallelism is
+greater than 1, the output will also be prepended with the identifier of the task which produced the output.
 - `write()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
   custom object-to-bytes conversion.
 - `output()`/ `OutputFormat` - Most generic output method, for data sinks that are not file based

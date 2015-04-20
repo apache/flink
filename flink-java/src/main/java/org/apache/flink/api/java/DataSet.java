@@ -1349,6 +1349,17 @@ public abstract class DataSet<T> {
 	public DataSink<T> print() {
 		return output(new PrintingOutputFormat<T>(false));
 	}
+
+	/**
+	 * Writes a DataSet to the standard output stream (stdout).<br/>
+	 * For each element of the DataSet the result of {@link Object#toString()} is written.
+	 *
+	 *  @param sinkIdentifier The string to prefix the output with.
+	 *  @return The DataSink that writes the DataSet.
+	 */
+	public DataSink<T> print(String sinkIdentifier) {
+		return output(new PrintingOutputFormat<T>(sinkIdentifier, false));
+	}
 	
 	/**
 	 * Writes a DataSet to the standard error stream (stderr).<br/>
@@ -1358,6 +1369,17 @@ public abstract class DataSet<T> {
 	 */
 	public DataSink<T> printToErr() {
 		return output(new PrintingOutputFormat<T>(true));
+	}
+
+	/**
+	 * Writes a DataSet to the standard error stream (stderr).<br/>
+	 * For each element of the DataSet the result of {@link Object#toString()} is written.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The DataSink that writes the DataSet.
+	 */
+	public DataSink<T> printToErr(String sinkIdentifier) {
+		return output(new PrintingOutputFormat<T>(sinkIdentifier, true));
 	}
 	
 	/**

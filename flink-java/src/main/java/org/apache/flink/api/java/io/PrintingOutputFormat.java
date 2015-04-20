@@ -30,10 +30,11 @@ public class PrintingOutputFormat<T> implements OutputFormat<T> {
 
 	private static final boolean STD_OUT = false;
 	private static final boolean STD_ERR = true;
-	
-	
-	private boolean target; 
-	
+
+	private String sinkIdentifier;
+
+	private boolean target;
+
 	private transient PrintStream stream;
 	
 	private transient String prefix;
@@ -53,7 +54,16 @@ public class PrintingOutputFormat<T> implements OutputFormat<T> {
 	public PrintingOutputFormat(boolean stdErr) {
 		this.target = stdErr;
 	}
-	
+
+	/**
+	 * Instantiates a printing output format that prints to standard out with a prefixed message.
+	 * @param sinkIdentifier Message that is prefixed to the output of the value.
+	 * @param stdErr True, if the format should print to standard error instead of standard out.
+	 */
+	public PrintingOutputFormat(String sinkIdentifier, boolean stdErr) {
+		this(stdErr);
+		this.sinkIdentifier = sinkIdentifier;
+	}
 	
 	public void setTargetToStandardOut() {
 		this.target = STD_OUT;
@@ -61,7 +71,7 @@ public class PrintingOutputFormat<T> implements OutputFormat<T> {
 	
 	public void setTargetToStandardErr() {
 		this.target = STD_ERR;
-	}	
+	}
 	
 	
 	@Override
@@ -72,25 +82,38 @@ public class PrintingOutputFormat<T> implements OutputFormat<T> {
 	public void open(int taskNumber, int numTasks) {
 		// get the target stream
 		this.stream = this.target == STD_OUT ? System.out : System.err;
-		
-		// set the prefix if we have a >1 parallelism
-		this.prefix = (numTasks > 1) ? ((taskNumber+1) + "> ") : null;
+
+		/**
+		 * Four possible format options:
+		 *      sinkId:taskId> output  <- sink id provided, parallelism > 1
+		 *      sinkId> output         <- sink id provided, parallelism == 1
+		 *      taskId> output         <- no sink id provided, parallelism > 1
+		 *      output                 <- no sink id provided, parallelism == 1
+		 */
+		if (this.sinkIdentifier != null) {
+			this.prefix = this.sinkIdentifier;
+			if (numTasks > 1) {
+				this.prefix += ":" + (taskNumber + 1);
+			}
+			this.prefix += "> ";
+		} else if (numTasks > 1) {
+			this.prefix = (taskNumber + 1) + "> ";
+		} else {
+			this.prefix = "";
+		}
+
 	}
 
 	@Override
 	public void writeRecord(T record) {
-		if (this.prefix != null) {
-			this.stream.println(this.prefix + record.toString());
-		}
-		else {
-			this.stream.println(record.toString());
-		}
+		this.stream.println(this.prefix + record.toString());
 	}
 
 	@Override
 	public void close() {
 		this.stream = null;
 		this.prefix = null;
+		this.sinkIdentifier = null;
 	}
 	
 	// --------------------------------------------------------------------------------------------
