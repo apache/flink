@@ -320,14 +320,13 @@ DataSet<Tuple2<Long, Long>> verticesWithSum = graph.reduceOnNeighbors(
 				new SumValues(), EdgeDirection.IN);
 
 // user-defined function to sum the neighbor values
-static final class SumValues implements ReduceNeighborsFunction<Long, Long, Double> {
+static final class SumValues implements ReduceNeighborsFunction<Long, Long> {
 
-    public Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> reduceNeighbors(Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> firstNeighbor,
-    																		Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> secondNeighbor) {
+    public Tuple2<Long, Long> reduceNeighbors(Tuple2<Long, Long> firstNeighbor,
+    										  Tuple2<Long, Long> secondNeighbor) {
 
-    	long sum = firstNeighbor.f2.getValue() + secondNeighbor.f2.getValue();
-    	return new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>(firstNeighbor.f0, firstNeighbor.f1,
-    			new Vertex<Long, Long>(firstNeighbor.f0, sum));
+    	long sum = firstNeighbor.f1 + secondNeighbor.f1;
+    	return new Tuple2<Long, Long>(firstNeighbor.f0, sum));
     }
 }
 {% endhighlight %}

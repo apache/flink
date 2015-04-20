@@ -523,14 +523,13 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SumOutNeighborsNoValue implements ReduceNeighborsFunction<Long, Long, Long> {
+	private static final class SumOutNeighborsNoValue implements ReduceNeighborsFunction<Long, Long> {
 
 		@Override
-		public Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> reduceNeighbors(Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> firstNeighbor,
-																				  Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> secondNeighbor) {
-			long sum = firstNeighbor.f2.getValue() + secondNeighbor.f2.getValue();
-			return new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>(firstNeighbor.f0, firstNeighbor.f1,
-					new Vertex<Long, Long>(firstNeighbor.f0, sum));
+		public Tuple2<Long, Long> reduceNeighbors(Tuple2<Long, Long> firstNeighbor,
+												  Tuple2<Long, Long> secondNeighbor) {
+			long sum = firstNeighbor.f1 + secondNeighbor.f1;
+			return new Tuple2<Long, Long>(firstNeighbor.f0, sum);
 		}
 	}
 
@@ -554,14 +553,13 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SumAllNeighborsNoValue implements ReduceNeighborsFunction<Long, Long, Long> {
+	private static final class SumAllNeighborsNoValue implements ReduceNeighborsFunction<Long, Long> {
 
 		@Override
-		public Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> reduceNeighbors(Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> firstNeighbor,
-																				  Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>> secondNeighbor) {
-			long sum = firstNeighbor.f2.getValue() + secondNeighbor.f2.getValue();
-			return new Tuple3<Long, Edge<Long, Long>, Vertex<Long, Long>>(firstNeighbor.f0, firstNeighbor.f1,
-					new Vertex<Long, Long>(firstNeighbor.f0, sum));
+		public Tuple2<Long, Long> reduceNeighbors(Tuple2<Long, Long> firstNeighbor,
+												  Tuple2<Long, Long> secondNeighbor) {
+			long sum = firstNeighbor.f1 + secondNeighbor.f1;
+			return new Tuple2<Long, Long>(firstNeighbor.f0, sum);
 		}
 	}
 

@@ -33,5 +33,5 @@ import java.io.Serializable;
 public interface ReduceEdgesFunction<K extends Comparable<K> & Serializable,
 		EV extends Serializable> extends Function, Serializable {
 
-	Tuple2<K, Edge<K, EV>> reduceEdges(Tuple2<K, Edge<K, EV>> firstEdge, Tuple2<K, Edge<K, EV>> secondEdge);
+	Tuple2<K, EV> reduceEdges(Tuple2<K, EV> firstEdge, Tuple2<K, EV> secondEdge);
 }
