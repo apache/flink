@@ -26,9 +26,9 @@ import java.util.List;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.StreamProjection;
-import org.apache.flink.streaming.api.operators.StreamProject;
 import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
 
@@ -43,15 +43,17 @@ public class ProjectTest implements Serializable {
 						4));
 
 		int[] fields = new int[] { 4, 4, 3 };
-		Class<?>[] classes = new Class<?>[] { Integer.class, Integer.class, String.class };
+		// Class<?>[] classes = new Class<?>[] { Integer.class, Integer.class, String.class };
 
 		@SuppressWarnings("unchecked")
-		StreamProject<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> operator = new StreamProject<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(
+		StreamProject<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> operator =
+				new StreamProject<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(
 				fields,
-				(TypeInformation<Tuple3<Integer, Integer, String>>) StreamProjection
-						.extractFieldTypes(fields, classes, inType));
+				new TupleTypeInfo<Tuple3<Integer, Integer, String>>(StreamProjection
+						.extractFieldTypes(fields, inType)));
 
-		List<Tuple5<Integer, String, Integer, String, Integer>> input = new ArrayList<Tuple5<Integer, String, Integer, String, Integer>>();
+		List<Tuple5<Integer, String, Integer, String, Integer>> input = new ArrayList<Tuple5<Integer, String, Integer,
+				String, Integer>>();
 		input.add(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b", 4));
 		input.add(new Tuple5<Integer, String, Integer, String, Integer>(2, "s", 3, "c", 2));
 		input.add(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "c", 2));
