@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.IterationRuntimeContext;
 
 import java.io.Serializable;
 
+@SuppressWarnings("serial")
 public abstract class SumFunction<VV extends Serializable, EV extends Serializable, M> implements Serializable {
 
 	public abstract M sum(M arg0, M arg1);
@@ -44,6 +45,7 @@ public abstract class SumFunction<VV extends Serializable, EV extends Serializab
 	//  Internal methods
 	// --------------------------------------------------------------------------------------------
 
+	@SuppressWarnings("unused")
 	private IterationRuntimeContext runtimeContext;
 
 	public void init(IterationRuntimeContext iterationRuntimeContext) {

@@ -28,6 +28,7 @@ import java.io.Serializable;
  * @param <VV> the vertex value type
  * @param <EV> the edge value type
  */
+@SuppressWarnings("serial")
 public class Neighbor<VV extends Serializable, EV extends Serializable>
 		extends Tuple2<VV, EV> {
 

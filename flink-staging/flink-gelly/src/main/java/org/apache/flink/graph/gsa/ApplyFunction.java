@@ -23,6 +23,7 @@ import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
+@SuppressWarnings("serial")
 public abstract class ApplyFunction<VV extends Serializable, EV extends Serializable, M> implements Serializable {
 
 	public abstract void apply(M message, VV vertexValue);
@@ -54,6 +55,7 @@ public abstract class ApplyFunction<VV extends Serializable, EV extends Serializ
 	//  Internal methods
 	// --------------------------------------------------------------------------------------------
 
+	@SuppressWarnings("unused")
 	private IterationRuntimeContext runtimeContext;
 
 	private Collector<VV> out;

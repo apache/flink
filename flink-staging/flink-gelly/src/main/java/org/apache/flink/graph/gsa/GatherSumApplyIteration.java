@@ -165,6 +165,7 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 	//  Wrapping UDFs
 	// --------------------------------------------------------------------------------------------
 
+	@SuppressWarnings("serial")
 	private static final class GatherUdf<K extends Comparable<K> & Serializable, VV extends Serializable,
 			EV extends Serializable, M> extends RichMapFunction<Tuple2<Vertex<K, VV>, Edge<K, EV>>,
 			Tuple2<K, M>> implements ResultTypeQueryable<Tuple2<K, M>> {
@@ -206,6 +207,7 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 		}
 	}
 
+	@SuppressWarnings("serial")
 	private static final class SumUdf<K extends Comparable<K> & Serializable, VV extends Serializable,
 			EV extends Serializable, M> extends RichReduceFunction<Tuple2<K, M>>
 			implements ResultTypeQueryable<Tuple2<K, M>>{
@@ -244,6 +246,7 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 		}
 	}
 
+	@SuppressWarnings("serial")
 	private static final class ApplyUdf<K extends Comparable<K> & Serializable,
 			VV extends Serializable, EV extends Serializable, M> extends RichFlatJoinFunction<Tuple2<K, M>,
 			Vertex<K, VV>, Vertex<K, VV>> implements ResultTypeQueryable<Vertex<K, VV>> {

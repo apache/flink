@@ -68,7 +68,7 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 	// --------------------------------------------------------------------------------------------
 
 	@Test
-	public void testGreedyGraphColoring() throws Exception {
+	public void testConnectedComponents() throws Exception {
 		GSAConnectedComponentsExample.main(new String[]{edgesPath, resultPath, "16"});
 		expectedResult = "1 1\n" +
 				"2 1\n" +
@@ -86,7 +86,7 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 
 	@Test
 	public void testSingleSourceShortestPath() throws Exception {
-		GSASingleSourceShortestPathsExample.main(new String[]{edgesPath, resultPath, "1", "16"});
+		GSASingleSourceShortestPathsExample.main(new String[]{"1", edgesPath, resultPath, "16"});
 		expectedResult = "1 0.0\n" +
 				"2 12.0\n" +
 				"3 13.0\n" +
@@ -101,12 +101,12 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 	//  Sample data
 	// --------------------------------------------------------------------------------------------
 
-	private static final String EDGES = "1 2 12.0\n" +
-			"1 3 13.0\n" +
-			"2 3 23.0\n" +
-			"3 4 34.0\n" +
-			"3 5 35.0\n" +
-			"4 5 45.0\n" +
-			"5 1 51.0\n" +
-			"6 7 67.0\n";
+	private static final String EDGES = "1	2	12.0\n" +
+			"1	3	13.0\n" +
+			"2	3	23.0\n" +
+			"3	4	34.0\n" +
+			"3	5	35.0\n" +
+			"4	5	45.0\n" +
+			"5	1	51.0\n" +
+			"6	7	67.0\n";
 }

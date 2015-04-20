@@ -85,7 +85,7 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 				return 0.0;
 			}
 			else {
-				return Double.MAX_VALUE;
+				return Double.POSITIVE_INFINITY;
 			}
 		}
 	}
