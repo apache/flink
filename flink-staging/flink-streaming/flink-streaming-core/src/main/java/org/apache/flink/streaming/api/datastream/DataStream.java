@@ -616,9 +616,10 @@ public class DataStream<OUT> {
 	 * @see Tuple
 	 * @see DataStream
 	 */
-	public StreamProjection<OUT> project(int... fieldIndexes) {
-		return new StreamProjection<OUT>(this.copy(), fieldIndexes);
+	public <R extends Tuple> SingleOutputStreamOperator<R, ?> project(int... fieldIndexes) {
+		return new StreamProjection<OUT>(this.copy(), fieldIndexes).projectTupleX();
 	}
+
 
 	/**
 	 * Initiates a temporal Cross transformation.<br/>
