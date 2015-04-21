@@ -384,4 +384,26 @@ class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode)
       "2 Second (20,200,2000,Two) 20000,(20000,20,200,2000,Two,2,Second)\n" +
       "3 Third (30,300,3000,Three) 30000,(30000,30,300,3000,Three,3,Third)\n"
   }
+
+  @Test
+  def testWithAtomic1(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
+    val ds2 = env.fromElements(0, 1, 2)
+    val joinDs = ds1.join(ds2).where(0).equalTo("*")
+    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "(1,1,Hi),1\n(2,2,Hello),2"
+  }
+
+  @Test
+  def testWithAtomic2(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromElements(0, 1, 2)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env)
+    val joinDs = ds1.join(ds2).where("*").equalTo(0)
+    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "1,(1,1,Hi)\n2,(2,2,Hello)"
+  }
 }

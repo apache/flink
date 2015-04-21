@@ -663,6 +663,37 @@ public class JoinITCase extends MultipleProgramsTestBase {
 				"((3,2,Hello world),(3,2,Hello world)),((3,2,Hello world),(3,2,Hello world))\n";
 	}
 
+	@Test
+	public void testJoinWithAtomicType1() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Integer> ds2 = env.fromElements(1, 2);
+
+		DataSet<Tuple2<Tuple3<Integer, Long, String>, Integer>> joinDs = ds1.join(ds2).where(0).equalTo("*");
+
+		joinDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "(1,1,Hi),1\n" +
+			"(2,2,Hello),2";
+	}
+
+	public void testJoinWithAtomicType2() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Integer> ds1 = env.fromElements(1, 2);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
+
+		DataSet<Tuple2<Integer, Tuple3<Integer, Long, String>>> joinDs = ds1.join(ds2).where("*").equalTo(0);
+
+		joinDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,(1,1,Hi)\n" +
+			"2,(2,2,Hello)";
+	}
+
 	public static class T3T5FlatJoin implements FlatJoinFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<String, String>> {
 
 		@Override

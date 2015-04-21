@@ -807,7 +807,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * This will not create a new DataSet, it will just attach the field names which will be
    * used for grouping when executing a grouped operation.
    *
-   * This only works on CaseClass DataSets.
    */
   def groupBy(firstField: String, otherFields: String*): GroupedDataSet[T] = {
     new GroupedDataSet[T](
