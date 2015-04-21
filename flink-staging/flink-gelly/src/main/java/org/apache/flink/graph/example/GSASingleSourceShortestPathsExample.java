@@ -97,8 +97,8 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 	@SuppressWarnings("serial")
 	private static final class CalculateDistances extends GatherFunction<Double, Double, Double> {
 
-		public Double gather(Neighbor<Double, Double> richEdge) {
-			return richEdge.getSrcVertexValue() + richEdge.getEdgeValue();
+		public Double gather(Neighbor<Double, Double> neighbor) {
+			return neighbor.getNeighborValue() + neighbor.getEdgeValue();
 		}
 	};
 

@@ -34,11 +34,11 @@ public class Neighbor<VV extends Serializable, EV extends Serializable>
 
 	public Neighbor() {}
 
-	public Neighbor(VV src, EV edge) {
-		super(src, edge);
+	public Neighbor(VV neighborValue, EV edgeValue) {
+		super(neighborValue, edgeValue);
 	}
 
-	public VV getSrcVertexValue() {
+	public VV getNeighborValue() {
 		return this.f0;
 	}
 

@@ -89,7 +89,7 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 	private static final class GatherNeighborIds extends GatherFunction<Long, NullValue, Long> {
 
 		public Long gather(Neighbor<Long, NullValue> neighbor) {
-			return neighbor.getSrcVertexValue();
+			return neighbor.getNeighborValue();
 		}
 	};
 

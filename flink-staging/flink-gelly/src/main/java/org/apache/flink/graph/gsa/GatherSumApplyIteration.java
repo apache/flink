@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.operators.JoinOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -127,11 +128,14 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 		// Gather, sum and apply
 		DataSet<Tuple2<K, M>> gatheredSet = neighbors.map(gatherUdf);
 		DataSet<Tuple2<K, M>> summedSet = gatheredSet.groupBy(0).reduce(sumUdf);
-		DataSet<Vertex<K, VV>> appliedSet = summedSet
+		JoinOperator<?, ?, Vertex<K, VV>> appliedSet = summedSet
 				.join(iteration.getSolutionSet())
 				.where(0)
 				.equalTo(0)
 				.with(applyUdf);
+
+		// let the operator know that we preserve the key field
+		appliedSet.withForwardedFieldsFirst("0").withForwardedFieldsSecond("0");
 
 		return iteration.closeWith(appliedSet, appliedSet);
 	}
