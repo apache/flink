@@ -65,10 +65,9 @@ import org.apache.flink.util.Collector;
  *   edges of the vertex. The outgoing edges may optionally have an associated value, such as a weight.</li>
  * </ul>
  * <p>
- * Vertex-centric graph iterations are instantiated by the
- * {@link #withPlainEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method, or the
- * {@link #withValuedEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method, depending on whether
- * the graph's edges are carrying values.
+ *
+ * Vertex-centric graph iterations are are ran by calling
+ * {@link Graph#runVertexCentricIteration(VertexUpdateFunction, MessagingFunction, int)}.
  *
  * @param <VertexKey> The type of the vertex key (the vertex identifier).
  * @param <VertexValue> The type of the vertex value (the state of the vertex).
@@ -92,8 +91,6 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 	private DataSet<Vertex<VertexKey, VertexValue>> initialVertices;
 
 	private IterationConfiguration configuration;
-
-	private DataSet<Vertex<VertexKey, Tuple3<VertexValue, Long, Long>>> verticesWithDegrees;
 
 	// ----------------------------------------------------------------------------------
 	

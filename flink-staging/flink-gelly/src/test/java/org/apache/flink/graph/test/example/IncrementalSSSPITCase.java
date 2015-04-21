@@ -73,7 +73,8 @@ public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testIncrementalSSSPExample() throws Exception {
 		IncrementalSSSPExample.main(new String[]{verticesPath, edgesPath, edgesInSSSPPath,
-				IncrementalSSSPData.EDGE_TO_BE_REMOVED, resultPath, IncrementalSSSPData.NUM_VERTICES + ""});
+				IncrementalSSSPData.SRC_EDGE_TO_BE_REMOVED, IncrementalSSSPData.TRG_EDGE_TO_BE_REMOVED,
+				IncrementalSSSPData.VAL_EDGE_TO_BE_REMOVED,resultPath, IncrementalSSSPData.NUM_VERTICES + ""});
 		expected = IncrementalSSSPData.RESULTED_VERTICES;
 	}
 
