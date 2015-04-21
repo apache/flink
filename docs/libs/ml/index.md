@@ -37,6 +37,8 @@ under the License.
 * [Multiple linear regression](multiple_linear_regression.html)
 * [Polynomial Base Feature Mapper](polynomial_base_feature_mapper.html)
 * [Standard Scaler](standard_scaler.html)
+* [Optimization Framework](optimization.html)
+
 
 ## Metrics
 
