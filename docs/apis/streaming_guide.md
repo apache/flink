@@ -634,6 +634,7 @@ Several predefined policies are provided in the API, including delta-based, coun
  * `Time.of(…)`
  * `Count.of(…)`
  * `Delta.of(…)`
+ * `FullStream.window()`
 
 For detailed description of these policies please refer to the [Javadocs](http://flink.apache.org/docs/latest/api/java/).
 
@@ -773,6 +774,9 @@ dataStream.window(Count.of(1000)).groupBy(firstKey).mapWindow(…)
 The above call would create global windows of 1000 elements group it by the first key and then apply a mapWindow transformation. The resulting windowed stream will then be grouped by the second key and further reduced. The results of the reduce transformation are then flattened.
 
 Notice that here we only defined the window size once at the beginning of the transformation. This means that anything that happens afterwards (`groupBy(firstKey).mapWindow(…).groupBy(secondKey).reduceWindow(…)`) happens inside the 1000 element windows. Of course the mapWindow might reduce the number of elements but the key idea is that each transformation still corresponds to the same 1000 elements in the original stream.
+
+#### Periodic aggregations on the full stream history
+Sometimes it is necessary to aggregate over all the previously seen data in the stream. For this purpose either use the `dataStream.window(FullStream.window()).every(trigger)` or equivalently `dataStream.every(trigger)`. 
 
 #### Global vs local discretisation
 By default all window discretisation calls (`dataStream.window(…)`) define global windows meaning that a global window of count 100 will contain the last 100 elements arrived at the discretisation operator in order. In most cases (except for Time) this means that the operator doing the actual discretisation needs to have a parallelism of 1 to be able to correctly execute the discretisation logic.

@@ -31,9 +31,11 @@ public class DistributePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
 	private int[] returnArray = new int[] {-1};
+	private boolean forward;
 
 	public DistributePartitioner(boolean forward) {
 		super(forward ? PartitioningStrategy.FORWARD : PartitioningStrategy.DISTRIBUTE);
+		this.forward = forward;
 	}
 
 	@Override
@@ -42,5 +44,9 @@ public class DistributePartitioner<T> extends StreamPartitioner<T> {
 		this.returnArray[0] = (this.returnArray[0] + 1) % numberOfOutputChannels;
 
 		return this.returnArray;
+	}
+	
+	public StreamPartitioner<T> copy() {
+		return new DistributePartitioner<T>(forward);
 	}
 }

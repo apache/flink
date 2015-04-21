@@ -40,7 +40,7 @@ public class WindowPartExtractor<OUT> implements FlatMapFunction<StreamWindow<OU
 		// We dont emit new values for the same index, this avoids sending the
 		// same information for the same partitioned window multiple times
 		if (value.windowID != lastIndex) {
-
+			
 			// For empty windows we send 0 since these windows will be filtered
 			// out
 			if (value.isEmpty()) {

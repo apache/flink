@@ -530,6 +530,13 @@ class DataStream[T](javaStream: JavaStream[T]) {
    */
   def window(trigger: TriggerPolicy[T], eviction: EvictionPolicy[T]):
     WindowedDataStream[T] = javaStream.window(trigger, eviction)
+    
+  /**
+   * Create a WindowedDataStream based on the full stream history to perform periodic
+   * aggregations.
+   */  
+  def every(windowingHelper: WindowingHelper[_]): WindowedDataStream[T] = 
+    javaStream.every(windowingHelper)
 
   /**
    *

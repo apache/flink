@@ -14,35 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.runtime.partitioner;
 
-import java.io.Serializable;
+package org.apache.flink.streaming.api.windowing.policy;
 
-import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
-import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-public abstract class StreamPartitioner<T> implements
-		ChannelSelector<SerializationDelegate<StreamRecord<T>>>, Serializable {
-
-	public enum PartitioningStrategy {
-
-		FORWARD, DISTRIBUTE, SHUFFLE, BROADCAST, GLOBAL, GROUPBY;
-
-	}
+public class KeepAllEvictionPolicy<T> implements EvictionPolicy<T> {
 
 	private static final long serialVersionUID = 1L;
-	private PartitioningStrategy strategy;
 
-	public StreamPartitioner(PartitioningStrategy strategy) {
-		this.strategy = strategy;
+	@Override
+	public int notifyEviction(T datapoint, boolean triggered, int bufferSize) {
+		return 0;
 	}
 
-	public PartitioningStrategy getStrategy() {
-		return strategy;
-	}
-
-	public StreamPartitioner<T> copy() {
-		return this;
-	}
 }

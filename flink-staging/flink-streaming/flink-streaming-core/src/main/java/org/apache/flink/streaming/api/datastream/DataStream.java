@@ -55,9 +55,9 @@ import org.apache.flink.streaming.api.datastream.temporal.StreamCrossOperator;
 import org.apache.flink.streaming.api.datastream.temporal.StreamJoinOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
-import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.functions.sink.FileSinkFunctionByMillis;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -73,6 +73,7 @@ import org.apache.flink.streaming.api.operators.StreamReduce;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
+import org.apache.flink.streaming.api.windowing.helper.FullStream;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
@@ -155,7 +156,7 @@ public class DataStream<OUT> {
 		this.id = dataStream.id;
 		this.parallelism = dataStream.parallelism;
 		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
-		this.partitioner = dataStream.partitioner;
+		this.partitioner = dataStream.partitioner.copy();
 		this.streamGraph = dataStream.streamGraph;
 		this.typeInfo = dataStream.typeInfo;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
@@ -573,8 +574,8 @@ public class DataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType(),
 				Utils.getCallLocationName(), false);
 
-		return transform("Fold", outType, new StreamFold<OUT, R>(clean(folder),
-				initialValue, outType));
+		return transform("Fold", outType, new StreamFold<OUT, R>(clean(folder), initialValue,
+				outType));
 	}
 
 	/**
@@ -910,11 +911,11 @@ public class DataStream<OUT> {
 	 * transformation like {@link WindowedDataStream#reduceWindow},
 	 * {@link WindowedDataStream#mapWindow} or aggregations on preset
 	 * chunks(windows) of the data stream. To define windows a
-	 * {@link WindowingHelper} such as {@link Time}, {@link Count} and
-	 * {@link Delta} can be used.</br></br> When applied to a grouped data
-	 * stream, the windows (evictions) and slide sizes (triggers) will be
-	 * computed on a per group basis. </br></br> For more advanced control over
-	 * the trigger and eviction policies please refer to
+	 * {@link WindowingHelper} such as {@link Time}, {@link Count},
+	 * {@link Delta} and {@link FullStream} can be used.</br></br> When applied
+	 * to a grouped data stream, the windows (evictions) and slide sizes
+	 * (triggers) will be computed on a per group basis. </br></br> For more
+	 * advanced control over the trigger and eviction policies please refer to
 	 * {@link #window(trigger, eviction)} </br> </br> For example to create a
 	 * sum every 5 seconds in a tumbling fashion:</br>
 	 * {@code ds.window(Time.of(5, TimeUnit.SECONDS)).sum(field)} </br></br> To
@@ -927,7 +928,8 @@ public class DataStream<OUT> {
 	 * 
 	 * @param policyHelper
 	 *            Any {@link WindowingHelper} such as {@link Time},
-	 *            {@link Count} and {@link Delta} to define the window size.
+	 *            {@link Count}, {@link Delta} {@link FullStream} to define the
+	 *            window size.
 	 * @return A {@link WindowedDataStream} providing further operations.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -953,6 +955,17 @@ public class DataStream<OUT> {
 	 */
 	public WindowedDataStream<OUT> window(TriggerPolicy<OUT> trigger, EvictionPolicy<OUT> eviction) {
 		return new WindowedDataStream<OUT>(this, trigger, eviction);
+	}
+
+	/**
+	 * Create a {@link WindowedDataStream} on the full stream history, to
+	 * produce periodic aggregates.
+	 * 
+	 * @return A {@link WindowedDataStream} providing further operations.
+	 */
+	@SuppressWarnings("rawtypes")
+	public WindowedDataStream<OUT> every(WindowingHelper policyHelper) {
+		return window(FullStream.window()).every(policyHelper);
 	}
 
 	/**
@@ -1266,8 +1279,7 @@ public class DataStream<OUT> {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
 				sinkOperator);
 
-		streamGraph.addOperator(returnStream.getId(), sinkOperator, getType(), null,
-				"Stream Sink");
+		streamGraph.addOperator(returnStream.getId(), sinkOperator, getType(), null, "Stream Sink");
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);
 

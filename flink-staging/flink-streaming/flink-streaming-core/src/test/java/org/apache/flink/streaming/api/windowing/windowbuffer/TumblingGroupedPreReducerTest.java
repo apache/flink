@@ -66,6 +66,7 @@ public class TumblingGroupedPreReducerTest {
 		wb.store(serializer.copy(inputs.get(0)));
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.emitWindow(collector);
+		wb.evict(2);
 
 		assertEquals(1, collected.size());
 
@@ -76,12 +77,10 @@ public class TumblingGroupedPreReducerTest {
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.store(serializer.copy(inputs.get(2)));
 
-		// Nothing should happen here
-		wb.evict(3);
-
 		wb.store(serializer.copy(inputs.get(3)));
 
 		wb.emitWindow(collector);
+		wb.evict(4);
 
 		assertEquals(2, collected.size());
 
@@ -114,13 +113,15 @@ public class TumblingGroupedPreReducerTest {
 		wb.store(serializer.copy(inputs.get(0)));
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.emitWindow(collector);
-
+		wb.evict(2);
+		
 		assertSetEquals(StreamWindow.fromElements(inputs.get(0), inputs.get(1)), collected.get(0));
 		
 		wb.store(serializer.copy(inputs.get(0)));
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.store(serializer.copy(inputs.get(2)));
 		wb.emitWindow(collector);
+		wb.evict(3);
 		
 		assertSetEquals(StreamWindow.fromElements(new Tuple2<Integer, Integer>(2, 0), inputs.get(1)), collected.get(1));
 
