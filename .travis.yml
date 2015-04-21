@@ -38,6 +38,8 @@ notifications:
 
 env:
     global: 
+        # Global variable to avoid hanging travis builds when downloading cache archives.
+        - MALLOC_ARENA_MAX=2
         # username and password for Apache Nexus (maven deploy)
         - secure: "Nu2oNTrIAmxIkNEZzALw+GT2QBogEh/mqecSqoKDCk0oFjUZhrnrsIZYD/8zTG9fAVa5Gx4uWH4W824Va5RlBZvCs9UTh5TF25K2ORR9dB9FiXZ+Vjjig78sKJF7N73WVIOsHCSKpoBKnVkvNwxuAkPTMYjn3sswRh1pMu2VQ90="
         - secure: "jMllQXAHpE+ijYXjvQvh0xml6DCL5pmESuWRtd0Wi4v56HHxKHc/Tty/CJvX8whVDLaHNFtwlbaIN9asSyAu1OyGhpWCqsmsxWF4atvKFua1oX45XMB26Ymf7Yr7aq7lcx66j0cYpfBXY4tFTFPiT05QnZ8XsHzEnv4Tpgif2dg="
