@@ -1179,6 +1179,7 @@ public class DataStream<OUT> {
 	public DataStreamSink<OUT> writeToSocket(String hostName, int port,
 			SerializationSchema<OUT, byte[]> schema) {
 		DataStreamSink<OUT> returnStream = addSink(new SocketClientSink<OUT>(hostName, port, schema));
+		returnStream.setParallelism(1); // It would not work if multiple instances would connect to the same port
 		return returnStream;
 	}
 
@@ -1364,5 +1365,4 @@ public class DataStream<OUT> {
 	public DataStream<OUT> copy() {
 		return new DataStream<OUT>(this);
 	}
-
 }
