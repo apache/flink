@@ -771,6 +771,8 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
       val execId = tdd.getExecutionId
       val task = new Task(tdd, memoryManager, ioManager, network, bcVarManager,
                           self, jobManagerActor, config.timeout, libCache, fileCache)
+
+      log.info(s"Received task ${task.getTaskNameWithSubtasks}")
       
       // add the task to the map
       val prevTask = runningTasks.put(execId, task)
