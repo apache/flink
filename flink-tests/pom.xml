@@ -141,6 +141,13 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-contrib</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+
+        <dependency>
 			<groupId>org.scalatest</groupId>
 			<artifactId>scalatest_${scala.binary.version}</artifactId>
 			<scope>test</scope>
