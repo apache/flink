@@ -70,6 +70,53 @@ object RegressionData {
     LabeledVector(12.0442, DenseVector(0.1192))
   )
 
+  val expectedNoInterceptWeights = Array[Double](5.0)
+  val expectedNoInterceptWeight0: Double = 0.0
+
+  val noInterceptData: Seq[LabeledVector] = Seq(
+    LabeledVector(217.228709, DenseVector(43.4457419)),
+    LabeledVector(450.037048, DenseVector(90.0074095)),
+    LabeledVector( 67.553478, DenseVector(13.5106955)),
+    LabeledVector( 26.976958, DenseVector( 5.3953916)),
+    LabeledVector(403.808709, DenseVector(80.7617418)),
+    LabeledVector(203.932158, DenseVector(40.7864316)),
+    LabeledVector(146.974958, DenseVector(29.3949916)),
+    LabeledVector( 46.869291, DenseVector( 9.3738582)),
+    LabeledVector(450.780834, DenseVector(90.1561667)),
+    LabeledVector(386.535619, DenseVector(77.3071239)),
+    LabeledVector(202.644342, DenseVector(40.5288684)),
+    LabeledVector(227.586507, DenseVector(45.5173013)),
+    LabeledVector(408.801080, DenseVector(81.7602161)),
+    LabeledVector(146.118550, DenseVector(29.2237100)),
+    LabeledVector(156.475382, DenseVector(31.2950763)),
+    LabeledVector(291.822515, DenseVector(58.3645030)),
+    LabeledVector( 61.506887, DenseVector(12.3013775)),
+    LabeledVector(363.949913, DenseVector(72.7899827)),
+    LabeledVector(398.050744, DenseVector(79.6101487)),
+    LabeledVector(246.053111, DenseVector(49.2106221)),
+    LabeledVector(225.494661, DenseVector(45.0989323)),
+    LabeledVector(265.986844, DenseVector(53.1973689)),
+    LabeledVector(110.459912, DenseVector(22.0919823)),
+    LabeledVector(122.716974, DenseVector(24.5433947)),
+    LabeledVector(128.014314, DenseVector(25.6028628)),
+    LabeledVector(252.538913, DenseVector(50.5077825)),
+    LabeledVector(393.632082, DenseVector(78.7264163)),
+    LabeledVector( 77.698941, DenseVector(15.5397881)),
+    LabeledVector(206.187568, DenseVector(41.2375135)),
+    LabeledVector(244.073426, DenseVector(48.8146851)),
+    LabeledVector(364.946890, DenseVector(72.9893780)),
+    LabeledVector(  4.627494, DenseVector( 0.9254987)),
+    LabeledVector(485.359565, DenseVector(97.0719130)),
+    LabeledVector(347.359190, DenseVector(69.4718380)),
+    LabeledVector(419.663211, DenseVector(83.9326422)),
+    LabeledVector(488.518318, DenseVector(97.7036635)),
+    LabeledVector( 28.082962, DenseVector( 5.6165925)),
+    LabeledVector(211.002441, DenseVector(42.2004881)),
+    LabeledVector(250.624124, DenseVector(50.1248248)),
+    LabeledVector(489.776669, DenseVector(97.9553337))
+  )
+
+
   val expectedPolynomialWeights = Seq(0.2375, -0.3493, -0.1674)
   val expectedPolynomialWeight0 = 0.0233
   val expectedPolynomialSquaredResidualSum = 1.5389e+03
@@ -125,5 +172,20 @@ object RegressionData {
     LabeledVector(-4.2092, DenseVector(2.9084)),
     LabeledVector(-3.1140, DenseVector(3.1921)),
     LabeledVector(-1.4323, DenseVector(3.3961))
+  )
+
+  val expectedRegWeights = Array[Double](0.0, 0.0, 0.0, 0.18, 0.2, 0.24)
+  val expectedRegWeight0 = 0.74
+
+  // Example values from scikit-learn L1 test: http://git.io/vf4V2
+  val regularizationData: Seq[LabeledVector] = Seq(
+    LabeledVector(1.0, DenseVector(1.0,0.9 ,0.8 ,0.0 ,0.0 ,0.0)),
+    LabeledVector(1.0, DenseVector(1.0,0.84,0.98,0.0 ,0.0 ,0.0)),
+    LabeledVector(1.0, DenseVector(1.0,0.96,0.88,0.0 ,0.0 ,0.0)),
+    LabeledVector(1.0, DenseVector(1.0,0.91,0.99,0.0 ,0.0 ,0.0)),
+    LabeledVector(2.0, DenseVector(0.0,0.0 ,0.0 ,0.89,0.91,1.0)),
+    LabeledVector(2.0, DenseVector(0.0,0.0 ,0.0 ,0.79,0.84,1.0)),
+    LabeledVector(2.0, DenseVector(0.0,0.0 ,0.0 ,0.91,0.95,1.0)),
+    LabeledVector(2.0, DenseVector(0.0,0.0 ,0.0 ,0.93,1.0 ,1.0))
   )
 }
