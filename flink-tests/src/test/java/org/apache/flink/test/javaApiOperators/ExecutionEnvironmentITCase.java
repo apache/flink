@@ -43,6 +43,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test ExecutionEnvironment from user perspective
  */
+@SuppressWarnings("serial")
 @RunWith(Parameterized.class)
 public class ExecutionEnvironmentITCase extends MultipleProgramsTestBase {
 	private static final int PARALLELISM = 5;
@@ -66,8 +67,10 @@ public class ExecutionEnvironmentITCase extends MultipleProgramsTestBase {
 	public void testLocalEnvironmentWithConfig() throws Exception {
 		Configuration conf = new Configuration();
 		conf.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
+		
 		final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
 		env.setParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX);
+		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> result = env.createInput(new ParallelismDependentInputFormat())
 				.rebalance()

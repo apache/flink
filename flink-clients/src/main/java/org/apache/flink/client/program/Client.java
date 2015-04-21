@@ -22,11 +22,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
@@ -43,7 +46,6 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -65,12 +67,20 @@ import com.google.common.base.Preconditions;
 public class Client {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(Client.class);
+
+	/** The configuration to use for the client (optimizer, timeouts, ...) */
+	private final Configuration configuration;
+
+	/** The address of the JobManager to send the program to */
+	private final InetSocketAddress jobManagerAddress;
+
+	/** The optimizer used in the optimization of batch programs */
+	private final Optimizer compiler;
+
+	/** The class loader to use for classes from the user program (e.g., functions and data types) */
+	private final ClassLoader userCodeClassLoader;
 	
-	
-	private final Configuration configuration;	// the configuration describing the job manager address
-	
-	private final Optimizer compiler;		// the compiler to compile the jobs
-	
+	/** Flag indicating whether to sysout print execution updates */
 	private boolean printStatusDuringExecution = true;
 
 	/**
@@ -79,12 +89,9 @@ public class Client {
 	 */
 	private int maxSlots = -1;
 
-	/**
-	 * ID of the last job submitted with this client.
-	 */
+	/** ID of the last job submitted with this client. */
 	private JobID lastJobId = null;
-
-	private ClassLoader userCodeClassLoader;
+	
 	
 	// ------------------------------------------------------------------------
 	//                            Construction
@@ -96,13 +103,30 @@ public class Client {
 	 * 
 	 * @param jobManagerAddress Address and port of the job-manager.
 	 */
-	public Client(InetSocketAddress jobManagerAddress, Configuration config, ClassLoader userCodeClassLoader, int maxSlots) {
+	public Client(InetSocketAddress jobManagerAddress, Configuration config, 
+							ClassLoader userCodeClassLoader, int maxSlots) throws UnknownHostException
+	{
+		Preconditions.checkNotNull(jobManagerAddress, "JobManager address is null");
 		Preconditions.checkNotNull(config, "Configuration is null");
+		Preconditions.checkNotNull(userCodeClassLoader, "User code ClassLoader is null");
+		
 		this.configuration = config;
 		
-		// using the host string instead of the host name saves a reverse name lookup
-		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
-		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
+		if (jobManagerAddress.isUnresolved()) {
+			// address is unresolved, resolve it
+			String host = jobManagerAddress.getHostString();
+			try {
+				InetAddress address = InetAddress.getByName(host);
+				this.jobManagerAddress = new InetSocketAddress(address, jobManagerAddress.getPort());
+			}
+			catch (UnknownHostException e) {
+				throw new UnknownHostException("Cannot resolve JobManager host name '" + host + "'.");
+			}
+		}
+		else {
+			// address is already resolved, use it as is
+			this.jobManagerAddress = jobManagerAddress;
+		}
 		
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
 		this.userCodeClassLoader = userCodeClassLoader;
@@ -110,40 +134,53 @@ public class Client {
 	}
 
 	/**
-	 * Creates a instance that submits the programs to the job-manager defined in the
-	 * configuration.
+	 * Creates a instance that submits the programs to the JobManager defined in the
+	 * configuration. This method will try to resolve the JobManager hostname and throw an exception
+	 * if that is not possible.
 	 * 
 	 * @param config The config used to obtain the job-manager's address.
+	 * @param userCodeClassLoader The class loader to use for loading user code classes.   
 	 */
-	public Client(Configuration config, ClassLoader userCodeClassLoader) {
+	public Client(Configuration config, ClassLoader userCodeClassLoader) throws UnknownHostException {
 		Preconditions.checkNotNull(config, "Configuration is null");
+		Preconditions.checkNotNull(userCodeClassLoader, "User code ClassLoader is null");
+		
 		this.configuration = config;
+		this.userCodeClassLoader = userCodeClassLoader;
 		
 		// instantiate the address to the job manager
 		final String address = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		if (address == null) {
-			throw new CompilerException("Cannot find address to job manager's RPC service in the global configuration.");
+			throw new IllegalConfigurationException(
+					"Cannot find address to job manager's RPC service in the global configuration.");
 		}
 		
-		final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+		final int port = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+														ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 		if (port < 0) {
-			throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
+			throw new IllegalConfigurationException("Cannot find port to job manager's RPC service in the global configuration.");
+		}
+		
+		try {
+			InetAddress inetAddress = InetAddress.getByName(address);
+			this.jobManagerAddress = new InetSocketAddress(inetAddress, port);
+		}
+		catch (UnknownHostException e) {
+			throw new UnknownHostException("Cannot resolve the JobManager hostname '" + address
+					+ "' specified in the configuration");
 		}
 
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
-		this.userCodeClassLoader = userCodeClassLoader;
-	}
-	
-	public void setPrintStatusDuringExecution(boolean print) {
-		this.printStatusDuringExecution = print;
 	}
 
-	public String getJobManagerAddress() {
-		return this.configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-	}
-	
-	public int getJobManagerPort() {
-		return this.configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
+	/**
+	 * Configures whether the client should print progress updates during the execution to {@code System.out}.
+	 * All updates are logged via the SLF4J loggers regardless of this setting.
+	 * 
+	 * @param print True to print updates to standard out during execution, false to not print them.
+	 */
+	public void setPrintStatusDuringExecution(boolean print) {
+		this.printStatusDuringExecution = print;
 	}
 
 	/**
@@ -316,14 +353,7 @@ public class Client {
 
 	public JobSubmissionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
 		this.lastJobId = jobGraph.getJobID();
-
-		InetSocketAddress jobManagerAddress;
-		try {
-			jobManagerAddress = JobClient.getJobManagerAddress(configuration);
-		}
-		catch (IOException e) {
-			throw new ProgramInvocationException(e.getMessage(), e);
-		}
+		
 		LOG.info("JobManager actor system address is " + jobManagerAddress);
 		
 		LOG.info("Starting client actor system");

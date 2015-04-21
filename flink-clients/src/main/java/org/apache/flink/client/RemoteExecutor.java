@@ -124,18 +124,26 @@ public class RemoteExecutor extends PlanExecutor {
 	// --------------------------------------------------------------------------------------------
 	//   Utilities
 	// --------------------------------------------------------------------------------------------
-	public static InetSocketAddress getInetFromHostport(String hostport) {
+
+	/**
+	 * Utility method that converts a string of the form "host:port" into an {@link InetSocketAddress}.
+	 * The returned InetSocketAddress may be unresolved!
+	 * 
+	 * @param hostport The "host:port" string.
+	 * @return The converted InetSocketAddress.
+	 */
+	private static InetSocketAddress getInetFromHostport(String hostport) {
 		// from http://stackoverflow.com/questions/2345063/java-common-way-to-validate-and-convert-hostport-to-inetsocketaddress
 		URI uri;
 		try {
 			uri = new URI("my://" + hostport);
 		} catch (URISyntaxException e) {
-			throw new RuntimeException("Could not identify hostname and port", e);
+			throw new RuntimeException("Could not identify hostname and port in '" + hostport + "'.", e);
 		}
 		String host = uri.getHost();
 		int port = uri.getPort();
 		if (host == null || port == -1) {
-			throw new RuntimeException("Could not identify hostname and port");
+			throw new RuntimeException("Could not identify hostname and port in '" + hostport + "'.");
 		}
 		return new InetSocketAddress(host, port);
 	}
