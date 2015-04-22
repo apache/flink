@@ -22,15 +22,16 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.example.utils.SimpleCommunityDetectionData;
-import org.apache.flink.graph.library.SimpleCommunityDetection;
-import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
+import org.apache.flink.graph.example.utils.ConnectedComponentsExampleData;
+import org.apache.flink.graph.library.ConnectedComponents;
+import org.apache.flink.types.NullValue;
 
 /**
- * This example shows how to use the {@link org.apache.flink.graph.library.SimpleCommunityDetection}
+ * This example shows how to use the {@link org.apache.flink.graph.library.ConnectedComponents}
  * library method:
  * <ul>
  * 	<li> with the edge data set given as a parameter
@@ -38,17 +39,17 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * </ul>
  *
  * The input file is a plain text file and must be formatted as follows:
- * Edges are represented by tuples of srcVertexId, trgVertexId, weight which are
+ * Edges are represented by tuples of srcVertexId, trgVertexId which are
  * separated by tabs. Edges themselves are separated by newlines.
- * For example: <code>1\t2\t1.0\n1\t3\t2.0\n</code> defines two edges,
- * 1-2 with weight 1.0 and 1-3 with weight 2.0.
+ * For example: <code>1\t2\n1\t3\n</code> defines two edges,
+ * 1-2 with and 1-3.
  *
- * Usage <code>SimpleCommunityDetection &lt;edge path&gt; &lt;result path&gt;
- * &lt;number of iterations&gt; &lt;delta&gt;</code><br>
+ * Usage <code>ConnectedComponents &lt;edge path&gt; &lt;result path&gt;
+ * &lt;number of iterations&gt; </code><br>
  * If no parameters are provided, the program is run with default data from
- * {@link org.apache.flink.graph.example.utils.SimpleCommunityDetectionData}
+ * {@link org.apache.flink.graph.example.utils.ConnectedComponentsExampleData}
  */
-public class SimpleCommunityDetectionExample implements ProgramDescription {
+public class ConnectedComponentsExample implements ProgramDescription {
 
 	@SuppressWarnings("serial")
 	public static void main(String [] args) throws Exception {
@@ -57,37 +58,33 @@ public class SimpleCommunityDetectionExample implements ProgramDescription {
 			return;
 		}
 
-		// set up the execution environment
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		// set up the graph
-		DataSet<Edge<Long, Double>> edges = getEdgesDataSet(env);
-		Graph<Long, Long, Double> graph = Graph.fromDataSet(edges,
-				new MapFunction<Long, Long>() {
-					@Override
-					public Long map(Long label) throws Exception {
-						return label;
-					}
-				}, env);
+		DataSet<Edge<Long, NullValue>> edges = getEdgesDataSet(env);
 
-		// the result is in the form of <vertexId, communityId>, where the communityId is the label
-		// which the vertex converged to
-		DataSet<Vertex<Long, Long>> communityVertices =
-				graph.run(new SimpleCommunityDetection(maxIterations, delta)).getVertices();
+		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return value;
+			}
+		}, env);
+
+		DataSet<Vertex<Long, Long>> verticesWithMinIds = graph
+				.run(new ConnectedComponents(maxIterations)).getVertices();
 
 		// emit result
 		if (fileOutput) {
-			communityVertices.writeAsCsv(outputPath, "\n", ",");
+			verticesWithMinIds.writeAsCsv(outputPath, "\n", ",");
 		} else {
-			communityVertices.print();
+			verticesWithMinIds.print();
 		}
 
-		env.execute("Executing Simple Community Detection Example");
+		env.execute("Connected Components Example");
 	}
 
 	@Override
 	public String getDescription() {
-		return "Simple Community Detection Example";
+		return "Connected Components Example";
 	}
 
 	// *************************************************************************
@@ -97,14 +94,13 @@ public class SimpleCommunityDetectionExample implements ProgramDescription {
 	private static boolean fileOutput = false;
 	private static String edgeInputPath = null;
 	private static String outputPath = null;
-	private static Integer maxIterations = SimpleCommunityDetectionData.MAX_ITERATIONS;
-	private static Double delta = SimpleCommunityDetectionData.DELTA;
+	private static Integer maxIterations = ConnectedComponentsExampleData.MAX_ITERATIONS;
 
 	private static boolean parseParameters(String [] args) {
 		if(args.length > 0) {
-			if(args.length != 4) {
-				System.err.println("Usage SimpleCommunityDetection <edge path> <output path> " +
-						"<num iterations> <delta>");
+			if(args.length != 3) {
+				System.err.println("Usage ConnectedComponents <edge path> <output path> " +
+						"<num iterations>");
 				return false;
 			}
 
@@ -112,29 +108,33 @@ public class SimpleCommunityDetectionExample implements ProgramDescription {
 			edgeInputPath = args[0];
 			outputPath = args[1];
 			maxIterations = Integer.parseInt(args[2]);
-			delta = Double.parseDouble(args[3]);
 
 		} else {
-			System.out.println("Executing SimpleCommunityDetection example with default parameters and built-in default data.");
+			System.out.println("Executing ConnectedComponents example with default parameters and built-in default data.");
 			System.out.println("Provide parameters to read input data from files.");
-			System.out.println("Usage SimpleCommunityDetection <edge path> <output path> " +
-					"<num iterations> <delta>");
+			System.out.println("Usage ConnectedComponents <edge path> <output path> " +
+					"<num iterations>");
 		}
 
 		return true;
 	}
 
-	private static DataSet<Edge<Long, Double>> getEdgesDataSet(ExecutionEnvironment env) {
+	private static DataSet<Edge<Long, NullValue>> getEdgesDataSet(ExecutionEnvironment env) {
 
 		if(fileOutput) {
 			return env.readCsvFile(edgeInputPath)
 					.ignoreComments("#")
 					.fieldDelimiter("\t")
 					.lineDelimiter("\n")
-					.types(Long.class, Long.class, Double.class)
-					.map(new Tuple3ToEdgeMap<Long, Double>());
+					.types(Long.class, Long.class)
+					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
+						@Override
+						public Edge<Long, NullValue> map(Tuple2<Long, Long> value) throws Exception {
+							return new Edge<Long, NullValue>(value.f0, value.f1, NullValue.getInstance());
+						}
+					});
 		} else {
-			return SimpleCommunityDetectionData.getDefaultEdgeDataSet(env);
+			return ConnectedComponentsExampleData.getDefaultEdgeDataSet(env);
 		}
 	}
 }

@@ -34,7 +34,7 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * using a vertex-centric iteration.
  *
  * The input file is expected to contain one edge per line, with long IDs
- * and double weights, in CSV format:
+ * and double weights, separated by tabs, in the following format:
  * "<sourceVertexID>\t<targetVertexID>\t<edgeValue>".
  *
  * If no arguments are provided, the example runs with default data from {@link SingleSourceShortestPathsData}.
