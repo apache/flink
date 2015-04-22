@@ -39,6 +39,7 @@ import org.apache.flink.util.Collector;
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EdgeValue> The type of the values that are associated with the edges.
  */
+@Deprecated
 public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -56,6 +57,7 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	 * 
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
+	@Deprecated
 	public abstract void sendMessages(VertexKey vertexKey, VertexValue vertexValue) throws Exception;
 	
 	/**
@@ -63,6 +65,7 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	 * 
 	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
 	 */
+	@Deprecated
 	public void preSuperstep() throws Exception {}
 	
 	/**
@@ -70,6 +73,7 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey>,
 	 * 
 	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
 	 */
+	@Deprecated
 	public void postSuperstep() throws Exception {}
 	
 	

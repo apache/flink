@@ -70,6 +70,7 @@ import org.apache.flink.util.Collector;
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EdgeValue> The type of the values that are associated with the edges.
  */
+@Deprecated
 public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue> 
 	implements CustomUnaryOperation<Tuple2<VertexKey, VertexValue>, Tuple2<VertexKey, VertexValue>>
 {
@@ -174,6 +175,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution. 
 	 * @param aggregator The aggregator.
 	 */
+	@Deprecated
 	public void registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.put(name, aggregator);
 	}
@@ -184,6 +186,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @param name The name under which the broadcast data is available in the messaging function.
 	 * @param data The data set to be broadcasted.
 	 */
+	@Deprecated
 	public void addBroadcastSetForMessagingFunction(String name, DataSet<?> data) {
 		this.bcVarsMessaging.add(new Tuple2<String, DataSet<?>>(name, data));
 	}
@@ -194,6 +197,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * @param name The name under which the broadcast data is available in the vertex update function.
 	 * @param data The data set to be broadcasted.
 	 */
+	@Deprecated
 	public void addBroadcastSetForUpdateFunction(String name, DataSet<?> data) {
 		this.bcVarsUpdate.add(new Tuple2<String, DataSet<?>>(name, data));
 	}
@@ -203,6 +207,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @param name The name for the iteration.
 	 */
+	@Deprecated
 	public void setName(String name) {
 		this.name = name;
 	}
@@ -212,6 +217,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return The name of the iteration.
 	 */
+	@Deprecated
 	public String getName() {
 		return name;
 	}
@@ -221,6 +227,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @param parallelism The parallelism.
 	 */
+	@Deprecated
 	public void setParallelism(int parallelism) {
 		Validate.isTrue(parallelism > 0 || parallelism == -1, "The parallelism must be positive, or -1 (use default).");
 		this.parallelism = parallelism;
@@ -231,6 +238,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return The iterations parallelism, or -1, if not set.
 	 */
+	@Deprecated
 	public int getParallelism() {
 		return parallelism;
 	}
@@ -242,6 +250,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @param unmanaged True, to keep the solution set in unmanaged memory, false otherwise.
 	 */
+	@Deprecated
 	public void setSolutionSetUnmanagedMemory(boolean unmanaged) {
 		this.unmanagedSolutionSet = unmanaged;
 	}
@@ -253,6 +262,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return True, if the solution set is in unmanaged memory, false otherwise.
 	 */
+	@Deprecated
 	public boolean isSolutionSetUnmanagedMemory() {
 		return this.unmanagedSolutionSet;
 	}
@@ -373,6 +383,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return An in stance of the vertex-centric graph computation operator.
 	 */
+	@Deprecated
 	public static final <VertexKey extends Comparable<VertexKey>, VertexValue, Message>
 			VertexCentricIteration<VertexKey, VertexValue, Message, ?> withPlainEdges(
 					DataSet<Tuple2<VertexKey, VertexKey>> edgesWithoutValue,
@@ -402,6 +413,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	 * 
 	 * @return An in stance of the vertex-centric graph computation operator.
 	 */
+	@Deprecated
 	public static final <VertexKey extends Comparable<VertexKey>, VertexValue, Message, EdgeValue>
 			VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue> withValuedEdges(
 					DataSet<Tuple3<VertexKey, VertexKey, EdgeValue>> edgesWithValue,
