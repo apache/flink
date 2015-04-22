@@ -22,28 +22,33 @@
 #     {{ site.CONFIG_KEY }}
 #------------------------------------------------------------------------------
 
-FLINK_VERSION_THIS_HADOOP1: "0.9-hadoop1-SNAPSHOT"
-FLINK_VERSION_THIS_HADOOP2: "0.9-SNAPSHOT"
-FLINK_VERSION_THIS_SHORT: "0.9"
-FLINK_WGET_URL_YARN_THIS: http://stratosphere-bin.s3-website-us-east-1.amazonaws.com/flink-0.9-SNAPSHOT-bin-hadoop2.tgz
 
+# This are the version referenced in the docs. Please only use these variables
+# to reference a specific Flink version, because this is the only place where
+# we change the version for the complete docs when forking of a release branch
+# etc.
+version: "0.9-SNAPSHOT"
+version_hadoop1: "0.9-hadoop1-SNAPSHOT"
+version_short: "0.9" # Used for the top navbar w/o snapshot suffix
 
+# This is the Scala version we use in this version
+scala_version: "2.10"
 
-FLINK_VERSION_HADOOP1_STABLE: "0.8.1-hadoop1" # this variable can point to a SNAPSHOT version in the git source.
-FLINK_VERSION_SHORT: "0.8.1"
-FLINK_VERSION_HADOOP2_STABLE: "0.8.1"
-FLINK_SCALA_VERSION: "2.10.4"
-FLINK_SCALA_VERSION_SHORT: "2.10"
-FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
-FLINK_GITHUB_URL:  https://github.com/apache/flink
+# Download urls
+download_url: "http://flink.apache.org/downloads.html"
+download_url_hadoop1: "http://stratosphere-bin.s3-website-us-east-1.amazonaws.com/flink-0.9-SNAPSHOT-bin-hadoop1.tgz" 
+download_url_hadoop2: "http://stratosphere-bin.s3-website-us-east-1.amazonaws.com/flink-0.9-SNAPSHOT-bin-hadoop2.tgz" 
 
-FLINK_WEBSITE_URL: http://flink.apache.org
-FLINK_DOWNLOAD_URL: http://flink.apache.org/downloads.html
+# Some commonly linked pages (this was more important to have as a variable
+# during incubator; by now it should also be fine to hardcode these.)
+website_url: "http://flink.apache.org"
+jira_url: "https://issues.apache.org/jira/browse/FLINK"
+github_url: "https://github.com/apache/flink"
 
-FLINK_DOWNLOAD_URL_HADOOP1_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.1/flink-0.8.1-bin-hadoop1.tgz
-FLINK_DOWNLOAD_URL_HADOOP2_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.1/flink-0.8.1-bin-hadoop2.tgz
-FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.1/flink-0.8.1-bin-hadoop2-yarn.tgz
-FLINK_WGET_URL_YARN_STABLE: http://artfiles.org/apache.org/flink/flink-0.8.1/flink-0.8.1-bin-hadoop2-yarn.tgz
+# Setup quickstart uses this => to be changed
+FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.1/flink-0.8.1-bin-hadoop1.tgz"
+FLINK_DOWNLOAD_URL_HADOOP2_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.1/flink-0.8.1-bin-hadoop2.tgz"
+FLINK_DOWNLOAD_URL_YARN_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-0.8.1/flink-0.8.1-bin-hadoop2-yarn.tgz"
 
 #------------------------------------------------------------------------------
 # BUILD CONFIG
@@ -57,7 +62,7 @@ defaults:
     scope:
       path: ""
     values:
-      layout: default
+      layout: plain
 
 markdown: KramdownPygments
 highlighter: pygments
