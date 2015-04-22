@@ -114,7 +114,11 @@ public class Client {
 		
 		if (jobManagerAddress.isUnresolved()) {
 			// address is unresolved, resolve it
-			String host = jobManagerAddress.getHostString();
+			String host = jobManagerAddress.getHostName();
+			if (host == null) {
+				throw new IllegalArgumentException("Host in jobManagerAddress is null");
+			}
+			
 			try {
 				InetAddress address = InetAddress.getByName(host);
 				this.jobManagerAddress = new InetSocketAddress(address, jobManagerAddress.getPort());
