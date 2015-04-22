@@ -141,7 +141,7 @@ class LocalBufferPool implements BufferPool {
 
 			while (availableMemorySegments.isEmpty()) {
 				if (isDestroyed) {
-					return null;
+					throw new IllegalStateException("Buffer pool is destroyed.");
 				}
 
 				if (numberOfRequestedMemorySegments < currentPoolSize) {

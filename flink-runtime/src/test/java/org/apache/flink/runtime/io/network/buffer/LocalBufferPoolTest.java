@@ -113,7 +113,13 @@ public class LocalBufferPoolTest {
 	public void testRequestAfterDestroy() throws IOException {
 		localBufferPool.lazyDestroy();
 
-		assertNull(localBufferPool.requestBuffer());
+		try {
+			localBufferPool.requestBuffer();
+			fail("Call should have failed with an IllegalStateException");
+		}
+		catch (IllegalStateException e) {
+			// we expect exactly that
+		}
 	}
 
 	@Test
@@ -292,7 +298,13 @@ public class LocalBufferPoolTest {
 
 				// Try to request the next buffer (but pool should be destroyed either right before
 				// the request or more likely during the request).
-				assertNull(localBufferPool.requestBufferBlocking());
+				try {
+					localBufferPool.requestBufferBlocking();
+					fail("Call should have failed with an IllegalStateException");
+				}
+				catch (IllegalStateException e) {
+					// we expect exactly that
+				}
 
 				return requested;
 			}
