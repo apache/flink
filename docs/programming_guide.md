@@ -544,7 +544,7 @@ data.reduce(new ReduceFunction<Integer> {
         full data set, or on a grouped data set.</p>
 {% highlight java %}
 data.reduceGroup(new GroupReduceFunction<Integer, Integer> {
-  public void reduceGroup(Iterable<Integer> values, Collector<Integer> out) {
+  public void reduce(Iterable<Integer> values, Collector<Integer> out) {
     int prefixSum = 0;
     for (Integer i : values) {
       prefixSum += i;
