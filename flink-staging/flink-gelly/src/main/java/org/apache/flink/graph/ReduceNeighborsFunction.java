@@ -18,18 +18,22 @@
 
 package org.apache.flink.graph;
 
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.java.tuple.Tuple2;
+
+import java.io.Serializable;
+
 /**
- * The EdgeDirection is used to select a node's neighborhood
- * by the {@link Graph#groupReduceOnEdges(EdgesFunction, EdgeDirection)},
- * {@link Graph#groupReduceOnEdges(EdgesFunctionWithVertexValue, EdgeDirection)},
- * {@link Graph#groupReduceOnNeighbors(NeighborsFunction, EdgeDirection)},
- * {@link Graph#groupReduceOnNeighbors(NeighborsFunctionWithVertexValue, EdgeDirection)},
- * {@link Graph#reduceOnEdges(ReduceEdgesFunction, EdgeDirection)} and
- * {@link Graph#reduceOnNeighbors(ReduceNeighborsFunction, EdgeDirection)}
- * methods.
+ * Interface to be implemented by the function applied to a vertex neighborhood
+ * in the {@link Graph#reduceOnNeighbors(ReduceNeighborsFunction, EdgeDirection)}
+ * method.
+ *
+ * @param <K> the vertex key type
+ * @param <VV> the vertex value type
+ * @param <EV> the edge value type
  */
-public enum EdgeDirection {
-	IN,
-	OUT,
-	ALL
+public interface ReduceNeighborsFunction <K extends Comparable<K> & Serializable, VV extends Serializable> extends Function, Serializable {
+
+	Tuple2<K, VV> reduceNeighbors(Tuple2<K, VV> firstNeighbor,
+								Tuple2<K, VV> secondNeighbor);
 }
