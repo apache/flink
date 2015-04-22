@@ -94,7 +94,14 @@ under the License.
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.0.26.Final</version>
+			<version>4.0.27.Final</version>
+		</dependency>
+
+		<!-- See: https://groups.google.com/forum/#!msg/netty/-aAPDBNUnDg/SkGOXL2Ma2QJ -->
+		<dependency>
+			<groupId>org.javassist</groupId>
+			<artifactId>javassist</artifactId>
+			<!-- Version is set in root POM -->
 		</dependency>
 
 		<dependency>
