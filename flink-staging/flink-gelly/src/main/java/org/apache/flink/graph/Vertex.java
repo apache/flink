@@ -67,7 +67,8 @@ public class Vertex<K extends Comparable<K> & Serializable, V extends Serializab
 
 	public Long getInDegree() throws Exception{
 		if(inDegree == -1) {
-			throw new InaccessibleMethodException("The degree option was not set");
+			throw new InaccessibleMethodException("The degree option was not set. To access the degrees, " +
+					"call iterationConfiguration.setOptDegrees(true).");
 		}
 		return inDegree;
 	}
@@ -78,7 +79,8 @@ public class Vertex<K extends Comparable<K> & Serializable, V extends Serializab
 
 	public Long getOutDegree() throws Exception{
 		if(outDegree == -1) {
-			throw new InaccessibleMethodException("The degree option was not set");
+			throw new InaccessibleMethodException("The degree option was not set. To access the degrees, " +
+					"call iterationConfiguration.setOptDegrees(true).");
 		}
 		return outDegree;
 	}

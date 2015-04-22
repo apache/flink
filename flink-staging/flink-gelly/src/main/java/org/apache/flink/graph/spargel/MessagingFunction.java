@@ -56,7 +56,8 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey> 
 
 	public long getNumberOfVertices() throws Exception{
 		if (numberOfVertices == -1) {
-			throw new InaccessibleMethodException("The number of vertices option is not set");
+			throw new InaccessibleMethodException("The number of vertices option is not set. " +
+					"To access the number of vertices, call iterationConfiguration.setOptNumVertices(true).");
 		}
 		return numberOfVertices;
 	}

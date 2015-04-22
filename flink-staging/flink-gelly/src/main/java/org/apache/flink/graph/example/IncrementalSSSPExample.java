@@ -35,7 +35,7 @@ import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
- * Incremental Single Source Shortest Paths Example. Shortest Paths are incrementally updated
+ * Incremental Single Sink Shortest Paths Example. Shortest Paths are incrementally updated
  * upon edge removal.
  *
  * This example illustrates the usage of vertex-centric iteration's
@@ -144,7 +144,7 @@ public class IncrementalSSSPExample implements ProgramDescription {
 	 * @param edgesInSSSP
 	 * @return
 	 */
-	private static boolean isInSSSP(final Edge<Long, Double> edgeToBeRemoved, DataSet<Edge<Long, Double>> edgesInSSSP) throws Exception {
+	public static boolean isInSSSP(final Edge<Long, Double> edgeToBeRemoved, DataSet<Edge<Long, Double>> edgesInSSSP) throws Exception {
 
 		return edgesInSSSP.filter(new FilterFunction<Edge<Long, Double>>() {
 			@Override
