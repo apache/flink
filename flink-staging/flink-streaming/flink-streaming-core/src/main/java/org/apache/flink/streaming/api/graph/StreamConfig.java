@@ -254,7 +254,8 @@ public class StreamConfig implements Serializable {
 	@SuppressWarnings("unchecked")
 	public List<StreamEdge> getNonChainedOutputs(ClassLoader cl) {
 		try {
-			return (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(this.config, NONCHAINED_OUTPUTS, cl);
+			List<StreamEdge> nonChainedOutputs = (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(this.config, NONCHAINED_OUTPUTS, cl);
+			return nonChainedOutputs == null ?  new ArrayList<StreamEdge>() : nonChainedOutputs;
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate outputs.");
 		}
@@ -268,8 +269,8 @@ public class StreamConfig implements Serializable {
 	@SuppressWarnings("unchecked")
 	public List<StreamEdge> getChainedOutputs(ClassLoader cl) {
 		try {
-			return (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(this.config,
-					CHAINED_OUTPUTS, cl);
+			List<StreamEdge> chainedOutputs = (List<StreamEdge>) InstantiationUtil.readObjectFromConfig(this.config, CHAINED_OUTPUTS, cl);
+			return chainedOutputs == null ? new ArrayList<StreamEdge>() : chainedOutputs;
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate chained outputs.");
 		}
