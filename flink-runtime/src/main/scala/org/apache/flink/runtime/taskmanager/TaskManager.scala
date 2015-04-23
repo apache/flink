@@ -22,6 +22,7 @@ import java.io.{File, IOException}
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
 import java.util.concurrent.{TimeUnit, FutureTask}
+import java.lang.reflect.Method
 import java.lang.management.{GarbageCollectorMXBean, ManagementFactory, MemoryMXBean}
 
 import akka.actor._
@@ -1894,12 +1895,27 @@ object TaskManager {
       override def getValue: Double =
         ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
     })
+    // Preprocessing steps for registering cpuLoad
+    // fetch the method to get process CPU load
+    val getCPULoadMethod: Method = getMethodToFetchCPULoad()
+
+    // define the fetchCPULoad method as per the fetched getCPULoadMethod
+    val fetchCPULoad: (Any) => Double = if (getCPULoadMethod != null) {
+      (obj: Any) => getCPULoadMethod.invoke(obj).asInstanceOf[Double]
+    } else {
+      (obj: Any) => {
+        LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
+          "implementation for this Java runtime environment"+ Thread.currentThread().getStackTrace)
+        -1
+      }
+    }
+
     metricRegistry.register("cpuLoad", new Gauge[Double] {
       override def getValue: Double = {
         try{
           val osMXBean = ManagementFactory.getOperatingSystemMXBean().
             asInstanceOf[com.sun.management.OperatingSystemMXBean]
-          return fetchCPULoad(osMXBean).asInstanceOf[Double]
+          return fetchCPULoad(osMXBean)
         } catch {
           case t:Throwable => {
             if (t.isInstanceOf[java.lang.ClassCastException]){
@@ -1916,20 +1932,17 @@ object TaskManager {
   }
 
   /**
-   * Returns CPU Load if getProcessCpuLoad method is present
-   * in the implementation of OperatingSystemMXBean
-   * else returns -1
-   *
-   * @param obj
+   * Fetches getProcessCpuLoad method if available in the
+   *  OperatingSystemMXBean implementation else returns null
    * @return
    */
-  private def fetchCPULoad(obj: Any): Any = {
+  private def getMethodToFetchCPULoad(): Method = {
     val methodsList = classOf[com.sun.management.OperatingSystemMXBean].getMethods()
     for(method <- methodsList){
       if(method.getName() == "getProcessCpuLoad") {
-        return method.invoke(obj)
+        return method
       }
     }
-    return -1
+    return null
   }
 }

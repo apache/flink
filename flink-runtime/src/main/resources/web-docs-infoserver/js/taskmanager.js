@@ -215,12 +215,12 @@ function processTMdata(json) {
 		if(tmRow.length == 0) {
 		    // *-memory_stats div contains only the statistics where as chart_container-* div contains the graph
 		    var tmMemoryBox =  "<div id=\""+tmRowIdCssName+"-memory_stats"+"\">"+"</div>"+
-                               "<button type=\"button\" class=\"btn btn-default\" id=\"graph_button-"+tm.instanceID+"\" onclick=\"hideShowGraph('"+tm.instanceID+"')\"></button>"+"<br>"+
+		                       "<button type=\"button\" class=\"btn btn-default\" id=\"graph_button-"+tm.instanceID+"\" onclick=\"hideShowGraph('"+tm.instanceID+"')\"></button>"+"<br>"+
 		                       "<div class=\"chart_container\" id=\"chart_container-"+tm.instanceID+"\">"+
                                   "<div class=\"y_axis\" id=\"y_axis-"+tm.instanceID+"\"><p class=\"axis_label\">Memory</p></div>"+
                                   "<div class=\"chart\" id=\"chart-"+tm.instanceID+"\"><i>Waiting for first Heartbeat to arrive</i></div>"+
                                   "<div class=\"y_axis-load\" id=\"y_axis-load-"+tm.instanceID+"\"><p class=\"axis_label\">CPU Load</p></div>"+
-                               "<div class=\"legend\" id=\"legend-"+tm.instanceID+"\"></div>"+
+                                  "<div class=\"legend\" id=\"legend-"+tm.instanceID+"\"></div>"+
                                "</div>";
 
             var content = "<tr id=\""+tmRowIdCssName+"\">" +
@@ -293,9 +293,9 @@ function processTMdata(json) {
         var cpuLoadValue = Number((metricsJSON.gauges["cpuLoad"].value*100).toFixed(2));
         taskManagerMemory[tm.instanceID]["cpuLoad"].push({x:time, y:cpuLoadValue });
         if(cpuLoadValue != -100){
-          $("#"+tmRowIdCssName+"-cpuLoad").html(cpuLoadValue);
+            $("#"+tmRowIdCssName+"-cpuLoad").html(cpuLoadValue);
         } else {
-          $("#"+tmRowIdCssName+"-cpuLoad").html("NA"+getTooltipHTML("CPU Load is unavailable as the java version is not 1.7 or above"));
+            $("#"+tmRowIdCssName+"-cpuLoad").html("NA"+getTooltipHTML("CPU Load is unavailable as the java version is not 1.7 or above"));
         }
 
 
@@ -400,9 +400,9 @@ function hideShowGraph(tmid){
         element.hide();
         $("#tm-row-"+tmid+"-memory_stats").show();
     } else {
-         $("#graph_button-"+tmid).text("Hide Detailed Graph");
-         element.show();
-         $("#tm-row-"+tmid+"-memory_stats").hide();
+        $("#graph_button-"+tmid).text("Hide Detailed Graph");
+        element.show();
+        $("#tm-row-"+tmid+"-memory_stats").hide();
     }
 }
 
@@ -410,18 +410,18 @@ function hideShowGraph(tmid){
 function hideShowMemStats() {
     var i = 0;
     for(tmid in taskManagerMemory) {
-       // by default hide the graphs when Show/Disable Metrics is clicked
-       if($("#chart_container-"+tmid).is(":visible")){
+        // by default hide the graphs when Show/Disable Metrics is clicked
+        if($("#chart_container-"+tmid).is(":visible")){
             $("#graph_button-"+tmid).text("Show Detailed Graph");
             $("#chart_container-"+tmid).hide();
-       }
-       if(metricsLimit == -1 || i++ < metricsLimit) {
+        }
+        if(metricsLimit == -1 || i++ < metricsLimit) {
             $("#tm-row-"+tmid+"-memory_stats").show();
             $("#graph_button-"+tmid).show();
-       } else {
+        } else {
             $("#tm-row-"+tmid+"-memory_stats").hide();
             $("#graph_button-"+tmid).hide();
-       }
+        }
     }
 }
 
@@ -439,9 +439,9 @@ function generateSummaryFor(stats,time){
         var avg = Number((sum/(prevValues.length)).toFixed(2));
         if (avg > 1024){
             avg = formatBase1024KMGTP(avg);
-            }
-        summary[key]=avg;
         }
+        summary[key]=avg;
+    }
     return summary;
 }
 
