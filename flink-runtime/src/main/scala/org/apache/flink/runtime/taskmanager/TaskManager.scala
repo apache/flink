@@ -137,7 +137,7 @@ extends Actor with ActorLogMessages with ActorLogging {
   protected val resources = HardwareDescription.extractFromSystem(memoryManager.getMemorySize)
 
   /** Registry of all tasks currently executed by this TaskManager */
-  protected val runningTasks = scala.collection.mutable.HashMap[ExecutionAttemptID, Task]()
+  protected val runningTasks = scala.collection.concurrent.TrieMap[ExecutionAttemptID, Task]()
 
   /** Handler for shared broadcast variables (shared between multiple Tasks) */
   protected val bcVarManager = new BroadcastVariableManager()
@@ -795,108 +795,111 @@ extends Actor with ActorLogMessages with ActorLogging {
     var startRegisteringTask = 0L
     var task: Task = null
 
-    // all operations are in a try / catch block to make sure we send a result upon any failure
-    try {
-      // check that we are already registered
-      if (!isConnected) {
-        throw new IllegalStateException("TaskManager is not associated with a JobManager")
-      }
-      if (slot < 0 || slot >= numberOfSlots) {
-        throw new Exception(s"Target slot ${slot} does not exist on TaskManager.")
-      }
+    if (!isConnected) {
+      sender ! Failure(
+        new IllegalStateException("TaskManager is not associated with a JobManager.")
+      )
+    } else if (slot < 0 || slot >= numberOfSlots) {
+      sender ! Failure(new Exception(s"Target slot $slot does not exist on TaskManager."))
+    } else {
+      sender ! Acknowledge
 
-      val userCodeClassLoader = libraryCacheManager match {
-        case Some(manager) =>
-          if (LOG.isDebugEnabled) {
-            startRegisteringTask = System.currentTimeMillis()
-          }
-
-          // triggers the download of all missing jar files from the job manager
-          manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
-
-          if (LOG.isDebugEnabled) {
-            LOG.debug("Register task {} at library cache manager took {}s", executionID,
-              (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
-          }
-
-          manager.getClassLoader(jobID)
-        case None => throw new IllegalStateException("There is no valid library cache manager.")
-      }
-
-      if (userCodeClassLoader == null) {
-        throw new RuntimeException("No user code Classloader available.")
-      }
-
-      task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
-        tdd.getTaskName, self)
-      
-      runningTasks.put(executionID, task) match {
-        case Some(_) => throw new RuntimeException(
-          s"TaskManager contains already a task with executionID $executionID.")
-        case None =>
-      }
-
-      val env = currentJobManager match {
-        case Some(jobManager) =>
-          val splitProvider = new TaskInputSplitProvider(jobManager, jobID, vertexID,
-            executionID, userCodeClassLoader, askTimeout)
-
-          new RuntimeEnvironment(jobManager, task, tdd, userCodeClassLoader,
-            memoryManager, ioManager, splitProvider, bcVarManager, network)
-
-        case None => throw new IllegalStateException(
-          "TaskManager has not yet been registered at a JobManager.")
-      }
-
-      task.setEnvironment(env)
-
-      //inject operator state
-      if (tdd.getOperatorStates != null) {
-        task.getEnvironment.getInvokable match {
-          case opStateCarrier: OperatorStateCarrier =>
-            opStateCarrier.injectState(tdd.getOperatorStates)
-        }
-      }
-      
-      // register the task with the network stack and profiles
-      LOG.info("Register task {}", task)
-      network.registerTask(task)
-
-      val cpTasks = new util.HashMap[String, FutureTask[Path]]()
-
-      for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration).asScala) {
-        val cp = fileCache.createTmpFile(entry.getKey, entry.getValue, jobID)
-        cpTasks.put(entry.getKey, cp)
-      }
-      env.addCopyTasksForCacheFile(cpTasks)
-
-      if (!task.startExecution()) {
-        throw new RuntimeException("Cannot start task. Task was canceled or failed.")
-      }
-
-      sender ! new TaskOperationResult(executionID, true)
-    }
-    catch {
-      case t: Throwable =>
-        val message = if (t.isInstanceOf[CancelTaskException]) {
-          "Task was canceled"
-        } else {
-          LOG.error("Could not instantiate task with execution ID " + executionID, t)
-          ExceptionUtils.stringifyException(t)
-        }
-
+      Future {
         try {
-          if (task != null) {
-            task.failExternally(t)
-            removeAllTaskResources(task)
+          val userCodeClassLoader = libraryCacheManager match {
+            case Some(manager) =>
+              if (LOG.isDebugEnabled) {
+                startRegisteringTask = System.currentTimeMillis()
+              }
+
+              // triggers the download of all missing jar files from the job manager
+              manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
+
+              if (LOG.isDebugEnabled) {
+                LOG.debug("Register task {} at library cache manager took {}s", executionID,
+                  (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
+              }
+
+              manager.getClassLoader(jobID)
+            case None => throw new IllegalStateException("There is no valid library cache manager.")
           }
 
-          libraryCacheManager foreach { _.unregisterTask(jobID, executionID) }
-        } catch {
-          case t: Throwable => LOG.error("Error during cleanup of task deployment.", t)
-        }
+          if (userCodeClassLoader == null) {
+            throw new RuntimeException("No user code Classloader available.")
+          }
 
-        sender ! new TaskOperationResult(executionID, false, message)
+          task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
+            tdd.getTaskName, self)
+
+          runningTasks.put(executionID, task) match {
+            case Some(_) => throw new RuntimeException(
+              s"TaskManager contains already a task with executionID $executionID.")
+            case None =>
+          }
+
+          val env = currentJobManager match {
+            case Some(jobManager) =>
+              val splitProvider = new TaskInputSplitProvider(jobManager, jobID, vertexID,
+                executionID, userCodeClassLoader, askTimeout)
+
+              new RuntimeEnvironment(jobManager, task, tdd, userCodeClassLoader,
+                memoryManager, ioManager, splitProvider, bcVarManager, network)
+
+            case None => throw new IllegalStateException(
+              "TaskManager has not yet been registered at a JobManager.")
+          }
+
+          task.setEnvironment(env)
+
+          //inject operator state
+          if (tdd.getOperatorStates != null) {
+            task.getEnvironment.getInvokable match {
+              case opStateCarrier: OperatorStateCarrier =>
+                opStateCarrier.injectState(tdd.getOperatorStates)
+            }
+          }
+
+          // register the task with the network stack and profiles
+          LOG.info("Register task {}", task)
+          network.registerTask(task)
+
+          val cpTasks = new util.HashMap[String, FutureTask[Path]]()
+
+          for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration).asScala) {
+            val cp = fileCache.createTmpFile(entry.getKey, entry.getValue, jobID)
+            cpTasks.put(entry.getKey, cp)
+          }
+          env.addCopyTasksForCacheFile(cpTasks)
+
+          if (!task.startExecution()) {
+            throw new RuntimeException("Cannot start task. Task was canceled or failed.")
+          }
+
+          self ! UpdateTaskExecutionState(
+            new TaskExecutionState(jobID, executionID, ExecutionState.RUNNING)
+          )
+        } catch {
+          case t: Throwable =>
+            if (!t.isInstanceOf[CancelTaskException]) {
+              LOG.error("Could not instantiate task with execution ID " + executionID, t)
+            }
+
+            try {
+              if (task != null) {
+                task.failExternally(t)
+                removeAllTaskResources(task)
+              }
+
+              libraryCacheManager foreach { _.unregisterTask(jobID, executionID) }
+            } catch {
+              case t: Throwable => LOG.error("Error during cleanup of task deployment.", t)
+            }
+
+            self ! UpdateTaskExecutionState(
+              new TaskExecutionState(jobID, executionID, ExecutionState.FAILED, t)
+            )
+        }
+      }(context.dispatcher)
     }
   }
 

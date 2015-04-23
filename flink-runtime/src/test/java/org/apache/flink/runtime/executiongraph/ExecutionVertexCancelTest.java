@@ -35,13 +35,13 @@ import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
 
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -223,7 +223,7 @@ public class ExecutionVertexCancelTest {
 							TaskOperationResult(execId, false), new TaskOperationResult(execId, true))));
 
 					Instance instance = getInstance(taskManager);
-			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
+					SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
 					vertex.deployToSlot(slot);
 
@@ -251,11 +251,6 @@ public class ExecutionVertexCancelTest {
 					// the deploy call found itself in canceling after it returned and needs to send a cancel call
 					// the call did not yet execute, so it is still in canceling
 					assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
-
-					// trigger the correcting cancel call, should properly set state to cancelled
-					actions.triggerNextAction();
-					// process onComplete callback
-					actions.triggerNextAction();
 
 					vertex.getCurrentExecutionAttempt().cancelingComplete();
 
@@ -645,8 +640,7 @@ public class ExecutionVertexCancelTest {
 		@Override
 		public void onReceive(Object message) throws Exception {
 			if(message instanceof TaskMessages.SubmitTask){
-				TaskDeploymentDescriptor tdd = ((TaskMessages.SubmitTask) message).tasks();
-				getSender().tell(new TaskOperationResult(tdd.getExecutionId(), true), getSelf());
+				getSender().tell(Messages.getAcknowledge(), getSelf());
 			}else if(message instanceof TaskMessages.CancelTask){
 				index++;
 				if(index >= results.length){

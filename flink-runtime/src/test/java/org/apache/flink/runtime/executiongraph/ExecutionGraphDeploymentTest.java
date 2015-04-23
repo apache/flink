@@ -126,7 +126,7 @@ public class ExecutionGraphDeploymentTest {
 
 			vertex.deployToSlot(slot);
 
-			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
 			TaskDeploymentDescriptor descr = tm.lastTDD;
 			assertNotNull(descr);

@@ -27,6 +27,7 @@ import java.net.InetAddress;
 import java.util.LinkedList;
 
 import akka.actor.ActorRef;
+import akka.actor.Status;
 import akka.actor.UntypedActor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
@@ -43,6 +44,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
@@ -119,7 +121,7 @@ public class ExecutionGraphTestUtils {
 				SubmitTask submitTask = (SubmitTask) msg;
 				lastTDD = submitTask.tasks();
 
-				getSender().tell(new TaskOperationResult(submitTask.tasks().getExecutionId(), true), getSelf());
+				getSender().tell(Messages.getAcknowledge(), getSelf());
 			} else if (msg instanceof CancelTask) {
 				CancelTask cancelTask = (CancelTask) msg;
 				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
@@ -136,10 +138,7 @@ public class ExecutionGraphTestUtils {
 		@Override
 		public void onReceive(Object msg) throws Exception {
 			if (msg instanceof SubmitTask) {
-				SubmitTask submitTask = (SubmitTask) msg;
-
-				getSender().tell(new TaskOperationResult(submitTask.tasks().getExecutionId(),
-						false, ERROR_MESSAGE),	getSelf());
+				getSender().tell(new Status.Failure(new Exception(ERROR_MESSAGE)),	getSelf());
 			} else if (msg instanceof CancelTask) {
 				CancelTask cancelTask = (CancelTask) msg;
 				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
