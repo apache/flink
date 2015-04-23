@@ -111,7 +111,7 @@ public class GSASingleSourceShortestPathsExample implements ProgramDescription {
 	};
 
 	@SuppressWarnings("serial")
-	private static final class UpdateDistance extends ApplyFunction<Double, Double, Double> {
+	private static final class UpdateDistance extends ApplyFunction<Long, Double, Double> {
 
 		public void apply(Double newDistance, Double oldDistance) {
 			if (newDistance < oldDistance) {

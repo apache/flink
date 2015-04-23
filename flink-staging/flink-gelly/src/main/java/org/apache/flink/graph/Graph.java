@@ -214,7 +214,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 					public Vertex<K, VV> map(Tuple1<K> value) throws Exception {
 						return new Vertex<K, VV>(value.f0, mapper.map(value.f0));
 					}
-				}).returns(returnType);
+				}).returns(returnType).withForwardedFields("f0");
 
 		return new Graph<K, VV, EV>(vertices, edges, context);
 	}
@@ -1213,7 +1213,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 */
 	public <M> Graph<K, VV, EV> runGatherSumApplyIteration(
 			GatherFunction<VV, EV, M> gatherFunction, SumFunction<VV, EV, M> sumFunction,
-			ApplyFunction<VV, EV, M> applyFunction, int maximumNumberOfIterations) {
+			ApplyFunction<K, VV, M> applyFunction, int maximumNumberOfIterations) {
 
 		GatherSumApplyIteration<K, VV, EV, M> iteration = GatherSumApplyIteration.withEdges(
 				edges, gatherFunction, sumFunction, applyFunction, maximumNumberOfIterations);

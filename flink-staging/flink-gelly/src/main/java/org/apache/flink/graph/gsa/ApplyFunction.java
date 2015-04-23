@@ -19,14 +19,16 @@
 package org.apache.flink.graph.gsa;
 
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
 @SuppressWarnings("serial")
-public abstract class ApplyFunction<VV extends Serializable, EV extends Serializable, M> implements Serializable {
+public abstract class ApplyFunction<K extends Comparable<K> & Serializable, VV extends Serializable, M>
+	implements Serializable {
 
-	public abstract void apply(M message, VV vertexValue);
+	public abstract void apply(M newValue, VV currentValue);
 
 	/**
 	 * Sets the result for the apply function
@@ -34,7 +36,8 @@ public abstract class ApplyFunction<VV extends Serializable, EV extends Serializ
 	 * @param result the result of the apply phase
 	 */
 	public void setResult(VV result) {
-		out.collect(result);
+		outVal.f1 = result;
+		out.collect(outVal);
 	}
 
 	/**
@@ -58,14 +61,17 @@ public abstract class ApplyFunction<VV extends Serializable, EV extends Serializ
 	@SuppressWarnings("unused")
 	private IterationRuntimeContext runtimeContext;
 
-	private Collector<VV> out;
+	private Collector<Vertex<K, VV>> out;
+
+	private Vertex<K, VV> outVal;
 
 	public void init(IterationRuntimeContext iterationRuntimeContext) {
 		this.runtimeContext = iterationRuntimeContext;
 	};
 
-	public void setOutput(Collector<VV> out) {
+	public void setOutput(Vertex<K, VV> vertex, Collector<Vertex<K, VV>> out) {
 		this.out = out;
+		this.outVal = vertex;
 	}
 
 }

@@ -58,13 +58,13 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 
 	private final GatherFunction<VV, EV, M> gather;
 	private final SumFunction<VV, EV, M> sum;
-	private final ApplyFunction<VV, EV, M> apply;
+	private final ApplyFunction<K, VV, M> apply;
 	private final int maximumNumberOfIterations;
 
 	// ----------------------------------------------------------------------------------
 
 	private GatherSumApplyIteration(GatherFunction<VV, EV, M> gather, SumFunction<VV, EV, M> sum,
-			ApplyFunction<VV, EV, M> apply, DataSet<Edge<K, EV>> edges, int maximumNumberOfIterations) {
+			ApplyFunction<K, VV, M> apply, DataSet<Edge<K, EV>> edges, int maximumNumberOfIterations) {
 
 		Validate.notNull(gather);
 		Validate.notNull(sum);
@@ -161,7 +161,7 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 	 */
 	public static final <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable, M>
 			GatherSumApplyIteration<K, VV, EV, M> withEdges(DataSet<Edge<K, EV>> edges,
-			GatherFunction<VV, EV, M> gather, SumFunction<VV, EV, M> sum, ApplyFunction<VV, EV, M> apply,
+			GatherFunction<VV, EV, M> gather, SumFunction<VV, EV, M> sum, ApplyFunction<K, VV, M> apply,
 			int maximumNumberOfIterations) {
 		return new GatherSumApplyIteration<K, VV, EV, M>(gather, sum, apply, edges, maximumNumberOfIterations);
 	}
@@ -253,32 +253,19 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 			VV extends Serializable, EV extends Serializable, M> extends RichFlatJoinFunction<Tuple2<K, M>,
 			Vertex<K, VV>, Vertex<K, VV>> implements ResultTypeQueryable<Vertex<K, VV>> {
 
-		private final ApplyFunction<VV, EV, M> applyFunction;
+		private final ApplyFunction<K, VV, M> applyFunction;
 		private transient TypeInformation<Vertex<K, VV>> resultType;
 
-		private ApplyUdf(ApplyFunction<VV, EV, M> applyFunction, TypeInformation<Vertex<K, VV>> resultType) {
+		private ApplyUdf(ApplyFunction<K, VV, M> applyFunction, TypeInformation<Vertex<K, VV>> resultType) {
 			this.applyFunction = applyFunction;
 			this.resultType = resultType;
 		}
 
 		@Override
-		public void join(Tuple2<K, M> arg0, Vertex<K, VV> arg1, final Collector<Vertex<K, VV>> out) throws Exception {
+		public void join(Tuple2<K, M> newValue, final Vertex<K, VV> currentValue, final Collector<Vertex<K, VV>> out) throws Exception {
 
-			final K key = arg1.getId();
-			Collector<VV> userOut = new Collector<VV>() {
-				@Override
-				public void collect(VV record) {
-					out.collect(new Vertex<K, VV>(key, record));
-				}
-
-				@Override
-				public void close() {
-					out.close();
-				}
-			};
-
-			this.applyFunction.setOutput(userOut);
-			this.applyFunction.apply(arg0.f1, arg1.getValue());
+			this.applyFunction.setOutput(currentValue, out);
+			this.applyFunction.apply(newValue.f1, currentValue.getValue());
 		}
 
 		@Override

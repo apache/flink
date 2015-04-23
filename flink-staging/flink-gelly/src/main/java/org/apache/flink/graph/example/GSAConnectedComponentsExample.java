@@ -102,7 +102,7 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 	};
 
 	@SuppressWarnings("serial")
-	private static final class UpdateComponentId extends ApplyFunction<Long, NullValue, Long> {
+	private static final class UpdateComponentId extends ApplyFunction<Long, Long, Long> {
 
 		public void apply(Long summedValue, Long origValue) {
 			if (summedValue < origValue) {
