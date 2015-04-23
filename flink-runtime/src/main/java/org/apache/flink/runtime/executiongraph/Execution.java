@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.util.ExceptionUtils;
@@ -347,26 +348,9 @@ public class Execution implements Serializable {
 						}
 					}
 					else {
-						if (success == null) {
-							markFailed(new Exception("Failed to deploy the task to slot " + slot + ": TaskOperationResult was null"));
-						}
-
-						if (success instanceof TaskOperationResult) {
-							TaskOperationResult result = (TaskOperationResult) success;
-
-							if (!result.executionID().equals(attemptId)) {
-								markFailed(new Exception("Answer execution id does not match the request execution id."));
-							} else if (result.success()) {
-								switchToRunning();
-							} else {
-								// deployment failed :(
-								markFailed(new Exception("Failed to deploy the task " +
-										getVertexWithAttempt() + " to slot " + slot + ": " + result
-										.description()));
-							}
-						} else {
+						if (!(success.equals(Messages.getAcknowledge()))) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot +
-									": Response was not of type TaskOperationResult"));
+									": Response was not of type Acknowledge"));
 						}
 					}
 				}
@@ -759,7 +743,7 @@ public class Execution implements Serializable {
 		}
 	}
 
-	private boolean switchToRunning() {
+	boolean switchToRunning() {
 
 		if (transitionState(DEPLOYING, RUNNING)) {
 			sendPartitionInfos();

@@ -20,13 +20,14 @@ package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{Terminated, ActorRef}
 import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.Messages.Disconnect
-import org.apache.flink.runtime.messages.TaskMessages.UnregisterTask
+import org.apache.flink.runtime.messages.TaskMessages.{UpdateTaskExecutionState, UnregisterTask}
 import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
@@ -48,10 +49,14 @@ class TestingTaskManager(config: TaskManagerConfiguration,
   extends TaskManager(config, connectionInfo, jobManagerAkkaURL,
                       memoryManager, ioManager, network, numberOfSlots) {
 
+  import scala.collection.JavaConverters._
+
 
   val waitForRemoval = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val waitForJobRemoval = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
   val waitForJobManagerToBeTerminated = scala.collection.mutable.HashMap[String, Set[ActorRef]]()
+  val waitForRunning = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
+  val unregisteredTasks = scala.collection.mutable.HashSet[ExecutionAttemptID]()
 
   var disconnectDisabled = false
 
@@ -64,16 +69,30 @@ class TestingTaskManager(config: TaskManagerConfiguration,
    * Handler for testing related messages
    */
   def receiveTestMessages: Receive = {
+    case NotifyWhenTaskIsRunning(executionID) => {
+      Option(runningTasks.get(executionID)) match {
+        case Some(_) => sender ! true
+        case None =>
+          val listeners = waitForRunning.getOrElse(executionID, Set())
+          waitForRunning += (executionID -> (listeners + sender))
+      }
+    }
 
     case RequestRunningTasks =>
-      sender ! ResponseRunningTasks(runningTasks.toMap)
+      sender ! ResponseRunningTasks(runningTasks.asScala.toMap)
       
     case NotifyWhenTaskRemoved(executionID) =>
-      runningTasks.get(executionID) match {
+      Option(runningTasks.get(executionID)) match {
         case Some(_) =>
           val set = waitForRemoval.getOrElse(executionID, Set())
           waitForRemoval += (executionID -> (set + sender))
-        case None => sender ! true
+        case None =>
+          if(unregisteredTasks.contains(executionID)) {
+            sender ! true
+          } else {
+              val set = waitForRemoval.getOrElse(executionID, Set())
+              waitForRemoval += (executionID -> (set + sender))
+          }
       }
       
     case UnregisterTask(executionID) =>
@@ -82,6 +101,8 @@ class TestingTaskManager(config: TaskManagerConfiguration,
         case Some(actors) => for(actor <- actors) actor ! true
         case None =>
       }
+
+      unregisteredTasks += executionID
       
     case RequestBroadcastVariablesWithReferences =>
       sender ! ResponseBroadcastVariablesWithReferences(
@@ -96,7 +117,7 @@ class TestingTaskManager(config: TaskManagerConfiguration,
       sender ! ResponseNumActiveConnections(numActive)
 
     case NotifyWhenJobRemoved(jobID) =>
-      if(runningTasks.values.exists(_.getJobID == jobID)){
+      if(runningTasks.values.asScala.exists(_.getJobID == jobID)){
         val set = waitForJobRemoval.getOrElse(jobID, Set())
         waitForJobRemoval += (jobID -> (set + sender))
         import context.dispatcher
@@ -109,7 +130,7 @@ class TestingTaskManager(config: TaskManagerConfiguration,
       }
 
     case CheckIfJobRemoved(jobID) =>
-      if(runningTasks.values.forall(_.getJobID != jobID)){
+      if(runningTasks.values.asScala.forall(_.getJobID != jobID)){
         waitForJobRemoval.remove(jobID) match {
           case Some(listeners) => listeners foreach (_ ! true)
           case None =>
@@ -147,5 +168,14 @@ class TestingTaskManager(config: TaskManagerConfiguration,
 
     case DisableDisconnect =>
       disconnectDisabled = true
+
+    case msg @ UpdateTaskExecutionState(taskExecutionState) =>
+      super.receiveWithLogMessages(msg)
+
+      if(taskExecutionState.getExecutionState == ExecutionState.RUNNING) {
+        waitForRunning.get(taskExecutionState.getID) foreach {
+          _ foreach (_ ! true)
+        }
+      }
   }
 }

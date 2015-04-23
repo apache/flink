@@ -68,6 +68,8 @@ import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.util.{MathUtils, EnvironmentInformation}
 import org.apache.flink.util.ExceptionUtils
 
+import org.slf4j.LoggerFactory
+
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -133,7 +135,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
   protected val resources = HardwareDescription.extractFromSystem(memoryManager.getMemorySize)
 
   /** Registry of all tasks currently executed by this TaskManager */
-  protected val runningTasks = scala.collection.mutable.HashMap[ExecutionAttemptID, Task]()
+  protected val runningTasks = new util.concurrent.ConcurrentHashMap[ExecutionAttemptID, Task]()
 
   /** Handler for shared broadcast variables (shared between multiple Tasks) */
   protected val bcVarManager = new BroadcastVariableManager()
@@ -380,7 +382,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
       // marks a task as failed for an external reason
       // external reasons are reasons other than the task code itself throwing an exception
       case FailTask(executionID, cause) =>
-        runningTasks.get(executionID) match {
+        Option(runningTasks.get(executionID)) match {
           case Some(task) =>
 
             // execute failing operation concurrently
@@ -395,7 +397,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
       // cancels a task
       case CancelTask(executionID) =>
-        runningTasks.get(executionID) match {
+        Option(runningTasks.get(executionID)) match {
           case Some(task) =>
             // execute cancel operation concurrently
             implicit val executor = context.dispatcher
@@ -422,11 +424,12 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
   private def handleCheckpointingMessage(message: CheckpointingMessage): Unit = {
 
     message match {
+
       case BarrierReq(attemptID, checkpointID) =>
         log.debug(s"[FT-TaskManager] Barrier $checkpointID request received " +
           s"for attempt $attemptID.")
 
-        runningTasks.get(attemptID) match {
+        Option(runningTasks.get(attemptID)) match {
           case Some(i) =>
             if (i.getExecutionState == ExecutionState.RUNNING) {
               i.getEnvironment.getInvokable match {
@@ -773,31 +776,45 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
   // --------------------------------------------------------------------------
 
   /**
-   * Receives a [[TaskDeploymentDescriptor]] describing the task to be executed. Sets up a
-   * [[RuntimeEnvironment]] for the task and starts its execution in a separate thread.
+   * Receives a [[TaskDeploymentDescriptor]] describing the task to be executed. It eagerly
+   * acknowledges the task reception to the sender and asynchronously starts the initialization of
+   * the task.
    *
    * @param tdd TaskDeploymentDescriptor describing the task to be executed on this [[TaskManager]]
    */
   private def submitTask(tdd: TaskDeploymentDescriptor): Unit = {
+    val slot = tdd.getTargetSlotNumber
+
+    if (!isConnected) {
+      sender ! Failure(
+        new IllegalStateException("TaskManager is not associated with a JobManager.")
+      )
+    } else if (slot < 0 || slot >= numberOfSlots) {
+      sender ! Failure(new Exception(s"Target slot $slot does not exist on TaskManager."))
+    } else {
+      sender ! Acknowledge
+
+      Future {
+        initializeTask(tdd)
+      }(context.dispatcher)
+    }
+  }
+
+  /** Sets up a [[org.apache.flink.runtime.execution.RuntimeEnvironment]] for the task and starts
+    * its execution in a separate thread.
+    *
+    * @param tdd TaskDeploymentDescriptor describing the task to be executed on this [[TaskManager]]
+    */
+  private def initializeTask(tdd: TaskDeploymentDescriptor): Unit ={
     val jobID = tdd.getJobID
     val vertexID = tdd.getVertexID
     val executionID = tdd.getExecutionId
     val taskIndex = tdd.getIndexInSubtaskGroup
     val numSubtasks = tdd.getNumberOfSubtasks
-    val slot = tdd.getTargetSlotNumber
     var startRegisteringTask = 0L
     var task: Task = null
 
-    // all operations are in a try / catch block to make sure we send a result upon any failure
     try {
-      // check that we are already registered
-      if (!isConnected) {
-        throw new IllegalStateException("TaskManager is not associated with a JobManager")
-      }
-      if (slot < 0 || slot >= numberOfSlots) {
-        throw new Exception(s"Target slot ${slot} does not exist on TaskManager.")
-      }
-
       val userCodeClassLoader = libraryCacheManager match {
         case Some(manager) =>
           if (log.isDebugEnabled) {
@@ -807,8 +824,10 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
           // triggers the download of all missing jar files from the job manager
           manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
 
+          if (log.isDebugEnabled) {
           log.debug(s"Register task $executionID at library cache manager " +
             s"took ${(System.currentTimeMillis() - startRegisteringTask) / 1000.0}s")
+          }
 
           manager.getClassLoader(jobID)
         case None => throw new IllegalStateException("There is no valid library cache manager.")
@@ -820,8 +839,8 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
       task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
         tdd.getTaskName, self)
-      
-      runningTasks.put(executionID, task) match {
+
+      Option(runningTasks.put(executionID, task)) match {
         case Some(_) => throw new RuntimeException(
           s"TaskManager contains already a task with executionID $executionID.")
         case None =>
@@ -848,7 +867,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
             opStateCarrier.injectState(tdd.getOperatorStates)
         }
       }
-      
+
       // register the task with the network stack and profiles
       log.info(s"Register task $task.")
       network.registerTask(task)
@@ -865,15 +884,13 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
         throw new RuntimeException("Cannot start task. Task was canceled or failed.")
       }
 
-      sender ! new TaskOperationResult(executionID, true)
-    }
-    catch {
+      self ! UpdateTaskExecutionState(
+        new TaskExecutionState(jobID, executionID, ExecutionState.RUNNING)
+      )
+    } catch {
       case t: Throwable =>
-        val message = if (t.isInstanceOf[CancelTaskException]) {
-          "Task was canceled"
-        } else {
+        if (!t.isInstanceOf[CancelTaskException]) {
           log.error("Could not instantiate task with execution ID " + executionID, t)
-          ExceptionUtils.stringifyException(t)
         }
 
         try {
@@ -887,7 +904,9 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
           case t: Throwable => log.error("Error during cleanup of task deployment.", t)
         }
 
-        sender ! new TaskOperationResult(executionID, false, message)
+        self ! UpdateTaskExecutionState(
+          new TaskExecutionState(jobID, executionID, ExecutionState.FAILED, t)
+        )
     }
   }
 
@@ -901,7 +920,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
          executionId: ExecutionAttemptID,
          partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)]) : Unit = {
 
-    runningTasks.get(executionId) match {
+    Option(runningTasks.get(executionId)) match {
       case Some(task) =>
 
         val errors: Seq[String] = partitionInfos.flatMap { info =>
@@ -958,7 +977,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
     if (runningTasks.size > 0) {
       log.info("Cancelling all computations and discarding all cached data.")
 
-      for (t <- runningTasks.values) {
+      for (t <- runningTasks.values().asScala) {
         t.failExternally(cause)
         unregisterTaskAndNotifyFinalState(t.getExecutionId)
       }
@@ -966,7 +985,8 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
   }
 
   private def unregisterTaskAndNotifyFinalState(executionID: ExecutionAttemptID): Unit = {
-    runningTasks.remove(executionID) match {
+
+    Option(runningTasks.remove(executionID)) match {
       case Some(task) =>
 
         // mark the task as failed if it is not yet in a final state

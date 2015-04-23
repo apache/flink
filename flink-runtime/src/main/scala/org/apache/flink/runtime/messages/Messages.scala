@@ -26,15 +26,7 @@ object Messages {
   /**
    * Message to signal the successful reception of another message
    */
-  case object Acknowledge {
-
-    /**
-     * Accessor for the case object instance, to simplify Java interoperability.
-     *
-     * @return The Acknowledge case object instance.
-     */
-    def get(): Acknowledge.type = this
-  }
+  case object Acknowledge
 
   /**
    * Signals that the receiver (JobManager/TaskManager) shall disconnect the sender.
@@ -49,4 +41,10 @@ object Messages {
    */
   case class Disconnect(reason: String)
 
+  /**
+   * Accessor for the case object instance, to simplify Java interoperability.
+   *
+   * @return The Acknowledge case object instance.
+   */
+  def getAcknowledge(): Acknowledge.type = Acknowledge
 }

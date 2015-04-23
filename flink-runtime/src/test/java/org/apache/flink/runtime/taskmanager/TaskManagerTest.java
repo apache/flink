@@ -47,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskMessages;
@@ -67,8 +68,10 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -82,6 +85,8 @@ public class TaskManagerTest {
 	private static ActorSystem system;
 
 	private static Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
+
+	private final FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);
 
 	@BeforeClass
 	public static void setup() {
@@ -115,12 +120,12 @@ public class TaskManagerTest {
 					new ArrayList<BlobKey>(), 0);
 
 				final ActorRef tmClosure = taskManager;
-				new Within(duration("10 seconds")) {
+				new Within(d) {
 
 					@Override
 					protected void run() {
 						tmClosure.tell(new SubmitTask(tdd), getRef());
-						expectMsgEquals(new TaskOperationResult(eid, true));
+						expectMsgEquals(Messages.getAcknowledge());
 					}
 				};
 			}
@@ -172,18 +177,29 @@ public class TaskManagerTest {
 					new ArrayList<BlobKey>(), 0);
 
 				final ActorRef tm = taskManager;
-				final FiniteDuration d = duration("10 second");
 
 				new Within(d) {
 
 					@Override
 					protected void run() {
 						try {
+							Future<Object> t1Running = Patterns.ask(
+									tm,
+									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid1),
+									timeout);
+							Future<Object> t2Running = Patterns.ask(
+									tm,
+									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid2),
+									timeout);
+
 							tm.tell(new SubmitTask(tdd1), getRef());
 							tm.tell(new SubmitTask(tdd2), getRef());
 
-							expectMsgEquals(new TaskOperationResult(eid1, true));
-							expectMsgEquals(new TaskOperationResult(eid2, true));
+							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Messages.getAcknowledge());
+
+							Await.ready(t1Running, d);
+							Await.ready(t2Running, d);
 							
 							tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 
@@ -288,34 +304,34 @@ public class TaskManagerTest {
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
-				new Within(duration("10 second")){
+				new Within(d){
 
 					@Override
 					protected void run() {
-						tm.tell(new SubmitTask(tdd1), getRef());
-						tm.tell(new SubmitTask(tdd2), getRef());
+						try {
+							tm.tell(new SubmitTask(tdd1), getRef());
+							tm.tell(new SubmitTask(tdd2), getRef());
 
-						TaskOperationResult result = expectMsgClass(TaskOperationResult.class);
-						assertFalse(result.success());
-						assertEquals(eid1, result.executionID());
+							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Messages.getAcknowledge());
 
-						result = expectMsgClass(TaskOperationResult.class);
-						assertFalse(result.success());
-						assertEquals(eid2, result.executionID());
+							tm.tell(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
+									getRef());
+							tm.tell(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
+									getRef());
 
-						tm.tell(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
-								getRef());
-						tm.tell(new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
-								getRef());
+							expectMsgEquals(true);
+							expectMsgEquals(true);
 
-						expectMsgEquals(true);
-						expectMsgEquals(true);
+							tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
+							Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages
+									.ResponseRunningTasks.class).asJava();
 
-						tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
-						Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages
-								.ResponseRunningTasks.class).asJava();
-
-						assertEquals(0, tasks.size());
+							assertEquals(0, tasks.size());
+						} catch (Exception e){
+							e.printStackTrace();
+							fail(e.getMessage());
+						}
 					}
 				};
 			}
@@ -378,17 +394,27 @@ public class TaskManagerTest {
 						Collections.singletonList(ircdd),
 						new ArrayList<BlobKey>(), 0);
 
-				final FiniteDuration d = duration("10 second");
-
 				new Within(d) {
 
 					@Override
 					protected void run() {
 						try {
+							Future<Object> t1Running = Patterns.ask(
+									tm,
+									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid1),
+									timeout);
+							Future<Object> t2Running = Patterns.ask(
+									tm,
+									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid2),
+									timeout);
+
 							tm.tell(new SubmitTask(tdd1), getRef());
-							expectMsgEquals(new TaskOperationResult(eid1, true));
+							expectMsgEquals(Messages.getAcknowledge());
 							tm.tell(new SubmitTask(tdd2), getRef());
-							expectMsgEquals(new TaskOperationResult(eid2, true));
+							expectMsgEquals(Messages.getAcknowledge());
+
+							Await.ready(t1Running, d);
+							Await.ready(t2Running, d);
 
 							tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 							Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages.ResponseRunningTasks
@@ -460,7 +486,11 @@ public class TaskManagerTest {
 				final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
-				jobManager = system.actorOf(Props.create(new SimpleLookupFailingUpdateJobManagerCreator()));
+				jobManager = system.actorOf(
+						Props.create(
+								new SimpleLookupFailingUpdateJobManagerCreator(eid2)
+						)
+				);
 				taskManager = createTaskManager(jobManager);
 				final ActorRef tm = taskManager;
 
@@ -488,19 +518,28 @@ public class TaskManagerTest {
 						Collections.singletonList(ircdd),
 						new ArrayList<BlobKey>(), 0);
 
-				final FiniteDuration d = duration("10 second");
-
 				new Within(d){
 
 					@Override
 					protected void run() {
 						try {
-							// deploy sender before receiver, so the target is online when the sender requests the connection info
+							Future<Object> t1Running = Patterns.ask(
+									tm,
+									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid1),
+									timeout);
+							Future<Object> t2Running = Patterns.ask(
+									tm,
+									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid2),
+									timeout);
+
 							tm.tell(new SubmitTask(tdd2), getRef());
 							tm.tell(new SubmitTask(tdd1), getRef());
 
-							expectMsgEquals(new TaskOperationResult(eid2, true));
-							expectMsgEquals(new TaskOperationResult(eid1, true));
+							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Messages.getAcknowledge());
+
+							Await.ready(t1Running, d);
+							Await.ready(t2Running, d);
 
 							tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 							Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages
@@ -588,10 +627,23 @@ public class TaskManagerTest {
 
 	public static class SimpleLookupFailingUpdateJobManager extends SimpleLookupJobManager{
 
+		private final Set<ExecutionAttemptID> validIDs;
+
+		public SimpleLookupFailingUpdateJobManager(Set<ExecutionAttemptID> ids) {
+			this.validIDs = new HashSet<ExecutionAttemptID>(ids);
+		}
+
 		@Override
 		public void onReceive(Object message) throws Exception{
 			if (message instanceof TaskMessages.UpdateTaskExecutionState) {
-				getSender().tell(false, getSelf());
+				TaskMessages.UpdateTaskExecutionState updateMsg =
+						(TaskMessages.UpdateTaskExecutionState) message;
+
+				if(validIDs.contains(updateMsg.taskExecutionState().getID())) {
+					getSender().tell(true, getSelf());
+				} else {
+					getSender().tell(false, getSelf());
+				}
 			} else {
 				super.onReceive(message);
 			}
@@ -608,9 +660,19 @@ public class TaskManagerTest {
 
 	public static class SimpleLookupFailingUpdateJobManagerCreator implements Creator<SimpleLookupFailingUpdateJobManager>{
 
+		private final Set<ExecutionAttemptID> validIDs;
+
+		public SimpleLookupFailingUpdateJobManagerCreator(ExecutionAttemptID ... ids) {
+			validIDs = new HashSet<ExecutionAttemptID>();
+
+			for(ExecutionAttemptID id : ids) {
+				this.validIDs.add(id);
+			}
+		}
+
 		@Override
 		public SimpleLookupFailingUpdateJobManager create() throws Exception {
-			return new SimpleLookupFailingUpdateJobManager();
+			return new SimpleLookupFailingUpdateJobManager(validIDs);
 		}
 	}
 
