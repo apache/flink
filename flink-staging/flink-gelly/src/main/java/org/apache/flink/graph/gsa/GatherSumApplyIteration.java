@@ -19,11 +19,14 @@
 package org.apache.flink.graph.gsa;
 
 import org.apache.commons.lang3.Validate;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.JoinOperator;
@@ -119,11 +122,9 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 				vertexDataSet.iterateDelta(vertexDataSet, maximumNumberOfIterations, zeroKeyPos);
 
 		// Prepare the neighbors
-		DataSet<Tuple2<Vertex<K, VV>, Edge<K, EV>>> neighbors = iteration
-				.getWorkset()
-				.join(edgeDataSet)
-				.where(0)
-				.equalTo(0);
+		DataSet<Tuple2<K, Neighbor<VV, EV>>> neighbors = iteration
+				.getWorkset().join(edgeDataSet)
+				.where(0).equalTo(0).with(new ProjectKeyWithNeighbor<K, VV, EV>());
 
 		// Gather, sum and apply
 		DataSet<Tuple2<K, M>> gatheredSet = neighbors.map(gatherUdf);
@@ -170,8 +171,9 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("serial")
+	@ForwardedFields("f0")
 	private static final class GatherUdf<K extends Comparable<K> & Serializable, VV extends Serializable,
-			EV extends Serializable, M> extends RichMapFunction<Tuple2<Vertex<K, VV>, Edge<K, EV>>,
+			EV extends Serializable, M> extends RichMapFunction<Tuple2<K, Neighbor<VV, EV>>,
 			Tuple2<K, M>> implements ResultTypeQueryable<Tuple2<K, M>> {
 
 		private final GatherFunction<VV, EV, M> gatherFunction;
@@ -183,13 +185,9 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 		}
 
 		@Override
-		public Tuple2<K, M> map(Tuple2<Vertex<K, VV>, Edge<K, EV>> neighborTuple) throws Exception {
-			Neighbor<VV, EV> neighbor = new Neighbor<VV, EV>(neighborTuple.f0.getValue(),
-					neighborTuple.f1.getValue());
-
-			K key = neighborTuple.f1.getTarget();
-			M result = this.gatherFunction.gather(neighbor);
-			return new Tuple2<K, M>(key, result);
+		public Tuple2<K, M> map(Tuple2<K, Neighbor<VV, EV>> neighborTuple) {
+			M result = this.gatherFunction.gather(neighborTuple.f1);
+			return new Tuple2<K, M>(neighborTuple.f0, result);
 		}
 
 		@Override
@@ -299,6 +297,18 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 		@Override
 		public TypeInformation<Vertex<K, VV>> getProducedType() {
 			return this.resultType;
+		}
+	}
+
+	@SuppressWarnings("serial")
+	@ForwardedFieldsSecond("f1->f0")
+	private static final class ProjectKeyWithNeighbor<K extends Comparable<K> & Serializable,
+			VV extends Serializable, EV extends Serializable> implements FlatJoinFunction<
+			Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Neighbor<VV, EV>>> {
+
+		public void join(Vertex<K, VV> vertex, Edge<K, EV> edge, Collector<Tuple2<K, Neighbor<VV, EV>>> out) {
+			out.collect(new Tuple2<K, Neighbor<VV, EV>>(
+					edge.getTarget(), new Neighbor<VV, EV>(vertex.getValue(), edge.getValue())));
 		}
 	}
 
