@@ -21,7 +21,6 @@ package org.apache.flink.api.scala.runtime.jobmanager
 import akka.actor.Status.Success
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.junit.Ignore
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -36,7 +35,6 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{JobMana
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.test.util.ForkableFlinkMiniCluster
 
-@Ignore("Contains a bug with Akka 2.2.1")
 @RunWith(classOf[JUnitRunner])
 class JobManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
 with WordSpecLike with Matchers with BeforeAndAfterAll {
