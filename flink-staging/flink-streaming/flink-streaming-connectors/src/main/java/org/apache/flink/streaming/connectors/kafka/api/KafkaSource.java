@@ -47,7 +47,6 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 
 	private static final long serialVersionUID = 1L;
 
-	@SuppressWarnings("unused")
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
 
 	private final String zookeeperAddress;

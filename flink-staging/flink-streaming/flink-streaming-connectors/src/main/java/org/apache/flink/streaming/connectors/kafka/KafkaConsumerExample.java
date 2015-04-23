@@ -38,7 +38,6 @@ public class KafkaConsumerExample {
 
 		DataStream<String> kafkaStream = env
 				.addSource(new KafkaSource<String>(host + ":" + port, topic, new JavaDefaultStringSchema()));
-
 		kafkaStream.print();
 
 		env.execute();

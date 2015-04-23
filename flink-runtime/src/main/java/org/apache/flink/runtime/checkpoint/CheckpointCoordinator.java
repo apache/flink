@@ -147,7 +147,7 @@ public class CheckpointCoordinator {
 				return;
 			}
 			shutdown = true;
-			LOG.info("Stopping checkpoint coordinator jor job " + job);
+			LOG.info("Stopping checkpoint coordinator for job " + job);
 			
 			// shut down the thread that handles the timeouts
 			timer.cancel();

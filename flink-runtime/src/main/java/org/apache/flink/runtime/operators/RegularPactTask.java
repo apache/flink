@@ -507,7 +507,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			// Collect the accumulators of all involved UDFs and send them to the
 			// JobManager. close() has been called earlier for all involved UDFs
 			// (using this.stub.close() and closeChainedTasks()), so UDFs can no longer
-			// modify accumulators.ll;
+			// modify accumulators;
 			if (this.stub != null) {
 				// collect the counters from the stub
 				if (FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext) != null) {

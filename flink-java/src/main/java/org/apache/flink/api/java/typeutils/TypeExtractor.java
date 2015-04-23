@@ -1445,12 +1445,11 @@ public class TypeExtractor {
 
 	public static <X> TypeInformation<X> getForObject(X value) {
 		return new TypeExtractor().privateGetForObject(value);
-
 	}
+
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <X> TypeInformation<X> privateGetForObject(X value) {
 		Validate.notNull(value);
-		
 		// check if we can extract the types from tuples, otherwise work with the class
 		if (value instanceof Tuple) {
 			Tuple t = (Tuple) value;

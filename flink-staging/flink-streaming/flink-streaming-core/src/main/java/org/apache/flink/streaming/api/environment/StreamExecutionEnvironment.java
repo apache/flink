@@ -35,6 +35,7 @@ import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
@@ -49,7 +50,6 @@ import org.apache.flink.streaming.api.functions.source.FileReadFunction;
 import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.GenSequenceFunction;
-import org.apache.flink.streaming.api.functions.source.GenericSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
@@ -66,6 +66,8 @@ import com.esotericsoftware.kryo.Serializer;
  * 
  */
 public abstract class StreamExecutionEnvironment {
+
+	public final static String DEFAULT_JOB_NAME = "Flink Streaming Job";
 
 	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
 
@@ -624,8 +626,8 @@ public abstract class StreamExecutionEnvironment {
 
 		TypeInformation<OUT> outTypeInfo;
 
-		if (function instanceof GenericSourceFunction) {
-			outTypeInfo = ((GenericSourceFunction<OUT>) function).getType();
+		if (function instanceof ResultTypeQueryable) {
+			outTypeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
 		} else {
 			try {
 				outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class,
