@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.util.serialization;
 
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 public class JavaDefaultStringSchema implements DeserializationSchema<String>, SerializationSchema<String, byte[]> {
 
@@ -36,6 +38,11 @@ public class JavaDefaultStringSchema implements DeserializationSchema<String>, S
 	@Override
 	public String deserialize(byte[] message) {
 		return SerializationUtils.deserialize(message);
+	}
+
+	@Override
+	public TypeInformation<String> getProducedType() {
+		return TypeExtractor.getForClass(String.class);
 	}
 
 }

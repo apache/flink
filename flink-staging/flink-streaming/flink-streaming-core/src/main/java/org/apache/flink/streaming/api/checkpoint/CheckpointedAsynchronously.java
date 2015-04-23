@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
+import java.io.Serializable;
+
 /**
  * This interface marks a function/operator as <i>asynchronously checkpointed</i>.
  * Similar to the {@link Checkpointed} interface, the function must produce a
@@ -32,4 +34,4 @@ package org.apache.flink.streaming.api.checkpoint;
  * {@link #snapshotState(long, long)} method is typically a copy or shadow copy
  * of the actual state.</p>
  */
-public interface CheckpointedAsynchronously extends Checkpointed {}
+public interface CheckpointedAsynchronously<T extends Serializable> extends Checkpointed<T> {}

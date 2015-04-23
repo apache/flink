@@ -30,8 +30,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	@Override
 	public JobExecutionResult execute() throws Exception {
-		return ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(), getParallelism(),
-																getConfig().isSysoutLoggingEnabled());
+		return execute(DEFAULT_JOB_NAME);
 	}
 
 	/**
@@ -44,7 +43,9 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		return ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(jobName), getParallelism(),
-																		getConfig().isSysoutLoggingEnabled());
+		JobExecutionResult result = ClusterUtil.runOnMiniCluster(this.streamGraph.getJobGraph(jobName), getParallelism(),
+				getConfig().isSysoutLoggingEnabled());
+		streamGraph.clear(); // clear graph to allow submitting another job via the same environment.
+		return result;
 	}
 }

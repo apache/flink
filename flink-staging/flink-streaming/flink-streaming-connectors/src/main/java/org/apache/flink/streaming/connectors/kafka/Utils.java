@@ -19,7 +19,6 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.ByteArrayInputView;
 import org.apache.flink.runtime.util.DataOutputSerializer;
@@ -30,7 +29,7 @@ import java.io.IOException;
 
 public class Utils {
 	public static class TypeInformationSerializationSchema<T>
-			implements DeserializationSchema<T>, SerializationSchema<T, byte[]>, ResultTypeQueryable<T> {
+			implements DeserializationSchema<T>, SerializationSchema<T, byte[]> {
 		private final TypeSerializer<T> serializer;
 		private final TypeInformation<T> ti;
 

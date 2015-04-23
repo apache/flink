@@ -60,8 +60,7 @@ import org.slf4j.LoggerFactory;
 public class StreamGraph extends StreamingPlan {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
-	private final static String DEAFULT_JOB_NAME = "Flink Streaming Job";
-	private String jobName = DEAFULT_JOB_NAME;
+	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
 
 	private final StreamExecutionEnvironment environemnt;
 	private final ExecutionConfig executionConfig;
@@ -70,17 +69,25 @@ public class StreamGraph extends StreamingPlan {
 	private long checkpointingInterval = 5000;
 	private boolean chaining = true;
 
-	private final Map<Integer, StreamNode> streamNodes;
-	private final Set<Integer> sources;
+	private Map<Integer, StreamNode> streamNodes;
+	private Set<Integer> sources;
 
-	private final Map<Integer, StreamLoop> streamLoops;
-	protected final Map<Integer, StreamLoop> vertexIDtoLoop;
+	private Map<Integer, StreamLoop> streamLoops;
+	protected Map<Integer, StreamLoop> vertexIDtoLoop;
 
 	public StreamGraph(StreamExecutionEnvironment environment) {
 
 		this.environemnt = environment;
 		executionConfig = environment.getConfig();
 
+		// create an empty new stream graph.
+		clear();
+	}
+
+	/**
+	 * Remove all registered nodes etc.
+	 */
+	public void clear() {
 		streamNodes = new HashMap<Integer, StreamNode>();
 		streamLoops = new HashMap<Integer, StreamLoop>();
 		vertexIDtoLoop = new HashMap<Integer, StreamGraph.StreamLoop>();

@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 public class RawSchema implements DeserializationSchema<byte[]>,
 		SerializationSchema<byte[], byte[]> {
 
@@ -35,5 +38,10 @@ public class RawSchema implements DeserializationSchema<byte[]>,
 	@Override
 	public byte[] serialize(byte[] element) {
 		return element;
+	}
+
+	@Override
+	public TypeInformation<byte[]> getProducedType() {
+		return TypeExtractor.getForClass(byte[].class);
 	}
 }

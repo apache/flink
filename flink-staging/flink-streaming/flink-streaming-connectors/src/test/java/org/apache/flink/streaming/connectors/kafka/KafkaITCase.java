@@ -25,14 +25,20 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 
+import kafka.admin.AdminUtils;
+import kafka.api.PartitionMetadata;
 import kafka.consumer.ConsumerConfig;
-import org.apache.commons.lang.SerializationUtils;
+import kafka.network.SocketServer;
+import org.I0Itec.zkclient.ZkClient;
 import org.apache.curator.test.TestingServer;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -40,25 +46,25 @@ import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.WindowMapFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSink;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSource;
-import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaTopicUtils;
-import org.apache.flink.streaming.connectors.kafka.api.simple.PersistentKafkaSource;
-import org.apache.flink.streaming.connectors.kafka.api.simple.offset.Offset;
+import org.apache.flink.streaming.connectors.kafka.api.persistent.PersistentKafkaSource;
 import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.util.KafkaLocalSystemTime;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.Collector;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -66,6 +72,7 @@ import org.slf4j.LoggerFactory;
 
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
+import scala.collection.Seq;
 
 /**
  * Code in this test is based on the following GitHub repository:
@@ -91,8 +98,14 @@ public class KafkaITCase {
 
 	private static TestingServer zookeeper;
 	private static List<KafkaServer> brokers;
+	private static String brokerConnectionStrings = "";
 
 	private static boolean shutdownKafkaBroker;
+
+	private static ConsumerConfig standardCC;
+
+	private static ZkClient zkClient;
+
 
 	@BeforeClass
 	public static void prepare() throws IOException {
@@ -118,6 +131,12 @@ public class KafkaITCase {
 			brokers = new ArrayList<KafkaServer>(NUMBER_OF_KAFKA_SERVERS);
 			for (int i = 0; i < NUMBER_OF_KAFKA_SERVERS; i++) {
 				brokers.add(getKafkaServer(i, tmpKafkaDirs.get(i)));
+				SocketServer socketServer = brokers.get(i).socketServer();
+				String host = "localhost";
+				if(socketServer.host() != null) {
+					host = socketServer.host();
+				}
+				brokerConnectionStrings += host+":"+socketServer.port()+",";
 			}
 
 			LOG.info("ZK and KafkaServer started.");
@@ -125,6 +144,17 @@ public class KafkaITCase {
 			LOG.warn("Test failed with exception", t);
 			Assert.fail("Test failed with: " + t.getMessage());
 		}
+
+		Properties cProps = new Properties();
+		cProps.setProperty("zookeeper.connect", zookeeperConnectionString);
+		cProps.setProperty("group.id", "flink-tests");
+		cProps.setProperty("auto.commit.enable", "false");
+
+		cProps.setProperty("auto.offset.reset", "smallest"); // read from the beginning.
+
+		standardCC = new ConsumerConfig(cProps);
+
+		zkClient = new ZkClient(standardCC.zkConnect(), standardCC.zkSessionTimeoutMs(), standardCC.zkConnectionTimeoutMs(), new PersistentKafkaSource.KafkaZKStringSerializer());
 	}
 
 	@AfterClass
@@ -142,7 +172,195 @@ public class KafkaITCase {
 				LOG.warn("ZK.stop() failed", e);
 			}
 		}
+		zkClient.close();
 	}
+
+
+	@Test
+	public void testOffsetManipulation() {
+		ZkClient zk = new ZkClient(standardCC.zkConnect(), standardCC.zkSessionTimeoutMs(), standardCC.zkConnectionTimeoutMs(), new PersistentKafkaSource.KafkaZKStringSerializer());
+
+		final String topicName = "testOffsetManipulation";
+
+		// create topic
+		Properties topicConfig = new Properties();
+		LOG.info("Creating topic {}", topicName);
+		AdminUtils.createTopic(zk, topicName, 3, 2, topicConfig);
+
+		PersistentKafkaSource.setOffset(zk, standardCC.groupId(), topicName, 0, 1337);
+
+		Assert.assertEquals(1337L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 0));
+
+		zk.close();
+	}
+	/**
+	 * We want to use the High level java consumer API but manage the offset in Zookeeper manually.
+	 *
+	 */
+	@Test
+	public void testPersistentSourceWithOffsetUpdates() throws Exception {
+		LOG.info("Starting testPersistentSourceWithOffsetUpdates()");
+
+		ZkClient zk = new ZkClient(standardCC.zkConnect(), standardCC.zkSessionTimeoutMs(), standardCC.zkConnectionTimeoutMs(), new PersistentKafkaSource.KafkaZKStringSerializer());
+
+		final String topicName = "testOffsetHacking";
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(3);
+		env.getConfig().disableSysoutLogging();
+		env.enableCheckpointing(50);
+		env.setNumberOfExecutionRetries(0);
+
+		// create topic
+		Properties topicConfig = new Properties();
+		LOG.info("Creating topic {}", topicName);
+		AdminUtils.createTopic(zk, topicName, 3, 2, topicConfig);
+
+		// write a sequence from 0 to 99 to each of the three partitions.
+		writeSequence(env, topicName, 0, 99);
+
+		readSequence(env, standardCC, topicName, 0, 100, 300);
+
+		// check offsets
+		Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 0));
+		Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 1));
+		Assert.assertEquals("The offset seems incorrect", 99L, PersistentKafkaSource.getOffset(zk, standardCC.groupId(), topicName, 2));
+
+
+		LOG.info("Manipulating offsets");
+		// set the offset to 25, 50, and 75 for the three partitions
+		PersistentKafkaSource.setOffset(zk, standardCC.groupId(), topicName, 0, 50);
+		PersistentKafkaSource.setOffset(zk, standardCC.groupId(), topicName, 1, 50);
+		PersistentKafkaSource.setOffset(zk, standardCC.groupId(), topicName, 2, 50);
+
+		// create new env
+		env = StreamExecutionEnvironment.createLocalEnvironment(3);
+		env.getConfig().disableSysoutLogging();
+		readSequence(env, standardCC, topicName, 50, 50, 150);
+
+		zk.close();
+
+		LOG.info("Finished testPersistentSourceWithOffsetUpdates()");
+	}
+
+	private void readSequence(StreamExecutionEnvironment env, ConsumerConfig cc, String topicName, final int valuesStartFrom, final int valuesCount, final int finalCount) throws Exception {
+		LOG.info("Reading sequence for verification until final count {}", finalCount);
+		DataStream<Tuple2<Integer, Integer>> source = env.addSource(
+				new PersistentKafkaSource<Tuple2<Integer, Integer>>(topicName, new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1,1), env.getConfig()), cc)
+		)
+		//add a sleeper mapper. Since there is no good way of "shutting down" a running topology, we have
+		// to play this trick. The problem is that we have to wait until all checkpoints are confirmed
+		.map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
+			@Override
+			public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
+				Thread.sleep(75);
+				return value;
+			}
+		}).setParallelism(3);
+
+		// verify data
+		DataStream<Integer> validIndexes = source.flatMap(new RichFlatMapFunction<Tuple2<Integer, Integer>, Integer>() {
+			int[] values = new int[valuesCount];
+			int count = 0;
+
+			@Override
+			public void flatMap(Tuple2<Integer, Integer> value, Collector<Integer> out) throws Exception {
+				values[value.f1 - valuesStartFrom]++;
+				count++;
+
+				LOG.info("Reader " + getRuntimeContext().getIndexOfThisSubtask() + " got " + value + " count=" + count + "/" + finalCount);
+				// verify if we've seen everything
+
+				if (count == finalCount) {
+					LOG.info("Received all values");
+					for (int i = 0; i < values.length; i++) {
+						int v = values[i];
+						if (v != 3) {
+							throw new RuntimeException("Expected v to be 3, but was " + v + " on element " + i + " array=" + Arrays.toString(values));
+						}
+					}
+					// test has passed
+					throw new SuccessException();
+				}
+			}
+
+		}).setParallelism(1);
+
+		tryExecute(env, "Read data from Kafka");
+
+		LOG.info("Successfully read sequence for verification");
+	}
+
+
+
+	private void writeSequence(StreamExecutionEnvironment env, String topicName, final int from, final int to) throws Exception {
+		LOG.info("Writing sequence from {} to {} to topic {}", from, to, topicName);
+		DataStream<Tuple2<Integer, Integer>> stream = env.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
+			private static final long serialVersionUID = 1L;
+			boolean running = true;
+
+			@Override
+			public void run(Collector<Tuple2<Integer, Integer>> collector) throws Exception {
+				LOG.info("Starting source.");
+				int cnt = from;
+				int partition = getRuntimeContext().getIndexOfThisSubtask();
+				while (running) {
+					LOG.info("Writing " + cnt + " to partition " + partition);
+					collector.collect(new Tuple2<Integer, Integer>(getRuntimeContext().getIndexOfThisSubtask(), cnt));
+					if (cnt == to) {
+						LOG.info("Writer reached end.");
+						return;
+					}
+					cnt++;
+				}
+			}
+
+			@Override
+			public void cancel() {
+				LOG.info("Source got cancel()");
+				running = false;
+			}
+		}).setParallelism(3);
+		stream.addSink(new KafkaSink<Tuple2<Integer, Integer>>(brokerConnectionStrings,
+				topicName,
+				new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()),
+				new T2Partitioner()
+		)).setParallelism(3);
+		env.execute("Write sequence from " + from + " to " + to + " to topic " + topicName);
+		LOG.info("Finished writing sequence");
+	}
+
+	private static class T2Partitioner implements SerializableKafkaPartitioner {
+		@Override
+		public int partition(Object key, int numPartitions) {
+			if(numPartitions != 3) {
+				throw new IllegalArgumentException("Expected three partitions");
+			}
+			Tuple2<Integer, Integer> element = (Tuple2<Integer, Integer>) key;
+			return element.f0;
+		}
+	}
+
+	public static void tryExecute(StreamExecutionEnvironment see, String name) throws Exception {
+		try {
+			see.execute(name);
+		} catch (JobExecutionException good) {
+			Throwable t = good.getCause();
+			int limit = 0;
+			while (!(t instanceof SuccessException)) {
+				if(t == null) {
+					LOG.warn("Test failed with exception", good);
+					Assert.fail("Test failed with: " + good.getMessage());
+				}
+				
+				t = t.getCause();
+				if (limit++ == 20) {
+					LOG.warn("Test failed with exception", good);
+					Assert.fail("Test failed with: " + good.getMessage());
+				}
+			}
+		}
+	}
+
 
 	@Test
 	public void regularKafkaSourceTest() throws Exception {
@@ -152,10 +370,9 @@ public class KafkaITCase {
 		createTestTopic(topic, 1, 1);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
-				new KafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, "myFlinkGroup", new TupleSerializationSchema(), 5000));
+				new KafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, "myFlinkGroup", new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), 5000));
 		consuming.addSink(new SinkFunction<Tuple2<Long, String>>() {
 			int elCnt = 0;
 			int start = -1;
@@ -210,22 +427,9 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(zookeeperConnectionString, topic, new TupleSerializationSchema()));
+		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
 
-		try {
-			env.setParallelism(1);
-			env.execute();
-		} catch (JobExecutionException good) {
-			Throwable t = good.getCause();
-			int limit = 0;
-			while (!(t instanceof SuccessException)) {
-				t = t.getCause();
-				if (limit++ == 20) {
-					LOG.warn("Test failed with exception", good);
-					Assert.fail("Test failed with: " + good.getMessage());
-				}
-			}
-		}
+		tryExecute(env, "regular kafka source test");
 
 		LOG.info("Finished KafkaITCase.regularKafkaSourceTest()");
 	}
@@ -241,7 +445,10 @@ public class KafkaITCase {
 
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
-				new PersistentKafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, new TupleSerializationSchema(), 5000, 100, Offset.FROM_BEGINNING));
+				new PersistentKafkaSource<Tuple2<Long, String>>(topic,
+						new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()),
+						standardCC
+				));
 		consuming.addSink(new RichSinkFunction<Tuple2<Long, String>>() {
 			int elCnt = 0;
 			int start = -1;
@@ -304,22 +511,9 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(zookeeperConnectionString, topic, new TupleSerializationSchema()));
+		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
 
-		try {
-			env.setParallelism(1);
-			env.execute();
-		} catch (JobExecutionException good) {
-			Throwable t = good.getCause();
-			int limit = 0;
-			while (!(t instanceof SuccessException)) {
-				t = t.getCause();
-				if (limit++ == 20) {
-					LOG.warn("Test failed with exception", good);
-					Assert.fail("Test failed with: " + good.getMessage());
-				}
-			}
-		}
+		tryExecute(env, "tupletesttopology");
 
 		LOG.info("Finished KafkaITCase.tupleTestTopology()");
 	}
@@ -347,16 +541,19 @@ public class KafkaITCase {
 		consumerProps.setProperty("fetch.message.max.bytes", Integer.toString(1024 * 1024 * 30));
 		consumerProps.setProperty("zookeeper.connect", zookeeperConnectionString);
 		consumerProps.setProperty("group.id", "test");
+		consumerProps.setProperty("auto.commit.enable", "false");
+		consumerProps.setProperty("auto.offset.reset", "smallest");
 
 		ConsumerConfig cc = new ConsumerConfig(consumerProps);
 		DataStreamSource<Tuple2<Long, byte[]>> consuming = env.addSource(
-				new PersistentKafkaSource<Tuple2<Long, byte[]>>(topic, serSchema, Offset.FROM_BEGINNING, cc));
+				new PersistentKafkaSource<Tuple2<Long, byte[]>>(topic, serSchema, cc));
 
 		consuming.addSink(new SinkFunction<Tuple2<Long, byte[]>>() {
 			int elCnt = 0;
 
 			@Override
 			public void invoke(Tuple2<Long, byte[]> value) throws Exception {
+				LOG.info("Received {}", value.f0);
 				elCnt++;
 				if(value.f0 == -1) {
 					// we should have seen 11 elements now.
@@ -370,7 +567,7 @@ public class KafkaITCase {
 					throw new RuntimeException("More than 10 elements seen: "+elCnt);
 				}
 			}
-		});
+		}).setParallelism(1);
 
 		// add producing topology
 		DataStream<Tuple2<Long, byte[]>> stream = env.addSource(new RichSourceFunction<Tuple2<Long, byte[]>>() {
@@ -398,6 +595,7 @@ public class KafkaITCase {
 					} catch (InterruptedException ignored) {
 					}
 					if(cnt == 10) {
+						LOG.info("Send end signal");
 						// signal end
 						collector.collect(new Tuple2<Long, byte[]>(-1L, new byte[]{1}));
 						running = false;
@@ -412,30 +610,15 @@ public class KafkaITCase {
 			}
 		});
 
-		stream.addSink(new KafkaSink<Tuple2<Long, byte[]>>(zookeeperConnectionString, topic,
+		stream.addSink(new KafkaSink<Tuple2<Long, byte[]>>(brokerConnectionStrings, topic,
 				new Utils.TypeInformationSerializationSchema<Tuple2<Long, byte[]>>(new Tuple2<Long, byte[]>(0L, new byte[]{0}), env.getConfig()))
 		);
 
-		try {
-			env.setParallelism(1);
-			env.execute();
-		} catch (JobExecutionException good) {
-			Throwable t = good.getCause();
-			int limit = 0;
-			while (!(t instanceof SuccessException)) {
-				t = t.getCause();
-				if (limit++ == 20) {
-					LOG.warn("Test failed with exception", good);
-					Assert.fail("Test failed with: " + good.getMessage());
-				}
-			}
-		}
+		tryExecute(env, "big topology test");
 
 		LOG.info("Finished KafkaITCase.bigRecordTestTopology()");
 	}
 
-
-	private static boolean partitionerHasBeenCalled = false;
 
 	@Test
 	public void customPartitioningTestTopology() throws Exception {
@@ -449,7 +632,9 @@ public class KafkaITCase {
 
 		// add consuming topology:
 		DataStreamSource<Tuple2<Long, String>> consuming = env.addSource(
-				new PersistentKafkaSource<Tuple2<Long, String>>(zookeeperConnectionString, topic, new TupleSerializationSchema(), 5000, 100, Offset.FROM_BEGINNING));
+				new PersistentKafkaSource<Tuple2<Long, String>>(topic,
+						new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()),
+						standardCC));
 		consuming.addSink(new SinkFunction<Tuple2<Long, String>>() {
 			int start = -1;
 			BitSet validator = new BitSet(101);
@@ -519,23 +704,9 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<Tuple2<Long, String>>(zookeeperConnectionString, topic, new TupleSerializationSchema(), new CustomPartitioner()));
+		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), new CustomPartitioner()));
 
-		try {
-			env.setParallelism(1);
-			env.execute();
-		} catch (JobExecutionException good) {
-			Throwable t = good.getCause();
-			int limit = 0;
-			while (!(t instanceof SuccessException)) {
-				t = t.getCause();
-				if (limit++ == 20) {
-					throw good;
-				}
-			}
-
-			assertTrue(partitionerHasBeenCalled);
-		}
+		tryExecute(env, "custom partitioning test");
 
 		LOG.info("Finished KafkaITCase.customPartitioningTestTopology()");
 	}
@@ -547,7 +718,6 @@ public class KafkaITCase {
 
 		@Override
 		public int partition(Object key, int numPartitions) {
-			partitionerHasBeenCalled = true;
 
 			@SuppressWarnings("unchecked")
 			Tuple2<Long, String> tuple = (Tuple2<Long, String>) key;
@@ -561,25 +731,6 @@ public class KafkaITCase {
 		}
 	}
 
-	private static class TupleSerializationSchema implements DeserializationSchema<Tuple2<Long, String>>, SerializationSchema<Tuple2<Long, String>, byte[]> {
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public Tuple2<Long, String> deserialize(byte[] message) {
-			Object deserializedObject = SerializationUtils.deserialize(message);
-			return (Tuple2<Long, String>) deserializedObject;
-		}
-
-		@Override
-		public byte[] serialize(Tuple2<Long, String> element) {
-			return SerializationUtils.serialize(element);
-		}
-
-		@Override
-		public boolean isEndOfStream(Tuple2<Long, String> nextElement) {
-			return false;
-		}
-	}
 
 	@Test
 	public void simpleTestTopology() throws Exception {
@@ -591,7 +742,7 @@ public class KafkaITCase {
 
 		// add consuming topology:
 		DataStreamSource<String> consuming = env.addSource(
-				new PersistentKafkaSource<String>(zookeeperConnectionString, topic, new JavaDefaultStringSchema(), 5000, 100, Offset.FROM_BEGINNING));
+				new PersistentKafkaSource<String>(topic, new JavaDefaultStringSchema(), standardCC));
 		consuming.addSink(new SinkFunction<String>() {
 			int elCnt = 0;
 			int start = -1;
@@ -643,34 +794,34 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<String>(zookeeperConnectionString, topic, new JavaDefaultStringSchema()));
+		stream.addSink(new KafkaSink<String>(brokerConnectionStrings, topic, new JavaDefaultStringSchema()));
 
-		try {
-			env.setParallelism(1);
-			env.execute();
-		} catch (JobExecutionException good) {
-			Throwable t = good.getCause();
-			int limit = 0;
-			while (!(t instanceof SuccessException)) {
-				t = t.getCause();
-				if (limit++ == 20) {
-					LOG.warn("Test failed with exception", good);
-					Assert.fail("Test failed with: " + good.getMessage());
-				}
-			}
-		}
+		tryExecute(env, "simpletest");
 	}
 
 	private static boolean leaderHasShutDown = false;
 
-	@Test
+	@Test(timeout=60000)
 	public void brokerFailureTest() throws Exception {
 		String topic = "brokerFailureTestTopic";
 
 		createTestTopic(topic, 2, 2);
 
-		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils(zookeeperConnectionString);
-		final String leaderToShutDown = kafkaTopicUtils.waitAndGetPartitionMetadata(topic, 0).leader().get().connectionString();
+	//	KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils(zookeeperConnectionString);
+	//	final String leaderToShutDown = kafkaTopicUtils.waitAndGetPartitionMetadata(topic, 0).leader().get().connectionString();
+
+		PartitionMetadata firstPart = null;
+		do {
+			if(firstPart != null) {
+				LOG.info("Unable to find leader. error code {}", firstPart.errorCode());
+				// not the first try. Sleep a bit
+				Thread.sleep(150);
+			}
+			Seq<PartitionMetadata> partitionMetadata = AdminUtils.fetchTopicMetadataFromZk(topic, zkClient).partitionsMetadata();
+			firstPart = partitionMetadata.head();
+		} while(firstPart.errorCode() != 0);
+
+		final String leaderToShutDown = firstPart.leader().get().connectionString();
 
 		final Thread brokerShutdown = new Thread(new Runnable() {
 			@Override
@@ -704,7 +855,7 @@ public class KafkaITCase {
 
 		// add consuming topology:
 		DataStreamSource<String> consuming = env.addSource(
-				new PersistentKafkaSource<String>(zookeeperConnectionString, topic, new JavaDefaultStringSchema(), 5000, 10, Offset.FROM_BEGINNING));
+				new PersistentKafkaSource<String>(topic, new JavaDefaultStringSchema(), standardCC));
 		consuming.setParallelism(1);
 
 		consuming.addSink(new SinkFunction<String>() {
@@ -717,7 +868,7 @@ public class KafkaITCase {
 
 			@Override
 			public void invoke(String value) throws Exception {
-				LOG.info("Got message = " + value + " leader has shut down "+leaderHasShutDown+" el cnt = "+elCnt+" to rec"+ numOfMessagesToBeCorrect);
+				LOG.info("Got message = " + value + " leader has shut down " + leaderHasShutDown + " el cnt = " + elCnt + " to rec" + numOfMessagesToBeCorrect);
 				String[] sp = value.split("-");
 				int v = Integer.parseInt(sp[1]);
 
@@ -736,8 +887,8 @@ public class KafkaITCase {
 					shutdownKafkaBroker = true;
 				}
 
-				if(leaderHasShutDown) { // it only makes sence to check once the shutdown is completed
-					if (elCnt >= stopAfterMessages ) {
+				if (leaderHasShutDown) { // it only makes sence to check once the shutdown is completed
+					if (elCnt >= stopAfterMessages) {
 						// check if everything in the bitset is set to true
 						int nc;
 						if ((nc = validator.nextClearBit(0)) < numOfMessagesToBeCorrect) {
@@ -779,29 +930,18 @@ public class KafkaITCase {
 				running = false;
 			}
 		});
-		stream.addSink(new KafkaSink<String>(zookeeperConnectionString, topic, new JavaDefaultStringSchema()))
+		stream.addSink(new KafkaSink<String>(brokerConnectionStrings, topic, new JavaDefaultStringSchema()))
 				.setParallelism(1);
 
-		try {
-			env.setParallelism(1);
-			env.execute();
-		} catch (JobExecutionException good) {
-			Throwable t = good.getCause();
-			int limit = 0;
-			while (!(t instanceof SuccessException)) {
-				t = t.getCause();
-				if (limit++ == 20) {
-					LOG.warn("Test failed with exception", good);
-					Assert.fail("Test failed with: " + good.getMessage());
-				}
-			}
-		}
+		tryExecute(env, "broker failure test");
 	}
 
 
 	private void createTestTopic(String topic, int numberOfPartitions, int replicationFactor) {
-		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils(zookeeperConnectionString);
-		kafkaTopicUtils.createTopic(topic, numberOfPartitions, replicationFactor);
+		// create topic
+		Properties topicConfig = new Properties();
+		LOG.info("Creating topic {}", topic);
+		AdminUtils.createTopic(zkClient, topic, numberOfPartitions, replicationFactor, topicConfig);
 	}
 
 	private static TestingServer getZookeeper() throws Exception {

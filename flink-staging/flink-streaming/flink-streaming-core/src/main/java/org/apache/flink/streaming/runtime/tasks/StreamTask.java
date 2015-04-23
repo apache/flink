@@ -273,7 +273,7 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 		synchronized (checkpointLock) {
 			if (isRunning) {
 				try {
-					LOG.info("Starting checkpoint " + checkpointId);
+					LOG.info("Starting checkpoint {} on task {}", checkpointId, getName());
 					
 					// first draw the state that should go into checkpoint
 					LocalStateHandle state;
@@ -282,7 +282,7 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 						state = userState == null ? null : new LocalStateHandle(userState);
 					}
 					catch (Exception e) {
-						throw new Exception("Error while drawing snapshot of the user state.");
+						throw new Exception("Error while drawing snapshot of the user state.", e);
 					}
 			
 					// now emit the checkpoint barriers
@@ -333,8 +333,7 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 				triggerCheckpoint(sStep.getId(), sStep.getTimestamp());
 			}
 			catch (Exception e) {
-				throw new RuntimeException(
-						"Error triggering a checkpoint as the result of receiving checkpoint barrier", e);
+				throw new RuntimeException("Error triggering a checkpoint as the result of receiving checkpoint barrier", e);
 			}
 		}
 	}
