@@ -222,6 +222,12 @@ under the License.
 				<version>3.2.1</version>
 			</dependency>
 
+			<dependency>
+				<groupId>org.ow2.asm</groupId>
+				<artifactId>asm</artifactId>
+				<version>5.0.3</version>
+			</dependency>
+
 			<!-- Managed dependency required for HBase in flink-hbase -->
 			<dependency>
 				<groupId>org.javassist</groupId>
