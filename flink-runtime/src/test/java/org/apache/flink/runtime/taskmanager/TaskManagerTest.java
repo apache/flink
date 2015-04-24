@@ -117,7 +117,7 @@ public class TaskManagerTest {
 					new ArrayList<BlobKey>(), 0);
 
 				final ActorRef tmClosure = taskManager;
-				new Within(duration("2 seconds")) {
+				new Within(duration("10 seconds")) {
 
 					@Override
 					protected void run() {
@@ -174,7 +174,7 @@ public class TaskManagerTest {
 					new ArrayList<BlobKey>(), 0);
 
 				final ActorRef tm = taskManager;
-				final FiniteDuration d = duration("1 second");
+				final FiniteDuration d = duration("10 second");
 
 				new Within(d) {
 
@@ -302,7 +302,7 @@ public class TaskManagerTest {
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
-				final FiniteDuration d = duration("2 second");
+				final FiniteDuration d = duration("10 second");
 
 				new Within(d){
 
@@ -394,7 +394,7 @@ public class TaskManagerTest {
 						Collections.singletonList(ircdd),
 						new ArrayList<BlobKey>(), 0);
 
-				final FiniteDuration d = duration("2 second");
+				final FiniteDuration d = duration("10 second");
 
 				new Within(d) {
 
@@ -520,7 +520,7 @@ public class TaskManagerTest {
 						Collections.singletonList(ircdd),
 						new ArrayList<BlobKey>(), 0);
 
-				final FiniteDuration d = duration("2 second");
+				final FiniteDuration d = duration("10 second");
 
 				new Within(d){
 
