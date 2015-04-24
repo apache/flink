@@ -21,18 +21,14 @@ package org.apache.flink.optimizer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.operators.CrossOperator;
-import org.apache.flink.api.java.record.operators.CrossWithLargeOperator;
-import org.apache.flink.api.java.record.operators.CrossWithSmallOperator;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.translation.JavaPlan;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.util.DummyCrossStub;
-import org.apache.flink.optimizer.util.DummyInputFormat;
-import org.apache.flink.optimizer.util.DummyOutputFormat;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
@@ -41,27 +37,23 @@ import org.junit.Test;
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
 * strategies.
 */
-@SuppressWarnings({"serial", "deprecation"})
+@SuppressWarnings({"serial"})
 public class AdditionalOperatorsTest extends CompilerTestBase {
 
 	@Test
 	public void testCrossWithSmall() {
 		// construct the plan
-		FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source 1");
-		FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source 2");
-		
-		CrossOperator cross = CrossWithSmallOperator.builder(new DummyCrossStub())
-				.input1(source1).input2(source2)
-				.name("Cross").build();
-	
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, cross, "Sink");
-		
-		Plan plan = new Plan(sink);
-		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
-		
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Long> set1 = env.generateSequence(0,1);
+		DataSet<Long> set2 = env.generateSequence(0,1);
+
+		set1.crossWithTiny(set2).name("Cross")
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+
 		try {
-			OptimizedPlan oPlan = compileNoStats(plan);
+			JavaPlan plan = env.createProgramPlan();
+			OptimizedPlan oPlan = compileWithStats(plan);
 			OptimizerPlanNodeResolver resolver = new OptimizerPlanNodeResolver(oPlan);
 			
 			DualInputPlanNode crossPlanNode = resolver.getNode("Cross");
@@ -72,27 +64,23 @@ public class AdditionalOperatorsTest extends CompilerTestBase {
 			assertEquals(ShipStrategyType.BROADCAST, in2.getShipStrategy());
 		} catch(CompilerException ce) {
 			ce.printStackTrace();
-			fail("The pact compiler is unable to compile this plan correctly.");
+			fail("The Flink optimizer is unable to compile this plan correctly.");
 		}
 	}
 	
 	@Test
 	public void testCrossWithLarge() {
 		// construct the plan
-		FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source 1");
-		FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source 2");
-		
-		CrossOperator cross= CrossWithLargeOperator.builder(new DummyCrossStub())
-				.input1(source1).input2(source2)
-				.name("Cross").build();
-	
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, cross, "Sink");
-		
-		Plan plan = new Plan(sink);
-		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
-		
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Long> set1 = env.generateSequence(0,1);
+		DataSet<Long> set2 = env.generateSequence(0,1);
+
+		set1.crossWithHuge(set2).name("Cross")
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());;
+
 		try {
+			JavaPlan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileNoStats(plan);
 			OptimizerPlanNodeResolver resolver = new OptimizerPlanNodeResolver(oPlan);
 			

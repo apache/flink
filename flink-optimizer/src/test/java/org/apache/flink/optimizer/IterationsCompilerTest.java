@@ -21,6 +21,7 @@ package org.apache.flink.optimizer;
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
 import org.apache.flink.api.common.Plan;
@@ -72,7 +73,8 @@ public class IterationsCompilerTest extends CompilerTestBase {
 					.map(new IdentityMapper<Tuple2<Long, Long>>()).withBroadcastSet(iter.getWorkset(), "bc data")
 					.join(iter.getSolutionSet()).where(0).equalTo(1).projectFirst(1).projectSecond(1);
 			
-			iter.closeWith(result.map(new IdentityMapper<Tuple2<Long,Long>>()), result).print();
+			iter.closeWith(result.map(new IdentityMapper<Tuple2<Long,Long>>()), result)
+					.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			OptimizedPlan p = compileNoStats(env.createProgramPlan());
 			
@@ -104,7 +106,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> depResult = doDeltaIteration(mappedBulk, edges);
 			
-			depResult.print();
+			depResult.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -120,7 +122,6 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -140,7 +141,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> depResult = doDeltaIteration(bulkResult, edges);
 			
-			depResult.print();
+			depResult.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -156,7 +157,6 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -176,7 +176,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> secondResult = doDeltaIteration(firstResult, edges);
 			
-			secondResult.print();
+			secondResult.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -192,7 +192,6 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -208,7 +207,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> input2 = env.readCsvFile("/some/file/path").types(Long.class, Long.class);
 			
-			doBulkIteration(input1, input2).print();
+			doBulkIteration(input1, input2).output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -226,7 +225,6 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			new JobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -253,7 +251,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			initialWorkset
 				.join(result, JoinHint.REPARTITION_HASH_FIRST)
 				.where(0).equalTo(0)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>>());
 			
 			Plan p = env.createProgramPlan();
 			compileNoStats(p);
@@ -295,7 +293,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			DataSet<Long> result = iteration.closeWith(width.union(update).union(lastGradient));
 			
-			result.print();
+			result.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -348,7 +346,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 				.flatMap(new FlatMapJoin());
 		
 		DataSet<Tuple2<Long, Long>> depResult = depIteration.closeWith(updatedComponentId, updatedComponentId);
-		
+
 		return depResult;
 		
 	}

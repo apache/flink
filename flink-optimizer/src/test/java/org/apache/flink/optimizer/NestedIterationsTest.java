@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -52,7 +53,7 @@ public class NestedIterationsTest extends CompilerTestBase {
 			
 			DataSet<Long> outerResult = outerIteration.closeWith(innerResult.map(new IdentityMapper<Long>()));
 			
-			outerResult.print();
+			outerResult.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			
@@ -88,7 +89,7 @@ public class NestedIterationsTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> outerResult = outerIteration.closeWith(innerResult, innerResult);
 			
-			outerResult.print();
+			outerResult.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			
@@ -126,7 +127,7 @@ public class NestedIterationsTest extends CompilerTestBase {
 			
 			DataSet<Long> mainResult = mainIteration.closeWith(joined);
 			
-			mainResult.print();
+			mainResult.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			
@@ -164,7 +165,7 @@ public class NestedIterationsTest extends CompilerTestBase {
 			
 			DataSet<Tuple2<Long, Long>> mainResult = mainIteration.closeWith(joined, joined);
 			
-			mainResult.print();
+			mainResult.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 			
 			Plan p = env.createProgramPlan();
 			

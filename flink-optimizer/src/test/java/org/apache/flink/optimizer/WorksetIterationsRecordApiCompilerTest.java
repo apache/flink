@@ -25,25 +25,21 @@ import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
-import org.apache.flink.api.java.record.operators.DeltaIteration;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.operators.JoinOperator;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.optimizer.util.DummyInputFormat;
-import org.apache.flink.optimizer.util.DummyMatchStub;
-import org.apache.flink.optimizer.util.DummyNonPreservingMatchStub;
-import org.apache.flink.optimizer.util.DummyOutputFormat;
-import org.apache.flink.optimizer.util.IdentityMap;
-import org.apache.flink.optimizer.util.IdentityReduce;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
+import org.apache.flink.optimizer.testfunctions.IdentityJoiner;
+import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.apache.flink.types.LongValue;
 import org.junit.Test;
 
 
@@ -51,7 +47,6 @@ import org.junit.Test;
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
 * strategies.
 */
-@SuppressWarnings("deprecation")
 public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 	
 	private static final long serialVersionUID = 1L;
@@ -66,7 +61,7 @@ public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 
 	@Test
 	public void testRecordApiWithDeferredSoltionSetUpdateWithMapper() {
-		Plan plan = getRecordTestPlan(false, true);
+		Plan plan = getTestPlan(false, true);
 		
 		OptimizedPlan oPlan;
 		try {
@@ -112,7 +107,7 @@ public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 	
 	@Test
 	public void testRecordApiWithDeferredSoltionSetUpdateWithNonPreservingJoin() {
-		Plan plan = getRecordTestPlan(false, false);
+		Plan plan = getTestPlan(false, false);
 		
 		OptimizedPlan oPlan;
 		try {
@@ -156,7 +151,7 @@ public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 	
 	@Test
 	public void testRecordApiWithDirectSoltionSetUpdate() {
-		Plan plan = getRecordTestPlan(true, false);
+		Plan plan = getTestPlan(true, false);
 		
 		OptimizedPlan oPlan;
 		try {
@@ -197,52 +192,45 @@ public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 		new JobGraphGenerator().compileJobGraph(oPlan);
 	}
 	
-	private Plan getRecordTestPlan(boolean joinPreservesSolutionSet, boolean mapBeforeSolutionDelta) {
-		FileDataSource solutionSetInput = new FileDataSource(new DummyInputFormat(), IN_FILE, "Solution Set");
-		FileDataSource worksetInput = new FileDataSource(new DummyInputFormat(), IN_FILE, "Workset");
-		
-		FileDataSource invariantInput = new FileDataSource(new DummyInputFormat(), IN_FILE, "Invariant Input");
-		
-		DeltaIteration iteration = new DeltaIteration(0, ITERATION_NAME);
-		iteration.setInitialSolutionSet(solutionSetInput);
-		iteration.setInitialWorkset(worksetInput);
-		iteration.setMaximumNumberOfIterations(100);
+	private Plan getTestPlan(boolean joinPreservesSolutionSet, boolean mapBeforeSolutionDelta) {
 
-		JoinOperator joinWithInvariant = JoinOperator.builder(new DummyMatchStub(), LongValue.class, 0, 0)
-				.input1(iteration.getWorkset())
-				.input2(invariantInput)
-				.name(JOIN_WITH_INVARIANT_NAME)
-				.build();
+		// construct the plan
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Tuple2<Long, Long>> solSetInput = env.readCsvFile("/tmp/sol.csv").types(Long.class, Long.class).name("Solution Set");
+		DataSet<Tuple2<Long, Long>> workSetInput = env.readCsvFile("/tmp/sol.csv").types(Long.class, Long.class).name("Workset");
+		DataSet<Tuple2<Long, Long>> invariantInput = env.readCsvFile("/tmp/sol.csv").types(Long.class, Long.class).name("Invariant Input");
 
-		JoinOperator joinWithSolutionSet = JoinOperator.builder(
-				joinPreservesSolutionSet ? new DummyMatchStub() : new DummyNonPreservingMatchStub(), LongValue.class, 0, 0)
-				.input1(iteration.getSolutionSet())
-				.input2(joinWithInvariant)
-				.name(JOIN_WITH_SOLUTION_SET)
-				.build();
-		
-		ReduceOperator nextWorkset = ReduceOperator.builder(new IdentityReduce(), LongValue.class, 0)
-				.input(joinWithSolutionSet)
-				.name(NEXT_WORKSET_REDUCER_NAME)
-				.build();
-		
-		if (mapBeforeSolutionDelta) {
-			MapOperator mapper = MapOperator.builder(new IdentityMap())
-				.input(joinWithSolutionSet)
-				.name(SOLUTION_DELTA_MAPPER_NAME)
-				.build();
-			iteration.setSolutionSetDelta(mapper);
-		} else {
-			iteration.setSolutionSetDelta(joinWithSolutionSet);
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> deltaIt = solSetInput.iterateDelta(workSetInput, 100, 0).name(ITERATION_NAME);
+
+		DataSet<Tuple2<Long, Long>> join1 = deltaIt.getWorkset().join(invariantInput).where(0).equalTo(0)
+				.with(new IdentityJoiner<Tuple2<Long, Long>>())
+				.withForwardedFieldsFirst("*").name(JOIN_WITH_INVARIANT_NAME);
+
+		DataSet<Tuple2<Long, Long>> join2 = deltaIt.getSolutionSet().join(join1).where(0).equalTo(0)
+				.with(new IdentityJoiner<Tuple2<Long, Long>>())
+				.name(JOIN_WITH_SOLUTION_SET);
+		if(joinPreservesSolutionSet) {
+			((JoinOperator<?,?,?>)join2).withForwardedFieldsFirst("*");
 		}
-		
-		iteration.setNextWorkset(nextWorkset);
 
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, iteration, "Sink");
-		
-		Plan plan = new Plan(sink);
-		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
-		return plan;
+		DataSet<Tuple2<Long, Long>> nextWorkset = join2.groupBy(0).reduceGroup(new IdentityGroupReducer<Tuple2<Long, Long>>())
+				.withForwardedFields("*").name(NEXT_WORKSET_REDUCER_NAME);
+
+		if(mapBeforeSolutionDelta) {
+
+			DataSet<Tuple2<Long, Long>> mapper = join2.map(new IdentityMapper<Tuple2<Long, Long>>())
+					.withForwardedFields("*").name(SOLUTION_DELTA_MAPPER_NAME);
+
+			deltaIt.closeWith(mapper, nextWorkset)
+					.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
+		}
+		else {
+			deltaIt.closeWith(join2, nextWorkset)
+					.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+		}
+
+		return env.createProgramPlan();
 	}
 }
 

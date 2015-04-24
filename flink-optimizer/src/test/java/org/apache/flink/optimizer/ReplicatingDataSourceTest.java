@@ -44,7 +44,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-@SuppressWarnings({"serial", "deprecation"})
+@SuppressWarnings({"serial", "unchecked"})
 public class ReplicatingDataSourceTest extends CompilerTestBase {
 
 	/**

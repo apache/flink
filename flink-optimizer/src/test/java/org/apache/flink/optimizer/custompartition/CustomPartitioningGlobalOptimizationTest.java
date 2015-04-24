@@ -32,7 +32,7 @@ import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
@@ -57,7 +57,7 @@ public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {
 				.withPartitioner(partitioner);
 
 			joined.groupBy(1).withPartitioner(partitioner)
-				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>())
+				.reduceGroup(new IdentityGroupReducerCombinable<Tuple3<Long,Long,Long>>())
 				.print();
 
 			Plan p = env.createProgramPlan();

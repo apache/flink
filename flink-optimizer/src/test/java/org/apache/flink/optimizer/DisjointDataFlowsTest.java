@@ -22,6 +22,7 @@ import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
@@ -36,8 +37,10 @@ public class DisjointDataFlowsTest extends CompilerTestBase {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
 			// generate two different flows
-			env.generateSequence(1, 10).print();
-			env.generateSequence(1, 10).print();
+			env.generateSequence(1, 10)
+					.output(new DiscardingOutputFormat<Long>());
+			env.generateSequence(1, 10)
+					.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

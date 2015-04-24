@@ -16,20 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.util;
+package org.apache.flink.optimizer.testfunctions;
 
-import java.io.Serializable;
 
-import org.apache.flink.api.java.record.functions.JoinFunction;
-import org.apache.flink.types.Record;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.util.Collector;
 
-@SuppressWarnings("deprecation")
-public class DummyNonPreservingMatchStub extends JoinFunction implements Serializable {
+@Combinable
+public class IdentityGroupReducerCombinable<T> extends RichGroupReduceFunction<T, T> {
+
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
-		out.collect(value1);
+	public void reduce(Iterable<T> values, Collector<T> out) {
+		for (T next : values) {
+			out.collect(next);
+		}
 	}
 }

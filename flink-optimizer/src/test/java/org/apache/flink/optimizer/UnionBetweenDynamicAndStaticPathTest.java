@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.optimizer.plan.BinaryUnionPlanNode;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
@@ -50,8 +51,8 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
 			DataSet<Long> result = iteration.closeWith(
 					input2.union(input2).union(iteration.union(iteration)));
 				
-			result.print();
-			result.print();
+			result.output(new DiscardingOutputFormat<Long>());
+			result.output(new DiscardingOutputFormat<Long>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -102,8 +103,8 @@ public class UnionBetweenDynamicAndStaticPathTest extends CompilerTestBase {
 			DataSet<Long> iterResult = iteration
 				.closeWith(iteration.union(iteration).union(input2.union(input2)));
 			
-			iterResult.print();
-			iterResult.print();
+			iterResult.output(new DiscardingOutputFormat<Long>());
+			iterResult.output(new DiscardingOutputFormat<Long>());
 			
 			
 			Plan p = env.createProgramPlan();

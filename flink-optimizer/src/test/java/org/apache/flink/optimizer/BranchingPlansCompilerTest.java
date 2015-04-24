@@ -20,15 +20,19 @@ package org.apache.flink.optimizer;
 
 import static org.junit.Assert.*;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.io.TextOutputFormat;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.optimizer.testfunctions.DummyCoGroupFunction;
+import org.apache.flink.optimizer.testfunctions.IdentityCoGrouper;
+import org.apache.flink.optimizer.testfunctions.IdentityCrosser;
+import org.apache.flink.optimizer.testfunctions.IdentityJoiner;
 import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
@@ -41,15 +45,6 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
-import org.apache.flink.api.java.record.operators.BulkIteration;
-import org.apache.flink.api.java.record.operators.CoGroupOperator;
-import org.apache.flink.api.java.record.operators.CrossOperator;
-import org.apache.flink.api.java.record.operators.DeltaIteration;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.JoinOperator;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
@@ -59,18 +54,8 @@ import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.testfunctions.Top1GroupReducer;
-import org.apache.flink.optimizer.util.DummyCoGroupStub;
-import org.apache.flink.optimizer.util.DummyCrossStub;
-import org.apache.flink.optimizer.util.DummyInputFormat;
-import org.apache.flink.optimizer.util.DummyMatchStub;
-import org.apache.flink.optimizer.util.DummyNonPreservingMatchStub;
-import org.apache.flink.optimizer.util.DummyOutputFormat;
-import org.apache.flink.optimizer.util.IdentityMap;
-import org.apache.flink.optimizer.util.IdentityReduce;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
 
-@SuppressWarnings({"serial", "deprecation"})
+@SuppressWarnings({"serial"})
 public class BranchingPlansCompilerTest extends CompilerTestBase {
 	
 	
@@ -323,84 +308,53 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchEachContractType() {
 		try {
 			// construct the plan
-			FileDataSource sourceA = new FileDataSource(new DummyInputFormat(), "file:///test/file1", "Source A");
-			FileDataSource sourceB = new FileDataSource(new DummyInputFormat(), "file:///test/file2", "Source B");
-			FileDataSource sourceC = new FileDataSource(new DummyInputFormat(), "file:///test/file3", "Source C");
-			
-			MapOperator map1 = MapOperator.builder(new IdentityMap()).input(sourceA).name("Map 1").build();
-			
-			ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
-				.input(map1)
-				.name("Reduce 1")
-				.build();
-			
-			JoinOperator match1 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
-				.input1(sourceB, sourceB, sourceC)
-				.input2(sourceC)
-				.name("Match 1")
-				.build();
-			;
-			CoGroupOperator cogroup1 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
-				.input1(sourceA)
-				.input2(sourceB)
-				.name("CoGroup 1")
-				.build();
-			
-			CrossOperator cross1 = CrossOperator.builder(new DummyCrossStub())
-				.input1(reduce1)
-				.input2(cogroup1)
-				.name("Cross 1")
-				.build();
-			
-			
-			CoGroupOperator cogroup2 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
-				.input1(cross1)
-				.input2(cross1)
-				.name("CoGroup 2")
-				.build();
-			
-			CoGroupOperator cogroup3 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
-				.input1(map1)
-				.input2(match1)
-				.name("CoGroup 3")
-				.build();
-			
-			
-			MapOperator map2 = MapOperator.builder(new IdentityMap()).input(cogroup3).name("Map 2").build();
-			
-			CoGroupOperator cogroup4 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
-				.input1(map2)
-				.input2(match1)
-				.name("CoGroup 4")
-				.build();
-			
-			CoGroupOperator cogroup5 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
-				.input1(cogroup2)
-				.input2(cogroup1)
-				.name("CoGroup 5")
-				.build();
-			
-			CoGroupOperator cogroup6 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
-				.input1(reduce1)
-				.input2(cogroup4)
-				.name("CoGroup 6")
-				.build();
-			
-			CoGroupOperator cogroup7 = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 0,0)
-				.input1(cogroup5)
-				.input2(cogroup6)
-				.name("CoGroup 7")
-				.build();
-			
-			FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, cogroup7);
-			sink.addInput(sourceA);
-			sink.addInput(cogroup3);
-			sink.addInput(cogroup4);
-			sink.addInput(cogroup1);
-			
-			// return the PACT plan
-			Plan plan = new Plan(sink, "Branching of each contract type");
-			
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(DEFAULT_PARALLELISM);
+			DataSet<Long> sourceA = env.generateSequence(0,1);
+			DataSet<Long> sourceB = env.generateSequence(0,1);
+			DataSet<Long> sourceC = env.generateSequence(0,1);
+
+			DataSet<Long> map1 = sourceA.map(new IdentityMapper<Long>()).name("Map 1");
+
+			DataSet<Long> reduce1 = map1.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce 1");
+
+			DataSet<Long> join1 = sourceB.union(sourceB).union(sourceC)
+					.join(sourceC).where("*").equalTo("*")
+					.with(new IdentityJoiner<Long>()).name("Join 1");
+
+			DataSet<Long> coGroup1 = sourceA.coGroup(sourceB).where("*").equalTo("*")
+					.with(new IdentityCoGrouper<Long>()).name("CoGroup 1");
+
+			DataSet<Long> cross1 = reduce1.cross(coGroup1)
+					.with(new IdentityCrosser<Long>()).name("Cross 1");
+
+			DataSet<Long> coGroup2 = cross1.coGroup(cross1).where("*").equalTo("*")
+					.with(new IdentityCoGrouper<Long>()).name("CoGroup 2");
+
+			DataSet<Long> coGroup3 = map1.coGroup(join1).where("*").equalTo("*")
+					.with(new IdentityCoGrouper<Long>()).name("CoGroup 3");
+
+			DataSet<Long> map2 = coGroup3.map(new IdentityMapper<Long>()).name("Map 2");
+
+			DataSet<Long> coGroup4 = map2.coGroup(join1).where("*").equalTo("*")
+					.with(new IdentityCoGrouper<Long>()).name("CoGroup 4");
+
+			DataSet<Long> coGroup5 = coGroup2.coGroup(coGroup1).where("*").equalTo("*")
+					.with(new IdentityCoGrouper<Long>()).name("CoGroup 5");
+
+			DataSet<Long> coGroup6 = reduce1.coGroup(coGroup4).where("*").equalTo("*")
+					.with(new IdentityCoGrouper<Long>()).name("CoGroup 6");
+
+			DataSet<Long> coGroup7 = coGroup5.coGroup(coGroup6).where("*").equalTo("*")
+					.with(new IdentityCoGrouper<Long>()).name("CoGroup 7");
+
+			coGroup7.union(sourceA)
+					.union(coGroup3)
+					.union(coGroup4)
+					.union(coGroup1)
+					.output(new DiscardingOutputFormat<Long>());
+
+			JavaPlan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
 			JobGraphGenerator jobGen = new JobGraphGenerator();
@@ -418,47 +372,33 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	public void testBranchingUnion() {
 		try {
 			// construct the plan
-			FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE);
-			FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE);
-			
-			JoinOperator mat1 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
-				.input1(source1)
-				.input2(source2)
-				.name("Match 1")
-				.build();
-			
-			MapOperator ma1 = MapOperator.builder(new IdentityMap()).input(mat1).name("Map1").build();
-			
-			ReduceOperator r1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
-				.input(ma1)
-				.name("Reduce 1")
-				.build();
-			
-			ReduceOperator r2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0)
-				.input(mat1)
-				.name("Reduce 2")
-				.build();
-			
-			MapOperator ma2 = MapOperator.builder(new IdentityMap()).input(mat1).name("Map 2").build();
-			
-			MapOperator ma3 = MapOperator.builder(new IdentityMap()).input(ma2).name("Map 3").build();
-			
-			@SuppressWarnings("unchecked")
-			JoinOperator mat2 = JoinOperator.builder(new DummyMatchStub(), IntValue.class, 0, 0)
-				.input1(r1, r2, ma2, ma3)
-				.input2(ma2)
-				.name("Match 2")
-				.build();
-			mat2.setParameter(Optimizer.HINT_LOCAL_STRATEGY, Optimizer.HINT_LOCAL_STRATEGY_MERGE);
-			
-			FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, mat2);
-			
-			
-			// return the PACT plan
-			Plan plan = new Plan(sink, "Branching Union");
-			
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(DEFAULT_PARALLELISM);
+			DataSet<Long> source1 = env.generateSequence(0,1);
+			DataSet<Long> source2 = env.generateSequence(0,1);
+
+			DataSet<Long> join1 = source1.join(source2).where("*").equalTo("*")
+					.with(new IdentityJoiner<Long>()).name("Join 1");
+
+			DataSet<Long> map1 = join1.map(new IdentityMapper<Long>()).name("Map 1");
+
+			DataSet<Long> reduce1 = map1.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce 1");
+
+			DataSet<Long> reduce2 = join1.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce 2");
+
+			DataSet<Long> map2 = join1.map(new IdentityMapper<Long>()).name("Map 2");
+
+			DataSet<Long> map3 = map2.map(new IdentityMapper<Long>()).name("Map 3");
+
+			DataSet<Long> join2 = reduce1.union(reduce2).union(map2).union(map3)
+					.join(map2, JoinHint.REPARTITION_SORT_MERGE).where("*").equalTo("*")
+					.with(new IdentityJoiner<Long>()).name("Join 2");
+
+			join2.output(new DiscardingOutputFormat<Long>());
+
+			JavaPlan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileNoStats(plan);
-			
+
 			JobGraphGenerator jobGen = new JobGraphGenerator();
 			
 			//Compile plan to verify that no error is thrown
@@ -480,22 +420,18 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	@Test
 	public void testBranchingWithMultipleDataSinksSmall() {
 		try {
+			String outPath1 = "/tmp/out1";
+			String outPath2 = "/tmp/out2";
+
 			// construct the plan
-			final String out1Path = "file:///test/1";
-			final String out2Path = "file:///test/2";
-	
-			FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
-			
-			FileDataSink sinkA = new FileDataSink(DummyOutputFormat.class, out1Path, sourceA);
-			FileDataSink sinkB = new FileDataSink(DummyOutputFormat.class, out2Path, sourceA);
-			
-			List<FileDataSink> sinks = new ArrayList<FileDataSink>();
-			sinks.add(sinkA);
-			sinks.add(sinkB);
-			
-			// return the PACT plan
-			Plan plan = new Plan(sinks, "Plans With Multiple Data Sinks");
-			
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(DEFAULT_PARALLELISM);
+			DataSet<Long> source1 = env.generateSequence(0,1);
+
+			source1.writeAsText(outPath1);
+			source1.writeAsText(outPath2);
+
+			JavaPlan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileNoStats(plan);
 			
 			// ---------- check the optimizer plan ----------
@@ -505,15 +441,16 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			
 			// sinks contain all sink paths
 			Set<String> allSinks = new HashSet<String>();
-			allSinks.add(out1Path);
-			allSinks.add(out2Path);
+			allSinks.add(outPath1);
+			allSinks.add(outPath2);
 			
 			for (SinkPlanNode n : oPlan.getDataSinks()) {
-				String path = ((FileDataSink) n.getSinkNode().getOperator()).getFilePath();
+				String path = ((TextOutputFormat<String>)n.getSinkNode().getOperator()
+						.getFormatWrapper().getUserCodeObject()).getOutputFilePath().toString();
 				Assert.assertTrue("Invalid data sink.", allSinks.remove(path));
 			}
 			
-			// ---------- compile plan to nephele job graph to verify that no error is thrown ----------
+			// ---------- compile plan to job graph to verify that no error is thrown ----------
 			
 			JobGraphGenerator jobGen = new JobGraphGenerator();
 			jobGen.compileJobGraph(oPlan);
@@ -541,50 +478,38 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		final String out3Path = "file:///test/3";
 		final String out4Path = "file:///test/4";
 
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
-		
-		FileDataSink sink1 = new FileDataSink(DummyOutputFormat.class, out1Path, sourceA, "1");
-		FileDataSink sink2 = new FileDataSink(DummyOutputFormat.class, out2Path, sourceB, "2");
-		FileDataSink sink3 = new FileDataSink(DummyOutputFormat.class, out3Path, sourceA, "3");
-		FileDataSink sink4 = new FileDataSink(DummyOutputFormat.class, out4Path, sourceB, "4");
-		
-		
-		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
-		sinks.add(sink1);
-		sinks.add(sink2);
-		sinks.add(sink3);
-		sinks.add(sink4);
-		
-		// return the PACT plan
-		Plan plan = new Plan(sinks, "Disjoint plan with multiple data sinks and branches");
+		// construct the plan
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Long> sourceA = env.generateSequence(0,1);
+		DataSet<Long> sourceB = env.generateSequence(0,1);
+
+		sourceA.writeAsText(out1Path);
+		sourceB.writeAsText(out2Path);
+		sourceA.writeAsText(out3Path);
+		sourceB.writeAsText(out4Path);
+
+		JavaPlan plan = env.createProgramPlan();
 		compileNoStats(plan);
+
 	}
 	
 	@Test
 	public void testBranchAfterIteration() {
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 2");
-		
-		BulkIteration iteration = new BulkIteration("Loop");
-		iteration.setInput(sourceA);
-		iteration.setMaximumNumberOfIterations(10);
-		
-		MapOperator mapper = MapOperator.builder(IdentityMap.class).name("Mapper").input(iteration.getPartialSolution()).build();
-		iteration.setNextPartialSolution(mapper);
-		
-		FileDataSink sink1 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Sink 1");
-		
-		MapOperator postMap = MapOperator.builder(IdentityMap.class).name("Post Iteration Mapper")
-				.input(iteration).build();
-		
-		FileDataSink sink2 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, postMap, "Sink 2");
-		
-		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
-		sinks.add(sink1);
-		sinks.add(sink2);
-		
-		Plan plan = new Plan(sinks);
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Long> sourceA = env.generateSequence(0,1);
+
+		IterativeDataSet<Long> loopHead = sourceA.iterate(10);
+		DataSet<Long> loopTail = loopHead.map(new IdentityMapper<Long>()).name("Mapper");
+		DataSet<Long> loopRes = loopHead.closeWith(loopTail);
+
+		loopRes.output(new DiscardingOutputFormat<Long>());
+		loopRes.map(new IdentityMapper<Long>())
+				.output(new DiscardingOutputFormat<Long>());;
+
+		JavaPlan plan = env.createProgramPlan();
+
 		try {
 			compileNoStats(plan);
 		}
@@ -596,31 +521,20 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	
 	@Test
 	public void testBranchBeforeIteration() {
-		FileDataSource source1 = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 1");
-		FileDataSource source2 = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 2");
-		
-		BulkIteration iteration = new BulkIteration("Loop");
-		iteration.setInput(source2);
-		iteration.setMaximumNumberOfIterations(10);
-		
-		MapOperator inMap = MapOperator.builder(new IdentityMap())
-				                       .input(source1)
-				                       .name("In Iteration Map")
-				                       .setBroadcastVariable("BC", iteration.getPartialSolution())
-				                       .build();
-		
-		iteration.setNextPartialSolution(inMap);
-		
-		MapOperator postMap = MapOperator.builder(new IdentityMap())
-										 .input(source1)
-										 .name("Post Iteration Map")
-										 .setBroadcastVariable("BC", iteration)
-										 .build();
-		
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, postMap, "Sink");
-		
-		Plan plan = new Plan(sink);
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Long> source1 = env.generateSequence(0,1);
+		DataSet<Long> source2 = env.generateSequence(0,1);
+
+		IterativeDataSet<Long> loopHead = source2.iterate(10).name("Loop");
+		DataSet<Long> loopTail = source1.map(new IdentityMapper<Long>()).withBroadcastSet(loopHead, "BC").name("In-Loop Mapper");
+		DataSet<Long> loopRes = loopHead.closeWith(loopTail);
+
+		DataSet<Long> map = source1.map(new IdentityMapper<Long>()).withBroadcastSet(loopRes, "BC").name("Post-Loop Mapper");
+		map.output(new DiscardingOutputFormat<Long>());
+
+		JavaPlan plan = env.createProgramPlan();
+
 		try {
 			compileNoStats(plan);
 		}
@@ -644,31 +558,22 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testClosure() {
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 1");
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 2");
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Long> sourceA = env.generateSequence(0,1);
+		DataSet<Long> sourceB = env.generateSequence(0,1);
 
-		FileDataSink sink1 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, sourceA, "Sink 1");
-		FileDataSink sink2 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, sourceB, "Sink 2");
+		sourceA.output(new DiscardingOutputFormat<Long>());
+		sourceB.output(new DiscardingOutputFormat<Long>());
 
-		BulkIteration iteration = new BulkIteration("Loop");
-		iteration.setInput(sourceA);
-		iteration.setMaximumNumberOfIterations(10);
+		IterativeDataSet<Long> loopHead = sourceA.iterate(10).name("Loop");
 
-		CrossOperator stepFunction = CrossOperator.builder(DummyCrossStub.class).name("StepFunction").
-				input1(iteration.getPartialSolution()).
-				input2(sourceB).
-				build();
+		DataSet<Long> loopTail = loopHead.cross(sourceB).with(new IdentityCrosser<Long>());
+		DataSet<Long> loopRes = loopHead.closeWith(loopTail);
 
-		iteration.setNextPartialSolution(stepFunction);
+		loopRes.output(new DiscardingOutputFormat<Long>());
 
-		FileDataSink sink3 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Sink 3");
-
-		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
-		sinks.add(sink1);
-		sinks.add(sink2);
-		sinks.add(sink3);
-
-		Plan plan = new Plan(sinks);
+		JavaPlan plan = env.createProgramPlan();
 
 		try{
 			compileNoStats(plan);
@@ -691,40 +596,24 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testClosureDeltaIteration() {
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 1");
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 2");
-		FileDataSource sourceC = new FileDataSource(DummyInputFormat.class, IN_FILE, "Source 3");
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Tuple2<Long, Long>> sourceA = env.generateSequence(0,1).map(new Duplicator<Long>());
+		DataSet<Tuple2<Long, Long>> sourceB = env.generateSequence(0,1).map(new Duplicator<Long>());
+		DataSet<Tuple2<Long, Long>> sourceC = env.generateSequence(0,1).map(new Duplicator<Long>());
 
-		FileDataSink sink1 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, sourceA, "Sink 1");
-		FileDataSink sink2 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, sourceC, "Sink 2");
+		sourceA.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
+		sourceC.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 
-		DeltaIteration iteration = new DeltaIteration(0, "Loop");
-		iteration.setInitialSolutionSet(sourceA);
-		iteration.setInitialWorkset(sourceB);
-		iteration.setMaximumNumberOfIterations(10);
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> loop = sourceA.iterateDelta(sourceB, 10, 0);
 
-		CrossOperator nextWorkset = CrossOperator.builder(DummyCrossStub.class).name("Next workset").
-				input1(iteration.getWorkset()).
-				input2(sourceC).
-				build();
+		DataSet<Tuple2<Long, Long>> workset = loop.getWorkset().cross(sourceB).with(new IdentityCrosser<Tuple2<Long, Long>>()).name("Next work set");
+		DataSet<Tuple2<Long, Long>> delta = workset.join(loop.getSolutionSet()).where(0).equalTo(0).with(new IdentityJoiner<Tuple2<Long, Long>>()).name("Solution set delta");
 
-		JoinOperator solutionSetDelta = JoinOperator.builder(DummyMatchStub.class, LongValue.class,0,0).
-				name("Next solution set.").
-				input1(nextWorkset).
-				input2(iteration.getSolutionSet()).
-				build();
+		DataSet<Tuple2<Long, Long>> result = loop.closeWith(delta, workset);
+		result.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
 
-		iteration.setNextWorkset(nextWorkset);
-		iteration.setSolutionSetDelta(solutionSetDelta);
-
-		FileDataSink sink3 = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Sink 3");
-
-		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
-		sinks.add(sink1);
-		sinks.add(sink2);
-		sinks.add(sink3);
-
-		Plan plan = new Plan(sinks);
+		JavaPlan plan = env.createProgramPlan();
 
 		try{
 			compileNoStats(plan);
@@ -752,44 +641,26 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	 */
 	@Test
 	public void testDeltaIterationWithStaticInput() {
-		FileDataSource source = new FileDataSource(DummyInputFormat.class, IN_FILE, "source");
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Tuple2<Long, Long>> source = env.generateSequence(0,1).map(new Duplicator<Long>());
 
-		MapOperator mappedSource = MapOperator.builder(IdentityMap.class).
-				input(source).
-				name("Identity mapped source").
-				build();
+		DataSet<Tuple2<Long,Long>> map = source
+				.map(new IdentityMapper<Tuple2<Long, Long>>());
+		DataSet<Tuple2<Long,Long>> reduce = source
+				.reduceGroup(new IdentityGroupReducer<Tuple2<Long, Long>>());
 
-		ReduceOperator reducedSource = ReduceOperator.builder(IdentityReduce.class).
-				input(source).
-				name("Identity reduce source").
-				build();
+		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> loop = source.iterateDelta(map, 10, 0);
 
-		DeltaIteration iteration = new DeltaIteration(0,"Loop");
-		iteration.setMaximumNumberOfIterations(10);
-		iteration.setInitialSolutionSet(source);
-		iteration.setInitialWorkset(mappedSource);
+		DataSet<Tuple2<Long, Long>> workset = loop.getWorkset().join(reduce).where(0).equalTo(0)
+				.with(new IdentityJoiner<Tuple2<Long, Long>>()).name("Next work set");
+		DataSet<Tuple2<Long, Long>> delta = loop.getSolutionSet().join(workset).where(0).equalTo(0)
+				.with(new IdentityJoiner<Tuple2<Long, Long>>()).name("Solution set delta");
 
-		JoinOperator nextWorkset = JoinOperator.builder(DummyNonPreservingMatchStub.class, IntValue.class, 0,0).
-				input1(iteration.getWorkset()).
-				input2(reducedSource).
-				name("Next work set").
-				build();
+		DataSet<Tuple2<Long, Long>> result = loop.closeWith(delta, workset);
+		result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 
-		JoinOperator solutionSetDelta = JoinOperator.builder(DummyNonPreservingMatchStub.class, IntValue.class, 0,
-				0).
-				input1(iteration.getSolutionSet()).
-				input2(nextWorkset).
-				name("Solution set delta").
-				build();
-
-		iteration.setNextWorkset(nextWorkset);
-		iteration.setSolutionSetDelta(solutionSetDelta);
-
-		FileDataSink sink = new FileDataSink(DummyOutputFormat.class, OUT_FILE, iteration, "Iteration sink");
-		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
-		sinks.add(sink);
-
-		Plan plan = new Plan(sinks);
+		JavaPlan plan = env.createProgramPlan();
 
 		try{
 			compileNoStats(plan);
@@ -871,7 +742,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 				.withBroadcastSet(input3, "bc1")
 				.withBroadcastSet(input1, "bc2")
 				.withBroadcastSet(result1, "bc3")
-			.print();
+				.output(new DiscardingOutputFormat<String>());
 		
 		Plan plan = env.createProgramPlan();
 		
@@ -900,7 +771,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		IterativeDataSet<String> iteration = initialSolution.iterate(100);
 		
 		iteration.closeWith(iteration.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "red"))
-				.print();
+				.output(new DiscardingOutputFormat<String>());
 		
 		Plan plan = env.createProgramPlan();
 		
@@ -927,9 +798,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		IterativeDataSet<String> iteration2 = input.iterate(20);
 		IterativeDataSet<String> iteration3 = input.iterate(17);
 		
-		iteration1.closeWith(iteration1.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "bc1")).print();
-		iteration2.closeWith(iteration2.reduceGroup(new Top1GroupReducer<String>()).withBroadcastSet(reduced, "bc2")).print();
-		iteration3.closeWith(iteration3.reduceGroup(new IdentityGroupReducer<String>()).withBroadcastSet(reduced, "bc3")).print();
+		iteration1.closeWith(iteration1.map(new IdentityMapper<String>()).withBroadcastSet(reduced, "bc1"))
+				.output(new DiscardingOutputFormat<String>());
+		iteration2.closeWith(iteration2.reduceGroup(new Top1GroupReducer<String>()).withBroadcastSet(reduced, "bc2"))
+				.output(new DiscardingOutputFormat<String>());
+		iteration3.closeWith(iteration3.reduceGroup(new IdentityGroupReducer<String>()).withBroadcastSet(reduced, "bc3"))
+				.output(new DiscardingOutputFormat<String>());
 		
 		Plan plan = env.createProgramPlan();
 		
@@ -953,9 +827,12 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		IterativeDataSet<String> iteration3 = input.iterate(17);
 		
 		
-		iteration1.closeWith(iteration1.map(new IdentityMapper<String>())).print();
-		iteration2.closeWith(iteration2.reduceGroup(new Top1GroupReducer<String>())).print();
-		iteration3.closeWith(iteration3.reduceGroup(new IdentityGroupReducer<String>())).print();
+		iteration1.closeWith(iteration1.map(new IdentityMapper<String>()))
+				.output(new DiscardingOutputFormat<String>());
+		iteration2.closeWith(iteration2.reduceGroup(new Top1GroupReducer<String>()))
+				.output(new DiscardingOutputFormat<String>());
+		iteration3.closeWith(iteration3.reduceGroup(new IdentityGroupReducer<String>()))
+				.output(new DiscardingOutputFormat<String>());
 		
 		Plan plan = env.createProgramPlan();
 		
@@ -979,7 +856,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 			input
 				.map(new IdentityMapper<Long>()).withBroadcastSet(bc_input, "name1")
 				.map(new IdentityMapper<Long>()).withBroadcastSet(bc_input, "name2")
-				.print();
+				.output(new DiscardingOutputFormat<Long>());
 			
 			Plan plan = env.createProgramPlan();
 			compileNoStats(plan);
@@ -1019,7 +896,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 				.map(new IdentityMapper<Tuple2<Long,Long>>())
 					.withBroadcastSet(bc_input1, "bc1")
 				.union(joinResult)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan plan = env.createProgramPlan();
 			compileNoStats(plan);

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -50,7 +51,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 
 			data
 					.distinct().name("reducer")
-					.print().name("sink");
+					.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -85,7 +86,6 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
 		}
@@ -104,7 +104,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 					.distinct(new KeySelector<Tuple2<String,Double>, String>() {
 						public String getKey(Tuple2<String, Double> value) { return value.f0; }
 					}).name("reducer")
-					.print().name("sink");
+					.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -146,7 +146,6 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
 		}
@@ -164,7 +163,7 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			DistinctOperator<Tuple2<String, Double>> reduced = data
 					.distinct(1).name("reducer");
 
-			reduced.print().name("sink");
+			reduced.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -199,7 +198,6 @@ public class DistinctCompilationTest extends CompilerTestBase implements java.io
 			assertEquals(8, sinkNode.getParallelism());
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
 			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
 		}
