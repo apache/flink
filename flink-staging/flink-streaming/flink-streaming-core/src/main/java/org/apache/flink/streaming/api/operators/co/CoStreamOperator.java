@@ -122,11 +122,11 @@ public abstract class CoStreamOperator<IN1, IN2, OUT> extends StreamOperator<IN1
 
 	protected void initialize1() {
 
-	};
+	}
 
 	protected void initialize2() {
 
-	};
+	}
 
 	protected void callUserFunctionAndLogException1() {
 		try {

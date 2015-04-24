@@ -25,11 +25,8 @@ public class StreamSource<OUT> extends StreamOperator<OUT, OUT> implements Seria
 
 	private static final long serialVersionUID = 1L;
 
-	private SourceFunction<OUT> sourceFunction;
-
 	public StreamSource(SourceFunction<OUT> sourceFunction) {
 		super(sourceFunction);
-		this.sourceFunction = sourceFunction;
 	}
 
 	@Override
@@ -38,13 +35,15 @@ public class StreamSource<OUT> extends StreamOperator<OUT, OUT> implements Seria
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
-		sourceFunction.run(collector);
+		((SourceFunction<OUT>) userFunction).run(collector);
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void cancel() {
 		super.cancel();
-		sourceFunction.cancel();
+		((SourceFunction<OUT>) userFunction).cancel();
 	}
 }

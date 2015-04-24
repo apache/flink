@@ -22,12 +22,10 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 public class StreamReduce<IN> extends ChainableStreamOperator<IN, IN> {
 	private static final long serialVersionUID = 1L;
 
-	protected ReduceFunction<IN> reducer;
 	private IN currentValue;
 
 	public StreamReduce(ReduceFunction<IN> reducer) {
 		super(reducer);
-		this.reducer = reducer;
 		currentValue = null;
 	}
 
@@ -39,10 +37,11 @@ public class StreamReduce<IN> extends ChainableStreamOperator<IN, IN> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
 
 		if (currentValue != null) {
-			currentValue = reducer.reduce(copy(currentValue), nextObject);
+			currentValue = ((ReduceFunction<IN>) userFunction).reduce(copy(currentValue), nextObject);
 		} else {
 			currentValue = nextObject;
 

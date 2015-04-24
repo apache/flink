@@ -36,11 +36,12 @@ public class StreamGroupedReduce<IN> extends StreamReduce<IN> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
 		Object key = keySelector.getKey(nextObject);
 		IN currentValue = values.get(key);
 		if (currentValue != null) {
-			IN reduced = reducer.reduce(copy(currentValue), nextObject);
+			IN reduced = ((ReduceFunction<IN>) userFunction).reduce(copy(currentValue), nextObject);
 			values.put(key, reduced);
 			collector.collect(reduced);
 		} else {

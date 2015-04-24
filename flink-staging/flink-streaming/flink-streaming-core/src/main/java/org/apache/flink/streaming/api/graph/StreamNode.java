@@ -46,7 +46,7 @@ public class StreamNode implements Serializable {
 	private Long bufferTimeout = null;
 	private String operatorName;
 
-	private StreamOperator<?, ?> operator;
+	private transient StreamOperator<?, ?> operator;
 	private List<OutputSelector<?>> outputSelectors;
 	private StreamRecordSerializer<?> typeSerializerIn1;
 	private StreamRecordSerializer<?> typeSerializerIn2;

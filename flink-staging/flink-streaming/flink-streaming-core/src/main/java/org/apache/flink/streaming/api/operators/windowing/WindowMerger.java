@@ -47,8 +47,8 @@ public class WindowMerger<T> extends ChainableStreamOperator<StreamWindow<T>, St
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
 		StreamWindow<T> nextWindow = nextObject;
 

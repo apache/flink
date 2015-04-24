@@ -36,7 +36,6 @@ public class CoStreamGroupedReduce<IN1, IN2, OUT> extends CoStreamReduce<IN1, IN
 	public CoStreamGroupedReduce(CoReduceFunction<IN1, IN2, OUT> coReducer,
 			KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
 		super(coReducer);
-		this.coReducer = coReducer;
 		this.keySelector1 = keySelector1;
 		this.keySelector2 = keySelector2;
 		values1 = new HashMap<Object, IN1>();
@@ -44,7 +43,9 @@ public class CoStreamGroupedReduce<IN1, IN2, OUT> extends CoStreamReduce<IN1, IN
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void handleStream1() throws Exception {
+		CoReduceFunction<IN1, IN2, OUT> coReducer = (CoReduceFunction<IN1, IN2, OUT>) userFunction;
 		Object key = reuse1.getKey(keySelector1);
 		currentValue1 = values1.get(key);
 		nextValue1 = reuse1.getObject();
@@ -59,7 +60,9 @@ public class CoStreamGroupedReduce<IN1, IN2, OUT> extends CoStreamReduce<IN1, IN
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void handleStream2() throws Exception {
+		CoReduceFunction<IN1, IN2, OUT> coReducer = (CoReduceFunction<IN1, IN2, OUT>) userFunction;
 		Object key = reuse2.getKey(keySelector2);
 		currentValue2 = values2.get(key);
 		nextValue2 = reuse2.getObject();
@@ -74,14 +77,16 @@ public class CoStreamGroupedReduce<IN1, IN2, OUT> extends CoStreamReduce<IN1, IN
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction1() throws Exception {
-		reduced1 = coReducer.reduce1(currentValue1, nextValue1);
+		reduced1 = ((CoReduceFunction<IN1, IN2, OUT>) userFunction).reduce1(currentValue1, nextValue1);
 
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction2() throws Exception {
-		reduced2 = coReducer.reduce2(currentValue2, nextValue2);
+		reduced2 = ((CoReduceFunction<IN1, IN2, OUT>) userFunction).reduce2(currentValue2, nextValue2);
 
 	}
 

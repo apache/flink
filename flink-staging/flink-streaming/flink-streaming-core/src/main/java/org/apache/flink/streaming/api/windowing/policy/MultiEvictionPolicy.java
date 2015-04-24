@@ -53,7 +53,7 @@ public class MultiEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA> {
 	 * </ul>
 	 */
 	public enum EvictionStrategy {
-		MIN, MAX, SUM, PRIORITY;
+		MIN, MAX, SUM, PRIORITY
 	}
 
 	private List<EvictionPolicy<DATA>> allEvictionPolicies;

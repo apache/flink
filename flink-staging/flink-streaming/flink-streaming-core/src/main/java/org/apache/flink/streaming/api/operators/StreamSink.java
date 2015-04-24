@@ -22,11 +22,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 public class StreamSink<IN> extends ChainableStreamOperator<IN, IN> {
 	private static final long serialVersionUID = 1L;
 
-	private SinkFunction<IN> sinkFunction;
-
 	public StreamSink(SinkFunction<IN> sinkFunction) {
 		super(sinkFunction);
-		this.sinkFunction = sinkFunction;
 	}
 
 	@Override
@@ -37,7 +34,8 @@ public class StreamSink<IN> extends ChainableStreamOperator<IN, IN> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
-		sinkFunction.invoke(nextObject);
+		((SinkFunction<IN>) userFunction).invoke(nextObject);
 	}
 }

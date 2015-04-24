@@ -24,14 +24,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 public class StreamFold<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	protected FoldFunction<IN, OUT> folder;
 	private OUT accumulator;
 	protected TypeSerializer<OUT> outTypeSerializer;
 
 	public StreamFold(FoldFunction<IN, OUT> folder, OUT initialValue,
 			TypeInformation<OUT> outTypeInformation) {
 		super(folder);
-		this.folder = folder;
 		this.accumulator = initialValue;
 		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
 	}
@@ -44,10 +42,9 @@ public class StreamFold<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
-
-		accumulator = folder.fold(outTypeSerializer.copy(accumulator), nextObject);
+		accumulator = ((FoldFunction<IN, OUT>) userFunction).fold(outTypeSerializer.copy(accumulator), nextObject);
 		collector.collect(accumulator);
-
 	}
 }

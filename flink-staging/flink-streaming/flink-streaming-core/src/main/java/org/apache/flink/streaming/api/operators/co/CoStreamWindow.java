@@ -30,7 +30,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	protected CoWindowFunction<IN1, IN2, OUT> coWindowFunction;
 	protected long windowSize;
 	protected long slideSize;
 	protected CircularFifoList<StreamRecord<IN1>> circularList1;
@@ -46,7 +45,6 @@ public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 	public CoStreamWindow(CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize,
 			long slideInterval, TimestampWrapper<IN1> timeStamp1, TimestampWrapper<IN2> timeStamp2) {
 		super(coWindowFunction);
-		this.coWindowFunction = coWindowFunction;
 		this.windowSize = windowSize;
 		this.slideSize = slideInterval;
 		this.circularList1 = new CircularFifoList<StreamRecord<IN1>>();
@@ -69,6 +67,7 @@ public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
 
 		List<IN1> first = new ArrayList<IN1>();
@@ -82,7 +81,7 @@ public class CoStreamWindow<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 		}
 
 		if (!window.circularList1.isEmpty() || !window.circularList2.isEmpty()) {
-			coWindowFunction.coWindow(first, second, collector);
+			((CoWindowFunction<IN1, IN2, OUT>) userFunction).coWindow(first, second, collector);
 		}
 	}
 

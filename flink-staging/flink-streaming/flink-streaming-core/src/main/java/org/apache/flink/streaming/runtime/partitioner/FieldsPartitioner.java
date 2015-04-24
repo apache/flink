@@ -31,7 +31,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 public class FieldsPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private int[] returnArray = new int[1];;
+	private int[] returnArray = new int[1];
 	KeySelector<T, ?> keySelector;
 
 	public FieldsPartitioner(KeySelector<T, ?> keySelector) {

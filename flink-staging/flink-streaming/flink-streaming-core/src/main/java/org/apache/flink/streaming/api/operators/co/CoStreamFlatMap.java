@@ -22,11 +22,8 @@ import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 public class CoStreamFlatMap<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private CoFlatMapFunction<IN1, IN2, OUT> flatMapper;
-
 	public CoStreamFlatMap(CoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
 		super(flatMapper);
-		this.flatMapper = flatMapper;
 	}
 
 	@Override
@@ -40,14 +37,16 @@ public class CoStreamFlatMap<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, O
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction1() throws Exception {
-		flatMapper.flatMap1(reuse1.getObject(), collector);
+		((CoFlatMapFunction<IN1, IN2, OUT>) userFunction).flatMap1(reuse1.getObject(), collector);
 
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction2() throws Exception {
-		flatMapper.flatMap2(reuse2.getObject(), collector);
+		((CoFlatMapFunction<IN1, IN2, OUT>) userFunction).flatMap2(reuse2.getObject(), collector);
 
 	}
 

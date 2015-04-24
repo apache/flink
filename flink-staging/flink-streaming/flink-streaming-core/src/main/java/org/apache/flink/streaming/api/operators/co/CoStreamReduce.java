@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.functions.co.CoReduceFunction;
 public class CoStreamReduce<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	protected CoReduceFunction<IN1, IN2, OUT> coReducer;
 	protected IN1 currentValue1 = null;
 	protected IN2 currentValue2 = null;
 	protected IN1 nextValue1 = null;
@@ -30,7 +29,6 @@ public class CoStreamReduce<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 
 	public CoStreamReduce(CoReduceFunction<IN1, IN2, OUT> coReducer) {
 		super(coReducer);
-		this.coReducer = coReducer;
 		currentValue1 = null;
 		currentValue2 = null;
 	}
@@ -48,7 +46,9 @@ public class CoStreamReduce<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction1() throws Exception {
+		CoReduceFunction<IN1, IN2, OUT> coReducer = (CoReduceFunction<IN1, IN2, OUT>) userFunction;
 		if (currentValue1 != null) {
 			currentValue1 = coReducer.reduce1(currentValue1, nextValue1);
 		} else {
@@ -58,7 +58,9 @@ public class CoStreamReduce<IN1, IN2, OUT> extends CoStreamOperator<IN1, IN2, OU
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction2() throws Exception {
+		CoReduceFunction<IN1, IN2, OUT> coReducer = (CoReduceFunction<IN1, IN2, OUT>) userFunction;
 		if (currentValue2 != null) {
 			currentValue2 = coReducer.reduce2(currentValue2, nextValue2);
 		} else {

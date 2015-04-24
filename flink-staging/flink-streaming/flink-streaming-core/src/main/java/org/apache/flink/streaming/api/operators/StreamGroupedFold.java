@@ -40,9 +40,12 @@ public class StreamGroupedFold<IN, OUT> extends StreamFold<IN, OUT> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
 		Object key = nextRecord.getKey(keySelector);
 		OUT accumulator = values.get(key);
+		FoldFunction<IN, OUT> folder = ((FoldFunction<IN, OUT>) userFunction);
+
 		if (accumulator != null) {
 			OUT folded = folder.fold(outTypeSerializer.copy(accumulator), nextObject);
 			values.put(key, folded);

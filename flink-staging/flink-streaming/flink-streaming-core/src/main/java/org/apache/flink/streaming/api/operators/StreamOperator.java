@@ -199,7 +199,7 @@ public abstract class StreamOperator<IN, OUT> implements Serializable {
 	}
 
 	public static enum ChainingStrategy {
-		ALWAYS, NEVER, HEAD;
+		ALWAYS, NEVER, HEAD
 	}
 
 	public Function getUserFunction() {

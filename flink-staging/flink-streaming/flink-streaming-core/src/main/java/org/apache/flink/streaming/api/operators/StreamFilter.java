@@ -23,12 +23,10 @@ public class StreamFilter<IN> extends ChainableStreamOperator<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
 
-	FilterFunction<IN> filterFunction;
 	private boolean collect;
 
 	public StreamFilter(FilterFunction<IN> filterFunction) {
 		super(filterFunction);
-		this.filterFunction = filterFunction;
 	}
 
 	@Override
@@ -39,8 +37,9 @@ public class StreamFilter<IN> extends ChainableStreamOperator<IN, IN> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
-		collect = filterFunction.filter(nextObject);
+		collect = ((FilterFunction<IN>) userFunction).filter(nextObject);
 		if (collect) {
 			collector.collect(nextObject);
 		}
