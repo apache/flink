@@ -24,6 +24,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -100,6 +101,9 @@ public class SingleInputGate implements InputGate {
 	/** Lock object to guard partition requests and runtime channel updates. */
 	private final Object requestLock = new Object();
 
+	/** The owning environment. Mainly for debug purposes. */
+	private final Environment owner;
+
 	/**
 	 * The ID of the consumed intermediate result. Each input gate consumes partitions of the
 	 * intermediate result specified by this ID. This ID also identifies the input gate at the
@@ -148,7 +152,13 @@ public class SingleInputGate implements InputGate {
 
 	private int numberOfUninitializedChannels;
 
-	public SingleInputGate(IntermediateDataSetID consumedResultId, int consumedSubpartitionIndex, int numberOfInputChannels) {
+	public SingleInputGate(
+			Environment owner,
+			IntermediateDataSetID consumedResultId,
+			int consumedSubpartitionIndex,
+			int numberOfInputChannels) {
+
+		this.owner = checkNotNull(owner);
 		this.consumedResultId = checkNotNull(consumedResultId);
 
 		checkArgument(consumedSubpartitionIndex >= 0);
@@ -255,6 +265,8 @@ public class SingleInputGate implements InputGate {
 		synchronized (requestLock) {
 			if (!isReleased) {
 				try {
+					LOG.debug("{}: Releasing {}.", owner.getTaskNameWithSubtasks(), this);
+
 					for (InputChannel inputChannel : inputChannels.values()) {
 						try {
 							inputChannel.releaseAllResources();
@@ -398,6 +410,7 @@ public class SingleInputGate implements InputGate {
 	 * Creates an input gate and all of its input channels.
 	 */
 	public static SingleInputGate create(
+			Environment owner,
 			InputGateDeploymentDescriptor igdd,
 			NetworkEnvironment networkEnvironment) {
 
@@ -409,7 +422,7 @@ public class SingleInputGate implements InputGate {
 		final InputChannelDeploymentDescriptor[] icdd = checkNotNull(igdd.getInputChannelDeploymentDescriptors());
 
 		final SingleInputGate inputGate = new SingleInputGate(
-				consumedResultId, consumedSubpartitionIndex, icdd.length);
+				owner, consumedResultId, consumedSubpartitionIndex, icdd.length);
 
 		// Create the input channels. There is one input channel for each consumed partition.
 		final InputChannel[] inputChannels = new InputChannel[icdd.length];
