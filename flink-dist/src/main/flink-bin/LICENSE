@@ -243,6 +243,7 @@ under the Apache License (v 2.0):
  - StartBootstrap (http://startbootstrap.com)
  - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
  - Jettison (http://jettison.codehaus.org)
+ - json-simple (https://code.google.com/p/json-simple/)
  - Akka (http://akka.io)
  - Metrics (https://github.com/dropwizard/metrics)
  
