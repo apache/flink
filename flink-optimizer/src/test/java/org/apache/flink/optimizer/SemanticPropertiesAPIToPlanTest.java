@@ -27,6 +27,7 @@ import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
@@ -57,7 +58,7 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
 				.groupBy(1)
 				.reduce(new MockReducer()).withForwardedFields("*");
 
-		set.print();
+		set.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
 		JavaPlan plan = env.createProgramPlan();
 		OptimizedPlan oPlan = compileWithStats(plan);
 
@@ -118,7 +119,7 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
 				.reduce(new MockReducer()).withForwardedFields("f1->f2");
 		DataSet<Tuple3<Integer, Integer, Integer>> out = in1.join(in2).where(1).equalTo(2).with(new MockJoin());
 
-		out.print();
+		out.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
 		JavaPlan plan = env.createProgramPlan();
 		OptimizedPlan oPlan = compileWithStats(plan);
 

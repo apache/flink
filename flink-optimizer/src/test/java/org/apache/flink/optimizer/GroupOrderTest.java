@@ -20,30 +20,24 @@ package org.apache.flink.optimizer;
 
 import static org.junit.Assert.fail;
 
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
-import org.apache.flink.api.java.record.operators.CoGroupOperator;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.translation.JavaPlan;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.util.DummyCoGroupStub;
-import org.apache.flink.optimizer.util.DummyInputFormat;
-import org.apache.flink.optimizer.util.DummyOutputFormat;
-import org.apache.flink.optimizer.util.IdentityReduce;
+import org.apache.flink.optimizer.testfunctions.IdentityCoGrouper;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.StringValue;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -51,25 +45,24 @@ import org.junit.Test;
  * This test case has been created to validate that correct strategies are used if orders within groups are
  * requested.
  */
-@SuppressWarnings({"serial", "deprecation"})
+@SuppressWarnings({"serial"})
 public class GroupOrderTest extends CompilerTestBase {
 
 	@Test
 	public void testReduceWithGroupOrder() {
 		// construct the plan
-		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		
-		ReduceOperator reduce = ReduceOperator.builder(new IdentityReduce()).keyField(IntValue.class, 2).name("Reduce").input(source).build();
-		Ordering groupOrder = new Ordering(5, StringValue.class, Order.DESCENDING);
-		reduce.setGroupOrder(groupOrder);
-		
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, reduce, "Sink");
-		
-		
-		Plan plan = new Plan(sink, "Test Temp Task");
-		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Tuple4<Long, Long, Long, Long>> set1 = env.readCsvFile("/tmp/fake.csv")
+				.types(Long.class, Long.class, Long.class, Long.class);
+
+		set1.groupBy(1).sortGroup(3, Order.DESCENDING)
+				.reduceGroup(new IdentityGroupReducer<Tuple4<Long, Long, Long, Long>>()).name("Reduce")
+				.output(new DiscardingOutputFormat<Tuple4<Long, Long, Long, Long>>()).name("Sink");
+
+		JavaPlan plan = env.createProgramPlan();
 		OptimizedPlan oPlan;
+
 		try {
 			oPlan = compileNoStats(plan);
 		} catch(CompilerException ce) {
@@ -89,38 +82,35 @@ public class GroupOrderTest extends CompilerTestBase {
 		Channel c = reducer.getInput();
 		Assert.assertEquals(LocalStrategy.SORT, c.getLocalStrategy());
 		
-		FieldList ship = new FieldList(2);
-		FieldList local = new FieldList(2, 5);
+		FieldList ship = new FieldList(1);
+		FieldList local = new FieldList(1, 3);
 		Assert.assertEquals(ship, c.getShipStrategyKeys());
 		Assert.assertEquals(local, c.getLocalStrategyKeys());
 		Assert.assertTrue(c.getLocalStrategySortOrder()[0] == reducer.getSortOrders(0)[0]);
 		
 		// check that we indeed sort descending
-		Assert.assertTrue(c.getLocalStrategySortOrder()[1] == groupOrder.getFieldSortDirections()[0]);
+		Assert.assertEquals(false, c.getLocalStrategySortOrder()[1]);
 	}
 	
 	@Test
 	public void testCoGroupWithGroupOrder() {
 		// construct the plan
-		FileDataSource source1 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source1");
-		FileDataSource source2 = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source2");
-		
-		CoGroupOperator coGroup = CoGroupOperator.builder(new DummyCoGroupStub(), IntValue.class, 3, 6)
-				.keyField(LongValue.class, 0, 0)
-				.name("CoGroup").input1(source1).input2(source2).build();
-		
-		Ordering groupOrder1 = new Ordering(5, StringValue.class, Order.DESCENDING);
-		Ordering groupOrder2 = new Ordering(1, StringValue.class, Order.DESCENDING);
-		groupOrder2.appendOrdering(4, DoubleValue.class, Order.ASCENDING);
-		coGroup.setGroupOrderForInputOne(groupOrder1);
-		coGroup.setGroupOrderForInputTwo(groupOrder2);
-		
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, coGroup, "Sink");
-		
-		Plan plan = new Plan(sink, "Reduce Group Order Test");
-		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Tuple7<Long, Long, Long, Long, Long, Long, Long>> set1 = env.readCsvFile("/tmp/fake1.csv")
+				.types(Long.class, Long.class, Long.class, Long.class, Long.class, Long.class, Long.class);
+		DataSet<Tuple7<Long, Long, Long, Long, Long, Long, Long>> set2 = env.readCsvFile("/tmp/fake2.csv")
+				.types(Long.class, Long.class, Long.class, Long.class, Long.class, Long.class, Long.class);
+
+		set1.coGroup(set2).where(3,0).equalTo(6,0)
+				.sortFirstGroup(5, Order.DESCENDING)
+				.sortSecondGroup(1, Order.DESCENDING).sortSecondGroup(4, Order.ASCENDING)
+				.with(new IdentityCoGrouper<Tuple7<Long, Long, Long, Long, Long, Long, Long>>()).name("CoGroup")
+				.output(new DiscardingOutputFormat<Tuple7<Long, Long, Long, Long, Long, Long, Long>>()).name("Sink");
+
+		JavaPlan plan = env.createProgramPlan();
 		OptimizedPlan oPlan;
+
 		try {
 			oPlan = compileNoStats(plan);
 		} catch(CompilerException ce) {
@@ -144,11 +134,11 @@ public class GroupOrderTest extends CompilerTestBase {
 		Assert.assertEquals(LocalStrategy.SORT, c1.getLocalStrategy());
 		Assert.assertEquals(LocalStrategy.SORT, c2.getLocalStrategy());
 		
-		FieldList ship1 = new FieldList(new int[] {3, 0});
-		FieldList ship2 = new FieldList(new int[] {6, 0});
+		FieldList ship1 = new FieldList(3, 0);
+		FieldList ship2 = new FieldList(6, 0);
 		
-		FieldList local1 = new FieldList(new int[] {3, 0, 5});
-		FieldList local2 = new FieldList(new int[] {6, 0, 1, 4});
+		FieldList local1 = new FieldList(3, 0, 5);
+		FieldList local2 = new FieldList(6, 0, 1, 4);
 		
 		Assert.assertEquals(ship1, c1.getShipStrategyKeys());
 		Assert.assertEquals(ship2, c2.getShipStrategyKeys());
@@ -161,8 +151,8 @@ public class GroupOrderTest extends CompilerTestBase {
 		Assert.assertTrue(c2.getLocalStrategySortOrder()[1] == coGroupNode.getSortOrders()[1]);
 		
 		// check that the local group orderings are correct
-		Assert.assertTrue(c1.getLocalStrategySortOrder()[2] == groupOrder1.getFieldSortDirections()[0]);
-		Assert.assertTrue(c2.getLocalStrategySortOrder()[2] == groupOrder2.getFieldSortDirections()[0]);
-		Assert.assertTrue(c2.getLocalStrategySortOrder()[3] == groupOrder2.getFieldSortDirections()[1]);
+		Assert.assertEquals(false, c1.getLocalStrategySortOrder()[2]);
+		Assert.assertEquals(false, c2.getLocalStrategySortOrder()[2]);
+		Assert.assertEquals(true, c2.getLocalStrategySortOrder()[3]);
 	}
 }

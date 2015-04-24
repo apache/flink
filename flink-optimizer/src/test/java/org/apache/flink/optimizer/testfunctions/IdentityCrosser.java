@@ -16,27 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.util;
 
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.java.record.io.DelimitedInputFormat;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Record;
+package org.apache.flink.optimizer.testfunctions;
 
-public final class DummyInputFormat extends DelimitedInputFormat {
+import org.apache.flink.api.common.functions.CrossFunction;
+
+public class IdentityCrosser<T> implements CrossFunction<T, T, T> {
+
 	private static final long serialVersionUID = 1L;
-	
-	private final IntValue integer = new IntValue(1);
 
 	@Override
-	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
-		target.setField(0, this.integer);
-		target.setField(1, this.integer);
-		return target;
-	}
-
-	@Override
-	public FileBaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		return (cachedStatistics instanceof FileBaseStatistics) ? (FileBaseStatistics) cachedStatistics : null;
+	public T cross(T first, T second) {
+		return first;
 	}
 }
