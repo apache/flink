@@ -37,3 +37,7 @@ under the License.
 * [Multiple linear regression](multiple_linear_regression.html)
 * [Polynomial Base Feature Mapper](polynomial_base_feature_mapper.html)
 * [Standard Scaler](standard_scaler.html)
+
+## Metrics
+
+* [Distance Metrics](distance_metrics.html)

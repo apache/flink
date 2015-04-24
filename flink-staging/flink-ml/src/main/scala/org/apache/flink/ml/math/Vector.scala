@@ -49,6 +49,19 @@ trait Vector {
     */
   def copy: Vector
 
+  /** Returns the dot product of the recipient and the argument
+    *
+    * @param other a Vector
+    * @return a scalar double of dot product
+    */
+  def dot(other: Vector): Double
+
+  /** Magnitude of a vector
+    *
+    * @return
+    */
+  def magnitude: Double
+
   def equalsVector(vector: Vector): Boolean = {
     if(size == vector.size) {
       (0 until size) forall { idx =>
