@@ -33,11 +33,12 @@ import com.codahale.metrics.json.MetricsModule
 import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, GarbageCollectorMetricSet}
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import grizzled.slf4j.Logger
 
 import org.apache.flink.api.common.cache.DistributedCache
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.Path
-import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobService, BlobCache}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
@@ -66,8 +67,6 @@ import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.util.{MathUtils, EnvironmentInformation}
 import org.apache.flink.util.ExceptionUtils
-
-import org.slf4j.LoggerFactory
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -125,10 +124,7 @@ class TaskManager(protected val config: TaskManagerConfiguration,
                   protected val network: NetworkEnvironment,
                   protected val numberOfSlots: Int)
 
-extends Actor with ActorLogMessages with ActorLogging {
-
-  /** The log for all synchronous logging calls */
-  private val LOG = TaskManager.LOG
+extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
   /** The timeout for all actor ask futures */
   protected val askTimeout = new Timeout(config.timeout)
@@ -178,13 +174,13 @@ extends Actor with ActorLogMessages with ActorLogging {
    * JobManager.
    */
   override def preStart(): Unit = {
-    LOG.info("Starting TaskManager actor at {}.", self.path.toSerializationFormat)
-    LOG.info("TaskManager data connection information: {}", connectionInfo)
-    LOG.info("TaskManager has {} task slot(s).", numberOfSlots)
+    log.info(s"Starting TaskManager actor at ${self.path.toSerializationFormat}.")
+    log.info(s"TaskManager data connection information: $connectionInfo")
+    log.info(s"TaskManager has $numberOfSlots task slot(s).")
 
     // log the initial memory utilization
-    if (LOG.isInfoEnabled) {
-      LOG.info(TaskManager.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean))
+    if (log.isInfoEnabled) {
+      log.info(TaskManager.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean))
     }
 
     // kick off the registration
@@ -200,7 +196,7 @@ extends Actor with ActorLogMessages with ActorLogging {
    * (like network stack, library cache, memory manager, ...) are properly shut down.
    */
   override def postStop(): Unit = {
-    LOG.info("Stopping TaskManager {}.", self.path.toSerializationFormat)
+    log.info(s"Stopping TaskManager ${self.path.toSerializationFormat}.")
 
     cancelAndClearEverything(new Exception("TaskManager is shutting down."))
 
@@ -208,35 +204,35 @@ extends Actor with ActorLogMessages with ActorLogging {
       try {
         disassociateFromJobManager()
       } catch {
-        case t: Exception => LOG.error("Could not cleanly disassociate from JobManager", t)
+        case t: Exception => log.error("Could not cleanly disassociate from JobManager", t)
       }
     }
 
     try {
       ioManager.shutdown()
     } catch {
-      case t: Exception => LOG.error("I/O manager did not shutdown properly.", t)
+      case t: Exception => log.error("I/O manager did not shutdown properly.", t)
     }
 
     try {
       memoryManager.shutdown()
     } catch {
-      case t: Exception => LOG.error("Memory manager did not shutdown properly.", t)
+      case t: Exception => log.error("Memory manager did not shutdown properly.", t)
     }
 
     try {
       network.shutdown()
     } catch {
-      case t: Exception => LOG.error("Network environment did not shutdown properly.", t)
+      case t: Exception => log.error("Network environment did not shutdown properly.", t)
     }
 
     try {
       fileCache.shutdown()
     } catch {
-      case t: Exception => LOG.error("FileCache did not shutdown properly.", t)
+      case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
 
-    LOG.info("Task manager {} is completely shut down.", self.path)
+    log.info(s"Task manager ${self.path} is completely shut down.")
   }
 
   /**
@@ -277,8 +273,8 @@ extends Actor with ActorLogMessages with ActorLogging {
         handleJobManagerDisconnect(sender(), "JobManager is no longer reachable")
       }
       else {
-        LOG.warn("Received unrecognized disconnect message from {}",
-          if (actor == null) null else actor.path)
+        log.warn(s"Received unrecognized disconnect message " +
+          s"from ${if (actor == null) null else actor.path}.")
       }
 
     case Disconnect(msg) =>
@@ -291,7 +287,7 @@ extends Actor with ActorLogMessages with ActorLogging {
   override def unhandled(message: Any): Unit = {
     val errorMessage = "Received unknown message " + message
     val error = new RuntimeException(errorMessage)
-    LOG.error(errorMessage)
+    log.error(errorMessage)
 
     // terminate all we are currently running (with a dedicated message)
     // before the actor is stopped
@@ -311,8 +307,8 @@ extends Actor with ActorLogMessages with ActorLogging {
 
     // at very first, check that we are actually currently associated with a JobManager
     if (!isConnected) {
-      LOG.debug("Dropping message {} because the TaskManager is currently " +
-        "not connected to a JobManager", message)
+      log.debug(s"Dropping message $message because the TaskManager is currently " +
+        "not connected to a JobManager.")
     }
 
     // we order the messages by frequency, to make sure the code paths for matching
@@ -329,7 +325,7 @@ extends Actor with ActorLogMessages with ActorLogging {
 
       // discards intermediate result partitions of a task execution on this TaskManager
       case FailIntermediateResultPartitions(executionID) =>
-        LOG.info("Discarding the results produced by task execution " + executionID)
+        log.info("Discarding the results produced by task execution " + executionID)
         if (network.isAssociated) {
           try {
             network.getPartitionManager.releasePartitionsProducedBy(executionID)
@@ -392,7 +388,7 @@ extends Actor with ActorLogMessages with ActorLogging {
             Future {
               task.failExternally(cause)
             }.onFailure{
-              case t: Throwable => LOG.error(s"Could not fail task ${task} externally.", t)
+              case t: Throwable => log.error(s"Could not fail task ${task} externally.", t)
             }
           case None =>
         }
@@ -406,7 +402,7 @@ extends Actor with ActorLogMessages with ActorLogging {
             Future {
               task.cancelExecution()
             }.onFailure{
-              case t: Throwable => LOG.error("Could not cancel task " + task, t)
+              case t: Throwable => log.error("Could not cancel task " + task, t)
             }
 
             sender ! new TaskOperationResult(executionID, true)
@@ -426,10 +422,9 @@ extends Actor with ActorLogMessages with ActorLogging {
   private def handleCheckpointingMessage(message: CheckpointingMessage): Unit = {
 
     message match {
-
       case BarrierReq(attemptID, checkpointID) =>
-        LOG.debug("[FT-TaskManager] Barrier {} request received for attempt {}",
-          checkpointID, attemptID)
+        log.debug(s"[FT-TaskManager] Barrier $checkpointID request received " +
+          s"for attempt $attemptID.")
 
         runningTasks.get(attemptID) match {
           case Some(i) =>
@@ -441,16 +436,14 @@ extends Actor with ActorLogMessages with ActorLogging {
                       barrierTransceiver.broadcastBarrierFromSource(checkpointID)
                   }).start()
 
-                case _ => LOG.error(
-                  "Taskmanager received a checkpoint request for non-checkpointing task {}",
-                  attemptID)
+                case _ => log.error("Taskmanager received a checkpoint request for " +
+                  s"non-checkpointing task $attemptID.")
               }
             }
 
           case None =>
             // may always happen in case of canceled/finished tasks
-            LOG.debug("Taskmanager received a checkpoint request for unknown task {}",
-                      attemptID)
+            log.debug(s"Taskmanager received a checkpoint request for unknown task $attemptID.")
         }
 
       // unknown checkpoint message
@@ -474,19 +467,19 @@ extends Actor with ActorLogMessages with ActorLogging {
         if (isConnected) {
           // this may be the case, if we queue another attempt and
           // in the meantime, the registration is acknowledged
-          LOG.debug(
+          log.debug(
             "TaskManager was triggered to register at JobManager, but is already registered")
         }
         else if (deadline.exists(_.isOverdue())) {
           // we failed to register in time. that means we should quit
-          LOG.error("Failed to register at the JobManager withing the defined maximum " +
+          log.error("Failed to register at the JobManager withing the defined maximum " +
             "connect time. Shutting down ...")
 
           // terminate ourselves (hasta la vista)
           self ! PoisonPill
         }
         else {
-          LOG.info(s"Trying to register at JobManager ${jobManagerURL} " +
+          log.info(s"Trying to register at JobManager ${jobManagerURL} " +
             s"(attempt ${attempt}, timeout: ${timeout})")
 
           val jobManager = context.actorSelection(jobManagerAkkaURL)
@@ -510,9 +503,9 @@ extends Actor with ActorLogMessages with ActorLogging {
       case AcknowledgeRegistration(jobManager, id, blobPort) =>
         if (isConnected) {
           if (jobManager == currentJobManager.orNull) {
-            LOG.debug("Ignoring duplicate registration acknowledgement.")
+            log.debug("Ignoring duplicate registration acknowledgement.")
           } else {
-            LOG.warn(s"Ignoring 'AcknowledgeRegistration' message from ${jobManager.path} , " +
+            log.warn(s"Ignoring 'AcknowledgeRegistration' message from ${jobManager.path} , " +
               s"because the TaskManager is already registered at ${currentJobManager.orNull}")
           }
         }
@@ -531,15 +524,15 @@ extends Actor with ActorLogMessages with ActorLogging {
       case AlreadyRegistered(jobManager, id, blobPort) =>
         if (isConnected) {
           if (jobManager == currentJobManager.orNull) {
-            LOG.debug("Ignoring duplicate registration acknowledgement.")
+            log.debug("Ignoring duplicate registration acknowledgement.")
           } else {
-            LOG.warn(s"Received 'AlreadyRegistered' message from JobManager ${jobManager.path}, " +
+            log.warn(s"Received 'AlreadyRegistered' message from JobManager ${jobManager.path}, " +
               s"even through TaskManager is currently registered at ${currentJobManager.orNull}")
           }
         }
         else {
           // not connected, yet, to let's associate
-          LOG.info("Received 'AlreadyRegistered' message before 'AcknowledgeRegistration'")
+          log.info("Received 'AlreadyRegistered' message before 'AcknowledgeRegistration'")
 
           try {
             associateWithJobManager(jobManager, id, blobPort)
@@ -552,7 +545,7 @@ extends Actor with ActorLogMessages with ActorLogging {
 
       case RefuseRegistration(reason) =>
         if (currentJobManager.isEmpty) {
-          LOG.error(s"The registration at JobManager ${jobManagerAkkaURL} was refused, " +
+          log.error(s"The registration at JobManager ${jobManagerAkkaURL} was refused, " +
                     s"because: ${reason}. Retrying later...")
 
           // try the registration again after some time
@@ -570,11 +563,11 @@ extends Actor with ActorLogMessages with ActorLogging {
         else {
           // ignore RefuseRegistration messages which arrived after AcknowledgeRegistration
           if (sender() == currentJobManager.orNull) {
-            LOG.warn(s"Received 'RefuseRegistration' from the JobManager (${sender().path})" +
+            log.warn(s"Received 'RefuseRegistration' from the JobManager (${sender().path})" +
                      s" even though this TaskManager is already registered there.")
           }
           else {
-            LOG.warn(s"Ignoring 'RefuseRegistration' from unrelated JobManager (${sender().path})")
+            log.warn(s"Ignoring 'RefuseRegistration' from unrelated JobManager (${sender().path})")
           }
         }
 
@@ -621,7 +614,7 @@ extends Actor with ActorLogMessages with ActorLogging {
     // sanity check that we are not currently registered with a different JobManager
     if (isConnected) {
       if (currentJobManager.get == jobManager) {
-        LOG.warn("Received call to finish registration with JobManager " +
+        log.warn("Received call to finish registration with JobManager " +
           jobManager.path + " even though TaskManager is already registered.")
         return
       }
@@ -633,8 +626,8 @@ extends Actor with ActorLogMessages with ActorLogging {
     }
 
     // not yet associated, so associate
-    LOG.info("Successful registration at JobManager ({}), " +
-      "starting network stack and library cache.", jobManager.path)
+    log.info(s"Successful registration at JobManager (${jobManager.path}), " +
+      "starting network stack and library cache.")
 
     // sanity check that the JobManager dependent components are not set up currently
     if (network.isAssociated || blobService.isDefined) {
@@ -648,7 +641,7 @@ extends Actor with ActorLogMessages with ActorLogging {
     catch {
       case e: Exception =>
         val message = "Could not start network environment."
-        LOG.error(message, e)
+        log.error(message, e)
         throw new RuntimeException(message, e)
     }
 
@@ -657,7 +650,7 @@ extends Actor with ActorLogMessages with ActorLogging {
       val jmHost = jobManager.path.address.host.getOrElse("localhost")
       val address = new InetSocketAddress(jmHost, blobPort)
 
-      LOG.info("Determined BLOB server address to be {}. Starting BLOB cache.", address)
+      log.info(s"Determined BLOB server address to be $address. Starting BLOB cache.")
 
       try {
         val blobcache = new BlobCache(address, config.configuration)
@@ -667,7 +660,7 @@ extends Actor with ActorLogMessages with ActorLogging {
       catch {
         case e: Exception =>
           val message = "Could not create BLOB cache or library cache."
-          LOG.error(message, e)
+          log.error(message, e)
           throw new RuntimeException(message, e)
       }
     }
@@ -700,12 +693,12 @@ extends Actor with ActorLogMessages with ActorLogging {
    */
   private def disassociateFromJobManager(): Unit = {
     if (!isConnected) {
-      LOG.warn("TaskManager received message to disassociate from JobManager, even though " +
+      log.warn("TaskManager received message to disassociate from JobManager, even though " +
         "it is not currently associated with a JobManager")
       return
     }
 
-    LOG.info("Disassociating from JobManager")
+    log.info("Disassociating from JobManager")
 
     // stop the periodic heartbeats
     heartbeatScheduler foreach {
@@ -748,7 +741,7 @@ extends Actor with ActorLogMessages with ActorLogging {
       if (jobManager == currentJobManager.orNull) {
         try {
           val message = "Disconnecting from JobManager: " + msg
-          LOG.info(message)
+          log.info(message)
 
           // cancel all our tasks with a proper error message
           cancelAndClearEverything(new Exception(message))
@@ -769,7 +762,7 @@ extends Actor with ActorLogMessages with ActorLogging {
         }
       }
       else {
-        LOG.warn("Received erroneous JobManager disconnect message for {}", jobManager.path)
+        log.warn(s"Received erroneous JobManager disconnect message for ${jobManager.path}.")
       }
     }
   }
@@ -807,17 +800,15 @@ extends Actor with ActorLogMessages with ActorLogging {
 
       val userCodeClassLoader = libraryCacheManager match {
         case Some(manager) =>
-          if (LOG.isDebugEnabled) {
+          if (log.isDebugEnabled) {
             startRegisteringTask = System.currentTimeMillis()
           }
 
           // triggers the download of all missing jar files from the job manager
           manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
 
-          if (LOG.isDebugEnabled) {
-            LOG.debug("Register task {} at library cache manager took {}s", executionID,
-              (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
-          }
+          log.debug(s"Register task $executionID at library cache manager " +
+            s"took ${(System.currentTimeMillis() - startRegisteringTask) / 1000.0}s")
 
           manager.getClassLoader(jobID)
         case None => throw new IllegalStateException("There is no valid library cache manager.")
@@ -859,7 +850,7 @@ extends Actor with ActorLogMessages with ActorLogging {
       }
       
       // register the task with the network stack and profiles
-      LOG.info("Register task {}", task)
+      log.info(s"Register task $task.")
       network.registerTask(task)
 
       val cpTasks = new util.HashMap[String, FutureTask[Path]]()
@@ -881,7 +872,7 @@ extends Actor with ActorLogMessages with ActorLogging {
         val message = if (t.isInstanceOf[CancelTaskException]) {
           "Task was canceled"
         } else {
-          LOG.error("Could not instantiate task with execution ID " + executionID, t)
+          log.error("Could not instantiate task with execution ID " + executionID, t)
           ExceptionUtils.stringifyException(t)
         }
 
@@ -893,7 +884,7 @@ extends Actor with ActorLogMessages with ActorLogging {
 
           libraryCacheManager foreach { _.unregisterTask(jobID, executionID) }
         } catch {
-          case t: Throwable => LOG.error("Error during cleanup of task deployment.", t)
+          case t: Throwable => log.error("Error during cleanup of task deployment.", t)
         }
 
         sender ! new TaskOperationResult(executionID, false, message)
@@ -924,7 +915,7 @@ extends Actor with ActorLogMessages with ActorLogging {
                 reader.updateInputChannel(partitionInfo)
               } catch {
                 case t: Throwable =>
-                  LOG.error(s"Could not update input data location for task " +
+                  log.error(s"Could not update input data location for task " +
                     s"${task.getTaskName}. Trying to fail  task.", t)
 
                   try {
@@ -932,7 +923,7 @@ extends Actor with ActorLogMessages with ActorLogging {
                   }
                   catch {
                     case t: Throwable =>
-                      LOG.error("Failed canceling task with execution ID " + executionId +
+                      log.error("Failed canceling task with execution ID " + executionId +
                         " after task update failure.", t)
                   }
               }
@@ -951,8 +942,8 @@ extends Actor with ActorLogMessages with ActorLogging {
         }
 
       case None =>
-        LOG.debug("Discard update for input partitions of task {} : task is no longer running.",
-          executionId)
+        log.debug(s"Discard update for input partitions of task $executionId : " +
+          s"task is no longer running.")
         sender ! Acknowledge
     }
   }
@@ -965,7 +956,7 @@ extends Actor with ActorLogMessages with ActorLogging {
    */
   private def cancelAndClearEverything(cause: Throwable) {
     if (runningTasks.size > 0) {
-      LOG.info("Cancelling all computations and discarding all cached data.")
+      log.info("Cancelling all computations and discarding all cached data.")
 
       for (t <- runningTasks.values) {
         t.failExternally(cause)
@@ -983,22 +974,22 @@ extends Actor with ActorLogMessages with ActorLogging {
           try {
             task.failExternally(new Exception("Task is being removed from TaskManager"))
           } catch {
-            case e: Exception => LOG.error("Could not properly fail task", e)
+            case e: Exception => log.error("Could not properly fail task", e)
           }
         }
 
-        LOG.info("Unregister task with execution ID {}.", executionID)
+        log.info(s"Unregister task with execution ID $executionID.")
         removeAllTaskResources(task)
         libraryCacheManager foreach { _.unregisterTask(task.getJobID, executionID) }
 
-        LOG.info("Updating FINAL execution state of {} ({}) to {}.",
-          task.getTaskName, task.getExecutionId, task.getExecutionState)
+        log.info(s"Updating FINAL execution state of ${task.getTaskName} " +
+          s"(${task.getExecutionId}) to ${task.getExecutionState}.")
 
         self ! UpdateTaskExecutionState(new TaskExecutionState(
           task.getJobID, task.getExecutionId, task.getExecutionState, task.getFailureCause))
 
       case None =>
-        LOG.debug("Cannot find task with ID {} to unregister.", executionID)
+        log.debug(s"Cannot find task with ID $executionID to unregister.")
     }
   }
 
@@ -1044,7 +1035,7 @@ extends Actor with ActorLogMessages with ActorLogging {
         }
       } catch {
         // this is pretty unpleasant, but not a reason to give up immediately
-        case e: Exception => LOG.error(
+        case e: Exception => log.error(
           "Error cleaning up local temp files from the distributed cache.", e)
       }
     }
@@ -1060,14 +1051,14 @@ extends Actor with ActorLogMessages with ActorLogging {
    */
   private def sendHeartbeatToJobManager(): Unit = {
     try {
-      LOG.debug("Sending heartbeat to JobManager")
+      log.debug("Sending heartbeat to JobManager")
       val report: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
       currentJobManager foreach {
         jm => jm ! Heartbeat(instanceID, report)
       }
     }
     catch {
-      case e: Exception => LOG.warn("Error sending the metric heartbeat to the JobManager", e)
+      case e: Exception => log.warn("Error sending the metric heartbeat to the JobManager", e)
     }
   }
 
@@ -1093,7 +1084,7 @@ extends Actor with ActorLogMessages with ActorLogging {
       recipient ! StackTrace(instanceID, stackTraceStr)
     }
     catch {
-      case e: Exception => LOG.error("Failed to send stack trace to " + recipient.path, e)
+      case e: Exception => log.error("Failed to send stack trace to " + recipient.path, e)
     }
   }
 
@@ -1103,7 +1094,7 @@ extends Actor with ActorLogMessages with ActorLogging {
    * @param cause The exception that caused the fatal problem.
    */
   private def killTaskManagerFatal(message: String, cause: Throwable): Unit = {
-    LOG.error("\n" +
+    log.error("\n" +
       "==============================================================\n" +
       "======================      FATAL      =======================\n" +
       "==============================================================\n" +
@@ -1121,7 +1112,7 @@ extends Actor with ActorLogMessages with ActorLogging {
 object TaskManager {
 
   /** TaskManager logger for synchronous logging (not through the logging actor) */
-  val LOG = LoggerFactory.getLogger(classOf[TaskManager])
+  val LOG = Logger(classOf[TaskManager])
 
   /** Return code for unsuccessful TaskManager startup */
   val STARTUP_FAILURE_RETURN_CODE = 1
@@ -1159,7 +1150,7 @@ object TaskManager {
    */
   def main(args: Array[String]): Unit = {
     // startup checks and logging
-    EnvironmentInformation.logEnvironmentInfo(LOG, "TaskManager", args)
+    EnvironmentInformation.logEnvironmentInfo(LOG.logger, "TaskManager", args)
     EnvironmentInformation.checkJavaVersion()
 
     // try to parse the command line arguments
@@ -1283,8 +1274,8 @@ object TaskManager {
       LOG.info("Trying to select the network interface and address to use " +
         "by connecting to the configured JobManager.")
 
-      LOG.info("TaskManager will try to connect for {} seconds before falling back to heuristics",
-        MAX_STARTUP_CONNECT_TIME)
+      LOG.info(s"TaskManager will try to connect for $MAX_STARTUP_CONNECT_TIME seconds before " +
+        "falling back to heuristics")
 
       val jobManagerAddress = new InetSocketAddress(jobManagerHostname, jobManagerPort)
       val taskManagerAddress = try {
@@ -1361,7 +1352,7 @@ object TaskManager {
 
     // Bring up the TaskManager actor system first, bind it to the given address.
 
-    LOG.info("Starting TaskManager actor system at {}:{}", taskManagerHostname, actorSystemPort)
+    LOG.info(s"Starting TaskManager actor system at $taskManagerHostname:$actorSystemPort")
 
     val taskManagerSystem = try {
       val akkaConfig = AkkaUtils.getAkkaConfig(configuration,
@@ -1400,7 +1391,7 @@ object TaskManager {
       // the process reaper will kill the JVM process (to ensure easy failure detection)
       LOG.debug("Starting TaskManager process reaper")
       taskManagerSystem.actorOf(
-        Props(classOf[ProcessReaper], taskManager, LOG, RUNTIME_FAILURE_RETURN_CODE),
+        Props(classOf[ProcessReaper], taskManager, LOG.logger, RUNTIME_FAILURE_RETURN_CODE),
         "TaskManager_Process_Reaper")
 
       // if desired, start the logging daemon that periodically logs the
@@ -1521,7 +1512,7 @@ object TaskManager {
         "pick a fraction of the available memory.")
 
     val memorySize = if (configuredMemory > 0) {
-      LOG.info("Using {} MB for Flink managed memory.", configuredMemory)
+      LOG.info(s"Using $configuredMemory MB for Flink managed memory.")
       configuredMemory << 20 // megabytes to bytes
     }
     else {
@@ -1534,8 +1525,8 @@ object TaskManager {
       val relativeMemSize = (EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag() *
                                                                                    fraction).toLong
 
-      LOG.info("Using {} of the currently free heap space for Flink managed memory ({} MB).",
-        fraction, relativeMemSize >> 20)
+      LOG.info(s"Using $fraction of the currently free heap space for Flink managed " +
+        s"memory (${relativeMemSize >> 20} MB).")
 
       relativeMemSize
     }

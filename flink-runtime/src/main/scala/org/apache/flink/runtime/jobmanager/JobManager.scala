@@ -23,6 +23,7 @@ import java.net.InetSocketAddress
 import java.util.Collections
 
 import akka.actor.Status.{Success, Failure}
+import grizzled.slf4j.Logger
 import org.apache.flink.api.common.{JobID, ExecutionConfig}
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
@@ -42,7 +43,7 @@ import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.{SerializedValue, EnvironmentInformation}
-import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
@@ -101,10 +102,7 @@ class JobManager(val flinkConfiguration: Configuration,
                  val defaultExecutionRetries: Int,
                  val delayBetweenRetries: Long,
                  val timeout: FiniteDuration)
-  extends Actor with ActorLogMessages with ActorLogging {
-
-  /** Reference to the log, for debugging */
-  val LOG = JobManager.LOG
+  extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
   /** List of current jobs running jobs */
   val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
@@ -114,7 +112,7 @@ class JobManager(val flinkConfiguration: Configuration,
    * Run when the job manager is started. Simply logs an informational message.
    */
   override def preStart(): Unit = {
-    LOG.info(s"Starting JobManager at ${self.path.toSerializationFormat}.")
+    log.info(s"Starting JobManager at ${self.path.toSerializationFormat}.")
   }
 
   override def postStop(): Unit = {
@@ -138,12 +136,11 @@ class JobManager(val flinkConfiguration: Configuration,
     try {
       libraryCacheManager.shutdown()
     } catch {
-      case e: IOException => log.error(e, "Could not properly shutdown the library cache manager.")
+      case e: IOException => log.error("Could not properly shutdown the library cache manager.", e)
     }
 
-    if (log.isDebugEnabled) {
-      log.debug("Job manager {} is completely stopped.", self.path)
-    }
+    log.debug(s"Job manager ${self.path} is completely stopped.")
+
   }
 
   /**
@@ -179,7 +176,7 @@ class JobManager(val flinkConfiguration: Configuration,
           // registerTaskManager throws an IllegalStateException if it is already shut down
           // let the actor crash and restart itself in this case
           case e: Exception =>
-            log.error(e, "Failed to register TaskManager at instance manager")
+            log.error("Failed to register TaskManager at instance manager", e)
 
             // IMPORTANT: Send the response to the "sender", which is not the
             //            TaskManager actor, but the ask future!
@@ -197,7 +194,7 @@ class JobManager(val flinkConfiguration: Configuration,
       submitJob(jobGraph, listenToEvents = listen)
 
     case CancelJob(jobID) =>
-      log.info("Trying to cancel job with ID {}.", jobID)
+      log.info(s"Trying to cancel job with ID $jobID.")
 
       currentJobs.get(jobID) match {
         case Some((executionGraph, _)) =>
@@ -208,7 +205,7 @@ class JobManager(val flinkConfiguration: Configuration,
 
           sender ! CancellationSuccess(jobID)
         case None =>
-          log.info("No job found with ID {}.", jobID)
+          log.info(s"No job found with ID $jobID.")
           sender ! CancellationFailure(jobID, new IllegalArgumentException("No job found with " +
             s"ID $jobID."))
       }
@@ -227,8 +224,9 @@ class JobManager(val flinkConfiguration: Configuration,
             }(context.dispatcher)
 
             sender ! true
-          case None => log.error("Cannot find execution graph for ID {} to change state to {}.",
-            taskExecutionState.getJobID, taskExecutionState.getExecutionState)
+          case None => log.error("Cannot find execution graph for ID " +
+            s"${taskExecutionState.getJobID} to change state to " +
+            s"${taskExecutionState.getExecutionState}.")
             sender ! false
         }
       }
@@ -239,7 +237,7 @@ class JobManager(val flinkConfiguration: Configuration,
           val execution = executionGraph.getRegisteredExecutions.get(executionAttempt)
 
           if (execution == null) {
-            log.error("Can not find Execution for attempt {}.", executionAttempt)
+            log.error(s"Can not find Execution for attempt $executionAttempt.")
             null
           } else {
             val slot = execution.getAssignedResource
@@ -256,32 +254,30 @@ class JobManager(val flinkConfiguration: Configuration,
                 case splitAssigner: InputSplitAssigner =>
                   val nextInputSplit = splitAssigner.getNextInputSplit(host, taskId)
 
-                  if (log.isDebugEnabled) {
-                    log.debug("Send next input split {}.", nextInputSplit)
-                  }
+                  log.debug(s"Send next input split $nextInputSplit.")
 
                   try {
                     InstantiationUtil.serializeObject(nextInputSplit)
                   } catch {
                     case ex: Exception =>
-                      log.error(ex, "Could not serialize the next input split of class {}.",
-                        nextInputSplit.getClass)
+                      log.error(s"Could not serialize the next input split of " +
+                        s"class ${nextInputSplit.getClass}.", ex)
                       vertex.fail(new RuntimeException("Could not serialize the next input split " +
                         "of class " + nextInputSplit.getClass + ".", ex))
                       null
                   }
 
                 case _ =>
-                  log.error("No InputSplitAssigner for vertex ID {}.", vertexID)
+                  log.error(s"No InputSplitAssigner for vertex ID $vertexID.")
                   null
               }
               case _ =>
-                log.error("Cannot find execution vertex for vertex ID {}.", vertexID)
+                log.error(s"Cannot find execution vertex for vertex ID $vertexID.")
                 null
           }
         }
         case None =>
-          log.error("Cannot find execution graph for job ID {}.", jobID)
+          log.error(s"Cannot find execution graph for job ID $jobID.")
           null
       }
 
@@ -290,9 +286,8 @@ class JobManager(val flinkConfiguration: Configuration,
     case JobStatusChanged(jobID, newJobStatus, timeStamp, error) =>
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
-          log.info("Status of job {} ({}) changed to {} {}.",
-            jobID, executionGraph.getJobName, newJobStatus,
-            if (error == null) "" else error.getMessage)
+          log.info(s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus" +
+            s" ${if (error == null) "" else error.getMessage}.")
 
           if (newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
@@ -304,7 +299,7 @@ class JobManager(val flinkConfiguration: Configuration,
                   accumulatorManager.getJobAccumulatorResultsSerialized(jobID)
                 } catch {
                   case e: Exception =>
-                    log.error(e, "Cannot fetch serialized accumulators for job {}", jobID)
+                    log.error(s"Cannot fetch serialized accumulators for job $jobID", e)
                     Collections.emptyMap()
                 }
                 val result = new SerializedJobExecutionResult(jobID, jobInfo.duration,
@@ -352,8 +347,8 @@ class JobManager(val flinkConfiguration: Configuration,
           sender ! Acknowledge
           executionGraph.scheduleOrUpdateConsumers(partitionId)
         case None =>
-          log.error("Cannot find execution graph for job ID {} to schedule or update consumers",
-            jobId)
+          log.error(s"Cannot find execution graph for job ID $jobId to schedule or update " +
+            s"consumers.")
           sender ! Failure(new IllegalStateException("Cannot find execution graph for job ID " +
             s"$jobId to schedule or update consumers."))
       }
@@ -383,7 +378,7 @@ class JobManager(val flinkConfiguration: Configuration,
         sender ! RunningJobsStatus(jobs)
       }
       catch {
-        case t: Throwable => LOG.error("Exception while responding to RequestRunningJobsStatus", t)
+        case t: Throwable => log.error("Exception while responding to RequestRunningJobsStatus", t)
       }
 
     case RequestJob(jobID) =>
@@ -403,10 +398,10 @@ class JobManager(val flinkConfiguration: Configuration,
 
     case Heartbeat(instanceID, metricsReport) =>
       try {
-        log.debug("Received hearbeat message from {}", instanceID)
+        log.debug(s"Received hearbeat message from $instanceID.")
         instanceManager.reportHeartBeat(instanceID, metricsReport)
       } catch {
-        case t: Throwable => log.error(t, "Could not report heart beat from {}.", sender().path)
+        case t: Throwable => log.error(s"Could not report heart beat from ${sender().path}.", t)
       }
 
     case message: AccumulatorMessage => handleAccumulatorMessage(message)
@@ -417,7 +412,7 @@ class JobManager(val flinkConfiguration: Configuration,
 
     case Terminated(taskManager) =>
       if (instanceManager.isRegistered(taskManager)) {
-        log.info("Task manager {} terminated.", taskManager.path)
+        log.info(s"Task manager ${taskManager.path} terminated.")
 
         instanceManager.unregisterTaskManager(taskManager)
         context.unwatch(taskManager)
@@ -430,7 +425,7 @@ class JobManager(val flinkConfiguration: Configuration,
       val taskManager = sender()
 
       if (instanceManager.isRegistered(taskManager)) {
-        log.info("Task manager {} wants to disconnect, because {}.", taskManager.path, msg)
+        log.info(s"Task manager ${taskManager.path} wants to disconnect, because $msg.")
 
         instanceManager.unregisterTaskManager(taskManager)
         context.unwatch(taskManager)
@@ -590,7 +585,7 @@ class JobManager(val flinkConfiguration: Configuration,
         }
         catch {
           case tt: Throwable => {
-            log.error(tt, "Error while marking ExecutionGraph as failed.")
+            log.error("Error while marking ExecutionGraph as failed.", tt)
           }
         }
       }
@@ -618,7 +613,7 @@ class JobManager(val flinkConfiguration: Configuration,
           libraryCacheManager.getClassLoader(jobId)
         } catch {
           case e: Exception =>
-            log.error(e, "Dropping accumulators. No class loader available for job " + jobId)
+            log.error("Dropping accumulators. No class loader available for job " + jobId, e)
             return
         }
 
@@ -628,7 +623,7 @@ class JobManager(val flinkConfiguration: Configuration,
             accumulatorManager.processIncomingAccumulators(jobId, accumulators)
           }
           catch {
-            case e: Exception => log.error(e, "Cannot update accumulators for job " + jobId)
+            case e: Exception => log.error("Cannot update accumulators for job " + jobId, e)
           }
         } else {
           log.error("Dropping accumulators. No class loader available for job " + jobId)
@@ -643,7 +638,7 @@ class JobManager(val flinkConfiguration: Configuration,
         }
         catch {
           case e: Exception =>
-            log.error(e, "Cannot serialize accumulator result")
+            log.error("Cannot serialize accumulator result", e)
             sender() ! AccumulatorResultsErroneous(jobID, e)
         }
 
@@ -656,7 +651,7 @@ class JobManager(val flinkConfiguration: Configuration,
         }
         catch {
           case e: Exception =>
-            log.error(e, "Cannot fetch accumulator result")
+            log.error("Cannot fetch accumulator result", e)
             sender() ! AccumulatorResultsErroneous(jobId, e)
         }
 
@@ -676,8 +671,8 @@ class JobManager(val flinkConfiguration: Configuration,
 
           archive ! ArchiveExecutionGraph(jobID, eg)
         } catch {
-          case t: Throwable => log.error(t, "Could not prepare the execution graph {} for " +
-            "archiving.", eg)
+          case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
+            "archiving.", t)
         }
 
       case None =>
@@ -687,7 +682,7 @@ class JobManager(val flinkConfiguration: Configuration,
       libraryCacheManager.unregisterJob(jobID)
     } catch {
       case t: Throwable =>
-        log.error(t, "Could not properly unregister job {} form the library cache.", jobID)
+        log.error(s"Could not properly unregister job $jobID form the library cache.", t)
     }
   }
 }
@@ -699,7 +694,7 @@ class JobManager(val flinkConfiguration: Configuration,
  */
 object JobManager {
 
-  val LOG = LoggerFactory.getLogger(classOf[JobManager])
+  val LOG = Logger(classOf[JobManager])
 
   val STARTUP_FAILURE_RETURN_CODE = 1
   val RUNTIME_FAILURE_RETURN_CODE = 2
@@ -717,7 +712,7 @@ object JobManager {
    */
   def main(args: Array[String]): Unit = {
     // startup checks and logging
-    EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager", args)
+    EnvironmentInformation.logEnvironmentInfo(LOG.logger, "JobManager", args)
     EnvironmentInformation.checkJavaVersion()
 
     // parsing the command line arguments
@@ -798,7 +793,7 @@ object JobManager {
     LOG.info("Starting JobManager")
 
     // Bring up the job manager actor system first, bind it to the given address.
-    LOG.info("Starting JobManager actor system at {}:{}", listeningAddress, listeningPort)
+    LOG.info(s"Starting JobManager actor system at $listeningAddress:$listeningPort.")
 
     val jobManagerSystem = try {
       val akkaConfig = AkkaUtils.getAkkaConfig(configuration,
@@ -831,7 +826,7 @@ object JobManager {
       // the process reaper will kill the JVM process (to ensure easy failure detection)
       LOG.debug("Starting JobManager process reaper")
       jobManagerSystem.actorOf(
-        Props(classOf[ProcessReaper], jobManager, LOG, RUNTIME_FAILURE_RETURN_CODE),
+        Props(classOf[ProcessReaper], jobManager, LOG.logger, RUNTIME_FAILURE_RETURN_CODE),
         "JobManager_Process_Reaper")
 
       // bring up a local task manager, if needed
@@ -847,7 +842,7 @@ object JobManager {
 
         LOG.debug("Starting TaskManager process reaper")
         jobManagerSystem.actorOf(
-          Props(classOf[ProcessReaper], taskManagerActor, LOG, RUNTIME_FAILURE_RETURN_CODE),
+          Props(classOf[ProcessReaper], taskManagerActor, LOG.logger, RUNTIME_FAILURE_RETURN_CODE),
           "TaskManager_Process_Reaper")
       }
 
