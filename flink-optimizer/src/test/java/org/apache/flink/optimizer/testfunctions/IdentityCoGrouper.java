@@ -16,19 +16,15 @@
  * limitations under the License.
  */
 
+package org.apache.flink.optimizer.testfunctions;
 
-package org.apache.flink.optimizer.util;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.util.Collector;
 
-
-import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
-import org.apache.flink.types.Record;
-
-
-public final class DummyOutputFormat extends DelimitedOutputFormat {
-	private static final long serialVersionUID = 1L;
+public class IdentityCoGrouper<T> implements CoGroupFunction<T, T, T> {
 	
+	private static final long serialVersionUID = 1L;
+
 	@Override
-	public int serializeRecord(Record rec, byte[] target) throws Exception {
-		return 0;
-	}
+	public void coGroup(Iterable<T> first, Iterable<T> second, Collector<T> out) {}
 }

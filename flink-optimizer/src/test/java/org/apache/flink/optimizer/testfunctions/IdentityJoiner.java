@@ -16,27 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.util;
 
-import java.io.Serializable;
-import java.util.Iterator;
+package org.apache.flink.optimizer.testfunctions;
 
-import org.apache.flink.api.java.record.functions.CoGroupFunction;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
+import org.apache.flink.api.common.functions.JoinFunction;
 
-@SuppressWarnings("deprecation")
-public class DummyCoGroupStub extends CoGroupFunction implements Serializable {
+public class IdentityJoiner<T> implements JoinFunction<T, T, T> {
+
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) {
-		while (records1.hasNext()) {
-			out.collect(records1.next());
-		}
-
-		while (records2.hasNext()) {
-			out.collect(records2.next());
-		}
+	public T join(T first, T second) {
+		return first;
 	}
 }

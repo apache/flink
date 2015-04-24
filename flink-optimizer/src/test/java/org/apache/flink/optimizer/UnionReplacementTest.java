@@ -21,6 +21,7 @@ package org.apache.flink.optimizer;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
@@ -40,8 +41,8 @@ public class UnionReplacementTest extends CompilerTestBase {
 	
 			DataSet<String> union = input1.union(input2);
 	
-			union.print();
-			union.print();
+			union.output(new DiscardingOutputFormat<String>());
+			union.output(new DiscardingOutputFormat<String>());
 	
 			Plan plan = env.createProgramPlan();
 			OptimizedPlan oPlan = compileNoStats(plan);

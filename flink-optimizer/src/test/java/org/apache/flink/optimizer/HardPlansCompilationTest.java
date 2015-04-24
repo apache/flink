@@ -18,21 +18,16 @@
 
 package org.apache.flink.optimizer;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.record.operators.CrossOperator;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.optimizer.util.DummyCrossStub;
-import org.apache.flink.optimizer.util.DummyInputFormat;
-import org.apache.flink.optimizer.util.DummyOutputFormat;
-import org.apache.flink.optimizer.util.IdentityMap;
-import org.apache.flink.optimizer.util.IdentityReduce;
+import org.apache.flink.optimizer.testfunctions.IdentityCrosser;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
+import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.apache.flink.types.IntValue;
 import org.junit.Test;
 
 /**
@@ -41,7 +36,7 @@ import org.junit.Test;
  *   <li> Ticket 158
  * </ul>
  */
-@SuppressWarnings({"serial", "deprecation"})
+@SuppressWarnings({"serial"})
 public class HardPlansCompilationTest extends CompilerTestBase {
 	
 	/**
@@ -54,27 +49,21 @@ public class HardPlansCompilationTest extends CompilerTestBase {
 	@Test
 	public void testTicket158() {
 		// construct the plan
-		FileDataSource source = new FileDataSource(new DummyInputFormat(), IN_FILE, "Source");
-		
-		MapOperator map = MapOperator.builder(new IdentityMap()).name("Map1").input(source).build();
-		
-		ReduceOperator reduce1 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce1").input(map).build();
-		
-		CrossOperator cross1 = CrossOperator.builder(new DummyCrossStub()).name("Cross1").input1(reduce1).input2(source).build();
-		
-		ReduceOperator reduce2 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce2").input(cross1).build();
-		
-		CrossOperator cross2 = CrossOperator.builder(new DummyCrossStub()).name("Cross2").input1(reduce2).input2(source).build();
-		
-		ReduceOperator reduce3 = ReduceOperator.builder(new IdentityReduce(), IntValue.class, 0).name("Reduce3").input(cross2).build();
-		
-		FileDataSink sink = new FileDataSink(new DummyOutputFormat(), OUT_FILE, "Sink");
-		sink.setInput(reduce3);
-		
-		Plan plan = new Plan(sink, "Test Temp Task");
-		plan.setDefaultParallelism(DEFAULT_PARALLELISM);
-		
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+		DataSet<Long> set1 = env.generateSequence(0,1);
+
+		set1.map(new IdentityMapper<Long>()).name("Map1")
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce1")
+				.cross(set1).with(new IdentityCrosser<Long>()).withForwardedFieldsFirst("*").name("Cross1")
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce2")
+				.cross(set1).with(new IdentityCrosser<Long>()).name("Cross2")
+				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce3")
+				.output(new DiscardingOutputFormat<Long>()).name("Sink");
+
+		JavaPlan plan = env.createProgramPlan();
 		OptimizedPlan oPlan = compileNoStats(plan);
+
 		JobGraphGenerator jobGen = new JobGraphGenerator();
 		jobGen.compileJobGraph(oPlan);
 	}

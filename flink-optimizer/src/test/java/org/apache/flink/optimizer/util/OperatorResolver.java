@@ -29,14 +29,13 @@ import java.util.Set;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.java.record.operators.BulkIteration;
-import org.apache.flink.api.java.record.operators.DeltaIteration;
+import org.apache.flink.api.common.operators.base.BulkIterationBase;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.util.Visitor;
 
 /**
  * Utility to get operator instances from plans via name.
  */
-@SuppressWarnings("deprecation")
 public class OperatorResolver implements Visitor<Operator<?>> {
 	
 	private final Map<String, List<Operator<?>>> map;
@@ -109,11 +108,11 @@ public class OperatorResolver implements Visitor<Operator<?>> {
 			list.add(visitable);
 			
 			// recurse into bulk iterations
-			if (visitable instanceof BulkIteration) {
-				((BulkIteration) visitable).getNextPartialSolution().accept(this);
-			} else if (visitable instanceof DeltaIteration) {
-				((DeltaIteration) visitable).getSolutionSetDelta().accept(this);
-				((DeltaIteration) visitable).getNextWorkset().accept(this);
+			if (visitable instanceof BulkIterationBase) {
+				((BulkIterationBase) visitable).getNextPartialSolution().accept(this);
+			} else if (visitable instanceof DeltaIterationBase) {
+				((DeltaIterationBase) visitable).getSolutionSetDelta().accept(this);
+				((DeltaIterationBase) visitable).getNextWorkset().accept(this);
 			}
 			
 			return true;
