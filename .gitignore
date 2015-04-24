@@ -20,4 +20,7 @@ _site
 docs/api
 build-target
 flink-staging/flink-avro/src/test/java/org/apache/flink/api/io/avro/generated/
+flink-runtime/src/main/frontend/node_modules/
+flink-runtime/src/main/frontend/node/
+flink-runtime/src/main/frontend/build/
 atlassian-ide-plugin.xml
