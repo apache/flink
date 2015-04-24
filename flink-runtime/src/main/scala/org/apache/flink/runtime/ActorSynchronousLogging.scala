@@ -19,34 +19,13 @@
 package org.apache.flink.runtime
 
 import _root_.akka.actor.Actor
+import grizzled.slf4j.Logger
 
-/**
- * Mixin to add debug message logging
- */
-trait ActorLogMessages {
-  that: Actor with ActorSynchronousLogging =>
+/** Adds a logger to an [[akka.actor.Actor]] implementation
+  *
+  */
+trait ActorSynchronousLogging {
+  self: Actor =>
 
-  override def receive: Receive = new Actor.Receive {
-    private val _receiveWithLogMessages = receiveWithLogMessages
-
-    override def isDefinedAt(x: Any): Boolean = _receiveWithLogMessages.isDefinedAt(x)
-
-    override def apply(x: Any): Unit = {
-      if (!log.isDebugEnabled) {
-        _receiveWithLogMessages(x)
-      }
-      else {
-        log.debug(s"Received message $x at ${that.self.path} from ${that.sender()}.")
-
-        val start = System.nanoTime()
-
-        _receiveWithLogMessages(x)
-
-        val duration = (System.nanoTime() - start) / 1000000
-        log.debug(s"Handled message $x in $duration ms from ${that.sender()}.")
-      }
-    }
-  }
-
-  def receiveWithLogMessages: Receive
+  lazy val log = Logger(getClass)
 }

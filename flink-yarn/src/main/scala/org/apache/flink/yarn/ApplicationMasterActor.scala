@@ -98,7 +98,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
 
   def receiveYarnMessages: Receive = {
     case StopYarnSession(status, diag) =>
-      log.info("Stopping YARN JobManager with status {} and diagnostic {}.", status, diag)
+      log.info(s"Stopping YARN JobManager with status $status and diagnostic $diag.")
 
       instanceManager.getAllRegisteredInstances.asScala foreach {
         instance =>
@@ -108,11 +108,11 @@ trait ApplicationMasterActor extends ActorLogMessages {
       rmClientOption foreach {
         rmClient =>
           Try(rmClient.unregisterApplicationMaster(status, diag, "")).recover{
-            case t: Throwable => log.error(t, "Could not unregister the application master.")
+            case t: Throwable => log.error("Could not unregister the application master.", t)
           }
 
           Try(rmClient.close()).recover{
-            case t:Throwable => log.error(t, "Could not close the AMRMClient.")
+            case t:Throwable => log.error("Could not close the AMRMClient.", t)
           }
       }
 
@@ -121,7 +121,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
       nmClientOption foreach {
         nmClient =>
         Try(nmClient.close()).recover{
-          case t: Throwable => log.error(t, "Could not close the NMClient.")
+          case t: Throwable => log.error("Could not close the NMClient.", t)
         }
       }
 
@@ -133,7 +133,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
       context.system.shutdown()
 
     case RegisterClient(client) =>
-      log.info("Register {} as client.", client.path)
+      log.info(s"Register ${client.path} as client.")
       messageListener = Some(client)
       sender ! Acknowledge
 
@@ -142,7 +142,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
 
     case msg: StopAMAfterJob =>
       val jobId = msg.jobId
-      log.info("ApplicatonMaster will shut down YARN session when job {} has finished", jobId)
+      log.info(s"ApplicatonMaster will shut down YARN session when job $jobId has finished.")
       stopWhenJobFinished = jobId
       sender() ! Acknowledge
 
@@ -155,26 +155,26 @@ trait ApplicationMasterActor extends ActorLogMessages {
       startYarnSession(conf, actorSystemPort, webServerPort)
 
     case jnf: JobNotFound =>
-      LOG.warn("Job with ID {} not found in JobManager", jnf.jobID)
+      log.warn(s"Job with ID ${jnf.jobID} not found in JobManager")
       if(stopWhenJobFinished == null) {
-        LOG.warn("The ApplicationMaster didn't expect to receive this message")
+        log.warn("The ApplicationMaster didn't expect to receive this message")
       }
 
     case jobStatus: CurrentJobStatus =>
       if(stopWhenJobFinished == null) {
-        LOG.warn("Received job status {} which wasn't requested", jobStatus)
+        log.warn(s"Received job status $jobStatus which wasn't requested.")
       } else {
         if(stopWhenJobFinished != jobStatus.jobID) {
-          LOG.warn(s"Received job status for job ${jobStatus.jobID} but expected status for " +
+          log.warn(s"Received job status for job ${jobStatus.jobID} but expected status for " +
             s"job $stopWhenJobFinished")
         } else {
           if(jobStatus.status.isTerminalState) {
-            LOG.info(s"Job with ID ${jobStatus.jobID} is in terminal state ${jobStatus.status}. " +
+            log.info(s"Job with ID ${jobStatus.jobID} is in terminal state ${jobStatus.status}. " +
               s"Shutting down YARN session")
             self ! StopYarnSession(FinalApplicationStatus.SUCCEEDED,
               s"The monitored job with ID ${jobStatus.jobID} has finished.")
           } else {
-            LOG.debug(s"Monitored job with ID ${jobStatus.jobID} is in state ${jobStatus.status}")
+            log.debug(s"Monitored job with ID ${jobStatus.jobID} is in state ${jobStatus.status}")
           }
         }
       }
@@ -229,14 +229,14 @@ trait ApplicationMasterActor extends ActorLogMessages {
             })
           }
           // return containers if the RM wants them and we haven't allocated them yet.
-          val preemtionMessage = response.getPreemptionMessage
-          if(preemtionMessage != null) {
-            log.info("Received preemtion message from YARN {}", preemtionMessage)
-            val contract = preemtionMessage.getContract
+          val preemptionMessage = response.getPreemptionMessage
+          if(preemptionMessage != null) {
+            log.info(s"Received preemtion message from YARN $preemptionMessage.")
+            val contract = preemptionMessage.getContract
             if(contract != null) {
               tryToReturnContainers(contract.getContainers.asScala)
             }
-            val strictContract = preemtionMessage.getStrictContract
+            val strictContract = preemptionMessage.getStrictContract
             if(strictContract != null) {
               tryToReturnContainers(strictContract.getContainers.asScala)
             }
@@ -247,13 +247,13 @@ trait ApplicationMasterActor extends ActorLogMessages {
           // check if we want to start some of our allocated containers.
           if(runningContainers < numTaskManager) {
             var missingContainers = numTaskManager - runningContainers
-            log.info("The user requested {} containers, {} running. {} containers missing",
-              numTaskManager, runningContainers, missingContainers)
+            log.info(s"The user requested $numTaskManager containers, $runningContainers " +
+              s"running. $missingContainers containers missing")
 
             // not enough containers running
             if(allocatedContainersList.size > 0) {
-              log.info("{} containers already allocated by YARN. Starting...",
-                allocatedContainersList.size)
+              log.info(s"${allocatedContainersList.size} containers already allocated by YARN. " +
+                "Starting...")
               // we have some containers allocated to us --> start them
               allocatedContainersList = allocatedContainersList.dropWhile(container => {
                 if (missingContainers <= 0) {
@@ -279,7 +279,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
                             }
                           } catch {
                             case e: YarnException =>
-                              log.error(e, "Exception while starting YARN container")
+                              log.error("Exception while starting YARN container", e)
                           }
                         }
                         case None =>
@@ -305,24 +305,24 @@ trait ApplicationMasterActor extends ActorLogMessages {
               log.info(s"There are $missingContainers containers missing." +
                 s" $numPendingRequests are already requested. " +
                 s"Requesting $toAllocateFromYarn additional container(s) from YARN. " +
-                s"Reallocation of failed containers is enabled=$reallocate ('{}')",
-                ConfigConstants.YARN_REALLOCATE_FAILED_CONTAINERS)
+                s"Reallocation of failed containers is enabled=$reallocate " +
+                s"('${ConfigConstants.YARN_REALLOCATE_FAILED_CONTAINERS}')")
               // there are still containers missing. Request them from YARN
               if(reallocate) {
                 for(i <- 1 to toAllocateFromYarn) {
                   val containerRequest = getContainerRequest(memoryPerTaskManager)
                   rmClient.addContainerRequest(containerRequest)
                   numPendingRequests += 1
-                  log.info("Requested additional container from YARN. Pending requests {}",
-                    numPendingRequests)
+                  log.info("Requested additional container from YARN. Pending requests " +
+                    s"$numPendingRequests.")
                 }
               }
             }
           }
 
           if(runningContainers >= numTaskManager && allocatedContainersList.size > 0) {
-            log.info("Flink has {} allocated containers which are not needed right now. " +
-              "Returning them", allocatedContainersList.size)
+            log.info(s"Flink has ${allocatedContainersList.size} allocated containers which " +
+              s"are not needed right now. Returning them")
             for(container <- allocatedContainersList) {
               rmClient.releaseAssignedContainer(container.getId)
             }
@@ -353,9 +353,9 @@ trait ApplicationMasterActor extends ActorLogMessages {
           self ! StopYarnSession(FinalApplicationStatus.FAILED, "Fatal error in AM: AMRMClient " +
             "was not set")
       }
-      log.debug("Processed Heartbeat with RMClient. Running containers {}," +
-        "failed containers {}, allocated containers {}", runningContainers, failedContainers,
-        allocatedContainersList.size)
+      log.debug(s"Processed Heartbeat with RMClient. Running containers $runningContainers, " +
+        s"failed containers $failedContainers, " +
+        s"allocated containers ${allocatedContainersList.size}.")
   }
 
   private def runningContainerIds(): mutable.MutableList[ContainerId] = {
@@ -381,17 +381,16 @@ trait ApplicationMasterActor extends ActorLogMessages {
           YarnConfiguration.DEFAULT_RM_AM_EXPIRY_INTERVAL_MS), MILLISECONDS)
 
       if(YARN_HEARTBEAT_DELAY.gteq(yarnExpiryInterval)) {
-        log.warning("The heartbeat interval of the Flink Application master ({}) is greater than " +
-          "YARN's expiry interval ({}). The application is likely to be killed by YARN.",
-        YARN_HEARTBEAT_DELAY, yarnExpiryInterval)
+        log.warn(s"The heartbeat interval of the Flink Application master " +
+          s"($YARN_HEARTBEAT_DELAY) is greater than YARN's expiry interval " +
+          s"($yarnExpiryInterval). The application is likely to be killed by YARN.")
       }
 
       numTaskManager = env.get(FlinkYarnClient.ENV_TM_COUNT).toInt
       maxFailedContainers = flinkConfiguration.
         getInteger(ConfigConstants.YARN_MAX_FAILED_CONTAINERS, numTaskManager)
-      log.info("Requesting {} TaskManagers. Tolerating {} failed TaskManagers",
-        numTaskManager, maxFailedContainers)
-
+      log.info(s"Requesting $numTaskManager TaskManagers. Tolerating $maxFailedContainers failed " +
+        "TaskManagers")
 
       val remoteFlinkJarPath = env.get(FlinkYarnClient.FLINK_JAR_PATH)
       val fs = FileSystem.get(conf)
@@ -468,7 +467,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
       context.system.scheduler.scheduleOnce(FAST_YARN_HEARTBEAT_DELAY, self, HeartbeatWithYarn)
     } recover {
       case t: Throwable =>
-        log.error(t, "Could not start yarn session.")
+        log.error("Could not start yarn session.", t)
         self ! StopYarnSession(FinalApplicationStatus.FAILED,
           s"ApplicationMaster failed while starting. Exception Message: ${t.getMessage}")
     }
@@ -479,7 +478,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
       allocatedContainersList = allocatedContainersList.dropWhile( container => {
         val result = requestedBackContainers.getId.equals(container.getId)
         if(result) {
-          log.info("Returning container {} back to ResourceManager.", container)
+          log.info(s"Returning container $container back to ResourceManager.")
         }
         result
       })
@@ -548,7 +547,7 @@ trait ApplicationMasterActor extends ActorLogMessages {
       ctx.setTokens(securityTokens)
     } catch {
       case t: Throwable =>
-        log.error(t, "Getting current user info failed when trying to launch the container")
+        log.error("Getting current user info failed when trying to launch the container", t)
     }
 
     ctx

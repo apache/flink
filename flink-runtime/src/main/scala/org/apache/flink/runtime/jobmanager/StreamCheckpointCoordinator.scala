@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager
 import java.lang.{Long => JLong}
 
 import akka.actor._
-import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.{ExecutionGraph, ExecutionVertex}
 import org.apache.flink.runtime.jobgraph.JobStatus._
@@ -69,7 +69,7 @@ class StreamCheckpointCoordinator(val executionGraph: ExecutionGraph,
                                   val interval: FiniteDuration,
                                   var curId: JLong,
                                   var ackId: JLong)
-extends Actor with ActorLogMessages with ActorLogging {
+extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
   implicit private val executor = context.dispatcher
 
@@ -78,13 +78,13 @@ extends Actor with ActorLogMessages with ActorLogging {
     case InitBarrierScheduler =>
       context.system.scheduler.schedule(interval,interval,self,BarrierTimeout)
       context.system.scheduler.schedule(2 * interval,2 * interval,self,CompactAndUpdate)
-      log.info("Started Stream State Monitor for job {}{}",
-        executionGraph.getJobID,executionGraph.getJobName)
+      log.info("Started Stream State Monitor for job " +
+        s"${executionGraph.getJobID}${executionGraph.getJobName}")
       
     case BarrierTimeout =>
       executionGraph.getState match {
         case FAILED | CANCELED | FINISHED =>
-          log.info("Stopping monitor for terminated job {}", executionGraph.getJobID)
+          log.info(s"Stopping monitor for terminated job ${executionGraph.getJobID}.")
           self ! PoisonPill
         case RUNNING =>
           curId += 1
@@ -94,8 +94,8 @@ extends Actor with ActorLogMessages with ActorLogging {
           => vertex.getCurrentAssignedResource.getInstance.getTaskManager
                     ! BarrierReq(vertex.getCurrentExecutionAttempt.getAttemptId,curId))
         case _ =>
-          log.debug("Omitting sending barrier since graph is in {} state for job {}",
-            executionGraph.getState, executionGraph.getJobID)
+          log.debug("Omitting sending barrier since graph is in " +
+            s"${executionGraph.getState} state for job ${executionGraph.getJobID}.")
       }
       
     case StateBarrierAck(jobID, jobVertexID, instanceID, checkpointID, opState) =>
