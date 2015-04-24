@@ -47,4 +47,40 @@ class DenseVectorSuite extends FlatSpec with Matchers {
       vector(size)
     }
   }
+  
+  it should "calculate dot product with DenseVector" in {
+    val vec1 = DenseVector(Array(1, 0, 1))
+    val vec2 = DenseVector(Array(0, 1, 0))
+
+    vec1.dot(vec2) should be(0)
+  }
+
+  it should "calculate dot product with SparseVector" in {
+    val vec1 = DenseVector(Array(1, 0, 1))
+    val vec2 = SparseVector.fromCOO(3, (0, 1), (1, 1))
+
+    vec1.dot(vec2) should be(1)
+  }
+
+  it should "calculate dot product with SparseVector 2" in {
+    val vec1 = DenseVector(Array(1, 0, 1, 0, 0))
+    val vec2 = SparseVector.fromCOO(5, (2, 1), (4, 1))
+
+    vec1.dot(vec2) should be(1)
+  }
+
+  it should "fail in case of calculation dot product with different size vector" in {
+    val vec1 = DenseVector(Array(1, 0))
+    val vec2 = DenseVector(Array(0))
+
+    intercept[IllegalArgumentException] {
+      vec1.dot(vec2)
+    }
+  }
+
+  it should "calculate magnitude of vector" in {
+    val vec = DenseVector(Array(1, 4, 8))
+
+    vec.magnitude should be(9)
+  }
 }
