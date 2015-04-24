@@ -78,7 +78,6 @@ public class StreamingJobGraphGenerator {
 
 		// Turn lazy scheduling off
 		jobGraph.setScheduleMode(ScheduleMode.ALL);
-		jobGraph.setJobType(JobGraph.JobType.STREAMING);
 		jobGraph.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
 		jobGraph.setCheckpointingInterval(streamGraph.getCheckpointingInterval());
 

@@ -76,10 +76,6 @@ public class JobGraph implements Serializable {
 
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 	
-	public enum JobType {STREAMING, BATCH}
-	
-	private JobType jobType = JobType.BATCH;
-	
 	private boolean checkpointingEnabled = false;
 	
 	private long checkpointingInterval = 10000;
@@ -260,15 +256,6 @@ public class JobGraph implements Serializable {
 	 */
 	public int getNumberOfVertices() {
 		return this.taskVertices.size();
-	}
-
-
-	public void setJobType(JobType jobType) {
-		this.jobType = jobType;
-	}
-
-	public JobType getJobType() {
-		return jobType;
 	}
 
 	public void setCheckpointingEnabled(boolean checkpointingEnabled) {
