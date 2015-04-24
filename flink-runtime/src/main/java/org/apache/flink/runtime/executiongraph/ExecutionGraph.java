@@ -601,6 +601,8 @@ public class ExecutionGraph implements Serializable {
 		Execution attempt = this.currentExecutions.get(state.getID());
 		if (attempt != null) {
 			switch (state.getExecutionState()) {
+				case RUNNING:
+					return attempt.switchToRunning();
 				case FINISHED:
 					attempt.markFinished();
 					return true;

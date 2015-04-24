@@ -129,7 +129,7 @@ public class ExecutionVertexSchedulingTest {
 	}
 	
 	@Test
-	public void testScheduleToRunning() {
+	public void testScheduleToDeploying() {
 		try {
 			TestingUtils.setCallingThreadDispatcher(system);
 			ActorRef tm = TestActorRef.create(system, Props.create(ExecutionGraphTestUtils
@@ -149,7 +149,7 @@ public class ExecutionVertexSchedulingTest {
 
 			// try to deploy to the slot
 			vertex.scheduleForExecution(scheduler, false);
-			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
