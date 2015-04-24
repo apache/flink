@@ -80,6 +80,29 @@ case class DenseVector(val data: Array[Double]) extends Vector with Serializable
     data(index) = value
   }
 
+  /** Returns the dot product of the recipient and the argument
+    *
+    * @param other a Vector
+    * @return a scalar double of dot product
+    */
+  override def dot(other: Vector): Double = {
+    require(size == other.size, "The size of vector must be equal.")
+
+    other match {
+      case SparseVector(_, otherIndices, otherData) =>
+        otherIndices.zipWithIndex.map {
+          case (idx, sparseIdx) => data(idx) * otherData(sparseIdx)
+        }.sum
+      case _ => (0 until size).map(i => data(i) * other(i)).sum
+    }
+  }
+
+  /** Magnitude of a vector
+    *
+    * @return
+    */
+  override def magnitude: Double = math.sqrt(data.map(x => x * x).sum)
+
   def toSparseVector: SparseVector = {
     val nonZero = (0 until size).zip(data).filter(_._2 != 0)
 
