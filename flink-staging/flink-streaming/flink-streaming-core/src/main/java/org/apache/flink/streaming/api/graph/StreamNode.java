@@ -118,7 +118,7 @@ public class StreamNode implements Serializable {
 		return ID;
 	}
 
-	public Integer getParallelism() {
+	public int getParallelism() {
 		return parallelism != null ? parallelism : env.getParallelism();
 	}
 
