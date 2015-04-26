@@ -265,14 +265,8 @@ Neighborhood Methods
 -----------
 
 Neighborhood methods allow vertices to perform an aggregation on their first-hop neighborhood.
-
-`groupReduceOnEdges()` can be used to compute an aggregation on the neighboring edges of a vertex,
-while `groupReduceOnNeighbors()` has access to both the neighboring edges and vertices. The neighborhood scope
-is defined by the `EdgeDirection` parameter, which takes the values `IN`, `OUT` or `ALL`. `IN` will gather all in-coming edges (neighbors) of a vertex, `OUT` will gather all out-going edges (neighbors), while `ALL` will gather all edges (neighbors).
-
-The `groupReduceOnEdges()` and `groupReduceOnNeighbors()` methods return zero, one or more values per vertex.
-
-When the user-defined function to be applied on the neighborhood is associative and commutative, it is highly advised to use the `reduceOnEdges()` and `reduceOnNeighbors()` methods. These methods exploit combiners internally, significantly improving performance.
+`reduceOnEdges()` can be used to compute an aggregation on the values of the neighboring edges of a vertex and `reduceOnNeighbors()` can be used to compute an aggregation on the values of the neighboring vertices. These methods assume associative and commutative aggregations and exploit combiners internally, significantly improving performance.
+The neighborhood scope is defined by the `EdgeDirection` parameter, which takes the values `IN`, `OUT` or `ALL`. `IN` will gather all in-coming edges (neighbors) of a vertex, `OUT` will gather all out-going edges (neighbors), while `ALL` will gather all edges (neighbors).
 
 For example, assume that you want to select the minimum weight of all out-edges for each vertex in the following graph:
 
@@ -285,26 +279,16 @@ The following code will collect the out-edges for each vertex and apply the `Sel
 {% highlight java %}
 Graph<Long, Long, Double> graph = ...
 
-DataSet<Tuple2<Long, Double>> minWeights = graph.groupReduceOnEdges(
-				new SelectMinWeight(), EdgeDirection.OUT);
+DataSet<Tuple2<Long, Double>> minWeights = graph.reduceOnEdges(new SelectMinWeight(), EdgeDirection.OUT);
 
 // user-defined function to select the minimum weight
-static final class SelectMinWeight implements EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
+static final class SelectMinWeight implements ReduceEdgesFunction<Double> {
 
 		@Override
-		public void iterateEdges(Vertex<Long, Long> v,
-				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
-
-			long minWeight = Long.MAX_VALUE;
-
-			for (Edge<Long, Long> edge: edges) {
-				if (edge.getValue() < minWeight) {
-					minWeight = edge.getValue();
-				}
-			}
-			out.collect(new Tuple2<Long, Long>(v.getId(), minWeight));
+		public Double reduceEdges(Double firstEdgeValue, Double secondEdgeValue) {
+			return Math.min(firstEdgeValue, secondEdgeValue);
 		}
-	}
+}
 {% endhighlight %}
 
 <p class="text-center">
@@ -316,48 +300,48 @@ Similarly, assume that you would like to compute the sum of the values of all in
 {% highlight java %}
 Graph<Long, Long, Double> graph = ...
 
-DataSet<Tuple2<Long, Long>> verticesWithSum = graph.reduceOnNeighbors(
-				new SumValues(), EdgeDirection.IN);
+DataSet<Tuple2<Long, Long>> verticesWithSum = graph.reduceOnNeighbors(new SumValues(), EdgeDirection.IN);
 
 // user-defined function to sum the neighbor values
-static final class SumValues implements ReduceNeighborsFunction<Long, Long> {
+static final class SumValues implements ReduceNeighborsFunction<Long> {
 
-    public Tuple2<Long, Long> reduceNeighbors(Tuple2<Long, Long> firstNeighbor,
-    										  Tuple2<Long, Long> secondNeighbor) {
-
-    	long sum = firstNeighbor.f1 + secondNeighbor.f1;
-    	return new Tuple2<Long, Long>(firstNeighbor.f0, sum));
-    }
+	    	@Override
+	    	public Long reduceNeighbors(Long firstNeighbor, Long secondNeighbor) {
+		    	return firstNeighbor + secondNeighbor;
+	  	}
 }
 {% endhighlight %}
 
 <p class="text-center">
-    <img alt="reduceOnNeighbors Example" width="70%" src="img/gelly-reduceOnNeighbors.png"/>
+    <img alt="reduceOnNeighbors Example" width="70%" src="fig/gelly-reduceOnNeighbors.png"/>
 </p>
 
-The following code will collect the in-edges for each vertex and apply the `SumInNeighbors()` user-defined function on each of the resulting neighborhoods:
+When the aggregation function is not associative and commutative or when it is desirable to return more than one values per vertex, one can use the more general
+`groupReduceOnEdges()` and `groupReduceOnNeighbors()` methods.
+These methods return zero, one or more values per vertex and provide access to the whole neighborhood.
+
+For example, the following code will output all the vertex pairs which are connected with an edge having a weight of 0.5 or more:
 
 {% highlight java %}
 Graph<Long, Long, Double> graph = ...
 
-DataSet<Tuple2<Long, Long>> verticesWithSum =
-				graph.groupReduceOnNeighbors(new SumInNeighbors(), EdgeDirection.IN);
+DataSet<Tuple2<Long, Long>> vertexPairs = graph.groupReduceOnNeighbors(new SelectLargeWeightNeighbors(), EdgeDirection.OUT);
 
-// user-defined function to sum up the in-neighbor values.
-static final class SumInNeighbors implements NeighborsFunctionWithVertexValue<Long, Long, Long,
-	Tuple2<Long, Long>> {
+// user-defined function to select the neighbors which have edges with weight > 0.5
+static final class SelectLargeWeightNeighbors implements NeighborsFunctionWithVertexValue<Long, Long, Double, 
+		Tuple2<Vertex<Long, Long>, Vertex<Long, Long>>> {
 
-	@Override
-	public void iterateNeighbors(Vertex<Long, Long> vertex,
-			Iterable<Tuple2<Edge<Long, Long>, Vertex<Long, Long>>> neighbors,
-			Collector<Tuple2<Long, Long>> out) throws Exception {
+		@Override
+		public void iterateNeighbors(Vertex<Long, Long> vertex,
+				Iterable<Tuple2<Edge<Long, Double>, Vertex<Long, Long>>> neighbors,
+				Collector<Tuple2<Vertex<Long, Long>, Vertex<Long, Long>>> out) {
 
-		long sum = 0;
-		for (Tuple2<Edge<Long, Long>, Vertex<Long, Long>> neighbor : neighbors) {
-			sum += neighbor.f0.getValue() * neighbor.f1.getValue();
+			for (Tuple2<Edge<Long, Double>, Vertex<Long, Long>> neighbor : neighbors) {
+				if (neighbor.f0.f2 > 0.5) {
+					out.collect(new Tuple2<Vertex<Long, Long>, Vertex<Long, Long>>(vertex, neighbor.f1));
+				}
+			}
 		}
-		out.collect(new Tuple2<Long, Long>(vertex.getId(), sum));
-	}
 }
 {% endhighlight %}
 
