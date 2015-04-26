@@ -19,7 +19,6 @@
 package org.apache.flink.graph;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.io.Serializable;
 
@@ -27,11 +26,9 @@ import java.io.Serializable;
  * Interface to be implemented by the function applied to a vertex neighborhood
  * in the {@link Graph#reduceOnEdges(org.apache.flink.graph.ReduceEdgesFunction, EdgeDirection)} method.
  *
- * @param <K> the vertex key type
  * @param <EV> the edge value type
  */
-public interface ReduceEdgesFunction<K extends Comparable<K> & Serializable,
-		EV extends Serializable> extends Function, Serializable {
+public interface ReduceEdgesFunction<EV extends Serializable> extends Function, Serializable {
 
-	Tuple2<K, EV> reduceEdges(Tuple2<K, EV> firstEdge, Tuple2<K, EV> secondEdge);
+	EV reduceEdges(EV firstEdgeValue, EV secondEdgeValue);
 }

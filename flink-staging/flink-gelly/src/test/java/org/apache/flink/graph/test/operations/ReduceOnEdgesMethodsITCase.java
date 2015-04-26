@@ -365,7 +365,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
-				graph.reduceOnEdges(new SelectMinWeightInNeighborNoValue(), EdgeDirection.IN);
+				graph.reduceOnEdges(new SelectMinWeightNeighborNoValue(), EdgeDirection.IN);
 		verticesWithLowestOutNeighbor.writeAsCsv(resultPath);
 		env.execute();
 
@@ -437,32 +437,20 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SelectMinWeightNeighborNoValue implements ReduceEdgesFunction<Long, Long> {
+	private static final class SelectMinWeightNeighborNoValue implements ReduceEdgesFunction<Long> {
 
 		@Override
-		public Tuple2<Long, Long> reduceEdges(Tuple2<Long, Long> firstEdge,
-											  Tuple2<Long, Long> secondEdge) {
-
-			if(firstEdge.f1 < secondEdge.f1) {
-				return firstEdge;
-			} else {
-				return secondEdge;
-			}
-
+		public Long reduceEdges(Long firstEdgeValue, Long secondEdgeValue) {
+			return Math.min(firstEdgeValue, secondEdgeValue);
 		}
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SelectMaxWeightNeighborNoValue implements ReduceEdgesFunction<Long, Long> {
+	private static final class SelectMaxWeightNeighborNoValue implements ReduceEdgesFunction<Long> {
 
 		@Override
-		public Tuple2<Long, Long> reduceEdges(Tuple2<Long, Long> firstEdge,
-											  Tuple2<Long, Long> secondEdge) {
-			if(firstEdge.f1 > secondEdge.f1) {
-				return firstEdge;
-			} else {
-				return secondEdge;
-			}
+		public Long reduceEdges(Long firstEdgeValue, Long secondEdgeValue) {
+			return Math.max(firstEdgeValue, secondEdgeValue);
 		}
 	}
 
@@ -483,20 +471,6 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 				}
 			}
 			out.collect(new Tuple2<Long, Long>(v.getId(), minNeighborId));
-		}
-	}
-
-	@SuppressWarnings("serial")
-	private static final class SelectMinWeightInNeighborNoValue implements ReduceEdgesFunction<Long, Long> {
-
-		@Override
-		public Tuple2<Long, Long> reduceEdges(Tuple2<Long, Long> firstEdge,
-											  Tuple2<Long, Long> secondEdge) {
-			if(firstEdge.f1 < secondEdge.f1) {
-				return firstEdge;
-			} else {
-				return secondEdge;
-			}
 		}
 	}
 

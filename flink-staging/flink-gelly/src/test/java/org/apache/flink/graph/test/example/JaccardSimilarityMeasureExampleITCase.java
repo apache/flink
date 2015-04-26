@@ -38,8 +38,6 @@ public class JaccardSimilarityMeasureExampleITCase extends MultipleProgramsTestB
 
 	private String edgesPath;
 
-	private String debugResultPath;
-
 	private String resultPath;
 
 	private String expected;
