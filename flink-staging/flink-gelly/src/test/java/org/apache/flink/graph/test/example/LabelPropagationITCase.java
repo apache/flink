@@ -33,9 +33,9 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 
 @RunWith(Parameterized.class)
-public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
+public class LabelPropagationITCase extends MultipleProgramsTestBase {
 
-	public LabelPropagationExampleITCase(TestExecutionMode mode){
+	public LabelPropagationITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
@@ -79,7 +79,7 @@ public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
 		String verticesPath = createTempFile(vertices);
 		String edgesPath = createTempFile(edges);
 
-		LabelPropagationExample.main(new String[] {verticesPath, edgesPath, resultPath, "1"});
+		LabelPropagationExample.main(new String[]{verticesPath, edgesPath, resultPath, "1"});
 
 		expectedResult = "1,10\n" +
 			"2,10\n" +
@@ -118,7 +118,7 @@ public class LabelPropagationExampleITCase extends MultipleProgramsTestBase {
 		String verticesPath = createTempFile(vertices);
 		String edgesPath = createTempFile(edges);
 
-		LabelPropagationExample.main(new String[] {verticesPath, edgesPath, resultPath, "1"});
+		LabelPropagationExample.main(new String[]{verticesPath, edgesPath, resultPath, "1"});
 
 		expectedResult = "1,10\n" +
 				"2,10\n" +

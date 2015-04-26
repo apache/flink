@@ -62,7 +62,7 @@ public class SingleSourceShortestPathsExample implements ProgramDescription {
 		}, env);
 
 		DataSet<Vertex<Long, Double>> singleSourceShortestPaths = graph
-				.run(new SingleSourceShortestPaths<Long>(srcVertexId, maxIterations))
+				.run(new org.apache.flink.graph.library.SingleSourceShortestPaths<Long>(srcVertexId, maxIterations))
 				.getVertices();
 
 		// emit result

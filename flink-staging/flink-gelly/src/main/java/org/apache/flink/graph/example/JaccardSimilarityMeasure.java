@@ -49,12 +49,12 @@ import java.util.HashSet;
  * 	For example: <code>1	2\n1	3\n</code> defines two edges 1-2 and 1-3.
  * </p>
  *
- * Usage <code> JaccardSimilarityMeasureExample &lt;edge path&gt; &lt;result path&gt;</code><br>
+ * Usage <code> JaccardSimilarityMeasure &lt;edge path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link org.apache.flink.graph.example.utils.JaccardSimilarityMeasureData}
  */
 @SuppressWarnings("serial")
-public class JaccardSimilarityMeasureExample implements ProgramDescription {
+public class JaccardSimilarityMeasure implements ProgramDescription {
 
 	public static void main(String [] args) throws Exception {
 
@@ -177,7 +177,7 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 	private static boolean parseParameters(String [] args) {
 		if(args.length > 0) {
 			if(args.length != 2) {
-				System.err.println("Usage JaccardSimilarityMeasureExample <edge path> <output path>");
+				System.err.println("Usage JaccardSimilarityMeasure <edge path> <output path>");
 				return false;
 			}
 
@@ -187,7 +187,7 @@ public class JaccardSimilarityMeasureExample implements ProgramDescription {
 		} else {
 			System.out.println("Executing JaccardSimilarityMeasure example with default parameters and built-in default data.");
 			System.out.println("Provide parameters to read input data from files.");
-			System.out.println("Usage JaccardSimilarityMeasureExample <edge path> <output path>");
+			System.out.println("Usage JaccardSimilarityMeasure <edge path> <output path>");
 		}
 
 		return true;

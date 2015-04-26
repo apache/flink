@@ -20,8 +20,8 @@ package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.graph.example.SimpleCommunityDetectionExample;
-import org.apache.flink.graph.example.utils.SimpleCommunityDetectionData;
+import org.apache.flink.graph.example.CommunityDetectionExample;
+import org.apache.flink.graph.example.utils.CommunityDetectionData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -34,7 +34,7 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 
 @RunWith(Parameterized.class)
-public class SimpleCommunityDetectionITCase extends MultipleProgramsTestBase {
+public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 
 	private String edgesPath;
 
@@ -45,7 +45,7 @@ public class SimpleCommunityDetectionITCase extends MultipleProgramsTestBase {
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	public SimpleCommunityDetectionITCase(TestExecutionMode mode) {
+	public CommunityDetectionITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
@@ -67,8 +67,8 @@ public class SimpleCommunityDetectionITCase extends MultipleProgramsTestBase {
 				"6	7	6.0\n" + "6	8	7.0\n" + "7	8	8.0";
 		edgesPath = createTempFile(edges);
 
-		SimpleCommunityDetectionExample.main(new String[]{edgesPath, resultPath, "1",
-				SimpleCommunityDetectionData.DELTA + ""});
+		CommunityDetectionExample.main(new String[]{edgesPath, resultPath, "1",
+				CommunityDetectionData.DELTA + ""});
 
 		expected = "1,5\n" + "2,6\n" + "3,1\n" + "4,1\n" + "5,1\n" + "6,8\n" + "7,8\n" + "8,7";
 	}
@@ -82,8 +82,8 @@ public class SimpleCommunityDetectionITCase extends MultipleProgramsTestBase {
 		final String edges = "1	2	1.0\n" + "1	3	1.0\n" + "1	4	1.0\n" + "1	5	1.0";
 		edgesPath = createTempFile(edges);
 
-		SimpleCommunityDetectionExample.main(new String[] {edgesPath, resultPath, "1",
-				SimpleCommunityDetectionData.DELTA + ""});
+		CommunityDetectionExample.main(new String[]{edgesPath, resultPath, "1",
+				CommunityDetectionData.DELTA + ""});
 
 		expected = "1,2\n" + "2,1\n" + "3,1\n" + "4,1\n" + "5,1";
 	}

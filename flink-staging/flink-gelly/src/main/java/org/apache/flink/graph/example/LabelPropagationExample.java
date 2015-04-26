@@ -67,7 +67,7 @@ public class LabelPropagationExample implements ProgramDescription {
 
 		// Set up the program
 		DataSet<Vertex<Long, Long>> verticesWithCommunity = graph.run(
-				new LabelPropagation<Long>(maxIterations)).getVertices();
+				new org.apache.flink.graph.library.LabelPropagation<Long>(maxIterations)).getVertices();
 
 		// Emit results
 		if(fileOutput) {
