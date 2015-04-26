@@ -450,7 +450,8 @@ public class WindowedDataStream<OUT> {
 		// discretized stream, we also pass the type of the windowbuffer
 		DiscretizedStream<OUT> discretized = discretize(transformation, windowBuffer);
 
-		if (!(windowBuffer instanceof PreAggregator)) {
+		if (getEviction() instanceof KeepAllEvictionPolicy
+				&& !(windowBuffer instanceof PreAggregator)) {
 			throw new RuntimeException(
 					"Error in preaggregator logic, parallel time reduce should always be preaggregated");
 		}

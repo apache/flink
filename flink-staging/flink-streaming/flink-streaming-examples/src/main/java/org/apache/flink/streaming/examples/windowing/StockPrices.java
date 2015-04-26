@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
@@ -203,7 +204,7 @@ public class StockPrices {
 	// DATA TYPES
 	// *************************************************************************
 
-	public static class StockPrice {
+	public static class StockPrice implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 		public String symbol;
@@ -226,7 +227,7 @@ public class StockPrices {
 		}
 	}
 
-	public static class Count {
+	public static class Count implements Serializable{
 		
 		private static final long serialVersionUID = 1L;
 		public String symbol;

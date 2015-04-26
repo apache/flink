@@ -50,8 +50,13 @@ public class TimestampWrapper<T> implements Serializable {
 			try {
 				@SuppressWarnings("unchecked")
 				TimestampWrapper<T> otherTSW = (TimestampWrapper<T>) other;
-				return startTime == otherTSW.startTime
-						&& timestamp.getClass() == otherTSW.timestamp.getClass();
+				if (timestamp instanceof SystemTimestamp
+						&& otherTSW.timestamp instanceof SystemTimestamp) {
+					return true;
+				} else {
+					return startTime == otherTSW.startTime
+							&& timestamp.getClass() == otherTSW.timestamp.getClass();
+				}
 			} catch (ClassCastException e) {
 				return false;
 			}
