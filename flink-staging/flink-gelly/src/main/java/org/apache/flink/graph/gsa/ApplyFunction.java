@@ -45,20 +45,28 @@ public abstract class ApplyFunction<K extends Comparable<K> & Serializable, VV e
 	 *
 	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
 	 */
-	public void preSuperstep() {};
+	public void preSuperstep() {}
 
 	/**
 	 * This method is executed once per superstep after the vertex update function has been invoked for each vertex.
 	 *
 	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
 	 */
-	public void postSuperstep() {};
+	public void postSuperstep() {}
+
+	/**
+	 * Gets the number of the superstep, starting at <tt>1</tt>.
+	 *
+	 * @return The number of the current superstep.
+	 */
+	public int getSuperstepNumber() {
+		return this.runtimeContext.getSuperstepNumber();
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Internal methods
 	// --------------------------------------------------------------------------------------------
 
-	@SuppressWarnings("unused")
 	private IterationRuntimeContext runtimeContext;
 
 	private Collector<Vertex<K, VV>> out;
@@ -67,7 +75,7 @@ public abstract class ApplyFunction<K extends Comparable<K> & Serializable, VV e
 
 	public void init(IterationRuntimeContext iterationRuntimeContext) {
 		this.runtimeContext = iterationRuntimeContext;
-	};
+	}
 
 	public void setOutput(Vertex<K, VV> vertex, Collector<Vertex<K, VV>> out) {
 		this.out = out;
