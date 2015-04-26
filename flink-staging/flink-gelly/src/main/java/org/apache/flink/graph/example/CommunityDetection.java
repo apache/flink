@@ -25,12 +25,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.example.utils.SimpleCommunityDetectionData;
-import org.apache.flink.graph.library.SimpleCommunityDetection;
+import org.apache.flink.graph.example.utils.CommunityDetectionData;
+import org.apache.flink.graph.library.CommunityDetectionAlgorithm;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 
 /**
- * This example shows how to use the {@link org.apache.flink.graph.library.SimpleCommunityDetection}
+ * This example shows how to use the {@link org.apache.flink.graph.library.CommunityDetectionAlgorithm}
  * library method:
  * <ul>
  * 	<li> with the edge data set given as a parameter
@@ -43,12 +43,12 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * For example: <code>1\t2\t1.0\n1\t3\t2.0\n</code> defines two edges,
  * 1-2 with weight 1.0 and 1-3 with weight 2.0.
  *
- * Usage <code>SimpleCommunityDetection &lt;edge path&gt; &lt;result path&gt;
+ * Usage <code>CommunityDetection &lt;edge path&gt; &lt;result path&gt;
  * &lt;number of iterations&gt; &lt;delta&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
- * {@link org.apache.flink.graph.example.utils.SimpleCommunityDetectionData}
+ * {@link org.apache.flink.graph.example.utils.CommunityDetectionData}
  */
-public class SimpleCommunityDetectionExample implements ProgramDescription {
+public class CommunityDetection implements ProgramDescription {
 
 	@SuppressWarnings("serial")
 	public static void main(String [] args) throws Exception {
@@ -73,7 +73,7 @@ public class SimpleCommunityDetectionExample implements ProgramDescription {
 		// the result is in the form of <vertexId, communityId>, where the communityId is the label
 		// which the vertex converged to
 		DataSet<Vertex<Long, Long>> communityVertices =
-				graph.run(new SimpleCommunityDetection(maxIterations, delta)).getVertices();
+				graph.run(new CommunityDetectionAlgorithm(maxIterations, delta)).getVertices();
 
 		// emit result
 		if (fileOutput) {
@@ -82,12 +82,12 @@ public class SimpleCommunityDetectionExample implements ProgramDescription {
 			communityVertices.print();
 		}
 
-		env.execute("Executing Simple Community Detection Example");
+		env.execute("Executing Community Detection Example");
 	}
 
 	@Override
 	public String getDescription() {
-		return "Simple Community Detection Example";
+		return "Community Detection";
 	}
 
 	// *************************************************************************
@@ -97,13 +97,13 @@ public class SimpleCommunityDetectionExample implements ProgramDescription {
 	private static boolean fileOutput = false;
 	private static String edgeInputPath = null;
 	private static String outputPath = null;
-	private static Integer maxIterations = SimpleCommunityDetectionData.MAX_ITERATIONS;
-	private static Double delta = SimpleCommunityDetectionData.DELTA;
+	private static Integer maxIterations = CommunityDetectionData.MAX_ITERATIONS;
+	private static Double delta = CommunityDetectionData.DELTA;
 
 	private static boolean parseParameters(String [] args) {
 		if(args.length > 0) {
 			if(args.length != 4) {
-				System.err.println("Usage SimpleCommunityDetection <edge path> <output path> " +
+				System.err.println("Usage CommunityDetection <edge path> <output path> " +
 						"<num iterations> <delta>");
 				return false;
 			}
@@ -117,7 +117,7 @@ public class SimpleCommunityDetectionExample implements ProgramDescription {
 		} else {
 			System.out.println("Executing SimpleCommunityDetection example with default parameters and built-in default data.");
 			System.out.println("Provide parameters to read input data from files.");
-			System.out.println("Usage SimpleCommunityDetection <edge path> <output path> " +
+			System.out.println("Usage CommunityDetection <edge path> <output path> " +
 					"<num iterations> <delta>");
 		}
 
@@ -134,7 +134,7 @@ public class SimpleCommunityDetectionExample implements ProgramDescription {
 					.types(Long.class, Long.class, Double.class)
 					.map(new Tuple3ToEdgeMap<Long, Double>());
 		} else {
-			return SimpleCommunityDetectionData.getDefaultEdgeDataSet(env);
+			return CommunityDetectionData.getDefaultEdgeDataSet(env);
 		}
 	}
 }

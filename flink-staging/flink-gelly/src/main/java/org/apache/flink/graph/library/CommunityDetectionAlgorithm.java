@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Simple Community Detection Algorithm.
+ * Community Detection Algorithm.
  *
  * Initially, each vertex is assigned a tuple formed of its own id along with a score equal to 1.0, as value.
  * The vertices propagate their labels and max scores in iterations, each time adopting the label with the
@@ -44,13 +44,13 @@ import java.util.TreeMap;
  *
  * @see <a href="http://arxiv.org/pdf/0808.2633.pdf">article explaining the algorithm in detail</a>
  */
-public class SimpleCommunityDetection implements GraphAlgorithm<Long, Long, Double> {
+public class CommunityDetectionAlgorithm implements GraphAlgorithm<Long, Long, Double> {
 
 	private Integer maxIterations;
 
 	private Double delta;
 
-	public SimpleCommunityDetection(Integer maxIterations, Double delta) {
+	public CommunityDetectionAlgorithm(Integer maxIterations, Double delta) {
 
 		this.maxIterations = maxIterations;
 		this.delta = delta;
