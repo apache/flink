@@ -49,12 +49,12 @@ import java.io.Serializable;
  * </ul>
  * </p>
  *
- * Usage <code>EuclideanGraphExample &lt;vertex path&gt; &lt;edge path&gt; &lt;result path&gt;</code><br>
+ * Usage <code>EuclideanGraphWeighing &lt;vertex path&gt; &lt;edge path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link org.apache.flink.graph.example.utils.EuclideanGraphData}
  */
 @SuppressWarnings("serial")
-public class EuclideanGraphExample implements ProgramDescription {
+public class EuclideanGraphWeighing implements ProgramDescription {
 
 	public static void main(String[] args) throws Exception {
 
@@ -105,7 +105,7 @@ public class EuclideanGraphExample implements ProgramDescription {
 			result.print();
 		}
 
-		env.execute("Euclidean Graph Example");
+		env.execute("Euclidean Graph Weighing Example");
 	}
 
 	@Override
@@ -163,10 +163,10 @@ public class EuclideanGraphExample implements ProgramDescription {
 				edgesInputPath = args[1];
 				outputPath = args[2];
 			} else {
-				System.out.println("Executing Euclidean Graph example with default parameters and built-in default data.");
+				System.out.println("Executing Euclidean Graph Weighing example with default parameters and built-in default data.");
 				System.out.println("Provide parameters to read input data from files.");
 				System.out.println("See the documentation for the correct format of input files.");
-				System.err.println("Usage: EuclideanGraphExample <input vertices path> <input edges path>" +
+				System.err.println("Usage: EuclideanGraphWeighing <input vertices path> <input edges path>" +
 						" <output path>");
 				return false;
 			}

@@ -20,8 +20,7 @@ package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.graph.example.SimpleCommunityDetectionExample;
-import org.apache.flink.graph.example.utils.SimpleCommunityDetectionData;
+import org.apache.flink.graph.example.LabelPropagation;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -34,64 +33,108 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 
 @RunWith(Parameterized.class)
-public class SimpleCommunityDetectionITCase extends MultipleProgramsTestBase {
+public class LabelPropagationITCase extends MultipleProgramsTestBase {
 
-	private String edgesPath;
-
-	private String resultPath;
-
-	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	public SimpleCommunityDetectionITCase(TestExecutionMode mode) {
+	public LabelPropagationITCase(TestExecutionMode mode){
 		super(mode);
 	}
+
+    private String resultPath;
+    private String expectedResult;
+
+    @Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
 	public void before() throws Exception{
 		resultPath = tempFolder.newFile().toURI().toString();
 	}
+
 	@After
 	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
+		compareResultsByLinesInMemory(expectedResult, resultPath);
 	}
 
 	@Test
 	public void testSingleIteration() throws Exception {
 		/*
-		 * Test one iteration of the Simple Community Detection Example
+		 * Test one iteration of label propagation example with a simple graph
 		 */
-		final String edges = "1	2	1.0\n" + "1	3	2.0\n" + "1	4	3.0\n" + "1	5	4.0\n" + "2	6	5.0\n" +
-				"6	7	6.0\n" + "6	8	7.0\n" + "7	8	8.0";
-		edgesPath = createTempFile(edges);
 
-		SimpleCommunityDetectionExample.main(new String[]{edgesPath, resultPath, "1",
-				SimpleCommunityDetectionData.DELTA + ""});
+		final String vertices = "1	10\n" +
+				"2	10\n" +
+				"3	30\n" +
+				"4	40\n" +
+				"5	40\n" +
+				"6	40\n" +
+				"7	70\n";
 
-		expected = "1,5\n" + "2,6\n" + "3,1\n" + "4,1\n" + "5,1\n" + "6,8\n" + "7,8\n" + "8,7";
+		final String edges = "1	3\n" +
+				"2	3\n" +
+				"4	7\n" +
+				"5	7\n" +
+				"6	7\n" +
+				"7	3\n";
+
+		String verticesPath = createTempFile(vertices);
+		String edgesPath = createTempFile(edges);
+
+		LabelPropagation.main(new String[]{verticesPath, edgesPath, resultPath, "1"});
+
+		expectedResult = "1,10\n" +
+			"2,10\n" +
+			"3,10\n" +
+			"4,40\n" +
+			"5,40\n" +
+			"6,40\n" +
+			"7,40\n";
 	}
 
 	@Test
 	public void testTieBreaker() throws Exception {
 		/*
-		 * Test one iteration of the Simple Community Detection Example where a tie must be broken
+		 * Test the label propagation example where a tie must be broken
 		 */
 
-		final String edges = "1	2	1.0\n" + "1	3	1.0\n" + "1	4	1.0\n" + "1	5	1.0";
-		edgesPath = createTempFile(edges);
+		final String vertices = "1	10\n" +
+				"2	10\n" +
+				"3	10\n" +
+				"4	10\n" +
+				"5	0\n" +
+				"6	20\n" +
+				"7	20\n" +
+				"8	20\n" +
+				"9	20\n";
 
-		SimpleCommunityDetectionExample.main(new String[] {edgesPath, resultPath, "1",
-				SimpleCommunityDetectionData.DELTA + ""});
+		final String edges = "1	5\n" +
+				"2	5\n" +
+				"3	5\n" +
+				"4	5\n" +
+				"6	5\n" +
+				"7	5\n" +
+				"8	5\n" +
+				"9	5\n";
 
-		expected = "1,2\n" + "2,1\n" + "3,1\n" + "4,1\n" + "5,1";
+		String verticesPath = createTempFile(vertices);
+		String edgesPath = createTempFile(edges);
+
+		LabelPropagation.main(new String[]{verticesPath, edgesPath, resultPath, "1"});
+
+		expectedResult = "1,10\n" +
+				"2,10\n" +
+				"3,10\n" +
+				"4,10\n" +
+				"5,20\n" +
+				"6,20\n" +
+				"7,20\n" +
+				"8,20\n" +
+				"9,20\n";
 	}
 
+	// -------------------------------------------------------------------------
+	//  Util methods
+	// -------------------------------------------------------------------------
 
-	// -------------------------------------------------------------------------
-	// Util methods
-	// -------------------------------------------------------------------------
 	private String createTempFile(final String rows) throws Exception {
 		File tempFile = tempFolder.newFile();
 		Files.write(rows, tempFile, Charsets.UTF_8);

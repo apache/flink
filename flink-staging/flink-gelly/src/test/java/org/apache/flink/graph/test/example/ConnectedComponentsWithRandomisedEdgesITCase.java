@@ -25,7 +25,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.library.ConnectedComponents;
+import org.apache.flink.graph.library.ConnectedComponentsAlgorithm;
 import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.NullValue;
@@ -61,7 +61,7 @@ public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTes
 		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
 		DataSet<Vertex<Long, Long>> result = graph
-				.run(new ConnectedComponents(100)).getVertices();
+				.run(new ConnectedComponentsAlgorithm(100)).getVertices();
 
 		result.writeAsCsv(resultPath, "\n", " ");
 		env.execute();

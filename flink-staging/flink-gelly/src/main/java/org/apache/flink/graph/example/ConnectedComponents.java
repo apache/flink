@@ -26,12 +26,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.example.utils.ConnectedComponentsExampleData;
-import org.apache.flink.graph.library.ConnectedComponents;
+import org.apache.flink.graph.example.utils.ConnectedComponentsDefaultData;
+import org.apache.flink.graph.library.ConnectedComponentsAlgorithm;
 import org.apache.flink.types.NullValue;
 
 /**
- * This example shows how to use the {@link org.apache.flink.graph.library.ConnectedComponents}
+ * This example shows how to use the {@link org.apache.flink.graph.library.ConnectedComponentsAlgorithm}
  * library method:
  * <ul>
  * 	<li> with the edge data set given as a parameter
@@ -47,9 +47,9 @@ import org.apache.flink.types.NullValue;
  * Usage <code>ConnectedComponents &lt;edge path&gt; &lt;result path&gt;
  * &lt;number of iterations&gt; </code><br>
  * If no parameters are provided, the program is run with default data from
- * {@link org.apache.flink.graph.example.utils.ConnectedComponentsExampleData}
+ * {@link org.apache.flink.graph.example.utils.ConnectedComponentsDefaultData}
  */
-public class ConnectedComponentsExample implements ProgramDescription {
+public class ConnectedComponents implements ProgramDescription {
 
 	@SuppressWarnings("serial")
 	public static void main(String [] args) throws Exception {
@@ -70,7 +70,7 @@ public class ConnectedComponentsExample implements ProgramDescription {
 		}, env);
 
 		DataSet<Vertex<Long, Long>> verticesWithMinIds = graph
-				.run(new ConnectedComponents(maxIterations)).getVertices();
+				.run(new ConnectedComponentsAlgorithm(maxIterations)).getVertices();
 
 		// emit result
 		if (fileOutput) {
@@ -94,7 +94,7 @@ public class ConnectedComponentsExample implements ProgramDescription {
 	private static boolean fileOutput = false;
 	private static String edgeInputPath = null;
 	private static String outputPath = null;
-	private static Integer maxIterations = ConnectedComponentsExampleData.MAX_ITERATIONS;
+	private static Integer maxIterations = ConnectedComponentsDefaultData.MAX_ITERATIONS;
 
 	private static boolean parseParameters(String [] args) {
 		if(args.length > 0) {
@@ -135,7 +135,7 @@ public class ConnectedComponentsExample implements ProgramDescription {
 						}
 					});
 		} else {
-			return ConnectedComponentsExampleData.getDefaultEdgeDataSet(env);
+			return ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env);
 		}
 	}
 }

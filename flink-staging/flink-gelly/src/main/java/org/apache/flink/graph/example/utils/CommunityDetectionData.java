@@ -29,7 +29,7 @@ import java.util.List;
  * Provides the default data set used for the Simple Community Detection example program.
  * If no parameters are given to the program, the default edge data set is used.
  */
-public class SimpleCommunityDetectionData {
+public class CommunityDetectionData {
 
 	// the algorithm is not guaranteed to always converge
 	public static final Integer MAX_ITERATIONS = 30;
@@ -61,5 +61,5 @@ public class SimpleCommunityDetectionData {
 		return env.fromCollection(edges);
 	}
 
-	private SimpleCommunityDetectionData() {}
+	private CommunityDetectionData() {}
 }

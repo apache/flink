@@ -20,8 +20,8 @@ package org.apache.flink.graph.test.example;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
-import org.apache.flink.graph.example.JaccardSimilarityMeasureExample;
-import org.apache.flink.graph.example.utils.JaccardSimilarityMeasureData;
+import org.apache.flink.graph.example.EuclideanGraphWeighing;
+import org.apache.flink.graph.example.utils.EuclideanGraphData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.After;
 import org.junit.Before;
@@ -34,7 +34,9 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 
 @RunWith(Parameterized.class)
-public class JaccardSimilarityMeasureExampleITCase extends MultipleProgramsTestBase {
+public class EuclideanGraphWeighingITCase extends MultipleProgramsTestBase {
+
+	private String verticesPath;
 
 	private String edgesPath;
 
@@ -45,24 +47,27 @@ public class JaccardSimilarityMeasureExampleITCase extends MultipleProgramsTestB
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	public JaccardSimilarityMeasureExampleITCase(TestExecutionMode mode) {
+	public EuclideanGraphWeighingITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
 	@Before
 	public void before() throws Exception {
 		resultPath = tempFolder.newFile().toURI().toString();
+		File verticesFile = tempFolder.newFile();
+		Files.write(EuclideanGraphData.VERTICES, verticesFile, Charsets.UTF_8);
 
 		File edgesFile = tempFolder.newFile();
-		Files.write(JaccardSimilarityMeasureData.EDGES, edgesFile, Charsets.UTF_8);
+		Files.write(EuclideanGraphData.EDGES, edgesFile, Charsets.UTF_8);
 
+		verticesPath = verticesFile.toURI().toString();
 		edgesPath = edgesFile.toURI().toString();
 	}
 
 	@Test
-	public void testJaccardSimilarityMeasureExample() throws Exception {
-		JaccardSimilarityMeasureExample.main(new String[]{edgesPath, resultPath});
-		expected = JaccardSimilarityMeasureData.JACCARD_EDGES;
+	public void testGraphWeightingWeighing() throws Exception {
+		EuclideanGraphWeighing.main(new String[]{verticesPath, edgesPath, resultPath});
+		expected = EuclideanGraphData.RESULTED_WEIGHTED_EDGES;
 	}
 
 	@After

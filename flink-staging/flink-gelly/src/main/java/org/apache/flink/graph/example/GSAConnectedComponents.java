@@ -37,7 +37,7 @@ import org.apache.flink.util.Collector;
 /**
  * This is an implementation of the Connected Components algorithm, using a gather-sum-apply iteration
  */
-public class GSAConnectedComponentsExample implements ProgramDescription {
+public class GSAConnectedComponents implements ProgramDescription {
 
 	// --------------------------------------------------------------------------------------------
 	//  Program
@@ -109,7 +109,7 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 				setResult(summedValue);
 			}
 		}
-	};
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Util methods
@@ -128,7 +128,7 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 			fileOutput = true;
 
 			if (args.length != 3) {
-				System.err.println("Usage: GSAConnectedComponentsExample <edge path> " +
+				System.err.println("Usage: GSAConnectedComponents <edge path> " +
 						"<result path> <max iterations>");
 				return false;
 			}
@@ -140,7 +140,7 @@ public class GSAConnectedComponentsExample implements ProgramDescription {
 			System.out.println("Executing GSA Connected Components example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");
 			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: GSAConnectedComponentsExample <edge path> <result path> <max iterations>");
+			System.out.println("  Usage: GSAConnectedComponents <edge path> <result path> <max iterations>");
 		}
 		return true;
 	}
