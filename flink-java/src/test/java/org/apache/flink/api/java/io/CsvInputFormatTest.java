@@ -325,7 +325,7 @@ public class CsvInputFormatTest {
 	@Test
 	public void testIntegerFields() throws IOException {
 		try {
-			final String fileContent = "111| 222|333| 444|555\n666|777|888|999|000|\n";
+			final String fileContent = "111|222|333|444|555\n666|777|888|999|000|\n";
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple5<Integer, Integer, Integer, Integer, Integer>> typeInfo =
@@ -367,11 +367,11 @@ public class CsvInputFormatTest {
 	@Test
 	public void testEmptyFields() throws IOException {
 		try {
-			final String fileContent = "	 	|0|0|0|0\n" +
-				"1|	|1|1|1|\n" +
+			final String fileContent = "|0|0|0|0\n" +
+				"1||1|1|1|\n" +
 				"2|2| |2|2|\n" +
 				"3 |3|3|  |3|\n" +
-				"4| 4|4|4| |\n";
+				"4|4|4|4| |\n";
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple5<Short, Integer, Long, Float, Double>> typeInfo =

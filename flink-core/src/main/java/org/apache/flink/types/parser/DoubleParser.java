@@ -42,8 +42,13 @@ public class DoubleParser extends FieldParser<Double> {
 		}
 		
 		String str = new String(bytes, startPos, i-startPos);
-		if (str.trim().length() == 0) {
+		int len = str.length();
+		if (len == 0) {
 			setErrorState(ParseErrorState.EMPTY_STRING);
+			return -1;
+		}
+		if(len > str.trim().length()) {
+			setErrorState(ParseErrorState.WHITESPACE_IN_NUMERIC_FIELD);
 			return -1;
 		}
 		try {
@@ -107,6 +112,10 @@ public class DoubleParser extends FieldParser<Double> {
 		}
 		
 		String str = new String(bytes, startPos, i);
+		int len = str.length();
+		if(len > str.trim().length()) {
+			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field: " + str);
+		}
 		return Double.parseDouble(str);
 	}
 }

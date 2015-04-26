@@ -24,20 +24,25 @@ package org.apache.flink.types.parser;
  * Only characters '1' to '0' and '-' are allowed.
  */
 public class LongParser extends FieldParser<Long> {
-	
+
 	private long result;
-	
+
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Long reusable) {
 		long val = 0;
 		boolean neg = false;
 
 		final int delimLimit = limit - delimiter.length + 1;
-
+		
+		if (bytes.length == 0) {
+			setErrorState(ParseErrorState.EMPTY_STRING);
+			return -1;
+		}
+		
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
-			
+
 			// check for empty field with only the sign
 			if (startPos == limit || (startPos < delimLimit && delimiterNext(bytes, startPos, delimiter))) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ORPHAN_SIGN);
@@ -45,94 +50,85 @@ public class LongParser extends FieldParser<Long> {
 			}
 		}
 
-		boolean isWhiteSpaceOnly = true;
 		for (int i = startPos; i < limit; i++) {
 			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
-				if (!isWhiteSpaceOnly) {
-					this.result = neg ? -val : val;
-					return i + delimiter.length;
-				} else {
+				if (i == startPos) {
 					setErrorState(ParseErrorState.EMPTY_STRING);
 					return -1;
 				}
+				this.result = neg ? -val : val;
+				return i + delimiter.length;
 			}
-			if (bytes[i] != 9 && bytes[i] != 32) { // if not whitespace
-				if (bytes[i] < 48 || bytes[i] > 57) {
-					setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
-					return -1;
-				}
-				isWhiteSpaceOnly = false;
-				val *= 10;
-				val += bytes[i] - 48;
+			if (bytes[i] < 48 || bytes[i] > 57) {
+				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
+				return -1;
+			}
+			val *= 10;
+			val += bytes[i] - 48;
 
-				// check for overflow / underflow
-				if (val < 0) {
-					// this is an overflow/underflow, unless we hit exactly the Long.MIN_VALUE
-					if (neg && val == Long.MIN_VALUE) {
-						this.result = Long.MIN_VALUE;
+			// check for overflow / underflow
+			if (val < 0) {
+				// this is an overflow/underflow, unless we hit exactly the Long.MIN_VALUE
+				if (neg && val == Long.MIN_VALUE) {
+					this.result = Long.MIN_VALUE;
 
-						if (i + 1 >= limit) {
-							return limit;
-						} else if (i + 1 < delimLimit && delimiterNext(bytes, i + 1, delimiter)) {
-							return i + 1 + delimiter.length;
-						} else {
-							setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
-							return -1;
-						}
+					if (i+1 >= limit) {
+						return limit;
+					} else if (i+1 < delimLimit && delimiterNext(bytes, i+1, delimiter)) {
+						return i + 1 + delimiter.length;
 					} else {
 						setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
 						return -1;
 					}
 				}
+				else {
+					setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
+					return -1;
+				}
 			}
 		}
 
-		if (isWhiteSpaceOnly) {
-			setErrorState(ParseErrorState.EMPTY_STRING);
-			return -1;
-		}
-		
 		this.result = neg ? -val : val;
 		return limit;
 	}
-	
+
 	@Override
 	public Long createValue() {
 		return Long.MIN_VALUE;
 	}
-	
+
 	@Override
 	public Long getLastResult() {
 		return Long.valueOf(this.result);
 	}
-	
+
 	/**
 	 * Static utility to parse a field of type long from a byte sequence that represents text characters
 	 * (such as when read from a file stream).
-	 * 
+	 *
 	 * @param bytes The bytes containing the text data that should be parsed.
 	 * @param startPos The offset to start the parsing.
 	 * @param length The length of the byte sequence (counting from the offset).
-	 * 
+	 *
 	 * @return The parsed value.
-	 * 
+	 *
 	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
 	 */
 	public static final long parseField(byte[] bytes, int startPos, int length) {
 		return parseField(bytes, startPos, length, (char) 0xffff);
 	}
-	
+
 	/**
 	 * Static utility to parse a field of type long from a byte sequence that represents text characters
 	 * (such as when read from a file stream).
-	 * 
+	 *
 	 * @param bytes The bytes containing the text data that should be parsed.
 	 * @param startPos The offset to start the parsing.
 	 * @param length The length of the byte sequence (counting from the offset).
 	 * @param delimiter The delimiter that terminates the field.
-	 * 
+	 *
 	 * @return The parsed value.
-	 * 
+	 *
 	 * @throws NumberFormatException Thrown when the value cannot be parsed because the text represents not a correct number.
 	 */
 	public static final long parseField(byte[] bytes, int startPos, int length, char delimiter) {
@@ -141,7 +137,7 @@ public class LongParser extends FieldParser<Long> {
 		}
 		long val = 0;
 		boolean neg = false;
-		
+
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
@@ -150,7 +146,7 @@ public class LongParser extends FieldParser<Long> {
 				throw new NumberFormatException("Orphaned minus sign.");
 			}
 		}
-		
+
 		for (; length > 0; startPos++, length--) {
 			if (bytes[startPos] == delimiter) {
 				return neg ? -val : val;
@@ -160,7 +156,7 @@ public class LongParser extends FieldParser<Long> {
 			}
 			val *= 10;
 			val += bytes[startPos] - 48;
-			
+
 			// check for overflow / underflow
 			if (val < 0) {
 				// this is an overflow/underflow, unless we hit exactly the Long.MIN_VALUE
