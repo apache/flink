@@ -38,7 +38,7 @@ import scala.util.Random
  */
 object TopSpeedWindowing {
 
-  case class CarEvent(carId: Int, speed: Int, distance: Double, time: Long) extends Serializable
+  case class CarEvent(carId: Int, speed: Int, distance: Double, time: Long)
 
   def main(args: Array[String]) {
     if (!parseParameters(args)) {
