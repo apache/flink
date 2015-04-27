@@ -136,7 +136,7 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 	}
 	
 	/**
-	 * Gets the iteration aggregator registered under the given name. The iteration aggregator is combines
+	 * Gets the iteration aggregator registered under the given name. The iteration aggregator combines
 	 * all aggregates globally once per superstep and makes them available in the next superstep.
 	 * 
 	 * @param name The name of the aggregator.
@@ -159,7 +159,7 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 	/**
 	 * Gets the broadcast data set registered under the given name. Broadcast data sets
 	 * are available on all parallel instances of a function. They can be registered via
-	 * {@link VertexCentricIteration#addBroadcastSetForMessagingFunction(String, org.apache.flink.api.java.DataSet)}.
+	 * {@link org.apache.flink.graph.spargel.VertexCentricConfiguration#addBroadcastSetForMessagingFunction(String, org.apache.flink.api.java.DataSet)}.
 	 * 
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.
