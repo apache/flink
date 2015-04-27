@@ -68,10 +68,6 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 
 			final Object result = Await.result(response, timeout.duration());
 
-			if (result == null) {
-				return null;
-			}
-
 			if(!(result instanceof JobManagerMessages.NextInputSplit)){
 				throw new RuntimeException("RequestNextInputSplit requires a response of type " +
 						"NextInputSplit. Instead response is of type " + result.getClass() + ".");
@@ -80,9 +76,14 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 						(JobManagerMessages.NextInputSplit) result;
 
 				byte[] serializedData = nextInputSplit.splitData();
-				Object deserialized = InstantiationUtil.deserializeObject(serializedData,
-						usercodeClassLoader);
-				return (InputSplit) deserialized;
+
+				if(serializedData == null) {
+					return null;
+				} else {
+					Object deserialized = InstantiationUtil.deserializeObject(serializedData,
+							usercodeClassLoader);
+					return (InputSplit) deserialized;
+				}
 			}
 		} catch (Exception e) {
 			throw new RuntimeException("Requesting the next InputSplit failed.", e);
