@@ -28,7 +28,7 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 
 /**
- * Simple stub for HBase DataSet
+ * Simple stub for HBase DataSet read
  * 
  * To run the test first create the test table with hbase shell.
  * 
