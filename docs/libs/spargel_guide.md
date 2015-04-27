@@ -1,5 +1,5 @@
 ---
-title: "Spargel Graph Processing API"
+title: "Spargel Graph Processing API - DEPRECATED"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -32,7 +32,7 @@ This vertex-centric view makes it easy to express a large class of graph problem
 * This will be replaced by the TOC
 {:toc}
 
-Spargel API
+Spargel API - DEPRECATED (Please check out new [Gelly API](gelly_guide.html) for graph processing with Apache Flink)
 -----------
 
 The Spargel API is part of the *addons* Maven project. All relevant classes are located in the *org.apache.flink.spargel.java* package.
