@@ -23,21 +23,8 @@
 <configuration>
 
   <property>
-    <name>hbase.tmp.dir</name>
-    <!-- 
-    <value>/media/Dati/hbase-0.98-data</value>
-    --> 
-    <value>/opt/hbase-0.98.6.1-hadoop2/data</value>
-
-  </property>
-  <property>
     <name>hbase.zookeeper.quorum</name>
     <value>localhost</value>
   </property>
-    <!-- 
-  <property>
-    <name>hadoop.security.group.mapping</name>
-    <value>org.apache.hadoop.security.ShellBasedUnixGroupsMapping</value>
-  </property>
-  -->
+  
 </configuration>
