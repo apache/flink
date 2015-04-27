@@ -29,6 +29,8 @@ import org.apache.flink.test.util.FlinkTestBase
 
 class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
+  // TODO(tvas): Check results again once sampling operators are in place
+
   behavior of "The Stochastic Gradient Descent implementation"
 
   it should "correctly solve an L1 regularized regression problem" in {
@@ -204,8 +206,6 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
     updatedIntercept should be (0.8 +- 0.01)
 
   }
-
-  // TODO: Add L1 test
 
   // TODO: Need more corner cases
 

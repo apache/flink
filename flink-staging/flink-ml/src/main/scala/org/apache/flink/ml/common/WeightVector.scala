@@ -20,7 +20,7 @@ package org.apache.flink.ml.common
 
 import org.apache.flink.ml.math.Vector
 
-// TODO(tvas): This privdes an abstraction for the weights
+// TODO(tvas): This provides an abstraction for the weights
 // but at the same time it leads to the creation of many objects as we have to pack and unpack
 // the weights and the intercept often during SGD.
 
@@ -29,17 +29,4 @@ import org.apache.flink.ml.math.Vector
   * @param weights The vector of weights
   * @param intercept The intercept (bias) weight
   */
-case class WeightVector(weights: Vector, intercept: Double) extends Serializable {
-
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case weightVector: WeightVector =>
-        weights.equals(weightVector.weights) && intercept.equals(weightVector.intercept)
-      case _ => false
-    }
-  }
-
-  override def toString: String = {
-    s"WeightVector($weights, $intercept)"
-  }
-}
+case class WeightVector(weights: Vector, intercept: Double) extends Serializable {}

@@ -25,7 +25,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.ml.optimization.IterativeSolver._
 import org.apache.flink.ml.optimization.Solver._
 
-/** Base trait for optimization algorithms
+/** Base class for optimization algorithms
  *
  */
 abstract class Solver extends Serializable with WithParameters {
@@ -38,6 +38,8 @@ abstract class Solver extends Serializable with WithParameters {
     */
   def optimize(data: DataSet[LabeledVector], initialWeights: Option[DataSet[WeightVector]]):
   DataSet[WeightVector]
+  // TODO(tvas): Maybe we want to pass a WeightVector directly here, instead of a
+  // DataSet[WeightVector]
 
   /** Creates a DataSet with one zero vector. The zero vector has dimension d, which is given
     * by the dimensionDS.
@@ -69,11 +71,6 @@ abstract class Solver extends Serializable with WithParameters {
     parameters.add(RegularizationParameter, regularizationParameter)
     this
   }
-
-  def setDimensions(dimensions: Int): Solver = {
-    parameters.add(Dimensions, dimensions)
-    this
-  }
 }
 
 object Solver {
@@ -92,15 +89,11 @@ object Solver {
   }
 
   case object RegularizationParameter extends Parameter[Double] {
-    val defaultValue = Some(0.0) // TODO(tvas): Properly initialize this!
-  }
-
-  case object Dimensions extends Parameter[Int] {
-    val defaultValue = None
+    val defaultValue = Some(0.0) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
   }
 }
 
-trait IterativeSolver extends Solver {
+abstract class IterativeSolver extends Solver {
 
   //Setters for parameters
   def setIterations(iterations: Int): IterativeSolver = {

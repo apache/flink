@@ -23,6 +23,7 @@ import org.apache.flink.ml.math.{BLAS, Vector}
 import org.apache.flink.ml.math.Breeze._
 import breeze.linalg.{norm => BreezeNorm, Vector => BreezeVector, max}
 
+// TODO(tvas): Change name to RegularizationPenalty?
 abstract class RegularizationType extends Serializable{
   /** Calculates and applies the regularization amount and the regularization parameter
     *
@@ -34,6 +35,9 @@ abstract class RegularizationType extends Serializable{
     */
   def applyRegularization(weights: Vector, effectiveStepSize: Double, regParameter: Double):
   (Vector, Double)
+  // TODO(tvas): We are not currently using the regularization value anywhere, but it could be
+  // useful to keep a history of it.
+
 }
 
 class NoRegularization extends RegularizationType {

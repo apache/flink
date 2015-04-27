@@ -27,6 +27,22 @@ import org.apache.flink.ml.math._
 import org.apache.flink.ml.optimization.IterativeSolver.{Iterations, Stepsize}
 import org.apache.flink.ml.optimization.Solver._
 
+/** This [[Solver]] performs Stochastic Gradient Descent optimization using mini batches
+  *
+  * For each labeled vector in a mini batch the gradient is computed and added to a partial
+  * gradient. The partial gradients are then summed and divided by the size of the batches. The
+  * average gradient is then used to updated the weight values, including regularization.
+  *
+  * At the moment, the whole partition is used for SGD, making it effectively a batch gradient
+  * descent. Once a sampling operator has been introduced, the algorithm can be optimized
+  *
+  * @param runParameters The parameters to tune the algorithm. Currently these include:
+  *                      [[Solver.LossFunction]] for the loss function to be used,
+  *                      [[Solver.RegularizationType]] for the type of regularization,
+  *                      [[Solver.RegularizationParameter]] for the regularization parameter,
+  *                      [[IterativeSolver.Iterations]] for the maximum number of iteration,
+  *                      [[IterativeSolver.Stepsize]] for the learning rate used.
+  */
 class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
 
   import Solver.WEIGHTVECTOR_BROADCAST
@@ -43,7 +59,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
 //    this
 //  }
 
-  /** Performs one iteration of Stochastic Gradient Descent
+  /** Performs one iteration of Stochastic Gradient Descent using mini batches
     *
     * @param data A Dataset of LabeledVector (label, features) pairs
     * @param currentWeights A Dataset with the current weights to be optimized as its only element
@@ -188,8 +204,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
 
       val iteration = getIterationRuntimeContext.getSuperstepNumber
 
-      // scale initial stepsize by the inverse square root of the iteration number to make it
-      // decreasing
+      // Scale initial stepsize by the inverse square root of the iteration number
       // TODO(tvas): There are more ways to determine the stepsize, possible low-effort extensions
       // here
       val effectiveStepsize = stepsize/math.sqrt(iteration)
@@ -209,6 +224,10 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
 }
 
 object GradientDescent {
+  def apply(): GradientDescent = {
+    new GradientDescent(new ParameterMap())
+  }
+
   def apply(parameterMap: ParameterMap): GradientDescent = {
     new GradientDescent(parameterMap)
   }
