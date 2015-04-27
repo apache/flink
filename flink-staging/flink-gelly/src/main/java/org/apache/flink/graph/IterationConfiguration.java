@@ -16,32 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.spargel;
+package org.apache.flink.graph;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.tuple.Tuple2;
 
 import com.google.common.base.Preconditions;
 
 /**
- * This class is used to configure a vertex-centric iteration.
- *
- * An IterationConfiguration object can be used to set the iteration name and
- * degree of parallelism, to register aggregators and use broadcast sets in
- * the {@link VertexUpdateFunction} and {@link MessagingFunction}.
- *
- * The IterationConfiguration object is passed as an argument to
- * {@link org.apache.flink.graph.Graph#runVertexCentricIteration(
- * VertexUpdateFunction, MessagingFunction, int, IterationConfiguration)}.
- *
+ * This is used as a base class for vertex-centric iteration or gather-sum-apply iteration configuration.
  */
-public class IterationConfiguration {
+public abstract class IterationConfiguration {
 
 	/** the iteration name **/
 	private String name;
@@ -52,20 +39,13 @@ public class IterationConfiguration {
 	/** the iteration aggregators **/
 	private Map<String, Aggregator<?>> aggregators = new HashMap<String, Aggregator<?>>();
 
-	/** the broadcast variables for the update function **/
-	private List<Tuple2<String, DataSet<?>>> bcVarsUpdate = new ArrayList<Tuple2<String,DataSet<?>>>();
-
-	/** the broadcast variables for the messaging function **/
-	private List<Tuple2<String, DataSet<?>>> bcVarsMessaging = new ArrayList<Tuple2<String,DataSet<?>>>();
-
 	/** flag that defines whether the solution set is kept in managed memory **/
 	private boolean unmanagedSolutionSet = false;
 	
 	public IterationConfiguration() {}
 
-
 	/**
-	 * Sets the name for the vertex-centric iteration. The name is displayed in logs and messages.
+	 * Sets the name for the iteration. The name is displayed in logs and messages.
 	 * 
 	 * @param name The name for the iteration.
 	 */
@@ -74,7 +54,7 @@ public class IterationConfiguration {
 	}
 
 	/**
-	 * Gets the name of the vertex-centric iteration.
+	 * Gets the name of the iteration.
 	 * @param defaultName 
 	 * 
 	 * @return The name of the iteration.
@@ -131,34 +111,14 @@ public class IterationConfiguration {
 
 	/**
 	 * Registers a new aggregator. Aggregators registered here are available during the execution of the vertex updates
-	 * via {@link VertexUpdateFunction#getIterationAggregator(String)} and
-	 * {@link VertexUpdateFunction#getPreviousIterationAggregate(String)}.
+	 * via {@link org.apache.flink.graph.spargel.VertexUpdateFunction#getIterationAggregator(String)} and
+	 * {@link org.apache.flink.graph.spargel.VertexUpdateFunction#getPreviousIterationAggregate(String)}.
 	 * 
 	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution. 
 	 * @param aggregator The aggregator.
 	 */
 	public void registerAggregator(String name, Aggregator<?> aggregator) {
 		this.aggregators.put(name, aggregator);
-	}
-	
-	/**
-	 * Adds a data set as a broadcast set to the messaging function.
-	 * 
-	 * @param name The name under which the broadcast data is available in the messaging function.
-	 * @param data The data set to be broadcasted.
-	 */
-	public void addBroadcastSetForMessagingFunction(String name, DataSet<?> data) {
-		this.bcVarsMessaging.add(new Tuple2<String, DataSet<?>>(name, data));
-	}
-
-	/**
-	 * Adds a data set as a broadcast set to the vertex update function.
-	 * 
-	 * @param name The name under which the broadcast data is available in the vertex update function.
-	 * @param data The data set to be broadcasted.
-	 */
-	public void addBroadcastSetForUpdateFunction(String name, DataSet<?> data) {
-		this.bcVarsUpdate.add(new Tuple2<String, DataSet<?>>(name, data));
 	}
 
 	/**
@@ -169,25 +129,5 @@ public class IterationConfiguration {
 	 */
 	public Map<String, Aggregator<?>> getAggregators() {
 		return this.aggregators;
-	}
-
-	/**
-	 * Get the broadcast variables of the VertexUpdateFunction.
-	 *
-	 * @return a List of Tuple2, where the first field is the broadcast variable name
-	 * and the second field is the broadcast DataSet.
-	 */
-	public List<Tuple2<String, DataSet<?>>> getUpdateBcastVars() {
-		return this.bcVarsUpdate;
-	}
-
-	/**
-	 * Get the broadcast variables of the MessagingFunction.
-	 *
-	 * @return a List of Tuple2, where the first field is the broadcast variable name
-	 * and the second field is the broadcast DataSet.
-	 */
-	public List<Tuple2<String, DataSet<?>>> getMessagingBcastVars() {
-		return this.bcVarsMessaging;
 	}
 }

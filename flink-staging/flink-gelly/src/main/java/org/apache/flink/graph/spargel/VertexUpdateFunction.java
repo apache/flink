@@ -114,7 +114,7 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	/**
 	 * Gets the broadcast data set registered under the given name. Broadcast data sets
 	 * are available on all parallel instances of a function. They can be registered via
-	 * {@link VertexCentricIteration#addBroadcastSetForUpdateFunction(String, org.apache.flink.api.java.DataSet)}.
+	 * {@link org.apache.flink.graph.spargel.VertexCentricConfiguration#addBroadcastSetForUpdateFunction(String, org.apache.flink.api.java.DataSet)}.
 	 * 
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.

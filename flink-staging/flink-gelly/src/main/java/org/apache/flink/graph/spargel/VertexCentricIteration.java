@@ -60,9 +60,7 @@ import com.google.common.base.Preconditions;
  * </ul>
  * <p>
  * Vertex-centric graph iterations are instantiated by the
- * {@link #withPlainEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method, or the
- * {@link #withValuedEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method, depending on whether
- * the graph's edges are carrying values.
+ * {@link #withEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method.
  *
  * @param <VertexKey> The type of the vertex key (the vertex identifier).
  * @param <VertexValue> The type of the vertex value (the state of the vertex).
@@ -84,7 +82,7 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 	
 	private DataSet<Vertex<VertexKey, VertexValue>> initialVertices;
 
-	private IterationConfiguration configuration;
+	private VertexCentricConfiguration configuration;
 	
 	// ----------------------------------------------------------------------------------
 	
@@ -362,14 +360,14 @@ public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue>
 	 *
 	 * @param parameters the configuration parameters
 	 */
-	public void configure(IterationConfiguration parameters) {
+	public void configure(VertexCentricConfiguration parameters) {
 		this.configuration = parameters;
 	}
 
 	/**
 	 * @return the configuration parameters of this vertex-centric iteration
 	 */
-	public IterationConfiguration getIterationConfiguration() {
+	public VertexCentricConfiguration getIterationConfiguration() {
 		return this.configuration;
 	}
 }

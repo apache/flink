@@ -45,11 +45,12 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.graph.gsa.ApplyFunction;
+import org.apache.flink.graph.gsa.GSAConfiguration;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.SumFunction;
-import org.apache.flink.graph.spargel.IterationConfiguration;
 import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.EdgeToTuple3Map;
@@ -1173,7 +1174,7 @@ public class Graph<K, VV, EV> {
 	public <M> Graph<K, VV, EV> runVertexCentricIteration(
 			VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
 			MessagingFunction<K, VV, M, EV> messagingFunction,
-			int maximumNumberOfIterations, IterationConfiguration parameters) {
+			int maximumNumberOfIterations, VertexCentricConfiguration parameters) {
 
 		VertexCentricIteration<K, VV, M, EV> iteration = VertexCentricIteration.withEdges(
 				edges, vertexUpdateFunction, messagingFunction, maximumNumberOfIterations);
@@ -1195,15 +1196,39 @@ public class Graph<K, VV, EV> {
 	 * @param maximumNumberOfIterations maximum number of iterations to perform
 	 * @param <M> the intermediate type used between gather, sum and apply
 	 *
-	 * @return the updated Graph after the vertex-centric iteration has converged or
+	 * @return the updated Graph after the gather-sum-apply iteration has converged or
 	 * after maximumNumberOfIterations.
 	 */
 	public <M> Graph<K, VV, EV> runGatherSumApplyIteration(
 			GatherFunction<VV, EV, M> gatherFunction, SumFunction<VV, EV, M> sumFunction,
 			ApplyFunction<K, VV, M> applyFunction, int maximumNumberOfIterations) {
 
+		return this.runGatherSumApplyIteration(gatherFunction, sumFunction, applyFunction,
+				maximumNumberOfIterations, null);
+	}
+
+	/**
+	 * Runs a Gather-Sum-Apply iteration on the graph with configuration options.
+	 *
+	 * @param gatherFunction the gather function collects information about adjacent vertices and edges
+	 * @param sumFunction the sum function aggregates the gathered information
+	 * @param applyFunction the apply function updates the vertex values with the aggregates
+	 * @param maximumNumberOfIterations maximum number of iterations to perform
+	 * @param parameters the iteration configuration parameters
+	 * @param <M> the intermediate type used between gather, sum and apply
+	 *
+	 * @return the updated Graph after the gather-sum-apply iteration has converged or
+	 * after maximumNumberOfIterations.
+	 */
+	public <M> Graph<K, VV, EV> runGatherSumApplyIteration(
+			GatherFunction<VV, EV, M> gatherFunction, SumFunction<VV, EV, M> sumFunction,
+			ApplyFunction<K, VV, M> applyFunction, int maximumNumberOfIterations,
+			GSAConfiguration parameters) {
+
 		GatherSumApplyIteration<K, VV, EV, M> iteration = GatherSumApplyIteration.withEdges(
 				edges, gatherFunction, sumFunction, applyFunction, maximumNumberOfIterations);
+
+		iteration.configure(parameters);
 
 		DataSet<Vertex<K, VV>> newVertices = vertices.runOperation(iteration);
 
