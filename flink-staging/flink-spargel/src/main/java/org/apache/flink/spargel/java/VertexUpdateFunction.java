@@ -36,6 +36,7 @@ import org.apache.flink.util.Collector;
  * <VertexValue> The vertex value type.
  * <Message> The message type.
  */
+@Deprecated
 public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKey>, VertexValue, Message> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -55,6 +56,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	 * 
 	 * @throws Exception The computation may throw exceptions, which causes the superstep to fail.
 	 */
+	@Deprecated
 	public abstract void updateVertex(VertexKey vertexKey, VertexValue vertexValue, MessageIterator<Message> inMessages) throws Exception;
 	
 	/**
@@ -62,6 +64,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	 * 
 	 * @throws Exception Exceptions in the pre-superstep phase cause the superstep to fail.
 	 */
+	@Deprecated
 	public void preSuperstep() throws Exception {}
 	
 	/**
@@ -69,6 +72,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	 * 
 	 * @throws Exception Exceptions in the post-superstep phase cause the superstep to fail.
 	 */
+	@Deprecated
 	public void postSuperstep() throws Exception {}
 	
 	/**
@@ -76,6 +80,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	 * 
 	 * @param newValue The new vertex value.
 	 */
+	@Deprecated
 	public void setNewVertexValue(VertexValue newValue) {
 		outVal.f1 = newValue;
 		out.collect(outVal);
@@ -86,6 +91,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	 * 
 	 * @return The number of the current superstep.
 	 */
+	@Deprecated
 	public int getSuperstepNumber() {
 		return this.runtimeContext.getSuperstepNumber();
 	}
@@ -97,6 +103,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	 * @param name The name of the aggregator.
 	 * @return The aggregator registered under this name, or null, if no aggregator was registered.
 	 */
+	@Deprecated
 	public <T extends Aggregator<?>> T getIterationAggregator(String name) {
 		return this.runtimeContext.<T>getIterationAggregator(name);
 	}
@@ -107,6 +114,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	 * @param name The name of the aggregator.
 	 * @return The aggregated value of the previous iteration.
 	 */
+	@Deprecated
 	public <T extends Value> T getPreviousIterationAggregate(String name) {
 		return this.runtimeContext.<T>getPreviousIterationAggregate(name);
 	}
@@ -119,6 +127,7 @@ public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKe
 	 * @param name The name under which the broadcast set is registered.
 	 * @return The broadcast data set.
 	 */
+	@Deprecated
 	public <T> Collection<T> getBroadcastSet(String name) {
 		return this.runtimeContext.<T>getBroadcastVariable(name);
 	}

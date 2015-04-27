@@ -29,6 +29,7 @@ package org.apache.flink.spargel.java;
  * @param <EdgeValue> The type of the value associated with the edge. For scenarios where the edges do not hold
  *                    value, this type may be arbitrary.
  */
+@Deprecated
 public final class OutgoingEdge<VertexKey extends Comparable<VertexKey>, EdgeValue> implements java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;
@@ -47,6 +48,7 @@ public final class OutgoingEdge<VertexKey extends Comparable<VertexKey>, EdgeVal
 	 * 
 	 * @return The target vertex id.
 	 */
+	@Deprecated
 	public VertexKey target() {
 		return target;
 	}
@@ -58,6 +60,7 @@ public final class OutgoingEdge<VertexKey extends Comparable<VertexKey>, EdgeVal
 	 *  
 	 * @return The value associated with the edge.
 	 */
+	@Deprecated
 	public EdgeValue edgeValue() {
 		return edgeValue;
 	}
