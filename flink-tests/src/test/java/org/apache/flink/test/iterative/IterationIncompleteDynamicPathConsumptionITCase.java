@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.misc;
+package org.apache.flink.test.iterative;
 
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
@@ -27,26 +27,26 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 @SuppressWarnings("serial")
-public class IterationIncompleteStaticPathConsumptionITCase extends JavaProgramTestBase {
+public class IterationIncompleteDynamicPathConsumptionITCase extends JavaProgramTestBase {
 	
 	@Override
 	protected void testProgram() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-	
+		
 		// the test data is constructed such that the merge join zig zag
-		// has an early out, leaving elements on the static path input unconsumed
+		// has an early out, leaving elements on the dynamic path input unconsumed
 		
 		DataSet<Path> edges = env.fromElements(
-				new Path(2, 1),
-				new Path(4, 1),
-				new Path(6, 3),
-				new Path(8, 3),
-				new Path(10, 1),
-				new Path(12, 1),
-				new Path(14, 3),
-				new Path(16, 3),
-				new Path(18, 1),
-				new Path(20, 1) );
+				new Path(1, 2),
+				new Path(1, 4),
+				new Path(3, 6),
+				new Path(3, 8),
+				new Path(1, 10),
+				new Path(1, 12),
+				new Path(3, 14),
+				new Path(3, 16),
+				new Path(1, 18),
+				new Path(1, 20) );
 		
 		IterativeDataSet<Path> currentPaths = edges.iterate(10);
 		

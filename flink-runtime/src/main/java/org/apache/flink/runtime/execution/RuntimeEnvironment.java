@@ -130,6 +130,7 @@ public class RuntimeEnvironment implements Environment, Runnable {
 				ResultPartitionID partitionId = new ResultPartitionID(desc.getPartitionId(), owner.getExecutionId());
 
 				this.producedPartitions[i] = new ResultPartition(
+						this,
 						owner.getJobID(),
 						partitionId,
 						desc.getPartitionType(),
@@ -148,7 +149,8 @@ public class RuntimeEnvironment implements Environment, Runnable {
 			this.inputGates = new SingleInputGate[consumedPartitions.size()];
 
 			for (int i = 0; i < inputGates.length; i++) {
-				inputGates[i] = SingleInputGate.create(consumedPartitions.get(i), networkEnvironment);
+				inputGates[i] = SingleInputGate.create(
+						this, consumedPartitions.get(i), networkEnvironment);
 
 				// The input gates are organized by key for task updates/channel updates at runtime
 				inputGatesById.put(inputGates[i].getConsumedResultId(), inputGates[i]);

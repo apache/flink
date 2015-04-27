@@ -337,6 +337,13 @@ public class NetworkEnvironment {
 				}
 			}
 
+			ResultPartition[] partitions = task.getProducedPartitions();
+			if (partitions != null) {
+				for (ResultPartition partition : partitions) {
+					partition.destroyBufferPool();
+				}
+			}
+
 			final SingleInputGate[] inputGates = task.getInputGates();
 
 			if (inputGates != null) {
@@ -352,30 +359,6 @@ public class NetworkEnvironment {
 				}
 			}
 		}
-	}
-
-	public boolean hasReleasedAllResources() {
-		String msg = String.format("Network buffer pool: %d missing memory segments. %d registered buffer pools. Connection manager: %d active connections. Task event dispatcher: %d registered writers.",
-				networkBufferPool.getTotalNumberOfMemorySegments() - networkBufferPool.getNumberOfAvailableMemorySegments(),
-				networkBufferPool.getNumberOfRegisteredBufferPools(), connectionManager.getNumberOfActiveConnections(),
-				taskEventDispatcher.getNumberOfRegisteredWriters());
-
-		boolean success = networkBufferPool.getTotalNumberOfMemorySegments() == networkBufferPool.getNumberOfAvailableMemorySegments() &&
-				networkBufferPool.getNumberOfRegisteredBufferPools() == 0 &&
-				connectionManager.getNumberOfActiveConnections() == 0 &&
-				taskEventDispatcher.getNumberOfRegisteredWriters() == 0;
-
-		if (success) {
-			String successMsg = "Network environment did release all resources: " + msg;
-			LOG.debug(successMsg);
-		}
-		else {
-			String errMsg = "Network environment did *not* release all resources: " + msg;
-
-			LOG.error(errMsg);
-		}
-
-		return success;
 	}
 
 	/**
