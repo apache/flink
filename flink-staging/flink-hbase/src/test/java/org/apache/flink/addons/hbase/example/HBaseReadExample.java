@@ -28,7 +28,7 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 
 /**
- * Simple stub for HBase DataSet
+ * Simple stub for HBase DataSet read
  * 
  * To run the test first create the test table with hbase shell.
  * 
@@ -47,17 +47,16 @@ public class HBaseReadExample {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		@SuppressWarnings("serial")
 		DataSet<Tuple2<String, String>> hbaseDs = env.createInput(new TableInputFormat<Tuple2<String, String>>() {
-			private final byte[] CF_SOME = "someCf".getBytes();
-			private final byte[] Q_SOME = "someQual".getBytes();
+			
 				@Override
 				public String getTableName() {
-					return "test-table";
+					return HBaseFlinkTestConstants.TEST_TABLE_NAME;
 				}
 
 				@Override
 				protected Scan getScanner() {
 					Scan scan = new Scan();
-					scan.addColumn(CF_SOME, Q_SOME);
+					scan.addColumn(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME);
 					return scan;
 				}
 
@@ -66,7 +65,7 @@ public class HBaseReadExample {
 				@Override
 				protected Tuple2<String, String> mapResultToTuple(Result r) {
 					String key = Bytes.toString(r.getRow());
-					String val = Bytes.toString(r.getValue(CF_SOME, Q_SOME));
+					String val = Bytes.toString(r.getValue(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME));
 					reuse.setField(key, 0);
 					reuse.setField(val, 1);
 					return reuse;
