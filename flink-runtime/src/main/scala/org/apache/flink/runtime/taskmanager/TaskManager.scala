@@ -802,8 +802,9 @@ extends Actor with ActorLogMessages with ActorLogging {
         throw new IllegalStateException("TaskManager is not associated with a JobManager")
       }
       if (slot < 0 || slot >= numberOfSlots) {
-        throw new Exception(s"Target slot ${slot} does not exist on TaskManager.")
+        throw new Exception(s"Target slot $slot does not exist on TaskManager.")
       }
+      LOG.info("Submitting task {}", executionID)
 
       val userCodeClassLoader = libraryCacheManager match {
         case Some(manager) =>
