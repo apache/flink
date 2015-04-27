@@ -328,7 +328,7 @@ public class Execution implements Serializable {
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
 
-			Instance instance = slot.getInstance();
+			final Instance instance = slot.getInstance();
 			Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
 					new SubmitTask(deployment), new Timeout(timeout));
 
@@ -338,7 +338,9 @@ public class Execution implements Serializable {
 				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if (failure != null) {
 						if (failure instanceof TimeoutException) {
-							markFailed(new Exception("Cannot deploy task - TaskManager not responding.", failure));
+							markFailed(new Exception(
+									"Cannot deploy task - TaskManager " + instance + " not responding.",
+									failure));
 						}
 						else {
 							markFailed(failure);
