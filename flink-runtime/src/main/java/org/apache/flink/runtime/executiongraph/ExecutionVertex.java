@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import akka.actor.ActorRef;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -448,6 +449,30 @@ public class ExecutionVertex implements Serializable {
 		this.currentExecution.fail(t);
 	}
 
+	public void sendMessageToCurrentExecution(Serializable message, ExecutionAttemptID attemptID) {
+		Execution exec = getCurrentExecutionAttempt();
+		
+		// check that this is for the correct execution attempt
+		if (exec != null && exec.getAttemptId().equals(attemptID)) {
+			SimpleSlot slot = exec.getAssignedResource();
+			
+			// send only if we actually have a target
+			if (slot != null) {
+				ActorRef taskManager = slot.getInstance().getTaskManager();
+				if (taskManager != null) {
+					taskManager.tell(message, ActorRef.noSender());
+				}
+			}
+			else {
+				LOG.debug("Skipping message to undeployed task execution {}/{}", getSimpleName(), attemptID);
+			}
+		}
+		else {
+			LOG.debug("Skipping message to {}/{} because it does not match the current execution",
+					getSimpleName(), attemptID);
+		}
+	}
+	
 	/**
 	 * Schedules or updates the consumer tasks of the result partition with the given ID.
 	 */
