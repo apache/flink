@@ -85,6 +85,8 @@ public class TaskManagerTest {
 
 	private static Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
 
+	private final FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);
+
 	@BeforeClass
 	public static void setup() {
 		system = ActorSystem.create("TestActorSystem", TestingUtils.testConfig());
@@ -117,7 +119,7 @@ public class TaskManagerTest {
 					new ArrayList<BlobKey>(), 0);
 
 				final ActorRef tmClosure = taskManager;
-				new Within(duration("10 seconds")) {
+				new Within(d) {
 
 					@Override
 					protected void run() {
@@ -174,7 +176,6 @@ public class TaskManagerTest {
 					new ArrayList<BlobKey>(), 0);
 
 				final ActorRef tm = taskManager;
-				final FiniteDuration d = duration("10 second");
 
 				new Within(d) {
 
@@ -302,8 +303,6 @@ public class TaskManagerTest {
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
-				final FiniteDuration d = duration("10 second");
-
 				new Within(d){
 
 					@Override
@@ -393,8 +392,6 @@ public class TaskManagerTest {
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.singletonList(ircdd),
 						new ArrayList<BlobKey>(), 0);
-
-				final FiniteDuration d = duration("10 second");
 
 				new Within(d) {
 
@@ -519,8 +516,6 @@ public class TaskManagerTest {
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.singletonList(ircdd),
 						new ArrayList<BlobKey>(), 0);
-
-				final FiniteDuration d = duration("10 second");
 
 				new Within(d){
 

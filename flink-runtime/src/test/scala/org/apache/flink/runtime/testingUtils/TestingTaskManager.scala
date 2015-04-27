@@ -54,6 +54,7 @@ class TestingTaskManager(config: TaskManagerConfiguration,
   val waitForJobRemoval = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
   val waitForJobManagerToBeTerminated = scala.collection.mutable.HashMap[String, Set[ActorRef]]()
   val waitForRunning = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
+  val unregisteredTasks = scala.collection.mutable.HashSet[ExecutionAttemptID]()
 
   var disconnectDisabled = false
 
@@ -83,7 +84,13 @@ class TestingTaskManager(config: TaskManagerConfiguration,
         case Some(_) =>
           val set = waitForRemoval.getOrElse(executionID, Set())
           waitForRemoval += (executionID -> (set + sender))
-        case None => sender ! true
+        case None =>
+          if(unregisteredTasks.contains(executionID)) {
+            sender ! true
+          } else {
+              val set = waitForRemoval.getOrElse(executionID, Set())
+              waitForRemoval += (executionID -> (set + sender))
+          }
       }
       
     case UnregisterTask(executionID) =>
@@ -92,6 +99,8 @@ class TestingTaskManager(config: TaskManagerConfiguration,
         case Some(actors) => for(actor <- actors) actor ! true
         case None =>
       }
+
+      unregisteredTasks += executionID
       
     case RequestBroadcastVariablesWithReferences =>
       sender ! ResponseBroadcastVariablesWithReferences(
