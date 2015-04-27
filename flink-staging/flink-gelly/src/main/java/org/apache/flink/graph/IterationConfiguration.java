@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.graph.spargel;
+package org.apache.flink.graph;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,16 +29,19 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
- * This class is used to configure a vertex-centric iteration.
+ * This class is used to configure a vertex-centric iteration or a gather-sum-apply iteration.
  *
  * An IterationConfiguration object can be used to set the iteration name and
  * degree of parallelism, to register aggregators and use broadcast sets in
- * the {@link VertexUpdateFunction} and {@link MessagingFunction}.
+ * the {@link org.apache.flink.graph.spargel.VertexUpdateFunction} and {@link org.apache.flink.graph.spargel.MessagingFunction}
+ * and in the {@link org.apache.flink.graph.gsa.GatherFunction}, {@link org.apache.flink.graph.gsa.SumFunction} as well as
+ * {@link org.apache.flink.graph.gsa.ApplyFunction}.
  *
  * The IterationConfiguration object is passed as an argument to
  * {@link org.apache.flink.graph.Graph#runVertexCentricIteration(
- * VertexUpdateFunction, MessagingFunction, int, IterationConfiguration)}.
- *
+ * org.apache.flink.graph.spargel.VertexUpdateFunction, org.apache.flink.graph.spargel.MessagingFunction, int, IterationConfiguration)}.
+ * or to {@link org.apache.flink.graph.Graph#runGatherSumApplyIteration(org.apache.flink.graph.gsa.GatherFunction,
+ * org.apache.flink.graph.gsa.SumFunction, org.apache.flink.graph.gsa.ApplyFunction, int)}
  */
 public class IterationConfiguration {
 
@@ -56,6 +59,15 @@ public class IterationConfiguration {
 
 	/** the broadcast variables for the messaging function **/
 	private List<Tuple2<String, DataSet<?>>> bcVarsMessaging = new ArrayList<Tuple2<String,DataSet<?>>>();
+
+	/** the broadcast variables for the gather function **/
+	private List<Tuple2<String, DataSet<?>>> bcVarsGather = new ArrayList<Tuple2<String,DataSet<?>>>();
+
+	/** the broadcast variables for the sum function **/
+	private List<Tuple2<String, DataSet<?>>> bcVarsSum = new ArrayList<Tuple2<String,DataSet<?>>>();
+
+	/** the broadcast variables for the apply function **/
+	private List<Tuple2<String, DataSet<?>>> bcVarsApply = new ArrayList<Tuple2<String,DataSet<?>>>();
 
 	/** flag that defines whether the solution set is kept in managed memory **/
 	private boolean unmanagedSolutionSet = false;
@@ -130,8 +142,8 @@ public class IterationConfiguration {
 
 	/**
 	 * Registers a new aggregator. Aggregators registered here are available during the execution of the vertex updates
-	 * via {@link VertexUpdateFunction#getIterationAggregator(String)} and
-	 * {@link VertexUpdateFunction#getPreviousIterationAggregate(String)}.
+	 * via {@link org.apache.flink.graph.spargel.VertexUpdateFunction#getIterationAggregator(String)} and
+	 * {@link org.apache.flink.graph.spargel.VertexUpdateFunction#getPreviousIterationAggregate(String)}.
 	 * 
 	 * @param name The name of the aggregator, used to retrieve it and its aggregates during execution. 
 	 * @param aggregator The aggregator.
@@ -158,6 +170,36 @@ public class IterationConfiguration {
 	 */
 	public void addBroadcastSetForUpdateFunction(String name, DataSet<?> data) {
 		this.bcVarsUpdate.add(new Tuple2<String, DataSet<?>>(name, data));
+	}
+
+	/**
+	 * Adds a data set as a broadcast set to the gather function.
+	 *
+	 * @param name The name under which the broadcast data is available in the gather function.
+	 * @param data The data set to be broadcasted.
+	 */
+	public void addBroadcastSetForGatherFunction(String name, DataSet<?> data) {
+		this.bcVarsGather.add(new Tuple2<String, DataSet<?>>(name, data));
+	}
+
+	/**
+	 * Adds a data set as a broadcast set to the sum function.
+	 *
+	 * @param name The name under which the broadcast data is available in the sum function.
+	 * @param data The data set to be broadcasted.
+	 */
+	public void addBroadcastSetForSumFunction(String name, DataSet<?> data) {
+		this.bcVarsSum.add(new Tuple2<String, DataSet<?>>(name, data));
+	}
+
+	/**
+	 * Adds a data set as a broadcast set to the apply function.
+	 *
+	 * @param name The name under which the broadcast data is available in the apply function.
+	 * @param data The data set to be broadcasted.
+	 */
+	public void addBroadcastSetForApplyFunction(String name, DataSet<?> data) {
+		this.bcVarsApply.add(new Tuple2<String, DataSet<?>>(name, data));
 	}
 
 	/**
@@ -188,5 +230,35 @@ public class IterationConfiguration {
 	 */
 	public List<Tuple2<String, DataSet<?>>> getMessagingBcastVars() {
 		return this.bcVarsMessaging;
+	}
+
+	/**
+	 * Get the broadcast variables of the GatherFunction.
+	 *
+	 * @return a List of Tuple2, where the first field is the broadcast variable name
+	 * and the second field is the broadcast DataSet.
+	 */
+	public List<Tuple2<String, DataSet<?>>> getGatherBcastVars() {
+		return this.bcVarsGather;
+	}
+
+	/**
+	 * Get the broadcast variables of the SumFunction.
+	 *
+	 * @return a List of Tuple2, where the first field is the broadcast variable name
+	 * and the second field is the broadcast DataSet.
+	 */
+	public List<Tuple2<String, DataSet<?>>> getSumBcastVars() {
+		return this.bcVarsSum;
+	}
+
+	/**
+	 * Get the broadcast variables of the ApplyFunction.
+	 *
+	 * @return a List of Tuple2, where the first field is the broadcast variable name
+	 * and the second field is the broadcast DataSet.
+	 */
+	public List<Tuple2<String, DataSet<?>>> getApplyBcastVars() {
+		return this.bcVarsApply;
 	}
 }
