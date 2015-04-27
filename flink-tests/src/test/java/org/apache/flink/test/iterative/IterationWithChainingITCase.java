@@ -52,7 +52,7 @@ public class IterationWithChainingITCase extends RecordAPITestBase {
 
 	public IterationWithChainingITCase(Configuration config) {
 		super(config);
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	@Override
@@ -74,7 +74,7 @@ public class IterationWithChainingITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config1 = new Configuration();
-		config1.setInteger("ChainedMapperITCase#NoSubtasks", DOP);
+		config1.setInteger("ChainedMapperITCase#NoSubtasks", parallelism);
 		return toParameterList(config1);
 	}
 
@@ -103,7 +103,7 @@ public class IterationWithChainingITCase extends RecordAPITestBase {
 	static Plan getTestPlan(int numSubTasks, String input, String output) {
 
 		FileDataSource initialInput = new FileDataSource(new PointInFormat(), input, "Input");
-		initialInput.setDegreeOfParallelism(1);
+		initialInput.setParallelism(1);
 
 		BulkIteration iteration = new BulkIteration("Loop");
 		iteration.setInput(initialInput);

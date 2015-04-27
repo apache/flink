@@ -113,7 +113,7 @@ public class TaskManagerProcessReapingTest {
 			for (int i = 0; i < 40; i++) {
 				try {
 					taskManagerRef = TaskManager.getTaskManagerRemoteReference(
-							taskManagerActorName, jmActorSystem, new FiniteDuration(5, TimeUnit.SECONDS));
+							taskManagerActorName, jmActorSystem, new FiniteDuration(25, TimeUnit.SECONDS));
 					break;
 				}
 				catch (Throwable t) {
@@ -139,7 +139,7 @@ public class TaskManagerProcessReapingTest {
 			// wait for max 5 seconds for the process to terminate
 			{
 				long now = System.currentTimeMillis();
-				long deadline = now + 5000;
+				long deadline = now + 10000;
 
 				while (now < deadline && isProcessAlive(taskManagerProcess)) {
 					Thread.sleep(100);
@@ -196,7 +196,7 @@ public class TaskManagerProcessReapingTest {
 				cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 				cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort);
 				cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 4);
-				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 100);
+				cfg.setInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, 256);
 
 				TaskManager.runTaskManager("localhost", taskManagerPort, cfg);
 

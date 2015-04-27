@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.accumulators;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-
 /**
- * Interface for custom accumulator objects. Data are written to in a UDF and
- * merged by the system at the end of the job. The result can be read at the end
- * of the job from the calling client. Inspired by Hadoop/MapReduce counters.<br>
- * <br>
+ * Accumulators collect distributed statistics or aggregates in a from user functions
+ * and operators. Each parallel instance creates and updates its own accumulator object,
+ * and the different parallel instances of the accumulator are later merged.
+ * merged by the system at the end of the job. The result can be obtained from the
+ * result of a job execution, or from teh web runtime monitor.
+ *
+ * The accumulators are inspired by the Hadoop/MapReduce counters.
  * 
  * The type added to the accumulator might differ from the type returned. This
  * is the case e.g. for a set-accumulator: We add single objects, but the result
@@ -41,7 +39,7 @@ import java.io.Serializable;
  *            Type of the accumulator result as it will be reported to the
  *            client
  */
-public interface Accumulator<V, R extends Serializable> extends Serializable, Cloneable{
+public interface Accumulator<V, R extends Serializable> extends Serializable, Cloneable {
 
 	/**
 	 * @param value
@@ -68,20 +66,10 @@ public interface Accumulator<V, R extends Serializable> extends Serializable, Cl
 	void merge(Accumulator<V, R> other);
 
 	/**
-	 * Serialization method of accumulators
+	 * Duplicates the accumulator. All subclasses need to properly implement
+	 * cloning and cannot throw a {@link java.lang.CloneNotSupportedException}
 	 *
-	 * @param oos
-	 * @throws IOException
+	 * @return The duplicated accumulator.
 	 */
-	void write(ObjectOutputStream oos) throws IOException;
-
-	/**
-	 * Deserialization method of accumulators
-	 *
-	 * @param ois
-	 * @throws IOException
-	 */
-	void read(ObjectInputStream ois) throws IOException;
-
 	Accumulator<V, R> clone();
 }

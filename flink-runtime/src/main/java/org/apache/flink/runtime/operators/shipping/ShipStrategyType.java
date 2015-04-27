@@ -36,7 +36,7 @@ public enum ShipStrategyType {
 	FORWARD(false, false),
 	
 	/**
-	 * Repartitioning the data randomly, typically when the degree of parallelism between two nodes changes.
+	 * Repartitioning the data randomly, typically when the parallelism between two nodes changes.
 	 */
 	PARTITION_RANDOM(true, false),
 	

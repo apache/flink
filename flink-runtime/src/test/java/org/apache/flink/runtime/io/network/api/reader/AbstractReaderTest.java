@@ -44,6 +44,7 @@ import static org.mockito.Mockito.when;
 public class AbstractReaderTest {
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testTaskEvent() throws Exception {
 		final AbstractReader reader = new MockReader(createInputGate(1));
 

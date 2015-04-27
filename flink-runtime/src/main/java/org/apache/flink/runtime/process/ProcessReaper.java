@@ -47,7 +47,7 @@ public class ProcessReaper extends UntypedActor {
 		if (message instanceof Terminated) {
 			try {
 				Terminated term = (Terminated) message;
-				String name = term.actor().path().name();
+				String name = term.actor().path().toSerializationFormat();
 				if (log != null) {
 					log.error("Actor " + name + " terminated, stopping process...");
 				}

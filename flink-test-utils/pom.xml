@@ -42,7 +42,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-compiler</artifactId>
+			<artifactId>flink-optimizer</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
@@ -76,6 +76,12 @@ under the License.
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.scalatest</groupId>
+			<artifactId>scalatest_${scala.binary.version}</artifactId>
+			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 
@@ -112,13 +118,6 @@ under the License.
 						<jvmArg>-Xms128m</jvmArg>
 						<jvmArg>-Xmx512m</jvmArg>
 					</jvmArgs>
-					<compilerPlugins>
-						<compilerPlugin>
-							<groupId>org.scalamacros</groupId>
-							<artifactId>paradise_${scala.version}</artifactId>
-							<version>${scala.macros.version}</version>
-						</compilerPlugin>
-					</compilerPlugins>
 				</configuration>
 			</plugin>
 

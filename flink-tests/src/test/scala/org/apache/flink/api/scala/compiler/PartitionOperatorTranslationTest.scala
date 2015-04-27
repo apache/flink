@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.scala.compiler
 
+import org.apache.flink.optimizer.util.CompilerTestBase
 import org.junit.Test
 import org.junit.Assert._
 import org.apache.flink.api.scala._
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType
-import org.apache.flink.test.compiler.util.CompilerTestBase
-import org.apache.flink.compiler.plan.SingleInputPlanNode
+import org.apache.flink.optimizer.plan.SingleInputPlanNode
 import org.apache.flink.api.common.functions.Partitioner
 
 class PartitionOperatorTranslationTest extends CompilerTestBase {

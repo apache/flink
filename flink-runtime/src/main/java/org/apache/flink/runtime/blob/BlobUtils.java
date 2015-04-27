@@ -20,7 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import com.google.common.io.BaseEncoding;
 import org.apache.commons.io.FileUtils;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.slf4j.Logger;
 
 import java.io.EOFException;
@@ -64,15 +64,19 @@ public class BlobUtils {
 	 * @return the storage directory used by a BLOB service
 	 */
 	static File initStorageDirectory(String storageDirectory) {
-		File baseDir = storageDirectory != null ?
-				new File(storageDirectory) :
-				new File(System.getProperty("java.io.tmpdir"));
+		File baseDir;
+		if (storageDirectory == null || storageDirectory.trim().isEmpty()) {
+			baseDir = new File(System.getProperty("java.io.tmpdir"));
+		}
+		else {
+			baseDir = new File(storageDirectory);
+		}
 
 		File storageDir;
 		final int MAX_ATTEMPTS = 10;
 		int attempt;
 
-		for(attempt = 0; attempt < MAX_ATTEMPTS; attempt++){
+		for(attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
 			storageDir = new File(baseDir, String.format(
 					"blobStore-%s", UUID.randomUUID().toString()));
 

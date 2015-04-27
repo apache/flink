@@ -33,10 +33,10 @@ import org.apache.flink.util.Collector;
 
 @SuppressWarnings("deprecation")
 public class MapCancelingITCase extends CancellingTestBase {
-	private static final int DOP = 4;
+	private static final int parallelism = 4;
 
 	public MapCancelingITCase() {
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 //	@Test
@@ -51,7 +51,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
 	}
@@ -68,7 +68,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 5 * 1000, 10 * 1000);
 	}
@@ -85,7 +85,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
 	}
@@ -102,7 +102,7 @@ public class MapCancelingITCase extends CancellingTestBase {
 		
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
 	}

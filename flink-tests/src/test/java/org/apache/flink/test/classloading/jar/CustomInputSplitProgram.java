@@ -47,8 +47,11 @@ public class CustomInputSplitProgram {
 		final String jarFile = args[0];
 		final String host = args[1];
 		final int port = Integer.parseInt(args[2]);
+		final int parallelism = Integer.parseInt(args[3]);
 		
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(host, port, jarFile);
+		env.setParallelism(parallelism);
+		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> data = env.createInput(new CustomInputFormat());
 

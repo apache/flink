@@ -65,7 +65,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
 
@@ -108,7 +108,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
         }

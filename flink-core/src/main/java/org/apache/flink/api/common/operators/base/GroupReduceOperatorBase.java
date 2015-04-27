@@ -21,7 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -34,6 +34,7 @@ import org.apache.flink.api.common.operators.util.ListKeyGroupedIterator;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -107,15 +108,15 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 	/**
 	 * Marks the group reduce operation as combinable. Combinable operations may pre-reduce the
 	 * data before the actual group reduce operations. Combinable user-defined functions
-	 * must implement the interface {@link org.apache.flink.api.common.functions.FlatCombineFunction}.
+	 * must implement the interface {@link GroupCombineFunction}.
 	 * 
 	 * @param combinable Flag to mark the group reduce operation as combinable.
 	 */
 	public void setCombinable(boolean combinable) {
 		// sanity check
-		if (combinable && !FlatCombineFunction.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
+		if (combinable && !GroupCombineFunction.class.isAssignableFrom(this.userFunction.getUserCodeClass())) {
 			throw new IllegalArgumentException("Cannot set a UDF as combinable if it does not implement the interface " +
-					FlatCombineFunction.class.getName());
+					GroupCombineFunction.class.getName());
 		} else {
 			this.combinable = combinable;
 		}
@@ -148,6 +149,16 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 	public Partitioner<?> getCustomPartitioner() {
 		return customPartitioner;
 	}
+
+	private TypeComparator<IN> getTypeComparator(TypeInformation<IN> typeInfo, int[] sortColumns, boolean[] sortOrderings, ExecutionConfig executionConfig) {
+		if (typeInfo instanceof CompositeType) {
+			return ((CompositeType<IN>) typeInfo).createComparator(sortColumns, sortOrderings, 0, executionConfig);
+		} else if (typeInfo instanceof AtomicType) {
+			return ((AtomicType<IN>) typeInfo).createComparator(sortOrderings[0], executionConfig);
+		}
+
+		throw new InvalidProgramException("Input type of GroupReduce must be one of composite types or atomic types.");
+	}
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -159,11 +170,6 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		TypeInformation<IN> inputType = operatorInfo.getInputType();
 
 		int[] keyColumns = getKeyColumns(0);
-
-		if (!(inputType instanceof CompositeType) && (keyColumns.length > 0 || groupOrder != null)) {
-			throw new InvalidProgramException("Grouping or group-sorting is only possible on composite type.");
-		}
-
 		int[] sortColumns = keyColumns;
 		boolean[] sortOrderings = new boolean[sortColumns.length];
 
@@ -172,19 +178,16 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 			sortOrderings = ArrayUtils.addAll(sortOrderings, groupOrder.getFieldSortDirections());
 		}
 
-		if (inputType instanceof CompositeType) {
-			if(sortColumns.length == 0) { // => all reduce. No comparator
-				Preconditions.checkArgument(sortOrderings.length == 0);
-			} else {
-				final TypeComparator<IN> sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0, executionConfig);
-	
-				Collections.sort(inputData, new Comparator<IN>() {
-					@Override
-					public int compare(IN o1, IN o2) {
-						return sortComparator.compare(o1, o2);
-					}
-				});
-			}
+		if(sortColumns.length == 0) { // => all reduce. No comparator
+			Preconditions.checkArgument(sortOrderings.length == 0);
+		} else {
+			final TypeComparator<IN> sortComparator = getTypeComparator(inputType, sortColumns, sortOrderings, executionConfig);
+			Collections.sort(inputData, new Comparator<IN>() {
+				@Override
+				public int compare(IN o1, IN o2) {
+					return sortComparator.compare(o1, o2);
+				}
+			});
 		}
 
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
@@ -205,7 +208,7 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		} else {
 			final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
 			boolean[] keyOrderings = new boolean[keyColumns.length];
-			final TypeComparator<IN> comparator = ((CompositeType<IN>) inputType).createComparator(keyColumns, keyOrderings, 0, executionConfig);
+			final TypeComparator<IN> comparator = getTypeComparator(inputType, keyColumns, keyOrderings, executionConfig);
 
 			ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator);
 

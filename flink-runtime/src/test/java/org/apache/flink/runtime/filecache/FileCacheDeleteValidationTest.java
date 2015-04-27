@@ -26,7 +26,7 @@ import org.junit.Assert;
 
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

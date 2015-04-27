@@ -113,7 +113,7 @@ print_stacktraces () {
 put_yarn_logs_to_artifacts() {
 	# Make sure to be in project root
 	cd $HERE/../
-	for file in `find target/flink-yarn-tests* -type f -name '*.log'`; do
+	for file in `find ./flink-yarn-tests/target/flink-yarn-tests* -type f -name '*.log'`; do
 		TARGET_FILE=`echo "$file" | grep -Eo "container_[0-9_]+/(.*).log"`
 		TARGET_DIR=`dirname	 "$TARGET_FILE"`
 		mkdir -p "$ARTIFACTS_DIR/yarn-tests/$TARGET_DIR"
@@ -200,7 +200,7 @@ upload_artifacts_s3
 cd ../../
 
 
-UBERJAR=`find . | grep uberjar | head -n 1`
+UBERJAR=`find . | grep flink-dist  | grep jar | head -n 1`
 if [ -z "$UBERJAR" ] ; then
 	echo "Uberjar not found. Assuming failed build";
 else 

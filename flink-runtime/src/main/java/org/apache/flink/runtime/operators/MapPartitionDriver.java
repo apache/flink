@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * MapPartition task which is executed by a Nephele task manager. The task has a single
+ * MapPartition task which is executed by a Task Manager. The task has a single
  * input and one or multiple outputs. It is provided with a MapFunction
  * implementation.
  * <p>

@@ -24,18 +24,21 @@ import java.util.Map;
  * The result of a job execution. Gives access to the execution time of the job,
  * and to all accumulators created by this job.
  */
-public class JobExecutionResult {
+public class JobExecutionResult extends JobSubmissionResult {
 
 	private long netRuntime;
+
 	private Map<String, Object> accumulatorResults;
 
 	/**
 	 * Creates a new JobExecutionResult.
 	 *
+	 * @param jobID The job's ID.
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer)
 	 * @param accumulators A map of all accumulators produced by the job.
 	 */
-	public JobExecutionResult(long netRuntime, Map<String, Object> accumulators) {
+	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, Object> accumulators) {
+		super(jobID);
 		this.netRuntime = netRuntime;
 		this.accumulatorResults = accumulators;
 	}
@@ -91,6 +94,4 @@ public class JobExecutionResult {
 		}
 		return (Integer) result;
 	}
-
-	// TODO Create convenience methods for the other shipped accumulator types
 }

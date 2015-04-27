@@ -34,6 +34,6 @@ public class JavaPlan extends Plan {
 
 	@Override
 	public String getPostPassClassName() {
-		return "org.apache.flink.compiler.postpass.JavaApiPostPass";
+		return "org.apache.flink.optimizer.postpass.JavaApiPostPass";
 	}
 }

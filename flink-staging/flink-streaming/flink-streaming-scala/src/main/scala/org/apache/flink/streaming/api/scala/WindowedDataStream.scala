@@ -22,15 +22,15 @@ import scala.Array.canBuildFrom
 import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.reflect.ClassTag
 
-import org.apache.flink.api.common.functions.ReduceFunction
+import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
 import org.apache.flink.streaming.api.datastream.{WindowedDataStream => JavaWStream}
-import org.apache.flink.streaming.api.function.WindowMapFunction
-import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
-import org.apache.flink.streaming.api.function.aggregation.SumFunction
+import org.apache.flink.streaming.api.functions.WindowMapFunction
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
+import org.apache.flink.streaming.api.functions.aggregation.SumFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.api.windowing.StreamWindow
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
@@ -131,6 +131,36 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
       def reduce(v1: T, v2: T) = { cleanFun(v1, v2) }
     }
     reduceWindow(reducer)
+  }
+
+  /**
+   * Applies a fold transformation on the windowed data stream by reducing
+   * the current window at every trigger.
+   *
+   */
+  def foldWindow[R: TypeInformation: ClassTag](initialValue: R, folder: FoldFunction[T,R]): 
+  WindowedDataStream[R] = {
+    if (folder == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    javaStream.foldWindow(initialValue, folder, implicitly[TypeInformation[R]])
+  }
+
+  /**
+   * Applies a fold transformation on the windowed data stream by reducing
+   * the current window at every trigger.
+   *
+   */
+  def foldWindow[R: TypeInformation: ClassTag](initialValue: R)(fun: (R, T) => R): 
+  WindowedDataStream[R] = {
+    if (fun == null) {
+      throw new NullPointerException("Fold function must not be null.")
+    }
+    val folder = new FoldFunction[T,R] {
+      val cleanFun = clean(fun)
+      def fold(acc: R, v: T) = { cleanFun(acc, v) }
+    }
+    foldWindow(initialValue, folder)
   }
 
   /**

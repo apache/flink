@@ -17,6 +17,18 @@
 # limitations under the License.
 ################################################################################
 
+constructFlinkClassPath() {
+
+    for jarfile in "$FLINK_LIB_DIR"/*.jar ; do
+        if [[ $FLINK_CLASSPATH = "" ]]; then
+            FLINK_CLASSPATH=$jarfile;
+        else
+            FLINK_CLASSPATH=$FLINK_CLASSPATH:$jarfile
+        fi
+    done
+
+    echo $FLINK_CLASSPATH
+}
 
 # These are used to mangle paths that are passed to java when using 
 # cygwin. Cygwin paths are like linux paths, i.e. /path/to/somewhere
@@ -25,7 +37,7 @@
 manglePath() {
     UNAME=$(uname -s)
     if [ "${UNAME:0:6}" == "CYGWIN" ]; then
-        echo `cygpath -w $1`
+        echo `cygpath -w "$1"`
     else
         echo $1
     fi
@@ -35,7 +47,7 @@ manglePathList() {
     UNAME=$(uname -s)
     # a path list, for example a java classpath
     if [ "${UNAME:0:6}" == "CYGWIN" ]; then
-        echo `cygpath -wp $1`
+        echo `cygpath -wp "$1"`
     else
         echo $1
     fi
@@ -188,9 +200,6 @@ fi
 # DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
 # KEY_JOBM_HEAP_MB and KEY_TASKM_HEAP_MB for that!
 JVM_ARGS=""
-
-# Default classpath 
-CLASSPATH=`manglePathList $( echo $FLINK_LIB_DIR/*.jar . | sed 's/ /:/g' )`
 
 # Check if deprecated HADOOP_HOME is set.
 if [ -n "$HADOOP_HOME" ]; then

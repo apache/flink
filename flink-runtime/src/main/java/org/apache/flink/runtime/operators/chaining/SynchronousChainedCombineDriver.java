@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.chaining;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -43,7 +43,17 @@ import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
+/**
+ * The chained variant of the combine driver which is also implemented in GroupReduceCombineDriver. In contrast to the
+ * GroupReduceCombineDriver, this driver's purpose is only to combine the values received in the chain. It is used by
+ * the GroupReduce and the CombineGroup transformation.
+ *
+ * @see org.apache.flink.runtime.operators.GroupReduceCombineDriver
+ * @param <IN> The data type consumed by the combiner.
+ * @param <OUT> The data type produced by the combiner.
+ */
+
+public class SynchronousChainedCombineDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SynchronousChainedCombineDriver.class);
 
@@ -55,15 +65,15 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
 	// --------------------------------------------------------------------------------------------
 
-	private InMemorySorter<T> sorter;
+	private InMemorySorter<IN> sorter;
 
-	private FlatCombineFunction<T> combiner;
+	private GroupCombineFunction<IN, OUT> combiner;
 
-	private TypeSerializer<T> serializer;
+	private TypeSerializer<IN> serializer;
 
-	private TypeComparator<T> sortingComparator;
+	private TypeComparator<IN> sortingComparator;
 
-	private TypeComparator<T> groupingComparator;
+	private TypeComparator<IN> groupingComparator;
 
 	private AbstractInvokable parent;
 
@@ -80,8 +90,8 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		this.parent = parent;
 
 		@SuppressWarnings("unchecked")
-		final FlatCombineFunction<T> combiner =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, FlatCombineFunction.class);
+		final GroupCombineFunction<IN, OUT> combiner =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GroupCombineFunction.class);
 		this.combiner = combiner;
 		FunctionUtils.setFunctionRuntimeContext(combiner, getUdfRuntimeContext());
 	}
@@ -98,9 +108,9 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getRelativeMemoryDriver());
 
 		// instantiate the serializer / comparator
-		final TypeSerializerFactory<T> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
-		final TypeComparatorFactory<T> sortingComparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader);
-		final TypeComparatorFactory<T> groupingComparatorFactory = this.config.getDriverComparator(1, this.userCodeClassLoader);
+		final TypeSerializerFactory<IN> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
+		final TypeComparatorFactory<IN> sortingComparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader);
+		final TypeComparatorFactory<IN> groupingComparatorFactory = this.config.getDriverComparator(1, this.userCodeClassLoader);
 		this.serializer = serializerFactory.getSerializer();
 		this.sortingComparator = sortingComparatorFactory.createComparator();
 		this.groupingComparator = groupingComparatorFactory.createComparator();
@@ -111,9 +121,9 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		if (this.sortingComparator.supportsSerializationWithKeyNormalization() &&
 			this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
 		{
-			this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.sortingComparator, memory);
+			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, this.sortingComparator, memory);
 		} else {
-			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.sortingComparator.duplicate(), memory);
+			this.sorter = new NormalizedKeySorter<IN>(this.serializer, this.sortingComparator.duplicate(), memory);
 		}
 
 		if (LOG.isDebugEnabled()) {
@@ -149,7 +159,7 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	}
 
 	@Override
-	public void collect(T record) {
+	public void collect(IN record) {
 		// try writing to the sorter first
 		try {
 			if (this.sorter.write(record)) {
@@ -190,18 +200,18 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 	}
 
 	private void sortAndCombine() throws Exception {
-		final InMemorySorter<T> sorter = this.sorter;
+		final InMemorySorter<IN> sorter = this.sorter;
 
 		if (objectReuseEnabled) {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 				// run the combiner
-				final ReusingKeyGroupedIterator<T> keyIter = new ReusingKeyGroupedIterator<T>(sorter.getIterator(), this.serializer, this.groupingComparator);
+				final ReusingKeyGroupedIterator<IN> keyIter = new ReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.serializer, this.groupingComparator);
 
 
 				// cache references on the stack
-				final FlatCombineFunction<T> stub = this.combiner;
-				final Collector<T> output = this.outputCollector;
+				final GroupCombineFunction<IN, OUT> stub = this.combiner;
+				final Collector<OUT> output = this.outputCollector;
 
 				// run stub implementation
 				while (this.running && keyIter.nextKey()) {
@@ -212,12 +222,12 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 			if (!sorter.isEmpty()) {
 				this.sortAlgo.sort(sorter);
 				// run the combiner
-				final NonReusingKeyGroupedIterator<T> keyIter = new NonReusingKeyGroupedIterator<T>(sorter.getIterator(), this.groupingComparator);
+				final NonReusingKeyGroupedIterator<IN> keyIter = new NonReusingKeyGroupedIterator<IN>(sorter.getIterator(), this.groupingComparator);
 
 
 				// cache references on the stack
-				final FlatCombineFunction<T> stub = this.combiner;
-				final Collector<T> output = this.outputCollector;
+				final GroupCombineFunction<IN, OUT> stub = this.combiner;
+				final Collector<OUT> output = this.outputCollector;
 
 				// run stub implementation
 				while (this.running && keyIter.nextKey()) {

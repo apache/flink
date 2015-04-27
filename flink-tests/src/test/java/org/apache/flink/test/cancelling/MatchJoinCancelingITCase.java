@@ -37,10 +37,10 @@ import org.apache.flink.util.Collector;
 
 @SuppressWarnings("deprecation")
 public class MatchJoinCancelingITCase extends CancellingTestBase {
-	private static final int DOP = 4;
+	private static final int parallelism = 4;
 
 	public MatchJoinCancelingITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 	// --------------- Test Sort Matches that are canceled while still reading / sorting -----------------
@@ -60,7 +60,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 3000, 10*1000);
 	}
@@ -81,7 +81,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 5000, 10*1000);
 	}
@@ -102,7 +102,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 5000);
 		
@@ -129,7 +129,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 30 * 1000, 30 * 1000);
 	}
@@ -157,7 +157,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 10 * 1000, 20 * 1000);
 	}
@@ -183,7 +183,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 		GenericDataSink sink = new GenericDataSink(new DiscardingOutputFormat(), matcher, "Sink");
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(DOP);
+		p.setDefaultParallelism(parallelism);
 		
 		runAndCancelJob(p, 10 * 1000, 10 * 1000);
 	}
@@ -191,7 +191,7 @@ public class MatchJoinCancelingITCase extends CancellingTestBase {
 	// -------------------------------------- Test System corner cases ---------------------------------
 	
 //	@Test
-	public void testCancelSortMatchWithHighDOP() throws Exception {
+	public void testCancelSortMatchWithHighparallelism() throws Exception {
 		
 		GenericDataSource<InfiniteIntegerInputFormat> source1 =
 			new GenericDataSource<InfiniteIntegerInputFormat>(new InfiniteIntegerInputFormat(), "Source 1");

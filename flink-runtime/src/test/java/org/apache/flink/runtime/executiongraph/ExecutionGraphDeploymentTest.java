@@ -38,15 +38,15 @@ import akka.testkit.JavaTestKit;
 import akka.testkit.TestActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.RegularPactTask;
@@ -138,15 +138,15 @@ public class ExecutionGraphDeploymentTest {
 			assertEquals(RegularPactTask.class.getName(), descr.getInvokableClassName());
 			assertEquals("v2", descr.getTaskName());
 
-			List<PartitionDeploymentDescriptor> producedPartitions = descr.getProducedPartitions();
-			List<PartitionConsumerDeploymentDescriptor> consumedPartitions = descr.getConsumedPartitions();
+			List<ResultPartitionDeploymentDescriptor> producedPartitions = descr.getProducedPartitions();
+			List<InputGateDeploymentDescriptor> consumedPartitions = descr.getInputGates();
 
 			assertEquals(2, producedPartitions.size());
 			assertEquals(1, consumedPartitions.size());
 
-			assertEquals(10, producedPartitions.get(0).getNumberOfQueues());
-			assertEquals(10, producedPartitions.get(1).getNumberOfQueues());
-			assertEquals(10, consumedPartitions.get(0).getPartitions().length);
+			assertEquals(10, producedPartitions.get(0).getNumberOfSubpartitions());
+			assertEquals(10, producedPartitions.get(1).getNumberOfSubpartitions());
+			assertEquals(10, consumedPartitions.get(0).getInputChannelDeploymentDescriptors().length);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -31,9 +31,9 @@ class AggregateTranslationTest {
   @Test
   def translateAggregate(): Unit =  {
     try {
-      val DOP = 8
+      val parallelism = 8
 
-      val env = ExecutionEnvironment.createLocalEnvironment(DOP)
+      val env = ExecutionEnvironment.createLocalEnvironment(parallelism)
 
       val initialData = env.fromElements((3.141592, "foobar", 77L))
 
@@ -46,7 +46,7 @@ class AggregateTranslationTest {
 
       assertEquals(1, reducer.getKeyColumns(0).length)
       assertEquals(0, reducer.getKeyColumns(0)(0))
-      assertEquals(-1, reducer.getDegreeOfParallelism)
+      assertEquals(-1, reducer.getParallelism)
       assertTrue(reducer.isCombinable)
       assertTrue(reducer.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
     }

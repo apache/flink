@@ -17,114 +17,173 @@
 
 package org.apache.flink.streaming.connectors.kafka.api;
 
+import java.util.Map;
 import java.util.Properties;
+
+import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.kafka.api.config.PartitionerWrapper;
+import org.apache.flink.streaming.connectors.kafka.api.simple.KafkaTopicUtils;
+import org.apache.flink.streaming.connectors.kafka.partitioner.SerializableKafkaPartitioner;
+import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.flink.util.NetUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 import kafka.serializer.DefaultEncoder;
 
-import org.apache.flink.streaming.api.function.sink.RichSinkFunction;
-import org.apache.flink.streaming.connectors.kafka.config.EncoderWrapper;
-import org.apache.flink.streaming.connectors.kafka.config.PartitionerWrapper;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaDistributePartitioner;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
-import org.apache.flink.streaming.connectors.util.SerializationSchema;
-
 /**
  * Sink that emits its inputs to a Kafka topic.
- * 
+ *
  * @param <IN>
- *            Type of the sink input
+ * 		Type of the sink input
  */
 public class KafkaSink<IN> extends RichSinkFunction<IN> {
+
 	private static final long serialVersionUID = 1L;
 
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaSink.class);
+
 	private Producer<IN, byte[]> producer;
-	private Properties props;
+	private Properties userDefinedProperties;
 	private String topicId;
-	private String brokerAddr;
-	private boolean initDone = false;
-	private SerializationSchema<IN, byte[]> scheme;
-	private KafkaPartitioner<IN> partitioner;
+	private String zookeeperAddress;
+	private SerializationSchema<IN, byte[]> schema;
+	private SerializableKafkaPartitioner partitioner;
+	private Class<? extends SerializableKafkaPartitioner> partitionerClass = null;
 
 	/**
-	 * Creates a KafkaSink for a given topic. The partitioner distributes the
-	 * messages between the partitions of the topics.
-	 * 
+	 * Creates a KafkaSink for a given topic. The sink produces its input to
+	 * the topic.
+	 *
+	 * @param zookeeperAddress
+	 * 		Address of the Zookeeper host (with port number).
 	 * @param topicId
-	 *            ID of the Kafka topic.
-	 * @param brokerAddr
-	 *            Address of the Kafka broker (with port number).
+	 * 		ID of the Kafka topic.
 	 * @param serializationSchema
-	 *            User defined serialization schema.
+	 * 		User defined serialization schema.
 	 */
-	public KafkaSink(String topicId, String brokerAddr,
+	public KafkaSink(String zookeeperAddress, String topicId,
 			SerializationSchema<IN, byte[]> serializationSchema) {
-		this(topicId, brokerAddr, serializationSchema, new KafkaDistributePartitioner<IN>());
+		this(zookeeperAddress, topicId, new Properties(), serializationSchema);
 	}
 
 	/**
-	 * Creates a KafkaSink for a given topic. The sink produces its input into
-	 * the topic.
-	 * 
+	 * Creates a KafkaSink for a given topic with custom Producer configuration.
+	 * If you use this constructor, the broker should be set with the "metadata.broker.list"
+	 * configuration.
+	 *
+	 * @param zookeeperAddress
+	 * 		Address of the Zookeeper host (with port number).
 	 * @param topicId
-	 *            ID of the Kafka topic.
-	 * @param brokerAddr
-	 *            Address of the Kafka broker (with port number).
+	 * 		ID of the Kafka topic.
+	 * @param producerConfig
+	 * 		Configurations of the Kafka producer
 	 * @param serializationSchema
-	 *            User defined serialization schema.
-	 * @param partitioner
-	 *            User defined partitioner.
+	 * 		User defined serialization schema.
 	 */
-	public KafkaSink(String topicId, String brokerAddr,
-			SerializationSchema<IN, byte[]> serializationSchema, KafkaPartitioner<IN> partitioner) {
+	public KafkaSink(String zookeeperAddress, String topicId, Properties producerConfig,
+			SerializationSchema<IN, byte[]> serializationSchema) {
+		NetUtils.ensureCorrectHostnamePort(zookeeperAddress);
+		Preconditions.checkNotNull(topicId, "TopicID not set");
+		ClosureCleaner.ensureSerializable(partitioner);
+
+		this.zookeeperAddress = zookeeperAddress;
 		this.topicId = topicId;
-		this.brokerAddr = brokerAddr;
-		this.scheme = serializationSchema;
+		this.schema = serializationSchema;
+		this.partitionerClass = null;
+		this.userDefinedProperties = producerConfig;
+	}
+
+	/**
+	 * Creates a KafkaSink for a given topic. The sink produces its input to
+	 * the topic.
+	 *
+	 * @param zookeeperAddress
+	 * 		Address of the Zookeeper host (with port number).
+	 * @param topicId
+	 * 		ID of the Kafka topic.
+	 * @param serializationSchema
+	 * 		User defined serialization schema.
+	 * @param partitioner
+	 * 		User defined partitioner.
+	 */
+	public KafkaSink(String zookeeperAddress, String topicId,
+			SerializationSchema<IN, byte[]> serializationSchema, SerializableKafkaPartitioner partitioner) {
+		this(zookeeperAddress, topicId, serializationSchema);
 		this.partitioner = partitioner;
+	}
+
+	public KafkaSink(String zookeeperAddress, String topicId,
+			SerializationSchema<IN, byte[]> serializationSchema, Class<? extends SerializableKafkaPartitioner> partitioner) {
+		this(zookeeperAddress, topicId, serializationSchema);
+		this.partitionerClass = partitioner;
 	}
 
 	/**
 	 * Initializes the connection to Kafka.
 	 */
-	public void initialize() {
+	@Override
+	public void open(Configuration configuration) {
 
-		props = new Properties();
+		KafkaTopicUtils kafkaTopicUtils = new KafkaTopicUtils(zookeeperAddress);
+		String listOfBrokers = kafkaTopicUtils.getBrokerList(topicId);
 
-		props.put("metadata.broker.list", brokerAddr);
-		props.put("request.required.acks", "1");
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Broker list: {}", listOfBrokers);
+		}
 
-		props.put("serializer.class", DefaultEncoder.class.getCanonicalName());
-		props.put("key.serializer.class", EncoderWrapper.class.getCanonicalName());
-		props.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
+		Properties properties = new Properties();
 
-		EncoderWrapper<IN> encoderWrapper = new EncoderWrapper<IN>(scheme);
-		encoderWrapper.write(props);
+		properties.put("metadata.broker.list", listOfBrokers);
+		properties.put("request.required.acks", "-1");
+		properties.put("message.send.max.retries", "10");
 
-		PartitionerWrapper<IN> partitionerWrapper = new PartitionerWrapper<IN>(partitioner);
-		partitionerWrapper.write(props);
+		properties.put("serializer.class", DefaultEncoder.class.getCanonicalName());
 
-		ProducerConfig config = new ProducerConfig(props);
+		// this will not be used as the key will not be serialized
+		properties.put("key.serializer.class", DefaultEncoder.class.getCanonicalName());
 
-		producer = new Producer<IN, byte[]>(config);
-		initDone = true;
+		for (Map.Entry<Object, Object> propertiesEntry : userDefinedProperties.entrySet()) {
+			properties.put(propertiesEntry.getKey(), propertiesEntry.getValue());
+		}
+
+		if (partitioner != null) {
+			properties.put("partitioner.class", PartitionerWrapper.class.getCanonicalName());
+			// java serialization will do the rest.
+			properties.put(PartitionerWrapper.SERIALIZED_WRAPPER_NAME, partitioner);
+		}
+		if (partitionerClass != null) {
+			properties.put("partitioner.class", partitionerClass);
+		}
+
+		ProducerConfig config = new ProducerConfig(properties);
+
+		try {
+			producer = new Producer<IN, byte[]>(config);
+		} catch (NullPointerException e) {
+			throw new RuntimeException("Cannot connect to Kafka broker " + listOfBrokers, e);
+		}
 	}
 
 	/**
 	 * Called when new data arrives to the sink, and forwards it to Kafka.
-	 * 
+	 *
 	 * @param next
-	 *            The incoming data
+	 * 		The incoming data
 	 */
 	@Override
 	public void invoke(IN next) {
-		if (!initDone) {
-			initialize();
-		}
+		byte[] serialized = schema.serialize(next);
 
-		byte[] serialized = scheme.serialize(next);
-		producer.send(new KeyedMessage<IN, byte[]>(topicId, next, serialized));
+		// Sending message without serializable key.
+		producer.send(new KeyedMessage<IN, byte[]>(topicId, null, next, serialized));
 	}
 
 	@Override
@@ -132,11 +191,6 @@ public class KafkaSink<IN> extends RichSinkFunction<IN> {
 		if (producer != null) {
 			producer.close();
 		}
-	}
-
-	@Override
-	public void cancel() {
-		close();
 	}
 
 }

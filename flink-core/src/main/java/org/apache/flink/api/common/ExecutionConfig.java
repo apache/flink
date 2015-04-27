@@ -25,8 +25,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A configuration config for configuring behavior of the system, such as whether to use
- * the closure cleaner, object-reuse mode...
+ * A config to define the behavior of the program execution. It allows to define (among other
+ * options) the following settings:
+ *
+ * <ul>
+ *     <li>The default parallelism of the program, i.e., how many parallel tasks to use for
+ *         all functions that do not define a specific value directly.</li>
+ *     <li>The number of retries in the case of failed executions.</li>
+ *     <li>The {@link ExecutionMode} of the program: Batch or Pipelined.
+ *         The default execution mode is {@link ExecutionMode#PIPELINED}</li>
+ *     <li>Enabling or disabling the "closure cleaner". The closure cleaner pre-processes
+ *         the implementations of functions. In case they are (anonymous) inner classes,
+ *         it removes unused references to the enclosing class to fix certain serialization-related
+ *         problems and to reduce the size of the closure.</li>
+ *     <li>The config allows to register types and serializers to increase the efficiency of
+ *         handling <i>generic types</i> and <i>POJOs</i>. This is usually only needed
+ *         when the functions return not only the types declared in their signature, but
+ *         also subclasses of those types.</li>
+ * </ul>
  */
 public class ExecutionConfig implements Serializable {
 	
@@ -36,14 +52,22 @@ public class ExecutionConfig implements Serializable {
 	public static final String CONFIG_KEY = "runtime.config";
 
 	/**
-	 * The constant to use for the degree of parallelism, if the system should use the number
+	 * The constant to use for the parallelism, if the system should use the number
 	 *  of currently available slots.
 	 */
 	public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
 
+	// --------------------------------------------------------------------------------------------
+
+	/** Defines how data exchange happens - batch or pipelined */
+	private ExecutionMode executionMode = ExecutionMode.PIPELINED;
+
 	private boolean useClosureCleaner = true;
-	private int degreeOfParallelism = -1;
+
+	private int parallelism = -1;
+
 	private int numberOfExecutionRetries = -1;
+
 	private boolean forceKryo = false;
 
 	private boolean objectReuse = false;
@@ -52,16 +76,29 @@ public class ExecutionConfig implements Serializable {
 
 	private boolean serializeGenericTypesWithAvro = false;
 
-
+	/** If set to true, progress updates are printed to System.out during execution */
+	private boolean printProgressDuringExecution = true;
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in lists to ensure they are registered in order in all kryo instances.
-	private final List<Entry<Class<?>, Serializer<?>>> registeredTypesWithKryoSerializers = new ArrayList<Entry<Class<?>, Serializer<?>>>();
-	private final List<Entry<Class<?>, Class<? extends Serializer<?>>>> registeredTypesWithKryoSerializerClasses = new ArrayList<Entry<Class<?>, Class<? extends Serializer<?>>>>();
-	private final List<Entry<Class<?>, Serializer<?>>> defaultKryoSerializers = new ArrayList<Entry<Class<?>, Serializer<?>>>();
-	private final List<Entry<Class<?>, Class<? extends Serializer<?>>>> defaultKryoSerializerClasses = new ArrayList<Entry<Class<?>, Class<? extends Serializer<?>>>>();
+
+	private final List<Entry<Class<?>, Serializer<?>>> registeredTypesWithKryoSerializers =
+			new ArrayList<Entry<Class<?>, Serializer<?>>>();
+
+	private final List<Entry<Class<?>, Class<? extends Serializer<?>>>> registeredTypesWithKryoSerializerClasses =
+			new ArrayList<Entry<Class<?>, Class<? extends Serializer<?>>>>();
+
+	private final List<Entry<Class<?>, Serializer<?>>> defaultKryoSerializers =
+			new ArrayList<Entry<Class<?>, Serializer<?>>>();
+
+	private final List<Entry<Class<?>, Class<? extends Serializer<?>>>> defaultKryoSerializerClasses =
+			new ArrayList<Entry<Class<?>, Class<? extends Serializer<?>>>>();
+
 	private final List<Class<?>> registeredKryoTypes = new ArrayList<Class<?>>();
+
 	private final List<Class<?>> registeredPojoTypes = new ArrayList<Class<?>>();
+
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Enables the ClosureCleaner. This analyzes user code functions and sets fields to null
@@ -75,7 +112,9 @@ public class ExecutionConfig implements Serializable {
 	}
 
 	/**
-	 * Disables the ClosureCleaner. @see #enableClosureCleaner()
+	 * Disables the ClosureCleaner.
+	 *
+	 * @see #enableClosureCleaner()
 	 */
 	public ExecutionConfig disableClosureCleaner() {
 		useClosureCleaner = false;
@@ -83,46 +122,82 @@ public class ExecutionConfig implements Serializable {
 	}
 
 	/**
-	 * Returns whether the ClosureCleaner is enabled. @see #enableClosureCleaner()
+	 * Returns whether the ClosureCleaner is enabled.
+	 *
+	 * @see #enableClosureCleaner()
 	 */
 	public boolean isClosureCleanerEnabled() {
 		return useClosureCleaner;
 	}
 
 	/**
-	 * Gets the degree of parallelism with which operation are executed by default. Operations can
-	 * individually override this value to use a specific degree of parallelism.
-	 * Other operations may need to run with a different
-	 * degree of parallelism - for example calling
-	 * a reduce operation over the entire
-	 * set will insert eventually an operation that runs non-parallel (degree of parallelism of one).
+	 * Gets the parallelism with which operation are executed by default. Operations can
+	 * individually override this value to use a specific parallelism.
 	 *
-	 * @return The degree of parallelism used by operations, unless they override that value. This method
-	 *         returns {@code -1}, if the environments default parallelism should be used.
+	 * Other operations may need to run with a different parallelism - for example calling
+	 * a reduce operation over the entire data set will involve an operation that runs
+	 * with a parallelism of one (the final reduce to the single result value).
+	 *
+	 * @return The parallelism used by operations, unless they override that value. This method
+	 *         returns {@code -1}, if the environment's default parallelism should be used.
+	 * @deprecated Please use {@link #getParallelism}
 	 */
-
+	@Deprecated
 	public int getDegreeOfParallelism() {
-		return degreeOfParallelism;
+		return getParallelism();
 	}
 
 	/**
-	 * Sets the degree of parallelism (DOP) for operations executed through this environment.
-	 * Setting a DOP of x here will cause all operators (such as join, map, reduce) to run with
+	 * Gets the parallelism with which operation are executed by default. Operations can
+	 * individually override this value to use a specific parallelism.
+	 *
+	 * Other operations may need to run with a different parallelism - for example calling
+	 * a reduce operation over the entire data set will involve an operation that runs
+	 * with a parallelism of one (the final reduce to the single result value).
+	 *
+	 * @return The parallelism used by operations, unless they override that value. This method
+	 *         returns {@code -1}, if the environment's default parallelism should be used.
+	 */
+	public int getParallelism() {
+		return parallelism;
+	}
+
+	/**
+	 * Sets the parallelism for operations executed through this environment.
+	 * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run with
 	 * x parallel instances.
 	 * <p>
 	 * This method overrides the default parallelism for this environment.
 	 * The local execution environment uses by default a value equal to the number of hardware
 	 * contexts (CPU cores / threads). When executing the program via the command line client
-	 * from a JAR file, the default degree of parallelism is the one configured for that setup.
+	 * from a JAR file, the default parallelism is the one configured for that setup.
 	 *
-	 * @param degreeOfParallelism The degree of parallelism
+	 * @param parallelism The parallelism to use
+	 * @deprecated Please use {@link #setParallelism}
 	 */
+	@Deprecated
+	public ExecutionConfig setDegreeOfParallelism(int parallelism) {
+		return setParallelism(parallelism);
+	}
 
-	public ExecutionConfig setDegreeOfParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1) {
-			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
+	/**
+	 * Sets the parallelism for operations executed through this environment.
+	 * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run with
+	 * x parallel instances.
+	 * <p>
+	 * This method overrides the default parallelism for this environment.
+	 * The local execution environment uses by default a value equal to the number of hardware
+	 * contexts (CPU cores / threads). When executing the program via the command line client
+	 * from a JAR file, the default parallelism is the one configured for that setup.
+	 *
+	 * @param parallelism The parallelism to use
+	 */
+	public ExecutionConfig setParallelism(int parallelism) {
+		if (parallelism < 1 && parallelism != -1) {
+			throw new IllegalArgumentException(
+					"Parallelism must be at least one, or -1 (use system default).");
 		}
-		this.degreeOfParallelism = degreeOfParallelism;
+		this.parallelism = parallelism;
 		return this;
 	}
 
@@ -146,10 +221,35 @@ public class ExecutionConfig implements Serializable {
 	 */
 	public ExecutionConfig setNumberOfExecutionRetries(int numberOfExecutionRetries) {
 		if (numberOfExecutionRetries < -1) {
-			throw new IllegalArgumentException("The number of execution retries must be non-negative, or -1 (use system default)");
+			throw new IllegalArgumentException(
+					"The number of execution retries must be non-negative, or -1 (use system default)");
 		}
 		this.numberOfExecutionRetries = numberOfExecutionRetries;
 		return this;
+	}
+
+	/**
+	 * Sets the execution mode to execute the program. The execution mode defines whether
+	 * data exchanges are performed in a batch or on a pipelined manner.
+	 *
+	 * The default execution mode is {@link ExecutionMode#PIPELINED}.
+	 *
+	 * @param executionMode The execution mode to use.
+	 */
+	public void setExecutionMode(ExecutionMode executionMode) {
+		this.executionMode = executionMode;
+	}
+
+	/**
+	 * Gets the execution mode used to execute the program. The execution mode defines whether
+	 * data exchanges are performed in a batch or on a pipelined manner.
+	 *
+	 * The default execution mode is {@link ExecutionMode#PIPELINED}.
+	 *
+	 * @return The execution mode for the program.
+	 */
+	public ExecutionMode getExecutionMode() {
+		return executionMode;
 	}
 
 	/**
@@ -160,7 +260,6 @@ public class ExecutionConfig implements Serializable {
 	public void enableForceKryo() {
 		forceKryo = true;
 	}
-
 
 	/**
 	 * Disable use of Kryo serializer for all POJOs.
@@ -184,8 +283,6 @@ public class ExecutionConfig implements Serializable {
 	public boolean serializeGenericTypesWithAvro() {
 		return serializeGenericTypesWithAvro;
 	}
-
-
 
 	/**
 	 * Enables reusing objects that Flink internally uses for deserialization and passing
@@ -213,11 +310,38 @@ public class ExecutionConfig implements Serializable {
 		return objectReuse;
 	}
 
+	/**
+	 * Enables the printing of progress update messages to {@code System.out}
+	 * 
+	 * @return The ExecutionConfig object, to allow for function chaining.
+	 */
+	public ExecutionConfig enableSysoutLogging() {
+		this.printProgressDuringExecution = true;
+		return this;
+	}
+
+	/**
+	 * Disables the printing of progress update messages to {@code System.out}
+	 *
+	 * @return The ExecutionConfig object, to allow for function chaining.
+	 */
+	public ExecutionConfig disableSysoutLogging() {
+		this.printProgressDuringExecution = false;
+		return this;
+	}
+
+	/**
+	 * Gets whether progress update messages should be printed to {@code System.out}
+	 * 
+	 * @return True, if progress update messages should be printed, false otherwise.
+	 */
+	public boolean isSysoutLoggingEnabled() {
+		return this.printProgressDuringExecution;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
-
-
 
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
@@ -403,8 +527,12 @@ public class ExecutionConfig implements Serializable {
 
 
 	public static class Entry<K, V> implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
 		private final K k;
 		private final V v;
+
 		public Entry(K k, V v) {
 			this.k = k;
 			this.v = v;

@@ -25,28 +25,48 @@ import scala.reflect.ClassTag
 import org.apache.commons.lang.Validate
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
-import org.apache.flink.streaming.api.function.source.{ FromElementsFunction, SourceFunction }
+import org.apache.flink.streaming.api.functions.source.{ FromElementsFunction, SourceFunction }
 import org.apache.flink.util.Collector
 import org.apache.flink.api.scala.ClosureCleaner
-import org.apache.flink.streaming.api.function.source.FileMonitoringFunction.WatchType
+import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
   /**
-   * Sets the degree of parallelism (DOP) for operations executed through this environment.
-   * Setting a DOP of x here will cause all operators (such as join, map, reduce) to run with
-   * x parallel instances. This value can be overridden by specific operations using
+   * Sets the parallelism for operations executed through this environment.
+   * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
+   * with x parallel instances. This value can be overridden by specific operations using
    * [[DataStream.setParallelism]].
+   * @deprecated Please use [[setParallelism]]
    */
+  @deprecated
   def setDegreeOfParallelism(degreeOfParallelism: Int): Unit = {
-    javaEnv.setDegreeOfParallelism(degreeOfParallelism)
+    javaEnv.setParallelism(degreeOfParallelism)
   }
 
   /**
-   * Returns the default degree of parallelism for this execution environment. Note that this
+   * Sets the parallelism for operations executed through this environment.
+   * Setting a parallelism of x here will cause all operators (such as join, map, reduce) to run
+   * with x parallel instances. This value can be overridden by specific operations using
+   * [[DataStream.setParallelism]].
+   */
+  def setParallelism(parallelism: Int): Unit = {
+    javaEnv.setParallelism(parallelism)
+  }
+
+  /**
+   * Returns the default parallelism for this execution environment. Note that this
+   * value can be overridden by individual operations using [[DataStream.setParallelism]]
+   * @deprecated Please use [[getParallelism]]
+   */
+  @deprecated
+  def getDegreeOfParallelism = javaEnv.getParallelism
+
+  /**
+   * Returns the default parallelism for this execution environment. Note that this
    * value can be overridden by individual operations using [[DataStream.setParallelism]]
    */
-  def getDegreeOfParallelism = javaEnv.getDegreeOfParallelism
+  def getParallelism = javaEnv.getParallelism
 
   /**
    * Sets the maximum time frequency (milliseconds) for the flushing of the
@@ -74,6 +94,51 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Gets the default buffer timeout set for this environment
    */
   def getBufferTimout: Long = javaEnv.getBufferTimeout()
+
+  /**
+   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
+   * operator states. Time interval between state checkpoints is specified in in millis.
+   *
+   * Setting this option assumes that the job is used in production and thus if not stated
+   * explicitly otherwise with calling with the
+   * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
+   * failure the job will be resubmitted to the cluster indefinitely.
+   */
+  def enableCheckpointing(interval : Long) : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing(interval)
+    this
+  }
+
+  /**
+   * Method for enabling fault-tolerance. Activates monitoring and backup of streaming
+   * operator states. Time interval between state checkpoints is specified in in millis.
+   *
+   * Setting this option assumes that the job is used in production and thus if not stated
+   * explicitly otherwise with calling with the
+   * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method in case of
+   * failure the job will be resubmitted to the cluster indefinitely.
+   */
+  def enableCheckpointing() : StreamExecutionEnvironment = {
+    javaEnv.enableCheckpointing()
+    this
+  }
+
+  /**
+   * Sets the number of times that failed tasks are re-executed. A value of zero
+   * effectively disables fault tolerance. A value of "-1" indicates that the system
+   * default value (as defined in the configuration) should be used.
+   */
+  def setNumberOfExecutionRetries(numRetries: Int): Unit = {
+    javaEnv.setNumberOfExecutionRetries(numRetries)
+  }
+
+  /**
+   * Gets the number of times the system will try to re-execute failed tasks. A value
+   * of "-1" indicates that the system default value (as defined in the configuration)
+   * should be used.
+   */
+  def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
+
 
   /**
    * Registers the given type with the serializer at the [[KryoSerializer]].
@@ -174,7 +239,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * same type and must be serializable.
    *
    * * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a degree of parallelism of one.
+   * a parallelism of one.
    */
   def fromElements[T: ClassTag: TypeInformation](data: T*): DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
@@ -186,7 +251,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * because the framework may move the elements into the cluster if needed.
    *
    * Note that this operation will result in a non-parallel data source, i.e. a data source with
-   * a degree of parallelism of one.
+   * a parallelism of one.
    */
   def fromCollection[T: ClassTag: TypeInformation](
     data: Seq[T]): DataStream[T] = {
@@ -196,7 +261,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     val sourceFunction = new FromElementsFunction[T](scala.collection.JavaConversions
         .asJavaCollection(data))
         
-    javaEnv.addSource(sourceFunction, typeInfo)
+    javaEnv.addSource(sourceFunction).returns(typeInfo)
   }
 
   /**
@@ -212,7 +277,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     Validate.notNull(function, "Function must not be null.")
     val cleanFun = StreamExecutionEnvironment.clean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    javaEnv.addSource(cleanFun, typeInfo)
+    javaEnv.addSource(cleanFun).returns(typeInfo)
   }
   
    /**
@@ -287,16 +352,16 @@ object StreamExecutionEnvironment {
    * of parallelism of the local environment is the number of hardware contexts (CPU cores/threads).
    */
   def createLocalEnvironment(
-    degreeOfParallelism: Int =  Runtime.getRuntime.availableProcessors()):
+    parallelism: Int =  Runtime.getRuntime.availableProcessors()):
   StreamExecutionEnvironment = {
-    new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(degreeOfParallelism))
+    new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
   }
 
   /**
    * Creates a remote execution environment. The remote environment sends (parts of) the program to
    * a cluster for execution. Note that all file paths used in the program must be accessible from
-   * the cluster. The execution will use the cluster's default degree of parallelism, unless the
-   * parallelism is set explicitly via [[StreamExecutionEnvironment.setDegreeOfParallelism()]].
+   * the cluster. The execution will use the cluster's default parallelism, unless the
+   * parallelism is set explicitly via [[StreamExecutionEnvironment.setParallelism()]].
    *
    * @param host The host name or address of the master (JobManager),
    *             where the program should be executed.
@@ -315,12 +380,12 @@ object StreamExecutionEnvironment {
   /**
    * Creates a remote execution environment. The remote environment sends (parts of) the program
    * to a cluster for execution. Note that all file paths used in the program must be accessible
-   * from the cluster. The execution will use the specified degree of parallelism.
+   * from the cluster. The execution will use the specified parallelism.
    *
    * @param host The host name or address of the master (JobManager),
    *             where the program should be executed.
    * @param port The port of the master (JobManager), where the program should be executed.
-   * @param degreeOfParallelism The degree of parallelism to use during the execution.
+   * @param parallelism The parallelism to use during the execution.
    * @param jarFiles The JAR files with code that needs to be shipped to the cluster. If the
    *                 program uses
    *                 user-defined functions, user-defined input formats, or any libraries,
@@ -330,10 +395,10 @@ object StreamExecutionEnvironment {
   def createRemoteEnvironment(
     host: String,
     port: Int,
-    degreeOfParallelism: Int,
+    parallelism: Int,
     jarFiles: String*): StreamExecutionEnvironment = {
     val javaEnv = JavaEnv.createRemoteEnvironment(host, port, jarFiles: _*)
-    javaEnv.setDegreeOfParallelism(degreeOfParallelism)
+    javaEnv.setParallelism(parallelism)
     new StreamExecutionEnvironment(javaEnv)
   }
 }

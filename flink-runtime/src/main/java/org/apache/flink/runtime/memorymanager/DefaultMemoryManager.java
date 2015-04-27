@@ -84,6 +84,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * Creates a memory manager with the given capacity, using the default page size.
 	 * 
 	 * @param memorySize The total size of the memory to be managed by this memory manager.
+	 * @param numberOfSlots The number of slots of the task manager.
 	 */
 	public DefaultMemoryManager(long memorySize, int numberOfSlots) {
 		this(memorySize, numberOfSlots, DEFAULT_PAGE_SIZE);
@@ -93,6 +94,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	 * Creates a memory manager with the given capacity and given page size.
 	 * 
 	 * @param memorySize The total size of the memory to be managed by this memory manager.
+	 * @param numberOfSlots The number of slots of the task manager.
 	 * @param pageSize The size of the pages handed out by the memory manager.
 	 */
 	public DefaultMemoryManager(long memorySize, int numberOfSlots, int pageSize) {
@@ -163,6 +165,12 @@ public class DefaultMemoryManager implements MemoryManager {
 		// -------------------- END CRITICAL SECTION -------------------
 	}
 
+	@Override
+	public boolean isShutdown() {
+		return this.isShutDown;
+	}
+
+	@Override
 	public boolean verifyEmpty() {
 		synchronized (this.lock) {
 			return this.freeSegments.size() == this.totalNumPages;

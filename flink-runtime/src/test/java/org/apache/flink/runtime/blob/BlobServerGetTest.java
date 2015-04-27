@@ -116,7 +116,7 @@ public class BlobServerGetTest {
 			BlobUtils.readFully(is, receiveBuffer, 0, receiveBuffer.length, null);
 
 			// shut down the server
-			for (BlobServerConnection conn : server.getCurrentyActiveConnections()) {
+			for (BlobServerConnection conn : server.getCurrentActiveConnections()) {
 				conn.close();
 			}
 

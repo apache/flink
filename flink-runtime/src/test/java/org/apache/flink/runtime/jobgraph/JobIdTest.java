@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.api.common.JobID;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;

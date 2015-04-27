@@ -21,10 +21,12 @@ package org.apache.flink.api.java.operators;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.KeyRemovingMapper;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceOperator;
@@ -78,6 +80,26 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	}
 
 	@Override
+	public SingleInputSemanticProperties getSemanticProperties() {
+
+		SingleInputSemanticProperties props = super.getSemanticProperties();
+
+		// offset semantic information by extracted key fields
+		if(props != null &&
+				this.grouper != null &&
+				this.grouper.keys instanceof Keys.SelectorFunctionKeys) {
+
+			int offset = ((Keys.SelectorFunctionKeys) this.grouper.keys).getKeyType().getTotalFields();
+			if(this.grouper instanceof SortedGrouping) {
+				offset += ((SortedGrouping) this.grouper).getSortSelectionFunctionKey().getKeyType().getTotalFields();
+			}
+			props = SemanticPropUtil.addSourceFieldOffset(props, this.getInputType().getTotalFields(), offset);
+		}
+
+		return props;
+	}
+
+	@Override
 	protected org.apache.flink.api.common.operators.SingleInputOperator<?, IN, ?> translateToDataFlow(Operator<IN> input) {
 		
 		String name = getName() != null ? getName() : "Reduce at "+defaultName;
@@ -90,8 +112,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 					new ReduceOperatorBase<IN, ReduceFunction<IN>>(function, operatorInfo, new int[0], name);
 			
 			po.setInput(input);
-			// the degree of parallelism for a non grouped reduce can only be 1
-			po.setDegreeOfParallelism(1);
+			// the parallelism for a non grouped reduce can only be 1
+			po.setParallelism(1);
 			
 			return po;
 		}
@@ -118,7 +140,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			po.setCustomPartitioner(grouper.getCustomPartitioner());
 			
 			po.setInput(input);
-			po.setDegreeOfParallelism(getParallelism());
+			po.setParallelism(getParallelism());
 			
 			return po;
 		}
@@ -130,7 +152,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	// --------------------------------------------------------------------------------------------
 	
 	private static <T, K> MapOperatorBase<Tuple2<K, T>, T, ?> translateSelectorFunctionReducer(Keys.SelectorFunctionKeys<T, ?> rawKeys,
-			ReduceFunction<T> function, TypeInformation<T> inputType, String name, Operator<T> input, int dop)
+			ReduceFunction<T> function, TypeInformation<T> inputType, String name, Operator<T> input, int parallelism)
 	{
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<T, K> keys = (Keys.SelectorFunctionKeys<T, K>) rawKeys;
@@ -148,10 +170,10 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		reducer.setInput(keyExtractingMap);
 		keyRemovingMap.setInput(reducer);
 		
-		// set dop
-		keyExtractingMap.setDegreeOfParallelism(input.getDegreeOfParallelism());
-		reducer.setDegreeOfParallelism(dop);
-		keyRemovingMap.setDegreeOfParallelism(dop);
+		// set parallelism
+		keyExtractingMap.setParallelism(input.getParallelism());
+		reducer.setParallelism(parallelism);
+		keyRemovingMap.setParallelism(parallelism);
 		
 		return keyRemovingMap;
 	}

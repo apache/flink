@@ -162,7 +162,8 @@ public final class BlobCache implements BlobService {
 					}
 				}
 				catch (IOException e) {
-					String message = "Failed to fetch BLOB " + requiredBlob + "  from " + serverAddress + '.';
+					String message = "Failed to fetch BLOB " + requiredBlob + " from " + serverAddress +
+							" and store it under " + localJarFile.getAbsolutePath();
 					if (attempt < numFetchRetries) {
 						attempt++;
 						if (LOG.isDebugEnabled()) {

@@ -16,42 +16,29 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.accumulators;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.ArrayList;
 
-import org.apache.commons.lang3.SerializationUtils;
-
 /**
- * * This accumulator stores a collection of objects which are immediately serialized to cope with object reuse.
- * * When the objects are requested again, they are deserialized.
+ * This accumulator stores a collection of objects.
+ *
  * @param <T> The type of the accumulated objects
  */
 public class ListAccumulator<T> implements Accumulator<T, ArrayList<T>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private ArrayList<byte[]> localValue = new ArrayList<byte[]>();
+	private ArrayList<T> localValue = new ArrayList<T>();
 	
 	@Override
 	public void add(T value) {
-		byte[] byteArray = SerializationUtils.serialize((Serializable) value);
-		localValue.add(byteArray);
+		localValue.add(value);
 	}
 
 	@Override
 	public ArrayList<T> getLocalValue() {
-		ArrayList<T> arrList = new ArrayList<T>();
-		for (byte[] byteArr : localValue) {
-			T item = SerializationUtils.deserialize(byteArr);
-			arrList.add(item);
-		}
-		return arrList;
+		return localValue;
 	}
 
 	@Override
@@ -61,37 +48,18 @@ public class ListAccumulator<T> implements Accumulator<T, ArrayList<T>> {
 
 	@Override
 	public void merge(Accumulator<T, ArrayList<T>> other) {
-		localValue.addAll(((ListAccumulator<T>) other).localValue);
+		localValue.addAll(other.getLocalValue());
 	}
 
 	@Override
 	public Accumulator<T, ArrayList<T>> clone() {
 		ListAccumulator<T> newInstance = new ListAccumulator<T>();
-		for (byte[] item : localValue) {
-			newInstance.localValue.add(item.clone());
-		}
+		newInstance.localValue = new ArrayList<T>(localValue);
 		return newInstance;
 	}
 
 	@Override
-	public void write(ObjectOutputStream out) throws IOException {
-		int numItems = localValue.size();
-		out.writeInt(numItems);
-		for (byte[] item : localValue) {
-			out.writeInt(item.length);
-			out.write(item);
-		}
+	public String toString() {
+		return "List Accumulator " + localValue;
 	}
-
-	@Override
-	public void read(ObjectInputStream in) throws IOException {
-		int numItems = in.readInt();
-		for (int i = 0; i < numItems; i++) {
-			int len = in.readInt();
-			byte[] obj = new byte[len];
-			in.read(obj);
-			localValue.add(obj);
-		}
-	}
-
 }

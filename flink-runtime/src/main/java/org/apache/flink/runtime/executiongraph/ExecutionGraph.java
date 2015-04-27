@@ -25,9 +25,10 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -70,7 +71,7 @@ import static akka.dispatch.Futures.future;
  *         The ExecutionJobVertex is identified inside the graph by the {@link JobVertexID}, which it takes
  *         from the JobGraph's corresponding JobVertex.</li>
  *     <li>The {@link ExecutionVertex} represents one parallel subtask. For each ExecutionJobVertex, there are
- *         as many ExecutionVertices as the degree of parallelism. The ExecutionVertex is identified by
+ *         as many ExecutionVertices as the parallelism. The ExecutionVertex is identified by
  *         the ExecutionJobVertex and the number of the parallel subtask</li>
  *     <li>The {@link Execution} is one attempt to execute a ExecutionVertex. There may be multiple Executions
  *         for the ExecutionVertex, in case of a failure, or in the case where some data needs to be recomputed
@@ -176,16 +177,15 @@ public class ExecutionGraph implements Serializable {
 	private int nextVertexToFinish;
 
 
+
 	private ActorContext parentContext;
 
-	private  ActorRef stateMonitorActor;
-	
-	private boolean monitoringEnabled;
-	
-	private long monitoringInterval = 10000;
+	private  ActorRef stateCheckpointerActor;
 
+	private boolean checkpointingEnabled;
 
-	
+	private long checkpointingInterval = 5000;
+
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, FiniteDuration timeout) {
 		this(jobId, jobName, jobConfig, timeout, new ArrayList<BlobKey>());
 	}
@@ -225,12 +225,12 @@ public class ExecutionGraph implements Serializable {
 
 	// --------------------------------------------------------------------------------------------
 	
-	public void setStateMonitorActor(ActorRef stateMonitorActor) {
-		this.stateMonitorActor = stateMonitorActor;
+	public void setStateCheckpointerActor(ActorRef stateCheckpointerActor) {
+		this.stateCheckpointerActor = stateCheckpointerActor;
 	}
 
-	public ActorRef getStateMonitorActor() {
-		return stateMonitorActor;
+	public ActorRef getStateCheckpointerActor() {
+		return stateCheckpointerActor;
 	}
 
 	public void setParentContext(ActorContext parentContext) {
@@ -291,12 +291,12 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-	public void setMonitoringEnabled(boolean monitoringEnabled) {
-		this.monitoringEnabled = monitoringEnabled;
+	public void setCheckpointingEnabled(boolean checkpointingEnabled) {
+		this.checkpointingEnabled = checkpointingEnabled;
 	}
 
-	public void setMonitoringInterval(long  monitoringInterval) {
-		this.monitoringInterval = monitoringInterval;
+	public void setCheckpointingInterval(long checkpointingInterval) {
+		this.checkpointingInterval = checkpointingInterval;
 	}
 
 	/**
@@ -446,15 +446,16 @@ public class ExecutionGraph implements Serializable {
 					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
 						ejv.scheduleAll(scheduler, allowQueuedScheduling);
 					}
+
 					break;
 
 				case BACKTRACKING:
 					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
 			}
 
-			if (monitoringEnabled) {
-				stateMonitorActor = StreamCheckpointCoordinator.spawn(parentContext, this,
-						Duration.create(monitoringInterval, TimeUnit.MILLISECONDS));
+			if (checkpointingEnabled) {
+				stateCheckpointerActor = StreamCheckpointCoordinator.spawn(parentContext, this,
+						Duration.create(checkpointingInterval, TimeUnit.MILLISECONDS));
 			}
 		}
 		else {
@@ -607,7 +608,7 @@ public class ExecutionGraph implements Serializable {
 					attempt.cancelingComplete();
 					return true;
 				case FAILED:
-					attempt.markFailed(state.getError());
+					attempt.markFailed(state.getError(userClassLoader));
 					return true;
 				default:
 					// we mark as failed and return false, which triggers the TaskManager
@@ -623,24 +624,24 @@ public class ExecutionGraph implements Serializable {
 	
 	public void loadOperatorStates(Map<Tuple3<JobVertexID, Integer, Long> , StateHandle> states) {
 		synchronized (this.progressLock) {
-			for (Map.Entry<Tuple3<JobVertexID, Integer, Long>, StateHandle> state : states.entrySet()) {
+			for (Map.Entry<Tuple3<JobVertexID, Integer, Long>, StateHandle> state : states.entrySet())
 				tasks.get(state.getKey()._1()).getTaskVertices()[state.getKey()._2()].setOperatorState(state.getValue());
-			}
 		}
 	}
 
-	public void scheduleOrUpdateConsumers(ExecutionAttemptID executionId, int partitionIndex) {
-		Execution execution = currentExecutions.get(executionId);
+	public void scheduleOrUpdateConsumers(ResultPartitionID partitionId) {
+
+		final Execution execution = currentExecutions.get(partitionId.getProducerId());
 
 		if (execution == null) {
 			fail(new IllegalStateException("Cannot find execution for execution ID " +
-					executionId));
+					partitionId.getPartitionId()));
 		}
-		else if(execution.getVertex() == null){
-			fail(new IllegalStateException("Execution with execution ID " + executionId +
-				" has no vertex assigned."));
+		else if (execution.getVertex() == null){
+			fail(new IllegalStateException("Execution with execution ID " +
+					partitionId.getPartitionId() + " has no vertex assigned."));
 		} else {
-			execution.getVertex().scheduleOrUpdateConsumers(partitionIndex);
+			execution.getVertex().scheduleOrUpdateConsumers(partitionId);
 		}
 	}
 
@@ -778,6 +779,6 @@ public class ExecutionGraph implements Serializable {
 		
 		scheduler = null;
 		parentContext = null;
-		stateMonitorActor = null;
+		stateCheckpointerActor = null;
 	}
 }

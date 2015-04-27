@@ -40,7 +40,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * Match task which is executed by a Nephele task manager. The task has two inputs and one or multiple outputs.
+ * Match task which is executed by a Task Manager. The task has two inputs and one or multiple outputs.
  * It is provided with a JoinFunction implementation.
  * <p>
  * The MatchTask matches all pairs of records that share the same key and come from different inputs. Each pair of 

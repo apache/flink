@@ -27,7 +27,6 @@ import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.InfoOptions;
 import org.apache.flink.client.cli.ProgramOptions;
@@ -35,7 +34,7 @@ import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.compiler.CompilerException;
+import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 
@@ -295,25 +294,23 @@ public class CliFrontendPackageProgramTest {
 			assertArrayEquals(progArgs, prog.getArguments());
 
 			Configuration c = new Configuration();
-			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "devil");
+			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 			Client cli = new Client(c, getClass().getClassLoader());
 			
+			// we expect this to fail with a "ClassNotFoundException"
 			cli.getOptimizedPlanAsJson(prog, 666);
+			fail("Should have failed with a ClassNotFoundException");
 		}
-		catch (ProgramInvocationException pie) {
-			assertTrue("Classloader was not called", callme[0]);
-			// class not found exception is expected as some point
-			if( ! ( pie.getCause() instanceof ClassNotFoundException ) ) {
-				System.err.println(pie.getMessage());
-				pie.printStackTrace();
-				fail("Program caused an exception: " + pie.getMessage());
+		catch (ProgramInvocationException e) {
+			if (!(e.getCause() instanceof ClassNotFoundException)) {
+				e.printStackTrace();
+				fail("Program didn't throw ClassNotFoundException");
 			}
+			assertTrue("Classloader was not called", callme[0]);
 		}
 		catch (Exception e) {
-			System.err.println(e.getMessage());
 			e.printStackTrace();
-			assertTrue("Classloader was not called", callme[0]);
-			fail("Program caused an exception: " + e.getMessage());
+			fail("Program failed with the wrong exception: " + e.getClass().getName());
 		}
 	}
 }

@@ -68,7 +68,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		getTaskConfig().setRelativeMemoryDriver(combine_frac);
 		getTaskConfig().setFilehandlesDriver(2);
 		
-		final GroupReduceCombineDriver<Record> testTask = new GroupReduceCombineDriver<Record>();
+		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
 		
 		try {
 			testDriver(testTask, MockCombiningReduceStub.class);
@@ -122,7 +122,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		getTaskConfig().setRelativeMemoryDriver(combine_frac);
 		getTaskConfig().setFilehandlesDriver(2);
 		
-		final GroupReduceCombineDriver<Record> testTask = new GroupReduceCombineDriver<Record>();
+		final GroupReduceCombineDriver<Record, Record> testTask = new GroupReduceCombineDriver<Record, Record>();
 
 		try {
 			testDriver(testTask, MockCombiningReduceStub.class);

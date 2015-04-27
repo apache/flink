@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
@@ -32,23 +33,28 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 		super();
 		this.env = env;
 
-		int dop = env.getDegreeOfParallelism();
-		if (dop > 0) {
-			setDegreeOfParallelism(dop);
+		int parallelism = env.getParallelism();
+		if (parallelism > 0) {
+			setParallelism(parallelism);
 		} else {
-			setDegreeOfParallelism(GlobalConfiguration.getInteger(
-					ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
-					ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE));
+			// first check for old parallelism config key
+			setParallelism(GlobalConfiguration.getInteger(
+					ConfigConstants.DEFAULT_PARALLELISM_KEY,
+					ConfigConstants.DEFAULT_PARALLELISM));
+			// then for new
+			setParallelism(GlobalConfiguration.getInteger(
+					ConfigConstants.DEFAULT_PARALLELISM_KEY,
+					getParallelism()));
 		}
 	}
 
 	@Override
-	public void execute() throws Exception {
-		execute("");
+	public JobExecutionResult execute() throws Exception {
+		return execute("");
 	}
 
 	@Override
-	public void execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName) throws Exception {
 		currentEnvironment = null;
 
 		streamGraph.setJobName(jobName);

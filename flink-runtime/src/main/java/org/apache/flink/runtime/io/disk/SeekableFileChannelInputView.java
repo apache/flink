@@ -40,7 +40,7 @@ import org.apache.flink.runtime.util.MathUtils;
  */
 public class SeekableFileChannelInputView extends AbstractPagedInputView {
 	
-	private BlockChannelReader reader;
+	private BlockChannelReader<MemorySegment> reader;
 	
 	private final IOManager ioManager;
 	
@@ -127,7 +127,7 @@ public class SeekableFileChannelInputView extends AbstractPagedInputView {
 		}
 		
 		numBlocksRemaining--;
-		seekInput(reader.getNextReturnedSegment(), positionInBlock, numBlocksRemaining == 0 ? sizeOfLastBlock : segmentSize);
+		seekInput(reader.getNextReturnedBlock(), positionInBlock, numBlocksRemaining == 0 ? sizeOfLastBlock : segmentSize);
 	}
 	
 	public void close() throws IOException {
@@ -169,7 +169,7 @@ public class SeekableFileChannelInputView extends AbstractPagedInputView {
 		
 		// get the next segment
 		numBlocksRemaining--;
-		return reader.getNextReturnedSegment();
+		return reader.getNextReturnedBlock();
 	}
 	
 	@Override

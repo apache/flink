@@ -218,7 +218,7 @@ public class OperatorTranslation {
 		iterationOperator.setMaximumNumberOfIterations(iterationEnd.getMaxIterations());
 		
 		if (iterationHead.getParallelism() > 0) {
-			iterationOperator.setDegreeOfParallelism(iterationHead.getParallelism());
+			iterationOperator.setParallelism(iterationHead.getParallelism());
 		}
 
 		DeltaIteration.SolutionSetPlaceHolder<D> solutionSetPlaceHolder = iterationHead.getSolutionSet();

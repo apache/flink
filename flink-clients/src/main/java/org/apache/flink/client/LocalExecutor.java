@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client;
 
 import java.util.List;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
@@ -29,16 +27,15 @@ import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.contextcheck.ContextChecker;
-import org.apache.flink.compiler.dag.DataSinkNode;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.dag.DataSinkNode;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 /**
@@ -54,14 +51,13 @@ public class LocalExecutor extends PlanExecutor {
 	
 	private LocalFlinkMiniCluster flink;
 
+	private Configuration configuration;
+
 	// ---------------------------------- config options ------------------------------------------
 	
-
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
 	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
-
-	private boolean printStatusDuringExecution = true;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -69,6 +65,11 @@ public class LocalExecutor extends PlanExecutor {
 		if (!ExecutionEnvironment.localExecutionIsAllowed()) {
 			throw new InvalidProgramException("The LocalEnvironment cannot be used when submitting a program through a client.");
 		}
+	}
+
+	public LocalExecutor(Configuration conf) {
+		this();
+		this.configuration = conf;
 	}
 
 
@@ -81,24 +82,32 @@ public class LocalExecutor extends PlanExecutor {
 		this.defaultOverwriteFiles = defaultOverwriteFiles;
 	}
 	
-	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
+	public void setTaskManagerNumSlots(int taskManagerNumSlots) {
+		this.taskManagerNumSlots = taskManagerNumSlots; 
+	}
 
-	public int getTaskManagerNumSlots() { return this.taskManagerNumSlots; }
-
-	public void setPrintStatusDuringExecution(boolean printStatus) {
-		this.printStatusDuringExecution = printStatus;
+	public int getTaskManagerNumSlots() {
+		return this.taskManagerNumSlots;
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
+
+	public static Configuration createConfiguration(LocalExecutor le) {
+		Configuration configuration = new Configuration();
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, le.getTaskManagerNumSlots());
+		configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, le.isDefaultOverwriteFiles());
+		return configuration;
+	}
+
 	public void start() throws Exception {
 		synchronized (this.lock) {
 			if (this.flink == null) {
 				
 				// create the embedded runtime
-				Configuration configuration = new Configuration();
-				configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, getTaskManagerNumSlots());
-				configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, isDefaultOverwriteFiles());
+				Configuration configuration = createConfiguration(this);
+				if(this.configuration != null) {
+					configuration.addAll(this.configuration);
+				}
 				// start it up
 				this.flink = new LocalFlinkMiniCluster(configuration, true);
 			} else {
@@ -131,13 +140,11 @@ public class LocalExecutor extends PlanExecutor {
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
+	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		if (plan == null) {
 			throw new IllegalArgumentException("The plan may not be null.");
 		}
-		
-		ContextChecker checker = new ContextChecker();
-		checker.check(plan);
 		
 		synchronized (this.lock) {
 			
@@ -162,16 +169,15 @@ public class LocalExecutor extends PlanExecutor {
 			}
 
 			try {
-				PactCompiler pc = new PactCompiler(new DataStatistics());
+				Optimizer pc = new Optimizer(new DataStatistics(), this.flink.getConfiguration());
 				OptimizedPlan op = pc.compile(plan);
 				
-				NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+				JobGraphGenerator jgg = new JobGraphGenerator();
 				JobGraph jobGraph = jgg.compileJobGraph(op);
-
-				ActorRef jobClient = flink.getJobClient();
-
-				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution,
-						jobClient, flink.timeout());
+				
+				boolean sysoutPrint = isPrintingStatusDuringExecution();
+				SerializedJobExecutionResult result = flink.submitJobAndWait(jobGraph,sysoutPrint);
+				return result.toJobExecutionResult(ClassLoader.getSystemClassLoader());
 			}
 			finally {
 				if (shutDownAtEnd) {
@@ -189,8 +195,9 @@ public class LocalExecutor extends PlanExecutor {
 	 * @return JSON dump of the optimized plan.
 	 * @throws Exception
 	 */
+	@Override
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
-		PactCompiler pc = new PactCompiler(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), createConfiguration(this));
 		OptimizedPlan op = pc.compile(plan);
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 	
@@ -246,7 +253,7 @@ public class LocalExecutor extends PlanExecutor {
 		LocalExecutor exec = new LocalExecutor();
 		try {
 			exec.start();
-			PactCompiler pc = new PactCompiler(new DataStatistics());
+			Optimizer pc = new Optimizer(new DataStatistics(), exec.flink.getConfiguration());
 			OptimizedPlan op = pc.compile(plan);
 			PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
 
@@ -264,19 +271,7 @@ public class LocalExecutor extends PlanExecutor {
 	 */
 	public static String getPlanAsJSON(Plan plan) {
 		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
-		List<DataSinkNode> sinks = PactCompiler.createPreOptimizedPlan(plan);
+		List<DataSinkNode> sinks = Optimizer.createPreOptimizedPlan(plan);
 		return gen.getPactPlanAsJSON(sinks);
-	}
-
-	/**
-	 * By default, local environments do not overwrite existing files.
-	 * 
-	 * NOTE: This method must be called prior to initializing the LocalExecutor or a 
-	 * {@link org.apache.flink.api.java.LocalEnvironment}.
-	 * 
-	 * @param overwriteByDefault True to overwrite by default, false to not overwrite by default.
-	 */
-	public static void setOverwriteFilesByDefault(boolean overwriteByDefault) {
-		DEFAULT_OVERWRITE = overwriteByDefault;
 	}
 }

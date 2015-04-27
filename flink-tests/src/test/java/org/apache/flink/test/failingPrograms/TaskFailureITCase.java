@@ -23,10 +23,10 @@ import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseInputFormat;
 import org.apache.flink.test.operators.io.ContractITCaseIOFormats.ContractITCaseOutputFormat;
@@ -39,10 +39,9 @@ import org.apache.flink.util.Collector;
 /**
  * Tests whether the system recovers from a runtime exception from the user code.
  */
-@SuppressWarnings("deprecation")
 public class TaskFailureITCase extends FailingTestBase {
 
-	private static final int DOP = 4;
+	private static final int parallelism = 4;
 
 	// input for map tasks
 	private static final String MAP_IN = "1 1\n2 2\n2 8\n4 4\n4 4\n6 6\n7 7\n8 8\n" +
@@ -51,13 +50,14 @@ public class TaskFailureITCase extends FailingTestBase {
 											"1 1\n9 1\n5 9\n4 4\n4 4\n6 6\n7 7\n8 8\n";
 
 	// expected result of working map job
-	private static final String MAP_RESULT = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
+	private static final String MAP_RESULT = "1 11\n2 12\n4 14\n4 14\n1 11\n2 12\n2 12\n4 14\n4 14\n" +
+											"3 16\n1 11\n2 12\n2 12\n0 13\n4 14\n1 11\n4 14\n4 14\n";
 
 	private String inputPath;
 	private String resultPath;
 
 	public TaskFailureITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 	
 	@Override
@@ -85,14 +85,14 @@ public class TaskFailureITCase extends FailingTestBase {
 
 		// generate plan
 		Plan plan = new Plan(output);
-		plan.setDefaultParallelism(DOP);
+		plan.setDefaultParallelism(parallelism);
 
 		// optimize and compile plan 
-		PactCompiler pc = new PactCompiler(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(plan);
 		
 		// return job graph of failing job
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+		JobGraphGenerator jgg = new JobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 
@@ -118,11 +118,11 @@ public class TaskFailureITCase extends FailingTestBase {
 		plan.setDefaultParallelism(4);
 
 		// optimize and compile plan
-		PactCompiler pc = new PactCompiler(new DataStatistics());
+		Optimizer pc = new Optimizer(new DataStatistics(), this.config);
 		OptimizedPlan op = pc.compile(plan);
 
 		// return job graph of working job
-		NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
+		JobGraphGenerator jgg = new JobGraphGenerator();
 		return jgg.compileJobGraph(op);
 	}
 

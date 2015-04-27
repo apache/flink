@@ -102,7 +102,7 @@ public class JobManagerProcessReapingTest {
 				try {
 					jobManagerRef = JobManager.getJobManagerRemoteReference(
 							new InetSocketAddress("localhost", jobManagerPort),
-							localSystem, new FiniteDuration(5, TimeUnit.SECONDS));
+							localSystem, new FiniteDuration(25, TimeUnit.SECONDS));
 					break;
 				}
 				catch (Throwable t) {
@@ -183,7 +183,7 @@ public class JobManagerProcessReapingTest {
 				Configuration config = new Configuration();
 				config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1);
 
-				JobManager.runJobManager(config, ExecutionMode.CLUSTER(), "localhost", port);
+				JobManager.runJobManager(config, JobManagerMode.CLUSTER, "localhost", port);
 				System.exit(0);
 			}
 			catch (Throwable t) {

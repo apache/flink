@@ -24,10 +24,14 @@ import java.io.IOException;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.junit.Test;
 
+/**
+ * Correctness tests for hash/equals and serialization for the
+ * {@link org.apache.flink.runtime.taskmanager.TaskExecutionState}.
+ */
 public class TaskExecutionStateTest {
 
 	@Test
@@ -61,17 +65,19 @@ public class TaskExecutionStateTest {
 			TaskExecutionState original1 = new TaskExecutionState(jid, executionId, state, error);
 			TaskExecutionState original2 = new TaskExecutionState(jid, executionId, state);
 			
-			TaskExecutionState writableCopy1 = CommonTestUtils.createCopyWritable(original1);
-			TaskExecutionState writableCopy2 = CommonTestUtils.createCopyWritable(original2);
-			
 			TaskExecutionState javaSerCopy1 = CommonTestUtils.createCopySerializable(original1);
 			TaskExecutionState javaSerCopy2 = CommonTestUtils.createCopySerializable(original2);
-			
-			assertEquals(original1, writableCopy1);
+
+			// equalities
 			assertEquals(original1, javaSerCopy1);
-			
-			assertEquals(original2, writableCopy2);
+			assertEquals(javaSerCopy1, original1);
+
 			assertEquals(original2, javaSerCopy2);
+			assertEquals(javaSerCopy2, original2);
+
+			// hash codes
+			assertEquals(original1.hashCode(), javaSerCopy1.hashCode());
+			assertEquals(original2.hashCode(), javaSerCopy2.hashCode());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

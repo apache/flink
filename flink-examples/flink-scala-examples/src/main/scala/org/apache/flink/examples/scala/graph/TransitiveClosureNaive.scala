@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData
 import org.apache.flink.util.Collector
 
-object TransitiveClosureNaive {
+object  TransitiveClosureNaive {
 
   def main (args: Array[String]): Unit = {
     if (!parseParameters(args)) {

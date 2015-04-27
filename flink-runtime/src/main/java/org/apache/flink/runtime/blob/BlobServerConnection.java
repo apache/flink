@@ -29,7 +29,8 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.security.MessageDigest;
 
-import org.apache.flink.runtime.jobgraph.JobID;
+import com.google.common.io.Files;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +57,7 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 class BlobServerConnection extends Thread {
 
 	/** The log object used for debugging. */
-	private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
+	private static final Logger LOG = LoggerFactory.getLogger(BlobServerConnection.class);
 
 	/** The socket to communicate with the client. */
 	private final Socket clientSocket;
@@ -167,12 +168,12 @@ class BlobServerConnection extends Thread {
 
 		File blobFile;
 		try {
-			final int contentAdressable = inputStream.read();
+			final int contentAddressable = inputStream.read();
 
-			if (contentAdressable < 0) {
+			if (contentAddressable < 0) {
 				throw new EOFException("Premature end of GET request");
 			}
-			if (contentAdressable == NAME_ADDRESSABLE) {
+			if (contentAddressable == NAME_ADDRESSABLE) {
 				// Receive the job ID and key
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
@@ -181,7 +182,7 @@ class BlobServerConnection extends Thread {
 				String key = readKey(buf, inputStream);
 				blobFile = this.blobServer.getStorageLocation(jobID, key);
 			}
-			else if (contentAdressable == CONTENT_ADDRESSABLE) {
+			else if (contentAddressable == CONTENT_ADDRESSABLE) {
 				final BlobKey key = BlobKey.readFromInputStream(inputStream);
 				blobFile = blobServer.getStorageLocation(key);
 			}
@@ -260,19 +261,19 @@ class BlobServerConnection extends Thread {
 		FileOutputStream fos = null;
 
 		try {
-			final int contentAdressable = inputStream.read();
-			if (contentAdressable < 0) {
+			final int contentAddressable = inputStream.read();
+			if (contentAddressable < 0) {
 				throw new EOFException("Premature end of PUT request");
 			}
 
-			if (contentAdressable == NAME_ADDRESSABLE) {
+			if (contentAddressable == NAME_ADDRESSABLE) {
 				// Receive the job ID and key
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				jobID = JobID.fromByteArray(jidBytes);
 				key = readKey(buf, inputStream);
 			}
-			else if (contentAdressable == CONTENT_ADDRESSABLE) {
+			else if (contentAddressable == CONTENT_ADDRESSABLE) {
 				md = BlobUtils.createMessageDigest();
 			}
 			else {
@@ -280,7 +281,7 @@ class BlobServerConnection extends Thread {
 			}
 
 			if (LOG.isDebugEnabled()) {
-				if (contentAdressable == NAME_ADDRESSABLE) {
+				if (contentAddressable == NAME_ADDRESSABLE) {
 					LOG.debug(String.format("Received PUT request for BLOB under %s / \"%s\"", jobID, key));
 				} else {
 					LOG.debug("Received PUT request for content addressable BLOB");
@@ -307,26 +308,18 @@ class BlobServerConnection extends Thread {
 					md.update(buf, 0, bytesExpected);
 				}
 			}
-
 			fos.close();
-			fos = null;
 
-			if (contentAdressable == NAME_ADDRESSABLE) {
+			if (contentAddressable == NAME_ADDRESSABLE) {
 				File storageFile = this.blobServer.getStorageLocation(jobID, key);
-				if (!incomingFile.renameTo(storageFile)) {
-					throw new IOException(String.format("Cannot move staging file %s to BLOB file %s",
-							incomingFile.getAbsolutePath(), storageFile.getAbsolutePath()));
-				}
+				Files.move(incomingFile, storageFile);
 				incomingFile = null;
 				outputStream.write(RETURN_OKAY);
 			}
 			else {
 				BlobKey blobKey = new BlobKey(md.digest());
 				File storageFile = blobServer.getStorageLocation(blobKey);
-				if (!incomingFile.renameTo(storageFile)) {
-					throw new IOException(String.format("Cannot move staging file %s to BLOB file %s",
-							incomingFile.getAbsolutePath(), storageFile.getAbsolutePath()));
-				}
+				Files.move(incomingFile, storageFile);
 				incomingFile = null;
 
 				// Return computed key to client for validation

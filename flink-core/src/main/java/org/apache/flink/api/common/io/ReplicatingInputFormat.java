@@ -33,9 +33,9 @@ import java.io.IOException;
  * replicated InputFormat to each parallel instance.
  *
  * Replicated data can only be used as input for a {@link org.apache.flink.api.common.operators.base.JoinOperatorBase} or
- * {@link org.apache.flink.api.common.operators.base.CrossOperatorBase} with the same degree of parallelism as the DataSource.
+ * {@link org.apache.flink.api.common.operators.base.CrossOperatorBase} with the same parallelism as the DataSource.
  * Before being used as an input to a Join or Cross operator, replicated data might be processed in local pipelines by
- * by Map-based operators with the same degree of parallelism as the source. Map-based operators are
+ * by Map-based operators with the same parallelism as the source. Map-based operators are
  * {@link org.apache.flink.api.common.operators.base.MapOperatorBase},
  * {@link org.apache.flink.api.common.operators.base.FlatMapOperatorBase},
  * {@link org.apache.flink.api.common.operators.base.FilterOperatorBase}, and

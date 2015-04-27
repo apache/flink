@@ -80,7 +80,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
 		# deploy hadoop v2 (yarn)
 		echo "deploy standard version (hadoop2)"
-		mvn -B -DskipTests -Pdocs-and-source -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
+		mvn -B -DskipTests -Pdocs-and-source -Drat.ignoreErrors=true clean deploy --settings deploysettings.xml;
 	fi
 
 	# The block below took care of deploying javadoc to github.io. We now host the javadocs on the website.

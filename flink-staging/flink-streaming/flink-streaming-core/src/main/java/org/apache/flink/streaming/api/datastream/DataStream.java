@@ -24,58 +24,68 @@ import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichFoldFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.StreamGraph;
-import org.apache.flink.streaming.api.collector.OutputSelector;
-import org.apache.flink.streaming.api.datastream.temporaloperator.StreamCrossOperator;
-import org.apache.flink.streaming.api.datastream.temporaloperator.StreamJoinOperator;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.datastream.temporal.StreamCrossOperator;
+import org.apache.flink.streaming.api.datastream.temporal.StreamJoinOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType;
-import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
-import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
-import org.apache.flink.streaming.api.function.sink.FileSinkFunctionByMillis;
-import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.api.invokable.SinkInvokable;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
-import org.apache.flink.streaming.api.invokable.operator.CounterInvokable;
-import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
-import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
+import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
+import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
+import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
+import org.apache.flink.streaming.api.functions.sink.FileSinkFunctionByMillis;
+import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.operators.StreamCounter;
+import org.apache.flink.streaming.api.operators.StreamFilter;
+import org.apache.flink.streaming.api.operators.StreamFlatMap;
+import org.apache.flink.streaming.api.operators.StreamFold;
+import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamReduce;
+import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
+import org.apache.flink.streaming.api.windowing.helper.FullStream;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
-import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
-import org.apache.flink.streaming.partitioner.DistributePartitioner;
-import org.apache.flink.streaming.partitioner.FieldsPartitioner;
-import org.apache.flink.streaming.partitioner.GlobalPartitioner;
-import org.apache.flink.streaming.partitioner.ShufflePartitioner;
-import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.DistributePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.FieldsPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -84,7 +94,7 @@ import org.apache.flink.streaming.util.keys.KeySelectorUtil;
  * <ul>
  * <li>{@link DataStream#map},</li>
  * <li>{@link DataStream#filter}, or</li>
- * <li>{@link DataStream#aggregate}.</li>
+ * <li>{@link DataStream#sum}.</li>
  * </ul>
  * 
  * @param <OUT>
@@ -96,8 +106,7 @@ public class DataStream<OUT> {
 	protected static Integer counter = 0;
 	protected final StreamExecutionEnvironment environment;
 	protected final Integer id;
-	protected final String type;
-	protected int degreeOfParallelism;
+	protected int parallelism;
 	protected List<String> userDefinedNames;
 	protected StreamPartitioner<OUT> partitioner;
 	@SuppressWarnings("rawtypes")
@@ -105,6 +114,7 @@ public class DataStream<OUT> {
 	protected List<DataStream<OUT>> mergedStreams;
 
 	protected final StreamGraph streamGraph;
+	private boolean typeUsed;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment with
@@ -125,9 +135,8 @@ public class DataStream<OUT> {
 
 		counter++;
 		this.id = counter;
-		this.type = operatorType;
 		this.environment = environment;
-		this.degreeOfParallelism = environment.getDegreeOfParallelism();
+		this.parallelism = environment.getParallelism();
 		this.streamGraph = environment.getStreamGraph();
 		this.userDefinedNames = new ArrayList<String>();
 		this.partitioner = new DistributePartitioner<OUT>(true);
@@ -145,10 +154,9 @@ public class DataStream<OUT> {
 	public DataStream(DataStream<OUT> dataStream) {
 		this.environment = dataStream.environment;
 		this.id = dataStream.id;
-		this.type = dataStream.type;
-		this.degreeOfParallelism = dataStream.degreeOfParallelism;
+		this.parallelism = dataStream.parallelism;
 		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
-		this.partitioner = dataStream.partitioner;
+		this.partitioner = dataStream.partitioner.copy();
 		this.streamGraph = dataStream.streamGraph;
 		this.typeInfo = dataStream.typeInfo;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
@@ -171,12 +179,12 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Gets the degree of parallelism for this operator.
+	 * Gets the parallelism for this operator.
 	 * 
 	 * @return The parallelism set for this operator.
 	 */
 	public int getParallelism() {
-		return this.degreeOfParallelism;
+		return this.parallelism;
 	}
 
 	/**
@@ -186,14 +194,43 @@ public class DataStream<OUT> {
 	 */
 	@SuppressWarnings("unchecked")
 	public TypeInformation<OUT> getType() {
+		if (typeInfo instanceof MissingTypeInfo) {
+			MissingTypeInfo typeInfo = (MissingTypeInfo) this.typeInfo;
+			throw new InvalidTypesException(
+					"The return type of function '"
+							+ typeInfo.getFunctionName()
+							+ "' could not be determined automatically, due to type erasure. "
+							+ "You can give type information hints by using the returns(...) method on the result of "
+							+ "the transformation call, or by letting your function implement the 'ResultTypeQueryable' "
+							+ "interface.", typeInfo.getTypeException());
+		}
+		typeUsed = true;
 		return this.typeInfo;
 	}
 
-	@SuppressWarnings("unchecked")
-	public <R> DataStream<R> setType(TypeInformation<R> outType) {
-		streamGraph.setOutType(id, outType);
-		typeInfo = outType;
-		return (DataStream<R>) this;
+	/**
+	 * Tries to fill in the type information. Type information can be filled in
+	 * later when the program uses a type hint. This method checks whether the
+	 * type information has ever been accessed before and does not allow
+	 * modifications if the type was accessed already. This ensures consistency
+	 * by making sure different parts of the operation do not assume different
+	 * type information.
+	 * 
+	 * @param typeInfo
+	 *            The type information to fill in.
+	 * 
+	 * @throws IllegalStateException
+	 *             Thrown, if the type information has been accessed before.
+	 */
+	protected void fillInType(TypeInformation<OUT> typeInfo) {
+		if (typeUsed) {
+			throw new IllegalStateException(
+					"TypeInformation cannot be filled in for the type after it has been used. "
+							+ "Please make sure that the type info hints are the first call after the transformation function, "
+							+ "before any access to types or semantic properties, etc.");
+		}
+		streamGraph.setOutType(id, typeInfo);
+		this.typeInfo = typeInfo;
 	}
 
 	public <F> F clean(F f) {
@@ -235,18 +272,18 @@ public class DataStream<OUT> {
 
 	/**
 	 * Operator used for directing tuples to specific named outputs using an
-	 * {@link org.apache.flink.streaming.api.collector.OutputSelector}. Calling
-	 * this method on an operator creates a new {@link SplitDataStream}.
+	 * {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}.
+	 * Calling this method on an operator creates a new {@link SplitDataStream}.
 	 * 
 	 * @param outputSelector
 	 *            The user defined
-	 *            {@link org.apache.flink.streaming.api.collector.OutputSelector}
+	 *            {@link org.apache.flink.streaming.api.collector.selector.OutputSelector}
 	 *            for directing the tuples.
 	 * @return The {@link SplitDataStream}
 	 */
 	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
 		for (DataStream<OUT> ds : this.mergedStreams) {
-			streamGraph.setOutputSelector(ds.getId(), clean(outputSelector));
+			streamGraph.addOutputSelector(ds.getId(), clean(outputSelector));
 		}
 
 		return new SplitDataStream<OUT>(this);
@@ -254,7 +291,7 @@ public class DataStream<OUT> {
 
 	/**
 	 * Creates a new {@link ConnectedDataStream} by connecting
-	 * {@link DataStream} outputs of (possible) different typea with each other.
+	 * {@link DataStream} outputs of (possible) different types with each other.
 	 * The DataStreams connected using this operator can be used with
 	 * CoFunctions to apply joint transformations.
 	 * 
@@ -472,9 +509,10 @@ public class DataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<OUT, R> mapper) {
 
-		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType());
+		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType(),
+				Utils.getCallLocationName(), true);
 
-		return transform("Map", outType, new MapInvokable<OUT, R>(clean(mapper)));
+		return transform("Map", outType, new StreamMap<OUT, R>(clean(mapper)));
 	}
 
 	/**
@@ -496,9 +534,9 @@ public class DataStream<OUT> {
 	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
 
 		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
-				getType());
+				getType(), Utils.getCallLocationName(), true);
 
-		return transform("Flat Map", outType, new FlatMapInvokable<OUT, R>(clean(flatMapper)));
+		return transform("Flat Map", outType, new StreamFlatMap<OUT, R>(clean(flatMapper)));
 
 	}
 
@@ -516,8 +554,28 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 
-		return transform("Reduce", getType(), new StreamReduceInvokable<OUT>(clean(reducer)));
+		return transform("Reduce", getType(), new StreamReduce<OUT>(clean(reducer)));
 
+	}
+
+	/**
+	 * Applies a fold transformation on the data stream. The returned stream
+	 * contains all the intermediate values of the fold transformation. The user
+	 * can also extend the {@link RichFoldFunction} to gain access to other
+	 * features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface
+	 * 
+	 * @param folder
+	 *            The {@link FoldFunction} that will be called for every element
+	 *            of the input values.
+	 * @return The transformed DataStream
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> fold(R initialValue, FoldFunction<OUT, R> folder) {
+		TypeInformation<R> outType = TypeExtractor.getFoldReturnTypes(clean(folder), getType(),
+				Utils.getCallLocationName(), false);
+
+		return transform("Fold", outType, new StreamFold<OUT, R>(clean(folder), initialValue,
+				outType));
 	}
 
 	/**
@@ -535,7 +593,7 @@ public class DataStream<OUT> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		return transform("Filter", getType(), new FilterInvokable<OUT>(clean(filter)));
+		return transform("Filter", getType(), new StreamFilter<OUT>(clean(filter)));
 
 	}
 
@@ -843,9 +901,9 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<Long, ?> count() {
-		TypeInformation<Long> outTypeInfo = TypeExtractor.getForObject(Long.valueOf(0));
+		TypeInformation<Long> outTypeInfo = BasicTypeInfo.LONG_TYPE_INFO;
 
-		return transform("Count", outTypeInfo, new CounterInvokable<OUT>());
+		return transform("Count", outTypeInfo, new StreamCounter<OUT>());
 	}
 
 	/**
@@ -853,11 +911,11 @@ public class DataStream<OUT> {
 	 * transformation like {@link WindowedDataStream#reduceWindow},
 	 * {@link WindowedDataStream#mapWindow} or aggregations on preset
 	 * chunks(windows) of the data stream. To define windows a
-	 * {@link WindowingHelper} such as {@link Time}, {@link Count} and
-	 * {@link Delta} can be used.</br></br> When applied to a grouped data
-	 * stream, the windows (evictions) and slide sizes (triggers) will be
-	 * computed on a per group basis. </br></br> For more advanced control over
-	 * the trigger and eviction policies please refer to
+	 * {@link WindowingHelper} such as {@link Time}, {@link Count},
+	 * {@link Delta} and {@link FullStream} can be used.</br></br> When applied
+	 * to a grouped data stream, the windows (evictions) and slide sizes
+	 * (triggers) will be computed on a per group basis. </br></br> For more
+	 * advanced control over the trigger and eviction policies please refer to
 	 * {@link #window(trigger, eviction)} </br> </br> For example to create a
 	 * sum every 5 seconds in a tumbling fashion:</br>
 	 * {@code ds.window(Time.of(5, TimeUnit.SECONDS)).sum(field)} </br></br> To
@@ -870,7 +928,8 @@ public class DataStream<OUT> {
 	 * 
 	 * @param policyHelper
 	 *            Any {@link WindowingHelper} such as {@link Time},
-	 *            {@link Count} and {@link Delta} to define the window size.
+	 *            {@link Count}, {@link Delta} {@link FullStream} to define the
+	 *            window size.
 	 * @return A {@link WindowedDataStream} providing further operations.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -896,6 +955,17 @@ public class DataStream<OUT> {
 	 */
 	public WindowedDataStream<OUT> window(TriggerPolicy<OUT> trigger, EvictionPolicy<OUT> eviction) {
 		return new WindowedDataStream<OUT>(this, trigger, eviction);
+	}
+
+	/**
+	 * Create a {@link WindowedDataStream} on the full stream history, to
+	 * produce periodic aggregates.
+	 * 
+	 * @return A {@link WindowedDataStream} providing further operations.
+	 */
+	@SuppressWarnings("rawtypes")
+	public WindowedDataStream<OUT> every(WindowingHelper policyHelper) {
+		return window(FullStream.window()).every(policyHelper);
 	}
 
 	/**
@@ -1093,6 +1163,24 @@ public class DataStream<OUT> {
 		return writeToFile((OutputFormat<OUT>) of, millis);
 	}
 
+	/**
+	 * Writes the DataStream to a socket as a byte array. The format of the
+	 * output is specified by a {@link SerializationSchema}.
+	 * 
+	 * @param hostName
+	 *            host of the socket
+	 * @param port
+	 *            port of the socket
+	 * @param schema
+	 *            schema for serialization
+	 * @return the closed DataStream
+	 */
+	public DataStreamSink<OUT> writeToSocket(String hostName, int port,
+			SerializationSchema<OUT, byte[]> schema) {
+		DataStreamSink<OUT> returnStream = addSink(new SocketClientSink<OUT>(hostName, port, schema));
+		return returnStream;
+	}
+
 	private DataStreamSink<OUT> writeToFile(OutputFormat<OUT> format, long millis) {
 		DataStreamSink<OUT> returnStream = addSink(new FileSinkFunctionByMillis<OUT>(format, millis));
 		return returnStream;
@@ -1100,37 +1188,37 @@ public class DataStream<OUT> {
 
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
-		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
+		StreamReduce<OUT> operator = new StreamReduce<OUT>(aggregate);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = transform("Aggregation", getType(),
-				invokable);
+				operator);
 
 		return returnStream;
 	}
 
 	/**
-	 * Method for passing user defined invokables along with the type
+	 * Method for passing user defined operators along with the type
 	 * informations that will transform the DataStream.
 	 * 
 	 * @param operatorName
 	 *            name of the operator, for logging purposes
 	 * @param outTypeInfo
 	 *            the output type of the operator
-	 * @param invokable
+	 * @param operator
 	 *            the object containing the transformation logic
 	 * @param <R>
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, StreamInvokable<OUT, R> invokable) {
+			TypeInformation<R> outTypeInfo, StreamOperator<OUT, R> operator) {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
-				operatorName, outTypeInfo, invokable);
+				operatorName, outTypeInfo, operator);
 
-		streamGraph.addStreamVertex(returnStream.getId(), invokable, getType(), outTypeInfo,
-				operatorName, returnStream.getParallelism());
+		streamGraph.addOperator(returnStream.getId(), operator, getType(), outTypeInfo,
+				operatorName);
 
 		connectGraph(inputStream, returnStream.getId(), 0);
 
@@ -1169,7 +1257,7 @@ public class DataStream<OUT> {
 	 */
 	protected <X> void connectGraph(DataStream<X> inputStream, Integer outputID, int typeNumber) {
 		for (DataStream<X> stream : inputStream.mergedStreams) {
-			streamGraph.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
+			streamGraph.addEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
 					inputStream.userDefinedNames);
 		}
 
@@ -1186,13 +1274,12 @@ public class DataStream<OUT> {
 	 */
 	public DataStreamSink<OUT> addSink(SinkFunction<OUT> sinkFunction) {
 
-		StreamInvokable<OUT, OUT> sinkInvokable = new SinkInvokable<OUT>(clean(sinkFunction));
+		StreamOperator<OUT, OUT> sinkOperator = new StreamSink<OUT>(clean(sinkFunction));
 
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", getType(),
-				sinkInvokable);
+				sinkOperator);
 
-		streamGraph.addStreamVertex(returnStream.getId(), sinkInvokable, getType(), null,
-				"Stream Sink", returnStream.getParallelism());
+		streamGraph.addOperator(returnStream.getId(), sinkOperator, getType(), null, "Stream Sink");
 
 		this.connectGraph(this.copy(), returnStream.getId(), 0);
 

@@ -19,34 +19,37 @@
 package org.apache.flink.api.scala.actions
 
 import org.apache.flink.api.scala._
+import org.apache.flink.test.util.MultipleProgramsTestBase
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 
 import org.junit.Test
 import org.junit.Assert._
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class CountCollectITCase {
+@RunWith(classOf[Parameterized])
+class CountCollectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
 
   @Test
-  def testCountCollectOnSimpleJob: Unit = {
+  def testCountCollectOnSimpleJob(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(5)
 
     val input = 1 to 10
 
     val inputDS = env.fromElements(input: _*)
 
     // count
-    val numEntries = inputDS.count
+    val numEntries = inputDS.count()
     assertEquals(input.length, numEntries)
 
     // collect
-    val list = inputDS.collect
+    val list = inputDS.collect()
     assertArrayEquals(input.toArray, list.toArray)
   }
 
   @Test
-  def testCountCollectOnAdvancedJob: Unit = {
+  def testCountCollectOnAdvancedJob(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setDegreeOfParallelism(5)
     env.getConfig.disableObjectReuse()
 
     val input1 = 1 to 10
@@ -57,10 +60,10 @@ class CountCollectITCase {
 
     val result = inputDS1 cross inputDS2
 
-    val numEntries = result.count
+    val numEntries = result.count()
     assertEquals(input1.length * input2.length, numEntries)
 
-    val list = result.collect
+    val list = result.collect()
 
     val marker = Array.fill(input1.length, input2.length)(false)
 
@@ -69,5 +72,4 @@ class CountCollectITCase {
       marker(x-1)(y-1) = true
     }
   }
-
 }

@@ -337,6 +337,16 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 			insert(record);
 		}
 	}
+
+	public void buildTableWithUniqueKey(final MutableObjectIterator<T> input) throws IOException {
+		T record = this.buildSideSerializer.createInstance();
+		T tmp = this.buildSideSerializer.createInstance();
+
+		// go over the complete input and insert every element into the hash table
+		while (this.running && ((record = input.next(record)) != null)) {
+			insertOrReplaceRecord(record, tmp);
+		}
+	}
 	
 	public final void insert(T record) throws IOException {
 		if(this.closed.get()) {

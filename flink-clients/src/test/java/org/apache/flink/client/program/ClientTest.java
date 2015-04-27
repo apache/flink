@@ -23,20 +23,21 @@ import akka.actor.Props;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.costs.CostEstimator;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.costs.CostEstimator;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.NetUtils;
 import org.junit.After;
 
@@ -69,8 +70,8 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 public class ClientTest {
 
 	private PackagedProgram program;
-	private PactCompiler compilerMock;
-	private NepheleJobGraphGenerator generatorMock;
+	private Optimizer compilerMock;
+	private JobGraphGenerator generatorMock;
 
 
 	private Configuration config;
@@ -89,8 +90,8 @@ public class ClientTest {
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
 
 		program = mock(PackagedProgram.class);
-		compilerMock = mock(PactCompiler.class);
-		generatorMock = mock(NepheleJobGraphGenerator.class);
+		compilerMock = mock(Optimizer.class);
+		generatorMock = mock(JobGraphGenerator.class);
 
 		JobWithJars planWithJarsMock = mock(JobWithJars.class);
 		Plan planMock = mock(Plan.class);
@@ -101,10 +102,10 @@ public class ClientTest {
 		when(program.getPlanWithJars()).thenReturn(planWithJarsMock);
 		when(planWithJarsMock.getPlan()).thenReturn(planMock);
 
-		whenNew(PactCompiler.class).withArguments(any(DataStatistics.class), any(CostEstimator.class)).thenReturn(this.compilerMock);
+		whenNew(Optimizer.class).withArguments(any(DataStatistics.class), any(CostEstimator.class), any(Configuration.class)).thenReturn(this.compilerMock);
 		when(compilerMock.compile(planMock)).thenReturn(optimizedPlanMock);
 
-		whenNew(NepheleJobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
+		whenNew(JobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
 		when(generatorMock.compileJobGraph(optimizedPlanMock)).thenReturn(jobGraph);
 
 		try {
@@ -139,11 +140,9 @@ public class ClientTest {
 			jobManagerSystem.actorOf(Props.create(SuccessReturningActor.class), JobManager.JOB_MANAGER_NAME());
 
 			Client out = new Client(config, getClass().getClassLoader());
-			JobExecutionResult result = out.run(program.getPlanWithJars(), -1, false);
+			JobSubmissionResult result = out.run(program.getPlanWithJars(), -1, false);
 
 			assertNotNull(result);
-			assertEquals(-1, result.getNetRuntime());
-			assertNull(result.getAllAccumulatorResults());
 
 			program.deleteExtractedLibraries();
 
@@ -225,7 +224,13 @@ public class ClientTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception {
-			getSender().tell(new Status.Success(new JobID()), getSelf());
+			if (message instanceof JobManagerMessages.SubmitJob) {
+				JobID jid = ((JobManagerMessages.SubmitJob) message).jobGraph().getJobID();
+				getSender().tell(new Status.Success(jid), getSelf());
+			}
+			else {
+				getSender().tell(new Status.Failure(new Exception("Unknown message " + message)), getSelf());
+			}
 		}
 	}
 

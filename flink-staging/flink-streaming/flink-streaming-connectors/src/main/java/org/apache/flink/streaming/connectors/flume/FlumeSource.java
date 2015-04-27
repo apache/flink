@@ -21,7 +21,7 @@ import java.util.List;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.ConnectorSource;
-import org.apache.flink.streaming.connectors.util.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.util.Collector;
 import org.apache.flume.Context;
 import org.apache.flume.channel.ChannelProcessor;
@@ -35,6 +35,8 @@ public class FlumeSource<OUT> extends ConnectorSource<OUT> {
 	String host;
 	String port;
 	volatile boolean finished = false;
+
+	private volatile boolean isRunning = false;
 
 	FlumeSource(String host, int port, DeserializationSchema<OUT> deserializationSchema) {
 		super(deserializationSchema);
@@ -131,15 +133,17 @@ public class FlumeSource<OUT> extends ConnectorSource<OUT> {
 	 */
 	@Override
 	public void run(Collector<OUT> collector) throws Exception {
+		isRunning = true;
 		configureAvroSource(collector);
 		avroSource.start();
-		while (!finished) {
+		while (!finished && isRunning) {
 			this.wait();
 		}
 	}
 
 	@Override
 	public void cancel() {
+		isRunning = false;
 	}
 
 }

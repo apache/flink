@@ -17,21 +17,15 @@
  */
 package org.apache.flink.api.scala.io
 
+import java.io.{File, FileOutputStream, FileWriter, OutputStreamWriter}
+
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
-import org.junit.Assert._
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
-import java.io.File
-import java.io.FileOutputStream
-import java.io.FileWriter
-import java.io.OutputStreamWriter
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileInputSplit, Path}
+import org.junit.Assert.{assertEquals, assertNotNull, assertNull, assertTrue, fail}
 import org.junit.Test
-import org.apache.flink.api.scala._
 
 class CsvInputFormatTest {
 
@@ -265,7 +259,7 @@ class CsvInputFormatTest {
       assertEquals(Integer.valueOf(777), result._2)
       assertEquals(Integer.valueOf(888), result._3)
       assertEquals(Integer.valueOf(999), result._4)
-      assertEquals(Integer.valueOf(000), result._5)
+      assertEquals(Integer.valueOf(0), result._5)
       result = format.nextRecord(result)
       assertNull(result)
       assertTrue(format.reachedEnd)
@@ -315,7 +309,8 @@ class CsvInputFormatTest {
         PATH,
         createTypeInformation[(Int, Int, Int)])
       format.setFieldDelimiter("|")
-      format.setFields(Array(0, 3, 7), Array(classOf[Integer], classOf[Integer], classOf[Integer]))
+      format.setFields(Array(0, 3, 7),
+        Array(classOf[Integer], classOf[Integer], classOf[Integer]): Array[Class[_]])
       format.configure(new Configuration)
       format.open(split)
       var result: (Int, Int, Int) = null
@@ -326,7 +321,7 @@ class CsvInputFormatTest {
       assertEquals(Integer.valueOf(888), result._3)
       result = format.nextRecord(result)
       assertNotNull(result)
-      assertEquals(Integer.valueOf(000), result._1)
+      assertEquals(Integer.valueOf(0), result._1)
       assertEquals(Integer.valueOf(777), result._2)
       assertEquals(Integer.valueOf(333), result._3)
       result = format.nextRecord(result)
@@ -347,7 +342,8 @@ class CsvInputFormatTest {
         createTypeInformation[(Int, Int, Int)])
       format.setFieldDelimiter("|")
       try {
-        format.setFields(Array(8, 1, 3), Array(classOf[Integer],classOf[Integer],classOf[Integer]))
+        format.setFields(Array(8, 1, 3),
+          Array(classOf[Integer], classOf[Integer], classOf[Integer]): Array[Class[_]])
         fail("Input sequence should have been rejected.")
       }
       catch {
@@ -408,5 +404,102 @@ class CsvInputFormatTest {
         fail("Test erroneous")
     }
   }
-}
 
+  class POJOItem(var field1: Int, var field2: String, var field3: Double) {
+    def this() {
+      this(-1, "", -1)
+    }
+  }
+
+  case class CaseClassItem(field1: Int, field2: String, field3: Double)
+
+  private def validatePOJOItem(format: ScalaCsvInputFormat[POJOItem]): Unit = {
+    var result = new POJOItem()
+    result = format.nextRecord(result)
+    assertEquals(123, result.field1)
+    assertEquals("HELLO", result.field2)
+    assertEquals(3.123, result.field3, 0.001)
+
+    result = format.nextRecord(result)
+    assertEquals(456, result.field1)
+    assertEquals("ABC", result.field2)
+    assertEquals(1.234, result.field3, 0.001)
+  }
+
+  private def validateCaseClassItem(format: ScalaCsvInputFormat[CaseClassItem]): Unit = {
+    var result = format.nextRecord(null)
+    assertEquals(123, result.field1)
+    assertEquals("HELLO", result.field2)
+    assertEquals(3.123, result.field3, 0.001)
+
+    result = format.nextRecord(null)
+    assertEquals(456, result.field1)
+    assertEquals("ABC", result.field2)
+    assertEquals(1.234, result.field3, 0.001)
+  }
+
+  @Test
+  def testPOJOType(): Unit = {
+    val fileContent = "123,HELLO,3.123\n" + "456,ABC,1.234"
+    val tempFile = createTempFile(fileContent)
+    val typeInfo: TypeInformation[POJOItem] = createTypeInformation[POJOItem]
+    val format = new ScalaCsvInputFormat[POJOItem](PATH, typeInfo)
+
+    format.setDelimiter('\n')
+    format.setFieldDelimiter(',')
+    format.configure(new Configuration)
+    format.open(tempFile)
+
+    validatePOJOItem(format)
+  }
+
+  @Test
+  def testCaseClass(): Unit = {
+    val fileContent = "123,HELLO,3.123\n" + "456,ABC,1.234"
+    val tempFile = createTempFile(fileContent)
+    val typeInfo: TypeInformation[CaseClassItem] = createTypeInformation[CaseClassItem]
+    val format = new ScalaCsvInputFormat[CaseClassItem](PATH, typeInfo)
+
+    format.setDelimiter('\n')
+    format.setFieldDelimiter(',')
+    format.configure(new Configuration)
+    format.open(tempFile)
+
+    validateCaseClassItem(format)
+  }
+
+  @Test
+  def testPOJOTypeWithFieldMapping(): Unit = {
+    val fileContent = "HELLO,123,3.123\n" + "ABC,456,1.234"
+    val tempFile = createTempFile(fileContent)
+    val typeInfo: TypeInformation[POJOItem] = createTypeInformation[POJOItem]
+    val format = new ScalaCsvInputFormat[POJOItem](PATH, typeInfo)
+
+    format.setDelimiter('\n')
+    format.setFieldDelimiter(',')
+    format.setFieldTypes(Array(classOf[String], classOf[Integer], classOf[java.lang.Double]))
+    format.setOrderOfPOJOFields(Array("field2", "field1", "field3"))
+    format.configure(new Configuration)
+    format.open(tempFile)
+
+    validatePOJOItem(format)
+  }
+  
+  @Test
+  def testPOJOTypeWithFieldSubsetAndDataSubset(): Unit = {
+    val fileContent = "HELLO,123,NODATA,3.123,NODATA\n" + "ABC,456,NODATA,1.234,NODATA"
+    val tempFile = createTempFile(fileContent)
+    val typeInfo: TypeInformation[POJOItem] = createTypeInformation[POJOItem]
+    val format = new ScalaCsvInputFormat[POJOItem](PATH, typeInfo)
+
+    format.setDelimiter('\n')
+    format.setFieldDelimiter(',')
+    format.setFields(Array(true, true, false, true, false),
+      Array(classOf[String], classOf[Integer], classOf[java.lang.Double]): Array[Class[_]])
+    format.setOrderOfPOJOFields(Array("field2", "field1", "field3"))
+    format.configure(new Configuration)
+    format.open(tempFile)
+
+    validatePOJOItem(format)
+  }
+}

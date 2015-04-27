@@ -93,7 +93,7 @@ public class CliFrontendRunTest {
 		}
 
 		@Override
-		protected int executeProgram(PackagedProgram program, Client client, int parallelism) {
+		protected int executeProgram(PackagedProgram program, Client client, int parallelism, boolean wait) {
 			assertEquals(this.expectedParallelim, parallelism);
 			return 0;
 		}

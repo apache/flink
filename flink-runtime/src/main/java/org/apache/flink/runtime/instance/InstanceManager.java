@@ -49,13 +49,13 @@ public class InstanceManager {
 
 	/** Set of hosts known to run a task manager that are thus able to execute tasks (by connection). */
 	private final Map<ActorRef, Instance> registeredHostsByConnection;
-	
+
 	/** Set of hosts that were present once and have died */
 	private final Set<ActorRef> deadHosts;
-	
+
 	/** Listeners that want to be notified about availability and disappearance of instances */
 	private final List<InstanceListener> instanceListeners = new ArrayList<InstanceListener>();
-	
+
 	/** The total number of task slots that the system has */
 	private int totalNumberOfAliveTaskSlots;
 
@@ -65,7 +65,7 @@ public class InstanceManager {
 	// ------------------------------------------------------------------------
 	// Constructor and set-up
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Creates an new instance manager.
 	 */
@@ -85,7 +85,7 @@ public class InstanceManager {
 			for (Instance i : this.registeredHostsById.values()) {
 				i.markDead();
 			}
-			
+
 			this.registeredHostsById.clear();
 			this.registeredHostsByConnection.clear();
 			this.deadHosts.clear();
@@ -93,16 +93,16 @@ public class InstanceManager {
 		}
 	}
 
-	public boolean reportHeartBeat(InstanceID instanceId) {
+	public boolean reportHeartBeat(InstanceID instanceId, byte[] lastMetricsReport) {
 		if (instanceId == null) {
 			throw new IllegalArgumentException("InstanceID may not be null.");
 		}
-		
+
 		synchronized (this.lock) {
 			if (this.isShutdown) {
 				return false;
 			}
-			
+
 			Instance host = registeredHostsById.get(instanceId);
 
 			if (host == null){
@@ -115,6 +115,7 @@ public class InstanceManager {
 			}
 
 			host.reportHeartBeat();
+			host.setMetricsReport(lastMetricsReport);
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Received heartbeat from TaskManager " + host);
@@ -124,20 +125,19 @@ public class InstanceManager {
 		}
 	}
 
-	public InstanceID registerTaskManager(ActorRef taskManager, InstanceConnectionInfo connectionInfo,
-										HardwareDescription resources, int numberOfSlots){
+	public InstanceID registerTaskManager(ActorRef taskManager, InstanceConnectionInfo connectionInfo, HardwareDescription resources, int numberOfSlots){
 		synchronized(this.lock){
 			if (this.isShutdown) {
 				throw new IllegalStateException("InstanceManager is shut down.");
 			}
-			
+
 			Instance prior = registeredHostsByConnection.get(taskManager);
 			if (prior != null) {
 				LOG.info("Registration attempt from TaskManager at " + taskManager.path() +
 						". This connection is already registered under ID " + prior.getId());
 				return null;
 			}
-			
+
 			boolean wasDead = this.deadHosts.remove(taskManager);
 			if (wasDead) {
 				LOG.info("Registering TaskManager at " + taskManager.path() +
@@ -148,25 +148,25 @@ public class InstanceManager {
 			do {
 				id = new InstanceID();
 			} while (registeredHostsById.containsKey(id));
-			
-			
+
+
 			Instance host = new Instance(taskManager, connectionInfo, id, resources, numberOfSlots);
-			
+
 			registeredHostsById.put(id, host);
 			registeredHostsByConnection.put(taskManager, host);
-			
+
 			totalNumberOfAliveTaskSlots += numberOfSlots;
-			
+
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Registered TaskManager at %s (%s) as %s. Current number of registered hosts is %d.",
 						connectionInfo.getHostname(), taskManager.path(), id, registeredHostsById.size()));
 			}
 
 			host.reportHeartBeat();
-			
+
 			// notify all listeners (for example the scheduler)
 			notifyNewInstance(host);
-			
+
 			return id;
 		}
 	}
@@ -202,7 +202,7 @@ public class InstanceManager {
 	public int getTotalNumberOfSlots() {
 		return this.totalNumberOfAliveTaskSlots;
 	}
-	
+
 	public Collection<Instance> getAllRegisteredInstances() {
 		synchronized (this.lock) {
 			// return a copy (rather than a Collections.unmodifiable(...) wrapper), such that
@@ -218,21 +218,21 @@ public class InstanceManager {
 	public Instance getRegisteredInstance(ActorRef ref) {
 		return registeredHostsByConnection.get(ref);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public void addInstanceListener(InstanceListener listener) {
 		synchronized (this.instanceListeners) {
 			this.instanceListeners.add(listener);
 		}
 	}
-	
+
 	public void removeInstanceListener(InstanceListener listener) {
 		synchronized (this.instanceListeners) {
 			this.instanceListeners.remove(listener);
 		}
 	}
-	
+
 	private void notifyNewInstance(Instance instance) {
 		synchronized (this.instanceListeners) {
 			for (InstanceListener listener : this.instanceListeners) {
@@ -245,7 +245,7 @@ public class InstanceManager {
 			}
 		}
 	}
-	
+
 	private void notifyDeadInstance(Instance instance) {
 		synchronized (this.instanceListeners) {
 			for (InstanceListener listener : this.instanceListeners) {

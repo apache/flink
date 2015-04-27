@@ -18,10 +18,11 @@
 package org.apache.flink.streaming.connectors;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.function.source.GenericSourceFunction;
-import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.connectors.util.DeserializationSchema;
+import org.apache.flink.streaming.api.functions.source.GenericSourceFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 
 public abstract class ConnectorSource<OUT> extends RichParallelSourceFunction<OUT> implements
 		GenericSourceFunction<OUT> {
@@ -35,6 +36,9 @@ public abstract class ConnectorSource<OUT> extends RichParallelSourceFunction<OU
 
 	@Override
 	public TypeInformation<OUT> getType() {
+		if(schema instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) schema).getProducedType();
+		}
 		return TypeExtractor.createTypeInfo(DeserializationSchema.class, schema.getClass(), 0,
 				null, null);
 	}

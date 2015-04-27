@@ -31,7 +31,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * GroupReduce task which is executed by a Nephele task manager. The task has a
+ * GroupReduce task which is executed by a Task Manager. The task has a
  * single input and one or multiple outputs. It is provided with a GroupReduceFunction
  * implementation.
  * <p>

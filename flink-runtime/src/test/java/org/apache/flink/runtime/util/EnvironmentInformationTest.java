@@ -34,10 +34,12 @@ public class EnvironmentInformationTest {
 			long freeWithGC = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
 			
 			assertTrue(fullHeap > 0);
-			assertTrue(free > 0);
-			assertTrue(freeWithGC > 0);
-			assertTrue(free <= fullHeap);
-			assertTrue(freeWithGC <= fullHeap);
+			assertTrue(free >= 0);
+			assertTrue(freeWithGC >= 0);
+			
+			// we cannot make these assumptions, because the test JVM may grow / shrink during the GC
+			// assertTrue(free <= fullHeap);
+			// assertTrue(freeWithGC <= fullHeap);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

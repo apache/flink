@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.yarn
 
 import java.io.{PrintWriter, FileWriter, BufferedWriter}
@@ -45,7 +44,8 @@ object ApplicationMaster {
   val MODIFIED_CONF_FILE = "flink-conf-modified.yaml"
   val MAX_REGISTRATION_DURATION = "5 minutes"
 
-  def main(args: Array[String]): Unit ={
+  def main(args: Array[String]): Unit = {
+
     val yarnClientUsername = System.getenv(FlinkYarnClient.ENV_CLIENT_USERNAME)
     LOG.info(s"YARN daemon runs as ${UserGroupInformation.getCurrentUser.getShortUserName} " +
       s"setting user to execute Flink ApplicationMaster/JobManager to ${yarnClientUsername}")
@@ -102,6 +102,9 @@ object ApplicationMaster {
             LOG.info("Starting Job Manger web frontend.")
             config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logDirs)
             config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0); // set port to 0.
+            // set JobManager host/port for web interface.
+            config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, ownHostname)
+            config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerPort)
             webserver = new WebInfoServer(config, jobManager, archiver)
             webserver.start()
           }
@@ -170,7 +173,7 @@ object ApplicationMaster {
     if(slots != -1){
       output.println(s"${ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS}: $slots")
       output.println(
-        s"${ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY}: ${slots*taskManagerCount}")
+        s"${ConfigConstants.DEFAULT_PARALLELISM_KEY}: ${slots*taskManagerCount}")
     }
 
     output.println(s"${ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION}: " +

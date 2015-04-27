@@ -54,7 +54,7 @@ under the License.
 
 		<dependency>
 			<groupId>com.twitter</groupId>
-			<artifactId>chill_2.10</artifactId>
+			<artifactId>chill_${scala.binary.version}</artifactId>
 			<version>${chill.version}</version>
 		</dependency>
 

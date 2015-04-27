@@ -74,8 +74,8 @@ public class TaskManagerFailureRecoveryITCase {
 			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 16);
 
 			config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "500 ms");
-			config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "2 s");
-			config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 2);
+			config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "20 s");
+			config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 20);
 
 			cluster = new ForkableFlinkMiniCluster(config, false);
 
@@ -85,8 +85,9 @@ public class TaskManagerFailureRecoveryITCase {
 			final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getJobManagerRPCPort());
 
-			env.setDegreeOfParallelism(PARALLELISM);
+			env.setParallelism(PARALLELISM);
 			env.setNumberOfExecutionRetries(1);
+			env.getConfig().disableSysoutLogging();
 
 			env.generateSequence(1, 10)
 					.map(new FailingMapper<Long>())

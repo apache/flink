@@ -21,9 +21,6 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 
-/**
- * Non-grouped pre-reducer for tumbling eviction policy.
- */
 public class SlidingCountGroupedPreReducer<T> extends SlidingGroupedPreReducer<T> {
 
 	private static final long serialVersionUID = 1L;

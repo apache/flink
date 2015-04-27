@@ -18,12 +18,16 @@
 
 package org.apache.flink.api.java;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -38,6 +42,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.FormattingMapper;
@@ -58,15 +63,16 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
-import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.PartitionOperator;
+import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
 import org.apache.flink.api.java.operators.ReduceOperator;
 import org.apache.flink.api.java.operators.SortedGrouping;
@@ -181,8 +187,9 @@ public abstract class DataSet<T> {
 	public <F> F clean(F f) {
 		if (getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
 			ClosureCleaner.clean(f, true);
+		} else {
+			ClosureCleaner.ensureSerializable(f);
 		}
-		ClosureCleaner.ensureSerializable(f);
 		return f;
 	}
 
@@ -219,7 +226,7 @@ public abstract class DataSet<T> {
 	 * The function is called once per parallel partition of the data,
 	 * and the entire partition is available through the given Iterator.
 	 * The number of elements that each instance of the MapPartition function
-	 * sees is non deterministic and depends on the degree of parallelism of the operation.
+	 * sees is non deterministic and depends on the parallelism of the operation.
 	 *
 	 * This function is intended for operations that cannot transform individual elements,
 	 * requires no grouping of elements. To transform individual elements,
@@ -396,7 +403,8 @@ public abstract class DataSet<T> {
 	}
 
 
-	 /* Convenience method to get the elements of a DataSet as a List
+	/**
+	 * Convenience method to get the elements of a DataSet as a List
 	 * As DataSet can contain a lot of data, this method should be used with caution.
 	 *
 	 * @return A List containing the elements of the DataSet
@@ -404,15 +412,22 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.Utils.CollectHelper
 	 */
 	public List<T> collect() throws Exception {
-
 		final String id = new AbstractID().toString();
+		final TypeSerializer<T> serializer = getType().createSerializer(getExecutionEnvironment().getConfig());
+		
+		this.flatMap(new Utils.CollectHelper<T>(id, serializer)).output(new DiscardingOutputFormat<T>());
+		JobExecutionResult res = getExecutionEnvironment().execute();
 
-		this.flatMap(new Utils.CollectHelper<T>(id)).output(
-				new DiscardingOutputFormat<T>());
-
-		JobExecutionResult res = this.getExecutionEnvironment().execute();
-
-		return (List<T>) res.getAccumulatorResult(id);
+		ArrayList<byte[]> accResult = res.getAccumulatorResult(id);
+		try {
+			return SerializedListAccumulator.deserializeList(accResult, serializer);
+		}
+		catch (ClassNotFoundException e) {
+			throw new RuntimeException("Cannot find type class of collected data type.", e);
+		}
+		catch (IOException e) {
+			throw new RuntimeException("Serialization error while deserializing collected data", e);
+		}
 	}
 
 	/**
@@ -456,6 +471,28 @@ public abstract class DataSet<T> {
 		String callLocation = Utils.getCallLocationName();
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, getType(), callLocation, true);
 		return new GroupReduceOperator<T, R>(this, resultType, clean(reducer), callLocation);
+	}
+
+	/**
+	 * Applies a CombineFunction on a non-grouped {@link DataSet}.
+	 * A CombineFunction is similar to a GroupReduceFunction but does not perform a full data exchange. Instead, the
+	 * CombineFunction calls the combine method once per partition for combining a group of results. This
+	 * operator is suitable for combining values into an intermediate format before doing a proper groupReduce where
+	 * the data is shuffled across the node for further reduction. The GroupReduce operator can also be supplied with
+	 * a combiner by implementing the RichGroupReduce function. The combine method of the RichGroupReduce function
+	 * demands input and output type to be the same. The CombineFunction, on the other side, can have an arbitrary
+	 * output type.
+	 * @param combiner The CombineFunction that is applied on the DataSet.
+	 * @return A GroupCombineOperator which represents the combined DataSet.
+	 */
+	public <R> GroupCombineOperator<T, R> combineGroup(GroupCombineFunction<T, R> combiner) {
+		if (combiner == null) {
+			throw new NullPointerException("GroupReduce function must not be null.");
+		}
+
+		String callLocation = Utils.getCallLocationName();
+		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner, getType(), callLocation, true);
+		return new GroupCombineOperator<T, R>(this, resultType, clean(combiner), callLocation);
 	}
 
 	/**
@@ -1312,6 +1349,17 @@ public abstract class DataSet<T> {
 	public DataSink<T> print() {
 		return output(new PrintingOutputFormat<T>(false));
 	}
+
+	/**
+	 * Writes a DataSet to the standard output stream (stdout).<br/>
+	 * For each element of the DataSet the result of {@link Object#toString()} is written.
+	 *
+	 *  @param sinkIdentifier The string to prefix the output with.
+	 *  @return The DataSink that writes the DataSet.
+	 */
+	public DataSink<T> print(String sinkIdentifier) {
+		return output(new PrintingOutputFormat<T>(sinkIdentifier, false));
+	}
 	
 	/**
 	 * Writes a DataSet to the standard error stream (stderr).<br/>
@@ -1321,6 +1369,17 @@ public abstract class DataSet<T> {
 	 */
 	public DataSink<T> printToErr() {
 		return output(new PrintingOutputFormat<T>(true));
+	}
+
+	/**
+	 * Writes a DataSet to the standard error stream (stderr).<br/>
+	 * For each element of the DataSet the result of {@link Object#toString()} is written.
+	 *
+	 * @param sinkIdentifier The string to prefix the output with.
+	 * @return The DataSink that writes the DataSet.
+	 */
+	public DataSink<T> printToErr(String sinkIdentifier) {
+		return output(new PrintingOutputFormat<T>(sinkIdentifier, true));
 	}
 	
 	/**

@@ -47,8 +47,8 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
 
 	private BlockInfo block;
 
-	public TypeSerializerFormatTest(int numberOfTuples, long blockSize, int degreeOfParallelism) {
-		super(numberOfTuples, blockSize, degreeOfParallelism);
+	public TypeSerializerFormatTest(int numberOfTuples, long blockSize, int parallelism) {
+		super(numberOfTuples, blockSize, parallelism);
 
         resultType = TypeExtractor.getForObject(getRecord(0));
 

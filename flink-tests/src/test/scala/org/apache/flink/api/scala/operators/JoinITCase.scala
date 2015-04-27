@@ -21,7 +21,7 @@ import org.apache.flink.api.common.functions.RichJoinFunction
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
-import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase}
 import org.junit.{Test, After, Before, Rule}
 import org.junit.rules.TemporaryFolder
@@ -33,7 +33,7 @@ import scala.collection.JavaConverters._
 import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
-class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
+class JoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
   private var expected: String = null
   private val _tempFolder = new TemporaryFolder()
@@ -289,7 +289,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
       .where("nestedPojo.longNumber", "number", "str")
       .equalTo("_7", "_1", "_2")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One," +
       "10000)\n" + "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two," +
@@ -307,7 +307,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
     val joinDs = ds1.join(ds2).where("nestedPojo.longNumber", "number",
       "nestedTupleWithCustom._1").equalTo("_7", "_1", "_3")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One," +
       "10000)\n" + "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two," +
@@ -328,7 +328,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
         "nestedTupleWithCustom._2.myLong")
       .equalTo("_3", "_4", "_5")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One," +
       "10000)\n" + "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two," +
@@ -345,7 +345,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
     val ds2 = CollectionDataSets.getSmallNestedTupleDataSet(env)
     val joinDs = ds1.join(ds2).where(0).equalTo("_1._1", "_1._2")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "((1,1),one),((1,1),one)\n" + "((2,2),two),((2,2),two)\n" + "((3,3),three),((3,3)," +
       "three)\n"
@@ -362,7 +362,7 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
     val ds2 = CollectionDataSets.getSmallNestedTupleDataSet(env)
     val joinDs = ds1.join(ds2).where("_1._1").equalTo("_1._1")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "((1,1),one),((1,1),one)\n" + "((2,2),two),((2,2),two)\n" + "((3,3),three),((3,3)," +
       "three)\n"
@@ -378,10 +378,32 @@ class JoinITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
     val ds2 = CollectionDataSets.getSmallTuplebasedDataSetMatchingPojo(env)
     val joinDs = ds1.join(ds2).where("*").equalTo("*")
     joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
-    env.setDegreeOfParallelism(1)
+    env.setParallelism(1)
     env.execute()
     expected = "1 First (10,100,1000,One) 10000,(10000,10,100,1000,One,1,First)\n" +
       "2 Second (20,200,2000,Two) 20000,(20000,20,200,2000,Two,2,Second)\n" +
       "3 Third (30,300,3000,Three) 30000,(30000,30,300,3000,Three,3,Third)\n"
+  }
+
+  @Test
+  def testWithAtomic1(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
+    val ds2 = env.fromElements(0, 1, 2)
+    val joinDs = ds1.join(ds2).where(0).equalTo("*")
+    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "(1,1,Hi),1\n(2,2,Hello),2"
+  }
+
+  @Test
+  def testWithAtomic2(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromElements(0, 1, 2)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env)
+    val joinDs = ds1.join(ds2).where("*").equalTo(0)
+    joinDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "1,(1,1,Hi)\n2,(2,2,Hello)"
   }
 }

@@ -32,8 +32,6 @@ import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
-import org.apache.flink.streaming.api.windowing.windowbuffer.TumblingGroupedPreReducer;
-import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
 import org.apache.flink.streaming.api.windowing.windowbuffer.BasicWindowBufferTest.TestCollector;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.junit.Test;
@@ -68,6 +66,7 @@ public class TumblingGroupedPreReducerTest {
 		wb.store(serializer.copy(inputs.get(0)));
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.emitWindow(collector);
+		wb.evict(2);
 
 		assertEquals(1, collected.size());
 
@@ -78,12 +77,10 @@ public class TumblingGroupedPreReducerTest {
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.store(serializer.copy(inputs.get(2)));
 
-		// Nothing should happen here
-		wb.evict(3);
-
 		wb.store(serializer.copy(inputs.get(3)));
 
 		wb.emitWindow(collector);
+		wb.evict(4);
 
 		assertEquals(2, collected.size());
 
@@ -95,6 +92,40 @@ public class TumblingGroupedPreReducerTest {
 		assertEquals(reducer.allInputs.get(0), inputs.get(2));
 		assertEquals(reducer.allInputs.get(1), inputs.get(3));
 
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testEmitWindow2() throws Exception {
+
+		List<Tuple2<Integer, Integer>> inputs = new ArrayList<Tuple2<Integer, Integer>>();
+		inputs.add(new Tuple2<Integer, Integer>(1, 1));
+		inputs.add(new Tuple2<Integer, Integer>(0, 0));
+		inputs.add(new Tuple2<Integer, Integer>(1, -1));
+		inputs.add(new Tuple2<Integer, Integer>(1, -2));
+
+		TestCollector<StreamWindow<Tuple2<Integer, Integer>>> collector = new TestCollector<StreamWindow<Tuple2<Integer, Integer>>>();
+		List<StreamWindow<Tuple2<Integer, Integer>>> collected = collector.getCollected();
+
+		WindowBuffer<Tuple2<Integer, Integer>> wb = new TumblingGroupedPreReducer<Tuple2<Integer, Integer>>(
+				reducer, key, serializer).sequentialID();
+
+		wb.store(serializer.copy(inputs.get(0)));
+		wb.store(serializer.copy(inputs.get(1)));
+		wb.emitWindow(collector);
+		wb.evict(2);
+		
+		assertSetEquals(StreamWindow.fromElements(inputs.get(0), inputs.get(1)), collected.get(0));
+		
+		wb.store(serializer.copy(inputs.get(0)));
+		wb.store(serializer.copy(inputs.get(1)));
+		wb.store(serializer.copy(inputs.get(2)));
+		wb.emitWindow(collector);
+		wb.evict(3);
+		
+		assertSetEquals(StreamWindow.fromElements(new Tuple2<Integer, Integer>(2, 0), inputs.get(1)), collected.get(1));
+
+		
 	}
 
 	private static <T> void assertSetEquals(Collection<T> first, Collection<T> second) {

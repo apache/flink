@@ -18,41 +18,56 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.util.Arrays;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.InstantiationUtil;
 
 /**
  * This class represents an update about a task's execution state.
+ *
+ * <b>NOTE:</b> The exception that may be attached to the state update is
+ * not necessarily a Flink or core Java exception, but may be an exception
+ * from the user code. As such, it cannot be deserialized without a
+ * special class loader. For that reason, the class keeps the actual
+ * exception field transient and deserialized it lazily, with the
+ * appropriate class loader.
  */
-public class TaskExecutionState implements IOReadableWritable , java.io.Serializable {
+public class TaskExecutionState implements java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private JobID jobID;
+	private final JobID jobID;
 
-	private ExecutionAttemptID executionId;
+	private final ExecutionAttemptID executionId;
 
-	private ExecutionState executionState;
+	private final ExecutionState executionState;
 
-	private Throwable error;
+	private final byte[] serializedError;
 
-	
+	// The exception must not be (de)serialized with the class, as its
+	// class may not be part of the system class loader.
+	private transient Throwable cachedError;
+
+	/**
+	 * Creates a new task execution state update, with no attached exception.
+	 *
+	 * @param jobID
+	 *        the ID of the job the task belongs to
+	 * @param executionId
+	 *        the ID of the task execution whose state is to be reported
+	 * @param executionState
+	 *        the execution state to be reported
+	 */
 	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId, ExecutionState executionState) {
 		this(jobID, executionId, executionState, null);
 	}
 	
 	/**
-	 * Creates a new task execution state.
+	 * Creates a new task execution state update, with an attached exception.
 	 * 
 	 * @param jobID
 	 *        the ID of the job the task belongs to
@@ -63,29 +78,54 @@ public class TaskExecutionState implements IOReadableWritable , java.io.Serializ
 	 * @param error
 	 *        an optional error
 	 */
-	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId, ExecutionState executionState, Throwable error) {
+	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId,
+								ExecutionState executionState, Throwable error) {
+
 		if (jobID == null || executionId == null || executionState == null) {
 			throw new NullPointerException();
 		}
-		
+
 		this.jobID = jobID;
 		this.executionId = executionId;
 		this.executionState = executionState;
-		this.error = error;
-	}
+		this.cachedError = error;
 
-	/**
-	 * Creates an empty task execution state.
-	 */
-	public TaskExecutionState() {
-		this.jobID = new JobID();
-		this.executionId = new ExecutionAttemptID();
+		if (error != null) {
+			try {
+				this.serializedError = InstantiationUtil.serializeObject(error);
+			}
+			catch (IOException e) {
+				throw new RuntimeException("Error while serializing task exception", e);
+			}
+		} else {
+			this.serializedError = null;
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
-	public Throwable getError() {
-		return this.error;
+
+	/**
+	 * Gets the attached exception. Requires to pass a classloader, because the
+	 * class of the exception may be user-defined and hence only accessible through
+	 * the user code classloader, not the default classloader.
+	 *
+	 * @param usercodeClassloader The class loader for the user code of the
+	 *                            job this update refers to.
+	 */
+	public Throwable getError(ClassLoader usercodeClassloader) {
+		if (this.serializedError == null) {
+			return null;
+		}
+
+		if (this.cachedError == null) {
+			try {
+				cachedError = (Throwable) InstantiationUtil.deserializeObject(this.serializedError, usercodeClassloader);
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Error while deserializing the attached exception", e);
+			}
+		}
+		return this.cachedError;
 	}
 
 	/**
@@ -118,66 +158,14 @@ public class TaskExecutionState implements IOReadableWritable , java.io.Serializ
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void read(DataInputView in) throws IOException {
-		this.jobID.read(in);
-		this.executionId.read(in);
-		this.executionState = ExecutionState.values()[in.readInt()];
-
-		// read the exception
-		int errorDataLen = in.readInt();
-		if (errorDataLen > 0) {
-			byte[] data = new byte[errorDataLen];
-			in.readFully(data);
-			try {
-				ByteArrayInputStream bis = new ByteArrayInputStream(data);
-				ObjectInputStream ois = new ObjectInputStream(bis);
-				this.error = (Throwable) ois.readObject();
-				ois.close();
-			} catch (Throwable t) {
-				this.error = new Exception("An error occurred, but the exception could not be transfered through the RPC");
-			}
-		}
-		else {
-			this.error = null;
-		}
-	}
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		this.jobID.write(out);
-		this.executionId.write(out);
-		out.writeInt(this.executionState.ordinal());
-
-		// transfer the exception
-		if (this.error != null) {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			ObjectOutputStream oos = new ObjectOutputStream(baos);
-			oos.writeObject(error);
-			oos.flush();
-			oos.close();
-			
-			byte[] data = baos.toByteArray();
-			out.writeInt(data.length);
-			out.write(data);
-		}
-		else {
-			out.writeInt(0);
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-
-	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof TaskExecutionState) {
 			TaskExecutionState other = (TaskExecutionState) obj;
 			return other.jobID.equals(this.jobID) &&
 					other.executionId.equals(this.executionId) &&
 					other.executionState == this.executionState &&
-					(other.error == null ? this.error == null :
-						(this.error != null && other.error.getClass() == this.error.getClass()));
-			
-			// NOTE: exception equality does not work, so we can only check for same error class
+					(other.serializedError == null ? this.serializedError == null :
+						(this.serializedError != null && Arrays.equals(this.serializedError, other.serializedError)));
 		}
 		else {
 			return false;
@@ -192,6 +180,8 @@ public class TaskExecutionState implements IOReadableWritable , java.io.Serializ
 	@Override
 	public String toString() {
 		return String.format("TaskState jobId=%s, executionId=%s, state=%s, error=%s", 
-				jobID, executionId, executionState, error == null ? "(null)" : error.getClass().getName() + ": " + error.getMessage());
+				jobID, executionId, executionState,
+				cachedError == null ? "(null)"
+									: cachedError.getClass().getName() + ": " + cachedError.getMessage());
 	}
 }

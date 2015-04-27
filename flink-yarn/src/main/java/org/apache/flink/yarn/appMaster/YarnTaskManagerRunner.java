@@ -45,7 +45,6 @@ public class YarnTaskManagerRunner {
 
 
 	public static void main(final String[] args) throws IOException {
-
 		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN TaskManager", args);
 		EnvironmentInformation.checkJavaVersion();
 		org.apache.flink.runtime.util.SignalHandler.register(LOG);
@@ -88,7 +87,7 @@ public class YarnTaskManagerRunner {
 			@Override
 			public Object run() {
 				try {
-					TaskManager.runTaskManager(configuration, YarnTaskManager.class);
+					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, YarnTaskManager.class);
 				}
 				catch (Throwable t) {
 					LOG.error("Error while starting the TaskManager", t);

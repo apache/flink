@@ -17,18 +17,16 @@
  */
 package org.apache.flink.api.scala.types
 
-import java.io.DataInput
-import java.io.DataOutput
+import java.io.{DataInput, DataOutput}
+
+import org.apache.hadoop.io.Writable
+import org.junit.{Assert, Test}
+
 import org.apache.flink.api.common.typeinfo._
-import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils._
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.types.{IntValue, StringValue}
-import org.apache.hadoop.io.Writable
-import org.junit.Assert
-import org.junit.Test
-
-import org.apache.flink.api.scala._
 
 class MyWritable extends Writable {
   def write(out: DataOutput) {
@@ -81,6 +79,70 @@ class TypeInformationGenTest {
 
     f(data)
 
+  }
+
+  @Test
+  def testGenericArrays(): Unit = {
+
+    class MyObject(var a: Int, var b: String) {
+      def this() = this(0, "")
+    }
+
+    val boolArray = Array(true, false)
+    val byteArray = Array(1.toByte, 2.toByte, 3.toByte)
+    val charArray= Array(1.toChar, 2.toChar, 3.toChar)
+    val shortArray = Array(1.toShort, 2.toShort, 3.toShort)
+    val intArray = Array(1, 2, 3)
+    val longArray = Array(1L, 2L, 3L)
+    val floatArray = Array(1.0f, 2.0f, 3.0f)
+    val doubleArray = Array(1.0, 2.0, 3.0)
+    val stringArray = Array("hey", "there")
+    val objectArray = Array(new MyObject(1, "hey"), new MyObject(2, "there"))
+
+    def getType[T: TypeInformation](arr: Array[T]): TypeInformation[Array[T]] = {
+      createTypeInformation[Array[T]]
+    }
+
+    Assert.assertEquals(
+      PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO,
+      getType(boolArray))
+
+    Assert.assertEquals(
+      PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
+      getType(byteArray))
+
+    Assert.assertEquals(
+      PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO,
+      getType(charArray))
+
+    Assert.assertEquals(
+      PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO,
+      getType(shortArray))
+
+    Assert.assertEquals(
+      PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
+      getType(intArray))
+
+    Assert.assertEquals(
+      PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO,
+      getType(longArray))
+
+    Assert.assertEquals(
+      PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO,
+      getType(floatArray))
+
+    Assert.assertEquals(
+      PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
+      getType(doubleArray))
+
+    Assert.assertEquals(
+      BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO,
+      getType(stringArray))
+
+    Assert.assertTrue(getType(objectArray).isInstanceOf[ObjectArrayTypeInfo[_, _]])
+    Assert.assertTrue(
+      getType(objectArray).asInstanceOf[ObjectArrayTypeInfo[_, _]]
+        .getComponentInfo.isInstanceOf[PojoTypeInfo[_]])
   }
 
   @Test

@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
  * The iterative data stream represents the start of an iteration in a
@@ -78,11 +78,11 @@ public class IterativeDataStream<IN> extends
 
 	@Override
 	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, StreamInvokable<IN, R> invokable) {
+			TypeInformation<R> outTypeInfo, StreamOperator<IN, R> operator) {
 
 		// We call the superclass tranform method
 		SingleOutputStreamOperator<R, ?> returnStream = super.transform(operatorName, outTypeInfo,
-				invokable);
+				operator);
 
 		// Then we add a source that will take care of receiving feedback tuples
 		// from the tail
@@ -92,12 +92,9 @@ public class IterativeDataStream<IN> extends
 	}
 
 	private <X> void addIterationSource(DataStream<X> dataStream) {
-
-		DataStream<X> iterationSource = new DataStreamSource<X>(environment, "Iteration Source",
-				null, null, true);
-
-		streamGraph.addIterationHead(iterationSource.getId(), dataStream.getId(), iterationID,
-				dataStream.getParallelism(), waitTime);
+		Integer id = ++counter;
+		streamGraph.addIterationHead(id, dataStream.getId(), iterationID, waitTime);
+		streamGraph.setParallelism(id, dataStream.getParallelism());
 	}
 
 	@Override

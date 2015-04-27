@@ -29,9 +29,6 @@
 #  https://github.com/apache/spark/blob/master/dev/create-release/create-release.sh
 #
 
-# Added by rmetzger
-echo "Please make sure to use java 6 OPENJDK (not oracle) to build the release binaries"
-exit 1
 
 CURR_DIR=`pwd`
 if [[ `basename $CURR_DIR` != "tools" ]] ; then
@@ -106,6 +103,20 @@ make_binary_release() {
   cd flink-$RELEASE_VERSION-bin-$NAME
   # make distribution
   $MVN clean package $FLAGS -DskipTests
+
+  # Check that the uberjar is not too big
+  UBERJAR=`find . | grep flink-dist | head -n 1`
+  if [ -z "$UBERJAR" ] ; then
+    echo "Uberjar not found. Assuming failed build";
+  else 
+    jar tf $UBERJAR | wc -l > num_files_in_uberjar
+    NUM_FILES_IN_UBERJAR=`cat num_files_in_uberjar`
+    echo "Files in uberjar: $NUM_FILES_IN_UBERJAR. Uberjar: $UBERJAR"
+    if [ "$NUM_FILES_IN_UBERJAR" -ge "65536" ] ; then
+      echo "The number of files in the uberjar ($NUM_FILES_IN_UBERJAR) exceeds the maximum number of possible files for Java 6 (65536)"
+      exit 1
+    fi
+  fi
   cd flink-dist/target/flink-$RELEASE_VERSION-bin/
   tar cvzf flink-$RELEASE_VERSION-bin-$NAME.tgz flink-$RELEASE_VERSION
   if [ -d "flink-yarn-$RELEASE_VERSION" ] ; then

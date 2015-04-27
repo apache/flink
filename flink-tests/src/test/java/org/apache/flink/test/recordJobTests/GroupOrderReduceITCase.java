@@ -65,7 +65,7 @@ public class GroupOrderReduceITCase extends RecordAPITestBase {
 	
 	public GroupOrderReduceITCase(Configuration config) {
 		super(config);
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	
@@ -78,7 +78,7 @@ public class GroupOrderReduceITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		
-		int dop = this.config.getInteger("GroupOrderTest#NumSubtasks", 1);
+		int parallelism = this.config.getInteger("GroupOrderTest#NumSubtasks", 1);
 		
 		@SuppressWarnings("unchecked")
 		CsvInputFormat format = new CsvInputFormat(',', IntValue.class, IntValue.class);
@@ -99,7 +99,7 @@ public class GroupOrderReduceITCase extends RecordAPITestBase {
 			.field(IntValue.class, 1);
 		
 		Plan p = new Plan(sink);
-		p.setDefaultParallelism(dop);
+		p.setDefaultParallelism(parallelism);
 		return p;
 	}
 
@@ -110,7 +110,7 @@ public class GroupOrderReduceITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("GroupOrderTest#NumSubtasks", DOP);
+		config.setInteger("GroupOrderTest#NumSubtasks", parallelism);
 		return toParameterList(config);
 	}
 	

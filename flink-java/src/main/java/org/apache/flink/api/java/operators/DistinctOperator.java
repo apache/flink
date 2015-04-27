@@ -88,7 +88,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 
 			po.setCombinable(true);
 			po.setInput(input);
-			po.setDegreeOfParallelism(getParallelism());
+			po.setParallelism(getParallelism());
 			
 			// make sure that distinct preserves the partitioning for the fields on which they operate
 			if (getType().isTupleType()) {
@@ -113,7 +113,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 			PlanUnwrappingReduceGroupOperator<T, T, ?> po = translateSelectorFunctionDistinct(
 							selectorKeys, function, getInputType(), getResultType(), name, input);
 			
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setParallelism(this.getParallelism());
 			
 			return po;
 		}
@@ -145,7 +145,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		mapper.setInput(input);
 		
 		// set the mapper's parallelism to the input parallelism to make sure it is chained
-		mapper.setDegreeOfParallelism(input.getDegreeOfParallelism());
+		mapper.setParallelism(input.getParallelism());
 		
 		return reducer;
 	}

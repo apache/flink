@@ -32,9 +32,18 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 		CollectionExecutor exec = new CollectionExecutor(getConfig());
 		return exec.execute(p);
 	}
-	
+
+	/**
+	 * @deprecated Please use {@link #getParallelism}
+	 */
 	@Override
+	@Deprecated
 	public int getDegreeOfParallelism() {
+		return getParallelism();
+	}
+
+	@Override
+	public int getParallelism() {
 		return 1; // always serial
 	}
 	

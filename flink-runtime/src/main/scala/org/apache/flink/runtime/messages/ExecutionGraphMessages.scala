@@ -21,9 +21,10 @@ package org.apache.flink.runtime.messages
 import java.text.SimpleDateFormat
 import java.util.Date
 
+import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID}
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID}
 
 /**
  * This object contains the execution graph specific messages.
@@ -63,7 +64,7 @@ object ExecutionGraphMessages {
   /**
    * Denotes the job state change of a job.
    *
-   * @param jobID identifying the correspong job
+   * @param jobID identifying the corresponding job
    * @param newJobStatus
    * @param timestamp
    * @param error

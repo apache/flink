@@ -32,7 +32,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 
 import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_ADDRESSABLE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_ID_SCOPE;

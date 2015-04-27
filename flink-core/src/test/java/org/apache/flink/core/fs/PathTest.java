@@ -63,6 +63,12 @@ public class PathTest {
 		assertEquals("/my/path", p.toUri().getPath());
 		assertEquals("file", p.toUri().getScheme());
 
+		p = new Path("C:/my/windows/path");
+		assertEquals("/C:/my/windows/path", p.toUri().getPath());
+
+		p = new Path("file:/C:/my/windows/path");
+		assertEquals("/C:/my/windows/path", p.toUri().getPath());
+
 		try {
 			new Path((String)null);
 			fail();
@@ -89,12 +95,51 @@ public class PathTest {
 	@Test
 	public void testIsAbsolute() {
 
+		// UNIX
+
 		Path p = new Path("/my/abs/path");
+		assertTrue(p.isAbsolute());
+
+		p = new Path("/");
 		assertTrue(p.isAbsolute());
 
 		p = new Path("./my/rel/path");
 		assertFalse(p.isAbsolute());
 
+		p = new Path("my/rel/path");
+		assertFalse(p.isAbsolute());
+
+		// WINDOWS
+
+		p = new Path("C:/my/abs/windows/path");
+		assertTrue(p.isAbsolute());
+
+		p = new Path("y:/my/abs/windows/path");
+		assertTrue(p.isAbsolute());
+
+		p = new Path("b:\\my\\abs\\windows\\path");
+		assertTrue(p.isAbsolute());
+
+		p = new Path("C:");
+		assertFalse(p.isAbsolute());
+
+		p = new Path("C:my\\relative\\path");
+		assertFalse(p.isAbsolute());
+
+		p = new Path("\\my\\dir");
+		assertTrue(p.isAbsolute());
+
+		p = new Path("\\");
+		assertTrue(p.isAbsolute());
+
+		p = new Path(".\\my\\relative\\path");
+		assertFalse(p.isAbsolute());
+
+		p = new Path("my\\relative\\path");
+		assertFalse(p.isAbsolute());
+
+		p = new Path("\\\\myServer\\myDir");
+		assertTrue(p.isAbsolute());
 	}
 
 	@Test
@@ -115,6 +160,12 @@ public class PathTest {
 		p = new Path("/");
 		assertEquals("", p.getName());
 
+		p = new Path("C:/my/windows/path");
+		assertEquals("path", p.getName());
+
+		p = new Path("file:/C:/my/windows/path");
+		assertEquals("path", p.getName());
+
 	}
 
 	@Test
@@ -134,6 +185,9 @@ public class PathTest {
 
 		p = new Path("/");
 		assertNull(p.getParent());
+
+		p = new Path("C:/my/windows/path");
+		assertEquals("/C:/my/windows", p.getParent().toUri().getPath());
 	}
 
 	@Test
@@ -146,6 +200,10 @@ public class PathTest {
 		p = new Path("/my/path/");
 		p = p.suffix("/abc");
 		assertEquals("/my/path/abc", p.toUri().getPath());
+
+		p = new Path("C:/my/windows/path");
+		p = p.suffix("/abc");
+		assertEquals("/C:/my/windows/path/abc", p.toUri().getPath());
 
 	}
 
@@ -163,6 +221,9 @@ public class PathTest {
 
 		p = new Path("/");
 		assertEquals(0, p.depth());
+
+		p = new Path("C:/my/windows/path");
+		assertEquals(4, p.depth());
 	}
 
 	@Test

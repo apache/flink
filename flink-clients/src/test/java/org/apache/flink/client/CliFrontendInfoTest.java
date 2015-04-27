@@ -22,7 +22,7 @@ import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.compiler.CompilerException;
+import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.configuration.Configuration;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -105,7 +105,7 @@ public class CliFrontendInfoTest {
 		}
 
 		@Override
-		protected Client getClient(CommandLineOptions options, ClassLoader loader, String programName)
+		protected Client getClient(CommandLineOptions options, ClassLoader loader, String programName, int par)
 				throws Exception
 		{
 			return new TestClient(expectedDop);
@@ -118,7 +118,7 @@ public class CliFrontendInfoTest {
 		
 		private TestClient(int expectedDop) throws Exception {
 			super(new InetSocketAddress(InetAddress.getLocalHost(), 6176),
-					new Configuration(), CliFrontendInfoTest.class.getClassLoader());
+					new Configuration(), CliFrontendInfoTest.class.getClassLoader(), -1);
 			
 			this.expectedDop = expectedDop;
 		}

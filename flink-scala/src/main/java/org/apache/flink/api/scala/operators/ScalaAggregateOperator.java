@@ -178,8 +178,8 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 
 			// set input
 			po.setInput(input);
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			// set parallelism
+			po.setParallelism(this.getParallelism());
 
 			return po;
 		}
@@ -195,8 +195,8 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 
 			// set input
 			po.setInput(input);
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			// set parallelism
+			po.setParallelism(this.getParallelism());
 
 			SingleInputSemanticProperties props = new SingleInputSemanticProperties();
 

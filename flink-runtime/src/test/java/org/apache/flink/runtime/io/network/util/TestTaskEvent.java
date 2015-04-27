@@ -24,6 +24,9 @@ import org.apache.flink.runtime.event.task.TaskEvent;
 
 import java.io.IOException;
 
+/**
+ * A task event used in various tests.
+ */
 public class TestTaskEvent extends TaskEvent {
 
 	private double val0;

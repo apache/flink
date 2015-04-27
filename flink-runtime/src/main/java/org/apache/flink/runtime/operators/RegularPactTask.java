@@ -18,12 +18,11 @@
 
 package org.apache.flink.runtime.operators;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -32,7 +31,6 @@ import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.accumulators.AccumulatorEvent;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -45,7 +43,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
@@ -67,6 +64,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -513,7 +511,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			if (this.stub != null) {
 				// collect the counters from the stub
 				if (FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext) != null) {
-					Map<String, Accumulator<?, ?>> accumulators = FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
+					Map<String, Accumulator<?, ?>> accumulators =
+							FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
 					RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
 				}
 			}
@@ -524,7 +523,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				try {
 					FunctionUtils.closeFunction(this.stub);
 				}
-				catch (Throwable t) {}
+				catch (Throwable t) {
+					// do nothing
+				}
 			}
 			
 			// if resettable driver invoke teardown
@@ -564,15 +565,17 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 *          Each chained task might have accumulators which will be merged
 	 *          with the accumulators of the stub.
 	 */
-	protected static void reportAndClearAccumulators(
-			Environment env, Map<String, Accumulator<?, ?>> accumulators, ArrayList<ChainedDriver<?, ?>> chainedTasks) {
+	protected static void reportAndClearAccumulators(Environment env,
+													Map<String, Accumulator<?, ?>> accumulators,
+													ArrayList<ChainedDriver<?, ?>> chainedTasks) {
 
 		// We can merge here the accumulators from the stub and the chained
 		// tasks. Type conflicts can occur here if counters with same name but
 		// different type were used.
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
 			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
-				Map<String, Accumulator<?, ?>> chainedAccumulators = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators();
+				Map<String, Accumulator<?, ?>> chainedAccumulators =
+						FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators();
 				AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
 			}
 		}
@@ -583,9 +586,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 
 		// Report accumulators to JobManager
-		JobManagerMessages.ReportAccumulatorResult accResult = new JobManagerMessages.ReportAccumulatorResult(new
-				AccumulatorEvent(env.getJobID(), AccumulatorHelper.copy(accumulators)));
-		env.getJobManager().tell(accResult, ActorRef.noSender());
+		env.reportAccumulators(accumulators);
 
 		// We also clear the accumulators, since stub instances might be reused
 		// (e.g. in iterations) and we don't want to count twice. This may not be
@@ -1005,13 +1006,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 							(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 				}
 				
-				if (!(localStub instanceof FlatCombineFunction)) {
+				if (!(localStub instanceof GroupCombineFunction)) {
 					throw new IllegalStateException("Performing combining sort outside a reduce task!");
 				}
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(FlatCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
+					(GroupCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));
@@ -1236,12 +1237,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * @param task The task that the output collector is created for.
 	 * @param config The configuration describing the output shipping strategies.
 	 * @param cl The classloader used to load user defined types.
+	 * @param eventualOutputs The output writers that this task forwards to the next task for each output.
+	 * @param outputOffset The offset to start to get the writers for the outputs
 	 * @param numOutputs The number of outputs described in the configuration.
 	 *
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
-	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs)
-			throws Exception
+	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl,
+			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs) throws Exception
 	{
 		if (numOutputs == 0) {
 			return null;
@@ -1464,7 +1467,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		for (int i = 0; i < tasks.size(); i++) {
 			try {
 				tasks.get(i).cancelTask();
-			} catch (Throwable t) {}
+			} catch (Throwable t) {
+				// do nothing
+			}
 		}
 	}
 	

@@ -39,7 +39,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
-	public GraphOperationsITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public GraphOperationsITCase(TestExecutionMode mode){
 		super(mode);
 	}
 
@@ -180,7 +180,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		graph.numberOfVertices().writeAsText(resultPath);
+		env.fromElements(graph.numberOfVertices()).writeAsText(resultPath);
 
 		env.execute();
 		expectedResult = "5";
@@ -195,7 +195,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
-		graph.numberOfEdges().writeAsText(resultPath);
+		env.fromElements(graph.numberOfEdges()).writeAsText(resultPath);
 
 		env.execute();
 		expectedResult = "7";
@@ -264,5 +264,24 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 					"4,5,45\n" +
 					"5,1,51\n" +
 					"6,1,61\n";
+	}
+
+	@Test
+	public void testTriplets() throws Exception {
+		/*
+		 * Test getTriplets()
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+				TestGraphUtils.getLongLongEdgeData(env), env);
+
+		graph.getTriplets().writeAsCsv(resultPath);
+
+		env.execute();
+		expectedResult = "1,2,1,2,12\n" + "1,3,1,3,13\n" +
+				"2,3,2,3,23\n" + "3,4,3,4,34\n" +
+				"3,5,3,5,35\n" + "4,5,4,5,45\n" +
+				"5,1,5,1,51\n";
 	}
 }

@@ -18,20 +18,28 @@
 
 package org.apache.flink.api.java.operator;
 
+import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operator.JoinOperatorTest.CustomType;
+import org.apache.flink.api.java.operators.CoGroupOperator;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.util.Collector;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.Assert;
-import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.operator.JoinOperatorTest.CustomType;
+import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 public class CoGroupOperatorTest {
@@ -172,6 +180,78 @@ public class CoGroupOperatorTest {
 
 		// should not work, cogroup key non-existent
 		ds1.coGroup(ds2).where("myNonExistent").equalTo("myInt");
+	}
+
+	@Test
+	public void testCoGroupKeyAtomicExpression1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 1);
+
+		ds1.coGroup(ds2).where("myInt").equalTo("*");
+	}
+
+	@Test
+	public void testCoGroupKeyAtomicExpression2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 1);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		ds1.coGroup(ds2).where("*").equalTo("myInt");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression1() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 1);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		ds1.coGroup(ds2).where("*", "invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression2() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 1);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+
+		ds1.coGroup(ds2).where("invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression3() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 1);
+
+		ds1.coGroup(ds2).where("myInt").equalTo("invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression4() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 1);
+
+		ds1.coGroup(ds2).where("myInt").equalTo("*", "invalidKey");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression5() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<ArrayList<Integer>> ds1 = env.fromElements(new ArrayList<Integer>());
+		DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
+
+		ds1.coGroup(ds2).where("*");
+	}
+
+	@Test(expected = InvalidProgramException.class)
+	public void testCoGroupKeyAtomicInvalidExpression6() {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
+		DataSet<ArrayList<Integer>> ds2 = env.fromElements(new ArrayList<Integer>());
+
+		ds1.coGroup(ds2).where("*").equalTo("*");
 	}
 	
 	@Test
@@ -347,5 +427,129 @@ public class CoGroupOperatorTest {
 						}
 					}
 				);
+	}
+
+	@Test
+	public void testSemanticPropsWithKeySelector1() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		CoGroupOperator<?,?,?> coGroupOp = tupleDs1.coGroup(tupleDs2)
+				.where(new DummyTestKeySelector()).equalTo(new DummyTestKeySelector())
+				.with(new DummyTestCoGroupFunction1());
+
+		SemanticProperties semProps = coGroupOp.getSemanticProperties();
+
+		assertTrue(semProps.getForwardingTargetFields(0, 0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,2).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(0,2).contains(4));
+		assertTrue(semProps.getForwardingTargetFields(0,3).size() == 2);
+		assertTrue(semProps.getForwardingTargetFields(0,3).contains(1));
+		assertTrue(semProps.getForwardingTargetFields(0,3).contains(3));
+		assertTrue(semProps.getForwardingTargetFields(0,4).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,5).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,6).size() == 0);
+
+		assertTrue(semProps.getForwardingTargetFields(1,0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,2).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,3).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,4).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(1,4).contains(2));
+		assertTrue(semProps.getForwardingTargetFields(1,5).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,6).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(1,6).contains(0));
+
+		assertTrue(semProps.getReadFields(0).size() == 3);
+		assertTrue(semProps.getReadFields(0).contains(2));
+		assertTrue(semProps.getReadFields(0).contains(4));
+		assertTrue(semProps.getReadFields(0).contains(6));
+
+		assertTrue(semProps.getReadFields(1).size() == 2);
+		assertTrue(semProps.getReadFields(1).contains(3));
+		assertTrue(semProps.getReadFields(1).contains(5));
+	}
+
+	@Test
+	public void testSemanticPropsWithKeySelector2() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		CoGroupOperator<?,?,?> coGroupOp = tupleDs1.coGroup(tupleDs2)
+				.where(new DummyTestKeySelector()).equalTo(new DummyTestKeySelector())
+				.with(new DummyTestCoGroupFunction2())
+				.withForwardedFieldsFirst("2;4->0")
+				.withForwardedFieldsSecond("0->4;1;1->3");
+
+		SemanticProperties semProps = coGroupOp.getSemanticProperties();
+
+		assertTrue(semProps.getForwardingTargetFields(0,0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,2).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,3).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,4).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(0,4).contains(2));
+		assertTrue(semProps.getForwardingTargetFields(0,5).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(0,6).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(0,6).contains(0));
+
+		assertTrue(semProps.getForwardingTargetFields(1,0).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,1).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,2).size() == 1);
+		assertTrue(semProps.getForwardingTargetFields(1,2).contains(4));
+		assertTrue(semProps.getForwardingTargetFields(1,3).size() == 2);
+		assertTrue(semProps.getForwardingTargetFields(1,3).contains(1));
+		assertTrue(semProps.getForwardingTargetFields(1,3).contains(3));
+		assertTrue(semProps.getForwardingTargetFields(1,4).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,5).size() == 0);
+		assertTrue(semProps.getForwardingTargetFields(1,6).size() == 0);
+
+		assertTrue(semProps.getReadFields(0).size() == 3);
+		assertTrue(semProps.getReadFields(0).contains(2));
+		assertTrue(semProps.getReadFields(0).contains(3));
+		assertTrue(semProps.getReadFields(0).contains(4));
+
+		assertTrue(semProps.getReadFields(1) == null);
+	}
+
+	public static class DummyTestKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Tuple2<Long, Integer>> {
+		@Override
+		public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, String, Long, Integer> value) throws Exception {
+			return new Tuple2<Long, Integer>();
+		}
+	}
+
+	@FunctionAnnotation.ForwardedFieldsFirst("0->4;1;1->3")
+	@FunctionAnnotation.ForwardedFieldsSecond("2;4->0")
+	@FunctionAnnotation.ReadFieldsFirst("0;2;4")
+	@FunctionAnnotation.ReadFieldsSecond("1;3")
+	public static class DummyTestCoGroupFunction1
+			implements CoGroupFunction<Tuple5<Integer, Long, String, Long, Integer>,
+						Tuple5<Integer, Long, String, Long, Integer>,
+						Tuple5<Integer, Long, String, Long, Integer>> {
+
+		@Override
+		public void coGroup(Iterable<Tuple5<Integer, Long, String, Long, Integer>> first,
+							Iterable<Tuple5<Integer, Long, String, Long, Integer>> second,
+							Collector<Tuple5<Integer, Long, String, Long, Integer>> out) throws Exception {
+		}
+	}
+
+	@FunctionAnnotation.ReadFieldsFirst("0;1;2")
+	public static class DummyTestCoGroupFunction2
+			implements CoGroupFunction<Tuple5<Integer, Long, String, Long, Integer>,
+			Tuple5<Integer, Long, String, Long, Integer>,
+			Tuple5<Integer, Long, String, Long, Integer>> {
+
+		@Override
+		public void coGroup(Iterable<Tuple5<Integer, Long, String, Long, Integer>> first,
+							Iterable<Tuple5<Integer, Long, String, Long, Integer>> second,
+							Collector<Tuple5<Integer, Long, String, Long, Integer>> out) throws Exception {
+		}
 	}
 }

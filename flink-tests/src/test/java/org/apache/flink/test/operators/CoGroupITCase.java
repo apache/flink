@@ -32,7 +32,7 @@ import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.api.java.record.operators.CoGroupOperator;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.compiler.PactCompiler;
+import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
@@ -146,23 +146,23 @@ public class CoGroupITCase extends RecordAPITestBase {
 		FileDataSource input_left =  new FileDataSource(new CoGroupTestInFormat(), leftInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_left)
 			.recordDelimiter('\n');
-		input_left.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
+		input_left.setParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
 		FileDataSource input_right =  new FileDataSource(new CoGroupTestInFormat(), rightInPath);
 		DelimitedInputFormat.configureDelimitedFormat(input_right)
 			.recordDelimiter('\n');
-		input_right.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
+		input_right.setParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
 
 		CoGroupOperator testCoGrouper = CoGroupOperator.builder(new TestCoGrouper(), StringValue.class, 0, 0)
 			.build();
-		testCoGrouper.setDegreeOfParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
-		testCoGrouper.getParameters().setString(PactCompiler.HINT_LOCAL_STRATEGY,
+		testCoGrouper.setParallelism(config.getInteger("CoGroupTest#NoSubtasks", 1));
+		testCoGrouper.getParameters().setString(Optimizer.HINT_LOCAL_STRATEGY,
 				config.getString("CoGroupTest#LocalStrategy", ""));
-		testCoGrouper.getParameters().setString(PactCompiler.HINT_SHIP_STRATEGY,
+		testCoGrouper.getParameters().setString(Optimizer.HINT_SHIP_STRATEGY,
 				config.getString("CoGroupTest#ShipStrategy", ""));
 
 		FileDataSink output = new FileDataSink(new CoGroupOutFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 
 		output.setInput(testCoGrouper);
 		testCoGrouper.setFirstInput(input_left);
@@ -181,9 +181,9 @@ public class CoGroupITCase extends RecordAPITestBase {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		String[] localStrategies = { PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE };
+		String[] localStrategies = { Optimizer.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE };
 
-		String[] shipStrategies = { PactCompiler.HINT_SHIP_STRATEGY_REPARTITION_HASH };
+		String[] shipStrategies = { Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH };
 
 		for (String localStrategy : localStrategies) {
 			for (String shipStrategy : shipStrategies) {

@@ -71,7 +71,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         availableSlots should equal(1)
 
         within(2 second) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
 
           val success = expectMsgType[Success]
 
@@ -116,12 +116,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         availableSlots should equal(num_tasks)
 
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
 
           expectMsg(Success(jobGraph.getJobID))
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph.getJobID)
+          result.result.getJobId() should equal(jobGraph.getJobID)
         }
 
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
@@ -146,13 +146,13 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
 
           expectMsg(Success(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph.getJobID)
+          result.result.getJobId() should equal(jobGraph.getJobID)
         }
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
         expectMsg(true)
@@ -181,13 +181,13 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
 
           expectMsg(Success(jobGraph.getJobID))
 
           val result = expectMsgType[JobResultSuccess]
 
-          result.jobID should equal(jobGraph.getJobID)
+          result.result.getJobId() should equal(jobGraph.getJobID)
         }
         jm ! NotifyWhenJobRemoved(jobGraph.getJobID)
         expectMsg(true)
@@ -216,7 +216,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
 
           expectMsg(Success(jobGraph.getJobID))
 
@@ -253,7 +253,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
 
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
@@ -297,7 +297,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]
@@ -341,7 +341,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
 
           expectMsg(Success(jobGraph.getJobID))
 
@@ -380,7 +380,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           val failure = expectMsgType[Failure]
@@ -428,7 +428,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         }
 
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
 
@@ -467,7 +467,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
 
@@ -509,7 +509,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           jm ! RequestTotalNumberOfSlots
           expectMsg(num_tasks)
 
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
 
@@ -556,7 +556,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           jm ! RequestTotalNumberOfSlots
           expectMsg(num_tasks)
 
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
           val failure = expectMsgType[Failure]
 
@@ -595,7 +595,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try{
         within(TestingUtils.TESTING_DURATION){
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
 
           expectMsg(Success(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]

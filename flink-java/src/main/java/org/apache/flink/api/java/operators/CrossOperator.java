@@ -95,7 +95,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 		po.setFirstInput(input1);
 		po.setSecondInput(input2);
-		po.setDegreeOfParallelism(getParallelism());
+		po.setParallelism(getParallelism());
 		po.setCrossHint(hint);
 
 		return po;

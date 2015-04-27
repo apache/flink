@@ -46,7 +46,7 @@ under the License.
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-compiler</artifactId>
+			<artifactId>flink-optimizer</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -126,6 +126,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-optimizer</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
@@ -134,13 +142,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.scalatest</groupId>
-			<artifactId>scalatest_2.10</artifactId>
+			<artifactId>scalatest_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_2.10</artifactId>
+			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 		</dependency>
 		
 		<dependency>
@@ -331,7 +339,7 @@ under the License.
 						<configuration>
 							<archive>
 								<manifest>
-									<mainClass>org.apache.flink.test.util.testjar.KMeansForTest</mainClass>
+									<mainClass>org.apache.flink.test.classloading.jar.KMeansForTest</mainClass>
 								</manifest>
 							</archive>
 							<finalName>kmeans</finalName>
@@ -390,24 +398,6 @@ under the License.
 				<version>2.5</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
-						<id>remove-kmeans-test-dependencies</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>clean</goal>
-						</goals>
-						<configuration>
-							<excludeDefaultDirectories>true</excludeDefaultDirectories>
-							<filesets>
-								<fileset>
-									<directory>${project.build.testOutputDirectory}</directory>
-									<includes>
-										<include>**/testjar/*.class</include>
-									</includes>
-								</fileset>
-							</filesets>
-						</configuration>
-					</execution>
-					<execution>
 						<id>remove-classloading-test-dependencies</id>
 						<phase>process-test-classes</phase>
 						<goals>
@@ -455,7 +445,7 @@ under the License.
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<ignore></ignore>
+										<ignore/>
 									</action>
 								</pluginExecution>
 								<pluginExecution>

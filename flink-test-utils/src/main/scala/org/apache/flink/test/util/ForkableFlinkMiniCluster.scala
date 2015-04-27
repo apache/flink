@@ -21,6 +21,7 @@ package org.apache.flink.test.util
 import akka.actor.{Props, ActorRef, ActorSystem}
 import akka.pattern.Patterns._
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -65,8 +66,6 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerData)
     }
 
-    config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
-
     super.generateConfiguration(config)
   }
 
@@ -83,7 +82,14 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
       libraryCacheManager, archive, accumulatorManager, None, executionRetries,
       delayBetweenRetries, timeout) with TestingJobManager)
 
-    actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
+    val jobManager = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
+
+    if (userConfiguration.getBoolean(ConfigConstants.LOCAL_INSTANCE_MANAGER_START_WEBSERVER,false)){
+      val webServer = new WebInfoServer(configuration, jobManager, archive)
+      webServer.start()
+    }
+
+    jobManager
   }
 
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
@@ -104,8 +110,14 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
 
     val localExecution = numTaskManagers == 1
 
-    TaskManager.startTaskManagerActor(config, system, HOSTNAME,
-        TaskManager.TASK_MANAGER_NAME + index, singleActorSystem, localExecution,
+    val jobManagerAkkaUrl: Option[String] = if (singleActorSystem) {
+      Some(jobManagerActor.path.toString)
+    } else {
+      None
+    }
+
+    TaskManager.startTaskManagerComponentsAndActor(config, system, HOSTNAME,
+        Some(TaskManager.TASK_MANAGER_NAME + index), jobManagerAkkaUrl, localExecution,
          classOf[TestingTaskManager])
   }
 

@@ -48,7 +48,8 @@ public class NullValuesITCase {
 			ExecutionEnvironment env =
 					ExecutionEnvironment.createRemoteEnvironment("localhost", cluster.getJobManagerRPCPort());
 
-			env.setDegreeOfParallelism(1);
+			env.setParallelism(1);
+			env.getConfig().disableSysoutLogging();
 
 			DataSet<String> data = env.fromElements("hallo")
 					.map(new MapFunction<String, String>() {

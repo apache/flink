@@ -33,6 +33,7 @@ with permission from the original authors.
 Original source copyright:
 Copyright (c) 2008 Alexander Beider & Stephen P. Morse.
 
+
 -----------------------------------------------------------------------
                           LOGBack
 -----------------------------------------------------------------------
@@ -47,6 +48,7 @@ the Eclipse Foundation
 
 under the terms of the GNU Lesser General Public License version 2.1
 as published by the Free Software Foundation.
+
 
 -----------------------------------------------------------------------
                        Apache Commmons Lang3
@@ -66,52 +68,6 @@ available from http://www.digip.org/jansson/.
 
 
 -----------------------------------------------------------------------
-                           Apache HBase
------------------------------------------------------------------------
-
-This product includes software developed by The Apache Software
-Foundation (http://www.apache.org/).
-
-In addition, this product includes software developed by:
-
-Jamon (http://www.jamon.org/) is a text template engine for Java used by our
-UI.  It uses the Mozilla Public License (http://www.mozilla.org/MPL/)
-See the tail of http://www.jamon.org/About.html
-
-JUnit (http://www.junit.org/) included under the Common Public License v1.0.  See
-the full text here: http://junit.sourceforge.net/cpl-v10.html
-
-JRuby (http://jruby.org) is tri-licensed.  We include it under terms of the
-Common Public License v1.0.
-
-JRuby itself includes libraries variously licensed.  See its COPYING document
-for details: https://github.com/jruby/jruby/blob/master/COPYING
-    
-The JRuby community went out of their way to make JRuby compatible with Apache
-projects: See https://issues.apache.org/jira/browse/HBASE-3374)
-
-
------------------------------------------------------------------------
-                           Apache Flume
------------------------------------------------------------------------
-
-Portions of this software were developed at
-Cloudera, Inc. (http://www.cloudera.com/).
-
------------------------------------------------------------------------
-                           Apache Camel
------------------------------------------------------------------------
-
-This product includes software developed by The Apache Software
-Foundation (http://www.apache.org/).
-
------------------------------------------------------------------------
-                           Akka
------------------------------------------------------------------------
-
-Copyright 2009-2014 Typesafe Inc. (http://www.typesafe.com)
-
------------------------------------------------------------------------
                            Apache Sling
 -----------------------------------------------------------------------
 
@@ -126,6 +82,14 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This product contains code derived from JSON in Java code from JSON.org.
 Copyright (c) 2002 JSON.org
+
+
+-----------------------------------------------------------------------
+                           Akka
+-----------------------------------------------------------------------
+
+Copyright 2009-2014 Typesafe Inc. (http://www.typesafe.com)
+
 
 
 -----------------------------------------------------------------------
@@ -148,12 +112,14 @@ This software includes third party software subject to the following copyrights:
 
 The licenses for these third party components are included in LICENSE.txt
 
+
 -----------------------------------------------------------------------
                    Joda-Time Library
 -----------------------------------------------------------------------
 
 This product includes software developed by
 Joda.org (http://www.joda.org/).
+
 
 -----------------------------------------------------------------------
                       Twitter Chill Library
@@ -171,6 +137,7 @@ http://code.google.com/p/kryo
 Commons-Codec 1.7
 Apache Public License 2.0
 http://hadoop.apache.org
+
 
 -----------------------------------------------------------------------
                         Jetty Web Container
@@ -223,6 +190,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+-----------------------------------------------------------------------
+                            Janino
+-----------------------------------------------------------------------
+
+Janino - An embedded Java[TM] compiler
+
+Copyright (c) 2001-2010, Arno Unkrig
+All rights reserved.
 
 -----------------------------------------------------------------------
                          The Netty Project
@@ -399,196 +374,6 @@ can be obtained at:
 
 
 -----------------------------------------------------------------------
-                              Redis
------------------------------------------------------------------------
-
-Redis uses source code from third parties. All this code is licensed
-under a BSD or BSD-compatible license. The following is a list of third
-party files and information about their copyright.
-
-  * Redis uses the LHF compression library. LibLZF is copyright
-    Marc Alexander Lehmann and is released under the terms of the
-    two clause BSD license.
-  * Redis uses the sha1.c file that is copyright by Steve Reid and released
-    under the public domain. This file is extremely popular and used among
-    open source and proprietary code.
-  * When compiled on Linux Redis uses the Jemalloc allocator, that is
-    copyright by Jason Evans, Mozilla Foundation and Facebook, Inc and is
-    released under the two clause BSD license.
-  * Inside Jemalloc the file pprof is copyright Google Inc and released under
-    the three clause BSD license.
-  * Inside Jemalloc the files inttypes.h, stdbool.h, stdint.h, strings.h under
-    the msvc_compat directory are copyright Alexander Chemeris and released under
-    the three clause BSD license.
-  * The libraries hiredis and linenoise also included inside the Redis
-    distribution are copyright Salvatore Sanfilippo and Pieter Noordhuis and
-    released under the terms respectively of the three clause BSD license and
-    two clause BSD license.
-
------------------------------------------------------------------------
-                            Apache Derby
------------------------------------------------------------------------
-
-Apache Derby
-Copyright 2004-2013 The Apache Software Foundation
-
-This product includes software developed by
-The Apache Software Foundation (http://www.apache.org/).
-
-  ---
-
-Portions of Derby were originally developed by
-International Business Machines Corporation and are
-licensed to the Apache Software Foundation under the
-"Software Grant and Corporate Contribution License Agreement",
-informally known as the "Derby CLA".
-The following copyright notice(s) were affixed to portions of the code
-with which this file is now or was at one time distributed
-and are placed here unaltered.
-
-(C) Copyright 1997,2004 International Business Machines Corporation.  All rights reserved.
-
-(C) Copyright IBM Corp. 2003. 
-
-  ---
-
-The portion of the functionTests under 'nist' was originally 
-developed by the National Institute of Standards and Technology (NIST), 
-an agency of the United States Department of Commerce, and adapted by
-International Business Machines Corporation in accordance with the NIST
-Software Acknowledgment and Redistribution document at
-http://www.itl.nist.gov/div897/ctg/sql_form.htm
-
-  ---
-
-The JDBC apis for small devices and JDBC3 (under java/stubs/jsr169 and
-java/stubs/jdbc3) were produced by trimming sources supplied by the
-Apache Harmony project. In addition, the Harmony SerialBlob and
-SerialClob implementations are used. The following notice covers the Harmony sources:
-
-Portions of Harmony were originally developed by
-Intel Corporation and are licensed to the Apache Software
-Foundation under the "Software Grant and Corporate Contribution
-License Agreement", informally known as the "Intel Harmony CLA".
-
-  ---
-
-The Derby build relies on source files supplied by the Apache Felix
-project. The following notice covers the Felix files:
-
-  Apache Felix Main
-  Copyright 2008 The Apache Software Foundation
-
-
-  I. Included Software
-
-  This product includes software developed at
-  The Apache Software Foundation (http://www.apache.org/).
-  Licensed under the Apache License 2.0.
-
-  This product includes software developed at
-  The OSGi Alliance (http://www.osgi.org/).
-  Copyright (c) OSGi Alliance (2000, 2007).
-  Licensed under the Apache License 2.0.
-
-  This product includes software from http://kxml.sourceforge.net.
-  Copyright (c) 2002,2003, Stefan Haustein, Oberhausen, Rhld., Germany.
-  Licensed under BSD License.
-
-  II. Used Software
-
-  This product uses software developed at
-  The OSGi Alliance (http://www.osgi.org/).
-  Copyright (c) OSGi Alliance (2000, 2007).
-  Licensed under the Apache License 2.0.
-
-
-  III. License Summary
-  - Apache License 2.0
-  - BSD License
-
-  ---
-
-The Derby build relies on jar files supplied by the Apache Xalan
-project. The following notice covers the Xalan jar files:
-
-	   Apache Xalan (Xalan XSLT processor)
-	   Copyright 1999-2006 The Apache Software Foundation
-	
-	   Apache Xalan (Xalan serializer)
-	   Copyright 1999-2006 The Apache Software Foundation
-	
-	   This product includes software developed at
-	   The Apache Software Foundation (http://www.apache.org/).
-	
-	   =========================================================================
-	   Portions of this software was originally based on the following:
-	     - software copyright (c) 1999-2002, Lotus Development Corporation.,
-	       http://www.lotus.com.
-	     - software copyright (c) 2001-2002, Sun Microsystems.,
-	       http://www.sun.com.
-	     - software copyright (c) 2003, IBM Corporation., 
-	       http://www.ibm.com.
-	       
-	   =========================================================================
-	   The binary distribution package (ie. jars, samples and documentation) of
-	   this product includes software developed by the following:
-	       
-	     - The Apache Software Foundation 
-	         - Xerces Java - see LICENSE.txt 
-	         - JAXP 1.3 APIs - see LICENSE.txt
-	         - Bytecode Engineering Library - see LICENSE.txt
-	         - Regular Expression - see LICENSE.txt
-	       
-	     - Scott Hudson, Frank Flannery, C. Scott Ananian 
-	         - CUP Parser Generator runtime (javacup\runtime) - see LICENSE.txt 
-	 
-	   ========================================================================= 
-	   The source distribution package (ie. all source and tools required to build
-	   Xalan Java) of this product includes software developed by the following:
-	       
-	     - The Apache Software Foundation
-	         - Xerces Java - see LICENSE.txt 
-	         - JAXP 1.3 APIs - see LICENSE.txt
-	         - Bytecode Engineering Library - see LICENSE.txt
-	         - Regular Expression - see LICENSE.txt
-	         - Ant - see LICENSE.txt
-	         - Stylebook doc tool - see LICENSE.txt    
-	       
-	     - Elliot Joel Berk and C. Scott Ananian 
-	         - Lexical Analyzer Generator (JLex) - see LICENSE.txt
-	
-	   =========================================================================       
-	   Apache Xerces Java
-	   Copyright 1999-2006 The Apache Software Foundation
-	
-	   This product includes software developed at
-	   The Apache Software Foundation (http://www.apache.org/).
-	
-	   Portions of Apache Xerces Java in xercesImpl.jar and xml-apis.jar
-	   were originally based on the following:
-	     - software copyright (c) 1999, IBM Corporation., http://www.ibm.com.
-	     - software copyright (c) 1999, Sun Microsystems., http://www.sun.com.
-	     - voluntary contributions made by Paul Eng on behalf of the 
-	       Apache Software Foundation that were originally developed at iClick, Inc.,
-	       software copyright (c) 1999.    
-	
-	   =========================================================================   
-	   Apache xml-commons xml-apis (redistribution of xml-apis.jar)
-	
-	   Apache XML Commons
-	   Copyright 2001-2003,2006 The Apache Software Foundation.
-	
-	   This product includes software developed at
-	   The Apache Software Foundation (http://www.apache.org/).
-	
-	   Portions of this software were originally based on the following:
-	     - software copyright (c) 1999, IBM Corporation., http://www.ibm.com.
-	     - software copyright (c) 1999, Sun Microsystems., http://www.sun.com.
-	     - software copyright (c) 2000 World Wide Web Consortium, http://www.w3.org
-
-
------------------------------------------------------------------------
                            Scopt
 -----------------------------------------------------------------------
 
@@ -604,3 +389,21 @@ project. The following notice covers the Xalan jar files:
   scopt 2.0.0.
   * June 7, 2013: Eugene rewrites scopt from scratch for polymorphic options, and releases scopt 3
   .0.0.
+
+
+-----------------------------------------------------------------------
+                           Metrics
+-----------------------------------------------------------------------
+
+Copyright 2010-2013 Coda Hale and Yammer, Inc.
+
+This product includes software developed by Coda Hale and Yammer, Inc.
+
+This product includes code derived from the JSR-166 project (ThreadLocalRandom, Striped64,
+LongAdder), which was released with the following comments:
+
+    Written by Doug Lea with assistance from members of JCP JSR-166
+    Expert Group and released to the public domain, as explained at
+    http://creativecommons.org/publicdomain/zero/1.0/
+
+

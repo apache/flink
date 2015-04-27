@@ -22,16 +22,18 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * An {@link ExecutionEnvironment} that runs the program locally, multi-threaded, in the JVM where the
- * environment is instantiated. When this environment is instantiated, it uses a default degree of parallelism
+ * environment is instantiated. When this environment is instantiated, it uses a default parallelism
  * of {@code 1}. Local environments can also be instantiated through
  * {@link ExecutionEnvironment#createLocalEnvironment()} and {@link ExecutionEnvironment#createLocalEnvironment(int)}.
- * The former version will pick a default degree of parallelism equal to the number of hardware contexts in the local
+ * The former version will pick a default parallelism equal to the number of hardware contexts in the local
  * machine.
  */
 public class LocalEnvironment extends ExecutionEnvironment {
+	private Configuration configuration;
 	/**
 	 * Creates a new local environment.
 	 */
@@ -47,7 +49,8 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor();
+		PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
+		executor.setPrintStatusDuringExecution(p.getExecutionConfig().isSysoutLoggingEnabled());
 		return executor.executePlan(p);
 	}
 	
@@ -55,14 +58,18 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	public String getExecutionPlan() throws Exception {
 		Plan p = createProgramPlan(null, false);
 		
-		PlanExecutor executor = PlanExecutor.createLocalExecutor();
+		PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
 		return executor.getOptimizerPlanAsJSON(p);
 	}
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
-		return "Local Environment (DOP = " + (getDegreeOfParallelism() == -1 ? "default" : getDegreeOfParallelism())
+		return "Local Environment (parallelism = " + (getParallelism() == -1 ? "default" : getParallelism())
 				+ ") : " + getIdString();
+	}
+
+	public void setConfiguration(Configuration customConfiguration) {
+		this.configuration = customConfiguration;
 	}
 }

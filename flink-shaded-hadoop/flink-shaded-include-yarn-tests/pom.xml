@@ -63,12 +63,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-minicluster</artifactId>
-			<version>${hadoop.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-yarn-server-resourcemanager</artifactId>
 			<version>${hadoop.version}</version>
 		</dependency>

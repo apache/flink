@@ -22,6 +22,6 @@ import java.io.IOException;
 
 public interface BufferPoolOwner {
 
-	void recycleBuffers(int numBuffersToRecycle) throws IOException;
+	void releaseMemory(int numBuffersToRecycle) throws IOException;
 
 }

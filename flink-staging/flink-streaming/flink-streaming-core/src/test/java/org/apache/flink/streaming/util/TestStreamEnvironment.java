@@ -18,12 +18,11 @@
 
 package org.apache.flink.streaming.util;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
@@ -38,39 +37,43 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	private ForkableFlinkMiniCluster executor;
 	private boolean internalExecutor;
 
-	public TestStreamEnvironment(int degreeOfParallelism, long memorySize){
-		setDegreeOfParallelism(degreeOfParallelism);
+	public TestStreamEnvironment(int parallelism, long memorySize){
+		setParallelism(parallelism);
 		this.memorySize = memorySize;
 		internalExecutor = true;
 	}
 
-	public TestStreamEnvironment(ForkableFlinkMiniCluster executor, int dop){
+	public TestStreamEnvironment(ForkableFlinkMiniCluster executor, int parallelism){
 		this.executor = executor;
-		setDefaultLocalParallelism(dop);
+		setDefaultLocalParallelism(parallelism);
+		setParallelism(parallelism);
 	}
 
 	@Override
-	public void execute() throws Exception {
-		execute(DEFAULT_JOBNAME);
+	public JobExecutionResult execute() throws Exception {
+		return execute(DEFAULT_JOBNAME);
 	}
 
 	@Override
-	public void execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName) throws Exception {
 		JobGraph jobGraph = streamGraph.getJobGraph(jobName);
 
 		if (internalExecutor) {
 			Configuration configuration = jobGraph.getJobConfiguration();
 
 			configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
-					getDegreeOfParallelism());
+					getParallelism());
 			configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
 
 			executor = new ForkableFlinkMiniCluster(configuration);
 		}
 		try {
-			ActorRef client = executor.getJobClient();
-			latestResult = JobClient.submitJobAndWait(jobGraph, false, client, executor.timeout());
-		} catch(JobExecutionException e) {
+			
+			SerializedJobExecutionResult result = executor.submitJobAndWait(jobGraph, false);
+			latestResult = result.toJobExecutionResult(getClass().getClassLoader());
+			return latestResult;
+		}
+		catch (JobExecutionException e) {
 			if (e.getMessage().contains("GraphConversionException")) {
 				throw new Exception(CANNOT_EXECUTE_EMPTY_JOB, e);
 			} else {

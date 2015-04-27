@@ -100,14 +100,14 @@ public class MapITCase extends RecordAPITestBase {
 				new ContractITCaseInputFormat(), inPath);
 		DelimitedInputFormat.configureDelimitedFormat(input)
 			.recordDelimiter('\n');
-		input.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
+		input.setParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		MapOperator testMapper = MapOperator.builder(new TestMapper()).build();
-		testMapper.setDegreeOfParallelism(config.getInteger("MapTest#NoSubtasks", 1));
+		testMapper.setParallelism(config.getInteger("MapTest#NoSubtasks", 1));
 
 		FileDataSink output = new FileDataSink(
 				new ContractITCaseOutputFormat(), resultPath);
-		output.setDegreeOfParallelism(1);
+		output.setParallelism(1);
 
 		output.setInput(testMapper);
 		testMapper.setInput(input);

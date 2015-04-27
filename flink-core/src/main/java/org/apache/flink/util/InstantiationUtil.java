@@ -34,6 +34,7 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+import java.util.HashMap;
 
 /**
  * Utility class to create instances from class objects and checking failure reasons.
@@ -48,10 +49,37 @@ public class InstantiationUtil {
 	private static class ClassLoaderObjectInputStream extends ObjectInputStream {
 		private ClassLoader classLoader;
 
+		private static final HashMap<String, Class<?>> primitiveClasses
+				= new HashMap<String, Class<?>>(8, 1.0F);
+		static {
+			primitiveClasses.put("boolean", boolean.class);
+			primitiveClasses.put("byte", byte.class);
+			primitiveClasses.put("char", char.class);
+			primitiveClasses.put("short", short.class);
+			primitiveClasses.put("int", int.class);
+			primitiveClasses.put("long", long.class);
+			primitiveClasses.put("float", float.class);
+			primitiveClasses.put("double", double.class);
+			primitiveClasses.put("void", void.class);
+		}
+
 		@Override
 		public Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
 			if (classLoader != null) {
-				return Class.forName(desc.getName(), false, classLoader);
+				String name = desc.getName();
+				try {
+					return Class.forName(name, false, classLoader);
+				} catch (ClassNotFoundException ex) {
+					// check if class is a primitive class
+					Class<?> cl = primitiveClasses.get(name);
+					if (cl != null) {
+						// return primitive class
+						return cl;
+					} else {
+						// throw ClassNotFoundException
+						throw ex;
+					}
+				}
 			}
 
 			return super.resolveClass(desc);

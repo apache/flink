@@ -101,7 +101,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
@@ -148,7 +148,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
@@ -191,7 +191,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       try{
         within(TestingUtils.TESTING_DURATION){
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           tm ! PoisonPill
@@ -213,12 +213,12 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
 
           expectMsg(RegisteredAtJobManager)
 
-          jm ! SubmitJob(jobGraph2)
+          jm ! SubmitJob(jobGraph2, false)
 
           expectMsgType[Success]
 
           val result = expectMsgType[JobResultSuccess]
-          result.jobID should equal(jobGraph2.getJobID)
+          result.result.getJobId() should equal(jobGraph2.getJobID)
         }
       } finally {
         cluster.stop()
@@ -230,10 +230,6 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskmanagers)
-    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL, "1000 ms")
-    config.setString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE, "4000 ms")
-    config.setString(ConfigConstants.DEFAULT_EXECUTION_RETRY_DELAY_KEY, "4000 ms")
-    config.setDouble(ConfigConstants.AKKA_WATCH_THRESHOLD, 5)
 
     new ForkableFlinkMiniCluster(config, singleActorSystem = false)
   }

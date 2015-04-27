@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.streaming.api.datastream.temporaloperator.{ TemporalOperator => JTempOp }
+import org.apache.flink.streaming.api.datastream.temporal.{ TemporalOperator => JTempOp }
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
-import org.apache.flink.streaming.api.datastream.temporaloperator.TemporalWindow
+import org.apache.flink.streaming.api.datastream.temporal.TemporalWindow
 import org.apache.flink.streaming.api.windowing.helper.Timestamp
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment._
 

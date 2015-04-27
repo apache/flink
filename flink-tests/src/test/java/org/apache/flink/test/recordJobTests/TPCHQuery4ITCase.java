@@ -119,7 +119,7 @@ public class TPCHQuery4ITCase extends RecordAPITestBase {
 	private static final String EXPECTED_RESULT = "1-URGENT|2|\n" + "3-MEDIUM|2|\n" + "4-NOT SPECIFIED|4|";
 
 	public TPCHQuery4ITCase(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	@Override
@@ -132,7 +132,7 @@ public class TPCHQuery4ITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		TPCHQuery4 tpch4 = new TPCHQuery4();
-		return tpch4.getPlan(Integer.valueOf(DOP).toString(), ordersPath, lineitemsPath, resultPath);
+		return tpch4.getPlan(Integer.valueOf(parallelism).toString(), ordersPath, lineitemsPath, resultPath);
 	}
 
 	@Override

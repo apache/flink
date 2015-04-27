@@ -22,16 +22,18 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
-import com.esotericsoftware.kryo.Serializer;
-
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
@@ -39,22 +41,24 @@ import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.StreamGraph;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.function.source.FileMonitoringFunction;
-import org.apache.flink.streaming.api.function.source.FileMonitoringFunction.WatchType;
-import org.apache.flink.streaming.api.function.source.FileReadFunction;
-import org.apache.flink.streaming.api.function.source.FileSourceFunction;
-import org.apache.flink.streaming.api.function.source.FromElementsFunction;
-import org.apache.flink.streaming.api.function.source.GenSequenceFunction;
-import org.apache.flink.streaming.api.function.source.GenericSourceFunction;
-import org.apache.flink.streaming.api.function.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.function.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.api.invokable.SourceInvokable;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType;
+import org.apache.flink.streaming.api.functions.source.FileReadFunction;
+import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
+import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
+import org.apache.flink.streaming.api.functions.source.GenSequenceFunction;
+import org.apache.flink.streaming.api.functions.source.GenericSourceFunction;
+import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamSource;
+
+import com.esotericsoftware.kryo.Serializer;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -63,7 +67,7 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
  */
 public abstract class StreamExecutionEnvironment {
 
-	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
+	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
 
 	private long bufferTimeout = 100;
 
@@ -81,7 +85,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Constructor for creating StreamExecutionEnvironment
 	 */
 	protected StreamExecutionEnvironment() {
-		streamGraph = new StreamGraph(config);
+		streamGraph = new StreamGraph(this);
 	}
 
 	/**
@@ -92,35 +96,68 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Gets the degree of parallelism with which operation are executed by
-	 * default. Operations can individually override this value to use a
-	 * specific degree of parallelism.
+	 * Gets the parallelism with which operation are executed by default.
+	 * Operations can individually override this value to use a specific
+	 * parallelism.
 	 * 
-	 * @return The degree of parallelism used by operations, unless they
-	 *         override that value.
+	 * @return The parallelism used by operations, unless they override that
+	 *         value.
+	 * @deprecated Please use {@link #getParallelism}
 	 */
+	@Deprecated
 	public int getDegreeOfParallelism() {
-		return config.getDegreeOfParallelism();
+		return getParallelism();
 	}
 
 	/**
-	 * Sets the degree of parallelism (DOP) for operations executed through this
-	 * environment. Setting a DOP of x here will cause all operators (such as
-	 * map, batchReduce) to run with x parallel instances. This method overrides
-	 * the default parallelism for this environment. The
+	 * Gets the parallelism with which operation are executed by default.
+	 * Operations can individually override this value to use a specific
+	 * parallelism.
+	 * 
+	 * @return The parallelism used by operations, unless they override that
+	 *         value.
+	 */
+	public int getParallelism() {
+		return config.getParallelism();
+	}
+
+	/**
+	 * Sets the parallelism for operations executed through this environment.
+	 * Setting a parallelism of x here will cause all operators (such as map,
+	 * batchReduce) to run with x parallel instances. This method overrides the
+	 * default parallelism for this environment. The
 	 * {@link LocalStreamEnvironment} uses by default a value equal to the
 	 * number of hardware contexts (CPU cores / threads). When executing the
 	 * program via the command line client from a JAR file, the default degree
 	 * of parallelism is the one configured for that setup.
 	 * 
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism
+	 * @param parallelism
+	 *            The parallelism
+	 * @deprecated Please use {@link #setParallelism}
 	 */
-	public StreamExecutionEnvironment setDegreeOfParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1) {
-			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
+	@Deprecated
+	public StreamExecutionEnvironment setDegreeOfParallelism(int parallelism) {
+		return setParallelism(parallelism);
+	}
+
+	/**
+	 * Sets the parallelism for operations executed through this environment.
+	 * Setting a parallelism of x here will cause all operators (such as map,
+	 * batchReduce) to run with x parallel instances. This method overrides the
+	 * default parallelism for this environment. The
+	 * {@link LocalStreamEnvironment} uses by default a value equal to the
+	 * number of hardware contexts (CPU cores / threads). When executing the
+	 * program via the command line client from a JAR file, the default degree
+	 * of parallelism is the one configured for that setup.
+	 * 
+	 * @param parallelism
+	 *            The parallelism
+	 */
+	public StreamExecutionEnvironment setParallelism(int parallelism) {
+		if (parallelism < 1) {
+			throw new IllegalArgumentException("parallelism must be at least one.");
 		}
-		config.setDegreeOfParallelism(degreeOfParallelism);
+		config.setParallelism(parallelism);
 		return this;
 	}
 
@@ -151,18 +188,67 @@ public abstract class StreamExecutionEnvironment {
 		this.bufferTimeout = timeoutMillis;
 		return this;
 	}
-	
-	public StreamExecutionEnvironment enableMonitoring(long interval)
-	{
-		streamGraph.setMonitoringEnabled(true);
-		streamGraph.setMonitoringInterval(interval);
+
+	/**
+	 * Method for enabling fault-tolerance. Activates monitoring and backup of
+	 * streaming operator states.
+	 * 
+	 * <p>
+	 * Setting this option assumes that the job is used in production and thus
+	 * if not stated explicitly otherwise with calling with the
+	 * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method
+	 * in case of failure the job will be resubmitted to the cluster
+	 * indefinitely.
+	 * 
+	 * @param interval
+	 *            Time interval between state checkpoints in millis
+	 */
+	public StreamExecutionEnvironment enableCheckpointing(long interval) {
+		streamGraph.setCheckpointingEnabled(true);
+		streamGraph.setCheckpointingInterval(interval);
 		return this;
 	}
-	
-	public StreamExecutionEnvironment enableMonitoring()
-	{
-		streamGraph.setMonitoringEnabled(true);
+
+	/**
+	 * Method for enabling fault-tolerance. Activates monitoring and backup of
+	 * streaming operator states.
+	 * 
+	 * <p>
+	 * Setting this option assumes that the job is used in production and thus
+	 * if not stated explicitly otherwise with calling with the
+	 * {@link #setNumberOfExecutionRetries(int numberOfExecutionRetries)} method
+	 * in case of failure the job will be resubmitted to the cluster
+	 * indefinitely.
+	 */
+	public StreamExecutionEnvironment enableCheckpointing() {
+		streamGraph.setCheckpointingEnabled(true);
 		return this;
+	}
+
+	/**
+	 * Sets the number of times that failed tasks are re-executed. A value of
+	 * zero effectively disables fault tolerance. A value of {@code -1}
+	 * indicates that the system default value (as defined in the configuration)
+	 * should be used.
+	 * 
+	 * @param numberOfExecutionRetries
+	 *            The number of times the system will try to re-execute failed
+	 *            tasks.
+	 */
+	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
+		config.setNumberOfExecutionRetries(numberOfExecutionRetries);
+	}
+
+	/**
+	 * Gets the number of times the system will try to re-execute failed tasks.
+	 * A value of {@code -1} indicates that the system default value (as defined
+	 * in the configuration) should be used.
+	 * 
+	 * @return The number of times the system will try to re-execute failed
+	 *         tasks.
+	 */
+	public int getNumberOfExecutionRetries() {
+		return config.getNumberOfExecutionRetries();
 	}
 
 	/**
@@ -180,27 +266,28 @@ public abstract class StreamExecutionEnvironment {
 	 * Sets the default parallelism that will be used for the local execution
 	 * environment created by {@link #createLocalEnvironment()}.
 	 * 
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism to use as the default local
-	 *            parallelism.
+	 * @param parallelism
+	 *            The parallelism to use as the default local parallelism.
 	 */
-	public static void setDefaultLocalParallelism(int degreeOfParallelism) {
-		defaultLocalDop = degreeOfParallelism;
+	public static void setDefaultLocalParallelism(int parallelism) {
+		defaultLocalParallelism = parallelism;
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Registry for types and serializers
+	// Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
-
 
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
-	 *
-	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
-	 * because it may be distributed to the worker nodes by java serialization.
-	 *
-	 * @param type The class of the types serialized with the given serializer.
-	 * @param serializer The serializer to use.
+	 * 
+	 * Note that the serializer instance must be serializable (as defined by
+	 * java.io.Serializable), because it may be distributed to the worker nodes
+	 * by java serialization.
+	 * 
+	 * @param type
+	 *            The class of the types serialized with the given serializer.
+	 * @param serializer
+	 *            The serializer to use.
 	 */
 	public void addDefaultKryoSerializer(Class<?> type, Serializer<?> serializer) {
 		config.addDefaultKryoSerializer(type, serializer);
@@ -208,44 +295,55 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Adds a new Kryo default serializer to the Runtime.
-	 *
-	 * @param type The class of the types serialized with the given serializer.
-	 * @param serializerClass The class of the serializer to use.
+	 * 
+	 * @param type
+	 *            The class of the types serialized with the given serializer.
+	 * @param serializerClass
+	 *            The class of the serializer to use.
 	 */
-	public void addDefaultKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+	public void addDefaultKryoSerializer(Class<?> type,
+			Class<? extends Serializer<?>> serializerClass) {
 		config.addDefaultKryoSerializer(type, serializerClass);
 	}
 
 	/**
 	 * Registers the given type with a Kryo Serializer.
-	 *
-	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
-	 * because it may be distributed to the worker nodes by java serialization.
-	 *
-	 * @param type The class of the types serialized with the given serializer.
-	 * @param serializer The serializer to use.
+	 * 
+	 * Note that the serializer instance must be serializable (as defined by
+	 * java.io.Serializable), because it may be distributed to the worker nodes
+	 * by java serialization.
+	 * 
+	 * @param type
+	 *            The class of the types serialized with the given serializer.
+	 * @param serializer
+	 *            The serializer to use.
 	 */
 	public void registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer) {
 		config.registerTypeWithKryoSerializer(type, serializer);
 	}
 
 	/**
-	 * Registers the given Serializer via its class as a serializer for the given type at the KryoSerializer
-	 *
-	 * @param type The class of the types serialized with the given serializer.
-	 * @param serializerClass The class of the serializer to use.
+	 * Registers the given Serializer via its class as a serializer for the
+	 * given type at the KryoSerializer
+	 * 
+	 * @param type
+	 *            The class of the types serialized with the given serializer.
+	 * @param serializerClass
+	 *            The class of the serializer to use.
 	 */
-	public void registerTypeWithKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+	public void registerTypeWithKryoSerializer(Class<?> type,
+			Class<? extends Serializer<?>> serializerClass) {
 		config.registerTypeWithKryoSerializer(type, serializerClass);
 	}
 
 	/**
-	 * Registers the given type with the serialization stack. If the type is eventually
-	 * serialized as a POJO, then the type is registered with the POJO serializer. If the
-	 * type ends up being serialized with Kryo, then it will be registered at Kryo to make
-	 * sure that only tags are written.
-	 *
-	 * @param type The class of the type to register.
+	 * Registers the given type with the serialization stack. If the type is
+	 * eventually serialized as a POJO, then the type is registered with the
+	 * POJO serializer. If the type ends up being serialized with Kryo, then it
+	 * will be registered at Kryo to make sure that only tags are written.
+	 * 
+	 * @param type
+	 *            The class of the type to register.
 	 */
 	public void registerType(Class<?> type) {
 		if (type == null) {
@@ -313,10 +411,10 @@ public abstract class StreamExecutionEnvironment {
 	 *            The interval of file watching in milliseconds.
 	 * @param watchType
 	 *            The watch type of file stream. When watchType is
-	 *            {@link WatchType.ONLY_NEW_FILES}, the system processes only
-	 *            new files. {@link WatchType.REPROCESS_WITH_APPENDED} means
+	 *            {@link WatchType#ONLY_NEW_FILES}, the system processes only
+	 *            new files. {@link WatchType#REPROCESS_WITH_APPENDED} means
 	 *            that the system re-processes all contents of appended file.
-	 *            {@link WatchType.PROCESS_ONLY_APPENDED} means that the system
+	 *            {@link WatchType#PROCESS_ONLY_APPENDED} means that the system
 	 *            processes only appended contents of files.
 	 * 
 	 * @return The DataStream containing the given directory.
@@ -324,7 +422,7 @@ public abstract class StreamExecutionEnvironment {
 	public DataStream<String> readFileStream(String filePath, long intervalMillis,
 			WatchType watchType) {
 		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
-				filePath, intervalMillis, watchType), null, "File Stream");
+				filePath, intervalMillis, watchType), "File Stream");
 
 		return source.flatMap(new FileReadFunction());
 	}
@@ -352,7 +450,7 @@ public abstract class StreamExecutionEnvironment {
 
 		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
-		return addSource(function, outTypeInfo, "Elements source");
+		return addSource(function, "Elements source").returns(outTypeInfo);
 	}
 
 	/**
@@ -379,7 +477,7 @@ public abstract class StreamExecutionEnvironment {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.getForObject(data.iterator().next());
 		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
-		return addSource(function, outTypeInfo, "Collection Source");
+		return addSource(function, "Collection Source").returns(outTypeInfo);
 	}
 
 	/**
@@ -387,11 +485,13 @@ public abstract class StreamExecutionEnvironment {
 	 * from socket. Received strings are decoded by the system's default
 	 * character set. On the termination of the socket server connection retries
 	 * can be initiated.
-	 *
-	 *  <p>Let us note that the socket itself does not report on abort and
-	 * as a consequence retries are only initiated when the socket was gracefully
-	 * terminated.</p>
-	 *
+	 * 
+	 * <p>
+	 * Let us note that the socket itself does not report on abort and as a
+	 * consequence retries are only initiated when the socket was gracefully
+	 * terminated.
+	 * </p>
+	 * 
 	 * @param hostname
 	 *            The host name which a server socket bind.
 	 * @param port
@@ -400,16 +500,18 @@ public abstract class StreamExecutionEnvironment {
 	 * @param delimiter
 	 *            A character which split received strings into records.
 	 * @param maxRetry
-	 *            The maximal retry interval in seconds while the program waits for
-	 *            a socket that is temporarily down. Reconnection is initiated every
-	 *            second. A number of 0 means that the reader is immediately
-	 *            terminated, while a negative value ensures retrying forever.
+	 *            The maximal retry interval in seconds while the program waits
+	 *            for a socket that is temporarily down. Reconnection is
+	 *            initiated every second. A number of 0 means that the reader is
+	 *            immediately terminated, while a negative value ensures
+	 *            retrying forever.
 	 * @return A DataStream, containing the strings received from socket.
-	 *
+	 * 
 	 */
-	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter, long maxRetry) {
-		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry), null,
-			"Socket Stream");
+	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter,
+			long maxRetry) {
+		return addSource(new SocketTextStreamFunction(hostname, port, delimiter, maxRetry),
+				"Socket Stream");
 	}
 
 	/**
@@ -433,8 +535,8 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Creates a new DataStream that contains the strings received infinitely
 	 * from socket. Received strings are decoded by the system's default
-	 * character set, uses '\n' as delimiter. The reader is terminated immediately
-	 * when socket is down.
+	 * character set, uses '\n' as delimiter. The reader is terminated
+	 * immediately when socket is down.
 	 * 
 	 * @param hostname
 	 *            The host name which a server socket bind.
@@ -460,13 +562,13 @@ public abstract class StreamExecutionEnvironment {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return addSource(new GenSequenceFunction(from, to), null, "Sequence Source");
+		return addSource(new GenSequenceFunction(from, to), "Sequence Source");
 	}
 
 	private DataStreamSource<String> addFileSource(InputFormat<String, ?> inputFormat,
 			TypeInformation<String> typeInfo) {
 		FileSourceFunction function = new FileSourceFunction(inputFormat, typeInfo);
-		DataStreamSource<String> returnStream = addSource(function, null, "File Source");
+		DataStreamSource<String> returnStream = addSource(function, "File Source");
 		streamGraph.setInputFormat(returnStream.getId(), inputFormat);
 		return returnStream;
 	}
@@ -488,31 +590,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
-		return addSource(function, null);
-	}
-
-	/**
-	 * Ads a data source with a custom type information thus opening a
-	 * {@link DataStream}. Only in very special cases does the user need to
-	 * support type information. Otherwise use
-	 * {@link #addSource(SourceFunction)} </p> By default sources have a
-	 * parallelism of 1. To enable parallel execution, the user defined source
-	 * should implement {@link ParallelSourceFunction} or extend
-	 * {@link RichParallelSourceFunction}. In these cases the resulting source
-	 * will have the parallelism of the environment. To change this afterwards
-	 * call {@link DataStreamSource#setParallelism(int)}
-	 * 
-	 * @param function
-	 *            the user defined function
-	 * @param outTypeInfo
-	 *            the user defined type information for the stream
-	 * @param <OUT>
-	 *            type of the returned stream
-	 * @return the data stream constructed
-	 */
-	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
-			TypeInformation<OUT> outTypeInfo) {
-		return addSource(function, outTypeInfo, "Custom Source");
+		return addSource(function, "Custom source");
 	}
 
 	/**
@@ -523,8 +601,6 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param function
 	 *            the user defined function
-	 * @param outTypeInfo
-	 *            the user defined type information for the stream
 	 * @param sourceName
 	 *            Name of the data source
 	 * @param <OUT>
@@ -532,30 +608,28 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	@SuppressWarnings("unchecked")
-	private <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
-			TypeInformation<OUT> outTypeInfo, String sourceName) {
+	private <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName) {
 
-		if (outTypeInfo == null) {
-			if (function instanceof GenericSourceFunction) {
-				outTypeInfo = ((GenericSourceFunction<OUT>) function).getType();
-			} else {
+		TypeInformation<OUT> outTypeInfo;
+
+		if (function instanceof GenericSourceFunction) {
+			outTypeInfo = ((GenericSourceFunction<OUT>) function).getType();
+		} else {
+			try {
 				outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class,
 						function.getClass(), 0, null, null);
+			} catch (InvalidTypesException e) {
+				outTypeInfo = (TypeInformation<OUT>) new MissingTypeInfo("Custom source", e);
 			}
 		}
 
 		boolean isParallel = function instanceof ParallelSourceFunction;
-		int dop = isParallel ? getDegreeOfParallelism() : 1;
 
-		StreamInvokable<OUT, OUT> sourceInvokable = new SourceInvokable<OUT>(function);
+		ClosureCleaner.clean(function, true);
+		StreamOperator<OUT, OUT> sourceOperator = new StreamSource<OUT>(function);
 
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, sourceName,
-				outTypeInfo, sourceInvokable, isParallel);
-
-		streamGraph.addSourceVertex(returnStream.getId(), sourceInvokable, null, outTypeInfo,
-				sourceName, dop);
-
-		return returnStream;
+		return new DataStreamSource<OUT>(this, sourceName, outTypeInfo, sourceOperator, isParallel,
+				sourceName);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -579,7 +653,7 @@ public abstract class StreamExecutionEnvironment {
 		if (env instanceof ContextEnvironment) {
 			ContextEnvironment ctx = (ContextEnvironment) env;
 			currentEnvironment = createContextEnvironment(ctx.getClient(), ctx.getJars(),
-					ctx.getDegreeOfParallelism());
+					ctx.getParallelism(), ctx.isWait());
 		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
 			currentEnvironment = new StreamPlanEnvironment(env);
 		} else {
@@ -589,38 +663,36 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	private static StreamExecutionEnvironment createContextEnvironment(Client client,
-			List<File> jars, int dop) {
-		return new StreamContextEnvironment(client, jars, dop);
+			List<File> jars, int parallelism, boolean wait) {
+		return new StreamContextEnvironment(client, jars, parallelism, wait);
 	}
 
 	/**
 	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
 	 * will run the program in a multi-threaded fashion in the same JVM as the
-	 * environment was created in. The default degree of parallelism of the
-	 * local environment is the number of hardware contexts (CPU cores /
-	 * threads), unless it was specified differently by
-	 * {@link #setDegreeOfParallelism(int)}.
+	 * environment was created in. The default parallelism of the local
+	 * environment is the number of hardware contexts (CPU cores / threads),
+	 * unless it was specified differently by {@link #setParallelism(int)}.
 	 * 
 	 * @return A local execution environment.
 	 */
 	public static LocalStreamEnvironment createLocalEnvironment() {
-		return createLocalEnvironment(defaultLocalDop);
+		return createLocalEnvironment(defaultLocalParallelism);
 	}
 
 	/**
 	 * Creates a {@link LocalStreamEnvironment}. The local execution environment
 	 * will run the program in a multi-threaded fashion in the same JVM as the
-	 * environment was created in. It will use the degree of parallelism
-	 * specified in the parameter.
+	 * environment was created in. It will use the parallelism specified in the
+	 * parameter.
 	 * 
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism for the local environment.
-	 * @return A local execution environment with the specified degree of
-	 *         parallelism.
+	 * @param parallelism
+	 *            The parallelism for the local environment.
+	 * @return A local execution environment with the specified parallelism.
 	 */
-	public static LocalStreamEnvironment createLocalEnvironment(int degreeOfParallelism) {
+	public static LocalStreamEnvironment createLocalEnvironment(int parallelism) {
 		currentEnvironment = new LocalStreamEnvironment();
-		currentEnvironment.setDegreeOfParallelism(degreeOfParallelism);
+		currentEnvironment.setParallelism(parallelism);
 		return (LocalStreamEnvironment) currentEnvironment;
 	}
 
@@ -630,7 +702,7 @@ public abstract class StreamExecutionEnvironment {
 	 * (parts of) the program to a cluster for execution. Note that all file
 	 * paths used in the program must be accessible from the cluster. The
 	 * execution will use no parallelism, unless the parallelism is set
-	 * explicitly via {@link #setDegreeOfParallelism}.
+	 * explicitly via {@link #setParallelism}.
 	 * 
 	 * @param host
 	 *            The host name or address of the master (JobManager), where the
@@ -655,7 +727,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a {@link RemoteStreamEnvironment}. The remote environment sends
 	 * (parts of) the program to a cluster for execution. Note that all file
 	 * paths used in the program must be accessible from the cluster. The
-	 * execution will use the specified degree of parallelism.
+	 * execution will use the specified parallelism.
 	 * 
 	 * @param host
 	 *            The host name or address of the master (JobManager), where the
@@ -663,8 +735,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @param port
 	 *            The port of the master (JobManager), where the program should
 	 *            be executed.
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism to use during the execution.
+	 * @param parallelism
+	 *            The parallelism to use during the execution.
 	 * @param jarFiles
 	 *            The JAR files with code that needs to be shipped to the
 	 *            cluster. If the program uses user-defined functions,
@@ -673,9 +745,9 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A remote environment that executes the program on a cluster.
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(String host, int port,
-			int degreeOfParallelism, String... jarFiles) {
+			int parallelism, String... jarFiles) {
 		currentEnvironment = new RemoteStreamEnvironment(host, port, jarFiles);
-		currentEnvironment.setDegreeOfParallelism(degreeOfParallelism);
+		currentEnvironment.setParallelism(parallelism);
 		return currentEnvironment;
 	}
 
@@ -687,9 +759,11 @@ public abstract class StreamExecutionEnvironment {
 	 * The program execution will be logged and displayed with a generated
 	 * default name.
 	 * 
+	 * @return The result of the job execution, containing elapsed time and
+	 *         accumulators.
 	 * @throws Exception
 	 **/
-	public abstract void execute() throws Exception;
+	public abstract JobExecutionResult execute() throws Exception;
 
 	/**
 	 * Triggers the program execution. The environment will execute all parts of
@@ -700,10 +774,11 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param jobName
 	 *            Desired name of the job
-	 * 
+	 * @return The result of the job execution, containing elapsed time and
+	 *         accumulators.
 	 * @throws Exception
 	 **/
-	public abstract void execute(String jobName) throws Exception;
+	public abstract JobExecutionResult execute(String jobName) throws Exception;
 
 	/**
 	 * Getter of the {@link StreamGraph} of the streaming job.
@@ -725,7 +800,6 @@ public abstract class StreamExecutionEnvironment {
 	public String getExecutionPlan() {
 		return getStreamGraph().getStreamingPlanAsJSON();
 	}
-
 
 	protected static void initializeFromFactory(StreamExecutionEnvironmentFactory eef) {
 		currentEnvironment = eef.createExecutionEnvironment();

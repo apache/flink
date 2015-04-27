@@ -18,10 +18,8 @@
 
 package org.apache.flink.test.recordJobs.wordcount;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 
@@ -44,9 +42,6 @@ import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
 import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.InputViewObjectInputStreamWrapper;
-import org.apache.flink.core.memory.OutputViewObjectOutputStreamWrapper;
-import org.apache.flink.runtime.util.SerializableHashSet;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -193,11 +188,11 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 	/**
 	 * Custom accumulator
 	 */
-	public static class SetAccumulator<T extends Value> implements Accumulator<T, SerializableHashSet<T>> {
+	public static class SetAccumulator<T extends Value> implements Accumulator<T, HashSet<T>> {
 
 		private static final long serialVersionUID = 1L;
 
-		private SerializableHashSet<T> set = new SerializableHashSet<T>();
+		private HashSet<T> set = new HashSet<T>();
 
 		@Override
 		public void add(T value) {
@@ -205,7 +200,7 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 		}
 
 		@Override
-		public SerializableHashSet<T> getLocalValue() {
+		public HashSet<T> getLocalValue() {
 			return this.set;
 		}
 
@@ -215,27 +210,15 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 		}
 
 		@Override
-		public void merge(Accumulator<T, SerializableHashSet<T>> other) {
+		public void merge(Accumulator<T, HashSet<T>> other) {
 			// build union
-			this.set.addAll(((SetAccumulator<T>) other).getLocalValue());
+			this.set.addAll(other.getLocalValue());
 		}
 
 		@Override
-		public void write(ObjectOutputStream out) throws IOException {
-			this.set.write(new OutputViewObjectOutputStreamWrapper(out));
-		}
-
-		@Override
-		public void read(ObjectInputStream in) throws IOException {
-			this.set.read(new InputViewObjectInputStreamWrapper(in));
-		}
-
-		@Override
-		public Accumulator<T, SerializableHashSet<T>> clone() {
+		public Accumulator<T, HashSet<T>> clone() {
 			SetAccumulator<T> result = new SetAccumulator<T>();
-
 			result.set.addAll(set);
-
 			return result;
 		}
 	}

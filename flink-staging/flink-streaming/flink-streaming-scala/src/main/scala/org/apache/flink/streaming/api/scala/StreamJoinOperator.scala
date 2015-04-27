@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.ExecutionConfig
-
 import scala.Array.canBuildFrom
 import scala.reflect.ClassTag
 import org.apache.commons.lang.Validate
@@ -31,12 +30,13 @@ import org.apache.flink.api.java.operators.Keys
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.{ DataStream => JavaStream }
-import org.apache.flink.streaming.api.function.co.JoinWindowFunction
-import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable
+import org.apache.flink.streaming.api.functions.co.JoinWindowFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.clean
 import org.apache.flink.streaming.util.keys.KeySelectorUtil
-import org.apache.flink.streaming.api.datastream.temporaloperator.TemporalWindow
+import org.apache.flink.streaming.api.datastream.temporal.TemporalWindow
 import java.util.concurrent.TimeUnit
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
+import org.apache.flink.streaming.api.operators.co.CoStreamWindow
 
 class StreamJoinOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extends 
 TemporalOperator[I1, I2, StreamJoinOperator.JoinWindow[I1, I2]](i1, i2) {
@@ -195,14 +195,15 @@ object StreamJoinOperator {
      */
     def apply[R: TypeInformation: ClassTag](fun: (I1, I2) => R): DataStream[R] = {
 
-      val invokable = new CoWindowInvokable[I1, I2, R](
+      val operator = new CoStreamWindow[I1, I2, R](
         clean(getJoinWindowFunction(jp, fun)), op.windowSize, op.slideInterval, op.timeStamp1,
         op.timeStamp2)
 
-      javaStream.getExecutionEnvironment().getStreamGraph().setInvokable(javaStream.getId(),
-        invokable)
+      javaStream.getExecutionEnvironment().getStreamGraph().setOperator(javaStream.getId(),
+        operator)
 
-      javaStream.setType(implicitly[TypeInformation[R]])
+      val js = javaStream.asInstanceOf[SingleOutputStreamOperator[R,_]]
+      js.returns(implicitly[TypeInformation[R]]).asInstanceOf[SingleOutputStreamOperator[R,_]]
     }
   }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.hadoop.conf.Configuration;
@@ -36,9 +37,12 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -64,7 +68,7 @@ import java.util.concurrent.ConcurrentMap;
  * This class is located in a different package which is build after flink-dist. This way,
  * we can use the YARN uberjar of flink to start a Flink YARN session.
  *
- * The test is not threadsafe. Parallel execution of tests is not possible!
+ * The test is not thread-safe. Parallel execution of tests is not possible!
  */
 public abstract class YarnTestBase {
 	private static final Logger LOG = LoggerFactory.getLogger(YarnTestBase.class);
@@ -77,20 +81,21 @@ public abstract class YarnTestBase {
 	protected final static int NUM_NODEMANAGERS = 2;
 
 	// The tests are scanning for these strings in the final output.
-	protected final static String[] prohibtedStrings = {
+	protected final static String[] PROHIBITED_STRINGS = {
 			"Exception", // we don't want any exceptions to happen
 			"Started SelectChannelConnector@0.0.0.0:8081" // Jetty should start on a random port in YARN mode.
 	};
 
 	// Temp directory which is deleted after the unit test.
-	private static TemporaryFolder tmp = new TemporaryFolder();
+	@ClassRule
+	public static TemporaryFolder tmp = new TemporaryFolder();
 
 	protected static MiniYARNCluster yarnCluster = null;
 
 	protected static File flinkUberjar;
-	private static File yarnConfFile;
 
 	protected static final Configuration yarnConfiguration;
+
 	static {
 		yarnConfiguration = new YarnConfiguration();
 		yarnConfiguration.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);
@@ -103,7 +108,7 @@ public abstract class YarnTestBase {
 		yarnConfiguration.setBoolean(YarnConfiguration.LOG_AGGREGATION_ENABLED, false);
 		yarnConfiguration.setInt(YarnConfiguration.NM_VCORES, 666); // memory is overwritten in the MiniYARNCluster.
 		// so we have to change the number of cores for testing.
-		yarnConfiguration.setInt(YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS, 10000); // 10 seconds expiry (to ensure we properly heartbeat with YARN).
+		yarnConfiguration.setInt(YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS, 20000); // 20 seconds expiry (to ensure we properly heartbeat with YARN).
 	}
 
 	// This code is taken from: http://stackoverflow.com/a/7201825/568695
@@ -154,11 +159,15 @@ public abstract class YarnTestBase {
 		}
 	}
 
+	private YarnClient yarnClient = null;
 	@Before
 	public void checkClusterEmpty() throws IOException, YarnException {
-		YarnClient yarnClient = YarnClient.createYarnClient();
-		yarnClient.init(yarnConfiguration);
-		yarnClient.start();
+		if(yarnClient == null) {
+			yarnClient = YarnClient.createYarnClient();
+			yarnClient.init(yarnConfiguration);
+			yarnClient.start();
+		}
+
 		List<ApplicationReport> apps = yarnClient.getApplications();
 		for(ApplicationReport app : apps) {
 			if(app.getYarnApplicationState() != YarnApplicationState.FINISHED
@@ -202,25 +211,39 @@ public abstract class YarnTestBase {
 			return name.startsWith("flink-dist") && name.endsWith(".jar") && dir.toString().contains("/lib");
 		}
 	}
+
 	public static class ContainsName implements FilenameFilter {
-		private String name;
+		private String[] names;
 		private String excludeInPath = null;
 
-		public ContainsName(String name) {
-			this.name = name;
+		/**
+		 * @param names which have to be included in the filename.
+		 */
+		public ContainsName(String[] names) {
+			this.names = names;
 		}
 
-		public ContainsName(String name, String excludeInPath) {
-			this.name = name;
+		public ContainsName(String[] names, String excludeInPath) {
+			this.names = names;
 			this.excludeInPath = excludeInPath;
 		}
 
 		@Override
 		public boolean accept(File dir, String name) {
 			if(excludeInPath == null) {
-				return name.contains(this.name);
+				for(String n: names) {
+					if(!name.contains(n)) {
+						return false;
+					}
+				}
+				return true;
 			} else {
-				return name.contains(this.name) && !dir.toString().contains(excludeInPath);
+				for(String n: names) {
+					if(!name.contains(n)) {
+						return false;
+					}
+				}
+				return !dir.toString().contains(excludeInPath);
 			}
 		}
 	}
@@ -251,25 +274,27 @@ public abstract class YarnTestBase {
 		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
-				File f = new File(dir.getAbsolutePath()+ "/" + name);
-				// scan each file for 'Exception'.
-				Scanner scanner =  null;
-				try {
-					scanner = new Scanner(f);
-				} catch (FileNotFoundException e) {
-					LOG.warn("Unable to locate file: "+e.getMessage()+" file: "+f.getAbsolutePath());
-				}
+			// scan each file for prohibited strings.
+			File f = new File(dir.getAbsolutePath()+ "/" + name);
+			try {
+				Scanner scanner = new Scanner(f);
 				while (scanner.hasNextLine()) {
 					final String lineFromFile = scanner.nextLine();
-					for(int i = 0; i < prohibited.length; i++) {
-						if(lineFromFile.contains(prohibited[i])) {
-							LOG.warn("Prohibited String '{}' in line '{}'", prohibited[i], lineFromFile);
+					for (String aProhibited : prohibited) {
+						if (lineFromFile.contains(aProhibited)) {
+							// logging in FATAL to see the actual message in TRAVIS tests.
+							Marker fatal = MarkerFactory.getMarker("FATAL");
+							LOG.error(fatal, "Prohibited String '{}' in line '{}'", aProhibited, lineFromFile);
 							return true;
 						}
 					}
 
 				}
-				return false;
+			} catch (FileNotFoundException e) {
+				LOG.warn("Unable to locate file: "+e.getMessage()+" file: "+f.getAbsolutePath());
+			}
+
+			return false;
 			}
 		});
 		if(foundFile != null) {
@@ -306,8 +331,19 @@ public abstract class YarnTestBase {
 	}
 
 	public static void startYARNWithConfig(Configuration conf) {
-		flinkUberjar = findFile("..", new RootDirFilenameFilter());
-		Assert.assertNotNull(flinkUberjar);
+		// set the home directory to a tmp directory. Flink on YARN is using the home dir to distribute the file
+		File homeDir = null;
+		try {
+			homeDir = tmp.newFolder();
+		} catch (IOException e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+		System.setProperty("user.home", homeDir.getAbsolutePath());
+		String uberjarStartLoc = "..";
+		LOG.info("Trying to locate uberjar in {}", new File(uberjarStartLoc));
+		flinkUberjar = findFile(uberjarStartLoc, new RootDirFilenameFilter());
+		Assert.assertNotNull("Flink uberjar not found", flinkUberjar);
 		String flinkDistRootDir = flinkUberjar.getParentFile().getParent();
 
 		if (!flinkUberjar.exists()) {
@@ -324,10 +360,10 @@ public abstract class YarnTestBase {
 			}
 
 			Map<String, String> map = new HashMap<String, String>(System.getenv());
-			File flinkConfFilePath = findFile(flinkDistRootDir, new ContainsName("flink-conf.yaml"));
+			File flinkConfFilePath = findFile(flinkDistRootDir, new ContainsName(new String[] {"flink-conf.yaml"}));
 			Assert.assertNotNull(flinkConfFilePath);
 			map.put("FLINK_CONF_DIR", flinkConfFilePath.getParent());
-			yarnConfFile = writeYarnSiteConfigXML(conf);
+			File yarnConfFile = writeYarnSiteConfigXML(conf);
 			map.put("YARN_CONF_DIR", yarnConfFile.getParentFile().getAbsolutePath());
 			map.put("IN_TESTS", "yes we are in tests"); // see FlinkYarnClient() for more infos
 			setEnv(map);
@@ -358,9 +394,6 @@ public abstract class YarnTestBase {
 
 	/**
 	 * This method returns once the "startedAfterString" has been seen.
-	 * @param args
-	 * @param startedAfterString
-	 * @param type
 	 */
 	protected Runner startWithArgs(String[] args, String startedAfterString, RunTypes type) {
 		LOG.info("Running with args {}", Arrays.toString(args));
@@ -374,6 +407,7 @@ public abstract class YarnTestBase {
 		final int START_TIMEOUT_SECONDS = 60;
 
 		Runner runner = new Runner(args, type);
+		runner.setName("Frontend (CLI/YARN Client) runner thread (runWithArgs()).");
 		runner.start();
 
 		for(int second = 0; second <  START_TIMEOUT_SECONDS; second++) {
@@ -399,11 +433,8 @@ public abstract class YarnTestBase {
 
 	/**
 	 * The test has been passed once the "terminateAfterString" has been seen.
-	 * @param args
-	 * @param terminateAfterString
-	 * @param type
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, RunTypes type) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode) {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
@@ -420,9 +451,23 @@ public abstract class YarnTestBase {
 		boolean expectedStringSeen = false;
 		for(int second = 0; second <  START_TIMEOUT_SECONDS; second++) {
 			sleep(1000);
+			String outContentString = outContent.toString();
+			String errContentString = errContent.toString();
+			if(failOnStrings != null) {
+				for (String failOnString : failOnStrings) {
+					if (outContentString.contains(failOnString)
+							|| errContentString.contains(failOnString)) {
+						LOG.warn("Failing test. Output contained illegal string '" + failOnString + "'");
+						sendOutput();
+						// stopping runner.
+						runner.sendStop();
+						Assert.fail("Output contained illegal string '" + failOnString + "'");
+					}
+				}
+			}
 			// check output for correct TaskManager startup.
-			if(outContent.toString().contains(terminateAfterString)
-					|| errContent.toString().contains(terminateAfterString) ) {
+			if(outContentString.contains(terminateAfterString)
+					|| errContentString.contains(terminateAfterString) ) {
 				expectedStringSeen = true;
 				LOG.info("Found expected output in redirected streams");
 				// send "stop" command to command line interface
@@ -439,13 +484,15 @@ public abstract class YarnTestBase {
 			// check if thread died
 			if(!runner.isAlive()) {
 				sendOutput();
-				Assert.fail("Runner thread died before the test was finished. Return value = "+runner.getReturnValue());
+				Assert.fail("Runner thread died before the test was finished. Return value = " +runner.getReturnValue());
 			}
 		}
-
 		sendOutput();
 		Assert.assertTrue("During the timeout period of " + START_TIMEOUT_SECONDS + " seconds the " +
 				"expected string did not show up", expectedStringSeen);
+
+		// check for 0 return code
+		Assert.assertTrue("Expecting return value == "+returnCode, runner.getReturnValue() == returnCode);
 		LOG.info("Test was successful");
 	}
 
@@ -509,10 +556,31 @@ public abstract class YarnTestBase {
 	public static void tearDown() {
 		//shutdown YARN cluster
 		if (yarnCluster != null) {
-			LOG.info("shutdown MiniYarn cluster");
+			LOG.info("Shutting down MiniYarn cluster");
 			yarnCluster.stop();
 			yarnCluster = null;
 		}
+		// When we are on travis, we copy the tmp files of JUnit (containing the MiniYARNCluster log files)
+		// to <flinkRoot>/target/flink-yarn-tests-*.
+		// The files from there are picked up by the ./tools/travis_watchdog.sh script
+		// to upload them to Amazon S3.
+		if(isOnTravis()) {
+			File target = new File("../target/"+yarnConfiguration.get(TEST_CLUSTER_NAME_KEY));
+			if(!target.mkdirs()) {
+				LOG.warn("Error creating dirs to {}", target);
+			}
+			File src = tmp.getRoot();
+			LOG.info("copying the final files from {} to {}", src.getAbsolutePath(), target.getAbsolutePath());
+			try {
+				FileUtils.copyDirectoryToDirectory(src, target);
+			} catch (IOException e) {
+				LOG.warn("Error copying the final files from {} to {}: msg: {}", src.getAbsolutePath(), target.getAbsolutePath(), e.getMessage(), e);
+			}
+		}
+	}
+
+	public static boolean isOnTravis() {
+		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
 	}
 
 }

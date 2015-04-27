@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.windowing.helper.TimestampWrapper;
 import org.apache.flink.streaming.api.windowing.policy.CountEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
+import org.apache.flink.streaming.api.windowing.policy.KeepAllEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
@@ -31,7 +32,7 @@ import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 public class WindowUtils {
 
 	public enum WindowTransformation {
-		REDUCEWINDOW, MAPWINDOW, NONE;
+		REDUCEWINDOW, MAPWINDOW, FOLDWINDOW, NONE;
 		private Function UDF;
 
 		public WindowTransformation with(Function UDF) {
@@ -45,9 +46,10 @@ public class WindowUtils {
 	}
 
 	public static boolean isParallelPolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction,
-			int inputParallelism) {
-		return inputParallelism != 1
-				&& ((eviction instanceof CountEvictionPolicy && (trigger instanceof CountTriggerPolicy || trigger instanceof TimeTriggerPolicy)) || (eviction instanceof TumblingEvictionPolicy && trigger instanceof CountTriggerPolicy));
+			int parallelism) {
+		return ((eviction instanceof CountEvictionPolicy && (trigger instanceof CountTriggerPolicy || trigger instanceof TimeTriggerPolicy))
+				|| (eviction instanceof TumblingEvictionPolicy && trigger instanceof CountTriggerPolicy) || (WindowUtils
+				.isTimeOnly(trigger, eviction) && parallelism > 1));
 	}
 
 	public static boolean isSlidingTimePolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
@@ -117,7 +119,7 @@ public class WindowUtils {
 	}
 
 	public static boolean isTumblingPolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
-		if (eviction instanceof TumblingEvictionPolicy) {
+		if (eviction instanceof TumblingEvictionPolicy || eviction instanceof KeepAllEvictionPolicy) {
 			return true;
 		} else if (isTimeOnly(trigger, eviction)) {
 			long slide = getSlideSize(trigger);
@@ -139,7 +141,8 @@ public class WindowUtils {
 	}
 
 	public static boolean isTimeOnly(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
-		return trigger instanceof TimeTriggerPolicy && eviction instanceof TimeEvictionPolicy;
+		return trigger instanceof TimeTriggerPolicy
+				&& (eviction instanceof TimeEvictionPolicy || eviction instanceof KeepAllEvictionPolicy);
 	}
 
 	public static boolean isCountOnly(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
@@ -160,5 +163,31 @@ public class WindowUtils {
 			return value.windowID;
 		}
 
+	}
+
+	public static boolean isJumpingCountPolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
+		if (isCountOnly(trigger, eviction)) {
+			long slide = getSlideSize(trigger);
+			long window = getWindowSize(eviction);
+
+			return slide > window
+					&& ((CountTriggerPolicy<?>) trigger).getStart() == ((CountEvictionPolicy<?>) eviction)
+							.getStart()
+					&& ((CountEvictionPolicy<?>) eviction).getDeleteOnEviction() == 1;
+		} else {
+			return false;
+		}
+	}
+
+	public static boolean isJumpingTimePolicy(TriggerPolicy<?> trigger, EvictionPolicy<?> eviction) {
+		if (isTimeOnly(trigger, eviction)) {
+			long slide = getSlideSize(trigger);
+			long window = getWindowSize(eviction);
+
+			return slide > window
+					&& getTimeStampWrapper(trigger).equals(getTimeStampWrapper(eviction));
+		} else {
+			return false;
+		}
 	}
 }

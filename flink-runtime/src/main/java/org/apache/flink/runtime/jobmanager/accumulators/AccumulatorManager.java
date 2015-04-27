@@ -16,15 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.accumulators;
 
+import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.util.SerializedValue;
 
 /**
  * This class manages the accumulators for different jobs. Either the jobs are
@@ -38,11 +41,12 @@ import org.apache.flink.runtime.jobgraph.JobID;
  */
 public class AccumulatorManager {
 
-	// Map of accumulators belonging to recently started jobs
+	/** Map of accumulators belonging to recently started jobs */
 	private final Map<JobID, JobAccumulators> jobAccumulators = new HashMap<JobID, JobAccumulators>();
 
 	private final LinkedList<JobID> lru = new LinkedList<JobID>();
 	private int maxEntries;
+
 
 	public AccumulatorManager(int maxEntries) {
 		this.maxEntries = maxEntries;
@@ -69,11 +73,13 @@ public class AccumulatorManager {
 	public Map<String, Object> getJobAccumulatorResults(JobID jobID) {
 		Map<String, Object> result = new HashMap<String, Object>();
 
-		JobAccumulators jobAccumulator = jobAccumulators.get(jobID);
+		JobAccumulators acc;
+		synchronized (jobAccumulators) {
+			acc = jobAccumulators.get(jobID);
+		}
 
-		if(jobAccumulator != null) {
-			for (Map.Entry<String, Accumulator<?, ?>> entry : jobAccumulator.getAccumulators().
-					entrySet()) {
+		if (acc != null) {
+			for (Map.Entry<String, Accumulator<?, ?>> entry : acc.getAccumulators().entrySet()) {
 				result.put(entry.getKey(), entry.getValue().getLocalValue());
 			}
 		}
@@ -81,9 +87,50 @@ public class AccumulatorManager {
 		return result;
 	}
 
+	public Map<String, SerializedValue<Object>> getJobAccumulatorResultsSerialized(JobID jobID) throws IOException {
+		JobAccumulators acc;
+		synchronized (jobAccumulators) {
+			acc = jobAccumulators.get(jobID);
+		}
+
+		if (acc == null || acc.getAccumulators().isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
+		for (Map.Entry<String, Accumulator<?, ?>> entry : acc.getAccumulators().entrySet()) {
+			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
+		}
+
+		return result;
+	}
+
+	public StringifiedAccumulatorResult[] getJobAccumulatorResultsStringified(JobID jobID) throws IOException {
+		JobAccumulators acc;
+		synchronized (jobAccumulators) {
+			acc = jobAccumulators.get(jobID);
+		}
+
+		if (acc == null || acc.getAccumulators().isEmpty()) {
+			return new StringifiedAccumulatorResult[0];
+		}
+
+		Map<String, Accumulator<?, ?>> accMap = acc.getAccumulators();
+
+		StringifiedAccumulatorResult[] result = new StringifiedAccumulatorResult[accMap.size()];
+		int i = 0;
+		for (Map.Entry<String, Accumulator<?, ?>> entry : accMap.entrySet()) {
+			String type = entry.getValue() == null ? "(null)" : entry.getValue().getClass().getSimpleName();
+			String value = entry.getValue() == null ? "(null)" : entry.getValue().toString();
+			result[i++] = new StringifiedAccumulatorResult(entry.getKey(), type, value);
+		}
+		return result;
+	}
+
 	/**
-	 * Cleanup data for the oldest jobs if the maximum number of entries is
-	 * reached.
+	 * Cleanup data for the oldest jobs if the maximum number of entries is reached.
+	 *
+	 * @param jobId The (potentially new) JobId.
 	 */
 	private void cleanup(JobID jobId) {
 		if (!lru.contains(jobId)) {

@@ -42,12 +42,12 @@ import org.apache.flink.util.Collector;
 @SuppressWarnings("deprecation")
 public class CollectionSourceTest extends RecordAPITestBase {
 
-	private static final int DOP = 4;
+	private static final int parallelism = 4;
 
 	protected String resultPath;
 
 	public CollectionSourceTest(){
-		setTaskManagerNumSlots(DOP);
+		setTaskManagerNumSlots(parallelism);
 	}
 
 	public static class Join extends JoinFunction {
@@ -122,7 +122,7 @@ public class CollectionSourceTest extends RecordAPITestBase {
 
 	@Override
 	protected Plan getTestJob() {
-		return getPlan(DOP, resultPath);
+		return getPlan(parallelism, resultPath);
 	}
 
 	@Override

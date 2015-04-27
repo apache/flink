@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.Utils;
@@ -31,6 +32,7 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import com.google.common.base.Preconditions;
@@ -62,6 +64,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (field >= dataSet.getType().getArity()) {
 			throw new IllegalArgumentException("Order key out of tuple bounds.");
 		}
+		isValidSortKeyType(field);
+
 		// use int-based expression key to properly resolve nested tuples for grouping
 		ExpressionKeys<T> ek = new ExpressionKeys<T>(new int[]{field}, dataSet.getType());
 		this.groupSortKeyPositions = ek.computeLogicalKeyPositions();
@@ -78,6 +82,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (!(dataSet.getType() instanceof CompositeType)) {
 			throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
 		}
+		isValidSortKeyType(field);
+
 		// resolve String-field to int using the expression keys
 		ExpressionKeys<T> ek = new ExpressionKeys<T>(new String[]{field}, dataSet.getType());
 		this.groupSortKeyPositions = ek.computeLogicalKeyPositions();
@@ -93,6 +99,10 @@ public class SortedGrouping<T> extends Grouping<T> {
 
 		if (!(this.keys instanceof Keys.SelectorFunctionKeys)) {
 			throw new InvalidProgramException("Sorting on KeySelector keys only works with KeySelector grouping.");
+		}
+		TypeInformation<?> sortKeyType = keySelector.getKeyType();
+		if(!sortKeyType.isSortKeyType()) {
+			throw new InvalidProgramException("Key type " + sortKeyType +" is not sortable.");
 		}
 
 		this.groupSortKeyPositions = keySelector.computeLogicalKeyPositions();
@@ -156,6 +166,27 @@ public class SortedGrouping<T> extends Grouping<T> {
 		return new GroupReduceOperator<T, R>(this, resultType, dataSet.clean(reducer), Utils.getCallLocationName() );
 	}
 
+	/**
+	 * Applies a CombineFunction on a grouped {@link DataSet}.
+	 * A CombineFunction is similar to a GroupReduceFunction but does not perform a full data exchange. Instead, the
+	 * CombineFunction calls the combine method once per partition for combining a group of results. This
+	 * operator is suitable for combining values into an intermediate format before doing a proper groupReduce where
+	 * the data is shuffled across the node for further reduction. The GroupReduce operator can also be supplied with
+	 * a combiner by implementing the RichGroupReduce function. The combine method of the RichGroupReduce function
+	 * demands input and output type to be the same. The CombineFunction, on the other side, can have an arbitrary
+	 * output type.
+	 * @param combiner The CombineFunction that is applied on the DataSet.
+	 * @return A GroupCombineOperator which represents the combined DataSet.
+	 */
+	public <R> GroupCombineOperator<T, R> combineGroup(GroupCombineFunction<T, R> combiner) {
+		if (combiner == null) {
+			throw new NullPointerException("GroupReduce function must not be null.");
+		}
+		TypeInformation<R> resultType = TypeExtractor.getGroupCombineReturnTypes(combiner, this.getDataSet().getType());
+
+		return new GroupCombineOperator<T, R>(this, resultType, dataSet.clean(combiner), Utils.getCallLocationName());
+	}
+
 	
 	/**
 	 * Returns a new set containing the first n elements in this grouped and sorted {@link DataSet}.<br/>
@@ -196,7 +227,35 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (field >= dataSet.getType().getArity()) {
 			throw new IllegalArgumentException("Order key out of tuple bounds.");
 		}
+		isValidSortKeyType(field);
+
 		ExpressionKeys<T> ek = new ExpressionKeys<T>(new int[]{field}, dataSet.getType());
+		addSortGroupInternal(ek, order);
+		return this;
+	}
+
+	/**
+	 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} or POJO elements within a group on the specified field in the specified {@link Order}.</br>
+	 * <b>Note: Only groups of Tuple or Pojo elements can be sorted.</b><br/>
+	 * Groups can be sorted by multiple fields by chaining {@link #sortGroup(String, Order)} calls.
+	 *
+	 * @param field The Tuple or Pojo field on which the group is sorted.
+	 * @param order The Order in which the specified field is sorted.
+	 * @return A SortedGrouping with specified order of group element.
+	 *
+	 * @see org.apache.flink.api.java.tuple.Tuple
+	 * @see Order
+	 */
+	public SortedGrouping<T> sortGroup(String field, Order order) {
+		if (groupSortSelectorFunctionKey != null) {
+			throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not supported");
+		}
+		if (! (dataSet.getType() instanceof CompositeType)) {
+			throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
+		}
+		isValidSortKeyType(field);
+
+		ExpressionKeys<T> ek = new ExpressionKeys<T>(new String[]{field}, dataSet.getType());
 		addSortGroupInternal(ek, order);
 		return this;
 	}
@@ -215,29 +274,27 @@ public class SortedGrouping<T> extends Grouping<T> {
 			this.groupSortOrders[pos] = order; // use the same order
 		}
 	}
-	
-	/**
-	 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} or POJO elements within a group on the specified field in the specified {@link Order}.</br>
-	 * <b>Note: Only groups of Tuple or Pojo elements can be sorted.</b><br/>
-	 * Groups can be sorted by multiple fields by chaining {@link #sortGroup(String, Order)} calls.
-	 * 
-	 * @param field The Tuple or Pojo field on which the group is sorted.
-	 * @param order The Order in which the specified field is sorted.
-	 * @return A SortedGrouping with specified order of group element.
-	 * 
-	 * @see org.apache.flink.api.java.tuple.Tuple
-	 * @see Order
-	 */
-	public SortedGrouping<T> sortGroup(String field, Order order) {
-		if (groupSortSelectorFunctionKey != null) {
-			throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not supported");
+
+	private void isValidSortKeyType(int field) {
+		TypeInformation<?> sortKeyType = ((TupleTypeInfoBase<?>) dataSet.getType()).getTypeAt(field);
+		if (!sortKeyType.isSortKeyType()) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
 		}
-		if (! (dataSet.getType() instanceof CompositeType)) {
-			throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
+	}
+
+	private void isValidSortKeyType(String field) {
+		TypeInformation<?> sortKeyType;
+
+		field = field.trim();
+		if(field.equals("*") || field.equals("_")) {
+			sortKeyType = this.getDataSet().getType();
+		} else {
+			sortKeyType = ((CompositeType<?>) this.getDataSet().getType()).getTypeAt(field);
 		}
-		ExpressionKeys<T> ek = new ExpressionKeys<T>(new String[]{field}, dataSet.getType());
-		addSortGroupInternal(ek, order);
-		return this;
+
+		if (!sortKeyType.isSortKeyType()) {
+			throw new InvalidProgramException("Selected sort key is not a sortable type " + sortKeyType);
+		}
 	}
 
 }

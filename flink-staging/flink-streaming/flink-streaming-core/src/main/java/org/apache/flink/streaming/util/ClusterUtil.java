@@ -17,15 +17,14 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import akka.actor.ActorRef;
 
 public class ClusterUtil {
 
@@ -37,40 +36,39 @@ public class ClusterUtil {
 	 * 
 	 * @param jobGraph
 	 *            jobGraph
-	 * @param degreeOfParallelism
+	 * @param parallelism
 	 *            numberOfTaskTrackers
 	 * @param memorySize
 	 *            memorySize
+	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	public static void runOnMiniCluster(JobGraph jobGraph, int degreeOfParallelism, long memorySize)
-			throws Exception {
-
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int parallelism, long memorySize,
+																boolean printDuringExecution) throws Exception {
 		Configuration configuration = jobGraph.getJobConfiguration();
 
 		LocalFlinkMiniCluster exec = null;
 
 		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, degreeOfParallelism);
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
 		}
 
 		try {
 			exec = new LocalFlinkMiniCluster(configuration, true);
-			ActorRef jobClient = exec.getJobClient();
 
-			JobClient.submitJobAndWait(jobGraph, true, jobClient, exec.timeout());
-
-		} catch (Exception e) {
-			throw e;
-		} finally {
+			SerializedJobExecutionResult result = exec.submitJobAndWait(jobGraph, printDuringExecution);
+			return result.toJobExecutionResult(ClusterUtil.class.getClassLoader());
+		}
+		finally {
 			if (exec != null) {
 				exec.stop();
 			}
 		}
 	}
 
-	public static void runOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
-		runOnMiniCluster(jobGraph, numOfSlots, -1);
+	public static JobExecutionResult runOnMiniCluster(JobGraph jobGraph, int numOfSlots,
+														boolean printDuringExecution) throws Exception {
+		return runOnMiniCluster(jobGraph, numOfSlots, -1, printDuringExecution);
 	}
 }

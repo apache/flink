@@ -17,18 +17,19 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.util.Collector;
 
 import java.util.Arrays;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 /**
  * An example of grouped stream windowing where different eviction and trigger
@@ -45,13 +46,17 @@ public class TopSpeedWindowingExample {
 			return;
 		}
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		@SuppressWarnings({ "rawtypes", "serial" })
-		DataStream topSpeeds = env
-				.addSource(CarSource.create(numOfCars))
-				.groupBy(0)
-				.window(Time.of(evictionSec, TimeUnit.SECONDS))
+		@SuppressWarnings({"rawtypes", "serial"})
+		DataStream<Tuple4<Integer, Integer, Double, Long>> carData;
+		if (fileInput) {
+			carData = env.readTextFile(inputPath).map(new ParseCarData());
+		} else {
+			carData = env.addSource(CarSource.create(numOfCars));
+		}
+		DataStream<Tuple4<Integer, Integer, Double, Long>> topSpeeds = carData.groupBy(0)
+				.window(Time.of(evictionSec, new CarTimestamp()))
 				.every(Delta.of(triggerMeters,
 						new DeltaFunction<Tuple4<Integer, Integer, Double, Long>>() {
 							@Override
@@ -61,8 +66,12 @@ public class TopSpeedWindowingExample {
 								return newDataPoint.f2 - oldDataPoint.f2;
 							}
 						}, new Tuple4<Integer, Integer, Double, Long>(0, 0, 0d, 0l))).local().maxBy(1).flatten();
+		if (fileOutput) {
+			topSpeeds.writeAsText(outputPath);
+		} else {
+			topSpeeds.print();
+		}
 
-		topSpeeds.print();
 		env.execute("CarTopSpeedWindowingExample");
 	}
 
@@ -99,8 +108,9 @@ public class TopSpeedWindowingExample {
 						speeds[carId] = Math.max(0, speeds[carId] - 5);
 					}
 					distances[carId] += speeds[carId] / 3.6d;
-					collector.collect(new Tuple4<Integer, Integer, Double, Long>(carId,
-							speeds[carId], distances[carId], System.currentTimeMillis()));
+					Tuple4<Integer, Integer, Double, Long> record = new Tuple4<Integer, Integer, Double, Long>(carId,
+							speeds[carId], distances[carId], System.currentTimeMillis());
+					collector.collect(record);
 				}
 			}
 		}
@@ -110,9 +120,34 @@ public class TopSpeedWindowingExample {
 		}
 	}
 
+	private static class ParseCarData extends
+			RichMapFunction<String, Tuple4<Integer, Integer, Double, Long>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple4<Integer, Integer, Double, Long> map(String record) {
+			String rawData = record.substring(1, record.length() - 1);
+			String[] data = rawData.split(",");
+			return new Tuple4<Integer, Integer, Double, Long>(Integer.valueOf(data[0]),
+					Integer.valueOf(data[1]), Double.valueOf(data[2]), Long.valueOf(data[3]));
+		}
+	}
+
+	private static class CarTimestamp implements Timestamp<Tuple4<Integer, Integer, Double, Long>> {
+
+		@Override
+		public long getTimestamp(Tuple4<Integer, Integer, Double, Long> value) {
+			return value.f3;
+		}
+	}
+
+	private static boolean fileInput = false;
+	private static boolean fileOutput = false;
 	private static int numOfCars = 2;
 	private static int evictionSec = 10;
 	private static double triggerMeters = 50;
+	private static String inputPath;
+	private static String outputPath;
 
 	private static boolean parseParameters(String[] args) {
 
@@ -121,6 +156,11 @@ public class TopSpeedWindowingExample {
 				numOfCars = Integer.valueOf(args[0]);
 				evictionSec = Integer.valueOf(args[1]);
 				triggerMeters = Double.valueOf(args[2]);
+			} else if (args.length == 2) {
+				fileInput = true;
+				fileOutput = true;
+				inputPath = args[0];
+				outputPath = args[1];
 			} else {
 				System.err
 						.println("Usage: TopSpeedWindowingExample <numCars> <evictSec> <triggerMeters>");

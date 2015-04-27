@@ -29,7 +29,7 @@ import org.apache.flink.util.Collector;
 /**
  * Grouped pre-reducer for tumbling eviction polciy.
  */
-public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePreAggregator {
+public class TumblingGroupedPreReducer<T> extends WindowBuffer<T> implements PreAggregator {
 
 	private static final long serialVersionUID = 1L;
 
@@ -40,26 +40,34 @@ public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePr
 
 	private TypeSerializer<T> serializer;
 
+	private boolean evict = true;
+
 	public TumblingGroupedPreReducer(ReduceFunction<T> reducer, KeySelector<T, ?> keySelector,
 			TypeSerializer<T> serializer) {
+		this(reducer, keySelector, serializer, true);
+	}
+
+	public TumblingGroupedPreReducer(ReduceFunction<T> reducer, KeySelector<T, ?> keySelector,
+			TypeSerializer<T> serializer, boolean evict) {
 		this.reducer = reducer;
 		this.serializer = serializer;
 		this.keySelector = keySelector;
 		this.reducedValues = new HashMap<Object, T>();
+		this.evict = evict;
 	}
 
-	public boolean emitWindow(Collector<StreamWindow<T>> collector) {
+	public void emitWindow(Collector<StreamWindow<T>> collector) {
 
 		if (!reducedValues.isEmpty()) {
-			StreamWindow<T> currentWindow = new StreamWindow<T>();
+			StreamWindow<T> currentWindow = createEmptyWindow();
 			currentWindow.addAll(reducedValues.values());
 			collector.collect(currentWindow);
-			reducedValues.clear();
-			return true;
-		} else {
-			return false;
+		} else if (emitEmpty) {
+			collector.collect(createEmptyWindow());
 		}
-
+		if (evict) {
+			reducedValues.clear();
+		}
 	}
 
 	public void store(T element) throws Exception {
@@ -76,17 +84,23 @@ public class TumblingGroupedPreReducer<T> implements WindowBuffer<T>, CompletePr
 		reducedValues.put(key, reduced);
 	}
 
+	@Override
 	public void evict(int n) {
 	}
 
 	@Override
 	public TumblingGroupedPreReducer<T> clone() {
-		return new TumblingGroupedPreReducer<T>(reducer, keySelector, serializer);
+		return new TumblingGroupedPreReducer<T>(reducer, keySelector, serializer, evict);
 	}
 
 	@Override
 	public String toString() {
 		return reducedValues.toString();
+	}
+
+	public TumblingGroupedPreReducer<T> noEvict() {
+		this.evict = false;
+		return this;
 	}
 
 }

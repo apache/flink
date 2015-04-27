@@ -20,7 +20,8 @@ package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.channel.ChannelPipeline;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionProvider;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder.createFrameLengthDecoder;
@@ -33,12 +34,14 @@ class PartitionRequestProtocol implements NettyProtocol {
 
 	private final NettyMessage.NettyMessageDecoder messageDecoder = new NettyMessage.NettyMessageDecoder();
 
-	private final IntermediateResultPartitionProvider partitionProvider;
+	private final ResultPartitionProvider partitionProvider;
 	private final TaskEventDispatcher taskEventDispatcher;
+	private final NetworkBufferPool networkbufferPool;
 
-	PartitionRequestProtocol(IntermediateResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher) {
+	PartitionRequestProtocol(ResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher, NetworkBufferPool networkbufferPool) {
 		this.partitionProvider = partitionProvider;
 		this.taskEventDispatcher = taskEventDispatcher;
+		this.networkbufferPool = networkbufferPool;
 	}
 
 	// +-------------------------------------------------------------------+
@@ -80,7 +83,7 @@ class PartitionRequestProtocol implements NettyProtocol {
 				.addLast("Message encoder", messageEncoder)
 				.addLast("Frame decoder", createFrameLengthDecoder())
 				.addLast("Client request decoder", messageDecoder)
-				.addLast("Server request handler", new PartitionRequestServerHandler(partitionProvider, taskEventDispatcher, queueOfPartitionQueues))
+				.addLast("Server request handler", new PartitionRequestServerHandler(partitionProvider, taskEventDispatcher, queueOfPartitionQueues, networkbufferPool))
 				.addLast("Queue of queues", queueOfPartitionQueues);
 	}
 

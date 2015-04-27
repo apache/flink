@@ -32,26 +32,11 @@ if [ "$JAVA_VERSION" -lt 18 ]; then
     JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
 fi
 
-
-
 if [ "$FLINK_IDENT_STRING" = "" ]; then
     FLINK_IDENT_STRING="$USER"
 fi
 
-# auxilliary function to construct a the classpath for the jobManager
-constructJobManagerClassPath() {
-    for jarfile in "$FLINK_LIB_DIR"/*.jar ; do
-        if [[ $FLINK_JM_CLASSPATH = "" ]]; then
-            FLINK_JM_CLASSPATH=$jarfile;
-        else
-            FLINK_JM_CLASSPATH=$FLINK_JM_CLASSPATH:$jarfile
-        fi
-    done
-
-    echo $FLINK_JM_CLASSPATH
-}
-
-FLINK_JM_CLASSPATH=`manglePathList "$(constructJobManagerClassPath)"`
+FLINK_JM_CLASSPATH=`constructFlinkClassPath`
 
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-jobmanager-$HOSTNAME.log
 out=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-jobmanager-$HOSTNAME.out
@@ -94,8 +79,8 @@ case $STARTSTOP in
         rotateLogFile $log
         rotateLogFile $out
 
-        echo Starting job manager
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$FLINK_JM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS" org.apache.flink.runtime.jobmanager.JobManager --executionMode $EXECUTIONMODE --configDir "$FLINK_CONF_DIR"  > "$out" 2>&1 < /dev/null &
+        echo "Starting Job Manager"
+        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_JM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.runtime.jobmanager.JobManager --executionMode $EXECUTIONMODE --configDir "$FLINK_CONF_DIR"  > "$out" 2>&1 < /dev/null &
         echo $! > $pid
 
     ;;
@@ -103,18 +88,18 @@ case $STARTSTOP in
     (stop)
         if [ -f $pid ]; then
             if kill -0 `cat $pid` > /dev/null 2>&1; then
-                echo Stopping job manager
+                echo "Stopping job manager"
                 kill `cat $pid`
             else
-                echo No job manager to stop
+                echo "No job manager to stop"
             fi
         else
-            echo No job manager to stop
+            echo "No job manager to stop"
         fi
     ;;
 
     (*)
-        echo Please specify start or stop
+        echo "Please specify 'start (cluster|local)' or stop"
     ;;
 
 esac

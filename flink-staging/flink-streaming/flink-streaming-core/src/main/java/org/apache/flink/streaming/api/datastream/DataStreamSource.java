@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
  * The DataStreamSource represents the starting point of a DataStream.
@@ -32,8 +32,13 @@ public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataS
 	boolean isParallel;
 
 	public DataStreamSource(StreamExecutionEnvironment environment, String operatorType,
-			TypeInformation<OUT> outTypeInfo, StreamInvokable<?, ?> invokable, boolean isParallel) {
-		super(environment, operatorType, outTypeInfo, invokable);
+			TypeInformation<OUT> outTypeInfo, StreamOperator<?, OUT> operator,
+			boolean isParallel, String sourceName) {
+		super(environment, operatorType, outTypeInfo, operator);
+
+		environment.getStreamGraph().addSource(getId(), operator, null, outTypeInfo,
+				sourceName);
+
 		this.isParallel = isParallel;
 		if (!isParallel) {
 			setParallelism(1);
@@ -41,11 +46,11 @@ public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataS
 	}
 
 	@Override
-	public DataStreamSource<OUT> setParallelism(int dop) {
-		if (dop > 1 && !isParallel) {
+	public DataStreamSource<OUT> setParallelism(int parallelism) {
+		if (parallelism > 1 && !isParallel) {
 			throw new IllegalArgumentException("Source: " + this.id + " is not a parallel source");
 		} else {
-			return (DataStreamSource<OUT>) super.setParallelism(dop);
+			return (DataStreamSource<OUT>) super.setParallelism(parallelism);
 		}
 	}
 }

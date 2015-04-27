@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.client;
 
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 
 /**
  * This exception is the base exception for all exceptions that denote any failure during

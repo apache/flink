@@ -17,28 +17,27 @@
 
 package org.apache.flink.streaming.examples.ml;
 
-import java.util.concurrent.TimeUnit;
-
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.WindowMapFunction;
-import org.apache.flink.streaming.api.function.co.CoMapFunction;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.WindowMapFunction;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.helper.Time;
+import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.util.Collector;
 
 /**
  * Skeleton for incremental machine learning algorithm consisting of a
  * pre-computed model, which gets updated for the new inputs and new input data
  * for which the job provides predictions.
- * 
+ * <p/>
  * <p>
  * This may serve as a base of a number of algorithms, e.g. updating an
  * incremental Alternating Least Squares model while also providing the
  * predictions.
  * </p>
- * 
- * <p>
+ * <p/>
+ * <p/>
  * This example shows how to use:
  * <ul>
  * <li>Connected streams
@@ -47,6 +46,9 @@ import org.apache.flink.util.Collector;
  * </ul>
  */
 public class IncrementalLearningSkeleton {
+
+	private static DataStream<Integer> trainingData = null;
+	private static DataStream<Integer> newData = null;
 
 	// *************************************************************************
 	// PROGRAM
@@ -59,15 +61,15 @@ public class IncrementalLearningSkeleton {
 		}
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// env.setDegreeOfParallelism(1);
+		createSourceStreams(env);
 
 		// build new model on every second of new data
-		DataStream<Double[]> model = env.addSource(new TrainingDataSource())
-				.window(Time.of(5000, TimeUnit.MILLISECONDS))
+		DataStream<Double[]> model = trainingData.window(Time.of(5000, new LinearTimestamp()))
 				.mapWindow(new PartialModelBuilder()).flatten();
 
-		// use partial model for prediction
-		DataStream<Integer> prediction = env.addSource(new NewDataSource()).connect(model)
-				.map(new Predictor());
+		// use partial model for newData
+		DataStream<Integer> prediction = newData.connect(model).map(new Predictor());
 
 		// emit result
 		if (fileOutput) {
@@ -85,7 +87,7 @@ public class IncrementalLearningSkeleton {
 	// *************************************************************************
 
 	/**
-	 * Feeds new data for prediction. By default it is implemented as constantly
+	 * Feeds new data for newData. By default it is implemented as constantly
 	 * emitting the Integer 1 in a loop.
 	 */
 	public static class NewDataSource implements SourceFunction<Integer> {
@@ -107,6 +109,34 @@ public class IncrementalLearningSkeleton {
 		@Override
 		public void cancel() {
 			// No cleanup needed
+		}
+	}
+
+	/**
+	 * Feeds new data for newData. By default it is implemented as constantly
+	 * emitting the Integer 1 in a loop.
+	 */
+	public static class FiniteNewDataSource implements SourceFunction<Integer> {
+		private static final long serialVersionUID = 1L;
+		private int counter;
+
+		@Override
+		public void run(Collector<Integer> collector) throws Exception {
+			Thread.sleep(15);
+			while (counter < 50) {
+				collector.collect(getNewData());
+			}
+		}
+
+		@Override
+		public void cancel() {
+			// No cleanup needed
+		}
+
+		private Integer getNewData() throws InterruptedException {
+			Thread.sleep(5);
+			counter++;
+			return 1;
 		}
 	}
 
@@ -139,13 +169,50 @@ public class IncrementalLearningSkeleton {
 	}
 
 	/**
+	 * Feeds new training data for the partial model builder. By default it is
+	 * implemented as constantly emitting the Integer 1 in a loop.
+	 */
+	public static class FiniteTrainingDataSource implements SourceFunction<Integer> {
+		private static final long serialVersionUID = 1L;
+		private int counter = 0;
+
+		@Override
+		public void run(Collector<Integer> collector) throws Exception {
+			while (counter < 8200) {
+				collector.collect(getTrainingData());
+			}
+		}
+
+		@Override
+		public void cancel() {
+			// No cleanup needed
+		}
+
+		private Integer getTrainingData() throws InterruptedException {
+			counter++;
+			return 1;
+		}
+	}
+
+	public static class LinearTimestamp implements Timestamp<Integer> {
+		private static final long serialVersionUID = 1L;
+
+		private long counter = 0L;
+
+		@Override
+		public long getTimestamp(Integer value) {
+			return counter += 10L;
+		}
+	}
+
+	/**
 	 * Builds up-to-date partial models on new training data.
 	 */
 	public static class PartialModelBuilder implements WindowMapFunction<Integer, Double[]> {
 		private static final long serialVersionUID = 1L;
 
 		protected Double[] buildPartialModel(Iterable<Integer> values) {
-			return new Double[] { 1. };
+			return new Double[]{1.};
 		}
 
 		@Override
@@ -155,11 +222,11 @@ public class IncrementalLearningSkeleton {
 	}
 
 	/**
-	 * Creates prediction using the model produced in batch-processing and the
+	 * Creates newData using the model produced in batch-processing and the
 	 * up-to-date partial model.
-	 * 
+	 * <p/>
 	 * <p>
-	 * By defaults emits the Integer 0 for every prediction and the Integer 1
+	 * By defaults emits the Integer 0 for every newData and the Integer 1
 	 * for every model update.
 	 * </p>
 	 */
@@ -171,7 +238,7 @@ public class IncrementalLearningSkeleton {
 
 		@Override
 		public Integer map1(Integer value) {
-			// Return prediction
+			// Return newData
 			return predict(value);
 		}
 
@@ -185,10 +252,10 @@ public class IncrementalLearningSkeleton {
 
 		// pulls model built with batch-job on the old training data
 		protected Double[] getBatchModel() {
-			return new Double[] { 0. };
+			return new Double[]{0.};
 		}
 
-		// performs prediction using the two models
+		// performs newData using the two models
 		protected Integer predict(Integer inTuple) {
 			return 0;
 		}
@@ -219,5 +286,15 @@ public class IncrementalLearningSkeleton {
 			System.out.println("  Usage: IncrementalLearningSkeleton <result path>");
 		}
 		return true;
+	}
+
+	public static void createSourceStreams(StreamExecutionEnvironment env) {
+		if (fileOutput) {
+			trainingData = env.addSource(new FiniteTrainingDataSource());
+			newData = env.addSource(new FiniteNewDataSource());
+		} else {
+			trainingData = env.addSource(new TrainingDataSource());
+			newData = env.addSource(new NewDataSource());
+		}
 	}
 }

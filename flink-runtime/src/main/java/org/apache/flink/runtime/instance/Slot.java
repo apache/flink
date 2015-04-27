@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -184,7 +184,7 @@ public abstract class Slot {
 		return "(" + slotNumber + ")" + (getParent() != null ? getParent().hierarchy() : "");
 	}
 
-	private static final String getStateName(int state) {
+	private static String getStateName(int state) {
 		switch (state) {
 			case ALLOCATED_AND_ALIVE:
 				return "ALLOCATED/ALIVE";

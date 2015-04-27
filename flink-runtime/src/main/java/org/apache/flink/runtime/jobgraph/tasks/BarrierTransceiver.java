@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 
+import java.io.IOException;
+
 /**
  * A BarrierTransceiver describes an operator's barrier checkpointing behavior used for 
  * fault tolerance. In the most common case [[broadcastBarrier]] is being expected to be called 
@@ -30,12 +32,12 @@ public interface BarrierTransceiver {
 	 * A callback for notifying an operator of a new checkpoint barrier.
 	 * @param barrierID
 	 */
-	public void broadcastBarrier(long barrierID);
+	public void broadcastBarrierFromSource(long barrierID);
 
 	/**
 	 * A callback for confirming that a barrier checkpoint is complete
 	 * @param barrierID
 	 */
-	public void confirmBarrier(long barrierID);
+	public void confirmBarrier(long barrierID) throws IOException;
 	
 }

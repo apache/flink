@@ -69,7 +69,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with WrapA
 
       try {
         within(TestingUtils.TESTING_DURATION) {
-          jm ! SubmitJob(jobGraph)
+          jm ! SubmitJob(jobGraph, false)
           expectMsg(Success(jobGraph.getJobID))
 
           expectMsgType[JobResultSuccess]

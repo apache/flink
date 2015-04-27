@@ -28,10 +28,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.StringUtils;
 
 /**
@@ -279,9 +277,6 @@ public class Path implements IOReadableWritable, Serializable {
 	 * @return <code>true</code> if the path string contains a windows drive letter, <code>false</code> otherwise
 	 */
 	private boolean hasWindowsDrive(String path, boolean slashed) {
-		if (!OperatingSystem.isWindows()) {
-			return false;
-		}
 		final int start = slashed ? 1 : 0;
 		return path.length() >= start + 2
 			&& (!slashed || path.charAt(0) == '/')
@@ -473,20 +468,19 @@ public class Path implements IOReadableWritable, Serializable {
 
 		final boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
-			final String scheme = StringRecord.readString(in);
-			final String userInfo = StringRecord.readString(in);
-			final String host = StringRecord.readString(in);
+			final String scheme = StringUtils.readNullableString(in);
+			final String userInfo = StringUtils.readNullableString(in);
+			final String host = StringUtils.readNullableString(in);
 			final int port = in.readInt();
-			final String path = StringRecord.readString(in);
-			final String query = StringRecord.readString(in);
-			final String fragment = StringRecord.readString(in);
+			final String path = StringUtils.readNullableString(in);
+			final String query = StringUtils.readNullableString(in);
+			final String fragment = StringUtils.readNullableString(in);
 
 			try {
 				uri = new URI(scheme, userInfo, host, port, path, query, fragment);
 			} catch (URISyntaxException e) {
-				throw new IOException("Error reconstructing URI: " + StringUtils.stringifyException(e));
+				throw new IOException("Error reconstructing URI", e);
 			}
-
 		}
 	}
 
@@ -498,13 +492,13 @@ public class Path implements IOReadableWritable, Serializable {
 			out.writeBoolean(false);
 		} else {
 			out.writeBoolean(true);
-			StringRecord.writeString(out, uri.getScheme());
-			StringRecord.writeString(out, uri.getUserInfo());
-			StringRecord.writeString(out, uri.getHost());
+			StringUtils.writeNullableString(uri.getScheme(), out);
+			StringUtils.writeNullableString(uri.getUserInfo(), out);
+			StringUtils.writeNullableString(uri.getHost(), out);
 			out.writeInt(uri.getPort());
-			StringRecord.writeString(out, uri.getPath());
-			StringRecord.writeString(out, uri.getQuery());
-			StringRecord.writeString(out, uri.getFragment());
+			StringUtils.writeNullableString(uri.getPath(), out);
+			StringUtils.writeNullableString(uri.getQuery(), out);
+			StringUtils.writeNullableString(uri.getFragment(), out);
 		}
 
 	}

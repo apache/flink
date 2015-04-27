@@ -59,6 +59,7 @@ public class TumblingPreReducerTest {
 		wb.store(serializer.copy(inputs.get(1)));
 
 		wb.emitWindow(collector);
+		wb.evict(2);
 
 		assertEquals(1, collected.size());
 		assertEquals(StreamWindow.fromElements(new Tuple2<Integer, Integer>(3, 1)),
@@ -68,12 +69,10 @@ public class TumblingPreReducerTest {
 		wb.store(serializer.copy(inputs.get(1)));
 		wb.store(serializer.copy(inputs.get(2)));
 
-		// Nothing should happen here
-		wb.evict(3);
-
 		wb.store(serializer.copy(inputs.get(3)));
 
 		wb.emitWindow(collector);
+		wb.evict(4);
 
 		assertEquals(2, collected.size());
 		assertEquals(StreamWindow.fromElements(new Tuple2<Integer, Integer>(10, -2)),

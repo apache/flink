@@ -57,7 +57,7 @@ public class UnionITCase extends MultipleProgramsTestBase {
 			"20,6,Comment#14\n" +
 			"21,6,Comment#15\n";
 
-	public UnionITCase(MultipleProgramsTestBase.ExecutionMode mode){
+	public UnionITCase(TestExecutionMode mode){
 		super(mode);
 	}
 

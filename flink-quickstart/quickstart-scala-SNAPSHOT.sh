@@ -24,11 +24,11 @@ PACKAGE=quickstart
 mvn archetype:generate								\
   -DarchetypeGroupId=org.apache.flink 				\
   -DarchetypeArtifactId=flink-quickstart-scala		\
-  -DarchetypeVersion=0.9-SNAPSHOT		\
-  -DgroupId=org.apache.flink						\
+  -DarchetypeVersion=0.9-SNAPSHOT					\
+  -DgroupId=org.myorg.quickstart					\
   -DartifactId=$PACKAGE								\
   -Dversion=0.1										\
-  -Dpackage=org.myorg.quickstart 						\
+  -Dpackage=org.myorg.quickstart					\
   -DinteractiveMode=false							\
   -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/
 

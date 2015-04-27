@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.api.common.JobID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -336,7 +336,12 @@ public class BlobServer extends Thread implements BlobService {
 		}
 	}
 
-	List<BlobServerConnection> getCurrentyActiveConnections() {
+	/**
+	 * Returns all the current active connections in the BlobServer.
+	 *
+	 * @return the list of all the active in current BlobServer
+	 */
+	List<BlobServerConnection> getCurrentActiveConnections() {
 		synchronized (activeConnections) {
 			return new ArrayList<BlobServerConnection>(activeConnections);
 		}

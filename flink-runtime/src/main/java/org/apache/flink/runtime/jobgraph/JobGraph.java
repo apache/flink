@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -79,9 +80,9 @@ public class JobGraph implements Serializable {
 	
 	private JobType jobType = JobType.BATCH;
 	
-	private boolean monitoringEnabled = false;
+	private boolean checkpointingEnabled = false;
 	
-	private long monitorInterval = 10000;
+	private long checkpointingInterval = 10000;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -270,20 +271,20 @@ public class JobGraph implements Serializable {
 		return jobType;
 	}
 
-	public void setMonitoringEnabled(boolean monitoringEnabled) {
-		this.monitoringEnabled = monitoringEnabled;
+	public void setCheckpointingEnabled(boolean checkpointingEnabled) {
+		this.checkpointingEnabled = checkpointingEnabled;
 	}
 
-	public boolean isMonitoringEnabled() {
-		return monitoringEnabled;
+	public boolean isCheckpointingEnabled() {
+		return checkpointingEnabled;
 	}
 
-	public void setMonitorInterval(long monitorInterval) {
-		this.monitorInterval = monitorInterval;
+	public void setCheckpointingInterval(long checkpointingInterval) {
+		this.checkpointingInterval = checkpointingInterval;
 	}
 
-	public long getMonitorInterval() {
-		return monitorInterval;
+	public long getCheckpointingInterval() {
+		return checkpointingInterval;
 	}
 
 	/**

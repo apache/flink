@@ -153,6 +153,85 @@ public class SemanticPropUtil {
 		return dsp;
 	}
 
+	/**
+	 * Creates SemanticProperties by adding an offset to each input field index of the given SemanticProperties.
+	 *
+	 * @param props The SemanticProperties to which the offset is added.
+	 * @param numInputFields The original number of fields of the input.
+	 * @param offset The offset that is added to each input field index.
+	 * @return New SemanticProperties with added offset.
+	 */
+	public static SingleInputSemanticProperties addSourceFieldOffset(SingleInputSemanticProperties props,
+																		int numInputFields, int offset) {
+
+		SingleInputSemanticProperties offsetProps = new SingleInputSemanticProperties();
+		if (props.getReadFields(0) != null) {
+			FieldSet offsetReadFields = new FieldSet();
+			for (int r : props.getReadFields(0)) {
+				offsetReadFields = offsetReadFields.addField(r + offset);
+			}
+			offsetProps.addReadFields(offsetReadFields);
+		}
+		for (int s = 0; s < numInputFields; s++) {
+			FieldSet targetFields = props.getForwardingTargetFields(0, s);
+			for (int t : targetFields) {
+				offsetProps.addForwardedField(s + offset, t);
+			}
+		}
+		return offsetProps;
+	}
+
+	/**
+	 * Creates SemanticProperties by adding offsets to each input field index of the given SemanticProperties.
+	 *
+	 * @param props The SemanticProperties to which the offset is added.
+	 * @param numInputFields1 The original number of fields of the first input.
+	 * @param numInputFields2 The original number of fields of the second input.
+	 * @param offset1 The offset that is added to each input field index of the first input.
+	 * @param offset2 The offset that is added to each input field index of the second input.
+	 * @return New SemanticProperties with added offsets.
+	 */
+	public static DualInputSemanticProperties addSourceFieldOffsets(DualInputSemanticProperties props,
+																	int numInputFields1, int numInputFields2,
+																	int offset1, int offset2) {
+
+		DualInputSemanticProperties offsetProps = new DualInputSemanticProperties();
+
+		// add offset to read fields on first input
+		if(props.getReadFields(0) != null) {
+			FieldSet offsetReadFields = new FieldSet();
+			for(int r : props.getReadFields(0)) {
+				offsetReadFields = offsetReadFields.addField(r+offset1);
+			}
+			offsetProps.addReadFields(0, offsetReadFields);
+		}
+		// add offset to read fields on second input
+		if(props.getReadFields(1) != null) {
+			FieldSet offsetReadFields = new FieldSet();
+			for(int r : props.getReadFields(1)) {
+				offsetReadFields = offsetReadFields.addField(r+offset2);
+			}
+			offsetProps.addReadFields(1, offsetReadFields);
+		}
+
+		// add offset to forward fields on first input
+		for(int s = 0; s < numInputFields1; s++) {
+			FieldSet targetFields = props.getForwardingTargetFields(0, s);
+			for(int t : targetFields) {
+				offsetProps.addForwardedField(0, s + offset1, t);
+			}
+		}
+		// add offset to forward fields on second input
+		for(int s = 0; s < numInputFields2; s++) {
+			FieldSet targetFields = props.getForwardingTargetFields(1, s);
+			for(int t : targetFields) {
+				offsetProps.addForwardedField(1, s + offset2, t);
+			}
+		}
+
+		return offsetProps;
+	}
+
 	public static SingleInputSemanticProperties getSemanticPropsSingle(
 			Set<Annotation> set, TypeInformation<?> inType, TypeInformation<?> outType) {
 		if (set == null) {
