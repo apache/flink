@@ -557,10 +557,6 @@ public class TaskManagerTest {
 							}
 
 							if (t1 != null) {
-								if (t1.getExecutionState() == ExecutionState.RUNNING) {
-									tm.tell(new CancelTask(eid1), getRef());
-									expectMsgEquals(new TaskOperationResult(eid1, true));
-								}
 								Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
 										timeout);
 								Await.ready(response, d);
