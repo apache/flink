@@ -394,4 +394,4 @@ The command line value therefore is called `-p` (for parallelism). In addition, 
 to [set the number of slots in the programming APIs](programming_guide.html#parallel-execution) for 
 the whole application and individual operators.
 
-<img src="img/slots_parallelism.svg" class="img-responsive" />
+<img src="fig/slots_parallelism.svg" class="img-responsive" />
