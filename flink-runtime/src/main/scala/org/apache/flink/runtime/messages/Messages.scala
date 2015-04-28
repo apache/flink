@@ -47,5 +47,4 @@ object Messages {
    * @return The Acknowledge case object instance.
    */
   def getAcknowledge(): Acknowledge.type = Acknowledge
-
 }

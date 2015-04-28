@@ -65,7 +65,6 @@ import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
 import org.apache.flink.runtime.util.{MathUtils, EnvironmentInformation}
-import org.apache.flink.util.ExceptionUtils
 
 import org.slf4j.LoggerFactory
 
@@ -137,7 +136,7 @@ extends Actor with ActorLogMessages with ActorLogging {
   protected val resources = HardwareDescription.extractFromSystem(memoryManager.getMemorySize)
 
   /** Registry of all tasks currently executed by this TaskManager */
-  protected val runningTasks = scala.collection.concurrent.TrieMap[ExecutionAttemptID, Task]()
+  protected val runningTasks = new util.concurrent.ConcurrentHashMap[ExecutionAttemptID, Task]()
 
   /** Handler for shared broadcast variables (shared between multiple Tasks) */
   protected val bcVarManager = new BroadcastVariableManager()
@@ -384,7 +383,7 @@ extends Actor with ActorLogMessages with ActorLogging {
       // marks a task as failed for an external reason
       // external reasons are reasons other than the task code itself throwing an exception
       case FailTask(executionID, cause) =>
-        runningTasks.get(executionID) match {
+        Option(runningTasks.get(executionID)) match {
           case Some(task) =>
 
             // execute failing operation concurrently
@@ -399,7 +398,7 @@ extends Actor with ActorLogMessages with ActorLogging {
 
       // cancels a task
       case CancelTask(executionID) =>
-        runningTasks.get(executionID) match {
+        Option(runningTasks.get(executionID)) match {
           case Some(task) =>
             // execute cancel operation concurrently
             implicit val executor = context.dispatcher
@@ -431,7 +430,7 @@ extends Actor with ActorLogMessages with ActorLogging {
         LOG.debug("[FT-TaskManager] Barrier {} request received for attempt {}",
           checkpointID, attemptID)
 
-        runningTasks.get(attemptID) match {
+        Option(runningTasks.get(attemptID)) match {
           case Some(i) =>
             if (i.getExecutionState == ExecutionState.RUNNING) {
               i.getEnvironment.getInvokable match {
@@ -780,20 +779,14 @@ extends Actor with ActorLogMessages with ActorLogging {
   // --------------------------------------------------------------------------
 
   /**
-   * Receives a [[TaskDeploymentDescriptor]] describing the task to be executed. Sets up a
-   * [[RuntimeEnvironment]] for the task and starts its execution in a separate thread.
+   * Receives a [[TaskDeploymentDescriptor]] describing the task to be executed. It eagerly
+   * acknowledges the task reception to the sender and asynchronously starts the initialization of
+   * the task.
    *
    * @param tdd TaskDeploymentDescriptor describing the task to be executed on this [[TaskManager]]
    */
   private def submitTask(tdd: TaskDeploymentDescriptor): Unit = {
-    val jobID = tdd.getJobID
-    val vertexID = tdd.getVertexID
-    val executionID = tdd.getExecutionId
-    val taskIndex = tdd.getIndexInSubtaskGroup
-    val numSubtasks = tdd.getNumberOfSubtasks
     val slot = tdd.getTargetSlotNumber
-    var startRegisteringTask = 0L
-    var task: Task = null
 
     if (!isConnected) {
       sender ! Failure(
@@ -805,101 +798,118 @@ extends Actor with ActorLogMessages with ActorLogging {
       sender ! Acknowledge
 
       Future {
-        try {
-          val userCodeClassLoader = libraryCacheManager match {
-            case Some(manager) =>
-              if (LOG.isDebugEnabled) {
-                startRegisteringTask = System.currentTimeMillis()
-              }
-
-              // triggers the download of all missing jar files from the job manager
-              manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
-
-              if (LOG.isDebugEnabled) {
-                LOG.debug("Register task {} at library cache manager took {}s", executionID,
-                  (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
-              }
-
-              manager.getClassLoader(jobID)
-            case None => throw new IllegalStateException("There is no valid library cache manager.")
-          }
-
-          if (userCodeClassLoader == null) {
-            throw new RuntimeException("No user code Classloader available.")
-          }
-
-          task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
-            tdd.getTaskName, self)
-
-          runningTasks.put(executionID, task) match {
-            case Some(_) => throw new RuntimeException(
-              s"TaskManager contains already a task with executionID $executionID.")
-            case None =>
-          }
-
-          val env = currentJobManager match {
-            case Some(jobManager) =>
-              val splitProvider = new TaskInputSplitProvider(jobManager, jobID, vertexID,
-                executionID, userCodeClassLoader, askTimeout)
-
-              new RuntimeEnvironment(jobManager, task, tdd, userCodeClassLoader,
-                memoryManager, ioManager, splitProvider, bcVarManager, network)
-
-            case None => throw new IllegalStateException(
-              "TaskManager has not yet been registered at a JobManager.")
-          }
-
-          task.setEnvironment(env)
-
-          //inject operator state
-          if (tdd.getOperatorStates != null) {
-            task.getEnvironment.getInvokable match {
-              case opStateCarrier: OperatorStateCarrier =>
-                opStateCarrier.injectState(tdd.getOperatorStates)
-            }
-          }
-
-          // register the task with the network stack and profiles
-          LOG.info("Register task {}", task)
-          network.registerTask(task)
-
-          val cpTasks = new util.HashMap[String, FutureTask[Path]]()
-
-          for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration).asScala) {
-            val cp = fileCache.createTmpFile(entry.getKey, entry.getValue, jobID)
-            cpTasks.put(entry.getKey, cp)
-          }
-          env.addCopyTasksForCacheFile(cpTasks)
-
-          if (!task.startExecution()) {
-            throw new RuntimeException("Cannot start task. Task was canceled or failed.")
-          }
-
-          self ! UpdateTaskExecutionState(
-            new TaskExecutionState(jobID, executionID, ExecutionState.RUNNING)
-          )
-        } catch {
-          case t: Throwable =>
-            if (!t.isInstanceOf[CancelTaskException]) {
-              LOG.error("Could not instantiate task with execution ID " + executionID, t)
-            }
-
-            try {
-              if (task != null) {
-                task.failExternally(t)
-                removeAllTaskResources(task)
-              }
-
-              libraryCacheManager foreach { _.unregisterTask(jobID, executionID) }
-            } catch {
-              case t: Throwable => LOG.error("Error during cleanup of task deployment.", t)
-            }
-
-            self ! UpdateTaskExecutionState(
-              new TaskExecutionState(jobID, executionID, ExecutionState.FAILED, t)
-            )
-        }
+        initializeTask(tdd)
       }(context.dispatcher)
+    }
+  }
+
+  /** Sets up a [[org.apache.flink.runtime.execution.RuntimeEnvironment]] for the task and starts
+    * its execution in a separate thread.
+    *
+    * @param tdd TaskDeploymentDescriptor describing the task to be executed on this [[TaskManager]]
+    */
+  private def initializeTask(tdd: TaskDeploymentDescriptor): Unit ={
+    val jobID = tdd.getJobID
+    val vertexID = tdd.getVertexID
+    val executionID = tdd.getExecutionId
+    val taskIndex = tdd.getIndexInSubtaskGroup
+    val numSubtasks = tdd.getNumberOfSubtasks
+    var startRegisteringTask = 0L
+    var task: Task = null
+
+    try {
+      val userCodeClassLoader = libraryCacheManager match {
+        case Some(manager) =>
+          if (LOG.isDebugEnabled) {
+            startRegisteringTask = System.currentTimeMillis()
+          }
+
+          // triggers the download of all missing jar files from the job manager
+          manager.registerTask(jobID, executionID, tdd.getRequiredJarFiles)
+
+          if (LOG.isDebugEnabled) {
+            LOG.debug("Register task {} at library cache manager took {}s", executionID,
+              (System.currentTimeMillis() - startRegisteringTask) / 1000.0)
+          }
+
+          manager.getClassLoader(jobID)
+        case None => throw new IllegalStateException("There is no valid library cache manager.")
+      }
+
+      if (userCodeClassLoader == null) {
+        throw new RuntimeException("No user code Classloader available.")
+      }
+
+      task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
+        tdd.getTaskName, self)
+
+      Option(runningTasks.put(executionID, task)) match {
+        case Some(_) => throw new RuntimeException(
+          s"TaskManager contains already a task with executionID $executionID.")
+        case None =>
+      }
+
+      val env = currentJobManager match {
+        case Some(jobManager) =>
+          val splitProvider = new TaskInputSplitProvider(jobManager, jobID, vertexID,
+            executionID, userCodeClassLoader, askTimeout)
+
+          new RuntimeEnvironment(jobManager, task, tdd, userCodeClassLoader,
+            memoryManager, ioManager, splitProvider, bcVarManager, network)
+
+        case None => throw new IllegalStateException(
+          "TaskManager has not yet been registered at a JobManager.")
+      }
+
+      task.setEnvironment(env)
+
+      //inject operator state
+      if (tdd.getOperatorStates != null) {
+        task.getEnvironment.getInvokable match {
+          case opStateCarrier: OperatorStateCarrier =>
+            opStateCarrier.injectState(tdd.getOperatorStates)
+        }
+      }
+
+      // register the task with the network stack and profiles
+      LOG.info("Register task {}", task)
+      network.registerTask(task)
+
+      val cpTasks = new util.HashMap[String, FutureTask[Path]]()
+
+      for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration).asScala) {
+        val cp = fileCache.createTmpFile(entry.getKey, entry.getValue, jobID)
+        cpTasks.put(entry.getKey, cp)
+      }
+      env.addCopyTasksForCacheFile(cpTasks)
+
+      if (!task.startExecution()) {
+        throw new RuntimeException("Cannot start task. Task was canceled or failed.")
+      }
+
+      self ! UpdateTaskExecutionState(
+        new TaskExecutionState(jobID, executionID, ExecutionState.RUNNING)
+      )
+    } catch {
+      case t: Throwable =>
+        if (!t.isInstanceOf[CancelTaskException]) {
+          LOG.error("Could not instantiate task with execution ID " + executionID, t)
+        }
+
+        try {
+          if (task != null) {
+            task.failExternally(t)
+            removeAllTaskResources(task)
+          }
+
+          libraryCacheManager foreach { _.unregisterTask(jobID, executionID) }
+        } catch {
+          case t: Throwable => LOG.error("Error during cleanup of task deployment.", t)
+        }
+
+        self ! UpdateTaskExecutionState(
+          new TaskExecutionState(jobID, executionID, ExecutionState.FAILED, t)
+        )
     }
   }
 
@@ -913,7 +923,7 @@ extends Actor with ActorLogMessages with ActorLogging {
          executionId: ExecutionAttemptID,
          partitionInfos: Seq[(IntermediateDataSetID, InputChannelDeploymentDescriptor)]) : Unit = {
 
-    runningTasks.get(executionId) match {
+    Option(runningTasks.get(executionId)) match {
       case Some(task) =>
 
         val errors: Seq[String] = partitionInfos.flatMap { info =>
@@ -970,7 +980,7 @@ extends Actor with ActorLogMessages with ActorLogging {
     if (runningTasks.size > 0) {
       LOG.info("Cancelling all computations and discarding all cached data.")
 
-      for (t <- runningTasks.values) {
+      for (t <- runningTasks.values().asScala) {
         t.failExternally(cause)
         unregisterTaskAndNotifyFinalState(t.getExecutionId)
       }
@@ -978,7 +988,8 @@ extends Actor with ActorLogMessages with ActorLogging {
   }
 
   private def unregisterTaskAndNotifyFinalState(executionID: ExecutionAttemptID): Unit = {
-    runningTasks.remove(executionID) match {
+
+    Option(runningTasks.remove(executionID)) match {
       case Some(task) =>
 
         // mark the task as failed if it is not yet in a final state
