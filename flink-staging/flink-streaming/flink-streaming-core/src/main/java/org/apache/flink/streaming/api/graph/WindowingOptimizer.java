@@ -53,7 +53,7 @@ public class WindowingOptimizer {
 
 		for (Integer flattenerID : flatteners) {
 			// Flatteners should have exactly one input
-			StreamNode input = streamGraph.getVertex(flattenerID).getInEdges().get(0)
+			StreamNode input = streamGraph.getStreamNode(flattenerID).getInEdges().get(0)
 					.getSourceVertex();
 
 			// Check whether the flatten is applied after a merge
@@ -98,9 +98,9 @@ public class WindowingOptimizer {
 		for (Tuple2<Integer, StreamDiscretizer<?>> discretizer : discretizers) {
 			boolean inMatching = false;
 			for (Tuple2<StreamDiscretizer<?>, List<Integer>> matching : matchingDiscretizers) {
-				Set<Integer> discretizerInEdges = new HashSet<Integer>(streamGraph.getVertex(
+				Set<Integer> discretizerInEdges = new HashSet<Integer>(streamGraph.getStreamNode(
 						discretizer.f0).getInEdgeIndices());
-				Set<Integer> matchingInEdges = new HashSet<Integer>(streamGraph.getVertex(
+				Set<Integer> matchingInEdges = new HashSet<Integer>(streamGraph.getStreamNode(
 						matching.f1.get(0)).getInEdgeIndices());
 
 				if (discretizer.f1.equals(matching.f0)
@@ -132,7 +132,7 @@ public class WindowingOptimizer {
 	private static void replaceDiscretizer(StreamGraph streamGraph, Integer toReplaceID,
 			Integer replaceWithID) {
 		// Convert to array to create a copy
-		List<StreamEdge> outEdges = new ArrayList<StreamEdge>(streamGraph.getVertex(toReplaceID)
+		List<StreamEdge> outEdges = new ArrayList<StreamEdge>(streamGraph.getStreamNode(toReplaceID)
 				.getOutEdges());
 
 		int numOutputs = outEdges.size();
@@ -146,6 +146,6 @@ public class WindowingOptimizer {
 		}
 
 		// Remove the other discretizer
-		streamGraph.removeVertex(streamGraph.getVertex(toReplaceID));
+		streamGraph.removeVertex(streamGraph.getStreamNode(toReplaceID));
 	}
 }

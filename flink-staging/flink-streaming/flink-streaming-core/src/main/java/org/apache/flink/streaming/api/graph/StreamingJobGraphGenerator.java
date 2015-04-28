@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.flink.configuration.Configuration;
@@ -140,7 +141,7 @@ public class StreamingJobGraphGenerator {
 			List<StreamEdge> chainableOutputs = new ArrayList<StreamEdge>();
 			List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
-			for (StreamEdge outEdge : streamGraph.getVertex(current).getOutEdges()) {
+			for (StreamEdge outEdge : streamGraph.getStreamNode(current).getOutEdges()) {
 				if (isChainable(outEdge)) {
 					chainableOutputs.add(outEdge);
 				} else {
@@ -168,7 +169,7 @@ public class StreamingJobGraphGenerator {
 
 				config.setChainStart();
 				config.setOutEdgesInOrder(transitiveOutEdges);
-				config.setOutEdges(streamGraph.getVertex(current).getOutEdges());
+				config.setOutEdges(streamGraph.getStreamNode(current).getOutEdges());
 
 				for (StreamEdge edge : transitiveOutEdges) {
 					connect(startNode, edge);
@@ -194,7 +195,7 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private String createChainedName(Integer vertexID, List<StreamEdge> chainedOutputs) {
-		String operatorName = streamGraph.getVertex(vertexID).getOperatorName();
+		String operatorName = streamGraph.getStreamNode(vertexID).getOperatorName();
 		if (chainedOutputs.size() > 1) {
 			List<String> outputChainedNames = new ArrayList<String>();
 			for (StreamEdge chainable : chainedOutputs) {
@@ -216,7 +217,7 @@ public class StreamingJobGraphGenerator {
 	private StreamConfig createProcessingVertex(Integer vertexID) {
 
 		AbstractJobVertex jobVertex = new AbstractJobVertex(chainedNames.get(vertexID));
-		StreamNode vertex = streamGraph.getVertex(vertexID);
+		StreamNode vertex = streamGraph.getStreamNode(vertexID);
 
 		jobVertex.setInvokableClass(vertex.getJobVertexClass());
 
@@ -246,7 +247,7 @@ public class StreamingJobGraphGenerator {
 	private void setVertexConfig(Integer vertexID, StreamConfig config,
 			List<StreamEdge> chainableOutputs, List<StreamEdge> nonChainableOutputs) {
 
-		StreamNode vertex = streamGraph.getVertex(vertexID);
+		StreamNode vertex = streamGraph.getStreamNode(vertexID);
 
 		config.setVertexID(vertexID);
 		config.setBufferTimeout(vertex.getBufferTimeout());
@@ -317,6 +318,8 @@ public class StreamingJobGraphGenerator {
 
 		return downStreamVertex.getInEdges().size() == 1
 				&& outOperator != null
+				&& upStreamVertex.getSlotSharingID() == downStreamVertex.getSlotSharingID()
+				&& upStreamVertex.getSlotSharingID() != -1
 				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
 				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD || headOperator
 						.getChainingStrategy() == ChainingStrategy.ALWAYS)
@@ -327,10 +330,21 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private void setSlotSharing() {
-		SlotSharingGroup shareGroup = new SlotSharingGroup();
 
-		for (AbstractJobVertex vertex : jobVertices.values()) {
-			vertex.setSlotSharingGroup(shareGroup);
+		Map<Integer, SlotSharingGroup> slotSharingGroups = new HashMap<Integer, SlotSharingGroup>();
+
+		for (Entry<Integer, AbstractJobVertex> entry : jobVertices.entrySet()) {
+
+			int slotSharingID = streamGraph.getStreamNode(entry.getKey()).getSlotSharingID();
+
+			if (slotSharingID != -1) {
+				SlotSharingGroup group = slotSharingGroups.get(slotSharingID);
+				if (group == null) {
+					group = new SlotSharingGroup();
+					slotSharingGroups.put(slotSharingID, group);
+				}
+				entry.getValue().setSlotSharingGroup(group);
+			}
 		}
 
 		for (StreamLoop loop : streamGraph.getStreamLoops()) {

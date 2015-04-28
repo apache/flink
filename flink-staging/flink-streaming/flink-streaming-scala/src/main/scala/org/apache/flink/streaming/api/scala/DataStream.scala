@@ -95,9 +95,67 @@ class DataStream[T](javaStream: JavaStream[T]) {
         "parallelism.")
   }
   
-  def setChainingStrategy(strategy: ChainingStrategy): DataStream[T] = {
+  /**
+   * Turns off chaining for this operator so thread co-location will not be
+   * used as an optimization. </p> Chaining can be turned off for the whole
+   * job by {@link StreamExecutionEnvironment#disableOperatorChaning()}
+   * however it is not advised for performance considerations.
+   * 
+   */
+  def disableChaining(): DataStream[T] = {
     javaStream match {
-      case ds: SingleOutputStreamOperator[_, _] => ds.setChainingStrategy(strategy)
+      case ds: SingleOutputStreamOperator[_, _] => ds.disableChaining();
+      case _ =>
+        throw new UnsupportedOperationException("Only supported for operators.")
+    }
+    this
+  }
+  
+  /**
+   * Starts a new task chain beginning at this operator. This operator will
+   * not be chained (thread co-located for increased performance) to any
+   * previous tasks even if possible.
+   * 
+   */
+  def startNewChain(): DataStream[T] = {
+    javaStream match {
+      case ds: SingleOutputStreamOperator[_, _] => ds.startNewChain();
+      case _ =>
+        throw new UnsupportedOperationException("Only supported for operators.")
+    }
+    this
+  }
+  
+  /**
+   * Isolates the operator in its own resource group. This will cause the
+   * operator to grab as many task slots as its degree of parallelism. If
+   * there are no free resources available, the job will fail to start.
+   * All subsequent operators are assigned to the default resource group.
+   * 
+   */
+  def isolateResources(): DataStream[T] = {
+    javaStream match {
+      case ds: SingleOutputStreamOperator[_, _] => ds.isolateResources();
+      case _ =>
+        throw new UnsupportedOperationException("Only supported for operators.")
+    }
+    this
+  }
+  
+  /**
+   * By default all operators in a streaming job share the same resource
+   * group. Each resource group takes as many task manager slots as the
+   * maximum parallelism operator in that group. By calling this method, this
+   * operators starts a new resource group and all subsequent operators will
+   * be added to this group unless specified otherwise. Please note that
+   * local executions have by default as many available task slots as the
+   * environment parallelism, so in order to start a new resource group the
+   * degree of parallelism for the operators must be decreased from the
+   * default.
+   */
+  def startNewResourceGroup(): DataStream[T] = {
+    javaStream match {
+      case ds: SingleOutputStreamOperator[_, _] => ds.startNewResourceGroup();
       case _ =>
         throw new UnsupportedOperationException("Only supported for operators.")
     }

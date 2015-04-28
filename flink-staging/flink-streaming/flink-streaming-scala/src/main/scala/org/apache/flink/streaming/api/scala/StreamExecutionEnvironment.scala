@@ -122,6 +122,17 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.enableCheckpointing()
     this
   }
+  
+  /**
+   * Disables operator chaining for streaming operators. Operator chaining
+   * allows non-shuffle operations to be co-located in the same thread fully
+   * avoiding serialization and de-serialization.
+   * 
+   */
+  def disableOperatorChaning(): StreamExecutionEnvironment = {
+    javaEnv.disableOperatorChaning()
+    this
+  }
 
   /**
    * Sets the number of times that failed tasks are re-executed. A value of zero
