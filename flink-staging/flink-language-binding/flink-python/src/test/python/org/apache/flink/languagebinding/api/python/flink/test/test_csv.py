@@ -17,13 +17,14 @@
 ################################################################################
 from flink.plan.Environment import get_environment
 from flink.plan.Constants import INT, STRING
+from flink.plan.Constants import WriteMode
 
 if __name__ == "__main__":
     env = get_environment()
 
     d1 = env.read_csv("src/test/python/org/apache/flink/languagebinding/api/python/flink/test/data_csv", (INT, INT, STRING))
 
-    d1.write_csv("/tmp/flink/result")
+    d1.write_csv("/tmp/flink/result", line_delimiter="\n", field_delimiter="|", write_mode=WriteMode.OVERWRITE)
 
     env.set_degree_of_parallelism(1)
 

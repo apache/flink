@@ -514,8 +514,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
 			// expecting 512 mb, because TM was started with 1024, we cut off 50% (NOT THE DEFAULT VALUE).
-			Assert.assertTrue("Expected string 'Starting TM with command=$JAVA_HOME/bin/java -Xmx512m' not found in JobManager log: '"+jobmanagerLog+"'",
-					content.contains("Starting TM with command=$JAVA_HOME/bin/java -Xmx512m"));
+			Assert.assertTrue("Expected string 'Starting TM with command=$JAVA_HOME/bin/java -Xms512m -Xmx512m' not found in JobManager log: '"+jobmanagerLog+"'",
+					content.contains("Starting TM with command=$JAVA_HOME/bin/java -Xms512m -Xmx512m"));
 			Assert.assertTrue("Expected string ' (2/2) (attempt #0) to ' not found in JobManager log." +
 							"This string checks that the job has been started with a parallelism of 2. Log contents: '"+jobmanagerLog+"'",
 					content.contains(" (2/2) (attempt #0) to "));

@@ -125,7 +125,7 @@ of these methods on DataSet:
 
 {% highlight python %}
 data.write_text("<file-path>", WriteMode=Constants.NO_OVERWRITE)
-write_csv("<file-path>", WriteMode=Constants.NO_OVERWRITE, line_delimiter='\n', field_delimiter=',')
+write_csv("<file-path>", line_delimiter='\n', field_delimiter=',', write_mode=Constants.NO_OVERWRITE)
 output()
 {% endhighlight %}
 
