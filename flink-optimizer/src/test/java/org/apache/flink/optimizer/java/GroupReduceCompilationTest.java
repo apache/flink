@@ -51,7 +51,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			data.reduceGroup(new RichGroupReduceFunction<Double, Double>() {
 				public void reduce(Iterable<Double> values, Collector<Double> out) {}
 			}).name("reducer")
-			.print().name("sink");
+			.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -97,7 +97,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
-			reduced.print().name("sink");
+			reduced.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -148,7 +148,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
 				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
-			.print().name("sink");
+			.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -199,7 +199,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
-			reduced.print().name("sink");
+			reduced.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -257,7 +257,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
 				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
-			.print().name("sink");
+			.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -317,7 +317,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
-			reduced.print().name("sink");
+			reduced.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

@@ -53,7 +53,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					return value1 + value2;
 				}
 			}).name("reducer")
-			.print().name("sink");
+			.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -98,7 +98,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					return value1 + value2;
 				}
 			}).name("reducer")
-			.print().name("sink");
+			.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -151,7 +151,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					return null;
 				}
 			}).name("reducer")
-			.print().name("sink");
+			.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -211,7 +211,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					return null;
 				}
 			}).name("reducer")
-			.print().name("sink");
+			.print();
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
