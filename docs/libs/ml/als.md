@@ -144,7 +144,7 @@ val als = ALS()
 // Set the other parameters via a parameter map
 val parameters = ParameterMap()
 .add(ALS.Lambda, 0.9)
-.add(ALS.Seed, 42)
+.add(ALS.Seed, 42l)
 
 // Calculate the factorization
 val factorization = als.fit(inputDS, parameters)
