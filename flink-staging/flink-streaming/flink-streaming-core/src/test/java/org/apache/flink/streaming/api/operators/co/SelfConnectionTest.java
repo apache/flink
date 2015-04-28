@@ -33,7 +33,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.windowing.helper.Timestamp;
 import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
@@ -132,7 +131,7 @@ public class SelfConnectionTest implements Serializable {
 			public String map(Integer value) throws Exception {
 				return "x " + value;
 			}
-		}).setChainingStrategy(StreamOperator.ChainingStrategy.ALWAYS);
+		});
 
 		stringMap.connect(src).map(new CoMapFunction<String, Integer, String>() {
 
@@ -178,7 +177,7 @@ public class SelfConnectionTest implements Serializable {
 
 		StreamExecutionEnvironment env = new TestStreamEnvironment(3, MEMORY_SIZE);
 
-		DataStream<Integer> src = env.fromElements(1, 3, 5).setChainingStrategy(StreamOperator.ChainingStrategy.NEVER);
+		DataStream<Integer> src = env.fromElements(1, 3, 5).disableChaining();
 
 		DataStream<String> stringMap = src.flatMap(new FlatMapFunction<Integer, String>() {
 

@@ -190,6 +190,18 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Disables operator chaining for streaming operators. Operator chaining
+	 * allows non-shuffle operations to be co-located in the same thread fully
+	 * avoiding serialization and de-serialization.
+	 * 
+	 * @return StreamExecutionEnvironment with chaining disabled.
+	 */
+	public StreamExecutionEnvironment disableOperatorChaning() {
+		streamGraph.setChaining(false);
+		return this;
+	}
+
+	/**
 	 * Method for enabling fault-tolerance. Activates monitoring and backup of
 	 * streaming operator states.
 	 * 

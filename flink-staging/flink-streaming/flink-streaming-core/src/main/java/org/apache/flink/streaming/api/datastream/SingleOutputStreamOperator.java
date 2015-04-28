@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph.ResourceStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator.ChainingStrategy;
 
@@ -57,8 +58,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	/**
-	 * Sets the parallelism for this operator. The degree must be 1 or
-	 * more.
+	 * Sets the parallelism for this operator. The degree must be 1 or more.
 	 * 
 	 * @param parallelism
 	 *            The parallelism for this operator.
@@ -118,11 +118,43 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		return new SingleOutputStreamOperator<OUT, O>(this);
 	}
 
-	public SingleOutputStreamOperator<OUT, O> setChainingStrategy(ChainingStrategy strategy) {
+	/**
+	 * Sets the {@link ChainingStrategy} for the given operator affecting the
+	 * way operators will possibly be co-located on the same thread for
+	 * increased performance.
+	 * 
+	 * @param strategy
+	 *            The selected {@link ChainingStrategy}
+	 * @return The operator with the modified chaining strategy
+	 */
+	private SingleOutputStreamOperator<OUT, O> setChainingStrategy(ChainingStrategy strategy) {
 		this.operator.setChainingStrategy(strategy);
 		return this;
 	}
-	
+
+	/**
+	 * Turns off chaining for this operator so thread co-location will not be
+	 * used as an optimization. </p> Chaining can be turned off for the whole
+	 * job by {@link StreamExecutionEnvironment#disableOperatorChaning()}
+	 * however it is not advised for performance considerations.
+	 * 
+	 * @return The operator with chaining disabled
+	 */
+	public SingleOutputStreamOperator<OUT, O> disableChaining() {
+		return setChainingStrategy(ChainingStrategy.NEVER);
+	}
+
+	/**
+	 * Starts a new task chain beginning at this operator. This operator will
+	 * not be chained (thread co-located for increased performance) to any
+	 * previous tasks even if possible.
+	 * 
+	 * @return The operator with chaining set.
+	 */
+	public SingleOutputStreamOperator<OUT, O> startNewChain() {
+		return setChainingStrategy(ChainingStrategy.HEAD);
+	}
+
 	/**
 	 * Adds a type information hint about the return type of this operator. 
 	 * 
@@ -235,6 +267,39 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		catch (InvalidTypesException e) {
 			throw new InvalidTypesException("The given class is not suited for providing necessary type information.", e);
 		}
+	}
+
+	/**
+	 * By default all operators in a streaming job share the same resource
+	 * group. Each resource group takes as many task manager slots as the
+	 * maximum parallelism operator in that group. Task chaining is only
+	 * possible within one resource group. By calling this method, this
+	 * operators starts a new resource group and all subsequent operators will
+	 * be added to this group unless specified otherwise. </p> Please note that
+	 * local executions have by default as many available task slots as the
+	 * environment parallelism, so in order to start a new resource group the
+	 * degree of parallelism for the operators must be decreased from the
+	 * default.
+	 * 
+	 * @return The operator as a part of a new resource group.
+	 */
+	public SingleOutputStreamOperator<OUT, O> startNewResourceGroup() {
+		streamGraph.setResourceStrategy(getId(), ResourceStrategy.NEWGROUP);
+		return this;
+	}
+
+	/**
+	 * Isolates the operator in its own resource group. This will cause the
+	 * operator to grab as many task slots as its degree of parallelism. If
+	 * there are no free resources available, the job will fail to start. It
+	 * also disables chaining for this operator </p>All subsequent operators are
+	 * assigned to the default resource group.
+	 * 
+	 * @return The operator with isolated resource group.
+	 */
+	public SingleOutputStreamOperator<OUT, O> isolateResources() {
+		streamGraph.setResourceStrategy(getId(), ResourceStrategy.ISOLATE);
+		return this;
 	}
 
 }
