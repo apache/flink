@@ -182,12 +182,6 @@ public class TaskManagerTest {
 					@Override
 					protected void run() {
 						try {
-							tm.tell(new SubmitTask(tdd1), getRef());
-							tm.tell(new SubmitTask(tdd2), getRef());
-
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
-
 							Future<Object> t1Running = Patterns.ask(
 									tm,
 									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid1),
@@ -196,6 +190,12 @@ public class TaskManagerTest {
 									tm,
 									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid2),
 									timeout);
+
+							tm.tell(new SubmitTask(tdd1), getRef());
+							tm.tell(new SubmitTask(tdd2), getRef());
+
+							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Messages.getAcknowledge());
 
 							Await.ready(t1Running, d);
 							Await.ready(t2Running, d);
@@ -398,11 +398,6 @@ public class TaskManagerTest {
 					@Override
 					protected void run() {
 						try {
-							tm.tell(new SubmitTask(tdd1), getRef());
-							expectMsgEquals(Messages.getAcknowledge());
-							tm.tell(new SubmitTask(tdd2), getRef());
-							expectMsgEquals(Messages.getAcknowledge());
-
 							Future<Object> t1Running = Patterns.ask(
 									tm,
 									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid1),
@@ -411,6 +406,11 @@ public class TaskManagerTest {
 									tm,
 									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid2),
 									timeout);
+
+							tm.tell(new SubmitTask(tdd1), getRef());
+							expectMsgEquals(Messages.getAcknowledge());
+							tm.tell(new SubmitTask(tdd2), getRef());
+							expectMsgEquals(Messages.getAcknowledge());
 
 							Await.ready(t1Running, d);
 							Await.ready(t2Running, d);
@@ -522,12 +522,6 @@ public class TaskManagerTest {
 					@Override
 					protected void run() {
 						try {
-							tm.tell(new SubmitTask(tdd2), getRef());
-							tm.tell(new SubmitTask(tdd1), getRef());
-
-							expectMsgEquals(Messages.getAcknowledge());
-							expectMsgEquals(Messages.getAcknowledge());
-
 							Future<Object> t1Running = Patterns.ask(
 									tm,
 									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid1),
@@ -536,6 +530,12 @@ public class TaskManagerTest {
 									tm,
 									new TestingTaskManagerMessages.NotifyWhenTaskIsRunning(eid2),
 									timeout);
+
+							tm.tell(new SubmitTask(tdd2), getRef());
+							tm.tell(new SubmitTask(tdd1), getRef());
+
+							expectMsgEquals(Messages.getAcknowledge());
+							expectMsgEquals(Messages.getAcknowledge());
 
 							Await.ready(t1Running, d);
 							Await.ready(t2Running, d);
