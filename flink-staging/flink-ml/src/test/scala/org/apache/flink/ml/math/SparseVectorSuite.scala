@@ -24,6 +24,16 @@ class SparseVectorSuite extends FlatSpec with Matchers {
 
   behavior of "Flink's SparseVector"
 
+  it should "contain a single element provided as coordinate list (COO)" in {
+    val sparseVector = SparseVector.fromCOO(3, (0, 1))
+
+    sparseVector(0) should equal(1)
+
+    for(index <- 1 until 3) {
+      sparseVector(index) should equal(0)
+    }
+  }
+
   it should "contain the initialization data provided as coordinate list (COO)" in {
     val data = List[(Int, Double)]((0, 1), (2, 0), (4, 42), (0, 3))
     val size = 5
