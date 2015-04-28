@@ -32,6 +32,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.VertexWithDegrees;
 import org.apache.flink.graph.spargel.IterationConfiguration;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
@@ -442,7 +443,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		@Override
 		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
 			try {
-				setNewVertexValue(vertex.getInDegree());
+				setNewVertexValue(((VertexWithDegrees) vertex).getInDegree());
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -455,7 +456,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		@Override
 		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
 			try {
-				setNewVertexValue(vertex.getOutDegree());
+				setNewVertexValue(((VertexWithDegrees) vertex).getOutDegree());
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -523,7 +524,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				count++;
 			}
 
-			setNewVertexValue(count == (vertex.getInDegree() + vertex.getOutDegree()));
+			setNewVertexValue(count == (((VertexWithDegrees)vertex).getInDegree() + ((VertexWithDegrees)vertex).getOutDegree()));
 		}
 	}
 
@@ -533,8 +534,8 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 		@Override
 		public void updateVertex(Vertex<Long, Tuple3<Long, Long, Boolean>> vertex, MessageIterator<Long> inMessages) {
 			try {
-				setNewVertexValue(new Tuple3(vertex.getValue().f0, vertex.getValue().f1, (vertex.getInDegree() == vertex.getValue().f0)
-						&& (vertex.getOutDegree() == vertex.getValue().f1) && vertex.getValue().f2));
+				setNewVertexValue(new Tuple3(vertex.getValue().f0, vertex.getValue().f1, (((VertexWithDegrees)vertex).getInDegree() == vertex.getValue().f0)
+						&& (((VertexWithDegrees)vertex).getOutDegree() == vertex.getValue().f1) && vertex.getValue().f2));
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

@@ -43,6 +43,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.VertexWithDegrees;
 import org.apache.flink.util.Collector;
 
 /**
@@ -636,7 +637,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 									Tuple3<VertexKey, Long, Long> degrees,
 									Collector<Vertex<VertexKey, Tuple3<VertexValue, Long, Long>>> out) throws Exception {
 
-						out.collect(new Vertex<VertexKey, Tuple3<VertexValue, Long, Long>>(vertex.getId(),
+						out.collect(new VertexWithDegrees<VertexKey, Tuple3<VertexValue, Long, Long>>(vertex.getId(),
 								new Tuple3<VertexValue, Long, Long>(vertex.getValue(), degrees.f1, degrees.f2)));
 					}
 				});
