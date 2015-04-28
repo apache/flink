@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.InaccessibleMethodException;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.VertexWithDegrees;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
@@ -205,7 +206,7 @@ public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> impl
 	 */
 	void updateVertexFromVertexCentricIteration(Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> vertexState,
 												MessageIterator<Message> inMessages) throws Exception {
-		Vertex<VertexKey, VertexValue> vertex = new Vertex<VertexKey, VertexValue>(vertexState.getId(),
+		VertexWithDegrees<VertexKey, VertexValue> vertex = new VertexWithDegrees<VertexKey, VertexValue>(vertexState.getId(),
 				vertexState.getValue().f0);
 		vertex.setInDegree(vertexState.getValue().f1);
 		vertex.setOutDegree(vertexState.getValue().f2);
