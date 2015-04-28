@@ -113,7 +113,7 @@ public abstract class StreamOperator<IN, OUT> implements Serializable {
 				// Task already cancelled do nothing
 				return null;
 			}
-		}  catch (IllegalStateException e) {
+		} catch (IllegalStateException e) {
 			if (isRunning) {
 				throw new RuntimeException("Could not read next record due to: "
 						+ StringUtils.stringifyException(e));
@@ -198,6 +198,16 @@ public abstract class StreamOperator<IN, OUT> implements Serializable {
 		return chainingStrategy;
 	}
 
+	/**
+	 * Defines the chaining scheme for the operator. By default <b>ALWAYS</b> is used,
+	 * which means operators will be eagerly chained whenever possible, for
+	 * maximal performance. It is generally a good practice to allow maximal
+	 * chaining and increase operator parallelism. </p> When the strategy is set
+	 * to <b>NEVER</b>, the operator will not be chained to the preceding or succeeding
+	 * operators.</p> <b>HEAD</b> strategy marks a start of a new chain, so that the
+	 * operator will not be chained to preceding operators, only succeding ones.
+	 * 
+	 */
 	public static enum ChainingStrategy {
 		ALWAYS, NEVER, HEAD
 	}
