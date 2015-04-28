@@ -24,6 +24,19 @@ class SparseMatrixSuite extends FlatSpec with Matchers {
 
   behavior of "Flink's SparseMatrix"
 
+  it should "contain a single element provided as a coordinate list (COO)" in {
+    val sparseMatrix = SparseMatrix.fromCOO(4, 4, (0, 0, 1))
+
+    sparseMatrix(0, 0) should equal(1)
+
+    for(i <- 1 until sparseMatrix.size) {
+      val row = i / sparseMatrix.numCols
+      val col = i % sparseMatrix.numCols
+
+      sparseMatrix(row, col) should equal(0)
+    }
+  }
+
   it should "be initialized from a coordinate list representation (COO)" in {
     val data = List[(Int, Int, Double)]((0, 0, 0), (0, 1, 0), (3, 4, 43), (2, 1, 17),
       (3, 3, 88), (4 , 2, 99), (1, 4, 91), (3, 4, -1))

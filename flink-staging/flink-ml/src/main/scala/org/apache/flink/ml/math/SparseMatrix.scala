@@ -250,4 +250,18 @@ object SparseMatrix{
 
     new SparseMatrix(numRows, numCols, prunedRowIndices, colPtrs, prunedData)
   }
+
+  /** Convenience method to convert a single tuple with an integer value into a SparseMatrix.
+    * The problem is that providing a single tuple to the fromCOO method, the Scala type inference
+    * cannot infer that the tuple has to be of type (Int, Int, Double) because of the overloading
+    * with the Iterable type.
+    *
+    * @param numRows
+    * @param numCols
+    * @param entry
+    * @return
+    */
+  def fromCOO(numRows: Int, numCols: Int, entry: (Int, Int, Int)): SparseMatrix = {
+    fromCOO(numRows, numCols, (entry._1, entry._2, entry._3.toDouble))
+  }
 }

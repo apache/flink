@@ -178,4 +178,16 @@ object SparseVector {
 
     new SparseVector(size, indices, data)
   }
+
+  /** Convenience method to be able to instantiate a SparseVector with a single element. The Scala
+    * type inference mechanism cannot infer that the second tuple value has to be of type Double
+    * if only a single tuple is provided.
+    *
+    * @param size
+    * @param entry
+    * @return
+    */
+  def fromCOO(size: Int, entry: (Int, Int)): SparseVector = {
+    fromCOO(size, (entry._1, entry._2.toDouble))
+  }
 }
