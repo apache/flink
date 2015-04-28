@@ -31,6 +31,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.InaccessibleMethodException;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.VertexWithDegrees;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
@@ -281,7 +282,7 @@ public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeVal
 	 */
 	void sendMessagesFromVertexCentricIteration(Vertex<VertexKey, Tuple3<VertexValue, Long, Long>> newVertexState)
 			throws Exception {
-		Vertex<VertexKey, VertexValue> vertex = new Vertex<VertexKey, VertexValue>(newVertexState.getId(),
+		VertexWithDegrees<VertexKey, VertexValue> vertex = new VertexWithDegrees<VertexKey, VertexValue>(newVertexState.getId(),
 				newVertexState.getValue().f0);
 		vertex.setInDegree(newVertexState.getValue().f1);
 		vertex.setOutDegree(newVertexState.getValue().f2);

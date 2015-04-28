@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.VertexWithDegrees;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
@@ -155,7 +156,7 @@ public class VertexCentricConfigurationWithExceptionITCase {
 
 		@Override
 		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) throws Exception {
-			setNewVertexValue(vertex.getInDegree());
+			setNewVertexValue(((VertexWithDegrees) vertex).getInDegree());
 		}
 	}
 
@@ -164,7 +165,7 @@ public class VertexCentricConfigurationWithExceptionITCase {
 
 		@Override
 		public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) throws Exception {
-			setNewVertexValue(vertex.getOutDegree());
+			setNewVertexValue(((VertexWithDegrees)vertex).getOutDegree());
 		}
 	}
 
