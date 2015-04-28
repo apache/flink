@@ -95,7 +95,7 @@ public class SimpleSlot extends Slot {
 			// kill all tasks currently running in this slot
 			Execution exec = this.executedTask;
 			if (exec != null && !exec.isFinished()) {
-				exec.fail(new Exception("The slot in which the task was scheduled has been killed (probably loss of TaskManager)."));
+				exec.fail(new Exception("The slot in which the task was scheduled has been killed (probably loss of TaskManager). Instance:"+getInstance()));
 			}
 		}
 	}

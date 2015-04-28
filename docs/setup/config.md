@@ -304,13 +304,25 @@ input format's parameters (DEFAULT: 2097152 (= 2 MiBytes)).
 
 ## YARN
 
-Please note that all ports used by Flink in a YARN session are offsetted by the YARN application ID
-to avoid duplicate port allocations when running multiple YARN sessions in parallel. 
 
-So if `yarn.am.rpc.port` is configured to `10245` and the session's application ID is `application_1406629969999_0002`, then the actual port being used is 10245 + 2 = 10247
+- `yarn.heap-cutoff-ratio`: (Default 0.15) Percentage of heap space to remove from containers started by YARN.
+When a user requests a certain amount of memory for each TaskManager container (for example 4 GB),
+we can not pass this amount as the maximum heap space for the JVM (`-Xmx` argument) because the JVM
+is also allocating memory outside the heap. YARN is very strict with killing containers which are using
+more memory than requested.
+Therefore, we remove a 15% of the memory from the requested heap as a safety margin.
+- `yarn.heap-cutoff-min`: (Default 384 MB) Minimum amount of memory to cut off the requested heap size.
 
-- `yarn.heap-cutoff-ratio`: Percentage of heap space to remove from containers started by YARN.
+- `yarn.reallocate-failed` (Default 'true') Controls whether YARN should reallocate failed containers
 
+- `yarn.maximum-failed-containers` (Default: number of requested containers). Maximum number of containers the system
+is going to reallocate in case of a failure.
+
+- `yarn.application-attempts` (Default: 1). Number of ApplicationMaster restarts. Note that that the entire Flink cluster
+will restart and the YARN Client will loose the connection. Also, the JobManager address will change and you'll need
+to set the JM host:port manually. It is recommended to leave this option at 1.
+
+- `yarn.heartbeat-delay` (Default: 5 seconds). Time between heartbeats with the ResourceManager.
 
 ## Background
 

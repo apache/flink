@@ -24,21 +24,50 @@ import org.junit.Test;
 
 public class UtilsTests {
 
+
+	/**
+	 * Remove 15% of the heap, at least 384MB.
+	 *
+	 */
 	@Test
 	public void testHeapCutoff() {
 		Configuration conf = new Configuration();
-		// ASSUMES DEFAULT Configuration values.
-		Assert.assertEquals(800, Utils.calculateHeapSize(1000, conf) );
-		Assert.assertEquals(9300, Utils.calculateHeapSize(10000, conf) );
+
+		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf) );
+		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf) );
 
 		// test different configuration
-		Assert.assertEquals(3300, Utils.calculateHeapSize(4000, conf) );
+		Assert.assertEquals(3400, Utils.calculateHeapSize(4000, conf) );
 
-		conf.setString(ConfigConstants.YARN_HEAP_LIMIT_CAP, "1000");
-		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "0.3");
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_MIN, "1000");
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "0.1");
 		Assert.assertEquals(3000, Utils.calculateHeapSize(4000, conf));
 
-		conf.setString(ConfigConstants.YARN_HEAP_LIMIT_CAP, "6000000");
-		Assert.assertEquals(1200, Utils.calculateHeapSize(4000, conf));
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "0.5");
+		Assert.assertEquals(2000, Utils.calculateHeapSize(4000, conf));
+
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "1");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgument() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "1.1");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void illegalArgumentNegative() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, "-0.01");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void tooMuchCutoff() {
+		Configuration conf = new Configuration();
+		conf.setString(ConfigConstants.YARN_HEAP_CUTOFF_MIN, "6000");
+		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
 	}
 }
