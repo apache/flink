@@ -506,7 +506,8 @@ trait ApplicationMasterActor extends ActorLogMessages {
     val ctx = Records.newRecord(classOf[ContainerLaunchContext])
 
     val javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "")
-    val tmCommand = new StringBuilder(s"$$JAVA_HOME/bin/java -Xmx${heapLimit}m $javaOpts")
+    val tmCommand = new StringBuilder(s"$$JAVA_HOME/bin/java -Xms${heapLimit}m " +
+      s"-Xmx${heapLimit}m $javaOpts")
 
     if (hasLogback || hasLog4j) {
       tmCommand ++=
