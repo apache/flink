@@ -572,6 +572,8 @@ class JobManager(val flinkConfiguration: Configuration,
           return
       }
 
+      executionGraph.setDispatcher(AkkaUtils.globalExecutionContext)
+
       // NOTE: Scheduling the job for execution is a separate action from the job submission.
       // The success of submitting the job must be independent from the success of scheduling
       // the job.

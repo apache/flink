@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
@@ -35,6 +36,12 @@ public class IntermediateResultPartition {
 	private final IntermediateResultPartitionID partitionId;
 
 	private List<List<ExecutionEdge>> consumers;
+
+	/**
+	 * If set, the Instance where the partition was last available
+	 * It's availability has to be checked before it can be requested/pinned
+	 */
+	private Instance location = null;
 
 	public IntermediateResultPartition(IntermediateResult totalResult, ExecutionVertex producer, int partitionNumber) {
 		this.totalResult = totalResult;
@@ -58,6 +65,22 @@ public class IntermediateResultPartition {
 
 	public IntermediateResultPartitionID getPartitionId() {
 		return partitionId;
+	}
+
+	public boolean isLocationAvailable() {
+		return location != null && location.isAlive();
+	}
+
+	/**
+	 * Last reported location of a ResultPartition for this IntermediateResultPartition
+	 * @return Instance which contains the task manager location
+	 */
+	public Instance getLocation() {
+		return location;
+	}
+
+	public void setLocation(Instance location) {
+		this.location = location;
 	}
 
 	ResultPartitionType getResultType() {

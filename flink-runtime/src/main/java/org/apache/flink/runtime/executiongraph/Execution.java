@@ -121,6 +121,11 @@ public class Execution implements Serializable {
 	private ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
 
 	private volatile ExecutionState state = CREATED;
+
+	/**
+	 * Flag indicating whether this Execution has been marked to be scheduled
+	 */
+	private volatile boolean scheduled;
 	
 	private volatile SimpleSlot assignedResource;     // once assigned, never changes until the execution is archived
 	
@@ -164,6 +169,14 @@ public class Execution implements Serializable {
 
 	public ExecutionState getState() {
 		return state;
+	}
+
+	public boolean isScheduled() {
+		return scheduled;
+	}
+
+	public void setScheduled() {
+		this.scheduled = true;
 	}
 
 	public SimpleSlot getAssignedResource() {
@@ -456,8 +469,6 @@ public class Execution implements Serializable {
 					@Override
 					public Boolean call() throws Exception {
 						try {
-							final ExecutionGraph consumerGraph = consumerVertex.getExecutionGraph();
-
 							consumerVertex.scheduleForExecution(
 									consumerVertex.getExecutionGraph().getScheduler(),
 									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());

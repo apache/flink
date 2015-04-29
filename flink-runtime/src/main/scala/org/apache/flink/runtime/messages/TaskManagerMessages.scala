@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.instance.InstanceID
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID
 
 /**
  * Miscellaneous actor messages exchanged with the TaskManager.

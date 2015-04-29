@@ -25,6 +25,9 @@ public enum ScheduleMode {
 	 */
 	FROM_SOURCES,
 
+	/**
+	 * Schedule tasks with backtracking from the sinks towards the sources.
+	 */
 	BACKTRACKING,
 
 	/**
