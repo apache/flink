@@ -100,7 +100,7 @@ object StreamCrossOperator {
 
     override def every(length: Long): CrossWindow[I1, I2] = {
       val graph = javaStream.getExecutionEnvironment().getStreamGraph()
-      val operator = graph.getVertex(javaStream.getId()).getOperator()
+      val operator = graph.getStreamNode(javaStream.getId()).getOperator()
       operator.asInstanceOf[CoStreamWindow[_,_,_]].setSlideSize(length)
       this
     }

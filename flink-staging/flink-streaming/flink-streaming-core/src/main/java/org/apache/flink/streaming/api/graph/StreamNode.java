@@ -38,6 +38,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
 public class StreamNode implements Serializable {
 
 	private static final long serialVersionUID = 1L;
+	private static int currentSlotSharingIndex = 1;
 
 	transient private StreamExecutionEnvironment env;
 
@@ -45,6 +46,8 @@ public class StreamNode implements Serializable {
 	private Integer parallelism = null;
 	private Long bufferTimeout = null;
 	private String operatorName;
+	private Integer slotSharingID;
+	private boolean isolatedSlot = false;
 
 	private transient StreamOperator<?, ?> operator;
 	private List<OutputSelector<?>> outputSelectors;
@@ -68,6 +71,7 @@ public class StreamNode implements Serializable {
 		this.operator = operator;
 		this.outputSelectors = outputSelector;
 		this.jobVertexClass = jobVertexClass;
+		this.slotSharingID = currentSlotSharingIndex;
 	}
 
 	public void addInEdge(StreamEdge inEdge) {
@@ -196,6 +200,18 @@ public class StreamNode implements Serializable {
 
 	public void setInputFormat(InputFormat<String, ?> inputFormat) {
 		this.inputFormat = inputFormat;
+	}
+
+	public int getSlotSharingID() {
+		return isolatedSlot ? -1 : slotSharingID;
+	}
+
+	public void startNewSlotSharingGroup() {
+		this.slotSharingID = ++currentSlotSharingIndex;
+	}
+
+	public void isolateSlot() {
+		isolatedSlot = true;
 	}
 
 }
