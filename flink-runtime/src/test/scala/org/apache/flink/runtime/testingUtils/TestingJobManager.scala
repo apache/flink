@@ -63,9 +63,9 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
   def receiveTestingMessages: Receive = {
     case RequestExecutionGraph(jobID) =>
-      currentJobs.get(jobID) match {
-        case Some((executionGraph, jobInfo)) => sender ! ExecutionGraphFound(jobID,
-          executionGraph)
+      currentJob match {
+        case Some((executionGraph, jobInfo)) if executionGraph.getJobID == jobID =>
+          sender ! ExecutionGraphFound(jobID, executionGraph)
         case None => archive.tell(RequestExecutionGraph(jobID), sender)
       }
 
@@ -95,8 +95,10 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       }
 
     case NotifyListeners =>
-      for(jobID <- currentJobs.keySet){
-        notifyListeners(jobID)
+      currentJob match {
+        case Some((eg, _)) =>
+          notifyListeners(eg.getJobID)
+        case None =>
       }
 
       if(waitForAllVerticesToBeRunning.isEmpty && waitForAllVerticesToBeRunningOrFinished.isEmpty) {
@@ -132,8 +134,8 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       }
 
     case RequestWorkingTaskManager(jobID) =>
-      currentJobs.get(jobID) match {
-        case Some((eg, _)) =>
+      currentJob match {
+        case Some((eg, _)) if eg.getJobID == jobID =>
           if(eg.getAllExecutionVertices.isEmpty){
             sender ! WorkingTaskManager(ActorRef.noSender)
           } else {
@@ -196,16 +198,16 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   }
 
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {
-    currentJobs.get(jobID) match {
-      case Some((eg, _)) =>
+    currentJob match {
+      case Some((eg, _)) if eg.getJobID == jobID =>
         eg.getAllExecutionVertices.forall( _.getExecutionState == ExecutionState.RUNNING)
       case None => false
     }
   }
 
   def checkIfAllVerticesRunningOrFinished(jobID: JobID): Boolean = {
-    currentJobs.get(jobID) match {
-      case Some((eg, _)) =>
+    currentJob match {
+      case Some((eg, _)) if eg.getJobID == jobID =>
         eg.getAllExecutionVertices.forall {
           case vertex =>
             (vertex.getExecutionState == ExecutionState.RUNNING
