@@ -82,12 +82,16 @@ DEFAULT_ENV_PID_DIR="/tmp"                          # Directory to store *.pid f
 DEFAULT_ENV_LOG_MAX=5                               # Maximum number of old log files to keep
 DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
 DEFAULT_ENV_SSH_OPTS=""                             # Optional SSH parameters running in cluster mode
+DEFAULT_JOBM_RPC_ADDR="localhost"                   # JobManager RPC address for connection test
+DEFAULT_JOBM_RPC_PORT="6123"                        # JobManager RPC port for connection test
 
 ########################################################################################################################
 # CONFIG KEYS: The default values can be overwritten by the following keys in conf/flink-conf.yaml
 ########################################################################################################################
 
 KEY_JOBM_HEAP_MB="jobmanager.heap.mb"
+KEY_JOBM_RPC_ADDR="jobmanager.rpc.address"
+KEY_JOBM_RPC_PORT="jobmanager.rpc.port"
 KEY_TASKM_HEAP_MB="taskmanager.heap.mb"
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_MAX="env.log.max"

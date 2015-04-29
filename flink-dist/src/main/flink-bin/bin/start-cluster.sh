@@ -37,6 +37,26 @@ fi
 # cluster mode, bring up job manager locally and a task manager on every slave host
 "$FLINK_BIN_DIR"/jobmanager.sh start cluster
 
+# wait until jobmanager starts
+JOBMANAGER_ADDR=$(readFromConfig ${KEY_JOBM_RPC_ADDR} "${DEFAULT_JOBM_RPC_ADDR}" "${YAML_CONF}")
+JOBMANAGER_PORT=$(readFromConfig ${KEY_JOBM_RPC_PORT} "${DEFAULT_JOBM_RPC_PORT}" "${YAML_CONF}")
+
+echo "Waiting for job manager"
+for i in {1..30}; do
+  nc -z "${JOBMANAGER_ADDR}" $JOBMANAGER_PORT
+  if [ "$?" -eq "0" ]; then
+    echo ""
+    break
+  fi
+
+  if [ "$i" -eq "30" ]; then
+     echo -e "\nCannot connect to job manager, canceling task manager startup"
+     exit 1
+  fi
+  echo -n "."
+  sleep 1
+done
+
 GOON=true
 while $GOON
 do
