@@ -18,18 +18,21 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{ActorLogging, Actor}
-import org.apache.flink.runtime.ActorLogMessages
+import akka.actor.Actor
+import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.messages.JobManagerProfilerMessages.ReportProfilingData
 import org.apache.flink.runtime.profiling.impl.types.{InternalInstanceProfilingData, InternalExecutionVertexThreadProfilingData}
-import org.apache.flink.runtime.profiling.types.ThreadProfilingEvent
 
 import scala.collection.convert.WrapAsScala
 
 /**
  * Basic skeleton for the JobManager profiler. Currently, it simply logs the received messages.
  */
-class JobManagerProfiler extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
+class JobManagerProfiler
+  extends Actor
+  with ActorLogMessages
+  with ActorSynchronousLogging
+  with WrapAsScala {
   override def receiveWithLogMessages: Receive = {
     case ReportProfilingData(profilingContainer) =>
       profilingContainer.getIterator foreach {

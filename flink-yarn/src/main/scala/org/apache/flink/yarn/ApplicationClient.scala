@@ -23,7 +23,7 @@ import java.net.InetSocketAddress
 import akka.actor._
 import akka.pattern.ask
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
@@ -34,8 +34,10 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-class ApplicationClient(flinkConfig: Configuration) extends Actor
-  with ActorLogMessages with ActorLogging {
+class ApplicationClient(flinkConfig: Configuration)
+  extends Actor
+  with ActorLogMessages
+  with ActorSynchronousLogging {
   import context._
 
   val INITIAL_POLLING_DELAY = 0 seconds
@@ -78,8 +80,8 @@ class ApplicationClient(flinkConfig: Configuration) extends Actor
       jobManagerFuture.onComplete {
         case Success(jm) => self ! JobManagerActorRef(jm)
         case Failure(t) =>
-          log.error(t, "Registration at JobManager/ApplicationMaster failed. Shutting " +
-            "ApplicationClient down.")
+          log.error("Registration at JobManager/ApplicationMaster failed. Shutting " +
+            "ApplicationClient down.", t)
 
           // we could not connect to the job manager --> poison ourselves
           self ! PoisonPill
@@ -93,7 +95,7 @@ class ApplicationClient(flinkConfig: Configuration) extends Actor
       // sender as the Application Client (this class).
       (jm ? RegisterClient(self))(timeout).onFailure{
         case t: Throwable =>
-          log.error(t, "Could not register at the job manager.")
+          log.error("Could not register at the job manager.", t)
           self ! PoisonPill
       }
 
@@ -144,7 +146,7 @@ class ApplicationClient(flinkConfig: Configuration) extends Actor
     // -----------------  handle messages from the cluster -------------------
     // receive remote messages
     case msg: YarnMessage =>
-      log.debug("Received new YarnMessage {}. Now {} messages in queue", msg, messagesQueue.size)
+      log.debug(s"Received new YarnMessage $msg. Now ${messagesQueue.size} messages in queue")
       messagesQueue.enqueue(msg)
 
     // locally forward messages

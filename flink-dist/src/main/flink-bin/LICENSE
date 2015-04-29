@@ -308,6 +308,7 @@ BSD-style licenses:
  - Scala Compiler Reflect (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - Scala Quasiquotes (http://scalamacros.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - ASM (http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
+ - Grizzled SLF4J (http://software.clapper.org/grizzled-slf4j/) - Copyright (c) 2010 Brian M. Clapper
 
 
 (Below is the 3-clause BSD license)

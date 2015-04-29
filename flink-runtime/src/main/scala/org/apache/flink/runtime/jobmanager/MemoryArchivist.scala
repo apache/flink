@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{ActorLogging, Actor}
+import akka.actor.Actor
 import org.apache.flink.api.common.JobID
-import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -48,8 +48,10 @@ import scala.ref.SoftReference
  *
  * @param max_entries Maximum number of stored Flink jobs
  */
-class MemoryArchivist(private val max_entries: Int) extends Actor with ActorLogMessages with
-ActorLogging {
+class MemoryArchivist(private val max_entries: Int)
+  extends Actor
+  with ActorLogMessages
+  with ActorSynchronousLogging {
   /*
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last
    * received job event. The insert order is preserved through a LinkedHashMap.

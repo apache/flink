@@ -22,7 +22,7 @@ import java.lang.management.ManagementFactory
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Cancellable, ActorRef, Actor, ActorLogging}
-import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.execution.{RuntimeEnvironment, ExecutionState}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.JobVertexID
@@ -44,7 +44,7 @@ import scala.concurrent.duration.FiniteDuration
  * @param reportInterval Interval of profiling action
  */
 class TaskManagerProfiler(val instancePath: String, val reportInterval: Int)
-   extends Actor with ActorLogMessages with ActorLogging {
+   extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
   import context.dispatcher
 
@@ -101,7 +101,7 @@ class TaskManagerProfiler(val instancePath: String, val reportInterval: Int)
             Some(instanceProfiler.generateProfilingData(timestamp))
           } catch {
             case e: ProfilingException =>
-              log.error(e, "Error while retrieving instance profiling data.")
+              log.error("Error while retrieving instance profiling data.", e)
               None
           }
 
@@ -133,7 +133,7 @@ class TaskManagerProfiler(val instancePath: String, val reportInterval: Int)
             case _ =>
           }
         case None =>
-          log.warning(s"Could not find environment for execution id $executionID.")
+          log.warn(s"Could not find environment for execution id $executionID.")
       }
   }
 
