@@ -31,7 +31,7 @@
         </encoder>
     </appender>
 
-    <logger name="ch.qos.logback" level="WARN" />
+    <logger name="ch.qos.logback" level="WARN"/>
     <root level="INFO">
         <appender-ref ref="file"/>
         <appender-ref ref="console"/>
