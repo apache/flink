@@ -26,7 +26,6 @@ import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
 
 import scala.collection.mutable
-import scala.ref.SoftReference
 
 /**
  * Actor which stores terminated Flink jobs. The number of stored Flink jobs is set by max_entries.
@@ -56,28 +55,31 @@ class MemoryArchivist(private val max_entries: Int)
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last
    * received job event. The insert order is preserved through a LinkedHashMap.
    */
-  val graphs = mutable.LinkedHashMap[JobID, SoftReference[ExecutionGraph]]()
+  val graphs = mutable.LinkedHashMap[JobID, ExecutionGraph]()
 
   override def receiveWithLogMessages: Receive = {
     
     /* Receive Execution Graph to archive */
     case ArchiveExecutionGraph(jobID, graph) => 
       // wrap graph inside a soft reference
-      graphs.update(jobID, new SoftReference(graph))
-
+      graphs.update(jobID, graph)
       trimHistory()
 
+    case RequestArchivedJob(jobID: JobID) =>
+      val graph = graphs.get(jobID)
+      sender ! ArchivedJob(graph)
+
     case RequestArchivedJobs =>
-      sender ! ArchivedJobs(getAllGraphs)
+      sender ! ArchivedJobs(graphs.values)
 
     case RequestJob(jobID) =>
-      getGraph(jobID) match {
+      graphs.get(jobID) match {
         case Some(graph) => sender ! JobFound(jobID, graph)
         case None => sender ! JobNotFound(jobID)
       }
 
     case RequestJobStatus(jobID) =>
-      getGraph(jobID) match {
+      graphs.get(jobID) match {
         case Some(graph) => sender ! CurrentJobStatus(jobID, graph.getState)
         case None => sender ! JobNotFound(jobID)
       }
@@ -90,23 +92,6 @@ class MemoryArchivist(private val max_entries: Int)
     // let the actor crash
     throw new RuntimeException("Received unknown message " + message)
   }
-
-  /**
-   * Gets all graphs that have not been garbage collected.
-   * @return An iterable with all valid ExecutionGraphs
-   */
-  protected def getAllGraphs: Iterable[ExecutionGraph] = graphs.values.flatMap(_.get)
-
-  /**
-   * Gets a graph with a jobID if it has not been garbage collected.
-   * @param jobID
-   * @return ExecutionGraph or null
-   */
-  protected def getGraph(jobID: JobID): Option[ExecutionGraph] = graphs.get(jobID) match {
-    case Some(softRef) => softRef.get
-    case None => None
-  }
-  
 
   /**
    * Remove old ExecutionGraphs belonging to a jobID

@@ -34,6 +34,14 @@ object ArchiveMessages {
   case object RequestArchivedJobs
 
   /**
+   * Reqeuest a specific ExecutionGraph by JobID. The response is [[RequestArchivedJob]]
+   * @param jobID
+   */
+  case class RequestArchivedJob(jobID: JobID)
+
+  case class ArchivedJob(job: Option[ExecutionGraph])
+
+  /**
    * Response to [[RequestArchivedJobs]] message. The response contains the archived jobs.
    * @param jobs
    */

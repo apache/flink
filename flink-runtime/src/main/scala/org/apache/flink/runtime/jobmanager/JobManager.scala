@@ -292,7 +292,7 @@ class JobManager(val flinkConfiguration: Configuration,
           if (newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp
 
-          // is the client waiting for the job result?
+            // is the client waiting for the job result?
             newJobStatus match {
               case JobStatus.FINISHED =>
                 val accumulatorResults: java.util.Map[String, SerializedValue[AnyRef]] = try {
@@ -326,7 +326,7 @@ class JobManager(val flinkConfiguration: Configuration,
           }
         case None =>
           removeJob(jobID)
-          }
+      }
 
     case msg: BarrierAck =>
       currentJobs.get(msg.jobID) match {
