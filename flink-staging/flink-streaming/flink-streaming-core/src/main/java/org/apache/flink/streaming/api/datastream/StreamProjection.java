@@ -48,8 +48,6 @@ import org.apache.flink.api.java.tuple.Tuple9;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.operators.StreamProject;
 
-import java.util.Arrays;
-
 public class StreamProjection<IN> {
 
 	private DataStream<IN> dataStream;

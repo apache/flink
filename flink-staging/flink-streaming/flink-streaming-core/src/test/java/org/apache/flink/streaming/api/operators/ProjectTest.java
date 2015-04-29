@@ -18,39 +18,45 @@
 package org.apache.flink.streaming.api.operators;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.StreamProjection;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.util.MockContext;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.junit.Test;
 
 public class ProjectTest implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Test
-	public void test() {
+	public void operatorTest() {
 
 		TypeInformation<Tuple5<Integer, String, Integer, String, Integer>> inType = TypeExtractor
-				.getForObject(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b",
-						4));
+				.getForObject(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b", 4));
 
-		int[] fields = new int[] { 4, 4, 3 };
-		// Class<?>[] classes = new Class<?>[] { Integer.class, Integer.class, String.class };
+		int[] fields = new int[]{4, 4, 3};
 
 		@SuppressWarnings("unchecked")
 		StreamProject<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> operator =
 				new StreamProject<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(
-				fields,
-				new TupleTypeInfo<Tuple3<Integer, Integer, String>>(StreamProjection
-						.extractFieldTypes(fields, inType)));
+						fields,
+						new TupleTypeInfo<Tuple3<Integer, Integer, String>>(StreamProjection
+								.extractFieldTypes(fields, inType)));
 
 		List<Tuple5<Integer, String, Integer, String, Integer>> input = new ArrayList<Tuple5<Integer, String, Integer,
 				String, Integer>>();
@@ -66,5 +72,44 @@ public class ProjectTest implements Serializable {
 		expected.add(new Tuple3<Integer, Integer, String>(7, 7, "a"));
 
 		assertEquals(expected, MockContext.createAndExecute(operator, input));
+	}
+
+
+	// tests using projection from the API without explicitly specifying the types
+	private static final long MEMORY_SIZE = 32;
+	private static HashSet<Tuple2<Long, Double>> expected = new HashSet<Tuple2<Long, Double>>();
+	private static HashSet<Tuple2<Long, Double>> actual = new HashSet<Tuple2<Long, Double>>();
+
+	@Test
+	public void APIWithoutTypesTest() {
+
+		for (Long i = 1L; i < 11L; i++) {
+			expected.add(new Tuple2<Long, Double>(i, i.doubleValue()));
+		}
+
+		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORY_SIZE);
+
+		env.generateSequence(1, 10).map(new MapFunction<Long, Tuple3<Long, Character, Double>>() {
+				@Override
+				public Tuple3<Long, Character, Double> map(Long value) throws Exception {
+					return new Tuple3<Long, Character, Double>(value, 'c', value.doubleValue());
+				}
+			})
+			.project(0, 2)
+			.addSink(new SinkFunction<Tuple>() {
+				@Override
+				@SuppressWarnings("unchecked")
+				public void invoke(Tuple value) throws Exception {
+					actual.add( (Tuple2<Long,Double>) value);
+				}
+			});
+
+		try {
+			env.execute();
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+
+		assertEquals(expected, actual);
 	}
 }
