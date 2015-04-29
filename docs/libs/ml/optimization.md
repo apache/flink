@@ -77,8 +77,8 @@ example. Different loss function can be used for regression (e.g. Squared Loss) 
 Some common loss functions are:
  
 * Squared Loss: $ \frac{1}{2} (\wv^T \x - y)^2, \quad y \in \R $ 
-* Hinge Loss: $ \max (0, 1-y \wv^T \x), \quad y \in \{-1, +1\} $
-* Logistic Loss: $ \log(1+\exp( -y \wv^T \x)), \quad y \in \{-1, +1\} $
+* Hinge Loss: $ \max (0, 1 - y ~ \wv^T \x), \quad y \in \{-1, +1\} $
+* Logistic Loss: $ \log(1+\exp( -y ~ \wv^T \x)), \quad y \in \{-1, +1\} $
 
 Currently, only the Squared Loss function is implemented in Flink.
 
@@ -214,5 +214,5 @@ val weightDS = sgd.optimize(inputDS, None)
 val weightVector = weightDS.collect().head
 
 val intercept = weightVector.intercept
-val weights = weightVector.weights.asInstanceOf[DenseVector]
+val weights = weightVector.weights
 {% endhighlight %}

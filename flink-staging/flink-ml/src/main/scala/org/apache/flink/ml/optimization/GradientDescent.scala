@@ -66,7 +66,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     * @return A Dataset containing the weights after one stochastic gradient descent step
     */
   private def SGDStep(data: DataSet[(LabeledVector)], currentWeights: DataSet[WeightVector]):
-    DataSet[WeightVector] = {
+  DataSet[WeightVector] = {
 
     // TODO: Sample from input to realize proper SGD
     data.map {
@@ -99,26 +99,10 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
 
     val numberOfIterations: Int = parameterMap(Iterations)
 
-
     val initialWeightsDS: DataSet[WeightVector] = initWeights match {
-      //TODO(tvas): Need to figure out if and where we want to pass initial weights
       case Some(x) => x
       case None => createInitialWeightVector(dimensionsDS)
     }
-
-    // We need the weights vector to initialize the regularization value.
-    val initWeightsVector = initialWeightsDS.collect()(0).weights
-
-    val initRegVal = parameterMap(RegularizationType)
-      .applyRegularization(initWeightsVector, 0.0, parameterMap(RegularizationParameter))._2
-
-    // TODO: Is there a way to initialize the regularization parameter without collect()?
-    // The following code should give us a dataset with the initial reg. parameter, but we still
-    // need to call collect to retrieve it. Question is: call collect here, or on the weights as we
-    // currently do?
-    //val initRegValue: DataSet[Double] = initialWeights.map {x => parameterMap(RegularizationType)
-    //  .applyRegularization(x.weights, 0.0, parameterMap(RegularizationParameter))._2}
-    //  .reduce(_ + _)
 
     // Perform the iterations
     // TODO: Enable convergence stopping criterion, as in Multiple Linear regression
@@ -178,7 +162,6 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     */
   private class WeightsUpdate() extends
   RichMapFunction[(WeightVector, Int), WeightVector] {
-
 
     var weightVector: WeightVector = null
 

@@ -125,7 +125,6 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val weightVector: WeightVector = weightList.head
 
-    // TODO(tvas): Can we do without the explicit conversion?
     val weights = weightVector.weights.asInstanceOf[DenseVector].data
     val weight0 = weightVector.intercept
 
@@ -161,7 +160,6 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val weightVector: WeightVector = weightList.head
 
-    // TODO(tvas): Can we do without the explicit conversion?
     val weights = weightVector.weights.asInstanceOf[DenseVector].data
     val weight0 = weightVector.intercept
 
