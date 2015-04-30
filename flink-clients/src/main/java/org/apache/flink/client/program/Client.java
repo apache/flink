@@ -27,6 +27,8 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -52,9 +54,12 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -420,6 +425,44 @@ public class Client {
 			actorSystem.awaitTermination();
 		}
 	}
+
+	/**
+	 * Cancels a job identified by the job id.
+	 * @param jobId the job id
+	 * @throws Exception In case an error occurred.
+	 */
+	public void cancel(JobID jobId) throws Exception {
+		final FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
+
+		ActorSystem actorSystem;
+		try {
+			actorSystem = JobClient.startJobClientActorSystem(configuration);
+		} catch (Exception e) {
+			throw new ProgramInvocationException("Could start client actor system.", e);
+		}
+
+		ActorRef jobManager;
+		try {
+			jobManager = JobManager.getJobManagerRemoteReference(jobManagerAddress, actorSystem, timeout);
+		} catch (Exception e) {
+			LOG.error("Error in getting the remote reference for the job manager", e);
+			throw new ProgramInvocationException("Failed to resolve JobManager", e);
+		}
+
+		Future<Object> response = Patterns.ask(jobManager, new JobManagerMessages.CancelJob(jobId), new Timeout(timeout));
+		Object result = Await.result(response, timeout);
+
+		if (result instanceof JobManagerMessages.CancellationSuccess) {
+			LOG.debug("Job cancellation with ID " + jobId + " succeeded.");
+		} else if (result instanceof JobManagerMessages.CancellationFailure) {
+			Throwable t = ((JobManagerMessages.CancellationFailure) result).cause();
+			LOG.debug("Job cancellation with ID " + jobId + " failed.", t);
+			throw new Exception("Failed to cancel the job because of \n" + t.getMessage());
+		} else {
+			throw new Exception("Unknown message received while cancelling.");
+		}
+	}
+
 
 	// --------------------------------------------------------------------------------------------
 	
