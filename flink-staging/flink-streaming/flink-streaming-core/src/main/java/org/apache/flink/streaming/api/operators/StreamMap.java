@@ -22,11 +22,8 @@ import org.apache.flink.api.common.functions.MapFunction;
 public class StreamMap<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private MapFunction<IN, OUT> mapper;
-
 	public StreamMap(MapFunction<IN, OUT> mapper) {
 		super(mapper);
-		this.mapper = mapper;
 	}
 
 	@Override
@@ -37,8 +34,9 @@ public class StreamMap<IN, OUT> extends ChainableStreamOperator<IN, OUT> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected void callUserFunction() throws Exception {
-		collector.collect(mapper.map(nextObject));
+		collector.collect(((MapFunction<IN, OUT>) userFunction).map(nextObject));
 	}
 
 }
