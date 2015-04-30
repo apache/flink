@@ -46,6 +46,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.BarrierTransceiver;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.messages.TaskMessages;
@@ -53,6 +55,8 @@ import org.apache.flink.runtime.messages.TaskMessages.TaskInFinalState;
 import org.apache.flink.runtime.messages.TaskManagerMessages.FatalError;
 import org.apache.flink.runtime.state.StateHandle;
 
+import org.apache.flink.runtime.state.StateUtils;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,9 +143,6 @@ public class Task implements Runnable {
 	/** The name of the class that holds the invokable code */
 	private final String nameOfInvokableClass;
 
-	/** The handle to the state that the operator was initialized with */
-	private final StateHandle operatorState;
-
 	/** The memory manager to be used by this task */
 	private final MemoryManager memoryManager;
 
@@ -171,10 +172,13 @@ public class Task implements Runnable {
 	/** The timeout for all ask operations on actors */
 	private final Timeout actorAskTimeout;
 
+	/** The library cache, from which the task can request its required JAR files */
 	private final LibraryCacheManager libraryCache;
 	
+	/** The cache for user-defined files that the invokable requires */
 	private final FileCache fileCache;
 	
+	/** The gateway to the network stack, which handles inputs and produced results */
 	private final NetworkEnvironment network;
 
 	/** The thread that executes the task */
@@ -182,10 +186,12 @@ public class Task implements Runnable {
 	
 
 	// ------------------------------------------------------------------------
-	//  Fields that control the task execution
+	//  Fields that control the task execution. All these fields are volatile
+	//  (which means that they introduce memory barriers), to establish
+	//  proper happens-before semantics on parallel modification
 	// ------------------------------------------------------------------------
 
-	private final AtomicBoolean invokableHasBeenCanceled = new AtomicBoolean(false);
+	private final AtomicBoolean invokableHasBeenCanceled;
 	
 	/** The invokable of this task, if initialized */
 	private volatile AbstractInvokable invokable;
@@ -195,6 +201,10 @@ public class Task implements Runnable {
 
 	/** The observed exception, in case the task execution failed */
 	private volatile Throwable failureCause;
+
+	/** The handle to the state that the operator was initialized with. Will be set to null after the
+	 * initialization, to be memory friendly */
+	private volatile SerializedValue<StateHandle<?>> operatorState;
 
 	
 	/**
@@ -227,7 +237,7 @@ public class Task implements Runnable {
 		this.taskConfiguration = checkNotNull(tdd.getTaskConfiguration());
 		this.requiredJarFiles = checkNotNull(tdd.getRequiredJarFiles());
 		this.nameOfInvokableClass = checkNotNull(tdd.getInvokableClassName());
-		this.operatorState = tdd.getOperatorStates();
+		this.operatorState = tdd.getOperatorState();
 
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
@@ -286,7 +296,9 @@ public class Task implements Runnable {
 		}
 		
 		// finally, create the executing thread, but do not start it
-		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask); 
+		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
+		
+		invokableHasBeenCanceled = new AtomicBoolean(false);
 	}
 
 	// ------------------------------------------------------------------------
@@ -423,9 +435,7 @@ public class Task implements Runnable {
 
 		// all resource acquisitions and registrations from here on
 		// need to be undone in the end
-
 		Map<String, Future<Path>> distributedCacheEntries = new HashMap<String, Future<Path>>();
-
 		AbstractInvokable invokable = null;
 
 		try {
@@ -500,14 +510,31 @@ public class Task implements Runnable {
 			// the very last thing before the actual execution starts running is to inject
 			// the state into the task. the state is non-empty if this is an execution
 			// of a task that failed but had backuped state from a checkpoint
+
+			// get our private reference onto the stack (be safe against concurrent changes) 
+			SerializedValue<StateHandle<?>> operatorState = this.operatorState;
+			
 			if (operatorState != null) {
 				if (invokable instanceof OperatorStateCarrier) {
-					((OperatorStateCarrier) invokable).injectState(operatorState);
+					try {
+						StateHandle<?> state = operatorState.deserializeValue(userCodeClassLoader);
+						OperatorStateCarrier<?> op = (OperatorStateCarrier<?>) invokable;
+						StateUtils.setOperatorState(op, state);
+					}
+					catch (Exception e) {
+						throw new Exception("Failed to deserialize state handle and setup initial operator state");
+					}
 				}
 				else {
 					throw new IllegalStateException("Found operator state for a non-stateful task invokable");
 				}
 			}
+
+			// be memory and GC friendly - since the code stays in invoke() for a potentially long time,
+			// we clear the reference to the state handle
+			//noinspection UnusedAssignment
+			operatorState = null;
+			this.operatorState = null;
 
 			// ----------------------------------------------------------------
 			//  actual task core work
@@ -568,7 +595,7 @@ public class Task implements Runnable {
 			// ----------------------------------------------------------------
 
 			try {
-				// transition into our final state. we should be either in RUNNING, CANCELING, or FAILED 
+				// transition into our final state. we should be either in DEPLOYING, RUNNING, CANCELING, or FAILED
 				// loop for multiple retries during concurrent state changes via calls to cancel() or
 				// to failExternally()
 				while (true) {
@@ -708,6 +735,14 @@ public class Task implements Runnable {
 	//  Canceling / Failing the task from the outside
 	// ----------------------------------------------------------------------------------------------------------------
 
+	/**
+	 * Cancels the task execution. If the task is already in a terminal state
+	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
+	 * Otherwise it sets the state to CANCELING, and, if the invokable code is running,
+	 * starts an asynchronous thread that aborts that code.
+	 * 
+	 * <p>This method never blocks.</p>
+	 */
 	public void cancelExecution() {
 		LOG.info("Attempting to cancel task " + taskNameWithSubtask);
 		if (cancelOrFailAndCancelInvokable(ExecutionState.CANCELING)) {
@@ -716,7 +751,13 @@ public class Task implements Runnable {
 	}
 
 	/**
-	 * Sets the tasks to be cancelled and reports a failure back to the master.
+	 * Marks task execution failed for an external reason (a reason other than th task code itself
+	 * throwing an exception). If the task is already in a terminal state
+	 * (such as FINISHED, CANCELED, FAILED), or if the task is already canceling this does nothing.
+	 * Otherwise it sets the state to FAILED, and, if the invokable code is running,
+	 * starts an asynchronous thread that aborts that code.
+	 *
+	 * <p>This method never blocks.</p>
 	 */
 	public void failExternally(Throwable cause) {
 		LOG.info("Attempting to fail task externally " + taskNameWithSubtask);
@@ -751,6 +792,8 @@ public class Task implements Runnable {
 						LOG.info("Triggering cancellation of task code {} ({}).", taskNameWithSubtask, executionId);
 
 						// because the canceling may block on user code, we cancel from a separate thread
+						// we do not reuse the async call handler, because that one may be blocked, in which
+						// case the canceling could not continue
 						Runnable canceler = new TaskCanceler(LOG, invokable, executingThread, taskNameWithSubtask);
 						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
 								"Canceler for " + taskNameWithSubtask);
@@ -798,15 +841,42 @@ public class Task implements Runnable {
 	//  Notifications on the invokable
 	// ------------------------------------------------------------------------
 
-	public void triggerCheckpointBarrier(final long checkpointID) {
-		AbstractInvokable invokabe = this.invokable;
+	/**
+	 * Calls the invokable to trigger a checkpoint, if the invokable implements the interface
+	 * {@link org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator}.
+	 * 
+	 * @param checkpointID The ID identifying the checkpoint.
+	 * @param checkpointTimestamp The timestamp associated with the checkpoint.   
+	 */
+	public void triggerCheckpointBarrier(final long checkpointID, final long checkpointTimestamp) {
+		AbstractInvokable invokable = this.invokable;
 		
-		if (executionState == ExecutionState.RUNNING && invokabe != null) {
-			if (invokabe instanceof BarrierTransceiver) {
-				final BarrierTransceiver barrierTransceiver = (BarrierTransceiver) invokabe;
+		if (executionState == ExecutionState.RUNNING && invokable != null) {
+			if (invokable instanceof CheckpointedOperator) {
+				
+				// build a local closure 
+				final CheckpointedOperator checkpointer = (CheckpointedOperator) invokable;
+				final Logger logger = LOG;
+				final String taskName = taskNameWithSubtask;
+				
+				Runnable runnable = new Runnable() {
+					@Override
+					public void run() {
+						try {
+							checkpointer.triggerCheckpoint(checkpointID, checkpointTimestamp);
+						}
+						catch (Throwable t) {
+							logger.error("Error while triggering checkpoint for " + taskName, t);
+						}
+					}
+				};
+				executeAsyncCallRunnable(runnable, "Checkpoint Trigger");
+			}
+			else if (invokable instanceof BarrierTransceiver) {
+				final BarrierTransceiver barrierTransceiver = (BarrierTransceiver) invokable;
 				final Logger logger = LOG;
 				
-				Thread caller = new Thread("Barrier emitter") {
+				Runnable runnable = new Runnable() {
 					@Override
 					public void run() {
 						try {
@@ -817,8 +887,7 @@ public class Task implements Runnable {
 						}
 					}
 				};
-				caller.setDaemon(true);
-				caller.start();
+				executeAsyncCallRunnable(runnable, "Checkpoint Trigger");
 			}
 			else {
 				LOG.error("Task received a checkpoint request, but is not a checkpointing task - "
@@ -826,10 +895,49 @@ public class Task implements Runnable {
 			}
 		}
 		else {
-			LOG.debug("Ignoring request to trigger a checkpoint barrier");
+			LOG.debug("Ignoring request to trigger a checkpoint for non-running task.");
 		}
 	}
 	
+	public void confirmCheckpoint(final long checkpointID, final long checkpointTimestamp) {
+		AbstractInvokable invokable = this.invokable;
+
+		if (executionState == ExecutionState.RUNNING && invokable != null) {
+			if (invokable instanceof CheckpointCommittingOperator) {
+
+				// build a local closure 
+				final CheckpointCommittingOperator checkpointer = (CheckpointCommittingOperator) invokable;
+				final Logger logger = LOG;
+				final String taskName = taskNameWithSubtask;
+
+				Runnable runnable = new Runnable() {
+					@Override
+					public void run() {
+						try {
+							checkpointer.confirmCheckpoint(checkpointID, checkpointTimestamp);
+						}
+						catch (Throwable t) {
+							logger.error("Error while confirming checkpoint for " + taskName, t);
+						}
+					}
+				};
+				executeAsyncCallRunnable(runnable, "Checkpoint Confirmation");
+			}
+			else {
+				LOG.error("Task received a checkpoint commit notification, but is not a checkpoint committing task - "
+						+ taskNameWithSubtask);
+			}
+		}
+		else {
+			LOG.debug("Ignoring checkpoint commit notification for non-running task.");
+		}
+	}
+	
+	private void executeAsyncCallRunnable(Runnable runnable, String callName) {
+		Thread thread = new Thread(runnable, callName);
+		thread.setDaemon(true);
+		thread.start();
+	}
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------

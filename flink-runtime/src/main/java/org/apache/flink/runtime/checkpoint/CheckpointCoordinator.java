@@ -18,10 +18,17 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.PoisonPill;
+import akka.actor.Props;
+
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.ConfirmCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
@@ -41,7 +48,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- *
+ * The checkpoint coordinator coordinates the distributed snapshots of operators and state.
+ * It triggers the checkpoint by sending the messages to the relevant tasks and collects the
+ * checkpoint acknowledgements. It also collects and maintains the overview of the state handles
+ * reported by the tasks that acknowledge the checkpoint.
  */
 public class CheckpointCoordinator {
 	
@@ -76,12 +86,16 @@ public class CheckpointCoordinator {
 
 	private final AtomicInteger numUnsuccessfulCheckpointsTriggers = new AtomicInteger();
 
-	/** The timer that processes the checkpoint timeouts */
-	private final Timer timeoutTimer;
+	/** The timer that handles the checkpoint timeouts and triggers periodic checkpoints */
+	private final Timer timer;
 	
 	private final long checkpointTimeout;
 	
 	private final int numSuccessfulCheckpointsToRetain;
+	
+	private TimerTask periodicScheduler;
+	
+	private ActorRef jobStatusListener;
 	
 	private boolean shutdown;
 	
@@ -114,9 +128,13 @@ public class CheckpointCoordinator {
 		this.completedCheckpoints = new ArrayDeque<SuccessfulCheckpoint>(numSuccessfulCheckpointsToRetain + 1);
 		this.recentPendingCheckpoints = new ArrayDeque<Long>(NUM_GHOST_CHECKPOINT_IDS);
 
-		timeoutTimer = new Timer("Checkpoint Timeout Handler", true);
+		timer = new Timer("Checkpoint Timer", true);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Clean shutdown
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Shuts down the checkpoint coordinator.
 	 * 
@@ -129,9 +147,22 @@ public class CheckpointCoordinator {
 				return;
 			}
 			shutdown = true;
+			LOG.info("Stopping checkpoint coordinator jor job " + job);
 			
 			// shut down the thread that handles the timeouts
-			timeoutTimer.cancel();
+			timer.cancel();
+			
+			// make sure that the actor does not linger
+			if (jobStatusListener != null) {
+				jobStatusListener.tell(PoisonPill.getInstance(), ActorRef.noSender());
+				jobStatusListener = null;
+			}
+			
+			// the scheduling thread needs also to go away
+			if (periodicScheduler != null) {
+				periodicScheduler.cancel();
+				periodicScheduler = null;
+			}
 			
 			// clear and discard all pending checkpoints
 			for (PendingCheckpoint pending : pendingCheckpoints.values()) {
@@ -145,6 +176,10 @@ public class CheckpointCoordinator {
 			}
 			completedCheckpoints.clear();
 		}
+	}
+	
+	public boolean isShutdown() {
+		return shutdown;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -235,7 +270,7 @@ public class CheckpointCoordinator {
 					throw new IllegalStateException("Checkpoint coordinator has been shutdown.");
 				}
 				pendingCheckpoints.put(checkpointID, checkpoint);
-				timeoutTimer.schedule(canceller, checkpointTimeout);
+				timer.schedule(canceller, checkpointTimeout);
 			}
 
 			// send the messages to the tasks that trigger their checkpoint
@@ -270,7 +305,8 @@ public class CheckpointCoordinator {
 		}
 		
 		final long checkpointId = message.getCheckpointId();
-		boolean checkpointCompleted = false;
+
+		SuccessfulCheckpoint completed = null;
 		
 		synchronized (lock) {
 			// we need to check inside the lock for being shutdown as well, otherwise we
@@ -286,7 +322,7 @@ public class CheckpointCoordinator {
 					if (checkpoint.isFullyAcknowledged()) {
 						LOG.info("Completed checkpoint " + checkpointId);
 
-						SuccessfulCheckpoint completed = checkpoint.toCompletedCheckpoint();
+						completed = checkpoint.toCompletedCheckpoint();
 						completedCheckpoints.addLast(completed);
 						if (completedCheckpoints.size() > numSuccessfulCheckpointsToRetain) {
 							completedCheckpoints.removeFirst();
@@ -295,8 +331,6 @@ public class CheckpointCoordinator {
 						rememberRecentCheckpointId(checkpointId);
 						
 						dropSubsumedCheckpoints(completed.getTimestamp());
-						
-						checkpointCompleted = true;
 					}
 				}
 				else {
@@ -323,12 +357,13 @@ public class CheckpointCoordinator {
 		
 		// send the confirmation messages to the necessary targets. we do this here
 		// to be outside the lock scope
-		if (checkpointCompleted) {
+		if (completed != null) {
+			final long timestamp = completed.getTimestamp();
 			for (ExecutionVertex ev : tasksToCommitTo) {
 				Execution ee = ev.getCurrentExecutionAttempt();
 				if (ee != null) {
 					ExecutionAttemptID attemptId = ee.getAttemptId();
-					ConfirmCheckpoint confirmMessage = new ConfirmCheckpoint(job, attemptId, checkpointId);
+					ConfirmCheckpoint confirmMessage = new ConfirmCheckpoint(job, attemptId, checkpointId, timestamp);
 					ev.sendMessageToCurrentExecution(confirmMessage, ee.getAttemptId());
 				}
 			}
@@ -355,6 +390,64 @@ public class CheckpointCoordinator {
 	}
 
 	// --------------------------------------------------------------------------------------------
+	//  Checkpoint State Restoring
+	// --------------------------------------------------------------------------------------------
+
+	public void restoreLatestCheckpointedState(Map<JobVertexID, ExecutionJobVertex> tasks,
+												boolean errorIfNoCheckpoint,
+												boolean allOrNothingState) throws Exception {
+		synchronized (lock) {
+			if (shutdown) {
+				throw new IllegalStateException("CheckpointCoordinator is hut down");
+			}
+			
+			if (completedCheckpoints.isEmpty()) {
+				if (errorIfNoCheckpoint) {
+					throw new IllegalStateException("No completed checkpoint available");
+				} else {
+					return;
+				}
+			}
+			
+			// restore from the latest checkpoint
+			SuccessfulCheckpoint latest = completedCheckpoints.getLast();
+						
+			if (allOrNothingState) {
+				Map<ExecutionJobVertex, Integer> stateCounts = new HashMap<ExecutionJobVertex, Integer>();
+
+				for (StateForTask state : latest.getStates()) {
+					ExecutionJobVertex vertex = tasks.get(state.getOperatorId());
+					Execution exec = vertex.getTaskVertices()[state.getSubtask()].getCurrentExecutionAttempt();
+					exec.setInitialState(state.getState());
+
+					Integer count = stateCounts.get(vertex);
+					if (count != null) {
+						stateCounts.put(vertex, count+1);
+					} else {
+						stateCounts.put(vertex, 1);
+					}
+				}
+				
+				// validate that either all task vertices have state, or none
+				for (Map.Entry<ExecutionJobVertex, Integer> entry : stateCounts.entrySet()) {
+					ExecutionJobVertex vertex = entry.getKey();
+					if (entry.getValue() != vertex.getParallelism()) {
+						throw new IllegalStateException(
+								"The checkpoint contained state only for a subset of tasks for vertex " + vertex);
+					}
+				}
+			}
+			else {
+				for (StateForTask state : latest.getStates()) {
+					ExecutionJobVertex vertex = tasks.get(state.getOperatorId());
+					Execution exec = vertex.getTaskVertices()[state.getSubtask()].getCurrentExecutionAttempt();
+					exec.setInitialState(state.getState());
+				}
+			}
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
 	//  Accessors
 	// --------------------------------------------------------------------------------------------
 	
@@ -375,6 +468,58 @@ public class CheckpointCoordinator {
 	public List<SuccessfulCheckpoint> getSuccessfulCheckpoints() {
 		synchronized (lock) {
 			return new ArrayList<SuccessfulCheckpoint>(this.completedCheckpoints);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Periodic scheduling of checkpoints
+	// --------------------------------------------------------------------------------------------
+	
+	public void startPeriodicCheckpointScheduler(long interval) {
+		synchronized (lock) {
+			if (shutdown) {
+				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
+			}
+			
+			// cancel any previous scheduler
+			stopPeriodicCheckpointScheduler();
+			
+			// start a new scheduler
+			periodicScheduler = new TimerTask() {
+				@Override
+				public void run() {
+					try {
+						triggerCheckpoint();
+					}
+					catch (Exception e) {
+						LOG.error("Exception while triggering checkpoint", e);
+					}
+				}
+			};
+			timer.scheduleAtFixedRate(periodicScheduler, interval, interval);
+		}
+	}
+	
+	public void stopPeriodicCheckpointScheduler() {
+		synchronized (lock) {
+			if (periodicScheduler != null) {
+				periodicScheduler.cancel();
+				periodicScheduler = null;
+			}
+		}
+	}
+	
+	public ActorRef createJobStatusListener(ActorSystem actorSystem, long checkpointInterval) {
+		synchronized (lock) {
+			if (shutdown) {
+				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
+			}
+
+			if (jobStatusListener == null) {
+				Props props = Props.create(CheckpointCoordinatorDeActivator.class, this, checkpointInterval);
+				jobStatusListener = actorSystem.actorOf(props);
+			}
+			return jobStatusListener;
 		}
 	}
 }

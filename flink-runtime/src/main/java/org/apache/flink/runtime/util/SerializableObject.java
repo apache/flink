@@ -16,22 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
-
-import java.io.Serializable;
+package org.apache.flink.runtime.util;
 
 /**
- * StateHandle is a general handle interface meant to abstract operator state fetching. 
- * A StateHandle implementation can for example include the state itself in cases where the state 
- * is lightweight or fetching it lazily from some external storage when the state is too large.
+ * A simple object that only implements {@link java.io.Serializable}, so it can be used
+ * in serializable classes.
  */
-public interface StateHandle<T> extends Serializable {
-
-	/**
-	 * This retrieves and return the state represented by the handle. 
-	 * 
-	 * @return The state represented by the handle.
-	 * @throws java.lang.Exception Thrown, if the state cannot be fetched.
-	 */
-	T getState() throws Exception;
+public class SerializableObject implements java.io.Serializable {
+	
+	private static final long serialVersionUID = -7322636177391854669L;
 }

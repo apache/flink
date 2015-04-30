@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.execution;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -31,6 +30,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.state.StateHandle;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -148,6 +148,25 @@ public interface Environment {
 	 */
 	void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators);
 
+	/**
+	 * Confirms that the invokable has successfully completed all steps it needed to
+	 * to for the checkpoint with the give checkpoint-ID. This method does not include
+	 * any state in the checkpoint.
+	 * 
+	 * @param checkpointId The ID of the checkpoint.
+	 */
+	void acknowledgeCheckpoint(long checkpointId);
+
+	/**
+	 * Confirms that the invokable has successfully completed all steps it needed to
+	 * to for the checkpoint with the give checkpoint-ID. This method does include
+	 * the given state in the checkpoint.
+	 *
+	 * @param checkpointId The ID of the checkpoint.
+	 * @param state A handle to the state to be included in the checkpoint.   
+	 */
+	void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state);
+
 	// --------------------------------------------------------------------------------------------
 	//  Fields relevant to the I/O system. Should go into Task
 	// --------------------------------------------------------------------------------------------
@@ -159,7 +178,4 @@ public interface Environment {
 	InputGate getInputGate(int index);
 
 	InputGate[] getAllInputGates();
-
-	// this should go away
-	ActorRef getJobManager();
 }

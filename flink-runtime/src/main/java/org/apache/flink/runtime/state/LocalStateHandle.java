@@ -18,36 +18,23 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.util.InstantiationUtil;
-
-import java.io.IOException;
 import java.util.Map;
 
 /**
- * A StateHandle that includes a copy of the state itself. This state handle is recommended for 
- * cases where the operatorState is lightweight enough to pass throughout the network.
- *
- * State is kept in a byte[] because it may contain userclasses, which akka is not able to handle.
+ * A StateHandle that includes a map of operator states directly.
  */
-public class LocalStateHandle implements StateHandle{
-	
-	transient private Map<String, OperatorState<?>> stateMap;
-	private final byte[] state;
+public class LocalStateHandle implements StateHandle<Map<String, OperatorState<?>>> {
 
-	public LocalStateHandle(Map<String,OperatorState<?>> state) throws IOException {
+	private static final long serialVersionUID = 2093619217898039610L;
+	
+	private final Map<String, OperatorState<?>> stateMap;
+
+	public LocalStateHandle(Map<String,OperatorState<?>> state) {
 		this.stateMap = state;
-		this.state = InstantiationUtil.serializeObject(state);
 	}
 
 	@Override
-	public Map<String,OperatorState<?>> getState(ClassLoader usercodeClassloader) {
-		if(stateMap == null) {
-			try {
-				stateMap = (Map<String, OperatorState<?>>) InstantiationUtil.deserializeObject(this.state, usercodeClassloader);
-			} catch (Exception e) {
-				throw new RuntimeException("Error while deserializing the state", e);
-			}
-		}
+	public Map<String,OperatorState<?>> getState() {
 		return stateMap;
 	}
 }
