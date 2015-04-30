@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import grizzled.slf4j.Logger
 
 import org.apache.flink.configuration._
+import org.apache.flink.runtime.messages.checkpoint.{ConfirmCheckpoint, TriggerCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobService, BlobCache}
@@ -53,7 +54,6 @@ import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.memorymanager.{MemoryManager, DefaultMemoryManager}
-import org.apache.flink.runtime.messages.CheckpointingMessages.{CheckpointingMessage, BarrierReq}
 import org.apache.flink.runtime.messages.Messages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages._
@@ -241,7 +241,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
     case message: TaskMessage => handleTaskMessage(message)
 
     // messages for coordinating checkpoints
-    case message: CheckpointingMessage => handleCheckpointingMessage(message)
+    case message: AbstractCheckpointMessage => handleCheckpointingMessage(message)
 
     // registration messages for connecting and disconnecting from / to the JobManager
     case message: RegistrationMessage => handleRegistrationMessage(message)
@@ -345,7 +345,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
         currentJobManager foreach {
           jobManager => {
             val futureResponse = (jobManager ? updateMsg)(askTimeout)
-            
+
             val executionID = taskExecutionState.getID
 
             futureResponse.mapTo[Boolean].onComplete {
@@ -399,25 +399,43 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
   /**
    * Handler for messages related to checkpoints.
    *
-   * @param message The checkpoint message.
+   * @param actorMessage The checkpoint message.
    */
-  private def handleCheckpointingMessage(message: CheckpointingMessage): Unit = {
+  private def handleCheckpointingMessage(actorMessage: AbstractCheckpointMessage): Unit = {
 
-    message match {
+    actorMessage match {
 
-      case BarrierReq(attemptID, checkpointID) =>
-        log.debug(s"[FT-TaskManager] Barrier $checkpointID request received " +
-          s"for attempt $attemptID.")
+      case message: TriggerCheckpoint =>
+        val taskExecutionId = message.getTaskExecutionId
+        val checkpointId = message.getCheckpointId
+        val timestamp = message.getTimestamp
+        
+        log.debug(s"Receiver TriggerCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
 
-        val task = runningTasks.get(attemptID)
+        val task = runningTasks.get(taskExecutionId)
         if (task != null) {
-          task.triggerCheckpointBarrier(checkpointID)
+          task.triggerCheckpointBarrier(checkpointId, timestamp)
         } else {
-          log.debug(s"Taskmanager received a checkpoint request for unknown task $attemptID.")
+          log.debug(s"Taskmanager received a checkpoint request for unknown task $taskExecutionId.")
+        }
+
+      case message: ConfirmCheckpoint =>
+        val taskExecutionId = message.getTaskExecutionId
+        val checkpointId = message.getCheckpointId
+        val timestamp = message.getTimestamp
+
+        log.debug(s"Receiver ConfirmCheckpoint ${checkpointId}@${timestamp} for $taskExecutionId.")
+
+        val task = runningTasks.get(taskExecutionId)
+        if (task != null) {
+          task.confirmCheckpoint(checkpointId, timestamp)
+        } else {
+          log.debug(
+            s"Taskmanager received a checkpoint confirmation for unknown task $taskExecutionId.")
         }
 
       // unknown checkpoint message
-      case _ => unhandled(message)
+      case _ => unhandled(actorMessage)
     }
   }
 

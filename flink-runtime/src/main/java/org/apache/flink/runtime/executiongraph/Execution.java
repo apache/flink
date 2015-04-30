@@ -46,6 +46,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -129,7 +130,7 @@ public class Execution implements Serializable {
 	
 	private volatile InstanceConnectionInfo assignedResourceLocation; // for the archived execution
 	
-	private StateHandle operatorState;
+	private SerializedValue<StateHandle<?>> operatorState;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -202,6 +203,13 @@ public class Execution implements Serializable {
 
 		partialInputChannelDeploymentDescriptors.clear();
 		partialInputChannelDeploymentDescriptors = null;
+	}
+	
+	public void setInitialState(SerializedValue<StateHandle<?>> initialState) {
+		if (state != ExecutionState.CREATED) {
+			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
+		}
+		this.operatorState = initialState;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -325,7 +333,7 @@ public class Execution implements Serializable {
 						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
 			}
 			
-			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot);
+			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot, operatorState);
 			
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
@@ -902,13 +910,5 @@ public class Execution implements Serializable {
 	public String toString() {
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),
 				(assignedResource == null ? "(unassigned)" : assignedResource.toString()), state);
-	}
-
-	public void setOperatorState(StateHandle operatorStates) {
-		this.operatorState = operatorStates;
-	}
-
-	public StateHandle getOperatorState() {
-		return operatorState;
 	}
 }

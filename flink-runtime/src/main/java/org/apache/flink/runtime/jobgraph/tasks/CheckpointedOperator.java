@@ -16,22 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.runtime.jobgraph.tasks;
 
-import java.io.Serializable;
-
-/**
- * StateHandle is a general handle interface meant to abstract operator state fetching. 
- * A StateHandle implementation can for example include the state itself in cases where the state 
- * is lightweight or fetching it lazily from some external storage when the state is too large.
- */
-public interface StateHandle<T> extends Serializable {
-
-	/**
-	 * This retrieves and return the state represented by the handle. 
-	 * 
-	 * @return The state represented by the handle.
-	 * @throws java.lang.Exception Thrown, if the state cannot be fetched.
-	 */
-	T getState() throws Exception;
+public interface CheckpointedOperator {
+	
+	void triggerCheckpoint(long checkpointId, long timestamp);
 }

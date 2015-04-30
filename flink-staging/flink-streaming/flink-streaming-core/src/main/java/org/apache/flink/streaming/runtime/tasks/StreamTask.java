@@ -25,11 +25,11 @@ import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.BarrierTransceiver;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
-import org.apache.flink.runtime.messages.CheckpointingMessages;
 import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.state.OperatorState;
-import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.ChainableStreamOperator;
@@ -43,10 +43,10 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import akka.actor.ActorRef;
 
 public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTaskContext<OUT>,
-		BarrierTransceiver, OperatorStateCarrier {
+		OperatorStateCarrier<LocalStateHandle>, CheckpointedOperator, CheckpointCommittingOperator,
+		BarrierTransceiver {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
 
@@ -110,18 +110,12 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 	 */
 	@Override
 	public void confirmBarrier(long barrierID) throws IOException {
-
 		if (configuration.getStateMonitoring() && !states.isEmpty()) {
-			getEnvironment().getJobManager().tell(
-					new CheckpointingMessages.StateBarrierAck(getEnvironment().getJobID(), getEnvironment()
-							.getJobVertexId(), context.getIndexOfThisSubtask(), barrierID,
-							new LocalStateHandle(states)), ActorRef.noSender());
-		} else {
-			getEnvironment().getJobManager().tell(
-					new CheckpointingMessages.BarrierAck(getEnvironment().getJobID(), getEnvironment().getJobVertexId(),
-							context.getIndexOfThisSubtask(), barrierID), ActorRef.noSender());
+			getEnvironment().acknowledgeCheckpoint(barrierID, new LocalStateHandle(states));
 		}
-
+		else {
+			getEnvironment().acknowledgeCheckpoint(barrierID);
+		}
 	}
 
 	public void setInputsOutputs() {
@@ -304,16 +298,29 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 
 	@Override
 	public String toString() {
-		return configuration.getOperatorName() + " (" + context.getIndexOfThisSubtask() + ")";
+		return getEnvironment().getTaskNameWithSubtasks();
 	}
 
 	/**
 	 * Re-injects the user states into the map
 	 */
 	@Override
-	public void injectState(StateHandle stateHandle) {
-		this.states.putAll(stateHandle.getState(userClassLoader));
+	public void setInitialState(LocalStateHandle stateHandle) {
+		this.states.putAll(stateHandle.getState());
 	}
+
+	@Override
+	public void triggerCheckpoint(long checkpointId, long timestamp) {
+		broadcastBarrierFromSource(checkpointId);
+	}
+	
+	@Override
+	public void confirmCheckpoint(long checkpointId, long timestamp) {
+		// we do nothing here so far. this should call commit on the source function, for example
+	}
+
+	
+
 
 	private class SuperstepEventListener implements EventListener<TaskEvent> {
 

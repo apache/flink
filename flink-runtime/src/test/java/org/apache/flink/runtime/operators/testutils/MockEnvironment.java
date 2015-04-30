@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -41,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.state.StateHandle;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.mockito.invocation.InvocationOnMock;
@@ -264,7 +264,12 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public ActorRef getJobManager() {
-		return ActorRef.noSender();
+	public void acknowledgeCheckpoint(long checkpointId) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
+		throw new UnsupportedOperationException();
 	}
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import akka.actor.ActorRef;
+
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -41,8 +42,11 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.slf4j.Logger;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
@@ -94,8 +98,6 @@ public class ExecutionVertex implements Serializable {
 	private volatile List<Instance> locationConstraintInstances;
 
 	private volatile boolean scheduleLocalOnly;
-
-	private StateHandle operatorState;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -211,14 +213,6 @@ public class ExecutionVertex implements Serializable {
 
 	public InstanceConnectionInfo getCurrentAssignedResourceLocation() {
 		return currentExecution.getAssignedResourceLocation();
-	}
-
-	public void setOperatorState(StateHandle operatorState) {
-		this.operatorState = operatorState;
-	}
-
-	public StateHandle getOperatorState() {
-		return operatorState;
 	}
 	
 	public ExecutionGraph getExecutionGraph() {
@@ -421,11 +415,6 @@ public class ExecutionVertex implements Serializable {
 				if (grp != null) {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
-				
-				if (operatorState != null) {
-					execution.setOperatorState(operatorState);
-				}
-				
 			}
 			else {
 				throw new IllegalStateException("Cannot reset a vertex that is in state " + state);
@@ -524,6 +513,7 @@ public class ExecutionVertex implements Serializable {
 		// clear the unnecessary fields in this class
 		this.resultPartitions = null;
 		this.inputEdges = null;
+		this.locationConstraint = null;
 		this.locationConstraintInstances = null;
 	}
 
@@ -588,10 +578,13 @@ public class ExecutionVertex implements Serializable {
 
 	/**
 	 * Creates a task deployment descriptor to deploy a subtask to the given target slot.
+	 * 
+	 * TODO: This should actually be in the EXECUTION
 	 */
 	TaskDeploymentDescriptor createDeploymentDescriptor(
 			ExecutionAttemptID executionId,
-			SimpleSlot targetSlot) {
+			SimpleSlot targetSlot,
+			SerializedValue<StateHandle<?>> operatorState) {
 
 		// Produced intermediate results
 		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<ResultPartitionDeploymentDescriptor>(resultPartitions.size());
