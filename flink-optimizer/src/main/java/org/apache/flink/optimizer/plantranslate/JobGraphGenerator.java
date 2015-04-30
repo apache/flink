@@ -1163,8 +1163,9 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			final TempMode tm = channel.getTempMode();
 
 			boolean needsMemory = false;
-			// Don't add a pipeline breaker if the data exchange is already blocking.
-			if (tm.breaksPipeline() && channel.getDataExchangeMode() != DataExchangeMode.BATCH) {
+			// Don't add a pipeline breaker if the data exchange is already blocking, EXCEPT the channel is within an iteration.
+			if (tm.breaksPipeline() &&
+					(channel.isOnDynamicPath() || channel.getDataExchangeMode() != DataExchangeMode.BATCH) ) {
 				config.setInputAsynchronouslyMaterialized(inputNum, true);
 				needsMemory = true;
 			}
