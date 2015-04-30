@@ -27,6 +27,8 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -52,9 +54,15 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.Option;
+import scala.Some;
+import scala.Tuple2;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -420,6 +428,60 @@ public class Client {
 			actorSystem.awaitTermination();
 		}
 	}
+
+
+	/**
+	 * Executes the CANCEL action.
+	 *
+	 * @param args Command line arguments for the cancel action.
+	 */
+
+
+	protected int cancel(JobID jobId){
+		LOG.info("Executing 'cancel' command.");
+
+		final FiniteDuration timeout = AkkaUtils.getTimeout(configuration);
+
+		try {
+			String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+			Option<Tuple2<String, Object>> remoting =
+					new Some<Tuple2<String, Object>>(new Tuple2<String, Object>("", 0));
+
+			// start a remote actor system to listen on an arbitrary port
+			ActorSystem actorSystem = AkkaUtils.createActorSystem(configuration, remoting);
+
+
+			ActorRef jobManager = JobManager.getJobManagerRemoteReference(address, actorSystem, timeout);
+			Future<Object> response = Patterns.ask(jobManager, new JobManagerMessages.CancelJob(jobId), new Timeout(AkkaUtils.INF_TIMEOUT()));
+
+			try {
+				Await.result(response, timeout);
+				return 0;
+			}
+			catch (Exception e) {
+				throw new Exception("Canceling the job with ID " + jobId + " failed.", e);
+			}
+		}
+		catch (Throwable t) {
+			return handleError(t);
+		}
+	}
+
+	/**
+	 * Displays an exception message.
+	 *
+	 * @param t The exception to display.
+	 * @return The return code for the process.
+	 */
+	private int handleError(Throwable t) {
+		LOG.error("Error while running the command.", t);
+
+		t.printStackTrace();
+		System.err.println();
+		System.err.println("The exception above occurred while trying to run your command.");
+		return 1;
+	}
+
 
 	// --------------------------------------------------------------------------------------------
 	
