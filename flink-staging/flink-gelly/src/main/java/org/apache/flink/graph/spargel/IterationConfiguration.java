@@ -27,6 +27,7 @@ import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.graph.EdgeDirection;
 
 /**
  * This class is used to configure a vertex-centric iteration.
@@ -59,6 +60,15 @@ public class IterationConfiguration {
 
 	/** flag that defines whether the solution set is kept in managed memory **/
 	private boolean unmanagedSolutionSet = false;
+
+	/** flag that defines whether the degrees option is set **/
+	private boolean optDegrees = false;
+
+	/** flag that defines whether the number of vertices option is set **/
+	private boolean optNumVertices = false;
+
+	/** the direction in which the messages should be sent **/
+	private EdgeDirection direction = EdgeDirection.OUT;
 	
 	public IterationConfiguration() {}
 
@@ -188,5 +198,65 @@ public class IterationConfiguration {
 	 */
 	public List<Tuple2<String, DataSet<?>>> getMessagingBcastVars() {
 		return this.bcVarsMessaging;
+	}
+
+	/**
+	 * Gets whether the degrees option is set.
+	 * By default, the degrees option is not set.
+	 *
+	 * @return True, if the degree option is set, false otherwise.
+	 */
+	public boolean isOptDegrees() {
+		return optDegrees;
+	}
+
+	/**
+	 * Sets the degree option.
+	 * By default, the degrees option is not set.
+	 *
+	 * @param optDegrees True, to set this option, false otherwise.
+	 */
+	public void setOptDegrees(boolean optDegrees) {
+		this.optDegrees = optDegrees;
+	}
+
+	/**
+	 * Gets whether the number of vertices option is set.
+	 * By default, the number of vertices option is not set.
+	 *
+	 * @return True, if the number of vertices option is set, false otherwise.
+	 */
+	public boolean isOptNumVertices() {
+		return optNumVertices;
+	}
+
+	/**
+	 * Sets the number of vertices option.
+	 * By default, the number of vertices option is not set.
+	 *
+	 * @param optNumVertices True, to set this option, false otherwise.
+	 */
+	public void setOptNumVertices(boolean optNumVertices) {
+		this.optNumVertices = optNumVertices;
+	}
+
+	/**
+	 * Gets the direction in which messages are sent in the MessagingFunction.
+	 * By default the messaging direction is OUT.
+	 *
+	 * @return an EdgeDirection, which can be either IN, OUT or ALL.
+	 */
+	public EdgeDirection getDirection() {
+		return direction;
+	}
+
+	/**
+	 * Sets the direction in which messages are sent in the MessagingFunction.
+	 * By default the messaging direction is OUT.
+	 *
+	 * @param direction - IN, OUT or ALL
+	 */
+	public void setDirection(EdgeDirection direction) {
+		this.direction = direction;
 	}
 }
