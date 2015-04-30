@@ -30,8 +30,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.streaming.api.graph.StreamGraph.StreamLoop;
@@ -77,19 +79,10 @@ public class StreamingJobGraphGenerator {
 	public JobGraph createJobGraph(String jobName) {
 		jobGraph = new JobGraph(jobName);
 
-		// Turn lazy scheduling off
+		// make sure that all vertices start immediately
 		jobGraph.setScheduleMode(ScheduleMode.ALL);
-		jobGraph.setCheckpointingEnabled(streamGraph.isCheckpointingEnabled());
-		jobGraph.setCheckpointingInterval(streamGraph.getCheckpointingInterval());
-
-		if (jobGraph.isCheckpointingEnabled()) {
-			int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
-			if (executionRetries != -1) {
-				jobGraph.setNumberOfExecutionRetries(executionRetries);
-			} else {
-				jobGraph.setNumberOfExecutionRetries(Integer.MAX_VALUE);
-			}
-		}
+		
+		
 		init();
 
 		setChaining();
@@ -97,6 +90,8 @@ public class StreamingJobGraphGenerator {
 		setPhysicalEdges();
 
 		setSlotSharing();
+		
+		configureCheckpointing();
 
 		return jobGraph;
 	}
@@ -354,6 +349,57 @@ public class StreamingJobGraphGenerator {
 
 			ccg.addVertex(head);
 			ccg.addVertex(tail);
+		}
+	}
+	
+	private void configureCheckpointing() {
+
+		if (streamGraph.isCheckpointingEnabled()) {
+			long interval = streamGraph.getCheckpointingInterval();
+			if (interval < 1) {
+				throw new IllegalArgumentException("The checkpoint interval must be positive");
+			}
+
+			// gather source and sink IDs
+			HashSet<JobVertexID> sourceIds = new HashSet<JobVertexID>();
+			HashSet<JobVertexID> sinkIds = new HashSet<JobVertexID>();
+			for (AbstractJobVertex vertex : jobVertices.values()) {
+				if (vertex.isInputVertex()) {
+					sourceIds.add(vertex.getID());
+				}
+				if (vertex.isOutputVertex()) {
+					sinkIds.add(vertex.getID());
+				}
+			}
+
+			HashSet<JobVertexID> sourceorSink = new HashSet<JobVertexID>();
+			sourceorSink.addAll(sourceIds);
+			sourceorSink.addAll(sinkIds);
+			
+			// collect the vertices that receive "trigger checkpoint" messages.
+			// currently, these are all the sources
+			List<JobVertexID> triggerVertices = new ArrayList<JobVertexID>(sourceIds);
+
+			// collect the vertices that need to acknowledge the checkpoint
+			// currently, these are the sources and sinks
+			// the sources acknowledge their state backup, the sinks the arrival of the barriers
+			List<JobVertexID> ackVertices = new ArrayList<JobVertexID>(sourceorSink);
+
+			// collect the vertices that receive "commit checkpoint" messages
+			// currently, these are only the sources
+			List<JobVertexID> commitVertices = new ArrayList<JobVertexID>(sourceIds);
+
+			JobSnapshottingSettings settings = new JobSnapshottingSettings(
+					triggerVertices, ackVertices, commitVertices, interval);
+			
+			jobGraph.setSnapshotSettings(settings);
+
+			int executionRetries = streamGraph.getExecutionConfig().getNumberOfExecutionRetries();
+			if (executionRetries != -1) {
+				jobGraph.setNumberOfExecutionRetries(executionRetries);
+			} else {
+				jobGraph.setNumberOfExecutionRetries(Integer.MAX_VALUE);
+			}
 		}
 	}
 }

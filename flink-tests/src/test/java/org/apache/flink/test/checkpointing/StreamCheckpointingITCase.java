@@ -51,7 +51,7 @@ public class StreamCheckpointingITCase {
 	private static final int NUM_TASK_SLOTS = 3;
 	private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
 
-	private static final long NUM_STRINGS = 4000000;
+	private static final long NUM_STRINGS = 10000000L;
 
 	private static ForkableFlinkMiniCluster cluster;
 
@@ -99,7 +99,7 @@ public class StreamCheckpointingITCase {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
 																	"localhost", cluster.getJobManagerRPCPort());
 			env.setParallelism(PARALLELISM);
-			env.enableCheckpointing(200);
+			env.enableCheckpointing(1000);
 			env.getConfig().disableSysoutLogging();
 
 			DataStream<String> stream = env.addSource(new RichParallelSourceFunction<String>() {

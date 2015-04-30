@@ -24,6 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -77,9 +78,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** The list of JAR files required to run this task. */
 	private final List<BlobKey> requiredJarFiles;
 
-	private StateHandle operatorStates;
-
-
+	private final SerializedValue<StateHandle<?>> operatorState;
+	
 	/**
 	 * Constructs a task deployment descriptor.
 	 */
@@ -89,15 +89,18 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
-			List<BlobKey> requiredJarFiles, int targetSlotNumber) {
+			List<BlobKey> requiredJarFiles, int targetSlotNumber,
+			SerializedValue<StateHandle<?>> operatorState) {
 
+		checkArgument(indexInSubtaskGroup >= 0);
+		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
+		checkArgument(targetSlotNumber >= 0);
+		
 		this.jobID = checkNotNull(jobID);
 		this.vertexID = checkNotNull(vertexID);
 		this.executionId = checkNotNull(executionId);
 		this.taskName = checkNotNull(taskName);
-		checkArgument(indexInSubtaskGroup >= 0);
 		this.indexInSubtaskGroup = indexInSubtaskGroup;
-		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
 		this.numberOfSubtasks = numberOfSubtasks;
 		this.jobConfiguration = checkNotNull(jobConfiguration);
 		this.taskConfiguration = checkNotNull(taskConfiguration);
@@ -105,8 +108,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.producedPartitions = checkNotNull(producedPartitions);
 		this.inputGates = checkNotNull(inputGates);
 		this.requiredJarFiles = checkNotNull(requiredJarFiles);
-		checkArgument(targetSlotNumber >= 0);
 		this.targetSlotNumber = targetSlotNumber;
+		this.operatorState = operatorState;
 	}
 
 	public TaskDeploymentDescriptor(
@@ -115,14 +118,11 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			Configuration taskConfiguration, String invokableClassName,
 			List<ResultPartitionDeploymentDescriptor> producedPartitions,
 			List<InputGateDeploymentDescriptor> inputGates,
-			List<BlobKey> requiredJarFiles, int targetSlotNumber,
-			StateHandle operatorStates) {
+			List<BlobKey> requiredJarFiles, int targetSlotNumber) {
 
 		this(jobID, vertexID, executionId, taskName, indexInSubtaskGroup, numberOfSubtasks,
 				jobConfiguration, taskConfiguration, invokableClassName, producedPartitions,
-				inputGates, requiredJarFiles, targetSlotNumber);
-
-		setOperatorState(operatorStates);
+				inputGates, requiredJarFiles, targetSlotNumber, null);
 	}
 
 	/**
@@ -232,11 +232,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return strBuilder.toString();
 	}
 
-	public void setOperatorState(StateHandle operatorStates) {
-		this.operatorStates = operatorStates;
-	}
-
-	public StateHandle getOperatorStates() {
-		return operatorStates;
+	public SerializedValue<StateHandle<?>> getOperatorState() {
+		return operatorState;
 	}
 }

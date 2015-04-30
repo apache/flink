@@ -35,6 +35,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.messages.accumulators.ReportAccumulatorResult;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
 
 import java.io.IOException;
 import java.util.Map;
@@ -224,7 +227,25 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public ActorRef getJobManager() {
-		return jobManagerActor;
+	public void acknowledgeCheckpoint(long checkpointId) {
+		acknowledgeCheckpoint(checkpointId, null);
+	}
+
+	@Override
+	public void acknowledgeCheckpoint(long checkpointId, StateHandle<?> state) {
+		// try and create a serialized version of the state handle
+		SerializedValue<StateHandle<?>> serializedState;
+		if (state == null) {
+			serializedState = null;
+		} else {
+			try {
+				serializedState = new SerializedValue<StateHandle<?>>(state);
+			} catch (Exception e) {
+				throw new RuntimeException("Failed to serialize state handle during checkpoint confirmation", e);
+			}
+		}
+		
+		AcknowledgeCheckpoint message = new AcknowledgeCheckpoint(jobId, executionId, checkpointId, serializedState);
+		jobManagerActor.tell(message, ActorRef.noSender());
 	}
 }

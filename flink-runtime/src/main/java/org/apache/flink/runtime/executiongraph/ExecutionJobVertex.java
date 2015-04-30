@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.util.SerializableObject;
 import org.slf4j.Logger;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -52,7 +53,7 @@ public class ExecutionJobVertex implements Serializable {
 	/** Use the same log for all ExecutionGraph classes */
 	private static final Logger LOG = ExecutionGraph.LOG;
 	
-	private final Object stateMonitor = new Object();
+	private final SerializableObject stateMonitor = new SerializableObject();
 	
 	private final ExecutionGraph graph;
 	
