@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import java.io.IOException;
 import java.util.Arrays;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 /**
@@ -68,6 +68,7 @@ public class TaskExecutionState implements java.io.Serializable {
 	
 	/**
 	 * Creates a new task execution state update, with an attached exception.
+	 * This constructor may never throw an exception.
 	 * 
 	 * @param jobID
 	 *        the ID of the job the task belongs to
@@ -91,13 +92,35 @@ public class TaskExecutionState implements java.io.Serializable {
 		this.cachedError = error;
 
 		if (error != null) {
+			byte[] serializedError;
 			try {
-				this.serializedError = InstantiationUtil.serializeObject(error);
+				serializedError = InstantiationUtil.serializeObject(error);
 			}
-			catch (IOException e) {
-				throw new RuntimeException("Error while serializing task exception", e);
+			catch (Throwable t) {
+				// could not serialize exception. send the stringified version instead
+				try {
+					this.cachedError = new Exception(ExceptionUtils.stringifyException(error));
+					serializedError = InstantiationUtil.serializeObject(this.cachedError);
+				}
+				catch (Throwable tt) {
+					// seems like we cannot do much to report the actual exception
+					// report a placeholder instead
+					try {
+						this.cachedError = new Exception("Cause is a '" + error.getClass().getName()
+								+ "' (failed to serialize or stringify)");
+						serializedError = InstantiationUtil.serializeObject(this.cachedError);
+					}
+					catch (Throwable ttt) {
+						// this should never happen unless the JVM is fubar.
+						// we just report the state without the error
+						this.cachedError = null;
+						serializedError = null;
+					}
+				}
 			}
-		} else {
+			this.serializedError = serializedError;
+		}
+		else {
 			this.serializedError = null;
 		}
 	}
@@ -181,7 +204,7 @@ public class TaskExecutionState implements java.io.Serializable {
 	public String toString() {
 		return String.format("TaskState jobId=%s, executionId=%s, state=%s, error=%s", 
 				jobID, executionId, executionState,
-				cachedError == null ? "(null)"
-									: cachedError.getClass().getName() + ": " + cachedError.getMessage());
+				cachedError == null ? (serializedError == null ? "(null)" : "(serialized)")
+									: (cachedError.getClass().getName() + ": " + cachedError.getMessage()));
 	}
 }
