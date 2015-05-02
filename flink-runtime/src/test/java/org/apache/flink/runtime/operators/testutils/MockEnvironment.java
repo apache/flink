@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.partition.consumer.IteratorWrappingTestSingleInputGate;
@@ -46,10 +45,11 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.Future;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -211,18 +211,13 @@ public class MockEnvironment implements Environment {
 	}
 
 	@Override
-	public ActorRef getJobManager() {
-		throw new UnsupportedOperationException("getAccumulatorProtocolProxy() is not supported by MockEnvironment");
-	}
-
-	@Override
 	public ClassLoader getUserClassLoader() {
 		return getClass().getClassLoader();
 	}
 
 	@Override
-	public Map<String, FutureTask<Path>> getCopyTask() {
-		return null;
+	public Map<String, Future<Path>> getDistributedCacheEntries() {
+		return Collections.emptyMap();
 	}
 
 	@Override
@@ -250,6 +245,11 @@ public class MockEnvironment implements Environment {
 	@Override
 	public JobVertexID getJobVertexId() {
 		return new JobVertexID(new byte[16]);
+	}
+
+	@Override
+	public ExecutionAttemptID getExecutionId() {
+		return new ExecutionAttemptID(0L, 0L);
 	}
 
 	@Override
