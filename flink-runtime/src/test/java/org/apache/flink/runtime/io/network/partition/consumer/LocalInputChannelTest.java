@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import com.google.common.collect.Lists;
+
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -36,6 +36,7 @@ import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
 import org.junit.Test;
 
 import java.util.Collections;
@@ -93,7 +94,7 @@ public class LocalInputChannelTest {
 			partitionIds[i] = new ResultPartitionID();
 
 			final ResultPartition partition = new ResultPartition(
-					mock(Environment.class),
+					"Test Name",
 					jobId,
 					partitionIds[i],
 					ResultPartitionType.PIPELINED,
@@ -222,7 +223,7 @@ public class LocalInputChannelTest {
 			checkArgument(numberOfExpectedBuffersPerChannel >= 1);
 
 			this.inputGate = new SingleInputGate(
-					mock(Environment.class),
+					"Test Name",
 					new IntermediateDataSetID(),
 					subpartitionIndex,
 					numberOfInputChannels);
