@@ -53,10 +53,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkSchedule
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, Heartbeat}
-import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.util.{ExceptionUtils, InstantiationUtil}
-
-import org.slf4j.LoggerFactory
 
 import akka.actor._
 
@@ -98,7 +95,6 @@ class JobManager(val flinkConfiguration: Configuration,
                  val libraryCacheManager: BlobLibraryCacheManager,
                  val archive: ActorRef,
                  val accumulatorManager: AccumulatorManager,
-                 val profiler: Option[ActorRef],
                  val defaultExecutionRetries: Int,
                  val delayBetweenRetries: Long,
                  val timeout: FiniteDuration)
@@ -124,7 +120,6 @@ class JobManager(val flinkConfiguration: Configuration,
     }
 
     archive ! PoisonPill
-    profiler.foreach( ref => ref ! PoisonPill )
 
     for((e,_) <- currentJobs.values) {
       e.fail(new Exception("The JobManager is shutting down."))
@@ -935,7 +930,7 @@ object JobManager {
 
   /**
    * Create the job manager components as (instanceManager, scheduler, libraryCacheManager,
-   *              archiverProps, accumulatorManager, profiler, defaultExecutionRetries,
+   *              archiverProps, accumulatorManager, defaultExecutionRetries,
    *              delayBetweenRetries, timeout)
    *
    * @param configuration The configuration from which to parse the config values.
@@ -943,14 +938,12 @@ object JobManager {
    */
   def createJobManagerComponents(configuration: Configuration) :
     (InstanceManager, FlinkScheduler, BlobLibraryCacheManager,
-      Props, AccumulatorManager, Option[Props], Int, Long, FiniteDuration, Int) = {
+      Props, AccumulatorManager, Int, Long, FiniteDuration, Int) = {
 
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
 
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
-
-    val profilingEnabled = configuration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, false)
 
     val cleanupInterval = configuration.getLong(
       ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
@@ -977,12 +970,6 @@ object JobManager {
       }
 
     val archiveProps: Props = Props(classOf[MemoryArchivist], archiveCount)
-
-    val profilerProps: Option[Props] = if (profilingEnabled) {
-      Some(Props(classOf[JobManagerProfiler]))
-    } else {
-      None
-    }
 
     val accumulatorManager: AccumulatorManager = new AccumulatorManager(Math.min(1, archiveCount))
 
@@ -1018,7 +1005,7 @@ object JobManager {
     }
 
     (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-      profilerProps, executionRetries, delayBetweenRetries, timeout, archiveCount)
+      executionRetries, delayBetweenRetries, timeout, archiveCount)
   }
 
   /**
@@ -1052,11 +1039,8 @@ object JobManager {
                             archiverActorName: Option[String]): (ActorRef, ActorRef) = {
 
     val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-      profilerProps, executionRetries, delayBetweenRetries,
+      executionRetries, delayBetweenRetries,
       timeout, _) = createJobManagerComponents(configuration)
-
-    val profiler: Option[ActorRef] =
-                 profilerProps.map( props => actorSystem.actorOf(props, PROFILER_NAME) )
 
     // start the archiver wither with the given name, or without (avoid name conflicts)
     val archiver: ActorRef = archiverActorName match {
@@ -1065,7 +1049,7 @@ object JobManager {
     }
 
     val jobManagerProps = Props(classOf[JobManager], configuration, instanceManager, scheduler,
-        libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
+        libraryCacheManager, archiver, accumulatorManager, executionRetries,
         delayBetweenRetries, timeout)
 
     val jobManager: ActorRef = jobMangerActorName match {
