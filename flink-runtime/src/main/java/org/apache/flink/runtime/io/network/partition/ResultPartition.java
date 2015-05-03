@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
@@ -76,9 +75,8 @@ import static com.google.common.base.Preconditions.checkState;
 public class ResultPartition implements BufferPoolOwner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
-
-	/** The owning environment. Mainly for debug purposes. */
-	private final Environment owner;
+	
+	private final String owningTaskName;
 
 	private final JobID jobId;
 
@@ -120,7 +118,7 @@ public class ResultPartition implements BufferPoolOwner {
 	private long totalNumberOfBytes;
 
 	public ResultPartition(
-			Environment owner,
+			String owningTaskName,
 			JobID jobId,
 			ResultPartitionID partitionId,
 			ResultPartitionType partitionType,
@@ -130,7 +128,7 @@ public class ResultPartition implements BufferPoolOwner {
 			IOManager ioManager,
 			IOMode defaultIoMode) {
 
-		this.owner = checkNotNull(owner);
+		this.owningTaskName = checkNotNull(owningTaskName);
 		this.jobId = checkNotNull(jobId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
@@ -162,7 +160,7 @@ public class ResultPartition implements BufferPoolOwner {
 		// Initially, partitions should be consumed once before release.
 		pin();
 
-		LOG.debug("{}: Initialized {}", owner.getTaskNameWithSubtasks(), this);
+		LOG.debug("{}: Initialized {}", owningTaskName, this);
 	}
 
 	/**
@@ -281,7 +279,7 @@ public class ResultPartition implements BufferPoolOwner {
 	 */
 	public void release() {
 		if (isReleased.compareAndSet(false, true)) {
-			LOG.debug("{}: Releasing {}.", owner.getTaskNameWithSubtasks(), this);
+			LOG.debug("{}: Releasing {}.", owningTaskName, this);
 
 			// Release all subpartitions
 			for (ResultSubpartition subpartition : subpartitions) {
