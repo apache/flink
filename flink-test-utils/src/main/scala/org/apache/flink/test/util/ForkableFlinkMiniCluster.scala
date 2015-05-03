@@ -71,7 +71,7 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
 
   override def startJobManager(actorSystem: ActorSystem): ActorRef = {
 
-    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _,
+    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager,
     executionRetries, delayBetweenRetries,
     timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
 
@@ -79,7 +79,7 @@ class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSyst
     val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
 
     val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archive, accumulatorManager, None, executionRetries,
+      libraryCacheManager, archive, accumulatorManager, executionRetries,
       delayBetweenRetries, timeout) with TestingJobManager)
 
     val jobManager = actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)
