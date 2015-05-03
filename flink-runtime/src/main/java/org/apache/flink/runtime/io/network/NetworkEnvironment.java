@@ -243,7 +243,7 @@ public class NetworkEnvironment {
 
 	public void registerTask(Task task) throws IOException {
 		final ResultPartition[] producedPartitions = task.getProducedPartitions();
-		final ResultPartitionWriter[] writers = task.getWriters();
+		final ResultPartitionWriter[] writers = task.getAllWriters();
 
 		if (writers.length != producedPartitions.length) {
 			throw new IllegalStateException("Unequal number of writers and partitions.");
@@ -288,7 +288,7 @@ public class NetworkEnvironment {
 			}
 
 			// Setup the buffer pool for each buffer reader
-			final SingleInputGate[] inputGates = task.getInputGates();
+			final SingleInputGate[] inputGates = task.getAllInputGates();
 
 			for (SingleInputGate gate : inputGates) {
 				BufferPool bufferPool = null;
@@ -329,10 +329,9 @@ public class NetworkEnvironment {
 				partitionManager.releasePartitionsProducedBy(executionId);
 			}
 
-			ResultPartitionWriter[] writers = task.getWriters();
-
+			ResultPartitionWriter[] writers = task.getAllWriters();
 			if (writers != null) {
-				for (ResultPartitionWriter writer : task.getWriters()) {
+				for (ResultPartitionWriter writer : writers) {
 					taskEventDispatcher.unregisterWriter(writer);
 				}
 			}
@@ -344,7 +343,7 @@ public class NetworkEnvironment {
 				}
 			}
 
-			final SingleInputGate[] inputGates = task.getInputGates();
+			final SingleInputGate[] inputGates = task.getAllInputGates();
 
 			if (inputGates != null) {
 				for (SingleInputGate gate : inputGates) {
