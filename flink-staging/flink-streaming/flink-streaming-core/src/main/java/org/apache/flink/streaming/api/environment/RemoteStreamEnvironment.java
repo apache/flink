@@ -145,4 +145,23 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 				+ (getParallelism() == -1 ? "default" : getParallelism()) + ")";
 	}
 
+	/**
+	 * Gets the hostname of the master (JobManager), where the
+	 * program will be executed.
+	 *
+	 * @return The hostname of the master
+	 */
+	public String getHost() {
+		return host;
+	}
+
+	/**
+	 * Gets the port of the master (JobManager), where the
+	 * program will be executed.
+	 *
+	 * @return The port of the master
+	 */
+	public int getPort() {
+		return port;
+	}
 }
