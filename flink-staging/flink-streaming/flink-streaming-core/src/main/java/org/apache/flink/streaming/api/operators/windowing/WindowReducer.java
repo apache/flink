@@ -17,8 +17,11 @@
 
 package org.apache.flink.streaming.api.operators.windowing;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
@@ -39,7 +42,7 @@ public class WindowReducer<IN> extends StreamMap<StreamWindow<IN>, StreamWindow<
 		withoutInputCopy();
 	}
 
-	private static class WindowReduceFunction<T> implements
+	private static class WindowReduceFunction<T> extends AbstractRichFunction implements
 			MapFunction<StreamWindow<T>, StreamWindow<T>> {
 
 		private static final long serialVersionUID = 1L;
@@ -62,6 +65,11 @@ public class WindowReducer<IN> extends StreamMap<StreamWindow<IN>, StreamWindow<
 				outputWindow.add(reduced);
 			}
 			return outputWindow;
+		}
+
+		@Override
+		public void setRuntimeContext(RuntimeContext t) {
+			FunctionUtils.setFunctionRuntimeContext(reducer, t);
 		}
 
 	}
