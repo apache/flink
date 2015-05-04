@@ -16,13 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.functions;
+package org.apache.flink.streaming.api.checkpoint;
 
 /**
- * The base interface for all user-defined functions.
- * 
- * <p>This interface is empty in order to allow extending interfaces to
- * be SAM (single abstract method) interfaces that can be implemented via Java 8 lambdas.</p>
+ * This interface must be implemented by functions/operations that want to receive
+ * a commit notification once a checkpoint has been completely acknowledged by all
+ * participants.
  */
-public interface Function {
+public interface CheckpointCommitter {
+
+	/**
+	 * This method is called as a notification once a distributed checkpoint has been completed.
+	 * 
+	 * Note that any exception during this method will not cause the checkpoint to
+	 * fail any more.
+	 * 
+	 * @param checkpointId The ID of the checkpoint that has been completed.
+	 */
+	void commitCheckpoint(long checkpointId);
 }

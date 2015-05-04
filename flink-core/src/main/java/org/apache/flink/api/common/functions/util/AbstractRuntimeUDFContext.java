@@ -19,9 +19,10 @@
 package org.apache.flink.api.common.functions.util;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.FutureTask;
+import java.util.concurrent.Future;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -51,20 +52,30 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 	
-	private final DistributedCache distributedCache = new DistributedCache();
+	private final DistributedCache distributedCache;
 	
 	
-	public AbstractRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig) {
+	public AbstractRuntimeUDFContext(String name,
+										int numParallelSubtasks, int subtaskIndex,
+										ClassLoader userCodeClassLoader,
+										ExecutionConfig executionConfig)
+	{
+		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig,
+				Collections.<String, Future<Path>>emptyMap());
+	}
+	
+	public AbstractRuntimeUDFContext(String name,
+										int numParallelSubtasks, int subtaskIndex,
+										ClassLoader userCodeClassLoader,
+										ExecutionConfig executionConfig,
+										Map<String, Future<Path>> cpTasks)
+	{
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.executionConfig = executionConfig;
-	}
-	
-	public AbstractRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig, Map<String, FutureTask<Path>> cpTasks) {
-		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig);
-		this.distributedCache.setCopyTasks(cpTasks);
+		this.distributedCache = new DistributedCache(cpTasks);
 	}
 
 	@Override
