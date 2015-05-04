@@ -16,13 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.functions;
+package org.apache.flink.runtime.taskmanager;
+
+import akka.actor.UntypedActor;
+
+import java.util.concurrent.BlockingQueue;
 
 /**
- * The base interface for all user-defined functions.
- * 
- * <p>This interface is empty in order to allow extending interfaces to
- * be SAM (single abstract method) interfaces that can be implemented via Java 8 lambdas.</p>
+ * Actor for testing that simply puts all its messages into a 
+ * blocking queue.
  */
-public interface Function {
+class ForwardingActor extends UntypedActor {
+
+	private final BlockingQueue<Object> queue;
+	
+	public ForwardingActor(BlockingQueue<Object> queue) {
+		this.queue = queue;
+	}
+
+	@Override
+	public void onReceive(Object message) {
+		queue.add(message);
+	}
 }
