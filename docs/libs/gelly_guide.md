@@ -325,7 +325,7 @@ For example, the following code will output all the vertex pairs which are conne
 {% highlight java %}
 Graph<Long, Long, Double> graph = ...
 
-DataSet<Tuple2<Long, Long>> vertexPairs = graph.groupReduceOnNeighbors(new SelectLargeWeightNeighbors(), EdgeDirection.OUT);
+DataSet<Tuple2<Vertex<Long, Long>, Vertex<Long, Long>>> vertexPairs = graph.groupReduceOnNeighbors(new SelectLargeWeightNeighbors(), EdgeDirection.OUT);
 
 // user-defined function to select the neighbors which have edges with weight > 0.5
 static final class SelectLargeWeightNeighbors implements NeighborsFunctionWithVertexValue<Long, Long, Double, 
