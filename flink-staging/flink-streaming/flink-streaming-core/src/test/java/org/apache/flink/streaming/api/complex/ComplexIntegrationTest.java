@@ -477,32 +477,36 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 	private static class PojoSource implements SourceFunction<OuterPojo> {
 		private static final long serialVersionUID = 1L;
 
+		long cnt = 0;
+
 		@Override
-		public void run(Collector<OuterPojo> collector) throws Exception {
-			for (long i = 0; i < 20; i++) {
-				collector.collect(new OuterPojo(new InnerPojo(i / 2, "water_melon-b"), 2L));
-			}
+		public boolean reachedEnd() throws Exception {
+			return cnt >= 20;
 		}
 
 		@Override
-		public void cancel() {
-			// no cleanup needed
+		public OuterPojo next() throws Exception {
+			OuterPojo result = new OuterPojo(new InnerPojo(cnt / 2, "water_melon-b"), 2L);
+			cnt++;
+			return result;
 		}
 	}
 
 	private static class TupleSource implements SourceFunction<Tuple2<Long, Tuple2<String, Long>>> {
 		private static final long serialVersionUID = 1L;
 
+		int cnt = 0;
+
 		@Override
-		public void run(Collector<Tuple2<Long, Tuple2<String, Long>>> collector) throws Exception {
-			for (int i = 0; i < 20; i++) {
-				collector.collect(new Tuple2<Long, Tuple2<String, Long>>(1L, new Tuple2<String, Long>("a", 1L)));
-			}
+		public boolean reachedEnd() throws Exception {
+			return cnt >= 20;
 		}
 
 		@Override
-		public void cancel() {
-			// no cleanup needed
+		public Tuple2<Long, Tuple2<String, Long>> next() throws Exception {
+			Tuple2<Long, Tuple2<String, Long>> result = new Tuple2<Long, Tuple2<String, Long>>(1L, new Tuple2<String, Long>("a", 1L));
+			cnt++;
+			return result;
 		}
 	}
 
@@ -605,20 +609,20 @@ public class ComplexIntegrationTest extends StreamingMultipleProgramsTestBase {
 
 	private static class RectangleSource implements SourceFunction<RectangleClass> {
 		private static final long serialVersionUID = 1L;
+		RectangleClass rectangle = new RectangleClass(100, 100);
+		int cnt = 0;
 
 		@Override
-		public void run(Collector<RectangleClass> collector) throws Exception {
-			RectangleClass rectangle = new RectangleClass(100, 100);
-
-			for (int i = 0; i < 100; i++) {
-				collector.collect(rectangle);
-				rectangle = rectangle.next();
-			}
+		public boolean reachedEnd() throws Exception {
+			return cnt >= 100;
 		}
 
 		@Override
-		public void cancel() {
-			// no cleanup needed
+		public RectangleClass next() throws Exception {
+			RectangleClass result = rectangle;
+			cnt++;
+			rectangle = rectangle.next();
+			return result;
 		}
 	}
 

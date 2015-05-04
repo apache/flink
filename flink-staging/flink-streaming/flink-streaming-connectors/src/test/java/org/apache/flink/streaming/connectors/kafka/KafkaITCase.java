@@ -312,32 +312,33 @@ public class KafkaITCase {
 
 	private void writeSequence(StreamExecutionEnvironment env, String topicName, final int from, final int to) throws Exception {
 		LOG.info("Writing sequence from {} to {} to topic {}", from, to, topicName);
+
 		DataStream<Tuple2<Integer, Integer>> stream = env.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
 			private static final long serialVersionUID = 1L;
-			boolean running = true;
+			int cnt = from;
+			int partition;
 
 			@Override
-			public void run(Collector<Tuple2<Integer, Integer>> collector) throws Exception {
-				LOG.info("Starting source.");
-				int cnt = from;
-				int partition = getRuntimeContext().getIndexOfThisSubtask();
-				while (running) {
-					LOG.info("Writing " + cnt + " to partition " + partition);
-					collector.collect(new Tuple2<Integer, Integer>(getRuntimeContext().getIndexOfThisSubtask(), cnt));
-					if (cnt == to) {
-						LOG.info("Writer reached end.");
-						return;
-					}
-					cnt++;
-				}
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				partition = getRuntimeContext().getIndexOfThisSubtask();
+
 			}
 
 			@Override
-			public void cancel() {
-				LOG.info("Source got cancel()");
-				running = false;
+			public boolean reachedEnd() throws Exception {
+				return cnt > to;
+			}
+
+			@Override
+			public Tuple2<Integer, Integer> next() throws Exception {
+				LOG.info("Writing " + cnt + " to partition " + partition);
+				Tuple2<Integer, Integer> result = new Tuple2<Integer, Integer>(getRuntimeContext().getIndexOfThisSubtask(), cnt);
+				cnt++;
+				return result;
 			}
 		}).setParallelism(3);
+
 		stream.addSink(new KafkaSink<Tuple2<Integer, Integer>>(brokerConnectionStrings,
 				topicName,
 				new Utils.TypeInformationSerializationSchema<Tuple2<Integer, Integer>>(new Tuple2<Integer, Integer>(1, 1), env.getConfig()),
@@ -403,25 +404,17 @@ public class KafkaITCase {
 		// add producing topology
 		DataStream<Tuple2<Long, String>> stream = env.addSource(new SourceFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
-			boolean running = true;
+			int cnt = 0;
 
 			@Override
-			public void run(Collector<Tuple2<Long, String>> collector) throws Exception {
-				LOG.info("Starting source.");
-				int cnt = 0;
-				while (running) {
-					collector.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException ignored) {
-					}
-				}
+			public boolean reachedEnd() throws Exception {
+				return false;
 			}
 
 			@Override
-			public void cancel() {
-				LOG.info("Source got cancel()");
-				running = false;
+			public Tuple2<Long, String> next() throws Exception {
+				Thread.sleep(100);
+				return new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++);
 			}
 		});
 		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
@@ -485,27 +478,17 @@ public class KafkaITCase {
 		// add producing topology
 		DataStream<Tuple2<Long, String>> stream = env.addSource(new SourceFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
-			boolean running = true;
+			int cnt = 0;
 
 			@Override
-			public void run(Collector<Tuple2<Long, String>> collector) throws Exception {
-				LOG.info("Starting source.");
-				int cnt = 0;
-				while (running) {
-					collector.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
-					LOG.info("Produced " + cnt);
-
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException ignored) {
-					}
-				}
+			public boolean reachedEnd() throws Exception {
+				return false;
 			}
 
 			@Override
-			public void cancel() {
-				LOG.info("Source got cancel()");
-				running = false;
+			public Tuple2<Long, String> next() throws Exception {
+				Thread.sleep(100);
+				return new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++);
 			}
 		});
 		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig())));
@@ -570,40 +553,39 @@ public class KafkaITCase {
 		DataStream<Tuple2<Long, byte[]>> stream = env.addSource(new RichSourceFunction<Tuple2<Long, byte[]>>() {
 			private static final long serialVersionUID = 1L;
 			boolean running = true;
+			long cnt;
+			transient Random rnd;
 
 			@Override
 			public void open(Configuration parameters) throws Exception {
 				super.open(parameters);
+				cnt = 0;
+				rnd = new Random(1337);
+
 			}
 
 			@Override
-			public void run(Collector<Tuple2<Long, byte[]>> collector) throws Exception {
-				LOG.info("Starting source.");
-				long cnt = 0;
-				Random rnd = new Random(1337);
-				while (running) {
-					//
-					byte[] wl = new byte[Math.abs(rnd.nextInt(1024 * 1024 * 30))];
-					collector.collect(new Tuple2<Long, byte[]>(cnt++, wl));
+			public boolean reachedEnd() throws Exception {
+				return cnt > 10;
+			}
+
+			@Override
+			public Tuple2<Long, byte[]> next() throws Exception {
+				Thread.sleep(100);
+
+				if (cnt < 10) {
+				byte[] wl = new byte[Math.abs(rnd.nextInt(1024 * 1024 * 30))];
+					Tuple2<Long, byte[]> result = new Tuple2<Long, byte[]>(cnt++, wl);
 					LOG.info("Emitted cnt=" + (cnt - 1) + " with byte.length = " + wl.length);
+					return result;
 
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException ignored) {
-					}
-					if(cnt == 10) {
-						LOG.info("Send end signal");
-						// signal end
-						collector.collect(new Tuple2<Long, byte[]>(-1L, new byte[]{1}));
-						running = false;
-					}
+				} else if (cnt == 10) {
+					Tuple2<Long, byte[]> result = new Tuple2<Long, byte[]>(-1L, new byte[]{1});
+					cnt++;
+					return result;
+				} else {
+					throw new RuntimeException("Source is exhausted.");
 				}
-			}
-
-			@Override
-			public void cancel() {
-				LOG.info("Source got cancel()");
-				running = false;
 			}
 		});
 
@@ -680,25 +662,17 @@ public class KafkaITCase {
 		// add producing topology
 		DataStream<Tuple2<Long, String>> stream = env.addSource(new SourceFunction<Tuple2<Long, String>>() {
 			private static final long serialVersionUID = 1L;
-			boolean running = true;
+			int cnt = 0;
 
 			@Override
-			public void run(Collector<Tuple2<Long, String>> collector) throws Exception {
-				LOG.info("Starting source.");
-				int cnt = 0;
-				while (running) {
-					collector.collect(new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++));
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException ignored) {
-					}
-				}
+			public boolean reachedEnd() throws Exception {
+				return false;
 			}
 
 			@Override
-			public void cancel() {
-				LOG.info("Source got cancel()");
-				running = false;
+			public Tuple2<Long, String> next() throws Exception {
+				Thread.sleep(100);
+				return new Tuple2<Long, String>(1000L + cnt, "kafka-" + cnt++);
 			}
 		});
 		stream.addSink(new KafkaSink<Tuple2<Long, String>>(brokerConnectionStrings, topic, new Utils.TypeInformationSerializationSchema<Tuple2<Long, String>>(new Tuple2<Long, String>(1L, ""), env.getConfig()), new CustomPartitioner()));
@@ -771,24 +745,17 @@ public class KafkaITCase {
 		DataStream<String> stream = env.addSource(new SourceFunction<String>() {
 			private static final long serialVersionUID = 1L;
 			boolean running = true;
+			int cnt = 0;
 
 			@Override
-			public void run(Collector<String> collector) throws Exception {
-				LOG.info("Starting source.");
-				int cnt = 0;
-				while (running) {
-					collector.collect("kafka-" + cnt++);
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException ignored) {
-					}
-				}
+			public boolean reachedEnd() throws Exception {
+				return false;
 			}
 
 			@Override
-			public void cancel() {
-				LOG.info("Source got cancel()");
-				running = false;
+			public String next() throws Exception {
+				Thread.sleep(100);
+				return "kafka-" + cnt++;
 			}
 		});
 		stream.addSink(new KafkaSink<String>(brokerConnectionStrings, topic, new JavaDefaultStringSchema()));
@@ -810,33 +777,26 @@ public class KafkaITCase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		DataStream<String> stream = env.addSource(new SourceFunction<String>() {
-			boolean running = true;
+
+			private int cnt = 0;
 
 			@Override
-			public void run(Collector<String> collector) throws Exception {
-				LOG.info("Starting source.");
-				int cnt = 0;
-				while (running) {
-					String msg = "kafka-" + cnt++;
-					collector.collect(msg);
-					LOG.info("sending message = "+msg);
+			public boolean reachedEnd() throws Exception {
+				return cnt == 200;
+			}
 
-					if ((cnt - 1) % 20 == 0) {
-						LOG.debug("Sending message #{}", cnt - 1);
-					}
-					if(cnt == 200) {
-						LOG.info("Stopping to produce after 200 msgs");
-						break;
-					}
+			@Override
+			public String next() throws Exception {
+				String msg = "kafka-" + cnt++;
+				LOG.info("sending message = "+msg);
 
+				if ((cnt - 1) % 20 == 0) {
+					LOG.debug("Sending message #{}", cnt - 1);
 				}
+
+				return msg;
 			}
 
-			@Override
-			public void cancel() {
-				LOG.info("Source got chancel()");
-				running = false;
-			}
 		});
 		stream.addSink(new KafkaSink<String>(brokerConnectionStrings, topic, new JavaDefaultStringSchema()))
 				.setParallelism(1);

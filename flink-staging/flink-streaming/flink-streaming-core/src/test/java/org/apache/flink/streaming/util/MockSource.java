@@ -20,14 +20,23 @@ package org.apache.flink.streaming.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.util.Collector;
 
 public class MockSource<T> {
 
-	public static <T> List<T> createAndExecute(SourceFunction<T> source) {
+	public static <T> List<T> createAndExecute(SourceFunction<T> sourceFunction) throws Exception {
 		List<T> outputs = new ArrayList<T>();
+		if (sourceFunction instanceof RichSourceFunction) {
+			((RichSourceFunction<T>) sourceFunction).open(new Configuration());
+		}
 		try {
-			source.run(new MockCollector<T>(outputs));
+			Collector<T> collector = new MockOutput<T>(outputs);
+			while (!sourceFunction.reachedEnd()) {
+				collector.collect(sourceFunction.next());
+			}
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke source.", e);
 		}

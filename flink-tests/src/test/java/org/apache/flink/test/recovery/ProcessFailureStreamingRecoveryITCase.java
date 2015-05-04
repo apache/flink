@@ -28,8 +28,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
-import org.apache.flink.util.Collector;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -143,8 +141,13 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 
 		private final File coordinateDir;
 		private final long end;
-		
+
+		private long toCollect;
 		private long collected;
+		private boolean checkForProceedFile;
+		private File proceedFile;
+		private long stepSize;
+		private long congruence;
 
 		public SleepyDurableGenerateSequence(File coordinateDir, long end) {
 			this.coordinateDir = coordinateDir;
@@ -152,36 +155,39 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 
 		@Override
-		public void run(Collector<Long> collector) throws Exception {
+		@SuppressWarnings("unchecked")
+		public void open(Configuration config) {
+			stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
+			congruence = getRuntimeContext().getIndexOfThisSubtask();
+			toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
+			collected = 0L;
 
-			StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-
-			final long stepSize = context.getNumberOfParallelSubtasks();
-			final long congruence = context.getIndexOfThisSubtask();
-			final long toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
-
-			final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
-			boolean checkForProceedFile = true;
-
-			while (collected < toCollect) {
-				// check if the proceed file exists (then we go full speed)
-				// if not, we always recheck and sleep
-				if (checkForProceedFile) {
-					if (proceedFile.exists()) {
-						checkForProceedFile = false;
-					} else {
-						// otherwise wait so that we make slow progress
-						Thread.sleep(SLEEP_TIME);
-					}
-				}
-
-				collector.collect(collected * stepSize + congruence);
-				collected++;
-			}
+			proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
+			checkForProceedFile = true;
 		}
 
 		@Override
-		public void cancel() {}
+		public boolean reachedEnd() throws Exception {
+			return collected >= toCollect;
+		}
+
+		@Override
+		public Long next() throws Exception {
+			// check if the proceed file exists (then we go full speed)
+			// if not, we always recheck and sleep
+			if (checkForProceedFile) {
+				if (proceedFile.exists()) {
+					checkForProceedFile = false;
+				} else {
+					// otherwise wait so that we make slow progress
+					Thread.sleep(SLEEP_TIME);
+				}
+			}
+
+			long result = collected * stepSize + congruence;
+			collected++;
+			return result;
+		}
 
 		@Override
 		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {

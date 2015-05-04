@@ -24,56 +24,110 @@ import java.util.List;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.CoReaderIterator;
 import org.apache.flink.streaming.runtime.io.CoRecordReader;
-import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
 import org.apache.flink.streaming.runtime.io.InputGateFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.util.MutableObjectIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class CoStreamTask<IN1, IN2, OUT> extends StreamTask<IN1, OUT> {
+public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputStreamOperator<IN1, IN2, OUT>> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(TwoInputStreamTask.class);
 
 	protected StreamRecordSerializer<IN1> inputDeserializer1 = null;
 	protected StreamRecordSerializer<IN2> inputDeserializer2 = null;
 
-	MutableObjectIterator<StreamRecord<IN1>> inputIter1;
-	MutableObjectIterator<StreamRecord<IN2>> inputIter2;
-
 	CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>> coReader;
 	CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> coIter;
 
-	private static int numTasks;
+	@Override
+	public void invoke() throws Exception {
+		this.isRunning = true;
 
-	public CoStreamTask() {
-		numTasks = newTask();
-		instanceID = numTasks;
+		boolean operatorOpen = false;
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Task {} invoked", getName());
+		}
+
+		try {
+
+			openOperator();
+			operatorOpen = true;
+
+			int next;
+			StreamRecord<IN1> reuse1 = inputDeserializer1.createInstance();
+			StreamRecord<IN2> reuse2 = inputDeserializer2.createInstance();
+
+			while (isRunning) {
+				try {
+					next = coIter.next(reuse1, reuse2);
+				} catch (IOException e) {
+					if (isRunning) {
+						throw new RuntimeException("Could not read next record.", e);
+					} else {
+						// Task already cancelled do nothing
+						next = 0;
+					}
+				} catch (IllegalStateException e) {
+					if (isRunning) {
+						throw new RuntimeException("Could not read next record.", e);
+					} else {
+						// Task already cancelled do nothing
+						next = 0;
+					}
+				}
+
+				if (next == 0) {
+					break;
+				} else if (next == 1) {
+					streamOperator.processElement1(reuse1.getObject());
+					reuse1 = inputDeserializer1.createInstance();
+				} else {
+					streamOperator.processElement2(reuse2.getObject());
+					reuse2 = inputDeserializer2.createInstance();
+				}
+			}
+
+			closeOperator();
+			operatorOpen = false;
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Task {} invocation finished", getName());
+			}
+
+		} catch (Exception e) {
+
+			if (operatorOpen) {
+				try {
+					closeOperator();
+				} catch (Throwable t) {
+					LOG.info("Caught exception while closing operator.", e);
+				}
+			}
+
+			if (LOG.isErrorEnabled()) {
+				LOG.error("StreamOperator failed. ", e);
+			}
+			throw e;
+		} finally {
+			this.isRunning = false;
+			// Cleanup
+			outputHandler.flushOutputs();
+			clearBuffers();
+		}
+
 	}
 
-	private void setDeserializers() {
+	@Override
+	public void registerInputOutput() {
+		super.registerInputOutput();
+
 		inputDeserializer1 = configuration.getTypeSerializerIn1(userClassLoader);
 		inputDeserializer2 = configuration.getTypeSerializerIn2(userClassLoader);
-	}
-
-	@Override
-	public void setInputsOutputs() {
-		outputHandler = new OutputHandler<OUT>(this);
-
-		setConfigInputs();
-
-		coIter = new CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>>(coReader,
-				inputDeserializer1, inputDeserializer2);
-	}
-
-	@Override
-	public void clearBuffers() throws IOException {
-		outputHandler.clearWriters();
-		coReader.clearBuffers();
-		coReader.cleanup();
-	}
-
-	protected void setConfigInputs() throws StreamTaskException {
-		setDeserializers();
 
 		int numberOfInputs = configuration.getNumberOfInputs();
 
@@ -102,42 +156,14 @@ public class CoStreamTask<IN1, IN2, OUT> extends StreamTask<IN1, OUT> {
 
 		coReader = new CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
 				reader1, reader2);
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> MutableObjectIterator<X> getInput(int index) {
-		switch (index) {
-			case 0:
-				return (MutableObjectIterator<X>) inputIter1;
-			case 1:
-				return (MutableObjectIterator<X>) inputIter2;
-			default:
-				throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
-		}
+		coIter = new CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>>(coReader,
+				inputDeserializer1, inputDeserializer2);
 	}
 
 	@Override
-	public <X> IndexedReaderIterator<X> getIndexedInput(int index) {
-		throw new UnsupportedOperationException("Currently unsupported for connected streams");
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> StreamRecordSerializer<X> getInputSerializer(int index) {
-		switch (index) {
-			case 0:
-				return (StreamRecordSerializer<X>) inputDeserializer1;
-			case 1:
-				return (StreamRecordSerializer<X>) inputDeserializer2;
-			default:
-				throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X, Y> CoReaderIterator<X, Y> getCoReader() {
-		return (CoReaderIterator<X, Y>) coIter;
+	public void clearBuffers() throws IOException {
+		super.clearBuffers();
+		coReader.clearBuffers();
+		coReader.cleanup();
 	}
 }

@@ -19,29 +19,17 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 
-public class StreamFilter<IN> extends ChainableStreamOperator<IN, IN> {
-
-	private static final long serialVersionUID = 1L;
-
-	private boolean collect;
+public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFunction<IN>> implements OneInputStreamOperator<IN, IN> {
 
 	public StreamFilter(FilterFunction<IN> filterFunction) {
 		super(filterFunction);
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
 	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	protected void callUserFunction() throws Exception {
-		collect = ((FilterFunction<IN>) userFunction).filter(nextObject);
-		if (collect) {
-			collector.collect(nextObject);
+	public void processElement(IN element) throws Exception {
+		if (userFunction.filter(element)) {
+			output.collect(element);
 		}
 	}
 }

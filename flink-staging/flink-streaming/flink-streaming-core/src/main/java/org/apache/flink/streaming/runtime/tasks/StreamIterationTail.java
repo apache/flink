@@ -26,13 +26,12 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamIterationTail<IN> extends StreamTask<IN, IN> {
+public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationTail.class);
 
-	private InputHandler<IN> inputHandler;
-
 	private Integer iterationId;
+
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
 	private long iterationWaitTime;
@@ -42,10 +41,9 @@ public class StreamIterationTail<IN> extends StreamTask<IN, IN> {
 	}
 
 	@Override
-	public void setInputsOutputs() {
+	public void registerInputOutput() {
+		super.registerInputOutput();
 		try {
-			inputHandler = new InputHandler<IN>(this);
-
 			iterationId = configuration.getIterationId();
 			iterationWaitTime = configuration.getIterationWaitTime();
 			shouldWait = iterationWaitTime > 0;
@@ -81,12 +79,12 @@ public class StreamIterationTail<IN> extends StreamTask<IN, IN> {
 	}
 
 	protected void forwardRecords() throws Exception {
-		StreamRecord<IN> reuse = inputHandler.getInputSerializer().createInstance();
-		while ((reuse = inputHandler.getInputIter().next(reuse)) != null) {
+		StreamRecord<IN> reuse = inSerializer.createInstance();
+		while ((reuse = recordIterator.next(reuse)) != null) {
 			if (!pushToQueue(reuse)) {
 				break;
 			}
-			reuse = inputHandler.getInputSerializer().createInstance();
+			reuse = inSerializer.createInstance();
 		}
 	}
 
@@ -106,9 +104,5 @@ public class StreamIterationTail<IN> extends StreamTask<IN, IN> {
 			}
 			return false;
 		}
-	}
-
-	@Override
-	protected void setOperator() {
 	}
 }

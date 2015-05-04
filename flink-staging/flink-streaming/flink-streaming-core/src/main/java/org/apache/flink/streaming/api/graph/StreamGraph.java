@@ -41,13 +41,15 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.co.CoStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.runtime.tasks.CoStreamTask;
+import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.sling.commons.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,16 +132,20 @@ public class StreamGraph extends StreamingPlan {
 		return !streamLoops.isEmpty();
 	}
 
-	public <IN, OUT> void addSource(Integer vertexID, StreamOperator<IN, OUT> operatorObject,
+	public <IN, OUT> void addSource(Integer vertexID, StreamOperator<OUT> operatorObject,
 			TypeInformation<IN> inTypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
 		addOperator(vertexID, operatorObject, inTypeInfo, outTypeInfo, operatorName);
 		sources.add(vertexID);
 	}
 
-	public <IN, OUT> void addOperator(Integer vertexID, StreamOperator<IN, OUT> operatorObject,
+	public <IN, OUT> void addOperator(Integer vertexID, StreamOperator<OUT> operatorObject,
 			TypeInformation<IN> inTypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
 
-		addNode(vertexID, StreamTask.class, operatorObject, operatorName);
+		if (operatorObject instanceof StreamSource) {
+			addNode(vertexID, SourceStreamTask.class, operatorObject, operatorName);
+		} else {
+			addNode(vertexID, OneInputStreamTask.class, operatorObject, operatorName);
+		}
 
 		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
 				inTypeInfo, executionConfig) : null;
@@ -156,10 +162,10 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <IN1, IN2, OUT> void addCoOperator(Integer vertexID,
-			CoStreamOperator<IN1, IN2, OUT> taskoperatorObject, TypeInformation<IN1> in1TypeInfo,
+			TwoInputStreamOperator<IN1, IN2, OUT> taskoperatorObject, TypeInformation<IN1> in1TypeInfo,
 			TypeInformation<IN2> in2TypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName) {
 
-		addNode(vertexID, CoStreamTask.class, taskoperatorObject, operatorName);
+		addNode(vertexID, TwoInputStreamTask.class, taskoperatorObject, operatorName);
 
 		StreamRecordSerializer<OUT> outSerializer = (outTypeInfo != null)
 				&& !(outTypeInfo instanceof MissingTypeInfo) ? new StreamRecordSerializer<OUT>(
@@ -228,7 +234,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	protected StreamNode addNode(Integer vertexID, Class<? extends AbstractInvokable> vertexClass,
-			StreamOperator<?, ?> operatorObject, String operatorName) {
+			StreamOperator<?> operatorObject, String operatorName) {
 
 		StreamNode vertex = new StreamNode(environemnt, vertexID, operatorObject, operatorName,
 				new ArrayList<OutputSelector<?>>(), vertexClass);
@@ -286,7 +292,7 @@ public class StreamGraph extends StreamingPlan {
 		getStreamNode(vertexID).setSerializerOut(serializer);
 	}
 
-	public <IN, OUT> void setOperator(Integer vertexID, StreamOperator<IN, OUT> operatorObject) {
+	public <IN, OUT> void setOperator(Integer vertexID, StreamOperator<OUT> operatorObject) {
 		getStreamNode(vertexID).setOperator(operatorObject);
 	}
 
@@ -337,10 +343,10 @@ public class StreamGraph extends StreamingPlan {
 		return streamNodes.values();
 	}
 
-	public Set<Tuple2<Integer, StreamOperator<?, ?>>> getOperators() {
-		Set<Tuple2<Integer, StreamOperator<?, ?>>> operatorSet = new HashSet<Tuple2<Integer, StreamOperator<?, ?>>>();
+	public Set<Tuple2<Integer, StreamOperator<?>>> getOperators() {
+		Set<Tuple2<Integer, StreamOperator<?>>> operatorSet = new HashSet<Tuple2<Integer, StreamOperator<?>>>();
 		for (StreamNode vertex : streamNodes.values()) {
-			operatorSet.add(new Tuple2<Integer, StreamOperator<?, ?>>(vertex.getID(), vertex
+			operatorSet.add(new Tuple2<Integer, StreamOperator<?>>(vertex.getID(), vertex
 					.getOperator()));
 		}
 		return operatorSet;

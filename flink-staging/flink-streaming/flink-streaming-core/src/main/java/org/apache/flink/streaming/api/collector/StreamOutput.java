@@ -37,8 +37,7 @@ public class StreamOutput<OUT> implements Collector<OUT> {
 	private SerializationDelegate<StreamRecord<OUT>> serializationDelegate;
 	private StreamRecord<OUT> streamRecord;
 
-	public StreamOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
-			int channelID, SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
+	public StreamOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output, SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
 
 		this.serializationDelegate = serializationDelegate;
 
