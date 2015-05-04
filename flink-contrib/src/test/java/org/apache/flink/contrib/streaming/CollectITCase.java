@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.misc;
+package org.apache.flink.contrib.streaming;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
@@ -32,6 +32,7 @@ import java.util.Iterator;
  * This test verifies the behavior of DataStreamUtils.collect.
  */
 public class CollectITCase {
+
 	@Test
 	public void testCollect() {
 
@@ -46,8 +47,7 @@ public class CollectITCase {
 
 		long i = 1;
 		for(Iterator it = DataStreamUtils.collect(stream); it.hasNext(); ) {
-			Long x = (Long)it.next();
-			//System.out.println("::: " + x.toString());
+			Long x = (Long) it.next();
 			if(x != i) {
 				Assert.fail(String.format("Should have got %d, got %d instead.", i, x));
 			}
