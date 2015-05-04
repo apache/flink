@@ -19,7 +19,7 @@
 package org.apache.flink.ml.optimization
 
 import org.apache.flink.ml.common.{WeightVector, LabeledVector}
-import org.apache.flink.ml.math.{Vector, BLAS}
+import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
 
 
 abstract class LossFunction extends Serializable{
@@ -30,34 +30,48 @@ abstract class LossFunction extends Serializable{
     * @param prediction The predicted value
     * @param truth The true value
     */
-  def loss(prediction: Double, truth: Double): Double
+  protected def loss(prediction: Double, truth: Double): Double
 
   /** Calculates the derivative of the loss function with respect to the prediction
     *
     * @param prediction The predicted value
     * @param truth The true value
     */
-  def lossDerivative(prediction: Double, truth: Double): Double
+  protected def lossDerivative(prediction: Double, truth: Double): Double
 
   /** Compute the gradient and the loss for the given data.
     * The provided cumGradient is updated in place.
     *
-    * @param data The features and the label associated with the example
+    * @param example The features and the label associated with the example
     * @param weights The current weight vector
     * @param cumGradient The vector to which the gradient will be added to, in place.
     * @return A tuple containing the computed loss as its first element and a the loss derivative as
     *         its second element.
     */
-  def lossAndGradient(data: LabeledVector, weights: WeightVector, cumGradient: Vector):
-  (Double, Double) = {
-    val features = data.vector
-    val label = data.label
+  def lossAndGradient(
+      example: LabeledVector,
+      weights: WeightVector,
+      cumGradient: FlinkVector,
+      regType:  RegularizationType,
+      regParameter: Double):  (Double, Double) = {
+    val features = example.vector
+    val label = example.label
     // TODO(tvas): We could also provide for the case where we don't want an intercept value
     // i.e. data already centered
     val prediction = BLAS.dot(features, weights.weights) + weights.intercept
+    val lossValue: Double = loss(prediction, label)
+    // The loss derivative is used to update the intercept
     val lossDeriv= lossDerivative(prediction, label)
     BLAS.axpy(lossDeriv , features, cumGradient)
-    (loss(prediction, label), lossDeriv)
+    val adjustedLoss = {
+      regType match {
+        case x : DiffRegularizationType => {
+          x.regularizedLossAndGradient(lossValue, weights.weights, cumGradient, regParameter)
+        }
+        case _ => lossValue
+      }
+    }
+    (adjustedLoss, lossDeriv)
   }
 }
 
@@ -71,7 +85,7 @@ class SquaredLoss extends RegressionLoss {
     * @param prediction The predicted value
     * @param truth The true value
     */
-  override def loss(prediction: Double, truth: Double): Double = {
+  protected override def loss(prediction: Double, truth: Double): Double = {
     0.5 * (prediction - truth) * (prediction - truth)
   }
 
@@ -80,6 +94,8 @@ class SquaredLoss extends RegressionLoss {
     * @param prediction The predicted value
     * @param truth The true value
     */
-  override def lossDerivative(prediction: Double, truth: Double): Double = {prediction - truth}
+  protected override def lossDerivative(prediction: Double, truth: Double): Double = {
+    prediction - truth
+  }
 
 }

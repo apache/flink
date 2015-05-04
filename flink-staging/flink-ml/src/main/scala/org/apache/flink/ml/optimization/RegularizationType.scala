@@ -18,66 +18,91 @@
 
 package org.apache.flink.ml.optimization
 
-import breeze.numerics._
-import org.apache.flink.ml.math.{BLAS, Vector}
+import org.apache.flink.api.scala._
+import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
 import org.apache.flink.ml.math.Breeze._
-import breeze.linalg.{norm => BreezeNorm, Vector => BreezeVector, max}
+
+import breeze.numerics._
+import breeze.linalg.max
+
+
 
 // TODO(tvas): Change name to RegularizationPenalty?
+/** Represents a type of regularization penalty
+  *
+  */
 abstract class RegularizationType extends Serializable{
-  /** Calculates and applies the regularization amount and the regularization parameter
+
+  /** Updates the weights by taking a step according to the gradient and regularization applied
     *
-    * @param weights The old weights
+    * @param oldWeights The weights to be updated
+    * @param gradient The gradient according to which we will update the weights
     * @param effectiveStepSize The effective step size for this iteration
-    * @param regParameter The current regularization parameter
-    * @return A tuple whose first element is the updated weight vector and the second is the
-    *         new regularization parameter
+    * @param regParameter The regularization parameter to be applied in the case of L1
+    *                     regularization
     */
-  def applyRegularization(weights: Vector, effectiveStepSize: Double, regParameter: Double):
-  (Vector, Double)
-  // TODO(tvas): We are not currently using the regularization value anywhere, but it could be
-  // useful to keep a history of it.
-
-}
-
-class NoRegularization extends RegularizationType {
-  /** Returns the original weights without any regularization applied
-    *
-    * @param weights The old weights
-    * @param effectiveStepSize The effective step size for this iteration
-    * @param regParameter The current regularization parameter
-    * @return A tuple whose first element is the updated weight vector and the second is the
-    *         regularization value
-    */
-  override def applyRegularization(weights: Vector,
-                                   effectiveStepSize: Double,
-                                   regParameter: Double):
-  (Vector, Double) = {(weights, 0.0)}
-}
-
-class L2Regularization extends RegularizationType {
-  /** Calculates and applies the regularization amount and the regularization parameter
-    *
-    * Implementation was taken from the Apache Spark Mllib library:
-    * http://git.io/vfZIT
-    * @param weights The old weights
-    * @param effectiveStepSize The effective step size for this iteration
-    * @param regParameter The current regularization parameter
-    * @return A tuple whose first element is the updated weight vector and the second is the
-    *         regularization value
-    */
-  override def applyRegularization(weights: Vector,
-                                   effectiveStepSize: Double,
-                                   regParameter: Double):
-  (Vector, Double) = {
-
-    val brzWeights: BreezeVector[Double] = weights.asBreeze
-    brzWeights :*= (1.0 - effectiveStepSize * regParameter)
-    val norm = BreezeNorm(brzWeights, 2.0)
-    // sklearn chooses instead to keep weights >= 0, can we avoid oscillations better that way?
-//    BLAS.scal(1.0 - effectiveStepSize * regParameter, weights)
-    (brzWeights.fromBreeze, 0.5 * regParameter * norm * norm)
+  def takeStep(
+      oldWeights: FlinkVector,
+      gradient: FlinkVector,
+      effectiveStepSize: Double,
+      regParameter: Double) {
+    BLAS.axpy(-effectiveStepSize, gradient, oldWeights)
   }
+
+}
+
+/** A regularization penalty that is differentiable
+  *
+  */
+abstract class DiffRegularizationType extends RegularizationType {
+
+  /** Compute the regularized gradient loss for the given data.
+    * The provided cumGradient is updated in place.
+    *
+    * @param weightVector The current weight vector
+    * @param lossGradient The vector to which the gradient will be added to, in place.
+    * @return The regularized loss. The gradient is updated in place.
+    */
+  def regularizedLossAndGradient(
+      loss: Double,
+      weightVector: FlinkVector,
+      lossGradient: FlinkVector,
+      regularizationParameter: Double) : Double ={
+    val adjustedLoss = regLoss(loss, weightVector, regularizationParameter)
+    regGradient(weightVector, lossGradient, regularizationParameter)
+
+    adjustedLoss
+  }
+
+  /** Calculates the regularized loss **/
+  def regLoss(oldLoss: Double, weightVector: FlinkVector, regularizationParameter: Double): Double
+
+  /** Calculates the regularized gradient **/
+  def regGradient(
+      weightVector: FlinkVector,
+      lossGradient: FlinkVector,
+      regularizationParameter: Double)
+}
+
+class NoRegularization extends RegularizationType
+
+
+class L2Regularization extends DiffRegularizationType {
+
+  /** Calculates the regularized loss **/
+  override def regLoss(oldLoss: Double, weightVector: FlinkVector, regParameter: Double)
+    : Double = {
+    oldLoss + regParameter * (weightVector.asBreeze dot weightVector.asBreeze) / 2
+  }
+
+  /** Calculates the regularized gradient **/
+  override def regGradient(
+      weightVector: FlinkVector,
+      lossGradient: FlinkVector,
+      regParameter: Double): Unit = {
+    BLAS.axpy(regParameter, weightVector, lossGradient)
+  }
+
 }
 
 class L1Regularization extends RegularizationType {
@@ -85,18 +110,19 @@ class L1Regularization extends RegularizationType {
     *
     * Implementation was taken from the Apache Spark Mllib library:
     * http://git.io/vfZIT
-    * @param weights The old weights
+    * @param oldWeights The old weights
     * @param effectiveStepSize The effective step size for this iteration
     * @param regParameter The current regularization parameter
-    * @return A tuple whose first element is the updated weight vector and the second is the
+    * @return A tuple whose first element is the updated weight FlinkVector and the second is the
     *         regularization value
     */
-  override def applyRegularization(weights: Vector,
-                                   effectiveStepSize: Double,
-                                   regParameter: Double):
-  (Vector, Double) = {
-
-    val brzWeights: BreezeVector[Double] = weights.asBreeze.toDenseVector
+  override def takeStep(
+      oldWeights: FlinkVector,
+      gradient: FlinkVector,
+      effectiveStepSize: Double,
+      regParameter: Double) {
+    BLAS.axpy(-effectiveStepSize, gradient, oldWeights)
+    val brzWeights = oldWeights.asBreeze.toDenseVector
 
     // Apply proximal operator (soft thresholding)
     val shrinkageVal = regParameter * effectiveStepSize
@@ -107,10 +133,11 @@ class L1Regularization extends RegularizationType {
       i += 1
     }
 
-    // We could maybe define a Breeze Universal function for the proximal operator, and test if it's
-    // faster that thefor loop above
-//    brzWeights = signum(brzWeights) * max(0.0, abs(brzWeights) - shrinkageVal)
+    BLAS.copy(brzWeights.fromBreeze, oldWeights)
 
-    (brzWeights.fromBreeze, BreezeNorm(brzWeights, 1.0) * regParameter)
+    // We could maybe define a Breeze Universal function for the proximal operator, and test if it's
+    // faster that the for loop + copy above
+    //    brzWeights = signum(brzWeights) * max(0.0, abs(brzWeights) - shrinkageVal)
+
   }
 }

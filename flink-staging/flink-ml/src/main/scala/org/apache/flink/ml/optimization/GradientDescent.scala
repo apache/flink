@@ -73,14 +73,14 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       new GradientCalculation
     }.withBroadcastSet(currentWeights, WEIGHTVECTOR_BROADCAST).reduce {
       (left, right) =>
-        val (leftGradientVector, leftCount) = left
-        val (rightGradientVector, rightCount) = right
+        val (leftGradtVector, leftCount) = left
+        val (rightGradVector, rightCount) = right
 
-        BLAS.axpy(1.0, leftGradientVector.weights, rightGradientVector.weights)
-        (new WeightVector(
-          rightGradientVector.weights,
-          leftGradientVector.intercept + rightGradientVector.intercept),
-          leftCount + rightCount)
+        BLAS.axpy(1.0, leftGradtVector.weights, rightGradVector.weights)
+        val gradients = WeightVector(
+          rightGradVector.weights, leftGradtVector.intercept + rightGradVector.intercept)
+
+        (gradients , leftCount + rightCount)
     }.map {
       new WeightsUpdate
     }.withBroadcastSet(currentWeights, WEIGHTVECTOR_BROADCAST)
@@ -132,15 +132,18 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     override def map(example: LabeledVector): (WeightVector, Int) = {
 
       val lossFunction = parameterMap(LossFunction)
-      //TODO(tvas): Should throw an error if Dimensions has not been defined
+      val regType = parameterMap(RegularizationType)
+      val regParameter = parameterMap(RegularizationParameter)
       val dimensions = example.vector.size
       // TODO(tvas): Any point in carrying the weightGradient vector for in-place replacement?
       // The idea in spark is to avoid object creation, but here we have to do it anyway
       val weightGradient = new DenseVector(new Array[Double](dimensions))
 
-      val (loss, lossDeriv) = lossFunction.lossAndGradient(example, weightVector, weightGradient)
+      val (loss, lossDeriv) = lossFunction.lossAndGradient(example, weightVector, weightGradient,
+        regType, regParameter)
 
       // Restrict the value of the loss derivative to avoid numerical instabilities
+      // TODO(tvas): Do this for all elements of the weighGradient as well?
       val restrictedLossDeriv: Double = {
         if (lossDeriv < -IterativeSolver.MAX_DLOSS) {
           -IterativeSolver.MAX_DLOSS
@@ -174,8 +177,8 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     }
 
     override def map(gradientsAndCount: (WeightVector, Int)): WeightVector = {
-      val regularizationType = parameterMap(RegularizationType)
-      val regularizationParameter = parameterMap(RegularizationParameter)
+      val regType = parameterMap(RegularizationType)
+      val regParameter = parameterMap(RegularizationParameter)
       val stepsize = parameterMap(Stepsize)
       val weightGradients = gradientsAndCount._1
       val count = gradientsAndCount._2
@@ -192,16 +195,17 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       // here
       val effectiveStepsize = stepsize/math.sqrt(iteration)
 
-      val newWeights = weightVector.weights.copy
-      // Take the gradient step
-      BLAS.axpy(-effectiveStepsize, weightGradients.weights, newWeights)
-      val newWeight0 = weightVector.intercept - effectiveStepsize * weight0Gradient
 
-      // Apply the regularization
-      val (updatedWeights, regVal) = regularizationType.applyRegularization(
-        newWeights, effectiveStepsize, regularizationParameter)
+      // Take the gradient step for the intercept
+      weightVector.intercept -= effectiveStepsize * weight0Gradient
 
-      new WeightVector(updatedWeights, newWeight0)
+      // Take the gradient step for the weight vector, possibly applying regularization
+      // TODO(tvas): This should be moved to a takeStep() function that takes regType plus all these
+      // arguments, this would decouple the update step from the regularization classes
+      regType.takeStep(weightVector.weights, weightGradients.weights,
+        effectiveStepsize, regParameter)
+
+      weightVector
     }
   }
 }

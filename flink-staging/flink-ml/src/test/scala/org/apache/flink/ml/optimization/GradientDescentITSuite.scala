@@ -97,7 +97,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val updatedIntercept = weightVector.intercept
     val updatedWeight = weightVector.weights(0)
 
-    updatedWeight should be (0.54 +- 0.001)
+    updatedWeight should be (0.5 +- 0.001)
     updatedIntercept should be (0.8 +- 0.01)
   }
 

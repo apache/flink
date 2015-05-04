@@ -41,7 +41,8 @@ class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val weightVector = new WeightVector(DenseVector(1.0), 1.0)
     val gradient = DenseVector(0.0)
 
-    val (loss, lossDerivative) = squaredLoss.lossAndGradient(example, weightVector, gradient)
+    val (loss, lossDerivative) = squaredLoss.lossAndGradient(example, weightVector, gradient, new
+        NoRegularization, 0.0)
 
     loss should be (2.0 +- 0.001)
 
