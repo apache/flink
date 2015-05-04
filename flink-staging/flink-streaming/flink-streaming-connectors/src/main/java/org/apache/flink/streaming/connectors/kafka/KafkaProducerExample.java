@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.api.KafkaSink;
 import org.apache.flink.streaming.util.serialization.JavaDefaultStringSchema;
-import org.apache.flink.util.Collector;
 
 public class KafkaProducerExample {
 
@@ -40,21 +39,25 @@ public class KafkaProducerExample {
 
 		@SuppressWarnings({ "unused", "serial" })
 		DataStream<String> stream1 = env.addSource(new SourceFunction<String>() {
+
+			private int index = 0;
+
 			@Override
-			public void run(Collector<String> collector) throws Exception {
-				for (int i = 0; i < 20; i++) {
-					collector.collect("message #" + i);
-					Thread.sleep(100L);
+			public boolean reachedEnd() throws Exception {
+				return index >= 20;
+			}
+
+			@Override
+			public String next() throws Exception {
+				if (index < 20) {
+					String result = "message #" + index;
+					index++;
+					return result;
 				}
 
-				collector.collect(new String("q"));
+				return "q";
 			}
 
-			@Override
-			public void cancel() {				
-			}
-			
-			
 		}).addSink(
 				new KafkaSink<String>(host + ":" + port, topic, new JavaDefaultStringSchema())
 		)

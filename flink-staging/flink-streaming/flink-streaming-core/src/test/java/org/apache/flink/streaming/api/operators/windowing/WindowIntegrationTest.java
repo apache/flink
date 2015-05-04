@@ -28,6 +28,7 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.WindowMapFunction;
@@ -157,36 +158,42 @@ public class WindowIntegrationTest implements Serializable {
 				.getDiscretizedStream().addSink(new TestSink12());
 
 		DataStream<Integer> source2 = env.addSource(new ParallelSourceFunction<Integer>() {
-			private static final long serialVersionUID = 1L;
+
+			private int i = 1;
 
 			@Override
-			public void run(Collector<Integer> collector) throws Exception {
-				for (int i = 1; i <= 10; i++) {
-					collector.collect(i);
-				}
+			public boolean reachedEnd() throws Exception {
+				return i > 10;
 			}
 
 			@Override
-			public void cancel() {
+			public Integer next() throws Exception {
+				return i++;
 			}
+
 		});
 
 		DataStream<Integer> source3 = env.addSource(new RichParallelSourceFunction<Integer>() {
-
-			private static final long serialVersionUID = 1L;
+			private int i = 1;
 
 			@Override
-			public void run(Collector<Integer> collector) throws Exception {
-				for (int i = 1; i <= 11; i++) {
-					if (i % 2 == getRuntimeContext().getIndexOfThisSubtask()) {
-						collector.collect(i);
-					}
-				}
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				i = 1 + getRuntimeContext().getIndexOfThisSubtask();
 			}
 
 			@Override
-			public void cancel() {
+			public boolean reachedEnd() throws Exception {
+				return i > 11;
 			}
+
+			@Override
+			public Integer next() throws Exception {
+				int result = i;
+				i += 2;
+				return result;
+			}
+
 		});
 
 		source2.window(Time.of(2, ts, 1)).sum(0).getDiscretizedStream().addSink(new TestSink9());

@@ -49,7 +49,7 @@ public class StreamNode implements Serializable {
 	private Integer slotSharingID;
 	private boolean isolatedSlot = false;
 
-	private transient StreamOperator<?, ?> operator;
+	private transient StreamOperator<?> operator;
 	private List<OutputSelector<?>> outputSelectors;
 	private StreamRecordSerializer<?> typeSerializerIn1;
 	private StreamRecordSerializer<?> typeSerializerIn2;
@@ -62,7 +62,7 @@ public class StreamNode implements Serializable {
 
 	private InputFormat<String, ?> inputFormat;
 
-	public StreamNode(StreamExecutionEnvironment env, Integer ID, StreamOperator<?, ?> operator,
+	public StreamNode(StreamExecutionEnvironment env, Integer ID, StreamOperator<?> operator,
 			String operatorName, List<OutputSelector<?>> outputSelector,
 			Class<? extends AbstractInvokable> jobVertexClass) {
 		this.env = env;
@@ -138,11 +138,11 @@ public class StreamNode implements Serializable {
 		this.bufferTimeout = bufferTimeout;
 	}
 
-	public StreamOperator<?, ?> getOperator() {
+	public StreamOperator<?> getOperator() {
 		return operator;
 	}
 
-	public void setOperator(StreamOperator<?, ?> operator) {
+	public void setOperator(StreamOperator<?> operator) {
 		this.operator = operator;
 	}
 

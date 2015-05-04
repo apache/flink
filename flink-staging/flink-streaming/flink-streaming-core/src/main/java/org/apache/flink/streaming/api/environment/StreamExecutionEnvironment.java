@@ -31,7 +31,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -43,9 +42,7 @@ import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType;
-import org.apache.flink.streaming.api.functions.source.FileReadFunction;
 import org.apache.flink.streaming.api.functions.source.FileSourceFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.GenSequenceFunction;
@@ -435,10 +432,10 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStream<String> readFileStream(String filePath, long intervalMillis,
 			WatchType watchType) {
-		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
-				filePath, intervalMillis, watchType), "File Stream");
-
-		return source.flatMap(new FileReadFunction());
+//		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
+//				filePath, intervalMillis, watchType), "File Stream");
+//		return source.flatMap(new FileReadFunction());
+		return null;
 	}
 
 	/**
@@ -611,8 +608,8 @@ public abstract class StreamExecutionEnvironment {
 	 * Ads a data source with a custom type information thus opening a
 	 * {@link DataStream}. Only in very special cases does the user need to
 	 * support type information. Otherwise use
-	 * {@link #addSource(SourceFunction)}
-	 * 
+	 * {@link #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+	 *
 	 * @param function
 	 *            the user defined function
 	 * @param sourceName
@@ -630,7 +627,8 @@ public abstract class StreamExecutionEnvironment {
 			outTypeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
 		} else {
 			try {
-				outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class,
+				outTypeInfo = TypeExtractor.createTypeInfo(
+						SourceFunction.class,
 						function.getClass(), 0, null, null);
 			} catch (InvalidTypesException e) {
 				outTypeInfo = (TypeInformation<OUT>) new MissingTypeInfo("Custom source", e);
@@ -640,7 +638,7 @@ public abstract class StreamExecutionEnvironment {
 		boolean isParallel = function instanceof ParallelSourceFunction;
 
 		ClosureCleaner.clean(function, true);
-		StreamOperator<OUT, OUT> sourceOperator = new StreamSource<OUT>(function);
+		StreamOperator<OUT> sourceOperator = new StreamSource<OUT>(function);
 
 		return new DataStreamSource<OUT>(this, sourceName, outTypeInfo, sourceOperator, isParallel,
 				sourceName);

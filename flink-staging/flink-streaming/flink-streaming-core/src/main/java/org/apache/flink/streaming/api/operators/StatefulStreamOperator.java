@@ -15,28 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.co;
+package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import java.io.Serializable;
 
-public class CoStreamFlatMap<IN1, IN2, OUT>
-		extends AbstractUdfStreamOperator<OUT, CoFlatMapFunction<IN1, IN2, OUT>>
-		implements TwoInputStreamOperator<IN1, IN2, OUT> {
+/**
+ * Interface for Stream operators that can have state. This interface is used for checkpointing
+ * and restoring that state.
+ *
+ * @param <OUT> The output type of the operator
+ */
+public interface StatefulStreamOperator<OUT> extends StreamOperator<OUT> {
 
-	public CoStreamFlatMap(CoFlatMapFunction<IN1, IN2, OUT> flatMapper) {
-		super(flatMapper);
-	}
+	void restoreInitialState(Serializable state) throws Exception;
 
-	@Override
-	public void processElement1(IN1 element) throws Exception {
-		userFunction.flatMap1(element, output);
+	Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception;
 
-	}
-
-	@Override
-	public void processElement2(IN2 element) throws Exception {
-		userFunction.flatMap2(element, output);
-	}
+	void confirmCheckpointCompleted(long checkpointId, long timestamp) throws Exception;
 }

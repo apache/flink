@@ -54,8 +54,10 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	private transient BasicClient client;
 	private int waitSec = 5;
 
-	private boolean streaming;
-	private int numberOfTweets;
+	private int maxNumberOfTweets;
+	private int currentNumberOfTweets;
+
+	private String nextElement = null;
 
 	private volatile boolean isRunning = false;
 
@@ -68,7 +70,7 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	 */
 	public TwitterSource(String authPath) {
 		this.authPath = authPath;
-		streaming = true;
+		maxNumberOfTweets = -1;
 	}
 
 	/**
@@ -82,28 +84,13 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	 */
 	public TwitterSource(String authPath, int numberOfTweets) {
 		this.authPath = authPath;
-		streaming = false;
-		this.numberOfTweets = numberOfTweets;
+		this.maxNumberOfTweets = numberOfTweets;
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		initializeConnection();
-	}
-
-	@Override
-	public void run(Collector<String> collector) throws Exception {
-		isRunning = true;
-		try {
-			if (streaming) {
-				collectMessages(collector);
-			} else {
-				collectFiniteMessages(collector);
-			}
-		} finally {
-			closeConnection();
-			isRunning = false;
-		}
+		currentNumberOfTweets = 0;
 	}
 
 	/**
@@ -166,7 +153,7 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	}
 
 	/**
-	 * Put tweets into collector
+	 * Put tweets into output
 	 * 
 	 * @param collector
 	 *            Collector in which the tweets are collected.
@@ -177,7 +164,7 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 			LOG.info("Collecting tweets");
 		}
 
-		for (int i = 0; i < numberOfTweets; i++) {
+		for (int i = 0; i < maxNumberOfTweets; i++) {
 			collectOneMessage(collector);
 		}
 
@@ -187,7 +174,7 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	}
 
 	/**
-	 * Put tweets into collector
+	 * Put tweets into output
 	 * 
 	 * @param collector
 	 *            Collector in which the tweets are collected.
@@ -204,7 +191,7 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	}
 
 	/**
-	 * Put one tweet into the collector.
+	 * Put one tweet into the output.
 	 * 
 	 * @param collector
 	 *            Collector in which the tweets are collected.
@@ -285,8 +272,51 @@ public class TwitterSource extends RichParallelSourceFunction<String> {
 	}
 
 	@Override
-	public void cancel() {
-		isRunning = false;
-		closeConnection();
+	public boolean reachedEnd() throws Exception {
+		if (currentNumberOfTweets >= maxNumberOfTweets) {
+			return false;
+		}
+
+		if (nextElement != null) {
+			return true;
+		}
+		if (client.isDone()) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Client connection closed unexpectedly: {}", client.getExitEvent()
+						.getMessage());
+			}
+			return false;
+		}
+
+		try {
+			String msg = queue.poll(waitSec, TimeUnit.SECONDS);
+			if (msg != null) {
+				nextElement = msg;
+				return true;
+			} else {
+				if (LOG.isInfoEnabled()) {
+					LOG.info("Did not receive a message in {} seconds", waitSec);
+				}
+			}
+		} catch (InterruptedException e) {
+			throw new RuntimeException("'Waiting for tweet' thread is interrupted", e);
+		}
+		return false;
+	}
+
+	@Override
+	public String next() throws Exception {
+		if (nextElement != null) {
+			String result = nextElement;
+			nextElement = null;
+			return result;
+		}
+		if (reachedEnd()) {
+			throw new RuntimeException("Twitter stream end reached.");
+		} else {
+			String result = nextElement;
+			nextElement = null;
+			return result;
+		}
 	}
 }

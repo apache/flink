@@ -20,27 +20,29 @@ package org.apache.flink.streaming.util;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.io.CoReaderIterator;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskContext;
+import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
+public class MockContext<IN, OUT> {
 	private Collection<IN> inputs;
 	private List<OUT> outputs;
 
-	private Collector<OUT> collector;
+	private MockOutput<OUT> output;
 	private StreamRecordSerializer<IN> inDeserializer;
 	private IndexedReaderIterator<StreamRecord<IN>> iterator;
 
@@ -55,7 +57,7 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 
 		iterator = new IndexedInputIterator();
 		outputs = new ArrayList<OUT>();
-		collector = new MockCollector<OUT>(outputs);
+		output = new MockOutput<OUT>(outputs);
 	}
 
 	private class IndexedInputIterator extends IndexedReaderIterator<StreamRecord<IN>> {
@@ -92,25 +94,29 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 		return outputs;
 	}
 
-	public Collector<OUT> getCollector() {
-		return collector;
-	}
-
-	public StreamRecordSerializer<IN> getInDeserializer() {
-		return inDeserializer;
+	public Collector<OUT> getOutput() {
+		return output;
 	}
 
 	public MutableObjectIterator<StreamRecord<IN>> getIterator() {
 		return iterator;
 	}
 
-	public static <IN, OUT> List<OUT> createAndExecute(StreamOperator<IN, OUT> operator,
+	public static <IN, OUT> List<OUT> createAndExecute(OneInputStreamOperator<IN, OUT> operator,
 			List<IN> inputs) {
 		MockContext<IN, OUT> mockContext = new MockContext<IN, OUT>(inputs);
-		operator.setup(mockContext);
+		RuntimeContext runtimeContext =  new StreamingRuntimeContext("MockTask", new MockEnvironment(3 * 1024 * 1024, new MockInputSplitProvider(), 1024), null,
+				new ExecutionConfig());
+
+		operator.setup(mockContext.output, runtimeContext);
 		try {
 			operator.open(null);
-			operator.run();
+
+			StreamRecord<IN> nextRecord;
+			while ((nextRecord = mockContext.getIterator().next()) != null) {
+				operator.processElement(nextRecord.getObject());
+			}
+
 			operator.close();
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke operator.", e);
@@ -118,56 +124,4 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 
 		return mockContext.getOutputs();
 	}
-
-	@Override
-	public StreamConfig getConfig() {
-		return null;
-	}
-
-	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return null;
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> MutableObjectIterator<X> getInput(int index) {
-		if (index == 0) {
-			return (MutableObjectIterator<X>) iterator;
-		} else {
-			throw new IllegalArgumentException("There is only 1 input");
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> StreamRecordSerializer<X> getInputSerializer(int index) {
-		if (index == 0) {
-			return (StreamRecordSerializer<X>) inDeserializer;
-		} else {
-			throw new IllegalArgumentException("There is only 1 input");
-		}
-	}
-
-	@Override
-	public Collector<OUT> getOutputCollector() {
-		return collector;
-	}
-
-	@Override
-	public <X, Y> CoReaderIterator<X, Y> getCoReader() {
-		throw new IllegalArgumentException("CoReader not available");
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> IndexedReaderIterator<X> getIndexedInput(int index) {
-		return (IndexedReaderIterator<X>) iterator;
-	}
-
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		return new ExecutionConfig();
-	}
-
 }

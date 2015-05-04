@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 
 /**
  * The iterative data stream represents the start of an iteration in a
@@ -78,7 +78,7 @@ public class IterativeDataStream<IN> extends
 
 	@Override
 	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
-			TypeInformation<R> outTypeInfo, StreamOperator<IN, R> operator) {
+			TypeInformation<R> outTypeInfo, OneInputStreamOperator<IN, R> operator) {
 
 		// We call the superclass tranform method
 		SingleOutputStreamOperator<R, ?> returnStream = super.transform(operatorName, outTypeInfo,

@@ -39,7 +39,6 @@ public class WindowReducer<IN> extends StreamMap<StreamWindow<IN>, StreamWindow<
 	public WindowReducer(ReduceFunction<IN> reducer) {
 		super(new WindowReduceFunction<IN>(reducer));
 		this.reducer = reducer;
-		withoutInputCopy();
 	}
 
 	private static class WindowReduceFunction<T> extends AbstractRichFunction implements

@@ -22,8 +22,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
-public class StreamProject<IN, OUT extends Tuple> extends ChainableStreamOperator<IN, OUT> {
-	private static final long serialVersionUID = 1L;
+public class StreamProject<IN, OUT extends Tuple>
+		extends AbstractStreamOperator<OUT>
+		implements OneInputStreamOperator<IN, OUT> {
 
 	transient OUT outTuple;
 	TypeSerializer<OUT> outTypeSerializer;
@@ -32,25 +33,20 @@ public class StreamProject<IN, OUT extends Tuple> extends ChainableStreamOperato
 	int numFields;
 
 	public StreamProject(int[] fields, TypeInformation<OUT> outTypeInformation) {
-		super(null);
 		this.fields = fields;
 		this.numFields = this.fields.length;
 		this.outTypeInformation = outTypeInformation;
+
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
 
-	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
-	}
 
 	@Override
-	protected void callUserFunction() throws Exception {
+	public void processElement(IN element) throws Exception {
 		for (int i = 0; i < this.numFields; i++) {
-			outTuple.setField(((Tuple)nextObject).getField(fields[i]), i);
+			outTuple.setField(((Tuple) element).getField(fields[i]), i);
 		}
-		collector.collect(outTuple);
+		output.collect(outTuple);
 	}
 
 	@Override
@@ -59,5 +55,4 @@ public class StreamProject<IN, OUT extends Tuple> extends ChainableStreamOperato
 		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
 		outTuple = outTypeSerializer.createInstance();
 	}
-	
 }

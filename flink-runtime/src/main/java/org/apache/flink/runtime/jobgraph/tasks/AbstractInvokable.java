@@ -146,7 +146,7 @@ public abstract class AbstractInvokable {
 			return executionConfig;
 		}
 		catch (Exception e) {
-			LOG.warn("Could not load ExecutionConfig from Environment, returning default ExecutionConfig: {}", e);
+			LOG.warn("Could not load ExecutionConfig from Environment, returning default ExecutionConfig", e);
 			return new ExecutionConfig();
 		}
 	}
