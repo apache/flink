@@ -31,10 +31,10 @@ import org.apache.flink.streaming.api.functions.co.CoWindowFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoReduceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamGroupedReduce;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
-import org.apache.flink.streaming.api.operators.co.CoStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamReduce;
 import org.apache.flink.streaming.api.operators.co.CoStreamWindow;
 import org.apache.flink.streaming.api.windowing.helper.SystemTimestamp;
@@ -373,7 +373,7 @@ public class ConnectedDataStream<IN1, IN2> {
 
 	}
 
-	protected <OUT> CoStreamOperator<IN1, IN2, OUT> getReduceOperator(
+	protected <OUT> TwoInputStreamOperator<IN1, IN2, OUT> getReduceOperator(
 			CoReduceFunction<IN1, IN2, OUT> coReducer) {
 		CoStreamReduce<IN1, IN2, OUT> operator;
 		if (isGrouped) {
@@ -403,7 +403,7 @@ public class ConnectedDataStream<IN1, IN2> {
 	}
 
 	public <OUT> SingleOutputStreamOperator<OUT, ?> transform(String functionName,
-			TypeInformation<OUT> outTypeInfo, CoStreamOperator<IN1, IN2, OUT> operator) {
+			TypeInformation<OUT> outTypeInfo, TwoInputStreamOperator<IN1, IN2, OUT> operator) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(

@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.examples.test.windowing;
 
-import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
 import org.apache.flink.streaming.examples.windowing.TopSpeedWindowingExample;
+import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {

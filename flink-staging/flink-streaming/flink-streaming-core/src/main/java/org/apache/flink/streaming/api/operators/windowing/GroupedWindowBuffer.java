@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.windowing.windowbuffer.WindowBuffer;
  */
 public class GroupedWindowBuffer<T> extends StreamWindowBuffer<T> {
 
-	private static final long serialVersionUID = 1L;
 	private Map<Object, WindowBuffer<T>> windowMap = new HashMap<Object, WindowBuffer<T>>();
 	private KeySelector<T, ?> keySelector;
 
@@ -41,16 +40,9 @@ public class GroupedWindowBuffer<T> extends StreamWindowBuffer<T> {
 	}
 
 	@Override
-	public void run() throws Exception {
-		while (isRunning && readNext() != null) {
-			callUserFunctionAndLogException();
-		}
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		if (nextObject.getElement() != null) {
-			Object key = keySelector.getKey(nextObject.getElement());
+	public void processElement(WindowEvent<T> event) throws Exception {
+		if (event.getElement() != null) {
+			Object key = keySelector.getKey(event.getElement());
 			WindowBuffer<T> currentWindow = windowMap.get(key);
 
 			if (currentWindow == null) {
@@ -58,15 +50,7 @@ public class GroupedWindowBuffer<T> extends StreamWindowBuffer<T> {
 				windowMap.put(key, currentWindow);
 			}
 
-			handleWindowEvent(nextObject, currentWindow);
-		}
-	}
-
-	@Override
-	public void collect(WindowEvent<T> record) {
-		if (isRunning) {
-			nextObject = record;
-			callUserFunctionAndLogException();
+			handleWindowEvent(event, currentWindow);
 		}
 	}
 

@@ -30,10 +30,8 @@ import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.ConnectorSource;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +59,9 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 	private static final long ZOOKEEPER_DEFAULT_SYNC_TIME = 200;
 	private static final String DEFAULT_GROUP_ID = "flink-group";
 
-	private volatile boolean isRunning = false;
+	// We must read this in reachedEnd() to check for the end. We keep it to return it in
+	// next()
+	private OUT nextElement;
 
 	/**
 	 * Creates a KafkaSource that consumes a topic.
@@ -177,38 +177,43 @@ public class KafkaSource<OUT> extends ConnectorSource<OUT> {
 		consumerIterator = stream.iterator();
 	}
 
-	/**
-	 * Called to forward the data from the source to the {@link DataStream}.
-	 * 
-	 * @param collector
-	 *            The Collector for sending data to the dataStream
-	 */
-	@Override
-	public void run(Collector<OUT> collector) throws Exception {
-		isRunning = true;
-		try {
-			while (isRunning && consumerIterator.hasNext()) {
-				OUT out = schema.deserialize(consumerIterator.next().message());
-				if (schema.isEndOfStream(out)) {
-					break;
-				}
-				collector.collect(out);
-			}
-		} finally {
-			consumer.shutdown();
-		}
-	}
-
 	@Override
 	public void open(Configuration config) throws Exception {
+		super.open(config);
 		initializeConnection();
 	}
 
 	@Override
-	public void cancel() {
-		isRunning = false;
+	public void close() throws Exception {
+		super.close();
 		if (consumer != null) {
 			consumer.shutdown();
 		}
 	}
+
+	@Override
+	public boolean reachedEnd() throws Exception {
+		if (nextElement != null) {
+			return false;
+		} else if (consumerIterator.hasNext()) {
+			OUT out = schema.deserialize(consumerIterator.next().message());
+			if (schema.isEndOfStream(out)) {
+				return true;
+			}
+			nextElement = out;
+		}
+		return false;
+	}
+
+	@Override
+	public OUT next() throws Exception {
+		if (!reachedEnd()) {
+			OUT result = nextElement;
+			nextElement = null;
+			return result;
+		} else {
+			throw new RuntimeException("Source exhausted");
+		}
+	}
+
 }

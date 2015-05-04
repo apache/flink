@@ -18,14 +18,18 @@
 
 package org.apache.flink.streaming.api.scala
 
+import scala.reflect.ClassTag
+
 import com.esotericsoftware.kryo.Serializer
+import org.apache.commons.lang.Validate
+import org.joda.time.Instant
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType
 import org.apache.flink.streaming.api.functions.source.{FromElementsFunction, SourceFunction}
-import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag
 
@@ -295,14 +299,14 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * source functionality.
    *
    */
-  def addSource[T: ClassTag: TypeInformation](function: Collector[T] => Unit): DataStream[T] = {
+  def addSource[T: ClassTag: TypeInformation](function: () => T): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {
       val cleanFun = StreamExecutionEnvironment.clean(function)
-      override def run(out: Collector[T]) {
-        cleanFun(out)
-      }
-      override def cancel() = {}
+
+      override def reachedEnd(): Boolean = false
+
+      override def next(): T = cleanFun()
     }
     addSource(sourceFunction)
   }

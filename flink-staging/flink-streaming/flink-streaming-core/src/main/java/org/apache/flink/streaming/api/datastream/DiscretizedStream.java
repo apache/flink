@@ -31,9 +31,9 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.WindowMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.windowing.EmptyWindowFilter;
 import org.apache.flink.streaming.api.operators.windowing.ParallelGroupedMerge;
@@ -192,7 +192,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 	private <R> DiscretizedStream<R> transform(WindowTransformation transformation,
 			String operatorName, TypeInformation<R> retType,
-			StreamOperator<StreamWindow<OUT>, StreamWindow<R>> operator) {
+			OneInputStreamOperator<StreamWindow<OUT>, StreamWindow<R>> operator) {
 
 		return wrap(discretizedStream.transform(operatorName, new StreamWindowTypeInfo<R>(retType),
 				operator), transformation);
@@ -200,8 +200,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 
 	private DiscretizedStream<OUT> filterEmpty(DiscretizedStream<OUT> input) {
 		return wrap(input.discretizedStream.transform("Filter", input.discretizedStream.getType(),
-				new StreamFilter<StreamWindow<OUT>>(new EmptyWindowFilter<OUT>())
-						.withoutInputCopy()), input.isPartitioned);
+				new StreamFilter<StreamWindow<OUT>>(new EmptyWindowFilter<OUT>())), input.isPartitioned);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -209,7 +208,7 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		return input.discretizedStream.transform("ExtractParts", new TupleTypeInfo(Tuple2.class,
 				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
 				new StreamFlatMap<StreamWindow<OUT>, Tuple2<Integer, Integer>>(
-						new WindowPartExtractor<OUT>()).withoutInputCopy());
+						new WindowPartExtractor<OUT>()));
 	}
 
 	private DiscretizedStream<OUT> partition(WindowTransformation transformation) {

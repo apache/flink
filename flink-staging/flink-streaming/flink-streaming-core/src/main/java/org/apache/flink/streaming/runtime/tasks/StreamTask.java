@@ -33,38 +33,31 @@ import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
 import org.apache.flink.runtime.state.LocalStateHandle;
 import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.ChainableStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StatefulStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.io.CoReaderIterator;
-import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
-import org.apache.flink.util.Collector;
-import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTaskContext<OUT>,
+public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends AbstractInvokable implements
 		OperatorStateCarrier<LocalStateHandle>, CheckpointedOperator, CheckpointCommittingOperator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
 
 	private final Object checkpointLock = new Object();
-	
-	private static int numTasks;
 
 	protected StreamConfig configuration;
-	protected int instanceID;
-	private static int numVertices = 0;
 
-	private InputHandler<IN> inputHandler;
 	protected OutputHandler<OUT> outputHandler;
-	private StreamOperator<IN, OUT> streamOperator;
-	private boolean chained;
+
+	protected O streamOperator;
+
+	protected boolean hasChainedOperators;
+
 	protected volatile boolean isRunning = false;
 
-	private StreamingRuntimeContext context;
+	protected StreamingRuntimeContext context;
 
 	protected ClassLoader userClassLoader;
 
@@ -72,46 +65,28 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 
 	public StreamTask() {
 		streamOperator = null;
-		numTasks = newTask();
-		instanceID = numTasks;
 		superstepListener = new SuperstepEventListener();
-	}
-
-	protected static int newTask() {
-		numVertices++;
-		return numVertices;
 	}
 
 	@Override
 	public void registerInputOutput() {
-		initialize();
-		setInputsOutputs();
-		setOperator();
-	}
-
-	protected void initialize() {
 		this.userClassLoader = getUserCodeClassLoader();
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.context = createRuntimeContext(getEnvironment().getTaskName());
-	}
 
-	public void setInputsOutputs() {
-		inputHandler = new InputHandler<IN>(this);
 		outputHandler = new OutputHandler<OUT>(this);
-		chained = !outputHandler.getChainedOperators().isEmpty();
-	}
 
-	protected void setOperator() {
 		streamOperator = configuration.getStreamOperator(userClassLoader);
-		streamOperator.setup(this);
+		if (streamOperator != null) {
+			// IterationHead and IterationTail don't have an Operator...
+			streamOperator.setup(outputHandler.getOutput(), this.context);
+		}
+
+		hasChainedOperators = !outputHandler.getChainedOperators().isEmpty();
 	}
 
 	public String getName() {
 		return getEnvironment().getTaskName();
-	}
-
-	public int getInstanceID() {
-		return instanceID;
 	}
 
 	public StreamingRuntimeContext createRuntimeContext(String taskName) {
@@ -120,58 +95,10 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 				getExecutionConfig());
 	}
 
-	@Override
-	public void invoke() throws Exception {
-		this.isRunning = true;
-
-		boolean operatorOpen = false;
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Task {} invoked with instance id {}", getName(), getInstanceID());
-		}
-
-		try {
-			streamOperator.setRuntimeContext(context);
-
-			operatorOpen = true;
-			openOperator();
-
-			streamOperator.run();
-
-			closeOperator();
-			operatorOpen = false;
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Task {} invoke finished instance id {}", getName(), getInstanceID());
-			}
-
-		} catch (Exception e) {
-
-			if (operatorOpen) {
-				try {
-					closeOperator();
-				} catch (Throwable t) {
-				}
-			}
-
-			if (LOG.isErrorEnabled()) {
-				LOG.error("StreamOperator failed due to: {}", StringUtils.stringifyException(e));
-			}
-			throw e;
-		} finally {
-			this.isRunning = false;
-			// Cleanup
-			outputHandler.flushOutputs();
-			clearBuffers();
-		}
-
-	}
-
 	protected void openOperator() throws Exception {
 		streamOperator.open(getTaskConfiguration());
 
-		for (ChainableStreamOperator<?, ?> operator : outputHandler.getChainedOperators()) {
-			operator.setRuntimeContext(context);
+		for (OneInputStreamOperator<?, ?> operator : outputHandler.chainedOperators) {
 			operator.open(getTaskConfiguration());
 		}
 	}
@@ -179,8 +106,10 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 	protected void closeOperator() throws Exception {
 		streamOperator.close();
 
-		for (ChainableStreamOperator<?, ?> operator : outputHandler.getChainedOperators()) {
-			operator.close();
+		// We need to close them first to last, since upstream operators in the chain might emit
+		// elements in their close methods.
+		for (int i = outputHandler.chainedOperators.size()-1; i >= 0; i--) {
+			outputHandler.chainedOperators.get(i).close();
 		}
 	}
 
@@ -188,61 +117,11 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 		if (outputHandler != null) {
 			outputHandler.clearWriters();
 		}
-		if (inputHandler != null) {
-			inputHandler.clearReaders();
-		}
 	}
 
 	@Override
 	public void cancel() {
-		if (streamOperator != null) {
-			streamOperator.cancel();
-		}
-	}
-
-	@Override
-	public StreamConfig getConfig() {
-		return configuration;
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> MutableObjectIterator<X> getInput(int index) {
-		if (index == 0) {
-			return (MutableObjectIterator<X>) inputHandler.getInputIter();
-		} else {
-			throw new IllegalArgumentException("There is only 1 input");
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> IndexedReaderIterator<X> getIndexedInput(int index) {
-		if (index == 0) {
-			return (IndexedReaderIterator<X>) inputHandler.getInputIter();
-		} else {
-			throw new IllegalArgumentException("There is only 1 input");
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <X> StreamRecordSerializer<X> getInputSerializer(int index) {
-		if (index == 0) {
-			return (StreamRecordSerializer<X>) inputHandler.getInputSerializer();
-		} else {
-			throw new IllegalArgumentException("There is only 1 input");
-		}
-	}
-
-	@Override
-	public Collector<OUT> getOutputCollector() {
-		return outputHandler.getCollector();
-	}
-
-	@Override
-	public <X, Y> CoReaderIterator<X, Y> getCoReader() {
-		throw new IllegalArgumentException("CoReader not available");
+		this.isRunning = false;
 	}
 
 	public EventListener<TaskEvent> getSuperstepListener() {
@@ -262,34 +141,39 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 		// loading the state described by the handle from the backup store
 		Serializable state = stateHandle.getState();
 
-		if (chained) {
+		if (hasChainedOperators) {
 			@SuppressWarnings("unchecked")
 			List<Serializable> chainedStates = (List<Serializable>) state;
 
 			Serializable headState = chainedStates.get(0);
 			if (headState != null) {
-				streamOperator.restoreInitialState(headState);
+				if (streamOperator instanceof StatefulStreamOperator) {
+					((StatefulStreamOperator) streamOperator).restoreInitialState(headState);
+				}
 			}
 
 			for (int i = 1; i < chainedStates.size(); i++) {
 				Serializable chainedState = chainedStates.get(i);
 				if (chainedState != null) {
-					outputHandler.getChainedOperators().get(i - 1).restoreInitialState(chainedState);
+					StreamOperator chainedOperator = outputHandler.getChainedOperators().get(i - 1);
+					if (chainedOperator instanceof StatefulStreamOperator) {
+						((StatefulStreamOperator) chainedOperator).restoreInitialState(chainedState);
+					}
+
 				}
 			}
 
 		} else {
-			streamOperator.restoreInitialState(state);
+			if (streamOperator instanceof StatefulStreamOperator) {
+				((StatefulStreamOperator) streamOperator).restoreInitialState(state);
+			}
+
 		}
 	}
 
 	/**
 	 * This method is either called directly by the checkpoint coordinator, or called
 	 * when all incoming channels have reported a barrier
-	 * 
-	 * @param checkpointId
-	 * @param timestamp
-	 * @throws Exception
 	 */
 	@Override
 	public void triggerCheckpoint(long checkpointId, long timestamp) throws Exception {
@@ -302,18 +186,24 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 					// first draw the state that should go into checkpoint
 					LocalStateHandle state;
 					try {
-						Serializable userState = streamOperator.getStateSnapshotFromFunction(
-								checkpointId, timestamp);
-						
-						if (chained) {
+
+						Serializable userState = null;
+
+						if (streamOperator instanceof StatefulStreamOperator) {
+							userState = ((StatefulStreamOperator) streamOperator).getStateSnapshotFromFunction(checkpointId, timestamp);
+						}
+
+
+						if (hasChainedOperators) {
 							// We construct a list of states for chained tasks
 							List<Serializable> chainedStates = new ArrayList<Serializable>();
 
 							chainedStates.add(userState);
 
-							for (StreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
-								chainedStates.add(chainedOperator.getStateSnapshotFromFunction(
-										checkpointId, timestamp));
+							for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
+								if (chainedOperator instanceof StatefulStreamOperator) {
+									chainedStates.add(((StatefulStreamOperator) chainedOperator).getStateSnapshotFromFunction(checkpointId, timestamp));
+								}
 							}
 
 							userState = CollectionUtils.exists(chainedStates,
@@ -350,10 +240,15 @@ public class StreamTask<IN, OUT> extends AbstractInvokable implements StreamTask
 	public void confirmCheckpoint(long checkpointId, long timestamp) throws Exception {
 		// we do nothing here so far. this should call commit on the source function, for example
 		synchronized (checkpointLock) {
-			streamOperator.confirmCheckpointCompleted(checkpointId, timestamp);
-			if (chained) {
-				for (StreamOperator<?, ?> op : outputHandler.getChainedOperators()) {
-					op.confirmCheckpointCompleted(checkpointId, timestamp);
+			if (streamOperator instanceof StatefulStreamOperator) {
+				((StatefulStreamOperator) streamOperator).confirmCheckpointCompleted(checkpointId, timestamp);
+			}
+
+			if (hasChainedOperators) {
+				for (OneInputStreamOperator<?, ?> chainedOperator : outputHandler.getChainedOperators()) {
+					if (chainedOperator instanceof StatefulStreamOperator) {
+						((StatefulStreamOperator) chainedOperator).confirmCheckpointCompleted(checkpointId, timestamp);
+					}
 				}
 			}
 		}

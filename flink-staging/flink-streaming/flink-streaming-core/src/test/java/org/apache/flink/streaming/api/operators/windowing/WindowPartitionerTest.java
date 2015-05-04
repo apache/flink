@@ -23,8 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.windowing.WindowPartitioner;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
 import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
@@ -33,10 +32,10 @@ public class WindowPartitionerTest {
 
 	@Test
 	public void test() throws Exception {
-		StreamOperator<StreamWindow<Integer>, StreamWindow<Integer>> splitPartitioner = new WindowPartitioner<Integer>(
+		OneInputStreamOperator<StreamWindow<Integer>, StreamWindow<Integer>> splitPartitioner = new WindowPartitioner<Integer>(
 				2);
 
-		StreamOperator<StreamWindow<Integer>, StreamWindow<Integer>> gbPartitioner = new WindowPartitioner<Integer>(
+		OneInputStreamOperator<StreamWindow<Integer>, StreamWindow<Integer>> gbPartitioner = new WindowPartitioner<Integer>(
 				new MyKey());
 
 		StreamWindow<Integer> w1 = new StreamWindow<Integer>();

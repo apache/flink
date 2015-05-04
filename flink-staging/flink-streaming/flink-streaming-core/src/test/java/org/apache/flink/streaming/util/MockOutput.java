@@ -21,12 +21,13 @@ import java.io.Serializable;
 import java.util.Collection;
 
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.util.Collector;
 
-public class MockCollector<T> implements Collector<T> {
+public class MockOutput<T> implements Output<T> {
 	private Collection<T> outputs;
 
-	public MockCollector(Collection<T> outputs) {
+	public MockOutput(Collection<T> outputs) {
 		this.outputs = outputs;
 	}
 

@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -112,20 +111,19 @@ public class IterateExample {
 		private Random rnd = new Random();
 
 		@Override
-		public void run(Collector<Tuple2<Integer, Integer>> collector) throws Exception {
-			while (true) {
-				int first = rnd.nextInt(BOUND / 2 - 1) + 1;
-				int second = rnd.nextInt(BOUND / 2 - 1) + 1;
-
-				collector.collect(new Tuple2<Integer, Integer>(first, second));
-				Thread.sleep(500L);
-			}
+		public boolean reachedEnd() throws Exception {
+			return false;
 		}
 
 		@Override
-		public void cancel() {
-			// no cleanup needed
+		public Tuple2<Integer, Integer> next() throws Exception {
+			int first = rnd.nextInt(BOUND / 2 - 1) + 1;
+			int second = rnd.nextInt(BOUND / 2 - 1) + 1;
+
+			Thread.sleep(500L);
+			return new Tuple2<Integer, Integer>(first, second);
 		}
+
 	}
 
 	/**

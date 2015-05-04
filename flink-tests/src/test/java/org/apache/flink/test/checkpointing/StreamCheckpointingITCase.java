@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
-import org.apache.flink.util.Collector;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -107,8 +106,8 @@ public class StreamCheckpointingITCase {
 				private Random rnd;
 				private StringBuilder stringBuilder;
 
+				private int index;
 				private int step;
-
 				private boolean running = true;
 
 				@Override
@@ -116,24 +115,26 @@ public class StreamCheckpointingITCase {
 					rnd = new Random();
 					stringBuilder = new StringBuilder();
 					step = getRuntimeContext().getNumberOfParallelSubtasks();
+					index = getRuntimeContext().getIndexOfThisSubtask();
 				}
 
 				@Override
-				public void run(Collector<String> collector) throws Exception {
-					for (long i = getRuntimeContext().getIndexOfThisSubtask(); running && i < NUM_STRINGS; i += step) {
-						char first = (char) ((i % 40) + 40);
-
-						stringBuilder.setLength(0);
-						stringBuilder.append(first);
-
-						collector.collect(randomString(stringBuilder, rnd));
-					}
+				public boolean reachedEnd() throws Exception {
+					return index >= NUM_STRINGS;
 				}
 
 				@Override
-				public void cancel() {
-					running = false;
+				public String next() throws Exception {
+					char first = (char) ((index % 40) + 40);
+
+					stringBuilder.setLength(0);
+					stringBuilder.append(first);
+
+					String result = randomString(stringBuilder, rnd);
+					index += step;
+					return result;
 				}
+
 			});
 
 			stream

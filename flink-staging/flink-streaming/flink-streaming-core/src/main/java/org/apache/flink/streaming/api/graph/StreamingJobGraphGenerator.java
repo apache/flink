@@ -308,8 +308,8 @@ public class StreamingJobGraphGenerator {
 		StreamNode upStreamVertex = edge.getSourceVertex();
 		StreamNode downStreamVertex = edge.getTargetVertex();
 
-		StreamOperator<?, ?> headOperator = upStreamVertex.getOperator();
-		StreamOperator<?, ?> outOperator = downStreamVertex.getOperator();
+		StreamOperator<?> headOperator = upStreamVertex.getOperator();
+		StreamOperator<?> outOperator = downStreamVertex.getOperator();
 
 		return downStreamVertex.getInEdges().size() == 1
 				&& outOperator != null
