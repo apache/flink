@@ -29,6 +29,7 @@ import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -56,7 +57,7 @@ import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingTaskManager;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -75,42 +76,53 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class TaskManagerTest {
 
+	private static final Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
+
+	private static final FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);
+
 	private static ActorSystem system;
-
-	private static Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
-
-	private final FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);
-
+	
 	@BeforeClass
 	public static void setup() {
-		system = ActorSystem.create("TestActorSystem", TestingUtils.testConfig());
+		system = AkkaUtils.createLocalActorSystem(new Configuration());
 	}
 
 	@AfterClass
 	public static void teardown() {
 		JavaTestKit.shutdownActorSystem(system);
-		system = null;
 	}
 	
 	@Test
-	public void testSetupTaskManager() {
+	public void testSubmitAndExecuteTask() {
 		new JavaTestKit(system){{
-			ActorRef jobManager = null;
+
 			ActorRef taskManager = null;
+			
 			try {
-				jobManager = system.actorOf(Props.create(SimpleJobManager.class));
+				taskManager = createTaskManager(getTestActor(), false);
+				final ActorRef tmClosure = taskManager;
+				
+				// handle the registration
+				new Within(d) {
+					@Override
+					protected void run() {
+						expectMsgClass(RegistrationMessages.RegisterTaskManager.class);
+						
+						final InstanceID iid = new InstanceID();
+						assertEquals(tmClosure, getLastSender());
+						tmClosure.tell(new RegistrationMessages.AcknowledgeRegistration(
+								getTestActor(), iid, 12345), getTestActor());
+					}
+				};
 
-				taskManager = createTaskManager(jobManager);
-
-				JobID jid = new JobID();
-				JobVertexID vid = new JobVertexID();
+				final JobID jid = new JobID();
+				final JobVertexID vid = new JobVertexID();
 				final ExecutionAttemptID eid = new ExecutionAttemptID();
 
 				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
@@ -119,13 +131,54 @@ public class TaskManagerTest {
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
-				final ActorRef tmClosure = taskManager;
+				
 				new Within(d) {
 
 					@Override
 					protected void run() {
 						tmClosure.tell(new SubmitTask(tdd), getRef());
-						expectMsgEquals(Messages.getAcknowledge());
+						
+						// TaskManager should acknowledge the submission
+						// heartbeats may be interleaved
+						long deadline = System.currentTimeMillis() + 10000;
+						do {
+							Object message = receiveOne(d);
+							if (message == Messages.getAcknowledge()) {
+								break;
+							}
+						} while (System.currentTimeMillis() < deadline);
+
+						// task should have switched to running
+						Object toRunning = new TaskMessages.UpdateTaskExecutionState(
+								new TaskExecutionState(jid, eid, ExecutionState.RUNNING));
+
+						// task should have switched to finished
+						Object toFinished = new TaskMessages.UpdateTaskExecutionState(
+								new TaskExecutionState(jid, eid, ExecutionState.FINISHED));
+						
+						deadline = System.currentTimeMillis() + 10000;
+						do {
+							Object message = receiveOne(d);
+							if (message.equals(toRunning)) {
+								break;
+							}
+							else if (!(message instanceof TaskManagerMessages.Heartbeat)) {
+								fail("Unexpected message: " + message);
+							}
+						} while (System.currentTimeMillis() < deadline);
+
+						deadline = System.currentTimeMillis() + 10000;
+						do {
+							Object message = receiveOne(d);
+							if (message.equals(toFinished)) {
+								break;
+							}
+							else if (!(message instanceof TaskManagerMessages.Heartbeat)) {
+								fail("Unexpected message: " + message);
+							}
+						} while (System.currentTimeMillis() < deadline);
+						
+						
 					}
 				};
 			}
@@ -137,9 +190,6 @@ public class TaskManagerTest {
 				// shut down the actors
 				if (taskManager != null) {
 					taskManager.tell(Kill.getInstance(), ActorRef.noSender());
-				}
-				if (jobManager != null) {
-					jobManager.tell(Kill.getInstance(), ActorRef.noSender());
 				}
 			}
 		}};
@@ -153,7 +203,7 @@ public class TaskManagerTest {
 			ActorRef taskManager = null;
 			try {
 				jobManager = system.actorOf(Props.create(SimpleJobManager.class));
-				taskManager = createTaskManager(jobManager);
+				taskManager = createTaskManager(jobManager, true);
 
 				final JobID jid1 = new JobID();
 				final JobID jid2 = new JobID();
@@ -281,7 +331,7 @@ public class TaskManagerTest {
 			try {
 				jobManager = system.actorOf(Props.create(SimpleJobManager.class));
 
-				taskManager = createTaskManager(jobManager);
+				taskManager = createTaskManager(jobManager, true);
 				final ActorRef tm = taskManager;
 
 				final JobID jid = new JobID();
@@ -368,7 +418,7 @@ public class TaskManagerTest {
 
 				jobManager = system.actorOf(Props.create(new SimpleLookupJobManagerCreator()));
 
-				taskManager = createTaskManager(jobManager);
+				taskManager = createTaskManager(jobManager, true);
 				final ActorRef tm = taskManager;
 
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
@@ -491,7 +541,7 @@ public class TaskManagerTest {
 								new SimpleLookupFailingUpdateJobManagerCreator(eid2)
 						)
 				);
-				taskManager = createTaskManager(jobManager);
+				taskManager = createTaskManager(jobManager, true);
 				final ActorRef tm = taskManager;
 
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
@@ -676,7 +726,7 @@ public class TaskManagerTest {
 		}
 	}
 
-	public static ActorRef createTaskManager(ActorRef jobManager) {
+	public static ActorRef createTaskManager(ActorRef jobManager, boolean waitForRegistration) {
 		ActorRef taskManager = null;
 		try {
 			Configuration cfg = new Configuration();
@@ -695,16 +745,18 @@ public class TaskManagerTest {
 			fail("Could not create test TaskManager: " + e.getMessage());
 		}
 
-		Future<Object> response = Patterns.ask(taskManager, 
-				TaskManagerMessages.getNotifyWhenRegisteredAtJobManagerMessage(), timeout);
-
-		try {
-			FiniteDuration d = new FiniteDuration(100, TimeUnit.SECONDS);
-			Await.ready(response, d);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Exception while waiting for the task manager registration: " + e.getMessage());
+		if (waitForRegistration) {
+			Future<Object> response = Patterns.ask(taskManager, 
+					TaskManagerMessages.getNotifyWhenRegisteredAtJobManagerMessage(), timeout);
+	
+			try {
+				FiniteDuration d = new FiniteDuration(100, TimeUnit.SECONDS);
+				Await.ready(response, d);
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+				fail("Exception while waiting for the task manager registration: " + e.getMessage());
+			}
 		}
 
 		return taskManager;

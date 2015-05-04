@@ -49,7 +49,7 @@ class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolea
 
   override def startJobManager(actorSystem: ActorSystem): ActorRef = {
 
-    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager, _,
+    val (instanceManager, scheduler, libraryCacheManager, _, accumulatorManager,
     executionRetries, delayBetweenRetries,
     timeout, archiveCount) = JobManager.createJobManagerComponents(configuration)
 
@@ -57,7 +57,7 @@ class TestingCluster(userConfiguration: Configuration, singleActorSystem: Boolea
     val archive = actorSystem.actorOf(testArchiveProps, JobManager.ARCHIVE_NAME)
 
     val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archive, accumulatorManager, None, executionRetries,
+      libraryCacheManager, archive, accumulatorManager, executionRetries,
       delayBetweenRetries, timeout) with TestingJobManager)
 
     actorSystem.actorOf(jobManagerProps, JobManager.JOB_MANAGER_NAME)

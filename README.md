@@ -41,7 +41,7 @@ cd flink
 mvn clean package -DskipTests # this will take up to 5 minutes
 ```
 
-Flink is now installed in `flink-dist/target`
+Flink is now installed in `build-target`
 
 
 ## Developing Flink

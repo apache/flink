@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 public class UnionInputGateTest {
 
@@ -39,9 +38,9 @@ public class UnionInputGateTest {
 	@Test(timeout = 120 * 1000)
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
-		final Environment env = mock(Environment.class);
-		final SingleInputGate ig1 = new SingleInputGate(env, new IntermediateDataSetID(), 0, 3);
-		final SingleInputGate ig2 = new SingleInputGate(env, new IntermediateDataSetID(), 0, 5);
+		final String testTaskName = "Test Task";
+		final SingleInputGate ig1 = new SingleInputGate(testTaskName, new IntermediateDataSetID(), 0, 3);
+		final SingleInputGate ig2 = new SingleInputGate(testTaskName, new IntermediateDataSetID(), 0, 5);
 
 		final UnionInputGate union = new UnionInputGate(new SingleInputGate[]{ig1, ig2});
 
