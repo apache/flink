@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib;
+package org.apache.flink.contrib.tweetinputformat;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.tweetinputformat.io.SimpleTweetInputFormat;
