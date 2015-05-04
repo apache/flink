@@ -17,8 +17,11 @@
 
 package org.apache.flink.streaming.api.operators.windowing;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.windowing.StreamWindow;
@@ -38,7 +41,7 @@ public class WindowFolder<IN, OUT> extends StreamMap<StreamWindow<IN>, StreamWin
 		withoutInputCopy();
 	}
 
-	private static class WindowFoldFunction<IN, OUT> implements
+	private static class WindowFoldFunction<IN, OUT> extends AbstractRichFunction implements
 			MapFunction<StreamWindow<IN>, StreamWindow<OUT>> {
 
 		private static final long serialVersionUID = 1L;
@@ -63,6 +66,11 @@ public class WindowFolder<IN, OUT> extends StreamMap<StreamWindow<IN>, StreamWin
 				outputWindow.add(accumulator);
 			}
 			return outputWindow;
+		}
+
+		@Override
+		public void setRuntimeContext(RuntimeContext t) {
+			FunctionUtils.setFunctionRuntimeContext(folder, t);
 		}
 
 	}
