@@ -372,7 +372,77 @@ public static final class MinDistanceMessenger {...}
 
 {% endhighlight %}
 
-### Migrating Spargel Code to Gelly
+### Configuring a Vertex-Centric Iteration
+A vertex-centric iteration can be configured using an `IterationConfiguration` object.
+Currently, the following parameters can be specified:
+
+* <strong>Name</strong>: The name for the vertex-centric iteration. The name is displayed in logs and messages 
+and can be specified using the `setName()` method.
+
+* <strong>Parallelism</strong>: The parallelism for the iteration. It can be set using the `setParallelism()` method.	
+
+* <strong>Solution set in unmanaged memory</strong>: Defines whether the solution set is kept in managed memory (Flink's internal way of keeping objects in serialized form) or as a simple object map. By default, the solution set runs in managed memory. This property can be set using the `setSolutionSetUnmanagedMemory()` method.
+
+* <strong>Aggregators</strong>: Iteration aggregators can be registered using the `registerAggregator()` method. An iteration aggregator combines
+all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `VertexUpdateFunction` and `MessagingFunction`.
+
+* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables](programming_guide.html#broadcast-variables) to the `VertexUpdateFunction` and `MessagingFunction`, using the `addBroadcastSetForUpdateFunction()` and `addBroadcastSetForMessagingFunction()` methods, respectively.
+
+{% highlight java %}
+
+Graph<Long, Double, Double> graph = ...
+
+// configure the iteration
+IterationConfiguration parameters = new IterationConfiguration();
+
+// set the iteration name
+parameters.setName("Gelly Iteration");
+
+// set the parallelism
+parameters.setParallelism(16);
+
+// register an aggregator
+parameters.registerAggregator("sumAggregator", new LongSumAggregator());
+
+// run the vertex-centric iteration, also passing the configuration parameters
+Graph<Long, Double, Double> result = 
+			graph.runVertexCentricIteration(
+			new VertexUpdater(), new Messenger(), maxIterations, parameters);
+
+// user-defined functions
+public static final class VertexUpdater extends VertexUpdateFunction {
+
+	LongSumAggregator aggregator = new LongSumAggregator();
+
+	public void preSuperstep() {
+	
+		// retrieve the Aggregator
+		aggregator = getIterationAggregator("sumAggregator");
+	}
+
+
+	public void updateVertex(Long vertexKey, Long vertexValue, MessageIterator inMessages) {
+		
+		//do some computation
+		Long partialValue = ...
+
+		// aggregate the partial value
+		aggregator.aggregate(partialValue);
+
+		// update the vertex value
+		setNewVertexValue(...);
+	}
+}
+
+public static final class Messenger extends MessagingFunction {...}
+
+{% endhighlight %}
+
+[Back to top](#top)
+
+Migrating Spargel Code to Gelly
+-----------
+
 Due to the natural mapping of Spargel components to Gelly components, applications can easily be migrated from one API to the other.
 General guidelines:
 * <strong>Vertex and Edge Abstractions</strong>: In Spargel, vertices and edges are defined using tuples (Tuple2 for vertices, Tuple2 for edges without values, Tuple3 for edges with values). Gelly presents a more intuitive vertex and edge representation by introducing the `Vertex` and `Edge` types. A `Vertex` is defined by an id and a value. If no value is provided, the value type should be set to `NullValue`. An `Edge` is defined by a source id,  a target id and a value. Since the source and target values are of the same type, only two type parameters are needed. If no value is provided, the value type should be set to `NullValue`.
@@ -472,72 +542,6 @@ The computation **terminates** after a specified *maximum number of supersteps* 
 <p class="text-center">
     <img alt="Spargel Example" width="75%" src="img/spargel_example.png" />
 </p>
-
-### Configuring a Vertex-Centric Iteration
-A vertex-centric iteration can be configured using an `IterationConfiguration` object.
-Currently, the following parameters can be specified:
-
-* <strong>Name</strong>: The name for the vertex-centric iteration. The name is displayed in logs and messages 
-and can be specified using the `setName()` method.
-
-* <strong>Parallelism</strong>: The parallelism for the iteration. It can be set using the `setParallelism()` method.	
-
-* <strong>Solution set in unmanaged memory</strong>: Defines whether the solution set is kept in managed memory (Flink's internal way of keeping objects in serialized form) or as a simple object map. By default, the solution set runs in managed memory. This property can be set using the `setSolutionSetUnmanagedMemory()` method.
-
-* <strong>Aggregators</strong>: Iteration aggregators can be registered using the `registerAggregator()` method. An iteration aggregator combines
-all aggregates globally once per superstep and makes them available in the next superstep. Registered aggregators can be accessed inside the user-defined `VertexUpdateFunction` and `MessagingFunction`.
-
-* <strong>Broadcast Variables</strong>: DataSets can be added as [Broadcast Variables](programming_guide.html#broadcast-variables) to the `VertexUpdateFunction` and `MessagingFunction`, using the `addBroadcastSetForUpdateFunction()` and `addBroadcastSetForMessagingFunction()` methods, respectively.
-
-{% highlight java %}
-
-Graph<Long, Double, Double> graph = ...
-
-// configure the iteration
-IterationConfiguration parameters = new IterationConfiguration();
-
-// set the iteration name
-parameters.setName("Gelly Iteration");
-
-// set the parallelism
-parameters.setParallelism(16);
-
-// register an aggregator
-parameters.registerAggregator("sumAggregator", new LongSumAggregator());
-
-// run the vertex-centric iteration, also passing the configuration parameters
-Graph<Long, Double, Double> result = 
-			graph.runVertexCentricIteration(
-			new VertexUpdater(), new Messenger(), maxIterations, parameters);
-
-// user-defined functions
-public static final class VertexUpdater extends VertexUpdateFunction {
-
-	LongSumAggregator aggregator = new LongSumAggregator();
-
-	public void preSuperstep() {
-	
-		// retrieve the Aggregator
-		aggregator = getIterationAggregator("sumAggregator");
-	}
-
-
-	public void updateVertex(Long vertexKey, Long vertexValue, MessageIterator inMessages) {
-		
-		//do some computation
-		Long partialValue = ...
-
-		// aggregate the partial value
-		aggregator.aggregate(partialValue);
-
-		// update the vertex value
-		setNewVertexValue(...);
-	}
-}
-
-public static final class Messenger extends MessagingFunction {...}
-
-{% endhighlight %}
 
 [Back to top](#top)
 
