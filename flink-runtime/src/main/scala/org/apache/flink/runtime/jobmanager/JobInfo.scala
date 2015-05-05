@@ -34,7 +34,7 @@ class JobInfo(val client: ActorRef, val start: Long){
 
   def duration: Long = {
     if(end != -1){
-      (end - start)/1000
+      end - start
     }else{
       -1
     }

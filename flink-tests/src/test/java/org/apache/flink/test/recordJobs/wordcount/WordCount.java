@@ -18,16 +18,13 @@
 
 package org.apache.flink.test.recordJobs.wordcount;
 
-import java.util.Iterator;
-import java.util.StringTokenizer;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.api.java.record.functions.ReduceFunction;
-import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.record.io.CsvOutputFormat;
 import org.apache.flink.api.java.record.io.TextInputFormat;
 import org.apache.flink.api.java.record.operators.FileDataSink;
@@ -40,6 +37,10 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
+
+import java.util.Iterator;
+import java.util.StringTokenizer;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Implements a word count which takes the input file and counts the number of
@@ -154,6 +155,6 @@ public class WordCount implements Program, ProgramDescription {
 		// This will execute the word-count embedded in a local context. replace this line by the commented
 		// succeeding line to send the job to a local installation or to a cluster for execution
 		JobExecutionResult result = LocalExecutor.execute(plan);
-		System.err.println("Total runtime: " + result.getNetRuntime());
+		System.err.println("Total runtime: " + result.getNetRuntime(TimeUnit.MILLISECONDS) + " ms");
 	}
 }

@@ -26,6 +26,7 @@ import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
@@ -53,6 +54,7 @@ public class SerializedJobExecutionResultTest {
 
 			assertEquals(origJobId, cloned.getJobId());
 			assertEquals(origTime, cloned.getNetRuntime());
+			assertEquals(origTime, cloned.getNetRuntime(TimeUnit.MILLISECONDS));
 			assertEquals(origMap, cloned.getSerializedAccumulatorResults());
 
 			// convert to deserialized result
@@ -62,7 +64,9 @@ public class SerializedJobExecutionResultTest {
 			assertEquals(origJobId, jResult.getJobID());
 			assertEquals(origJobId, jResultCopied.getJobID());
 			assertEquals(origTime, jResult.getNetRuntime());
+			assertEquals(origTime, jResult.getNetRuntime(TimeUnit.MILLISECONDS));
 			assertEquals(origTime, jResultCopied.getNetRuntime());
+			assertEquals(origTime, jResultCopied.getNetRuntime(TimeUnit.MILLISECONDS));
 
 			for (Map.Entry<String, SerializedValue<Object>> entry : origMap.entrySet()) {
 				String name = entry.getKey();

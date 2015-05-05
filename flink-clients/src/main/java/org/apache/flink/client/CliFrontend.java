@@ -609,7 +609,7 @@ public class CliFrontend {
 			}
 			if (execResult instanceof JobExecutionResult) {
 				JobExecutionResult result = (JobExecutionResult) execResult;
-				System.out.println("Job Runtime: " + result.getNetRuntime());
+				System.out.println("Job Runtime: " + result.getNetRuntime() + " ms");
 				Map<String, Object> accumulatorsResult = result.getAllAccumulatorResults();
 				if (accumulatorsResult.size() > 0) {
 					System.out.println("Accumulator Results: ");
