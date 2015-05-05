@@ -214,8 +214,8 @@ function processTMdata(json) {
 		tmRow = $("#"+tmRowIdCssName);
 		if(tmRow.length == 0) {
 		    // *-memory_stats div contains only the statistics where as chart_container-* div contains the graph
-		    var tmMemoryBox =  "<div id=\""+tmRowIdCssName+"-memory_stats"+"\">"+"</div>"+
-		                       "<button type=\"button\" class=\"btn btn-default\" id=\"graph_button-"+tm.instanceID+"\" onclick=\"hideShowGraph('"+tm.instanceID+"')\"></button>"+"<br>"+
+		    var tmMemoryBox =  "<button type=\"button\" class=\"btn btn-default\" id=\"graph_button-"+tm.instanceID+"\" onclick=\"hideShowGraph('"+tm.instanceID+"')\"></button>"+"<br>"+"<br>"+
+		                       "<div id=\""+tmRowIdCssName+"-memory_stats"+"\">"+"</div>"+
 		                       "<div class=\"chart_container\" id=\"chart_container-"+tm.instanceID+"\">"+
                                   "<div class=\"y_axis\" id=\"y_axis-"+tm.instanceID+"\"><p class=\"axis_label\">Memory</p></div>"+
                                   "<div class=\"chart\" id=\"chart-"+tm.instanceID+"\"><i>Waiting for first Heartbeat to arrive</i></div>"+
@@ -244,11 +244,16 @@ function processTMdata(json) {
 
         // html dump for memory statistics of task manager
         var tmMemStats = $("#"+tmRowIdCssName+"-memory_stats");
-        tmMemStats.html("<b>CPU Load</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-cpuLoad\"></span>% "+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_cpuLoad\"></span>%"+"<br>"+
-                        "<b>OS Load</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-osLoad\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_load\"></span>"+"<br>"+
-                        "<b>Memory.heap.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memHeapUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_heap_used\"></span>"+"<br>"+
-                        "<b>Memory.flink.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memFlinkUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_flink_used\"></span>"+"<br>"+
-                        "<b>Memory.non-heap.used</b> "+"<br>"+"Current: <span id=\""+tmRowIdCssName+"-memNonHeapUsed\"></span>"+"&emsp; &emsp; &emsp;"+"Avg: <span id=\""+tmRowIdCssName+"-avg_memory_non-heap_used\"></span>"+"<br><br>");
+        tmMemStats.html("<table><tr><td><b>CPU Load</b></td><td></td></tr>"+
+                        "<tr><td>Current: <span id=\""+tmRowIdCssName+"-cpuLoad\"></span>%</td>"+"<td>Avg: <span id=\""+tmRowIdCssName+"-avg_cpuLoad\"></span>%</td></tr>"+
+                        "<tr><td><b>OS Load</b></td><td></td></tr>"+
+                        "<tr><td>Current: <span id=\""+tmRowIdCssName+"-osLoad\"></span></td>"+"<td>Avg: <span id=\""+tmRowIdCssName+"-avg_load\"></span></td></tr>"+
+                        "<tr><td><b>Memory.heap.used</b></td><td></td></tr>"+
+                        "<tr><td>Current: <span id=\""+tmRowIdCssName+"-memHeapUsed\"></span></td>"+"<td>Avg: <span id=\""+tmRowIdCssName+"-avg_memory_heap_used\"></span></td></tr>"+
+                        "<tr><td><b>Memory.flink.used</b></td><td></td></tr>"+
+                        "<tr><td>Current: <span id=\""+tmRowIdCssName+"-memFlinkUsed\"></span></td>"+"<td>Avg: <span id=\""+tmRowIdCssName+"-avg_memory_flink_used\"></span></td></tr>"+
+                        "<tr><td><b>Memory.non-heap.used</b></td><td></td></tr>"+
+                        "<tr><td>Current: <span id=\""+tmRowIdCssName+"-memNonHeapUsed\"></span></td>"+"<td>Avg: <span id=\""+tmRowIdCssName+"-avg_memory_non-heap_used\"></span></td></tr></table>");
 
         // preserve the show/hide state of graph after update interval
         var graphElement =  $("#chart_container-"+tm.instanceID);

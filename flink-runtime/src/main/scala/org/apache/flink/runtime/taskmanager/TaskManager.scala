@@ -1899,15 +1899,17 @@ object TaskManager {
     // fetch the method to get process CPU load
     val getCPULoadMethod: Method = getMethodToFetchCPULoad()
 
+    // Log getProcessCpuLoad method not available for Java 6
+    if(getCPULoadMethod == null){
+      LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
+      "implementation for this Java runtime environment\n"+Thread.currentThread().getStackTrace)
+    }
+
     // define the fetchCPULoad method as per the fetched getCPULoadMethod
     val fetchCPULoad: (Any) => Double = if (getCPULoadMethod != null) {
       (obj: Any) => getCPULoadMethod.invoke(obj).asInstanceOf[Double]
     } else {
-      (obj: Any) => {
-        LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
-          "implementation for this Java runtime environment"+ Thread.currentThread().getStackTrace)
-        -1
-      }
+      (obj: Any) => -1
     }
 
     metricRegistry.register("cpuLoad", new Gauge[Double] {
@@ -1917,12 +1919,8 @@ object TaskManager {
             asInstanceOf[com.sun.management.OperatingSystemMXBean]
           return fetchCPULoad(osMXBean)
         } catch {
-          case t:Throwable => {
-            if (t.isInstanceOf[java.lang.ClassCastException]){
-              LOG.warn("Error casting to OperatingSystemMXBean",t)
-            } else {
-              LOG.warn("Error retrieving process CPU Load",t)
-            }
+          case t: Throwable => {
+            LOG.warn("Error retrieving CPU Load through OperatingSystemMXBean", t)
             return -1
           }
         }
