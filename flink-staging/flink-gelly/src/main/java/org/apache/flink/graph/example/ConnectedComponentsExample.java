@@ -119,6 +119,7 @@ public class ConnectedComponentsExample implements ProgramDescription {
 		return true;
 	}
 
+	@SuppressWarnings("serial")
 	private static DataSet<Edge<Long, NullValue>> getEdgesDataSet(ExecutionEnvironment env) {
 
 		if(fileOutput) {
