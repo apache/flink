@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.graph.library;
 
 import java.util.ArrayList;
@@ -31,7 +49,7 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 	}
 	
 	/**
-	 *	For each vertex v, the value is a hashmap including [k': s(v,k'), r(v, k'), a(k',v)] 
+	 * For each vertex v, the value is a hashmap including [k': s(v,k'), r(v, k'), a(k',v)] 
 	 * @param originalGraph
 	 * @return
 	 */
@@ -125,7 +143,6 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 				Vertex<Long, HashMap<Long, Tuple3<Double, Double, Double>>> vertex,
 				Iterable<Tuple2<Edge<Long, Double>, Vertex<Long, HashMap<Long, Tuple3<Double, Double, Double>>>>> neighbors,
 				Collector<Vertex<Long, Long>> out) throws Exception {
-			// TODO Auto-generated method stub
 			/*Get Evidence*/
 			HashMap<Long, Tuple3<Double, Double, Double>> hmap = vertex.getValue();
 			Double selfEvidence = hmap.get(vertex.getId()).f1 + hmap.get(vertex.getId()).f2;
@@ -155,41 +172,7 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 
 		
 	}
-	
-//	public static final class NeighborSelection
-//		implements NeighborsFunctionWithVertexValue<Long, HashMap<Long, Tuple3<Double, Double, Double>>, Double, Vertex<Long, Long>>{
-//		@Override
-//		public Vertex<Long, Long> iterateNeighbors(
-//				Vertex<Long, HashMap<Long, Tuple3<Double, Double, Double>>> vertex,
-//				Iterable<Tuple2<Edge<Long, Double>, Vertex<Long, HashMap<Long, Tuple3<Double, Double, Double>>>>> neighbors)
-//				throws Exception {
-//			/*Get Evidence*/
-//			HashMap<Long, Tuple3<Double, Double, Double>> hmap = vertex.getValue();
-//			Double selfEvidence = hmap.get(vertex.getId()).f1 + hmap.get(vertex.getId()).f2;
-//			if (selfEvidence > 0){
-//				return new Vertex<Long, Long>(vertex.getId(), vertex.getId());
-//			}else{
-//				Double maxSimilarity = Double.NEGATIVE_INFINITY;
-//				Long belongExemplar = vertex.getId();
-//				for (Tuple2<Edge<Long, Double>, Vertex<Long, HashMap<Long, Tuple3<Double, Double, Double>>>> neigbor: neighbors){
-//					Long neigborId = neigbor.f1.getId();
-//					HashMap<Long, Tuple3<Double, Double, Double>> neigborMap = neigbor.f1.getValue();
-//					Double neigborEvidence = neigborMap.get(neigborId).f1 + neigborMap.get(neigborId).f2;
-//					//Only the neighbor vertex with positive evidence can be possible exemplar of current vertex
-//					if (neigborEvidence > 0 ){
-//						Double neigborSimilarity = neigbor.f0.getValue();
-//						if (neigborSimilarity > maxSimilarity){
-//							belongExemplar = neigborId;
-//							maxSimilarity = neigborSimilarity;
-//						}
-//					}
-//				}
-//				return new Vertex<Long, Long>(vertex.getId(), belongExemplar);
-//			}
-//		}
-//	}
 
-	/***************************************************************************************************/
 	/*Update r(i,k) for each vertex*/
 	public static final class VertexUpdater 
 		extends VertexUpdateFunction<Long, HashMap<Long, Tuple3<Double, Double,Double>>, Tuple2<Long, Double>>{
@@ -209,9 +192,9 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 			if (step % 2 == 1){ 
 				Double selfSum = vertexValue.get(vertexKey).f0 + vertexValue.get(vertexKey).f2;
 				/*The max a(v, k) + s(v, k)*/
- 				Double maxSum = selfSum;
- 				Long maxKey = vertexKey;
- 				/*The second max a(v, k) + s(v, k)*/
+				Double maxSum = selfSum;
+				Long maxKey = vertexKey;
+				/*The second max a(v, k) + s(v, k)*/
  				Double secondMaxSum = Double.NEGATIVE_INFINITY;
 				for (Tuple2<Long, Double> msg: inMessages){
 					Long adjacentVertex = msg.f0;
@@ -288,8 +271,9 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 				/*Even step: propagate responsibility*/
 				for (Edge<Long, Double> e: getOutgoingEdges()){
 					Long dest = e.getTarget();
-					if (dest != vertexKey)
+					if (dest != vertexKey){
 						sendMessageTo(dest, new Tuple2<Long, Double>(vertexKey, vertexValue.get(dest).f1));
+					}
 				}
 			}
 				
