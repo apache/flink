@@ -1897,18 +1897,15 @@ object TaskManager {
     })
     
     // Preprocessing steps for registering cpuLoad
-    // fetch the method to get process CPU load
-    val getCPULoadMethod: Method = getMethodToFetchCPULoad()
-
-    // define the fetchCPULoad method as per the fetched getCPULoadMethod
     // dummy initialisation
     var fetchCPULoad:(Any) => Double = (obj:Any) => -1
 
-    if(getCPULoadMethod != null){
-      fetchCPULoad = (obj:Any) => getCPULoadMethod.invoke(obj).asInstanceOf[Double]
-    } else {
+    // define the fetchCPULoad method as per the fetched getProcessCpuLoad method
+    getMethodToFetchCPULoad() match {
+      case Some(method) => fetchCPULoad = (obj:Any) => method.asInstanceOf[Method].invoke(obj).
+        asInstanceOf[Double]
       // Log getProcessCpuLoad method not available for Java 6
-      LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
+      case None => LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
         "implementation for this Java runtime environment\n" + Thread.currentThread().getStackTrace)
     }
 
@@ -1917,11 +1914,11 @@ object TaskManager {
         try{
           val osMXBean = ManagementFactory.getOperatingSystemMXBean().
             asInstanceOf[com.sun.management.OperatingSystemMXBean]
-          return fetchCPULoad(osMXBean)
+          fetchCPULoad(osMXBean)
         } catch {
           case t: Throwable => {
             LOG.warn("Error retrieving CPU Load through OperatingSystemMXBean", t)
-            return -1
+            -1
           }
         }
       }
@@ -1931,16 +1928,16 @@ object TaskManager {
 
   /**
    * Fetches getProcessCpuLoad method if available in the
-   *  OperatingSystemMXBean implementation else returns null
+   *  OperatingSystemMXBean implementation else returns None
    * @return
    */
-  private def getMethodToFetchCPULoad(): Method = {
+  private def getMethodToFetchCPULoad(): Option[Method] = {
     val methodsList = classOf[com.sun.management.OperatingSystemMXBean].getMethods()
-    for(method <- methodsList){
-      if(method.getName() == "getProcessCpuLoad") {
-        return method
-      }
+    val method = methodsList.filter(_.getName == "getProcessCpuLoad")
+    if(method.nonEmpty){
+      Some(method.apply(0))
+    } else {
+      None
     }
-    return null
   }
 }
