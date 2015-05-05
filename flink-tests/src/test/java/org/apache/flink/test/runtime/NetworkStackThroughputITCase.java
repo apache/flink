@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 @Ignore
 public class NetworkStackThroughputITCase {
@@ -143,7 +144,7 @@ public class NetworkStackThroughputITCase {
 				int dataVolumeGb = this.config.getInteger(DATA_VOLUME_GB_CONFIG_KEY, 1);
 
 				long dataVolumeMbit = dataVolumeGb * 8192;
-				long runtimeSecs = getJobExecutionResult().getNetRuntime() / 1000;
+				long runtimeSecs = getJobExecutionResult().getNetRuntime(TimeUnit.SECONDS);
 
 				int mbitPerSecond = (int) (((double) dataVolumeMbit) / runtimeSecs);
 

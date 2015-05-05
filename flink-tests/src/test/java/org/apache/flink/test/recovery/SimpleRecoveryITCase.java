@@ -96,7 +96,7 @@ public class SimpleRecoveryITCase {
 
 				try {
 					JobExecutionResult res = env.execute();
-					String msg = res == null ? "null result" : "result in " + res.getNetRuntime();
+					String msg = res == null ? "null result" : "result in " + res.getNetRuntime() + " ms";
 					fail("The program should have failed, but returned " + msg);
 				}
 				catch (ProgramInvocationException e) {
