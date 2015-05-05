@@ -61,9 +61,9 @@ public class JobExecutionResult extends JobSubmissionResult {
      * @param desiredUnit the unit of the <tt>NetRuntime</tt>
      * @return The net execution time in the desired unit.
      */
-    public long elapsedNetRuntime(TimeUnit desiredUnit) {
-        return desiredUnit.convert(getNetRuntime(), TimeUnit.MILLISECONDS);
-    }
+	public long elapsedNetRuntime(TimeUnit desiredUnit) {
+		return desiredUnit.convert(getNetRuntime(), TimeUnit.MILLISECONDS);
+	}
 
 	/**
 	 * Gets the accumulator with the given name. Returns {@code null}, if no accumulator with

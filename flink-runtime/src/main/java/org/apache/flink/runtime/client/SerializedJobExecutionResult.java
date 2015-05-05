@@ -71,9 +71,9 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
      * @param desiredUnit the unit of the <tt>NetRuntime</tt>
      * @return The net execution time in the desired unit.
      */
-    public long elapsedNetRuntime(TimeUnit desiredUnit) {
-        return desiredUnit.convert(getNetRuntime(), TimeUnit.MILLISECONDS);
-    }
+	public long elapsedNetRuntime(TimeUnit desiredUnit) {
+		return desiredUnit.convert(getNetRuntime(), TimeUnit.MILLISECONDS);
+	}
 
 	public Map<String, SerializedValue<Object>> getSerializedAccumulatorResults() {
 		return this.accumulatorResults;
