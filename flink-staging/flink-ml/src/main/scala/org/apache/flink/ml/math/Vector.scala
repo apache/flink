@@ -21,7 +21,7 @@ package org.apache.flink.ml.math
 /** Base trait for Vectors
   *
   */
-trait Vector {
+trait Vector extends Serializable {
 
   /** Number of elements in a vector
     *
@@ -70,5 +70,11 @@ trait Vector {
     } else {
       false
     }
+  }
+}
+
+object Vector{
+  implicit val canCopy = new CanCopy[Vector] {
+    override def copy(value: Vector): Vector = value.copy
   }
 }

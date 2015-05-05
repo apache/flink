@@ -49,7 +49,7 @@ case class SparseVector(
     *
     * @return Copy of the vector instance
     */
-  override def copy: Vector = {
+  override def copy: SparseVector = {
     new SparseVector(size, indices.clone, data.clone)
   }
 

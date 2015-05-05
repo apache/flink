@@ -24,12 +24,12 @@ import org.apache.flink.api.scala._
  * Skeleton for a Flink Job.
  *
  * For a full example of a Flink Job, see the WordCountJob.scala file in the
- * same package/directory or have a look at the website.
+ * same pipeline/directory or have a look at the website.
  *
  * You can also generate a .jar file that you can submit on your Flink
  * cluster. Just type
  * {{{
- *   mvn clean package
+ *   mvn clean pipeline
  * }}}
  * in the projects root directory. You will find the jar in
  * target/flink-quickstart-0.1-SNAPSHOT-Sample.jar

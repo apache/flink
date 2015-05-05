@@ -28,7 +28,7 @@ under the License.
 		<fileSet>
 			<directory>${project.build.testOutputDirectory}</directory>
 			<outputDirectory>/</outputDirectory>
-			<!--modify/add include to match your package(s) -->
+			<!--modify/add include to match your pipeline(s) -->
 			<includes>
 				<include>org/apache/flink/test/classloading/jar/KMeansForTest.class</include>
 				<include>org/apache/flink/test/classloading/jar/KMeansForTest$*.class</include>

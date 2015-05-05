@@ -24,12 +24,12 @@ import org.apache.flink.tez.client.LocalTezEnvironment;
  * Skeleton for a Flink on Tez Job running using Tez local mode.
  *
  * For a full example of a Flink  on TezJob, see the WordCountJob.java file in the
- * same package/directory or have a look at the website.
+ * same pipeline/directory or have a look at the website.
  *
  * You can also generate a .jar file that you can submit on your Flink
  * cluster.
  * Just type
- * 		mvn clean package
+ * 		mvn clean pipeline
  * in the projects root directory.
  * You will find the jar in
  * 		target/flink-quickstart-0.1-SNAPSHOT-Sample.jar

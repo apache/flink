@@ -130,7 +130,7 @@ under the License.
 			</excludes>
 		</fileSet>
 		<fileSet>
-			<!-- copy python package -->
+			<!-- copy python pipeline -->
 			<directory>../flink-staging/flink-language-binding/flink-python/src/main/python/org/apache/flink/languagebinding/api/python</directory>
 			<outputDirectory>resources/python/</outputDirectory>
 			<fileMode>0755</fileMode>
