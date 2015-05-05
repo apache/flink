@@ -45,6 +45,7 @@ import org.apache.flink.util.Collector;
  */
 public class GSAPageRank implements ProgramDescription {
 
+	@SuppressWarnings("serial")
 	public static void main(String[] args) throws Exception {
 
 		if(!parseParameters(args)) {

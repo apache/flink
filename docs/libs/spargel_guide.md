@@ -32,8 +32,10 @@ This vertex-centric view makes it easy to express a large class of graph problem
 * This will be replaced by the TOC
 {:toc}
 
-Spargel API - DEPRECATED (Please check out new [Gelly API](gelly_guide.html) for graph processing with Apache Flink)
+Spargel API - DEPRECATED
 -----------
+The Spargel API is Deprecated. Please check out the new [Gelly API](gelly_guide.html) for graph processing with Apache Flink. If you want to port your Spargel code into Gelly,
+please check the [migration guide](gelly_guide.html#migrating-spargel-code-to-gelly).
 
 The Spargel API is part of the *addons* Maven project. All relevant classes are located in the *org.apache.flink.spargel.java* package.
 
