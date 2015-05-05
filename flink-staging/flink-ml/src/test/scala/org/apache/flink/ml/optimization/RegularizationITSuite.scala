@@ -43,8 +43,6 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val regularizationParameter = 0.0
     val gradient = DenseVector(0.0)
 
-
-
     regType.takeStep(weightVector.weights,  gradient, effectiveStepsize, 0.0)
 
     weightVector.weights shouldEqual weightVector.weights
