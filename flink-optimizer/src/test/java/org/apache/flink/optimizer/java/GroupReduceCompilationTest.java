@@ -22,6 +22,7 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.util.CompilerTestBase;
@@ -51,7 +52,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			data.reduceGroup(new RichGroupReduceFunction<Double, Double>() {
 				public void reduce(Iterable<Double> values, Collector<Double> out) {}
 			}).name("reducer")
-			.print();
+			.output(new DiscardingOutputFormat<Double>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -97,7 +98,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
-			reduced.print();
+			reduced.output(new DiscardingOutputFormat<Long>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -148,7 +149,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
 				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
-			.print();
+			.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -199,7 +200,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
-			reduced.print();
+			reduced.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -257,7 +258,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
 				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
-			.print();
+			.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -317,7 +318,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			}).name("reducer");
 			
 			reduced.setCombinable(true);
-			reduced.print();
+			reduced.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

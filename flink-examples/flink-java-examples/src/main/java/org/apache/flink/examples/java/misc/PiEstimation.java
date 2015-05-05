@@ -70,8 +70,6 @@ public class PiEstimation implements java.io.Serializable {
 
 		System.out.println("We estimate Pi to be:");
 		pi.print();
-
-		env.execute();
 	}
 
 	//*************************************************************************

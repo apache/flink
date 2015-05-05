@@ -94,6 +94,9 @@ import com.google.common.base.Preconditions;
  */
 public abstract class ExecutionEnvironment {
 
+
+	protected JobExecutionResult lastJobExecutionResult;
+
 	private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 	
 	/** The environment of the context (local by default, cluster if invoked through command line) */
@@ -231,7 +234,15 @@ public abstract class ExecutionEnvironment {
 	public UUID getId() {
 		return this.executionId;
 	}
-	
+
+	/**
+	 * Returns the {@link org.apache.flink.api.common.JobExecutionResult} of the last executed job.
+	 */
+	public JobExecutionResult getLastJobExecutionResult(){
+		return this.lastJobExecutionResult;
+	}
+
+
 	/**
 	 * Gets the UUID by which this environment is identified, as a string.
 	 * 

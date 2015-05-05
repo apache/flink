@@ -141,8 +141,8 @@ public class TachyonFileSystemWrapperTest {
 			IOUtils.copy(inStream, writer);
 			String resultString = writer.toString();
 
-			Assert.assertEquals("hello 10\n" +
-					"tachyon 10\n", resultString);
+			Assert.assertEquals("(hello,10)\n" +
+					"(tachyon,10)\n", resultString);
 
 		} catch(Exception e) {
 			e.printStackTrace();

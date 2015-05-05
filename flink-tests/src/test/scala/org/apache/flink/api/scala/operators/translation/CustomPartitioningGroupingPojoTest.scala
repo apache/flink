@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.operators.translation
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.junit.Assert._
 import org.junit.Test
@@ -41,7 +42,7 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
       data
           .groupBy("a").withPartitioner(new TestPartitionerInt())
           .reduce( (a,b) => a )
-          .print()
+          .output(new DiscardingOutputFormat[Pojo2])
       
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -72,7 +73,7 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
       data
           .groupBy("a").withPartitioner(new TestPartitionerInt())
           .reduceGroup( iter => Seq(iter.next) )
-          .print()
+          .output(new DiscardingOutputFormat[Seq[Pojo2]])
           
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -102,7 +103,7 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
           .groupBy("a").withPartitioner(new TestPartitionerInt())
           .sortGroup("b", Order.ASCENDING)
           .reduceGroup( iter => Seq(iter.next) )
-          .print()
+          .output(new DiscardingOutputFormat[Seq[Pojo3]])
           
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -133,7 +134,7 @@ class CustomPartitioningGroupingPojoTest extends CompilerTestBase {
           .sortGroup("b", Order.ASCENDING)
           .sortGroup("c", Order.DESCENDING)
           .reduceGroup( iter => Seq(iter.next) )
-          .print()
+          .output(new DiscardingOutputFormat[Seq[Pojo4]])
           
       val p = env.createProgramPlan()
       val op = compileNoStats(p)

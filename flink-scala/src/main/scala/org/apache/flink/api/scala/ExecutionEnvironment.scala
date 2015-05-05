@@ -131,6 +131,13 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.getId
   }
 
+
+  /**
+   * retrieves JobExecutionResult from last job execution (for "eager" print)
+   * @return JobExecutionResult form last job execution
+   */
+  def getLastJobExecutionResult = javaEnv.getLastJobExecutionResult
+
   /**
    * Gets the UUID by which this environment is identified, as a string.
    */

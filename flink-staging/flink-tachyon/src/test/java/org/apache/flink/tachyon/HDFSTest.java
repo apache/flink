@@ -110,8 +110,8 @@ public class HDFSTest {
 			IOUtils.copy(inStream, writer);
 			String resultString = writer.toString();
 
-			Assert.assertEquals("hdfs 10\n" +
-					"hello 10\n", resultString);
+			Assert.assertEquals("(hdfs,10)\n" +
+					"(hello,10)\n", resultString);
 			inStream.close();
 
 		} catch (IOException e) {

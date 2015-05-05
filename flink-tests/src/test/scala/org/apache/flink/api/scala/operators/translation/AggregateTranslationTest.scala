@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.GenericDataSourceBase
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase
 
 import org.apache.flink.api.java.aggregation.Aggregations
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.scala._
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.Test
@@ -37,7 +38,8 @@ class AggregateTranslationTest {
 
       val initialData = env.fromElements((3.141592, "foobar", 77L))
 
-      initialData.groupBy(0).aggregate(Aggregations.MIN, 1).and(Aggregations.SUM, 2).print()
+      initialData.groupBy(0).aggregate(Aggregations.MIN, 1).and(Aggregations.SUM, 2)
+        .output(new DiscardingOutputFormat[(Double, String, Long)])
 
       val p: Plan = env.createProgramPlan()
       val sink = p.getDataSinks.iterator.next
@@ -55,6 +57,7 @@ class AggregateTranslationTest {
         System.err.println(e.getMessage)
         e.printStackTrace()
         fail("Test caused an error: " + e.getMessage)
+
       }
     }
   }

@@ -121,12 +121,12 @@ public class EnumTrianglesOpt {
 		// emit result
 		if(fileOutput) {
 			triangles.writeAsCsv(outputPath, "\n", ",");
+			// execute program
+			env.execute("Triangle Enumeration Example");
 		} else {
 			triangles.print();
 		}
-		
-		// execute program
-		env.execute("Triangle Enumeration Example");
+
 		
 	}
 	

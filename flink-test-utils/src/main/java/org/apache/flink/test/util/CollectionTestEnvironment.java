@@ -25,8 +25,6 @@ import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 
 public class CollectionTestEnvironment extends CollectionEnvironment {
 
-	protected JobExecutionResult latestResult;
-
 	@Override
 	public JobExecutionResult execute() throws Exception {
 		return execute("test job");
@@ -35,7 +33,7 @@ public class CollectionTestEnvironment extends CollectionEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		JobExecutionResult result = super.execute(jobName);
-		this.latestResult = result;
+		this.lastJobExecutionResult = result;
 		return result;
 	}
 

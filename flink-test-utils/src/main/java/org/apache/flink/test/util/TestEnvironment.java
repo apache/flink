@@ -36,9 +36,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 	private final ForkableFlinkMiniCluster executor;
 
-	protected JobExecutionResult latestResult;
-
-
 	public TestEnvironment(ForkableFlinkMiniCluster executor, int parallelism) {
 		this.executor = executor;
 		setParallelism(parallelism);
@@ -54,8 +51,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 			
 			SerializedJobExecutionResult result = executor.submitJobAndWait(jobGraph, false);
 
-			this.latestResult = result.toJobExecutionResult(getClass().getClassLoader());
-			return this.latestResult;
+			this.lastJobExecutionResult = result.toJobExecutionResult(getClass().getClassLoader());
+			return this.lastJobExecutionResult;
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

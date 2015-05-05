@@ -22,6 +22,7 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
@@ -53,7 +54,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					return value1 + value2;
 				}
 			}).name("reducer")
-			.print();
+			.output(new DiscardingOutputFormat<Double>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -98,7 +99,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					return value1 + value2;
 				}
 			}).name("reducer")
-			.print();
+			.output(new DiscardingOutputFormat<Long>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -151,7 +152,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					return null;
 				}
 			}).name("reducer")
-			.print();
+			.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -211,7 +212,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 					return null;
 				}
 			}).name("reducer")
-			.print();
+			.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

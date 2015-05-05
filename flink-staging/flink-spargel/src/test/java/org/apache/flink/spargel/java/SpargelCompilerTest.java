@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
@@ -59,7 +60,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 				DataSet<Tuple2<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
 				DataSet<Tuple2<Long, Long>> result = initialVertices.runOperation(VertexCentricIteration.withPlainEdges(edges, new CCUpdater(), new CCMessager(), 100));
 				
-				result.print();
+				result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			}
 			
 			Plan p = env.createProgramPlan("Spargel Connected Components");
@@ -134,7 +135,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 				
 				DataSet<Tuple2<Long, Long>> result = initialVertices.runOperation(vcIter);
 				
-				result.print();
+				result.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			}
 			
 			Plan p = env.createProgramPlan("Spargel Connected Components");

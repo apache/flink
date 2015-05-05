@@ -47,8 +47,6 @@ object PiEstimation {
     println("We estimate Pi to be:")
 
     pi.print()
-
-    env.execute("PiEstimation example")
   }
 
 }

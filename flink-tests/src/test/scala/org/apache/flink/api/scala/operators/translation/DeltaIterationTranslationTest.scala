@@ -20,6 +20,7 @@ package org.apache.flink.api.scala.operators.translation
 import org.apache.flink.api.common.functions.{RichCoGroupFunction, RichMapFunction,
 RichJoinFunction}
 import org.apache.flink.api.common.operators.GenericDataSinkBase
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.operators.translation.WrappingFunction
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -67,7 +68,7 @@ class DeltaIterationTranslationTest {
         .setParallelism(ITERATION_PARALLELISM)
         .registerAggregator(AGGREGATOR_NAME, new LongSumAggregator)
 
-      result.print()
+      result.output(new DiscardingOutputFormat[(Double, Long, String)])
       result.writeAsText("/dev/null")
 
       val p: Plan = env.createProgramPlan(JOB_NAME)

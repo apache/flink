@@ -27,6 +27,7 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -34,7 +35,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.testfunctions.DummyReducer;
-import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
@@ -53,7 +54,7 @@ public class GroupingKeySelectorTranslationTest extends CompilerTestBase {
 			data.groupBy(new TestKeySelector<Tuple2<Integer,Integer>>())
 				.withPartitioner(new TestPartitionerInt())
 				.reduce(new DummyReducer<Tuple2<Integer,Integer>>())
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -84,8 +85,8 @@ public class GroupingKeySelectorTranslationTest extends CompilerTestBase {
 			
 			data.groupBy(new TestKeySelector<Tuple2<Integer,Integer>>())
 				.withPartitioner(new TestPartitionerInt())
-				.reduceGroup(new IdentityGroupReducerCombinable<Tuple2<Integer,Integer>>())
-				.print();
+				.reduceGroup(new IdentityGroupReducer<Tuple2<Integer,Integer>>())
+				.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -115,8 +116,8 @@ public class GroupingKeySelectorTranslationTest extends CompilerTestBase {
 			data.groupBy(new TestKeySelector<Tuple3<Integer,Integer,Integer>>())
 				.withPartitioner(new TestPartitionerInt())
 				.sortGroup(new TestKeySelector<Tuple3<Integer, Integer, Integer>>(), Order.ASCENDING)
-				.reduceGroup(new IdentityGroupReducerCombinable<Tuple3<Integer,Integer,Integer>>())
-				.print();
+				.reduceGroup(new IdentityGroupReducer<Tuple3<Integer,Integer,Integer>>())
+				.output(new DiscardingOutputFormat<Tuple3<Integer, Integer, Integer>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

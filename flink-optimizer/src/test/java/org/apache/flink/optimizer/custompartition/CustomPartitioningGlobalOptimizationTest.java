@@ -26,13 +26,14 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
@@ -57,8 +58,8 @@ public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {
 				.withPartitioner(partitioner);
 
 			joined.groupBy(1).withPartitioner(partitioner)
-				.reduceGroup(new IdentityGroupReducerCombinable<Tuple3<Long,Long,Long>>())
-				.print();
+				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>())
+				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

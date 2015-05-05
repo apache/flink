@@ -96,12 +96,12 @@ object KMeans {
 
     if (fileOutput) {
       clusteredPoints.writeAsCsv(outputPath, "\n", " ")
+      env.execute("Scala KMeans Example")
     }
     else {
       clusteredPoints.print()
     }
 
-    env.execute("Scala KMeans Example")
   }
 
   private def parseParameters(programArguments: Array[String]): Boolean = {

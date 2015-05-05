@@ -29,6 +29,7 @@ import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -54,7 +55,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 				public Tuple3<Double, StringValue, LongValue> reduce(Tuple3<Double, StringValue, LongValue> value1, Tuple3<Double, StringValue, LongValue> value2) {
 					return value1;
 				}
-			}).print();
+			}).output(new DiscardingOutputFormat<Tuple3<Double, StringValue, LongValue>>());
 			
 			Plan p = env.createProgramPlan();
 			
@@ -96,7 +97,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 						return value1;
 					}
 				})
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Double, StringValue, LongValue>>());
 			
 			Plan p = env.createProgramPlan();
 			
@@ -143,7 +144,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 						return value1;
 					}
 				}).setParallelism(4)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple3<Double, StringValue, LongValue>>());
 			
 			Plan p = env.createProgramPlan();
 			
