@@ -440,6 +440,111 @@ public static final class Messenger extends MessagingFunction {...}
 
 [Back to top](#top)
 
+Migrating Spargel Code to Gelly
+-----------
+
+Due to the natural mapping of Spargel components to Gelly components, applications can easily be migrated from one API to the other.
+General guidelines:
+* <strong>Vertex and Edge Abstractions</strong>: In Spargel, vertices and edges are defined using tuples (Tuple2 for vertices, Tuple2 for edges without values, Tuple3 for edges with values). Gelly presents a more intuitive vertex and edge representation by introducing the `Vertex` and `Edge` types. A `Vertex` is defined by an id and a value. If no value is provided, the value type should be set to `NullValue`. An `Edge` is defined by a source id,  a target id and a value. Since the source and target values are of the same type, only two type parameters are needed. If no value is provided, the value type should be set to `NullValue`.
+
+* <strong>Methods for Plain Edges and for Valued Edges</strong>: In Spargel, there are separate methods for edges with values and edges without values when running the vertex centric iteration (i.e. `withValuedEdges()`, `withPlainEdges()`). In Gelly, this distinction no longer needs to be made because an edge with no value will simply have a `NullValue` type.
+
+* <strong>OutgoingEdge versus Edge</strong>: Spargel's `OutgoingEdge` is replaced by `Edge` in Gelly.
+
+* <strong>Running a Vertex Centric Iteration</strong>: In Spargel, an iteration is ran by calling the `runOperation()` method on a `VertexCentricIteration`. The edge type (plain or valued) dictates the method to be called. The arguments are: a data set of edges, the vertex update function, the messaging function and the maximum number of iterations. The result is a DataSet<Tuple2<vertexId, vertexValue>> representing the updated vertices.
+In Gelly, an iteration is ran by calling `runVertexCentricIteration()` on a graph. The parameters given to this method are the vertex update function, the messaging function and the maximum number of iterations. The result is a new graph with updated vertex values.
+
+* <strong>Configuring a Vertex Centric Iteration</strong>: In Spargel, an iteration is configured by directly setting a set of parameters on the VertexCentricIteration instance (e.g. `iteration.setName("Spargel Iteration")`). In Gelly, a vertex-centric iteration is configured using the `IterationConfiguration` object (e.g. iterationConfiguration.setName("Gelly Iteration")). An instance of this object is then passed as a final parameter to the `runVertexCentricIteration()` method.
+
+* <strong>Record API</strong>: Spargel's Record API was completely removed from Gelly.
+
+In the following section, we present a step-by-step tutorial for moving the connected components algorithm from Spargel to Gelly.
+
+In Spargel, the edges and vertices are defined by a `DataSet<Tuple2<IdType, EdgeValue>>` and a `DataSet<Tuple2<IdType, VertexValue>>` respectively.
+
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+DataSet<Tuple2<Long, Long>> edges = ...
+DataSet<Tuple2<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
+
+DataSet<Tuple2<Long, Long>> result = initialVertices.runOperation(VertexCentricIteration.withPlainEdges(edges, new CCUpdater(), new CCMessenger(), maxIterations));
+
+result.print();
+env.execute("Spargel Connected Components");
+{% endhighlight %}
+
+In this algorithm, initially, each vertex has its own ID as a value (is in its own component).
+Hence, the need for `IdAssigner()` user defined function which is simply a map that takes a value and creates a tuple (value,value) out of it.
+
+<p class="text-center">
+    <img alt="Spargel Example Input" width="75%" src="img/spargel_example_input.png" />
+</p>
+
+In Gelly, the edges and vertices have a more intuitive definition: they are represented by separate types `Edge`, `Vertex`.
+After defining the edge data set, we can create a Graph from it.
+
+{% highlight java %}
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+DataSet<Edge<Long, NullValue>> edges = ...
+
+Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return value;
+			}
+		}, env);
+
+DataSet<Vertex<Long, Long>> result = graph.runVertexCentricIteration(new CCUpdater(),
+				new CCMessenger(), maxIterations).getVertices();
+
+result.print();
+env.execute("Gelly Connected Components");
+{% endhighlight %}
+
+Notice that when assigning the initial vertex IDs, there is no need to perform a separate map operation. The value is specified directly in the `fromDataSet()` method.
+Instead of calling `runOperation()` on the set of vertices, `runVertexCentricIteration()` is called on the graph instance.
+As previously stated, `runVertexCentricIteration` returns a new graph with the updated vertex values. In order to retrieve the result (since for this algorithm we are only interested in the vertex ids and their corresponding values), we will call the `getVertices()` method.
+
+In the connected components algorithm, the vertices propagate their current component ID in iterations, each time adopting a new value from the received neighbor IDs, provided that the value is smaller than the current minimum.
+To this end, we iterate over all received messages and update the vertex value, if necessary:
+
+{% highlight java %}
+public static final class CCUpdater extends VertexUpdateFunction<Long, Long, Long> {
+	@Override
+	public void updateVertex(Long vertexKey, Long vertexValue, MessageIterator<Long> inMessages) {
+		long min = Long.MAX_VALUE;
+		for (long msg : inMessages) {
+			min = Math.min(min, msg);
+		}
+		if (min < vertexValue) {
+			setNewVertexValue(min);
+		}
+	}
+}
+{% endhighlight %}
+
+The **messages in each superstep** consist of the **current component ID** seen by the vertex:
+{% highlight java %}
+public static final class CCMessenger extends MessagingFunction<Long, Long, Long, NullValue> {
+	@Override
+	public void sendMessages(Long vertexId, Long componentId) {
+		sendMessageToAllNeighbors(componentId);
+	}
+}
+{% endhighlight %}
+
+The fact that the two names for the `VertexUpdateFunction` and for the `MessagingFunction`: `CCUpdater` and `CCMessenger` coincide in Spargel's `runOperation()` and in Gelly's `runVertexCentricIteration()` implies that the classes defined for the Spargel algortihm remain unchanged in Gelly.
+
+Similarly to Spargel, if the value of a vertex does not change during a superstep, it will **not send** any messages in the superstep. This allows to do incremental updates to the **hot (changing) parts** of the graph, while leaving **cold (steady) parts** untouched.
+
+The computation **terminates** after a specified *maximum number of supersteps* **-OR-** when the *vertex states stop changing*.
+
+<p class="text-center">
+    <img alt="Spargel Example" width="75%" src="img/spargel_example.png" />
+</p>
+
+[Back to top](#top)
+
 Graph Validation
 -----------
 
