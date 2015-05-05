@@ -33,8 +33,8 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
-import org.apache.flink.streaming.runtime.io.BarrierBuffer;
 import org.apache.flink.streaming.runtime.tasks.StreamingSuperstep;
+
 import org.junit.Test;
 
 public class BarrierBufferTest {
@@ -201,7 +201,7 @@ public class BarrierBufferTest {
 	}
 
 	protected static BufferOrEvent createSuperstep(long id, int channel) {
-		return new BufferOrEvent(new StreamingSuperstep(id), channel);
+		return new BufferOrEvent(new StreamingSuperstep(id, System.currentTimeMillis()), channel);
 	}
 
 	protected static BufferOrEvent createBuffer(int channel) {

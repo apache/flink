@@ -45,7 +45,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.BarrierTransceiver;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCommittingOperator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointedOperator;
 import org.apache.flink.runtime.jobgraph.tasks.OperatorStateCarrier;
@@ -57,6 +56,7 @@ import org.apache.flink.runtime.state.StateHandle;
 
 import org.apache.flink.runtime.state.StateUtils;
 import org.apache.flink.runtime.util.SerializedValue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -867,23 +867,6 @@ public class Task implements Runnable {
 						}
 						catch (Throwable t) {
 							logger.error("Error while triggering checkpoint for " + taskName, t);
-						}
-					}
-				};
-				executeAsyncCallRunnable(runnable, "Checkpoint Trigger");
-			}
-			else if (invokable instanceof BarrierTransceiver) {
-				final BarrierTransceiver barrierTransceiver = (BarrierTransceiver) invokable;
-				final Logger logger = LOG;
-				
-				Runnable runnable = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							barrierTransceiver.broadcastBarrierFromSource(checkpointID);
-						}
-						catch (Throwable t) {
-							logger.error("Error while triggering checkpoint barriers", t);
 						}
 					}
 				};

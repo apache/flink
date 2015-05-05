@@ -28,6 +28,7 @@ import com.google.common.base.Preconditions;
 import kafka.consumer.ConsumerConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.OperatorState;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.runtime.tasks.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.ConnectorSource;
 import org.apache.flink.streaming.connectors.kafka.api.simple.iterator.KafkaConsumerIterator;
@@ -51,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * @param <OUT>
  * 		Type of the messages on the topic.
  */
-public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
+public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> implements Checkpointed<HashMap<Integer, KafkaOffset>> {
 
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(PersistentKafkaSource.class);
@@ -202,13 +203,13 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 		if (indexOfSubtask >= numberOfPartitions) {
 			LOG.info("Creating idle consumer because this subtask ({}) is higher than the number partitions ({})", indexOfSubtask + 1, numberOfPartitions);
 			iterator = new KafkaIdleConsumerIterator();
-		} else {
-			if (context.containsState("kafka")) {
+		}
+		else {
+			if (partitionOffsets != null) {
+				// we have restored state
 				LOG.info("Initializing PersistentKafkaSource from existing state.");
-				kafkaOffSetOperatorState = (OperatorState<Map<Integer, KafkaOffset>>) context.getState("kafka");
-
-				partitionOffsets = kafkaOffSetOperatorState.getState();
-			} else {
+			}
+			else {
 				LOG.info("No existing state found. Creating new");
 				partitionOffsets = new HashMap<Integer, KafkaOffset>();
 
@@ -217,8 +218,6 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 				}
 
 				kafkaOffSetOperatorState = new OperatorState<Map<Integer, KafkaOffset>>(partitionOffsets);
-
-				context.registerState("kafka", kafkaOffSetOperatorState);
 			}
 
 			iterator = new KafkaMultiplePartitionsIterator(topicId, partitionOffsets, kafkaTopicUtils, this.consumerConfig);
@@ -271,5 +270,15 @@ public class PersistentKafkaSource<OUT> extends ConnectorSource<OUT> {
 		in.defaultReadObject();
 		Properties props = (Properties) in.readObject();
 		consumerConfig = new ConsumerConfig(props);
+	}
+
+	@Override
+	public HashMap<Integer, KafkaOffset> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		return new HashMap<Integer, KafkaOffset>(this.partitionOffsets);
+	}
+
+	@Override
+	public void restoreState(HashMap<Integer, KafkaOffset> state) {
+		this.partitionOffsets = state;
 	}
 }

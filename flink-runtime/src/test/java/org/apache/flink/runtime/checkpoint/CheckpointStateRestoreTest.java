@@ -27,15 +27,14 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.LocalStateHandle;
-import org.apache.flink.runtime.state.OperatorState;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedValue;
 
 import org.junit.Test;
 
 import org.mockito.Mockito;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -52,7 +51,7 @@ public class CheckpointStateRestoreTest {
 	public void testSetState() {
 		try {
 			final SerializedValue<StateHandle<?>> serializedState = new SerializedValue<StateHandle<?>>(
-					new LocalStateHandle(Collections.<String,OperatorState<?>>emptyMap()));
+					new LocalStateHandle(new SerializableObject()));
 			
 			final JobID jid = new JobID();
 			final JobVertexID statefulId = new JobVertexID();
@@ -121,7 +120,7 @@ public class CheckpointStateRestoreTest {
 	public void testStateOnlyPartiallyAvailable() {
 		try {
 			final SerializedValue<StateHandle<?>> serializedState = new SerializedValue<StateHandle<?>>(
-					new LocalStateHandle(Collections.<String,OperatorState<?>>emptyMap()));
+					new LocalStateHandle(new SerializableObject()));
 
 			final JobID jid = new JobID();
 			final JobVertexID statefulId = new JobVertexID();

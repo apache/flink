@@ -26,6 +26,8 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.checkpoint.CheckpointCommitter;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.runtime.io.IndexedReaderIterator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecordSerializer;
@@ -107,16 +109,14 @@ public abstract class StreamOperator<IN, OUT> implements Serializable {
 			return nextRecord;
 		} catch (IOException e) {
 			if (isRunning) {
-				throw new RuntimeException("Could not read next record due to: "
-						+ StringUtils.stringifyException(e));
+				throw new RuntimeException("Could not read next record", e);
 			} else {
 				// Task already cancelled do nothing
 				return null;
 			}
 		} catch (IllegalStateException e) {
 			if (isRunning) {
-				throw new RuntimeException("Could not read next record due to: "
-						+ StringUtils.stringifyException(e));
+				throw new RuntimeException("Could not read next record", e);
 			} else {
 				// Task already cancelled do nothing
 				return null;
@@ -214,5 +214,50 @@ public abstract class StreamOperator<IN, OUT> implements Serializable {
 
 	public Function getUserFunction() {
 		return userFunction;
+	}
+	
+	// ------------------------------------------------------------------------
+	//  Checkpoints and Checkpoint Confirmations
+	// ------------------------------------------------------------------------
+	
+	// NOTE - ALL OF THIS CODE WORKS ONLY FOR THE FIRST OPERATOR IN THE CHAIN
+	// IT NEEDS TO BE EXTENDED TO SUPPORT CHAINS
+	
+	public void restoreInitialState(Serializable state) throws Exception {
+		if (userFunction instanceof Checkpointed) {
+			setStateOnFunction(state, userFunction);
+		}
+		else {
+			throw new IllegalStateException("Trying to restore state of a non-checkpointed function");
+		}
+	}
+	
+	public Serializable getStateSnapshotFromFunction(long checkpointId, long timestamp) throws Exception {
+		if (userFunction instanceof Checkpointed) {
+			return ((Checkpointed<?>) userFunction).snapshotState(checkpointId, timestamp);
+		}
+		else {
+			return null;
+		}
+	}
+	
+	public void confirmCheckpointCompleted(long checkpointId, long timestamp) throws Exception {
+		if (userFunction instanceof CheckpointCommitter) {
+			try {
+				((CheckpointCommitter) userFunction).commitCheckpoint(checkpointId);
+			}
+			catch (Exception e) {
+				throw new Exception("Error while confirming checkpoint " + checkpointId + " to the stream function", e);
+			}
+		}
+	}
+	
+	private static <T extends Serializable> void setStateOnFunction(Serializable state, Function function) {
+		@SuppressWarnings("unchecked")
+		T typedState = (T) state;
+		@SuppressWarnings("unchecked")
+		Checkpointed<T> typedFunction = (Checkpointed<T>) function;
+		
+		typedFunction.restoreState(typedState);
 	}
 }

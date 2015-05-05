@@ -22,7 +22,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.OperatorState;
+import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -145,12 +145,15 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		}
 	}
 
-	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long> {
+	public static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>
+			implements Checkpointed<Long> {
 
 		private static final long SLEEP_TIME = 50;
 
 		private final File coordinateDir;
 		private final long end;
+		
+		private long collected;
 
 		public SleepyDurableGenerateSequence(File coordinateDir, long end) {
 			this.coordinateDir = coordinateDir;
@@ -162,23 +165,10 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 		public void run(Collector<Long> collector) throws Exception {
 
 			StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-			OperatorState<Long> collectedState;
-			if (context.containsState("collected")) {
-				collectedState = (OperatorState<Long>) context.getState("collected");
-
-//				if (collected == 0) {
-//					throw new RuntimeException("The state did not capture a completed checkpoint");
-//				}
-			}
-			else {
-				collectedState = new OperatorState<Long>(0L);
-				context.registerState("collected", collectedState);
-			}
 
 			final long stepSize = context.getNumberOfParallelSubtasks();
 			final long congruence = context.getIndexOfThisSubtask();
 			final long toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);
-			long collected = collectedState.getState();
 
 			final File proceedFile = new File(coordinateDir, PROCEED_MARKER_FILE);
 			boolean checkForProceedFile = true;
@@ -196,13 +186,22 @@ public class ProcessFailureStreamingRecoveryITCase extends AbstractProcessFailur
 				}
 
 				collector.collect(collected * stepSize + congruence);
-				collectedState.update(collected);
 				collected++;
 			}
 		}
 
 		@Override
 		public void cancel() {}
+
+		@Override
+		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+			return collected;
+		}
+
+		@Override
+		public void restoreState(Long state) {
+			collected = state;
+		}
 	}
 
 

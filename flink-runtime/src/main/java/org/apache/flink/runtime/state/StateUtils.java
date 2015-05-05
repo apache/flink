@@ -37,7 +37,9 @@ public class StateUtils {
 	 * @param state The state handle.
 	 * @param <T> Type bound for the  
 	 */
-	public static <T extends StateHandle<?>> void setOperatorState(OperatorStateCarrier<?> op, StateHandle<?> state) {
+	public static <T extends StateHandle<?>> void setOperatorState(OperatorStateCarrier<?> op, StateHandle<?> state) 
+				throws Exception
+	{
 		@SuppressWarnings("unchecked")
 		OperatorStateCarrier<T> typedOp = (OperatorStateCarrier<T>) op;
 		@SuppressWarnings("unchecked")
