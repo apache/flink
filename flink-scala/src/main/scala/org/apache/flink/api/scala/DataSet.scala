@@ -67,7 +67,7 @@ import scala.reflect.ClassTag
  *
  * A rich function can be used when more control is required, for example for accessing the
  * `RuntimeContext`. The rich function for `flatMap` is `RichFlatMapFunction`, all other functions
- * are named similarly. All functions are available in package
+ * are named similarly. All functions are available in pipeline
  * `org.apache.flink.api.common.functions`.
  *
  * The elements are partitioned depending on the parallelism of the

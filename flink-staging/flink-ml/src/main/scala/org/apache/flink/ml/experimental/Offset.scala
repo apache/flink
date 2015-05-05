@@ -15,9 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table
 
-/**
- * The functions in this pipeline are used transforming Table API operations to Java API operations.
- */
-package object runtime
+package org.apache.flink.ml.experimental
+
+import scala.reflect.ClassTag
+
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala.DataSet
+import org.apache.flink.ml.common.ParameterMap
+import org.apache.flink.ml.math._
+
+class Offset extends Transformer[Offset] {
+}
+
+object Offset{
+  import Breeze._
+
+  implicit def offsetTransform[I <: Vector : CanCopy: ClassTag: TypeInformation]
+    = new TransformOperation[Offset, I, I] {
+    override def transform(
+        offset: Offset,
+        parameters: ParameterMap,
+        input: DataSet[I]): DataSet[I] = {
+      input.map{
+        vector =>
+          val brz = copy(vector).asBreeze
+
+          val result = brz + 1.0
+
+          result.fromBreeze.asInstanceOf[I]
+      }
+    }
+  }
+}

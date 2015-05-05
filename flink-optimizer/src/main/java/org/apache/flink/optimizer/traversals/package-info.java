@@ -17,7 +17,7 @@
  */
 
 /**
- * This package contains the various traversals over the program plan and the
+ * This pipeline contains the various traversals over the program plan and the
  * optimizer DAG (directed acyclic graph) that are made in the course of
  * the optimization.
  *

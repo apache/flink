@@ -125,14 +125,14 @@ public class PythonPlanBinder extends PlanBinder<PythonOperationInfo> {
 	//=====Setup========================================================================================================
 	/**
 	 * Copies all files to a common directory (FLINK_PYTHON_FILE_PATH). This allows us to distribute it as one big
-	 * package, and resolves PYTHONPATH issues.
+	 * pipeline, and resolves PYTHONPATH issues.
 	 *
 	 * @param filePaths
 	 * @throws IOException
 	 * @throws URISyntaxException
 	 */
 	private void prepareFiles(String... filePaths) throws IOException, URISyntaxException {
-		//Flink python package
+		//Flink python pipeline
 		String tempFilePath = FLINK_PYTHON_FILE_PATH;
 		clearPath(tempFilePath);
 		FileCache.copy(new Path(FULL_PATH), new Path(tempFilePath), false);

@@ -18,7 +18,7 @@
 package org.apache.flink.api.table
 
 /**
- * The operations in this package are created by calling methods on [[Table]] they
+ * The operations in this pipeline are created by calling methods on [[Table]] they
  * should not be manually created by users of the API.
  */
 package object plan

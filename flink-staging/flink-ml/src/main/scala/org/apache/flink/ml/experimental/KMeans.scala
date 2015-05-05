@@ -15,9 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.table
 
-/**
- * The functions in this pipeline are used transforming Table API operations to Java API operations.
- */
-package object runtime
+package org.apache.flink.ml.experimental
+
+import org.apache.flink.api.scala._
+import org.apache.flink.ml.common.{ParameterMap, LabeledVector}
+import org.apache.flink.ml.math._
+
+class KMeans extends Predictor[KMeans] {
+}
+
+object KMeans{
+
+  implicit val kMeansEstimator = new FitOperation[KMeans, LabeledVector] {
+    override def fit(
+        instance: KMeans,
+        parameters: ParameterMap,
+        input: DataSet[LabeledVector]): Unit = {
+      input.print
+    }
+  }
+
+  implicit def kMeansPredictor[V <: Vector]
+    = new PredictOperation[KMeans, V, LabeledVector] {
+    override def predict(
+        instance: KMeans,
+        parameters: ParameterMap,
+        input: DataSet[V]): DataSet[LabeledVector] = {
+      input.map{
+        vector => LabeledVector(1.0, vector)
+      }
+    }
+  }
+}

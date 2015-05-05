@@ -18,7 +18,7 @@
 package org.apache.flink.api.table
 
 /**
- * This package contains the base class of AST nodes and all the expression language AST classes.
+ * This pipeline contains the base class of AST nodes and all the expression language AST classes.
  * Expression trees should not be manually constructed by users. They are implicitly constructed
  * from the implicit DSL conversions in
  * [[org.apache.flink.api.scala.expressions.ImplicitExpressionConversions]] and

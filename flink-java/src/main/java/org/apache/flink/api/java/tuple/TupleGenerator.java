@@ -524,8 +524,8 @@ class TupleGenerator {
 		// head
 		w.print(HEADER);
 
-		// package and imports
-		w.println("package " + PACKAGE + ';');
+		// pipeline and imports
+		w.println("pipeline " + PACKAGE + ';');
 		w.println();
 		w.println("import org.apache.flink.util.StringUtils;");
 		w.println();
@@ -780,8 +780,8 @@ class TupleGenerator {
 		// head
 		w.print(HEADER);
 
-		// package and imports
-		w.println("package " + PACKAGE + "." + BUILDER_SUFFIX + ';');
+		// pipeline and imports
+		w.println("pipeline " + PACKAGE + "." + BUILDER_SUFFIX + ';');
 		w.println();
 		w.println("import java.util.LinkedList;");
 		w.println("import java.util.List;");

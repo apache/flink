@@ -107,4 +107,6 @@ package object math {
 
     }
   }
+
+  def copy[T](value: T)(implicit canCopy: CanCopy[T]): T = canCopy.copy(value)
 }

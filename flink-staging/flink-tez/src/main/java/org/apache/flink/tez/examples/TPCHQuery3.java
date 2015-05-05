@@ -86,7 +86,7 @@ public class TPCHQuery3 {
 					}
 				});
 
-		// Join customers with orders and package them into a ShippingPriorityItem
+		// Join customers with orders and pipeline them into a ShippingPriorityItem
 		DataSet<ShippingPriorityItem> customerWithOrders =
 				customers.join(orders).where(0).equalTo(1)
 						.with(

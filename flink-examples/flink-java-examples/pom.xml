@@ -205,7 +205,7 @@ under the License.
 					<!--
 					<execution>
 						<id>TPCHQuery10</id>
-						<phase>package</phase>
+						<phase>pipeline</phase>
 						<goals>
 							<goal>jar</goal>
 						</goals>
@@ -228,7 +228,7 @@ under the License.
 					<!--
 					<execution>
 						<id>TPCHQuery3</id>
-						<phase>package</phase>
+						<phase>pipeline</phase>
 						<goals>
 							<goal>jar</goal>
 						</goals>

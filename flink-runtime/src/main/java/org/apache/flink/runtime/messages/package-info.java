@@ -17,7 +17,7 @@
  */
 
 /**
- * This package contains the messages that are sent between actors, like the
+ * This pipeline contains the messages that are sent between actors, like the
  * {@link org.apache.flink.runtime.jobmanager.JobManager} and
  * {@link org.apache.flink.runtime.taskmanager.TaskManager} to coordinate the distributed operations.
  */

@@ -19,7 +19,7 @@
 /**
  * <strong>Table API</strong><br>
  *
- * This package contains the generic part of the Table API. It can be used with Flink Streaming
+ * This pipeline contains the generic part of the Table API. It can be used with Flink Streaming
  * and Flink Batch. From Scala as well as from Java.
  *
  * When using the Table API, as user creates a [[org.apache.flink.api.table.Table]] from

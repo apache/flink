@@ -64,7 +64,7 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
 
 /**
- * All classes in this package contain code taken from
+ * All classes in this pipeline contain code taken from
  * https://github.com/apache/hadoop-common/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-applications/hadoop-yarn-applications-distributedshell/src/main/java/org/apache/hadoop/yarn/applications/distributedshell/Client.java?source=cc
  * and
  * https://github.com/hortonworks/simple-yarn-app
