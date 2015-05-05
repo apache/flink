@@ -1902,7 +1902,7 @@ object TaskManager {
     // Log getProcessCpuLoad method not available for Java 6
     if(getCPULoadMethod == null){
       LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
-      "implementation for this Java runtime environment\n"+Thread.currentThread().getStackTrace)
+      "implementation for this Java runtime environment\n" + Thread.currentThread().getStackTrace)
     }
 
     // define the fetchCPULoad method as per the fetched getCPULoadMethod
