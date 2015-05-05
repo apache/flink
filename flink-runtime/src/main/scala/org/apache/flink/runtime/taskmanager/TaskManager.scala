@@ -1895,21 +1895,21 @@ object TaskManager {
       override def getValue: Double =
         ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
     })
+    
     // Preprocessing steps for registering cpuLoad
     // fetch the method to get process CPU load
     val getCPULoadMethod: Method = getMethodToFetchCPULoad()
 
-    // Log getProcessCpuLoad method not available for Java 6
-    if(getCPULoadMethod == null){
-      LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
-      "implementation for this Java runtime environment\n" + Thread.currentThread().getStackTrace)
-    }
-
     // define the fetchCPULoad method as per the fetched getCPULoadMethod
-    val fetchCPULoad: (Any) => Double = if (getCPULoadMethod != null) {
-      (obj: Any) => getCPULoadMethod.invoke(obj).asInstanceOf[Double]
+    // dummy initialisation
+    var fetchCPULoad:(Any) => Double = (obj:Any) => -1
+
+    if(getCPULoadMethod != null){
+      fetchCPULoad = (obj:Any) => getCPULoadMethod.invoke(obj).asInstanceOf[Double]
     } else {
-      (obj: Any) => -1
+      // Log getProcessCpuLoad method not available for Java 6
+      LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
+        "implementation for this Java runtime environment\n" + Thread.currentThread().getStackTrace)
     }
 
     metricRegistry.register("cpuLoad", new Gauge[Double] {
