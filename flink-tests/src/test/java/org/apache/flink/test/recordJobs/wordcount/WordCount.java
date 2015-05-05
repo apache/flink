@@ -20,6 +20,7 @@ package org.apache.flink.test.recordJobs.wordcount;
 
 import java.util.Iterator;
 import java.util.StringTokenizer;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
@@ -154,6 +155,6 @@ public class WordCount implements Program, ProgramDescription {
 		// This will execute the word-count embedded in a local context. replace this line by the commented
 		// succeeding line to send the job to a local installation or to a cluster for execution
 		JobExecutionResult result = LocalExecutor.execute(plan);
-		System.err.println("Total runtime: " + result.getNetRuntime());
+		System.err.println("Total runtime: " + result.elapsedNetRuntime(TimeUnit.MILLISECONDS) + " ms");
 	}
 }
