@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.junit.Test
 import org.apache.flink.api.common.InvalidProgramException
 
@@ -37,7 +38,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()
+    iteration.output(new DiscardingOutputFormat[(Int, String)])
   }
 
   @Test
@@ -51,7 +52,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()
+    iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -65,7 +66,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()
+    iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -79,7 +80,8 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()  }
+    iteration.output(new DiscardingOutputFormat[(Int,String)])  
+  }
 
   @Test(expected = classOf[InvalidProgramException])
   def testIncorrectJoinWithSolution3(): Unit = {
@@ -92,7 +94,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()
+    iteration.output(new DiscardingOutputFormat[(Int,String)])
    }
 
   @Test
@@ -106,7 +108,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()
+    iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 
   @Test
@@ -120,7 +122,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()
+    iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -134,7 +136,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()
+    iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -148,7 +150,8 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()  }
+    iteration.output(new DiscardingOutputFormat[(Int,String)])  
+  }
 
   @Test(expected = classOf[InvalidProgramException])
   def testIncorrectCoGroupWithSolution3(): Unit = {
@@ -161,6 +164,6 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    iteration.print()
+    iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 }

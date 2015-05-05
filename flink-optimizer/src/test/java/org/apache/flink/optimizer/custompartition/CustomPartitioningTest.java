@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
@@ -53,7 +54,7 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			data
 				.partitionCustom(part, 0)
 				.mapPartition(new IdentityPartitionerMapper<Tuple2<Integer,Integer>>())
-				.print();
+				.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -123,7 +124,7 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			data
 				.partitionCustom(part, "a")
 				.mapPartition(new IdentityPartitionerMapper<Pojo>())
-				.print();
+				.output(new DiscardingOutputFormat<Pojo>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -193,7 +194,7 @@ public class CustomPartitioningTest extends CompilerTestBase {
 			data
 				.partitionCustom(part, new TestKeySelectorInt<Pojo>())
 				.mapPartition(new IdentityPartitionerMapper<Pojo>())
-				.print();
+				.output(new DiscardingOutputFormat<Pojo>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);

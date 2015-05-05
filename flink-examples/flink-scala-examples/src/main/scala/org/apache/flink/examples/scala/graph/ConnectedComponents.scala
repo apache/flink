@@ -98,11 +98,11 @@ object ConnectedComponents {
     }
     if (fileOutput) {
       verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
+      env.execute("Scala Connected Components Example")
     } else {
       verticesWithComponents.print()
     }
 
-    env.execute("Scala Connected Components Example")
   }
  
   private def parseParameters(args: Array[String]): Boolean = {

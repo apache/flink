@@ -97,12 +97,12 @@ public class PojoExample {
 		
 		if(fileOutput) {
 			counts.writeAsText(outputPath, WriteMode.OVERWRITE);
+			// execute program
+			env.execute("WordCount-Pojo Example");
 		} else {
 			counts.print();
 		}
-		
-		// execute program
-		env.execute("WordCount-Pojo Example");
+
 	}
 	
 	// *************************************************************************

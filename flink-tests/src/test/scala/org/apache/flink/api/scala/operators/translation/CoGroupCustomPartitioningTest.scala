@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.operators.translation
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.optimizer.util.CompilerTestBase
 import org.junit.Assert._
 import org.junit.Test
@@ -46,7 +47,7 @@ class CoGroupCustomPartitioningTest extends CompilerTestBase {
           .coGroup(input2)
           .where(1).equalTo(0)
           .withPartitioner(partitioner)
-        .print()
+        .output(new DiscardingOutputFormat[(Array[(Long, Long)], Array[(Long, Long, Long)])])
       
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -110,7 +111,7 @@ class CoGroupCustomPartitioningTest extends CompilerTestBase {
           .coGroup(input2)
           .where("b").equalTo("a")
           .withPartitioner(partitioner)
-        .print()
+        .output(new DiscardingOutputFormat[(Array[Pojo2], Array[Pojo3])])
         
       val p = env.createProgramPlan()
       val op = compileNoStats(p)
@@ -174,7 +175,7 @@ class CoGroupCustomPartitioningTest extends CompilerTestBase {
           .coGroup(input2)
           .where( _.a ).equalTo( _.b )
           .withPartitioner(partitioner)
-        .print()
+        .output(new DiscardingOutputFormat[(Array[Pojo2], Array[Pojo3])])
           
       val p = env.createProgramPlan()
       val op = compileNoStats(p)

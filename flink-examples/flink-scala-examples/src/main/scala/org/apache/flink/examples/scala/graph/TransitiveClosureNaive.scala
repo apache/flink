@@ -57,11 +57,11 @@ object  TransitiveClosureNaive {
 
     if (fileOutput) {
       paths.writeAsCsv(outputPath, "\n", " ")
+      env.execute("Scala Transitive Closure Example")
     } else {
       paths.print()
     }
 
-    env.execute("Scala Transitive Closure Example")
 
 
   }

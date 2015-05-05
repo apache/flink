@@ -30,7 +30,8 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 
 		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.
 		CollectionExecutor exec = new CollectionExecutor(getConfig());
-		return exec.execute(p);
+		this.lastJobExecutionResult = exec.execute(p);
+		return this.lastJobExecutionResult;
 	}
 
 	/**

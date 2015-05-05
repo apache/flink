@@ -140,13 +140,11 @@ public class WebLogAnalysis {
 		// emit result
 		if(fileOutput) {
 			result.writeAsCsv(outputPath, "\n", "|");
+			// execute program
+			env.execute("WebLogAnalysis Example");
 		} else {
 			result.print();
 		}
-
-		// execute program
-		env.execute("WebLogAnalysis Example");
-		
 	}
 	
 	// *************************************************************************

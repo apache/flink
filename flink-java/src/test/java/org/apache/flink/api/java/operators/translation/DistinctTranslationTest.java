@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -60,7 +61,7 @@ public class DistinctTranslationTest {
 				public String getKey(String value) { return value; }
 			});
 			
-			op.print();
+			op.output(new DiscardingOutputFormat<String>());
 			
 			Plan p = env.createProgramPlan();
 			
@@ -81,7 +82,7 @@ public class DistinctTranslationTest {
 
 			DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
 
-			initialData.distinct().print();
+			initialData.distinct().output(new DiscardingOutputFormat<Tuple3<Double, StringValue, LongValue>>());
 
 			Plan p = env.createProgramPlan();
 
@@ -117,7 +118,7 @@ public class DistinctTranslationTest {
 
 			DataSet<CustomType> initialData = getSourcePojoDataSet(env);
 
-			initialData.distinct().print();
+			initialData.distinct().output(new DiscardingOutputFormat<CustomType>());
 
 			Plan p = env.createProgramPlan();
 
@@ -153,7 +154,7 @@ public class DistinctTranslationTest {
 
 			DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
 
-			initialData.distinct(1, 2).print();
+			initialData.distinct(1, 2).output(new DiscardingOutputFormat<Tuple3<Double, StringValue, LongValue>>());
 
 			Plan p = env.createProgramPlan();
 
@@ -193,7 +194,7 @@ public class DistinctTranslationTest {
 				public StringValue getKey(Tuple3<Double, StringValue, LongValue> value) {
 					return value.f1;
 				}
-			}).setParallelism(4).print();
+			}).setParallelism(4).output(new DiscardingOutputFormat<Tuple3<Double, StringValue, LongValue>>());
 
 			Plan p = env.createProgramPlan();
 
@@ -237,7 +238,7 @@ public class DistinctTranslationTest {
 
 			DataSet<CustomType> initialData = getSourcePojoDataSet(env);
 
-			initialData.distinct("myInt").print();
+			initialData.distinct("myInt").output(new DiscardingOutputFormat<CustomType>());
 
 			Plan p = env.createProgramPlan();
 

@@ -30,7 +30,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
 
@@ -42,13 +41,13 @@ public class WorksetIterationCornerCasesTest extends CompilerTestBase {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
-			DataSet<Tuple2<Long, Long>> input = env.readCsvFile("/tmp/some.csv").types(Long.class, Long.class);
+			DataSet<Tuple2<Long, Long>> input = env.generateSequence(1, 100).map(new Duplicator<Long>());
 			
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = input.iterateDelta(input, 100, 1);
 			
-			DataSet<Tuple2<Long, Long>> iterEnd = iteration.getWorkset().map(new IdentityMapper<Tuple2<Long, Long>>());
+			DataSet<Tuple2<Long, Long>> iterEnd = iteration.getWorkset().map(new TestMapper<Tuple2<Long,Long>>());
 			iteration.closeWith(iterEnd, iterEnd)
-					.output(new DiscardingOutputFormat<Tuple2<Long,Long>>());
+				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -64,5 +63,18 @@ public class WorksetIterationCornerCasesTest extends CompilerTestBase {
 			fail(e.getMessage());
 		}
 	}
-
+	
+	private static final class Duplicator<T> implements MapFunction<T, Tuple2<T, T>> {
+		@Override
+		public Tuple2<T, T> map(T value) {
+			return new Tuple2<T, T>(value, value);
+		}
+	}
+	
+	private static final class TestMapper<T> implements MapFunction<T, T> {
+		@Override
+		public T map(T value) {
+			return value;
+		}
+	}
 }

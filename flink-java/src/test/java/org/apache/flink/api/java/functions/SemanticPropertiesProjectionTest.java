@@ -28,11 +28,9 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.translation.PlanProjectOperator;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.junit.Test;
 
@@ -73,7 +71,7 @@ public class SemanticPropertiesProjectionTest {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		tupleDs.project(1, 3, 2).project(0, 3).print();
+		tupleDs.project(1, 3, 2).project(0, 3).output(new DiscardingOutputFormat<Tuple>());
 
 		Plan plan = env.createProgramPlan();
 
@@ -99,7 +97,7 @@ public class SemanticPropertiesProjectionTest {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple4<Integer, Tuple3<String, Integer, Long>, Tuple2<Long, Long>, String>> tupleDs = env.fromCollection(emptyNestedTupleData, nestedTupleTypeInfo);
 
-		tupleDs.project(2, 3, 1).project(2).print();
+		tupleDs.project(2, 3, 1).project(2).output(new DiscardingOutputFormat<Tuple>());
 
 		Plan plan = env.createProgramPlan();
 
@@ -135,7 +133,7 @@ public class SemanticPropertiesProjectionTest {
 		tupleDs.join(tupleDs).where(0).equalTo(0)
 				.projectFirst(2, 3)
 				.projectSecond(1, 4)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple>());
 
 		Plan plan = env.createProgramPlan();
 
@@ -163,7 +161,7 @@ public class SemanticPropertiesProjectionTest {
 		tupleDs.join(tupleDs).where(0).equalTo(0)
 				.projectFirst(2,0)
 				.projectSecond(1,3)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple>());
 
 		Plan plan = env.createProgramPlan();
 
@@ -212,7 +210,7 @@ public class SemanticPropertiesProjectionTest {
 		tupleDs.cross(tupleDs)
 				.projectFirst(2, 3)
 				.projectSecond(1, 4)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple>());
 
 		Plan plan = env.createProgramPlan();
 
@@ -240,7 +238,7 @@ public class SemanticPropertiesProjectionTest {
 		tupleDs.cross(tupleDs)
 				.projectFirst(2, 0)
 				.projectSecond(1,3)
-				.print();
+				.output(new DiscardingOutputFormat<Tuple>());
 
 		Plan plan = env.createProgramPlan();
 
