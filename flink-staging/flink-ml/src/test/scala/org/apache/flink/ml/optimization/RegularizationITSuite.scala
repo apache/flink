@@ -45,7 +45,7 @@ class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     regType.takeStep(weightVector.weights,  gradient, effectiveStepsize, 0.0)
 
-    weightVector.weights shouldEqual weightVector.weights
+    weightVector.weights shouldEqual DenseVector(1.0)
     weightVector.intercept should be (1.0 +- 0.0001)
 
   }
