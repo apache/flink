@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
-import org.apache.flink.runtime.state.OperatorState;
+import java.io.Serializable;
 
 /**
  * This method must be implemented by functions that have state that needs to be
@@ -31,12 +31,14 @@ import org.apache.flink.runtime.state.OperatorState;
  * continue to work and mutate the state, even while the state snapshot is being accessed,
  * can implement the {@link org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously}
  * interface.</p>
+ * 
+ * @param <T> The type of the operator state.
  */
-public interface Checkpointed {
+public interface Checkpointed<T extends Serializable> {
 
 	/**
-	 * Gets the current operator state as a checkpoint. The state must reflect all operations
-	 * from all prior operations if this function. 
+	 * Gets the current state of the function of operator. The state must reflect the result of all
+	 * prior invocations to this function. 
 	 * 
 	 * @param checkpointId The ID of the checkpoint.
 	 * @param checkpointTimestamp The timestamp of the checkpoint, as derived by
@@ -49,5 +51,13 @@ public interface Checkpointed {
 	 *                   recovery), or to discard this checkpoint attempt and to continue running
 	 *                   and to try again with the next checkpoint attempt.
 	 */
-	OperatorState<?> snapshotState(long checkpointId, long checkpointTimestamp) throws Exception;
+	T snapshotState(long checkpointId, long checkpointTimestamp) throws Exception;
+
+	/**
+	 * Restores the state of the function or operator to that of a previous checkpoint.
+	 * This method is invoked when a function is executed as part of a recovery run.
+	 * 	 * 
+	 * @param state The state to be restored. 
+	 */
+	void restoreState(T state);
 }

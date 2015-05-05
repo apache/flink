@@ -20,5 +20,5 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 public interface CheckpointCommittingOperator {
 	
-	void confirmCheckpoint(long checkpointId, long timestamp);
+	void confirmCheckpoint(long checkpointId, long timestamp) throws Exception;
 }

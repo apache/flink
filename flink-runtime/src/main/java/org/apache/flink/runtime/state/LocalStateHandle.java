@@ -18,23 +18,23 @@
 
 package org.apache.flink.runtime.state;
 
-import java.util.Map;
+import java.io.Serializable;
 
 /**
  * A StateHandle that includes a map of operator states directly.
  */
-public class LocalStateHandle implements StateHandle<Map<String, OperatorState<?>>> {
+public class LocalStateHandle implements StateHandle<Serializable> {
 
 	private static final long serialVersionUID = 2093619217898039610L;
 	
-	private final Map<String, OperatorState<?>> stateMap;
+	private final Serializable state;
 
-	public LocalStateHandle(Map<String,OperatorState<?>> state) {
-		this.stateMap = state;
+	public LocalStateHandle(Serializable state) {
+		this.state = state;
 	}
 
 	@Override
-	public Map<String,OperatorState<?>> getState() {
-		return stateMap;
+	public Serializable getState() {
+		return state;
 	}
 }

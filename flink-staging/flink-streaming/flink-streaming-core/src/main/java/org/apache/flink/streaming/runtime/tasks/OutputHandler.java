@@ -88,8 +88,8 @@ public class OutputHandler<OUT> {
 		this.outerCollector = createChainedCollector(configuration);
 	}
 
-	public void broadcastBarrier(long id) throws IOException, InterruptedException {
-		StreamingSuperstep barrier = new StreamingSuperstep(id);
+	public void broadcastBarrier(long id, long timestamp) throws IOException, InterruptedException {
+		StreamingSuperstep barrier = new StreamingSuperstep(id, timestamp);
 		for (StreamOutput<?> streamOutput : outputMap.values()) {
 			streamOutput.broadcastEvent(barrier);
 		}
