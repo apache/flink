@@ -36,7 +36,8 @@ public class MultipleInvokationsTest {
 			// ----------- Execution 1 ---------------
 			
 			DataSet<String> data = env.fromElements("Some", "test", "data").name("source1");
-			data.print();
+			//data.print();
+			data.output(new DiscardingOutputFormat<String>()).name("print1");
 			data.output(new DiscardingOutputFormat<String>()).name("output1");
 			
 			{

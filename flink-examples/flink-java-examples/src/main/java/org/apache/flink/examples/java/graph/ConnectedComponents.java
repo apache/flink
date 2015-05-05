@@ -111,12 +111,12 @@ public class ConnectedComponents implements ProgramDescription {
 		// emit result
 		if(fileOutput) {
 			result.writeAsCsv(outputPath, "\n", " ");
+
+			// execute program
+			env.execute("Connected Components Example");
 		} else {
 			result.print();
 		}
-		
-		// execute program
-		env.execute("Connected Components Example");
 	}
 	
 	// *************************************************************************

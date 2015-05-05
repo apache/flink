@@ -26,6 +26,7 @@ import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.operators.DriverStrategy;
@@ -58,8 +59,8 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 			DataSet<Tuple2<Long, Double>> result = constructPlan(inputData, 10);
 			
 			// add two sinks, to test the case of branching after an iteration
-			result.print();
-			result.print();
+			result.output(new DiscardingOutputFormat<Tuple2<Long, Double>>());
+			result.output(new DiscardingOutputFormat<Tuple2<Long, Double>>());
 		
 			Plan p = env.createProgramPlan();
 			

@@ -23,6 +23,7 @@ import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
 import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
@@ -85,7 +86,7 @@ public class PageRankCompilerTest extends CompilerTestBase{
 					// termination condition
 					.filter(new EpsilonFilter()));
 	
-			finalPageRanks.print();
+			finalPageRanks.output(new DiscardingOutputFormat<Tuple2<Long, Double>>());
 	
 			// get the plan and compile it
 			Plan p = env.createProgramPlan();
