@@ -20,7 +20,7 @@ package org.apache.flink.ml.optimization
 
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.common._
-import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS, DenseVector}
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.optimization.IterativeSolver._
 import org.apache.flink.ml.optimization.Solver._
@@ -71,6 +71,11 @@ abstract class Solver extends Serializable with WithParameters {
     parameters.add(RegularizationParameter, regularizationParameter)
     this
   }
+
+  def setPredictionFunction(predictionFunction: (FlinkVector, WeightVector) => Double): Solver = {
+    parameters.add(PredictionFunction, predictionFunction)
+    this
+  }
 }
 
 object Solver {
@@ -91,8 +96,22 @@ object Solver {
   case object RegularizationParameter extends Parameter[Double] {
     val defaultValue = Some(0.0) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
   }
+
+  case object PredictionFunction extends Parameter[(FlinkVector, WeightVector) => Double] {
+    def linearPrediction: (FlinkVector, WeightVector) => Double = {
+      (features: FlinkVector, weights: WeightVector) =>
+      BLAS.dot(features, weights.weights) + weights.intercept
+    }
+    val defaultValue = Some(linearPrediction)
+  }
 }
 
+/** An abstract class for iterative optimization algorithms
+  *
+  * See [[https://en.wikipedia.org/wiki/Iterative_method Iterative Methods on Wikipedia]] for more
+  * info
+  *
+  */
 abstract class IterativeSolver extends Solver {
 
   //Setters for parameters

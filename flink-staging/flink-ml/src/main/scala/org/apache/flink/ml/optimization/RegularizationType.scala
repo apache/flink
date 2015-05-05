@@ -30,6 +30,13 @@ import breeze.linalg.max
 // TODO(tvas): Change name to RegularizationPenalty?
 /** Represents a type of regularization penalty
   *
+  * Regularization penalties are used to restrict the optimization problem to solutions with
+  * certain desirable characteristics, such as sparsity for the L1 penalty, or penalizing large
+  * weights for the L2 penalty.
+  *
+  * The regularization term, $R(w)$ is added to the objective function, $f(w) = L(w) + \lambda R(w)$
+  * where $\lambda$ is the regularization parameter used to tune the amount of regularization
+  * applied.
   */
 abstract class RegularizationType extends Serializable{
 
@@ -51,7 +58,7 @@ abstract class RegularizationType extends Serializable{
 
 }
 
-/** A regularization penalty that is differentiable
+/** Abstract class for regularization penalties that are differentiable
   *
   */
 abstract class DiffRegularizationType extends RegularizationType {
@@ -74,28 +81,34 @@ abstract class DiffRegularizationType extends RegularizationType {
     adjustedLoss
   }
 
-  /** Calculates the regularized loss **/
+  /** Adds regularization to the loss value **/
   def regLoss(oldLoss: Double, weightVector: FlinkVector, regularizationParameter: Double): Double
 
-  /** Calculates the regularized gradient **/
+  /** Adds regularization gradient to the loss gradient. The gradient is updated in place **/
   def regGradient(
       weightVector: FlinkVector,
       lossGradient: FlinkVector,
       regularizationParameter: Double)
 }
 
+/** Performs no regularization, equivalent to $R(w) = 0$ **/
 class NoRegularization extends RegularizationType
 
-
+/** $L_2$ regularization penalty.
+  *
+  * Penalizes large weights, favoring solutions with more small weights rather than few large ones.
+  *
+  */
 class L2Regularization extends DiffRegularizationType {
 
-  /** Calculates the regularized loss **/
+  /** Adds regularization to the loss value **/
   override def regLoss(oldLoss: Double, weightVector: FlinkVector, regParameter: Double)
     : Double = {
-    oldLoss + regParameter * (weightVector.asBreeze dot weightVector.asBreeze) / 2
+    val brzVector = weightVector.asBreeze
+    oldLoss + regParameter * (brzVector dot brzVector) / 2
   }
 
-  /** Calculates the regularized gradient **/
+  /** Adds regularization gradient to the loss gradient. The gradient is updated in place **/
   override def regGradient(
       weightVector: FlinkVector,
       lossGradient: FlinkVector,
@@ -105,6 +118,12 @@ class L2Regularization extends DiffRegularizationType {
 
 }
 
+/** $L_1$ regularization penalty.
+  *
+  * The $L_1$ penalty can be used to drive a number of the solution coefficients to 0, thereby
+  * producing sparse solutions.
+  *
+  */
 class L1Regularization extends RegularizationType {
   /** Calculates and applies the regularization amount and the regularization parameter
     *

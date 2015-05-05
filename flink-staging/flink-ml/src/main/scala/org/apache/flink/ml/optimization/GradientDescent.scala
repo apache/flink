@@ -73,14 +73,14 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       new GradientCalculation
     }.withBroadcastSet(currentWeights, WEIGHTVECTOR_BROADCAST).reduce {
       (left, right) =>
-        val (leftGradtVector, leftCount) = left
-        val (rightGradVector, rightCount) = right
-
-        BLAS.axpy(1.0, leftGradtVector.weights, rightGradVector.weights)
+        val (leftGradVector, leftLoss, leftCount) = left
+        val (rightGradVector, rightLoss, rightCount) = right
+        // Add the left gradient to the right one
+        BLAS.axpy(1.0, leftGradVector.weights, rightGradVector.weights)
         val gradients = WeightVector(
-          rightGradVector.weights, leftGradtVector.intercept + rightGradVector.intercept)
+          rightGradVector.weights, leftGradVector.intercept + rightGradVector.intercept)
 
-        (gradients , leftCount + rightCount)
+        (gradients , leftLoss + rightLoss, leftCount + rightCount)
     }.map {
       new WeightsUpdate
     }.withBroadcastSet(currentWeights, WEIGHTVECTOR_BROADCAST)
@@ -117,7 +117,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     *
     */
   private class GradientCalculation extends
-  RichMapFunction[LabeledVector, (WeightVector, Int)] {
+  RichMapFunction[LabeledVector, (WeightVector, Double, Int)] {
 
     var weightVector: WeightVector = null
 
@@ -129,18 +129,26 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       weightVector = list.get(0)
     }
 
-    override def map(example: LabeledVector): (WeightVector, Int) = {
+    override def map(example: LabeledVector): (WeightVector, Double, Int) = {
 
       val lossFunction = parameterMap(LossFunction)
       val regType = parameterMap(RegularizationType)
       val regParameter = parameterMap(RegularizationParameter)
+      val predictionFunction = parameterMap(PredictionFunction)
       val dimensions = example.vector.size
       // TODO(tvas): Any point in carrying the weightGradient vector for in-place replacement?
       // The idea in spark is to avoid object creation, but here we have to do it anyway
       val weightGradient = new DenseVector(new Array[Double](dimensions))
 
-      val (loss, lossDeriv) = lossFunction.lossAndGradient(example, weightVector, weightGradient,
-        regType, regParameter)
+
+      // TODO(tvas): Indentation here?
+      val (loss, lossDeriv) = lossFunction.lossAndGradient(
+                                example,
+                                weightVector,
+                                weightGradient,
+                                regType,
+                                regParameter,
+                                predictionFunction)
 
       // Restrict the value of the loss derivative to avoid numerical instabilities
       // TODO(tvas): Do this for all elements of the weighGradient as well?
@@ -155,8 +163,8 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
           lossDeriv
         }
       }
-
-      (new WeightVector(weightGradient, restrictedLossDeriv), 1)
+      // TODO(tvas): Any way to avoid object creation here?
+      (new WeightVector(weightGradient, restrictedLossDeriv), loss, 1)
     }
   }
 
@@ -164,7 +172,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     *
     */
   private class WeightsUpdate() extends
-  RichMapFunction[(WeightVector, Int), WeightVector] {
+  RichMapFunction[(WeightVector, Double, Int), WeightVector] {
 
     var weightVector: WeightVector = null
 
@@ -176,15 +184,30 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       weightVector = list.get(0)
     }
 
-    override def map(gradientsAndCount: (WeightVector, Int)): WeightVector = {
+    override def map(gradientLossAndCount: (WeightVector, Double, Int)): WeightVector = {
       val regType = parameterMap(RegularizationType)
       val regParameter = parameterMap(RegularizationParameter)
       val stepsize = parameterMap(Stepsize)
-      val weightGradients = gradientsAndCount._1
-      val count = gradientsAndCount._2
+      val weightGradients = gradientLossAndCount._1
+      val lossSum = gradientLossAndCount._2
+      val count = gradientLossAndCount._3
 
       // Scale the gradients according to batch size
       BLAS.scal(1.0/count, weightGradients.weights)
+
+      // Add the regularization term to the gradient, in-place
+      val adjustedLoss = {
+        regType match {
+          case x : DiffRegularizationType => {
+            x.regularizedLossAndGradient(
+              lossSum / count,
+              weightVector.weights,
+              weightGradients.weights,
+              regParameter)
+          }
+          case _ => lossSum / count
+        }
+      }
 
       val weight0Gradient = weightGradients.intercept / count
 
@@ -194,7 +217,6 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       // TODO(tvas): There are more ways to determine the stepsize, possible low-effort extensions
       // here
       val effectiveStepsize = stepsize/math.sqrt(iteration)
-
 
       // Take the gradient step for the intercept
       weightVector.intercept -= effectiveStepsize * weight0Gradient

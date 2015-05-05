@@ -21,9 +21,15 @@ package org.apache.flink.ml.optimization
 import org.apache.flink.ml.common.{WeightVector, LabeledVector}
 import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
 
-
+/** Abstract class that implements some of the functionality for common loss functions
+  *
+  * A loss function determines the loss term $L(w) of the objective function  $f(w) = L(w) +
+  * \lambda R(w)$ for prediction tasks, the other being regularization, $R(w)$.
+  *
+  * We currently only support differentiable loss functions, in the future this class
+  * could be changed to DiffLossFunction in order to support other types, such absolute loss.
+  */
 abstract class LossFunction extends Serializable{
-
 
   /** Calculates the loss for a given prediction/truth pair
     *
@@ -52,26 +58,22 @@ abstract class LossFunction extends Serializable{
       example: LabeledVector,
       weights: WeightVector,
       cumGradient: FlinkVector,
-      regType:  RegularizationType,
-      regParameter: Double):  (Double, Double) = {
+      regType: RegularizationType,
+      regParameter: Double,
+      predictionFunction: (FlinkVector, WeightVector) => Double):
+  (Double, Double) = {
     val features = example.vector
     val label = example.label
     // TODO(tvas): We could also provide for the case where we don't want an intercept value
     // i.e. data already centered
-    val prediction = BLAS.dot(features, weights.weights) + weights.intercept
+    val prediction = predictionFunction(features, weights)
+//    val prediction = BLAS.dot(features, weights.weights) + weights.intercept
     val lossValue: Double = loss(prediction, label)
     // The loss derivative is used to update the intercept
     val lossDeriv= lossDerivative(prediction, label)
+    // Update the gradient
     BLAS.axpy(lossDeriv , features, cumGradient)
-    val adjustedLoss = {
-      regType match {
-        case x : DiffRegularizationType => {
-          x.regularizedLossAndGradient(lossValue, weights.weights, cumGradient, regParameter)
-        }
-        case _ => lossValue
-      }
-    }
-    (adjustedLoss, lossDeriv)
+    (lossValue, lossDeriv)
   }
 }
 
@@ -79,6 +81,10 @@ trait ClassificationLoss extends LossFunction
 trait RegressionLoss extends LossFunction
 
 // TODO(tvas): Implement LogisticLoss, HingeLoss.
+
+/** Squared loss function where $L(w) = \frac{1}{2} (w^{T} x - y)^2$
+  *
+  */
 class SquaredLoss extends RegressionLoss {
   /** Calculates the loss for a given prediction/truth pair
     *

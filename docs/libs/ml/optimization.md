@@ -91,6 +91,10 @@ are the $L_1$ and $L_2$ penalties, defined as:
 * $L_1$: $R(\wv) = \|\wv\|_1$
 * $L_2$: $R(\wv) = \frac{1}{2}\|\wv\|_2^2$
 
+The $L_2$ penalty penalizes large weights, favoring solutions with more small weights rather than
+few large ones.
+The $L_1$ penalty can be used to drive a number of the solution coefficients to 0, thereby
+producing sparse solutions.
 The optimization framework in Flink supports the $L_1$ and $L_2$ penalties, as well as no 
 regularization. The 
 regularization parameter $\lambda$ in $\eqref{objectiveFunc}$ determines the amount of 

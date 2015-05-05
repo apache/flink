@@ -19,7 +19,7 @@
 package org.apache.flink.ml.optimization
 
 import org.apache.flink.ml.common.{LabeledVector, WeightVector, ParameterMap}
-import org.apache.flink.ml.math.DenseVector
+import org.apache.flink.ml.math.{BLAS, Vector => FlinkVector, DenseVector}
 import org.scalatest.{Matchers, FlatSpec}
 
 import org.apache.flink.api.scala._
@@ -41,8 +41,13 @@ class LossFunctionITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val weightVector = new WeightVector(DenseVector(1.0), 1.0)
     val gradient = DenseVector(0.0)
 
+    def linearPrediction: (FlinkVector, WeightVector) => Double = {
+      (features: FlinkVector, weights: WeightVector) =>
+        BLAS.dot(features, weights.weights) + weights.intercept
+    }
+
     val (loss, lossDerivative) = squaredLoss.lossAndGradient(example, weightVector, gradient, new
-        NoRegularization, 0.0)
+        NoRegularization, 0.0, linearPrediction)
 
     loss should be (2.0 +- 0.001)
 
