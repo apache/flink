@@ -52,7 +52,7 @@ abstract class LossFunction extends Serializable{
     * @param weights The current weight vector
     * @param cumGradient The vector to which the gradient will be added to, in place.
     * @return A tuple containing the computed loss as its first element and a the loss derivative as
-    *         its second element.
+    *         its second element. The gradient is updated in-place.
     */
   def lossAndGradient(
       example: LabeledVector,
@@ -60,19 +60,19 @@ abstract class LossFunction extends Serializable{
       cumGradient: FlinkVector,
       regType: RegularizationType,
       regParameter: Double,
-      predictionFunction: (FlinkVector, WeightVector) => Double):
+      predictionFunction: PredictionFunction):
   (Double, Double) = {
     val features = example.vector
     val label = example.label
     // TODO(tvas): We could also provide for the case where we don't want an intercept value
     // i.e. data already centered
-    val prediction = predictionFunction(features, weights)
-//    val prediction = BLAS.dot(features, weights.weights) + weights.intercept
+    val prediction = predictionFunction.predict(features, weights)
+    val predictionGradient = predictionFunction.gradient(features, weights)
     val lossValue: Double = loss(prediction, label)
     // The loss derivative is used to update the intercept
-    val lossDeriv= lossDerivative(prediction, label)
+    val lossDeriv = lossDerivative(prediction, label)
     // Update the gradient
-    BLAS.axpy(lossDeriv , features, cumGradient)
+    BLAS.axpy(lossDeriv, predictionGradient, cumGradient)
     (lossValue, lossDeriv)
   }
 }

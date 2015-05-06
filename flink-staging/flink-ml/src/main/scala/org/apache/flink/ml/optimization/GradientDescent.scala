@@ -134,12 +134,11 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       val lossFunction = parameterMap(LossFunction)
       val regType = parameterMap(RegularizationType)
       val regParameter = parameterMap(RegularizationParameter)
-      val predictionFunction = parameterMap(PredictionFunction)
+      val predictionFunction = parameterMap(PredictionFunctionParam)
       val dimensions = example.vector.size
       // TODO(tvas): Any point in carrying the weightGradient vector for in-place replacement?
       // The idea in spark is to avoid object creation, but here we have to do it anyway
       val weightGradient = new DenseVector(new Array[Double](dimensions))
-
 
       // TODO(tvas): Indentation here?
       val (loss, lossDeriv) = lossFunction.lossAndGradient(
@@ -195,17 +194,26 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       // Scale the gradients according to batch size
       BLAS.scal(1.0/count, weightGradients.weights)
 
-      // Add the regularization term to the gradient, in-place
+      // Calculate the regularized loss and, if the regularization is differentiable, add the
+      // regularization term to the gradient as well, in-place
+      // Note(tvas): adjustedLoss is never used currently, but I'd like to leave it here for now.
+      // We can probably maintain a loss history as the optimization package grows towards a
+      // Breeze-like interface (see breeze.optimize.FirstOrderMinimizer)
       val adjustedLoss = {
         regType match {
-          case x : DiffRegularizationType => {
+          case x: DiffRegularizationType => {
             x.regularizedLossAndGradient(
               lossSum / count,
               weightVector.weights,
               weightGradients.weights,
               regParameter)
           }
-          case _ => lossSum / count
+          case x: RegularizationType => {
+            x.regLoss(
+              lossSum / count,
+              weightVector.weights,
+              regParameter)
+          }
         }
       }
 

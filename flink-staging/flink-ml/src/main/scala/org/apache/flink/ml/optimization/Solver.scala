@@ -72,8 +72,8 @@ abstract class Solver extends Serializable with WithParameters {
     this
   }
 
-  def setPredictionFunction(predictionFunction: (FlinkVector, WeightVector) => Double): Solver = {
-    parameters.add(PredictionFunction, predictionFunction)
+  def setPredictionFunction(predictionFunction: PredictionFunction): Solver = {
+    parameters.add(PredictionFunctionParam, predictionFunction)
     this
   }
 }
@@ -97,12 +97,8 @@ object Solver {
     val defaultValue = Some(0.0) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
   }
 
-  case object PredictionFunction extends Parameter[(FlinkVector, WeightVector) => Double] {
-    def linearPrediction: (FlinkVector, WeightVector) => Double = {
-      (features: FlinkVector, weights: WeightVector) =>
-      BLAS.dot(features, weights.weights) + weights.intercept
-    }
-    val defaultValue = Some(linearPrediction)
+  case object PredictionFunctionParam extends Parameter[PredictionFunction] {
+    val defaultValue = Some(new LinearPrediction)
   }
 }
 
