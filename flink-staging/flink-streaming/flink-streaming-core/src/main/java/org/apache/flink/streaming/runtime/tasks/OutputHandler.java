@@ -49,7 +49,7 @@ public class OutputHandler<OUT> {
 	private ClassLoader cl;
 	private Collector<OUT> outerCollector;
 
-	public List<ChainableStreamOperator<?, ?>> chainedOperators;
+	private List<ChainableStreamOperator<?, ?>> chainedOperators;
 
 	private Map<StreamEdge, StreamOutput<?>> outputMap;
 
@@ -97,6 +97,10 @@ public class OutputHandler<OUT> {
 
 	public Collection<StreamOutput<?>> getOutputs() {
 		return outputMap.values();
+	}
+	
+	public List<ChainableStreamOperator<?, ?>> getChainedOperators(){
+		return chainedOperators;
 	}
 
 	/**
