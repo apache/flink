@@ -29,7 +29,7 @@ import java.io.Serializable;
  *
  * @param <VV> the vertex value type
  */
-public interface ReduceNeighborsFunction <VV extends Serializable> extends Function, Serializable {
+public interface ReduceNeighborsFunction <VV> extends Function, Serializable {
 
 	VV reduceNeighbors(VV firstNeighborValue, VV secondNeighborValue);
 }

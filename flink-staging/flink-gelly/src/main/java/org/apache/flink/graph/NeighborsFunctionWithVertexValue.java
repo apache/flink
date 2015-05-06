@@ -34,8 +34,7 @@ import org.apache.flink.util.Collector;
  * @param <EV> the edge value type
  * @param <O> the type of the return value
  */
-public interface NeighborsFunctionWithVertexValue<K extends Comparable<K> & Serializable, VV extends Serializable, 
-	EV extends Serializable, O> extends Function, Serializable {
+public interface NeighborsFunctionWithVertexValue<K, VV, EV, O> extends Function, Serializable {
 
 	void iterateNeighbors(Vertex<K, VV> vertex, Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors, Collector<O> out) throws Exception;
 }

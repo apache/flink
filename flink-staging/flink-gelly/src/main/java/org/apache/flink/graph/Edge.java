@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.java.tuple.Tuple3;
 
 /**
@@ -30,8 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
  * @param <K> the key type for the sources and target vertices
  * @param <V> the edge value type
  */
-public class Edge<K extends Comparable<K> & Serializable, V extends Serializable> 
-	extends Tuple3<K, K, V>{
+public class Edge<K, V> extends Tuple3<K, K, V>{
 
 	private static final long serialVersionUID = 1L;
 

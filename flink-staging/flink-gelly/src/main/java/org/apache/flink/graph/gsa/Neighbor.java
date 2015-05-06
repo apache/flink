@@ -20,8 +20,6 @@ package org.apache.flink.graph.gsa;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import java.io.Serializable;
-
 /**
  * This class represents a <sourceVertex, edge> pair
  * This is a wrapper around Tuple2<VV, EV> for convenience in the GatherFunction
@@ -29,8 +27,7 @@ import java.io.Serializable;
  * @param <EV> the edge value type
  */
 @SuppressWarnings("serial")
-public class Neighbor<VV extends Serializable, EV extends Serializable>
-		extends Tuple2<VV, EV> {
+public class Neighbor<VV, EV> extends Tuple2<VV, EV> {
 
 	public Neighbor() {}
 
