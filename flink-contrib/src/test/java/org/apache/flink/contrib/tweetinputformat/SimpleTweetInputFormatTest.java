@@ -77,13 +77,13 @@ public class SimpleTweetInputFormatTest {
 					result.add(iterator.next().getText());
 				}
 
-				if (tweet.getId_str().equals("502213125421412352")) {
+				if (tweet.getId_str().equals("100000000000000000")) {
 					Assert.assertArrayEquals(new String[]{"example", "tweet"}, result.toArray());
-				} else if (tweet.getId_str().equals("502213125421412353")) {
+				} else if (tweet.getId_str().equals("200000000000000000")) {
 					Assert.assertArrayEquals(new String[]{"example", "tweet"}, result.toArray());
-				} else if (tweet.getId_str().equals("502213125421412354")) {
+				} else if (tweet.getId_str().equals("300000000000000000")) {
 					Assert.assertArrayEquals(new String[]{"last", "example", "that"}, result.toArray());
-				} else if (tweet.getId_str().equals("502213125421412355")) {
+				} else if (tweet.getId_str().equals("400000000000000000")) {
 					Assert.assertArrayEquals(new String[]{"d12", "how_to"}, result.toArray());
 				}
 			}
