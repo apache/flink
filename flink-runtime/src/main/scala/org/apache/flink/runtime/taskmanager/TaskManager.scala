@@ -1895,17 +1895,13 @@ object TaskManager {
       override def getValue: Double =
         ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage()
     })
-    
-    // Preprocessing steps for registering cpuLoad
-    // dummy initialisation
-    var fetchCPULoad:(Any) => Double = (obj:Any) => -1
 
-    // define the fetchCPULoad method as per the fetched getProcessCpuLoad method
-    getMethodToFetchCPULoad() match {
-      case Some(method) => fetchCPULoad = (obj:Any) => method.asInstanceOf[Method].invoke(obj).
-        asInstanceOf[Double]
-      // Log getProcessCpuLoad method not available for Java 6
-      case None => LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
+    // Preprocessing steps for registering cpuLoad
+    val fetchCPULoad = getMethodToFetchCPULoad()
+
+    // Log getProcessCpuLoad unavailable for Java 6
+    if(fetchCPULoad.isEmpty){
+      LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
         "implementation for this Java runtime environment\n" + Thread.currentThread().getStackTrace)
     }
 
@@ -1914,7 +1910,7 @@ object TaskManager {
         try{
           val osMXBean = ManagementFactory.getOperatingSystemMXBean().
             asInstanceOf[com.sun.management.OperatingSystemMXBean]
-          fetchCPULoad(osMXBean)
+          fetchCPULoad.map(_.invoke(osMXBean).asInstanceOf[Double]).getOrElse(-1)
         } catch {
           case t: Throwable => {
             LOG.warn("Error retrieving CPU Load through OperatingSystemMXBean", t)
@@ -1933,11 +1929,6 @@ object TaskManager {
    */
   private def getMethodToFetchCPULoad(): Option[Method] = {
     val methodsList = classOf[com.sun.management.OperatingSystemMXBean].getMethods()
-    val method = methodsList.filter(_.getName == "getProcessCpuLoad")
-    if(method.nonEmpty){
-      Some(method.apply(0))
-    } else {
-      None
-    }
+    methodsList.filter(_.getName == "getProcessCpuLoad").headOption
   }
 }
