@@ -105,7 +105,7 @@ public class TwitterStream {
 		@Override
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
 			try {
-				if (getString(value, "lang").equals("en")) {
+				if (getString(value, "user.lang").equals("en")) {
 					// message of tweet
 					StringTokenizer tokenizer = new StringTokenizer(getString(value, "text"));
 
