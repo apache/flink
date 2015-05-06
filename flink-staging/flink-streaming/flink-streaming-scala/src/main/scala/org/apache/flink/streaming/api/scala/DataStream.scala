@@ -94,6 +94,29 @@ class DataStream[T](javaStream: JavaStream[T]) {
         " "  +
         "parallelism.")
   }
+
+  /**
+   * Gets the name of the name of the current data stream. This name is
+   * used by the visualization and logging during the program.
+   *
+   * @return Name of the stream.
+   */
+  def getName : String = javaStream match {
+    case stream : SingleOutputStreamOperator[_,_] => javaStream.getName
+    case _ => throw new
+        UnsupportedOperationException("Only supported for operators.")
+  }
+
+  /**
+   * Sets the name of the name of the current data stream. This name is
+   * used by the visualization and logging during the program.
+   */
+  def setName(name: String) : DataStream[_] = javaStream match {
+    case stream : SingleOutputStreamOperator[_,_] => javaStream.setName(name)
+    case _ => throw new
+        UnsupportedOperationException("Only supported for operators.")
+    this
+  }
   
   /**
    * Turns off chaining for this operator so thread co-location will not be

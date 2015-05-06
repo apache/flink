@@ -76,6 +76,25 @@ public class DiscretizedStream<OUT> extends WindowedDataStream<OUT> {
 		this.isPartitioned = isPartitioned;
 	}
 
+	/**
+	 * Gets the name of the name of the current data stream. This name is
+	 * used by the visualization and logging during the program.
+	 *
+	 * @return Name of the stream.
+	 */
+	public String getName(){
+		return discretizedStream.getName();
+	}
+
+	/**
+	 * Sets the name of the name of the current data stream. This name is
+	 * used by the visualization and logging during the program.
+	 */
+	public DiscretizedStream<OUT> setName(String name){
+		discretizedStream.setName(name);
+		return this;
+	}
+
 	public DataStream<OUT> flatten() {
 		return discretizedStream.transform("Window Flatten", getType(), new WindowFlattener<OUT>());
 	}

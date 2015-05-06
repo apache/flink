@@ -41,6 +41,25 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	protected boolean isSplit;
 	protected StreamOperator<?, ?> operator;
 
+	/**
+	 * Gets the name of the name of the current data stream. This name is
+	 * used by the visualization and logging during the program.
+	 *
+	 * @return Name of the stream.
+	 */
+	public String getName(){
+		return streamGraph.getStreamNode(getId()).getOperatorName();
+	}
+
+	/**
+	 * Sets the name of the name of the current data stream. This name is
+	 * used by the visualization and logging during the program.
+	 */
+	public DataStream<OUT> setName(String name){
+		streamGraph.getStreamNode(id).setOperatorName(name);
+		return this;
+	}
+
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment,
 			String operatorType, TypeInformation<OUT> outTypeInfo, StreamOperator<?, ?> operator) {
 		super(environment, operatorType, outTypeInfo);
