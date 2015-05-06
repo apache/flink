@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import java.io.Serializable;
 
 @SuppressWarnings("serial")
-public abstract class GatherFunction<VV extends Serializable, EV extends Serializable, M> implements Serializable {
+public abstract class GatherFunction<VV, EV, M> implements Serializable {
 
 	public abstract M gather(Neighbor<VV, EV> neighbor);
 

@@ -39,8 +39,6 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
 
-import java.io.Serializable;
-
 /**
  * This class represents iterative graph computations, programmed in a gather-sum-apply perspective.
  *
@@ -49,8 +47,7 @@ import java.io.Serializable;
  * @param <EV> The type of the edge value in the graph
  * @param <M> The intermediate type used by the gather, sum and apply functions
  */
-public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
-		VV extends Serializable, EV extends Serializable, M> implements CustomUnaryOperation<Vertex<K, VV>,
+public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperation<Vertex<K, VV>,
 		Vertex<K, VV>> {
 
 	private DataSet<Vertex<K, VV>> vertexDataSet;
@@ -159,10 +156,10 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 	 *
 	 * @return An in stance of the gather-sum-apply graph computation operator.
 	 */
-	public static final <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable, M>
-			GatherSumApplyIteration<K, VV, EV, M> withEdges(DataSet<Edge<K, EV>> edges,
-			GatherFunction<VV, EV, M> gather, SumFunction<VV, EV, M> sum, ApplyFunction<K, VV, M> apply,
-			int maximumNumberOfIterations) {
+	public static final <K, VV, EV, M> GatherSumApplyIteration<K, VV, EV, M>
+		withEdges(DataSet<Edge<K, EV>> edges, GatherFunction<VV, EV, M> gather,
+		SumFunction<VV, EV, M> sum, ApplyFunction<K, VV, M> apply, int maximumNumberOfIterations) {
+
 		return new GatherSumApplyIteration<K, VV, EV, M>(gather, sum, apply, edges, maximumNumberOfIterations);
 	}
 
@@ -172,8 +169,7 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 
 	@SuppressWarnings("serial")
 	@ForwardedFields("f0")
-	private static final class GatherUdf<K extends Comparable<K> & Serializable, VV extends Serializable,
-			EV extends Serializable, M> extends RichMapFunction<Tuple2<K, Neighbor<VV, EV>>,
+	private static final class GatherUdf<K, VV, EV, M> extends RichMapFunction<Tuple2<K, Neighbor<VV, EV>>,
 			Tuple2<K, M>> implements ResultTypeQueryable<Tuple2<K, M>> {
 
 		private final GatherFunction<VV, EV, M> gatherFunction;
@@ -210,8 +206,7 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 	}
 
 	@SuppressWarnings("serial")
-	private static final class SumUdf<K extends Comparable<K> & Serializable, VV extends Serializable,
-			EV extends Serializable, M> extends RichReduceFunction<Tuple2<K, M>>
+	private static final class SumUdf<K, VV, EV, M> extends RichReduceFunction<Tuple2<K, M>>
 			implements ResultTypeQueryable<Tuple2<K, M>>{
 
 		private final SumFunction<VV, EV, M> sumFunction;
@@ -249,8 +244,7 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 	}
 
 	@SuppressWarnings("serial")
-	private static final class ApplyUdf<K extends Comparable<K> & Serializable,
-			VV extends Serializable, EV extends Serializable, M> extends RichFlatJoinFunction<Tuple2<K, M>,
+	private static final class ApplyUdf<K, VV, EV, M> extends RichFlatJoinFunction<Tuple2<K, M>,
 			Vertex<K, VV>, Vertex<K, VV>> implements ResultTypeQueryable<Vertex<K, VV>> {
 
 		private final ApplyFunction<K, VV, M> applyFunction;
@@ -289,8 +283,7 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 
 	@SuppressWarnings("serial")
 	@ForwardedFieldsSecond("f1->f0")
-	private static final class ProjectKeyWithNeighbor<K extends Comparable<K> & Serializable,
-			VV extends Serializable, EV extends Serializable> implements FlatJoinFunction<
+	private static final class ProjectKeyWithNeighbor<K, VV, EV> implements FlatJoinFunction<
 			Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Neighbor<VV, EV>>> {
 
 		public void join(Vertex<K, VV> vertex, Edge<K, EV> edge, Collector<Tuple2<K, Neighbor<VV, EV>>> out) {

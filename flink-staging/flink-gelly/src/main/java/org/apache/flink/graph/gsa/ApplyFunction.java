@@ -25,8 +25,7 @@ import org.apache.flink.util.Collector;
 import java.io.Serializable;
 
 @SuppressWarnings("serial")
-public abstract class ApplyFunction<K extends Comparable<K> & Serializable, VV extends Serializable, M>
-	implements Serializable {
+public abstract class ApplyFunction<K, VV, M> implements Serializable {
 
 	public abstract void apply(M newValue, VV currentValue);
 

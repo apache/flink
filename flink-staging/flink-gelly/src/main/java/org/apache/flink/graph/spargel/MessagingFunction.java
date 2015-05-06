@@ -38,8 +38,7 @@ import org.apache.flink.util.Collector;
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EdgeValue> The type of the values that are associated with the edges.
  */
-public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey> & Serializable, 
-	VertexValue extends Serializable, Message, EdgeValue extends Serializable> implements Serializable {
+public abstract class MessagingFunction<VertexKey, VertexValue, Message, EdgeValue> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -198,8 +197,7 @@ public abstract class MessagingFunction<VertexKey extends Comparable<VertexKey> 
 		this.edgesUsed = false;
 	}
 	
-	private static final class EdgesIterator<VertexKey extends Comparable<VertexKey> & Serializable, 
-		EdgeValue extends Serializable> 
+	private static final class EdgesIterator<VertexKey, EdgeValue> 
 		implements Iterator<Edge<VertexKey, EdgeValue>>, Iterable<Edge<VertexKey, EdgeValue>>
 	{
 		private Iterator<Edge<VertexKey, EdgeValue>> input;
