@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.utils;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
@@ -30,8 +28,7 @@ import org.apache.flink.graph.Edge;
  * @param <K>
  * @param <EV>
  */
-public class Tuple3ToEdgeMap<K extends Comparable<K> & Serializable, 
-	EV extends Serializable> implements MapFunction<Tuple3<K, K, EV>, Edge<K, EV>> {
+public class Tuple3ToEdgeMap<K, EV> implements MapFunction<Tuple3<K, K, EV>, Edge<K, EV>> {
 
 	private static final long serialVersionUID = 1L;
 

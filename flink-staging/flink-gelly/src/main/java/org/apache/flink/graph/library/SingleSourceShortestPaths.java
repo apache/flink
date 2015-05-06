@@ -27,11 +27,8 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
-import java.io.Serializable;
-
 @SuppressWarnings("serial")
-public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
-		implements GraphAlgorithm<K, Double, Double> {
+public class SingleSourceShortestPaths<K> implements GraphAlgorithm<K, Double, Double> {
 
 	private final K srcVertexId;
 	private final Integer maxIterations;
@@ -49,8 +46,7 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 				maxIterations);
 	}
 
-	public static final class InitVerticesMapper<K extends Comparable<K> & Serializable>
-			implements MapFunction<Vertex<K, Double>, Double> {
+	public static final class InitVerticesMapper<K>	implements MapFunction<Vertex<K, Double>, Double> {
 
 		private K srcVertexId;
 
@@ -73,8 +69,7 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 	 * 
 	 * @param <K>
 	 */
-	public static final class VertexDistanceUpdater<K extends Comparable<K> & Serializable>
-			extends VertexUpdateFunction<K, Double, Double> {
+	public static final class VertexDistanceUpdater<K> extends VertexUpdateFunction<K, Double, Double> {
 
 		@Override
 		public void updateVertex(K vertexKey, Double vertexValue,
@@ -100,8 +95,7 @@ public class SingleSourceShortestPaths<K extends Comparable<K> & Serializable>
 	 * 
 	 * @param <K>
 	 */
-	public static final class MinDistanceMessenger<K extends Comparable<K> & Serializable>
-			extends MessagingFunction<K, Double, Double, Double> {
+	public static final class MinDistanceMessenger<K> extends MessagingFunction<K, Double, Double, Double> {
 
 		@Override
 		public void sendMessages(K vertexKey, Double newDistance)

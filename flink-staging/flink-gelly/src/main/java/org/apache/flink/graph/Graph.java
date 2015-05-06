@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph;
 
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -30,17 +29,13 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
-import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -77,7 +72,7 @@ import org.apache.flink.types.NullValue;
  * @param <EV> the value type for edges
  */
 @SuppressWarnings("serial")
-public class Graph<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable> {
+public class Graph<K, VV, EV> {
 
 	private final ExecutionEnvironment context;
 	private final DataSet<Vertex<K, VV>> vertices;
@@ -104,9 +99,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	public static <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable> Graph<K, VV, EV> fromCollection(
-			Collection<Vertex<K, VV>> vertices, Collection<Edge<K, EV>> edges,
-			ExecutionEnvironment context) {
+	public static <K, VV, EV> Graph<K, VV, EV> fromCollection(Collection<Vertex<K, VV>> vertices,
+			Collection<Edge<K, EV>> edges, ExecutionEnvironment context) {
 
 		return fromDataSet(context.fromCollection(vertices),
 				context.fromCollection(edges), context);
@@ -121,8 +115,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	public static <K extends Comparable<K> & Serializable, EV extends Serializable> Graph<K, NullValue, EV> fromCollection(
-			Collection<Edge<K, EV>> edges, ExecutionEnvironment context) {
+	public static <K, EV> Graph<K, NullValue, EV> fromCollection(Collection<Edge<K, EV>> edges,
+			ExecutionEnvironment context) {
 
 		return fromDataSet(context.fromCollection(edges), context);
 	}
@@ -138,9 +132,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	public static <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable> Graph<K, VV, EV> fromCollection(
-			Collection<Edge<K, EV>> edges, final MapFunction<K, VV> mapper,
-			ExecutionEnvironment context) {
+	public static <K, VV, EV> Graph<K, VV, EV> fromCollection(Collection<Edge<K, EV>> edges,
+			final MapFunction<K, VV> mapper,ExecutionEnvironment context) {
 
 		return fromDataSet(context.fromCollection(edges), mapper, context);
 	}
@@ -153,9 +146,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	public static <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable> Graph<K, VV, EV> fromDataSet(
-			DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges,
-			ExecutionEnvironment context) {
+	public static <K, VV, EV> Graph<K, VV, EV> fromDataSet(DataSet<Vertex<K, VV>> vertices,
+			DataSet<Edge<K, EV>> edges, ExecutionEnvironment context) {
 
 		return new Graph<K, VV, EV>(vertices, edges, context);
 	}
@@ -169,7 +161,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	public static <K extends Comparable<K> & Serializable, EV extends Serializable> Graph<K, NullValue, EV> fromDataSet(
+	public static <K, EV> Graph<K, NullValue, EV> fromDataSet(
 			DataSet<Edge<K, EV>> edges, ExecutionEnvironment context) {
 
 		DataSet<Vertex<K, NullValue>> vertices = edges.flatMap(new EmitSrcAndTarget<K, EV>()).distinct();
@@ -177,8 +169,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return new Graph<K, NullValue, EV>(vertices, edges, context);
 	}
 
-	private static final class EmitSrcAndTarget<K extends Comparable<K> & Serializable, EV extends Serializable>
-			implements FlatMapFunction<Edge<K, EV>, Vertex<K, NullValue>> {
+	private static final class EmitSrcAndTarget<K, EV> implements FlatMapFunction<
+		Edge<K, EV>, Vertex<K, NullValue>> {
 
 		public void flatMap(Edge<K, EV> edge, Collector<Vertex<K, NullValue>> out) {
 			out.collect(new Vertex<K, NullValue>(edge.f0, NullValue.getInstance()));
@@ -197,8 +189,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	public static <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable> Graph<K, VV, EV> fromDataSet(
-			DataSet<Edge<K, EV>> edges, final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
+	public static <K, VV, EV> Graph<K, VV, EV> fromDataSet(DataSet<Edge<K, EV>> edges,
+			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
 
 		TypeInformation<K> keyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
 
@@ -220,8 +212,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return new Graph<K, VV, EV>(vertices, edges, context);
 	}
 
-	private static final class EmitSrcAndTargetAsTuple1<K extends Comparable<K> & Serializable, EV extends Serializable>
-			implements FlatMapFunction<Edge<K, EV>, Tuple1<K>> {
+	private static final class EmitSrcAndTargetAsTuple1<K, EV> implements FlatMapFunction<
+		Edge<K, EV>, Tuple1<K>> {
 
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple1<K>> out) {
 			out.collect(new Tuple1<K>(edge.f0));
@@ -240,8 +232,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	public static <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable> Graph<K, VV, EV> fromTupleDataSet(
-			DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
+	public static <K, VV, EV> Graph<K, VV, EV> fromTupleDataSet(DataSet<Tuple2<K, VV>> vertices,
+			DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
 
 		DataSet<Vertex<K, VV>> vertexDataSet = vertices.map(new Tuple2ToVertexMap<K, VV>());
 		DataSet<Edge<K, EV>> edgeDataSet = edges.map(new Tuple3ToEdgeMap<K, EV>());
@@ -259,8 +251,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	public static <K extends Comparable<K> & Serializable, EV extends Serializable> Graph<K, NullValue, EV> fromTupleDataSet(
-			DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
+	public static <K, EV> Graph<K, NullValue, EV> fromTupleDataSet(DataSet<Tuple3<K, K, EV>> edges,
+			ExecutionEnvironment context) {
 
 		DataSet<Edge<K, EV>> edgeDataSet = edges.map(new Tuple3ToEdgeMap<K, EV>());
 		return fromDataSet(edgeDataSet, context);
@@ -278,8 +270,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param context the flink execution environment.
 	 * @return the newly created graph.
 	 */
-	public static <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable> Graph<K, VV, EV> fromTupleDataSet(
-			DataSet<Tuple3<K, K, EV>> edges, final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
+	public static <K, VV, EV> Graph<K, VV, EV> fromTupleDataSet(DataSet<Tuple3<K, K, EV>> edges,
+			final MapFunction<K, VV> mapper, ExecutionEnvironment context) {
 
 		DataSet<Edge<K, EV>> edgeDataSet = edges.map(new Tuple3ToEdgeMap<K, EV>());
 		return fromDataSet(edgeDataSet, mapper, context);
@@ -367,7 +359,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @return a new graph
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public <NV extends Serializable> Graph<K, NV, EV> mapVertices(final MapFunction<Vertex<K, VV>, NV> mapper) {
+	public <NV> Graph<K, NV, EV> mapVertices(final MapFunction<Vertex<K, VV>, NV> mapper) {
 
 		TypeInformation<K> keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
 
@@ -393,7 +385,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @return a new graph
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public <NV extends Serializable> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper) {
+	public <NV> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper) {
 
 		TypeInformation<K> keyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
 
@@ -430,7 +422,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return new Graph<K, VV, EV>(resultedVertices, this.edges, this.context);
 	}
 
-	private static final class ApplyCoGroupToVertexValues<K extends Comparable<K> & Serializable, VV extends Serializable, T>
+	private static final class ApplyCoGroupToVertexValues<K, VV, T>
 			implements CoGroupFunction<Vertex<K, VV>, Tuple2<K, T>, Vertex<K, VV>> {
 
 		private MapFunction<Tuple2<VV, T>, VV> mapper;
@@ -479,7 +471,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return new Graph<K, VV, EV>(this.vertices, resultedEdges, this.context);
 	}
 
-	private static final class ApplyCoGroupToEdgeValues<K extends Comparable<K> & Serializable, EV extends Serializable, T>
+	private static final class ApplyCoGroupToEdgeValues<K, EV, T>
 			implements CoGroupFunction<Edge<K, EV>, Tuple3<K, K, T>, Edge<K, EV>> {
 
 		private MapFunction<Tuple2<EV, T>, EV> mapper;
@@ -530,7 +522,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return new Graph<K, VV, EV>(this.vertices, resultedEdges, this.context);
 	}
 
-	private static final class ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K extends Comparable<K> & Serializable, EV extends Serializable, T>
+	private static final class ApplyCoGroupToEdgeValuesOnEitherSourceOrTarget<K, EV, T>
 			implements CoGroupFunction<Edge<K, EV>, Tuple2<K, T>, Edge<K, EV>> {
 
 		private MapFunction<Tuple2<EV, T>, EV> mapper;
@@ -643,8 +635,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	@ForwardedFieldsFirst("0->0;1->1;2->2")
-	private static final class ProjectEdge<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-			implements FlatJoinFunction<Edge<K, EV>, Vertex<K, VV>, Edge<K, EV>> {
+	private static final class ProjectEdge<K, VV, EV> implements FlatJoinFunction<
+		Edge<K, EV>, Vertex<K, VV>, Edge<K, EV>> {
 		public void join(Edge<K, EV> first, Vertex<K, VV> second, Collector<Edge<K, EV>> out) {
 			out.collect(first);
 		}
@@ -660,7 +652,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return vertices.coGroup(edges).where(0).equalTo(0).with(new CountNeighborsCoGroup<K, VV, EV>());
 	}
 
-	private static final class CountNeighborsCoGroup<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
+	private static final class CountNeighborsCoGroup<K, VV, EV>
 			implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, Long>> {
 		@SuppressWarnings("unused")
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,	Iterable<Edge<K, EV>> outEdges,
@@ -772,8 +764,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ProjectVertexIdMap<K extends Comparable<K> & Serializable, EV extends Serializable>
-			implements MapFunction<Edge<K, EV>, Tuple2<K, Edge<K, EV>>> {
+	private static final class ProjectVertexIdMap<K, EV> implements MapFunction<
+		Edge<K, EV>, Tuple2<K, Edge<K, EV>>> {
 
 		private int fieldPosition;
 
@@ -787,8 +779,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ProjectVertexWithEdgeValueMap<K extends Comparable<K> & Serializable, EV extends Serializable>
-			implements MapFunction<Edge<K, EV>, Tuple2<K, EV>> {
+	private static final class ProjectVertexWithEdgeValueMap<K, EV>	implements MapFunction<
+		Edge<K, EV>, Tuple2<K, EV>> {
 
 		private int fieldPosition;
 
@@ -802,8 +794,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ApplyGroupReduceFunction<K extends Comparable<K> & Serializable, EV extends Serializable, T>
-			implements GroupReduceFunction<Tuple2<K, Edge<K, EV>>, T>,	ResultTypeQueryable<T> {
+	private static final class ApplyGroupReduceFunction<K, EV, T> implements GroupReduceFunction<
+		Tuple2<K, Edge<K, EV>>, T>,	ResultTypeQueryable<T> {
 
 		private EdgesFunction<K, EV, T> function;
 
@@ -821,32 +813,35 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class EmitOneEdgePerNode<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-			implements FlatMapFunction<Edge<K, EV>, Tuple2<K, Edge<K, EV>>> {
+	private static final class EmitOneEdgePerNode<K, VV, EV> implements FlatMapFunction<
+		Edge<K, EV>, Tuple2<K, Edge<K, EV>>> {
+
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple2<K, Edge<K, EV>>> out) {
 			out.collect(new Tuple2<K, Edge<K, EV>>(edge.getSource(), edge));
 			out.collect(new Tuple2<K, Edge<K, EV>>(edge.getTarget(), edge));
 		}
 	}
 
-	private static final class EmitOneVertexWithEdgeValuePerNode<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-			implements FlatMapFunction<Edge<K, EV>, Tuple2<K, EV>> {
+	private static final class EmitOneVertexWithEdgeValuePerNode<K, VV, EV>	implements FlatMapFunction<
+		Edge<K, EV>, Tuple2<K, EV>> {
+
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple2<K, EV>> out) {
 			out.collect(new Tuple2<K, EV>(edge.getSource(), edge.getValue()));
 			out.collect(new Tuple2<K, EV>(edge.getTarget(), edge.getValue()));
 		}
 	}
 
-	private static final class EmitOneEdgeWithNeighborPerNode<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-			implements FlatMapFunction<Edge<K, EV>, Tuple3<K, K, Edge<K, EV>>> {
+	private static final class EmitOneEdgeWithNeighborPerNode<K, VV, EV> implements FlatMapFunction<
+		Edge<K, EV>, Tuple3<K, K, Edge<K, EV>>> {
+
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple3<K, K, Edge<K, EV>>> out) {
 			out.collect(new Tuple3<K, K, Edge<K, EV>>(edge.getSource(), edge.getTarget(), edge));
 			out.collect(new Tuple3<K, K, Edge<K, EV>>(edge.getTarget(), edge.getSource(), edge));
 		}
 	}
 
-	private static final class ApplyCoGroupFunction<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable, T>
-			implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, T>, ResultTypeQueryable<T> {
+	private static final class ApplyCoGroupFunction<K, VV, EV, T> implements CoGroupFunction<
+		Vertex<K, VV>, Edge<K, EV>, T>, ResultTypeQueryable<T> {
 
 		private EdgesFunctionWithVertexValue<K, VV, EV, T> function;
 
@@ -866,7 +861,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ApplyCoGroupFunctionOnAllEdges<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable, T>
+	private static final class ApplyCoGroupFunctionOnAllEdges<K, VV, EV, T>
 			implements	CoGroupFunction<Vertex<K, VV>, Tuple2<K, Edge<K, EV>>, T>, ResultTypeQueryable<T> {
 
 		private EdgesFunctionWithVertexValue<K, VV, EV, T> function;
@@ -915,7 +910,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	@ForwardedFields("0->1;1->0;2->2")
-	private static final class ReverseEdgesMap<K extends Comparable<K> & Serializable, EV extends Serializable>
+	private static final class ReverseEdgesMap<K, EV>
 			implements MapFunction<Edge<K, EV>, Edge<K, EV>> {
 
 		public Edge<K, EV> map(Edge<K, EV> value) {
@@ -955,7 +950,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return vertices.map(new ExtractVertexIDMapper<K, VV>());
 	}
 
-	private static final class ExtractVertexIDMapper<K extends Comparable<K> & Serializable, VV extends Serializable>
+	private static final class ExtractVertexIDMapper<K, VV>
 			implements MapFunction<Vertex<K, VV>, K> {
 		@Override
 		public K map(Vertex<K, VV> vertex) {
@@ -970,72 +965,11 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return edges.map(new ExtractEdgeIDsMapper<K, EV>());
 	}
 
-	private static final class ExtractEdgeIDsMapper<K extends Comparable<K> & Serializable, EV extends Serializable>
+	private static final class ExtractEdgeIDsMapper<K, EV>
 			implements MapFunction<Edge<K, EV>, Tuple2<K, K>> {
 		@Override
 		public Tuple2<K, K> map(Edge<K, EV> edge) throws Exception {
 			return new Tuple2<K, K>(edge.f0, edge.f1);
-		}
-	}
-
-	/**
-	 * Checks the weak connectivity of a graph.
-	 * 
-	 * @param maxIterations
-	 *            the maximum number of iterations for the inner delta iteration
-	 * @return true if the graph is weakly connected.
-	 */
-	public boolean isWeaklyConnected(int maxIterations) throws Exception {
-		// first, convert to an undirected graph
-		Graph<K, VV, EV> graph = this.getUndirected();
-
-		DataSet<K> vertexIds = graph.getVertexIds();
-		DataSet<Tuple2<K, K>> verticesWithInitialIds = vertexIds
-				.map(new DuplicateVertexIDMapper<K>());
-
-		DataSet<Tuple2<K, K>> edgeIds = graph.getEdgeIds();
-
-		DeltaIteration<Tuple2<K, K>, Tuple2<K, K>> iteration = verticesWithInitialIds
-				.iterateDelta(verticesWithInitialIds, maxIterations, 0);
-
-		DataSet<Tuple2<K, K>> changes = iteration.getWorkset()
-				.join(edgeIds, JoinHint.REPARTITION_SORT_MERGE)
-				.where(0).equalTo(0).with(new FindNeighborsJoin<K>())
-				.groupBy(0).aggregate(Aggregations.MIN, 1)
-				.join(iteration.getSolutionSet(), JoinHint.REPARTITION_SORT_MERGE).where(0).equalTo(0)
-				.with(new VertexWithNewComponentJoin<K>());
-
-		DataSet<Tuple2<K, K>> components = iteration.closeWith(changes, changes);
-		return components.groupBy(1).reduceGroup(new EmitFirstReducer<K>()).count() == 1;
-	}
-
-	private static final class DuplicateVertexIDMapper<K> implements MapFunction<K, Tuple2<K, K>> {
-		@Override
-		public Tuple2<K, K> map(K k) {
-			return new Tuple2<K, K>(k, k);
-		}
-	}
-
-	private static final class FindNeighborsJoin<K> implements JoinFunction<Tuple2<K, K>, Tuple2<K, K>, Tuple2<K, K>> {
-		@Override
-		public Tuple2<K, K> join(Tuple2<K, K> vertexWithComponent, Tuple2<K, K> edge) {
-			return new Tuple2<K, K>(edge.f1, vertexWithComponent.f1);
-		}
-	}
-
-	private static final class VertexWithNewComponentJoin<K extends Comparable<K>>
-			implements FlatJoinFunction<Tuple2<K, K>, Tuple2<K, K>, Tuple2<K, K>> {
-		@Override
-		public void join(Tuple2<K, K> candidate, Tuple2<K, K> old, Collector<Tuple2<K, K>> out) {
-			if (candidate.f1.compareTo(old.f1) < 0) {
-				out.collect(candidate);
-			}
-		}
-	}
-
-	private static final class EmitFirstReducer<K> implements GroupReduceFunction<Tuple2<K, K>, Tuple2<K, K>> {
-		public void reduce(Iterable<Tuple2<K, K>> values, Collector<Tuple2<K, K>> out) {
-			out.collect(values.iterator().next());
 		}
 	}
 
@@ -1098,7 +1032,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
 	}
 
-	private static final class RemoveVertexFilter<K extends Comparable<K> & Serializable, VV extends Serializable>
+	private static final class RemoveVertexFilter<K, VV>
 			implements FilterFunction<Vertex<K, VV>> {
 
 		private Vertex<K, VV> vertexToRemove;
@@ -1113,7 +1047,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class VertexRemovalEdgeFilter<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
+	private static final class VertexRemovalEdgeFilter<K, VV, EV>
 			implements FilterFunction<Edge<K, EV>> {
 
 		private Vertex<K, VV> vertexToRemove;
@@ -1147,7 +1081,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return new Graph<K, VV, EV>(this.vertices, newEdges, this.context);
 	}
 
-	private static final class EdgeRemovalEdgeFilter<K extends Comparable<K> & Serializable, EV extends Serializable>
+	private static final class EdgeRemovalEdgeFilter<K, EV>
 			implements FilterFunction<Edge<K, EV>> {
 		private Edge<K, EV> edgeToRemove;
 
@@ -1336,7 +1270,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ApplyNeighborGroupReduceFunction<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable, T>
+	private static final class ApplyNeighborGroupReduceFunction<K, VV, EV, T>
 			implements GroupReduceFunction<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>, T>, ResultTypeQueryable<T> {
 
 		private NeighborsFunction<K, VV, EV, T> function;
@@ -1355,7 +1289,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ProjectVertexWithNeighborValueJoin<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
+	private static final class ProjectVertexWithNeighborValueJoin<K, VV, EV>
 			implements FlatJoinFunction<Edge<K, EV>, Vertex<K, VV>, Tuple2<K, VV>> {
 
 		private int fieldPosition;
@@ -1371,8 +1305,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ProjectVertexIdJoin<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-			implements FlatJoinFunction<Edge<K, EV>, Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> {
+	private static final class ProjectVertexIdJoin<K, VV, EV> implements FlatJoinFunction<
+		Edge<K, EV>, Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> {
+
 		private int fieldPosition;
 		public ProjectVertexIdJoin(int position) {
 			this.fieldPosition = position;
@@ -1384,8 +1319,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ProjectNeighborValue<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-			implements	FlatJoinFunction<Tuple3<K, K, Edge<K, EV>>, Vertex<K, VV>, Tuple2<K, VV>> {
+	private static final class ProjectNeighborValue<K, VV, EV> implements FlatJoinFunction<
+		Tuple3<K, K, Edge<K, EV>>, Vertex<K, VV>, Tuple2<K, VV>> {
 
 		public void join(Tuple3<K, K, Edge<K, EV>> keysWithEdge, Vertex<K, VV> neighbor,
 				Collector<Tuple2<K, VV>> out) {
@@ -1394,8 +1329,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ProjectEdgeWithNeighbor<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-			implements	FlatJoinFunction<Tuple3<K, K, Edge<K, EV>>, Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> {
+	private static final class ProjectEdgeWithNeighbor<K, VV, EV> implements FlatJoinFunction<
+		Tuple3<K, K, Edge<K, EV>>, Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> {
 
 		public void join(Tuple3<K, K, Edge<K, EV>> keysWithEdge, Vertex<K, VV> neighbor,
 						Collector<Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> out) {
@@ -1403,8 +1338,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ApplyNeighborCoGroupFunction<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable, T>
-			implements CoGroupFunction<Vertex<K, VV>, Tuple2<Edge<K, EV>, Vertex<K, VV>>, T>, ResultTypeQueryable<T> {
+	private static final class ApplyNeighborCoGroupFunction<K, VV, EV, T> implements CoGroupFunction<
+		Vertex<K, VV>, Tuple2<Edge<K, EV>, Vertex<K, VV>>, T>, ResultTypeQueryable<T> {
 
 		private NeighborsFunctionWithVertexValue<K, VV, EV, T> function;
 
@@ -1423,7 +1358,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
-	private static final class ApplyCoGroupFunctionOnAllNeighbors<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable, T>
+	private static final class ApplyCoGroupFunctionOnAllNeighbors<K, VV, EV, T>
 			implements CoGroupFunction<Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>, T>, ResultTypeQueryable<T> {
 
 		private NeighborsFunctionWithVertexValue<K, VV, EV, T> function;
@@ -1513,8 +1448,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	@ForwardedFields("f0")
-	private static final class ApplyNeighborReduceFunction<K extends Comparable<K> & Serializable, VV extends Serializable>
-			implements ReduceFunction<Tuple2<K, VV>> {
+	private static final class ApplyNeighborReduceFunction<K, VV> implements ReduceFunction<Tuple2<K, VV>> {
 
 		private ReduceNeighborsFunction<VV> function;
 
@@ -1561,8 +1495,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 
 	@ForwardedFields("f0")
-	private static final class ApplyReduceFunction<K extends Comparable<K> & Serializable, EV extends Serializable>
-			implements ReduceFunction<Tuple2<K, EV>> {
+	private static final class ApplyReduceFunction<K, EV> implements ReduceFunction<Tuple2<K, EV>> {
 
 		private ReduceEdgesFunction<EV> function;
 

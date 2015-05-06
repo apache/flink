@@ -28,7 +28,7 @@ import java.io.Serializable;
  *
  * @param <EV> the edge value type
  */
-public interface ReduceEdgesFunction<EV extends Serializable> extends Function, Serializable {
+public interface ReduceEdgesFunction<EV> extends Function, Serializable {
 
 	EV reduceEdges(EV firstEdgeValue, EV secondEdgeValue);
 }
