@@ -373,7 +373,7 @@ public static final class MinDistanceMessenger {...}
 {% endhighlight %}
 
 ### Configuring a Vertex-Centric Iteration
-A vertex-centric iteration can be configured using an `IterationConfiguration` object.
+A vertex-centric iteration can be configured using a `VertexCentricConfiguration` object.
 Currently, the following parameters can be specified:
 
 * <strong>Name</strong>: The name for the vertex-centric iteration. The name is displayed in logs and messages 
@@ -393,7 +393,7 @@ all aggregates globally once per superstep and makes them available in the next 
 Graph<Long, Double, Double> graph = ...
 
 // configure the iteration
-IterationConfiguration parameters = new IterationConfiguration();
+VertexCentricConfiguration parameters = new VertexCentricConfiguration();
 
 // set the iteration name
 parameters.setName("Gelly Iteration");
