@@ -640,11 +640,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		
 		try {
 			this.stream = isot.waitForCompletion();
-			// Wrap stream in a extracting (decompressing) stream if file ends with .deflate.
-			if(fileSplit.getPath().getName().endsWith(DEFLATE_SUFFIX)) {
-				this.stream = new InflaterInputStreamFSInputWrapper(stream);
-			}
-			
+			this.stream = decorateInputStream(this.stream, fileSplit);
 		}
 		catch (Throwable t) {
 			throw new IOException("Error opening the Input Split " + fileSplit.getPath() + 
@@ -656,7 +652,27 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			this.stream.seek(this.splitStart);
 		}
 	}
-	
+
+	/**
+	 * This method allows to wrap/decorate the raw {@link FSDataInputStream} for a certain file split, e.g., for decoding.
+	 * When overriding this method, also consider adapting {@link FileInputFormat#testForUnsplittable} if your
+	 * stream decoration renders the input file unsplittable. Also consider calling existing superclass implementations.
+	 *
+	 * @param inputStream is the input stream to decorated
+	 * @param fileSplit   is the file split for which the input stream shall be decorated
+	 * @return the decorated input stream
+	 * @throws Throwable if the decoration fails
+	 * @see org.apache.flink.api.common.io.InputStreamFSInputWrapper
+	 */
+	protected FSDataInputStream decorateInputStream(FSDataInputStream inputStream, FileInputSplit fileSplit) throws Throwable {
+		// Wrap stream in a extracting (decompressing) stream if file ends with .deflate.
+		if (fileSplit.getPath().getName().endsWith(DEFLATE_SUFFIX)) {
+			return new InflaterInputStreamFSInputWrapper(stream);
+		}
+
+		return inputStream;
+	}
+
 	/**
 	 * Closes the file input stream of the input format.
 	 */
