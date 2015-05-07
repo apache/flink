@@ -144,7 +144,7 @@ public class NetworkStackThroughputITCase {
 				int dataVolumeGb = this.config.getInteger(DATA_VOLUME_GB_CONFIG_KEY, 1);
 
 				long dataVolumeMbit = dataVolumeGb * 8192;
-				long runtimeSecs = getJobExecutionResult().elapsedNetRuntime(TimeUnit.SECONDS);
+				long runtimeSecs = getJobExecutionResult().getNetRuntime(TimeUnit.SECONDS);
 
 				int mbitPerSecond = (int) (((double) dataVolumeMbit) / runtimeSecs);
 

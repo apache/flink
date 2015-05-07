@@ -65,13 +65,13 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 	}
 
     /**
-     * Gets the net execution time of the job, i.e., the execution time in the parallel system,
-     * without the pre-flight steps like the optimizer in a desired unit.
-     *
-     * @param desiredUnit the unit of the <tt>NetRuntime</tt>
-     * @return The net execution time in the desired unit.
-     */
-	public long elapsedNetRuntime(TimeUnit desiredUnit) {
+	 * Gets the net execution time of the job, i.e., the execution time in the parallel system,
+	 * without the pre-flight steps like the optimizer in a desired time unit.
+	 *
+	 * @param desiredUnit the unit of the <tt>NetRuntime</tt>
+	 * @return The net execution time in the desired unit.
+	 */
+	public long getNetRuntime(TimeUnit desiredUnit) {
 		return desiredUnit.convert(getNetRuntime(), TimeUnit.MILLISECONDS);
 	}
 
