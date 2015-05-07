@@ -16,19 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
-
-import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer
+package org.apache.flink.streaming.api.checkpoint;
 
 /**
- * This object contains the job manager profiler messages
+ * This interface must be implemented by functions/operations that want to receive
+ * a commit notification once a checkpoint has been completely acknowledged by all
+ * participants.
  */
-object JobManagerProfilerMessages {
+public interface CheckpointCommitter {
 
-  /**
-   * Reports profiling data to the profiler.
-   * @param profilingDataContainer
-   */
-  case class ReportProfilingData(profilingDataContainer: ProfilingDataContainer)
-
+	/**
+	 * This method is called as a notification once a distributed checkpoint has been completed.
+	 * 
+	 * Note that any exception during this method will not cause the checkpoint to
+	 * fail any more.
+	 * 
+	 * @param checkpointId The ID of the checkpoint that has been completed.
+	 */
+	void commitCheckpoint(long checkpointId);
 }

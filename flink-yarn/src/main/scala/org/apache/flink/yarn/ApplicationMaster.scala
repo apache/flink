@@ -32,7 +32,7 @@ import org.apache.flink.yarn.Messages.StartYarnSession
 import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.slf4j.LoggerFactory
+
 
 import scala.io.Source
 
@@ -228,18 +228,14 @@ object ApplicationMaster {
     // start all the components inside the job manager
     LOG.debug("Starting JobManager components")
     val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-                   profilerProps, executionRetries, delayBetweenRetries,
+                   executionRetries, delayBetweenRetries,
                    timeout, _) = JobManager.createJobManagerComponents(configuration)
-
-    // start the profiler, if needed
-    val profiler: Option[ActorRef] =
-      profilerProps.map( props => jobManagerSystem.actorOf(props, JobManager.PROFILER_NAME) )
 
     // start the archiver
     val archiver: ActorRef = jobManagerSystem.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
 
     val jobManagerProps = Props(new JobManager(configuration, instanceManager, scheduler,
-      libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
+      libraryCacheManager, archiver, accumulatorManager, executionRetries,
       delayBetweenRetries, timeout) with ApplicationMasterActor)
 
     LOG.debug("Starting JobManager actor")

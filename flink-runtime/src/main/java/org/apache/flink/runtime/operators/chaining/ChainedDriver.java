@@ -62,7 +62,8 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 		} else {
 			Environment env = parent.getEnvironment();
 			this.udfContext = new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
-					env.getIndexInSubtaskGroup(), userCodeClassLoader, parent.getExecutionConfig(), env.getCopyTask());
+					env.getIndexInSubtaskGroup(), userCodeClassLoader, parent.getExecutionConfig(),
+					env.getDistributedCacheEntries());
 		}
 
 		this.executionConfig = executionConfig;

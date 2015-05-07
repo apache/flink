@@ -42,7 +42,7 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
 			ExecutionConfig executionConfig, Map<String, OperatorState<?>> operatorStates) {
 		super(name, env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(), userCodeClassLoader,
-				executionConfig, env.getCopyTask());
+				executionConfig, env.getDistributedCacheEntries());
 		this.env = env;
 		this.operatorStates = operatorStates;
 	}

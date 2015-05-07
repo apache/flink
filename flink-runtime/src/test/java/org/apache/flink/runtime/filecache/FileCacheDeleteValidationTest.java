@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.filecache;
 
 import java.io.File;
-import java.io.IOException;
+import java.util.concurrent.Future;
 
-import org.junit.Assert;
-
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
-import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.api.common.JobID;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,16 +33,16 @@ import org.junit.Test;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
+import static org.junit.Assert.fail;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
+
 /**
  * Test delete process of {@link FileCache}. The local cache file should not be deleted why another task comes in 5 seconds.
  */
 public class FileCacheDeleteValidationTest {
-	FileCache fileCache = new FileCache();
-	LocalFileSystem lfs = new LocalFileSystem();
-	File f;
 
-
-	String testFileContent = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
+	private static final String testFileContent = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
 		+ "Der Herr. Die himmlischen Heerscharen. Nachher Mephistopheles. Die drei\n" + "Erzengel treten vor.\n"
 		+ "RAPHAEL: Die Sonne toent, nach alter Weise, In Brudersphaeren Wettgesang,\n"
 		+ "Und ihre vorgeschriebne Reise Vollendet sie mit Donnergang. Ihr Anblick\n"
@@ -58,60 +57,83 @@ public class FileCacheDeleteValidationTest {
 		+ "Da flammt ein blitzendes Verheeren Dem Pfade vor des Donnerschlags. Doch\n"
 		+ "deine Boten, Herr, verehren Das sanfte Wandeln deines Tags.\n";
 
+	private FileCache fileCache;
+	private File f;
+	
 	@Before
-	public void createTmpCacheFile() {
+	public void setup() {
+		try {
+			fileCache = new FileCache(new Configuration());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail("Cannot create FileCache: " + e.getMessage());
+		}
+		
 		f = new File(System.getProperty("java.io.tmpdir"), "cacheFile");
 		try {
 			Files.write(testFileContent, f, Charsets.UTF_8);
-		} catch (IOException e) {
-			throw new RuntimeException("Error initializing the test", e);
 		}
-	}
-
-	@Test
-	public void testFileReuseForNextTask() {
-		JobID jobID = new JobID();
-		String filePath = f.toURI().toString();
-		fileCache.createTmpFile("test_file", new DistributedCacheEntry(filePath, false), jobID);
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Interrupted error", e);
-		}
-		fileCache.deleteTmpFile("test_file", new DistributedCacheEntry(filePath, false), jobID);
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Interrupted error", e);
-		}
-		//new task comes after 1 second
-		try {
-			Assert.assertTrue("Local cache file should not be deleted when another task comes in 5 seconds!", lfs.exists(fileCache.getTempDir(jobID, "cacheFile")));
-		} catch (IOException e) {
-			throw new RuntimeException("Interrupted error", e);
-		}
-		fileCache.createTmpFile("test_file", new DistributedCacheEntry(filePath, false), jobID);
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Interrupted error", e);
-		}
-		fileCache.deleteTmpFile("test_file", new DistributedCacheEntry(filePath, false), jobID);
-		try {
-			Thread.sleep(7000);
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Interrupted error", e);
-		}
-		//no task comes in 7 seconds
-		try {
-			Assert.assertTrue("Local cache file should be deleted when no task comes in 5 seconds!", !lfs.exists(fileCache.getTempDir(jobID, "cacheFile")));
-		} catch (IOException e) {
-			throw new RuntimeException("Interrupted error", e);
+		catch (Exception e) {
+			e.printStackTrace();
+			fail("Error initializing the test: " + e.getMessage());
 		}
 	}
 
 	@After
 	public void shutdown() {
-		fileCache.shutdown();
+		try {
+			fileCache.shutdown();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail("FileCache shutdown failed: " + e.getMessage());
+		}
+	}
+
+	@Test
+	public void testFileReuseForNextTask() {
+		try {
+			final JobID jobID = new JobID();
+			final String fileName = "test_file";
+			
+			final String filePath = f.toURI().toString();
+			
+			// copy / create the file
+			Future<Path> copyResult = fileCache.createTmpFile(fileName, new DistributedCacheEntry(filePath, false), jobID);
+			copyResult.get();
+			
+			// get another reference to the file
+			Future<Path> copyResult2 = fileCache.createTmpFile(fileName, new DistributedCacheEntry(filePath, false), jobID);
+			
+			// this should be available immediately
+			assertTrue(copyResult2.isDone());
+			
+			// delete the file
+			fileCache.deleteTmpFile(fileName, jobID);
+			// file should not yet be deleted
+			assertTrue(fileCache.holdsStillReference(fileName, jobID));
+
+			// delete the second reference
+			fileCache.deleteTmpFile(fileName, jobID);
+			// file should still not be deleted, but remain for a bit
+			assertTrue(fileCache.holdsStillReference(fileName, jobID));
+			
+			fileCache.createTmpFile(fileName, new DistributedCacheEntry(filePath, false), jobID);
+			fileCache.deleteTmpFile(fileName, jobID);
+			
+			// after a while, the file should disappear
+			long deadline = System.currentTimeMillis() + 20000;
+			do {
+				Thread.sleep(5500);
+			}
+			while (fileCache.holdsStillReference(fileName, jobID) && System.currentTimeMillis() < deadline);
+
+			assertFalse(fileCache.holdsStillReference(fileName, jobID));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 }
