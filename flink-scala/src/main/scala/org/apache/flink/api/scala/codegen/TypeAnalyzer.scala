@@ -81,6 +81,8 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case WritableType() => WritableDescriptor(id, tpe)
 
+          case TraitType() => GenericClassDescriptor(id, tpe)
+
           case JavaType() =>
             // It's a Java Class, let the TypeExtractor deal with it...
             GenericClassDescriptor(id, tpe)
@@ -379,6 +381,10 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
         tpe.typeSymbol.asClass.baseClasses exists {
           s => s.fullName == "org.apache.hadoop.io.Writable"
         }
+    }
+
+    private object TraitType {
+      def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.isTrait
     }
 
     private object JavaType {
