@@ -17,16 +17,18 @@
 
 package org.apache.flink.streaming.examples.twitter;
 
+import java.util.Properties;
+import java.util.StringTokenizer;
+
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.json.JSONParseFlatMap;
+import org.apache.flink.streaming.connectors.twitter.PropertiesUtil;
 import org.apache.flink.streaming.connectors.twitter.TwitterSource;
 import org.apache.flink.streaming.examples.twitter.util.TwitterStreamData;
 import org.apache.flink.util.Collector;
 import org.apache.sling.commons.json.JSONException;
-
-import java.util.StringTokenizer;
 
 /**
  * Implements the "TwitterStream" program that computes a most used word
@@ -154,11 +156,13 @@ public class TwitterStream {
 		}
 		return true;
 	}
-
+	
 	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env) {
 		if (fileInput) {
+		    // load the authentication properties from given input path
+			Properties authenticationProperties = PropertiesUtil.load(propertiesPath);
 			// read the text file from given input path
-			return env.addSource(new TwitterSource(propertiesPath));
+			return env.addSource(new TwitterSource(authenticationProperties));
 		} else {
 			// get default test text data
 			return env.fromElements(TwitterStreamData.TEXTS);
