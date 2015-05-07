@@ -20,6 +20,7 @@ package org.apache.flink.ml.optimization
 
 import org.apache.flink.ml.common.{WeightVector, LabeledVector}
 import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
+import scala.math
 
 /** Abstract class that implements some of the functionality for common loss functions
   *
@@ -29,7 +30,7 @@ import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
   * We currently only support differentiable loss functions, in the future this class
   * could be changed to DiffLossFunction in order to support other types, such absolute loss.
   */
-abstract class LossFunction extends Serializable{
+abstract class LossFunction extends Serializable {
 
   /** Calculates the loss for a given prediction/truth pair
     *
@@ -55,12 +56,12 @@ abstract class LossFunction extends Serializable{
     *         its second element. The gradient is updated in-place.
     */
   def lossAndGradient(
-      example: LabeledVector,
-      weights: WeightVector,
-      cumGradient: FlinkVector,
-      regType: RegularizationType,
-      regParameter: Double,
-      predictionFunction: PredictionFunction):
+                       example: LabeledVector,
+                       weights: WeightVector,
+                       cumGradient: FlinkVector,
+                       regType: RegularizationType,
+                       regParameter: Double,
+                       predictionFunction: PredictionFunction):
   (Double, Double) = {
     val features = example.vector
     val label = example.label
@@ -78,6 +79,7 @@ abstract class LossFunction extends Serializable{
 }
 
 trait ClassificationLoss extends LossFunction
+
 trait RegressionLoss extends LossFunction
 
 // TODO(tvas): Implement LogisticLoss, HingeLoss.
@@ -105,3 +107,29 @@ class SquaredLoss extends RegressionLoss {
   }
 
 }
+
+class HingeLoss extends ClassificationLoss {
+  /** Calculates the loss for a given prediction/truth pair
+    *
+    * @param prediction The predicted value
+    * @param truth The true value
+    */
+  override protected def loss(prediction: Double, truth: Double): Double = {
+    math.max(0, 1 - prediction * truth)
+  }
+
+  /** Calculates the derivative of the loss function with respect to the prediction
+    *
+    * @param prediction The predicted value
+    * @param truth The true value
+    */
+  override protected def lossDerivative(prediction: Double, truth: Double): Double = {
+    if (truth * prediction < 1)
+      -truth * prediction
+    else {
+      0
+    }
+  }
+}
+
+
