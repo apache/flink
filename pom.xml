@@ -708,14 +708,18 @@ under the License.
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
 						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/sb-admin.css</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/flot/*</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/jcanvas.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/timeline.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/d3.layout.min.js</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/rickshaw.*</exclude>
-						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/rickshaw.*</exclude>
+						<exclude>flink-runtime/src/main/frontend/css/sb-admin.css</exclude>
+						<exclude>flink-runtime/src/main/frontend/node/**</exclude>
+						<exclude>flink-runtime/src/main/frontend/font-awesome/**</exclude>
+						<exclude>flink-runtime/src/main/frontend/build/**</exclude>
+						<exclude>flink-runtime/src/main/frontend/node_modules/**</exclude>
+						<exclude>flink-runtime/src/main/frontend/js/flot/*</exclude>
+						<exclude>flink-runtime/src/main/frontend/js/jcanvas.min.js</exclude>
+						<exclude>flink-runtime/src/main/frontend/js/timeline.js</exclude>
+						<exclude>flink-runtime/src/main/frontend/js/d3.min.js</exclude>
+						<exclude>flink-runtime/src/main/frontend/js/d3.layout.min.js</exclude>
+						<exclude>flink-runtime/src/main/frontend/js/rickshaw.*</exclude>
+						<exclude>flink-runtime/src/main/frontend/css/rickshaw.*</exclude>
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
 						<exclude>flink-staging/flink-avro/src/test/resources/avro/*.avsc</exclude>

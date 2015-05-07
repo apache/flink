@@ -384,6 +384,45 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+			<!-- Grunt build for frontend -->
+			<plugin>
+				<groupId>com.github.eirslett</groupId>
+				<artifactId>frontend-maven-plugin</artifactId>
+				<version>0.0.23</version>
+				<configuration>
+					<workingDirectory>src/main/frontend</workingDirectory>
+				</configuration>
+				<executions>
+					<execution>
+						<id>install node and npm</id>
+						<goals>
+							<goal>install-node-and-npm</goal>
+						</goals>
+						<configuration>
+							<nodeVersion>v0.10.32</nodeVersion>
+							<npmVersion>2.1.6</npmVersion>
+						</configuration>
+					</execution>
+					<execution>
+						<id>npm install</id>
+						<goals>
+							<goal>npm</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>grunt build</id>
+						<goals>
+							<goal>grunt</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
+		<resources>
+			<resource>
+				<directory>src/main/frontend/build</directory>
+				<targetPath>web-docs-infoserver</targetPath>
+			</resource>
+		</resources>
 	</build>
 </project>
