@@ -1,4 +1,5 @@
 ---
+mathjax: include
 title: Distance Metrics
 ---
 <!--
@@ -31,13 +32,62 @@ use other distance metric by implementing `DistanceMetric` trait.
 
 ## Built-in Implementations
 
-* Euclidean Distance
-* Squared Euclidean Distance
-* Cosine Distance
-* Tanimoto Distance
-* Chebyshev Distance
-* Manhattan Distance
-* Minkowski Distance
+Currently, FlinkML supports the following metrics:
+
+<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 20%">Metric</th>
+        <th class="text-center">Description</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr>
+        <td><strong>Euclidean Distance</strong></td>
+        <td>
+          $$d(\x, \y) = \sqrt{\sum_{i=1}^n \left(x_i - y_i \right)^2}$$
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Squared Euclidean Distance</strong></td>
+        <td>
+          $$d(\x, \y) = \sum_{i=1}^n \left(x_i - y_i \right)^2$$
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Cosine Similarity</strong></td>
+        <td>
+          $$d(\x, \y) = 1 - \frac{\x^T \y}{\Vert \x \Vert \Vert \y \Vert}$$
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Chebyshev Distance</strong></td>
+        <td>
+          $$d(\x, \y) = \max_{i}\left(\left \vert x_i - y_i \right\vert \right)$$
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Manhattan Distance</strong></td>
+        <td>
+          $$d(\x, \y) = \sum_{i=1}^n \left\vert x_i - y_i \right\vert$$
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Minkowski Distance</strong></td>
+        <td>
+          $$d(\x, \y) = \left( \sum_{i=1}^{n} \left( x_i - y_i \right)^p \right)^{\rfrac{1}{p}}$$
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Tanimoto Distance</strong></td>
+        <td>
+          $$d(\x, \y) = 1 - \frac{\x^T\y}{\Vert \x \Vert^2 + \Vert \y \Vert^2 - \x^T\y}$$ 
+          with $\x$ and $\y$ being bit-vectors
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
 ## Custom Implementation
 

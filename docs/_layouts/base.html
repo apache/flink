@@ -51,6 +51,10 @@ under the License.
     {% comment %} Includes are found in the _includes directory. {% endcomment %}
     {% include navbar.html %}
 
+    {% if page.mathjax %}
+    {% include latex_commands.html %}
+    {% endif %}
+
     <!-- Main content. -->
     <div class="container">
       {% comment %}
