@@ -20,9 +20,9 @@ package org.apache.flink.ml.feature.extraction
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.common.{Parameter, ParameterMap, Transformer}
-import org.apache.flink.ml.math.Breeze._
-import org.apache.flink.ml.math.{DenseVector, Vector}
+import org.apache.flink.ml.math.{SparseVector, DenseVector, Vector}
 import org.apache.flink.ml.feature.extraction.FeatureHasher.NumberFeatures
 
 import scala.util.hashing.MurmurHash3
@@ -49,7 +49,7 @@ import scala.util.hashing.MurmurHash3
   *
   * - [[FeatureHasher.NumberFeatures]]: The number of features in the resulting data set.
   */
-class FeatureHasher extends Transformer[Vector, Vector] with Serializable {
+class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
 
 	/** Sets the target number of features of the transformed data
 	  *
@@ -61,35 +61,43 @@ class FeatureHasher extends Transformer[Vector, Vector] with Serializable {
 		this
 	}
 
-	override def transform(input: DataSet[Vector], parameters: ParameterMap):
-	DataSet[Vector] = {
+	override def transform(input: DataSet[Seq[String]], parameters: ParameterMap): DataSet[Vector] = {
 		val resultingParameters = this.parameters ++ parameters
-		val n = resultingParameters(NumberFeatures)
+		val numberFeatures = resultingParameters(NumberFeatures)
 
-		input.map(new RichMapFunction[Vector, Vector]() {
+		input.map(new RichMapFunction[Seq[String], Vector]() {
 
-			override def map(vector: Vector): Vector = {
-				var myVector = vector.asBreeze
+			override def map(a: Seq[String]): Vector = {
+				var hashBuckets = Array.fill[Double](numberFeatures)(0.0)
 
-				var hashBuckets = Array.fill[Double](n)(0.0)
+				for (element <- a) {
+					val h = Math.abs(MurmurHash3.arrayHash(Array(element)))
 
-				val iterator = myVector.valuesIterator
-
-				for (i <- 0 until myVector.size) {
-					val value = iterator.next
-
-					val h = Math.abs(MurmurHash3.arrayHash[Double](Array(value)))
-
-					hashBuckets(Math.abs(h) % n) += (if (h > 0) {
+					hashBuckets(Math.abs(h) % numberFeatures) += (if (h > 0) {
 						1.0
 					} else {
 						-1.0
 					})
 				}
+				
+				val zeroCount = hashBuckets.count(_ == 0.0)
 
-				var hashedVector = new DenseVector(hashBuckets)
-
-				return hashedVector
+				if (zeroCount.toFloat/numberFeatures > 0.5) {
+					val size = numberFeatures - zeroCount
+					val indices = new Array[(Int)](size)
+					val data = new Array[(Double)](size)
+					var i = 0
+					for(element <- 0 until hashBuckets.size) {
+						if(hashBuckets(element) != 0.0) {
+							indices(i) = element
+							data(i) = hashBuckets(element)
+							i = i + 1
+						}
+					}
+					new SparseVector(size,indices,data)
+				} else {
+					new DenseVector(hashBuckets)
+				}
 			}
 		})
 	}

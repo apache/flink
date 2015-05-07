@@ -36,13 +36,15 @@ class FeatureHasherITSuite
 
 		val env = ExecutionEnvironment.getExecutionEnvironment
 
-		val dataSet = env.fromCollection(data)
+		val data1: Seq[Seq[String]] = List(List("hallo","hallo"),List("new","hello"))
+		
+		val dataSet = env.fromCollection(data1)
 		val transformer = FeatureHasher()
 		transformer.setNumberFeatures(10)
 
 		val hashedVectors = transformer.transform(dataSet).collect
 
-		hashedVectors.length should equal(data.length)
+		hashedVectors.length should equal(data1.length)
 
 
 	}
