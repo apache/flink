@@ -49,16 +49,6 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
 
   var parameterMap: ParameterMap = parameters ++ runParameters
 
-  // TODO(tvas): Use once we have proper sampling in place
-//  case object MiniBatchFraction extends Parameter[Double] {
-//    val defaultValue = Some(1.0)
-//  }
-//
-//  def setMiniBatchFraction(fraction: Double): GradientDescent = {
-//    parameterMap.add(MiniBatchFraction, fraction)
-//    this
-//  }
-
   /** Performs one iteration of Stochastic Gradient Descent using mini batches
     *
     * @param data A Dataset of LabeledVector (label, features) pairs
@@ -92,8 +82,9 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     * @param initWeights The initial weights that will be optimized
     * @return The weights, optimized for the provided data.
     */
-  override def optimize(data: DataSet[LabeledVector], initWeights: Option[DataSet[WeightVector]]):
-  DataSet[WeightVector] = {
+  override def optimize(
+    data: DataSet[LabeledVector],
+    initWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector] = {
     // TODO: Faster way to do this?
     val dimensionsDS = data.map(_.vector.size).reduce((a, b) => b)
 
@@ -117,7 +108,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
     *
     */
   private class GradientCalculation extends
-  RichMapFunction[LabeledVector, (WeightVector, Double, Int)] {
+    RichMapFunction[LabeledVector, (WeightVector, Double, Int)] {
 
     var weightVector: WeightVector = null
 
@@ -134,7 +125,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       val lossFunction = parameterMap(LossFunction)
       val regType = parameterMap(RegularizationType)
       val regParameter = parameterMap(RegularizationParameter)
-      val predictionFunction = parameterMap(PredictionFunctionParam)
+      val predictionFunction = parameterMap(PredictionFunctionParameter)
       val dimensions = example.vector.size
       // TODO(tvas): Any point in carrying the weightGradient vector for in-place replacement?
       // The idea in spark is to avoid object creation, but here we have to do it anyway
@@ -149,21 +140,7 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
                                 regParameter,
                                 predictionFunction)
 
-      // Restrict the value of the loss derivative to avoid numerical instabilities
-      // TODO(tvas): Do this for all elements of the weighGradient as well?
-      val restrictedLossDeriv: Double = {
-        if (lossDeriv < -IterativeSolver.MAX_DLOSS) {
-          -IterativeSolver.MAX_DLOSS
-        }
-        else if (lossDeriv > IterativeSolver.MAX_DLOSS) {
-          IterativeSolver.MAX_DLOSS
-        }
-        else {
-          lossDeriv
-        }
-      }
-      // TODO(tvas): Any way to avoid object creation here?
-      (new WeightVector(weightGradient, restrictedLossDeriv), loss, 1)
+      (new WeightVector(weightGradient, lossDeriv), loss, 1)
     }
   }
 
@@ -201,14 +178,14 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
       // Breeze-like interface (see breeze.optimize.FirstOrderMinimizer)
       val adjustedLoss = {
         regType match {
-          case x: DiffRegularizationType => {
+          case x: DiffRegularization => {
             x.regularizedLossAndGradient(
               lossSum / count,
               weightVector.weights,
               weightGradients.weights,
               regParameter)
           }
-          case x: RegularizationType => {
+          case x: Regularization => {
             x.regLoss(
               lossSum / count,
               weightVector.weights,

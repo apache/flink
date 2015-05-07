@@ -58,7 +58,7 @@ abstract class LossFunction extends Serializable{
       example: LabeledVector,
       weights: WeightVector,
       cumGradient: FlinkVector,
-      regType: RegularizationType,
+      regType: Regularization,
       regParameter: Double,
       predictionFunction: PredictionFunction):
   (Double, Double) = {
@@ -71,8 +71,20 @@ abstract class LossFunction extends Serializable{
     val lossValue: Double = loss(prediction, label)
     // The loss derivative is used to update the intercept
     val lossDeriv = lossDerivative(prediction, label)
+    // Restrict the value of the loss derivative to avoid numerical instabilities
+    val restrictedLossDeriv: Double = {
+      if (lossDeriv < -IterativeSolver.MAX_DLOSS) {
+        -IterativeSolver.MAX_DLOSS
+      }
+      else if (lossDeriv > IterativeSolver.MAX_DLOSS) {
+        IterativeSolver.MAX_DLOSS
+      }
+      else {
+        lossDeriv
+      }
+    }
     // Update the gradient
-    BLAS.axpy(lossDeriv, predictionGradient, cumGradient)
+    BLAS.axpy(restrictedLossDeriv, predictionGradient, cumGradient)
     (lossValue, lossDeriv)
   }
 }
