@@ -1902,15 +1902,16 @@ object TaskManager {
     // Log getProcessCpuLoad unavailable for Java 6
     if(fetchCPULoad.isEmpty){
       LOG.warn("getProcessCpuLoad method not available in the Operating System Bean" +
-        "implementation for this Java runtime environment\n" + Thread.currentThread().getStackTrace)
+        "implementation for this Java runtime environment\n" +
+        Thread.currentThread().getStackTrace)
     }
 
     metricRegistry.register("cpuLoad", new Gauge[Double] {
       override def getValue: Double = {
         try{
-          val osMXBean = ManagementFactory.getOperatingSystemMXBean().
-            asInstanceOf[com.sun.management.OperatingSystemMXBean]
-          fetchCPULoad.map(_.invoke(osMXBean).asInstanceOf[Double]).getOrElse(-1)
+          fetchCPULoad.map(_.invoke(ManagementFactory.getOperatingSystemMXBean().
+            asInstanceOf[com.sun.management.OperatingSystemMXBean]).
+            asInstanceOf[Double]).getOrElse(-1)
         } catch {
           case t: Throwable => {
             LOG.warn("Error retrieving CPU Load through OperatingSystemMXBean", t)
