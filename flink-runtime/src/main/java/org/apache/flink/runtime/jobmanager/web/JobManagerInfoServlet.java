@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -35,6 +36,7 @@ import akka.actor.ActorRef;
 
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchivedJobs;
@@ -397,6 +399,30 @@ public class JobManagerInfoServlet extends HttpServlet {
 
 			}
 			wrt.write("],");
+
+			// write user config
+			ExecutionConfig ec = graph.getExecutionConfig();
+			if(ec != null) {
+				wrt.write("\"executionConfig\": {");
+				wrt.write("\"Execution Mode\": \""+ec.getExecutionMode()+"\",");
+				wrt.write("\"Number of execution retries\": \""+ec.getNumberOfExecutionRetries()+"\",");
+				wrt.write("\"Job parallelism\": \""+ec.getParallelism()+"\",");
+				wrt.write("\"Object reuse mode\": \""+ec.isObjectReuseEnabled()+"\"");
+				ExecutionConfig.GlobalJobParameters uc = ec.getGlobalJobParameters();
+				Map<String, String> ucVals = uc.toMap();
+				if(ucVals != null) {
+					String ucString = "{";
+					int i = 0;
+					for (Map.Entry<String, String> ucVal: ucVals.entrySet()) {
+						ucString += "\""+ucVal.getKey()+"\":\""+ucVal.getValue()+"\"";
+						if (++i < ucVals.size()) {
+							ucString += ",\n";
+						}
+					}
+					wrt.write(", \"userConfig\": "+ucString+"}");
+				}
+				wrt.write("},");
+			}
 
 			// write accumulators
 			final Future<Object> response = Patterns.ask(jobmanager,

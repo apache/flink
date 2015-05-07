@@ -100,6 +100,25 @@ function analyzeTime(json, stacked) {
 			$("#accumulators").html(accuTable);
 		}
 
+		// create config table
+		var configTable = "<div class=\"table-responsive\">" +
+			"<table class=\"table table-bordered table-hover table-striped\">" +
+			"<tr><td><b>Key</b></td><td><b>Value</b></td></tr>";
+		$.each(job.executionConfig, function(key, value) {
+			if(key == "userConfig") {
+				return;
+			}
+			configTable += "<tr><td>"+key+"</td><td>"+value+"</td></tr>";
+		});
+		if(job.executionConfig.hasOwnProperty("userConfig")) {
+			configTable += "<tr><td colspan=\"2\"><b>User Configuration</b></td></tr>";
+			$.each(job.executionConfig.userConfig, function(key, value) {
+				configTable += "<tr><td>"+key+"</td><td>"+value+"</td></tr>";
+			});
+		}
+		configTable += "</table></div>";
+		$("#config").html(configTable);
+
 		var data = new google.visualization.DataTable();
 		data.addColumn('datetime', 'start');
 		data.addColumn('datetime', 'end');
