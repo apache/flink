@@ -19,41 +19,14 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.IOException;
-import java.util.zip.InflaterInputStream;
-
 import org.apache.flink.core.fs.FSDataInputStream;
 
-public class InflaterInputStreamFSInputWrapper extends FSDataInputStream {
+import java.util.zip.InflaterInputStream;
 
-	private InflaterInputStream inStream;
+public class InflaterInputStreamFSInputWrapper extends InputStreamFSInputWrapper {
 
 	public InflaterInputStreamFSInputWrapper(FSDataInputStream inStream) {
-		this.inStream = new InflaterInputStream(inStream);
-	}
-	
-	@Override
-	public void seek(long desired) throws IOException {
-		throw new UnsupportedOperationException("Compressed streams do not support the seek operation");
+		super(new InflaterInputStream(inStream));
 	}
 
-	@Override
-	public long getPos() throws IOException {
-		throw new UnsupportedOperationException("Compressed streams do not support the getPos operation");
-	}
-
-	@Override
-	public int read() throws IOException {
-		return inStream.read();
-	}
-	
-	@Override
-	public int read(byte[] b, int off, int len) throws IOException {
-		return inStream.read(b, off, len);
-	}
-	
-	@Override
-	public int read(byte[] b) throws IOException {
-		return inStream.read(b);
-	}
 }
