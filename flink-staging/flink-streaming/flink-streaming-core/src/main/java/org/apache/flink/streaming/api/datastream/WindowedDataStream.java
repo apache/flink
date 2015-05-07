@@ -349,7 +349,7 @@ public class WindowedDataStream<OUT> {
 	 *            The function that will be applied to the windows.
 	 * @return The transformed DataStream
 	 */
-	public <R> WindowedDataStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction) {
+	public <R> DiscretizedStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction) {
 		return discretize(WindowTransformation.MAPWINDOW.with(clean(windowMapFunction)),
 				getWindowBuffer(WindowTransformation.MAPWINDOW)).mapWindow(windowMapFunction);
 	}
@@ -372,7 +372,7 @@ public class WindowedDataStream<OUT> {
 	 *            The output type of the operator.
 	 * @return The transformed DataStream
 	 */
-	public <R> WindowedDataStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction,
+	public <R> DiscretizedStream<R> mapWindow(WindowMapFunction<OUT, R> windowMapFunction,
 			TypeInformation<R> outType) {
 
 		return discretize(WindowTransformation.MAPWINDOW.with(windowMapFunction),
