@@ -80,7 +80,7 @@ public static <T>DataSet<Long> count(DataSet<T> data) {
 
 A more complex example of an operation via specialization is the {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/operators/AggregateOperator.java "Aggregation Operation" %} in the Java API. It is implemented by means of a *GroupReduce* UDF.
 
-The Aggregate Operation comes with its own operator in the *Java API*, but translates itself into a {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/operators/base/GroupReduceOperatorBase.java "GroupReduceOperatorBase" %} in the *Common API*. (see [Program Life Cycle](internal_program_life_cycle.html) for details of how an operation from the *Java API* becomes an operation of the *Common API* and finally a runtime operation.)
+The Aggregate Operation comes with its own operator in the *Java API*, but translates itself into a {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/operators/base/GroupReduceOperatorBase.java "GroupReduceOperatorBase" %} in the *Common API*.
 The Java API aggregation operator is only a builder that takes the types of aggregations and the field positions, and used that information to
 parameterize the GroupReduce UDF that performs the aggregations.
 
@@ -94,6 +94,7 @@ The DataSet offers a method for custom operators: `DataSet<X> runOperation(Custo
 The *CustomUnaryOperation* interface defines operators by means of the two functions:
 
 ~~~ java
+
 void setInput(DataSet<IN> inputData);
 	
 DataSet<OUT> createResult();
@@ -166,7 +167,7 @@ To learn how to implement a chained operator, take a look at the {% gh_link /fli
 
 ### Optimizer/Compiler
 
-This section does a minimal discussion of the important steps to add an operator. Please see the [Optimizer](internal_optimizer.html) docs for more detail on how the optimizer works.
+This section does a minimal discussion of the important steps to add an operator. Please see the {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/Optimizer.java "Optimizer" %} for more details on how the optimizer works.
 To allow the optimizer to include a new operator in its planning, it needs a bit of information about it; in particular, the following information:
 
 - *{% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/operators/DriverStrategy.java "DriverStrategy" %}*: The operation needs to be added to the Enum, to make it available to the optimizer. The parameters to the Enum entry define which class implements the runtime operator, its chained version, whether the operator accumulates records (and needs memory for that), and whether it requires a comparator (works on keys). For our example, we can add the entry
@@ -174,10 +175,10 @@ To allow the optimizer to include a new operator in its planning, it needs a bit
 MAP_PARTITION(MapPartitionDriver.class, null /* or chained variant */, PIPELINED, false)
 ~~~
 
-- *Cost function*: The class {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/costs/CostEstimator.java "CostEstimator" %} needs to know how expensive the operation is to the system. The costs here refer to the non-UDF part of the operator. Since the operator does essentially no work (it forwards the record stream to the UDF), the costs are zero. We change the `costOperator(...)` method by adding the *MAP_PARTITION* constant to the switch statement similar to the *MAP* constant such that no cost is accounted for it.
+- *Cost function*: The class {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/costs/CostEstimator.java "CostEstimator" %} needs to know how expensive the operation is to the system. The costs here refer to the non-UDF part of the operator. Since the operator does essentially no work (it forwards the record stream to the UDF), the costs are zero. We change the `costOperator(...)` method by adding the *MAP_PARTITION* constant to the switch statement similar to the *MAP* constant such that no cost is accounted for it.
 
-- *OperatorDescriptor*: The operator descriptors define how an operation needs to be treated by the optimizer. They describe how the operation requires the input data to be (e.g., sorted or partitioned) and that way allows the optimizer to optimize the data movement, sorting, grouping in a global fashion. They do that by describing which {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/dataproperties/RequestedGlobalProperties.java "RequestedGlobalProperties" %} (partitioning, replication, etc) and which {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/dataproperties/RequestedLocalProperties.java "RequestedLocalProperties" %} (sorting, grouping, uniqueness) the operator has, as well as how the operator affects the existing {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/dataproperties/GlobalProperties.java "GlobalProperties" %} and {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/dataproperties/LocalProperties.java "LocalProperties" %}. In addition, it defines a few utility methods, for example to instantiate an operator candidate.
-Since the *mapPartition()* function is very simple (no requirements on partitioning/grouping), the descriptor is very simple. Other operators have more complex requirements, for example the {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/operators/GroupReduceProperties.java "GroupReduce" %}. Some operators, like *join* have multiple ways in which they can be executed and therefore have multiple descriptors ({% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/operators/HashJoinBuildFirstProperties.java "Hash Join 1" %}, {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/operators/HashJoinBuildSecondProperties.java "Hash Join 2" %}, {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/operators/SortMergeJoinDescriptor.java "SortMerge Join" %}).
+- *OperatorDescriptor*: The operator descriptors define how an operation needs to be treated by the optimizer. They describe how the operation requires the input data to be (e.g., sorted or partitioned) and that way allows the optimizer to optimize the data movement, sorting, grouping in a global fashion. They do that by describing which {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/dataproperties/RequestedGlobalProperties.java "RequestedGlobalProperties" %} (partitioning, replication, etc) and which {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/dataproperties/RequestedLocalProperties.java "RequestedLocalProperties" %} (sorting, grouping, uniqueness) the operator has, as well as how the operator affects the existing {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/dataproperties/GlobalProperties.java "GlobalProperties" %} and {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/dataproperties/LocalProperties.java "LocalProperties" %}. In addition, it defines a few utility methods, for example to instantiate an operator candidate.
+Since the *mapPartition()* function is very simple (no requirements on partitioning/grouping), the descriptor is very simple. Other operators have more complex requirements, for example the {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/operators/HashJoinBuildFirstProperties.java "Hash Join 1" %}, {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/operators/HashJoinBuildSecondProperties.java "Hash Join 2" %}, {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/operators/SortMergeJoinDescriptor.java "SortMerge Join" %}).
 The code sample below explains (with comments) how to create a descriptor for the *MapPartitionOperator* 
 
   ~~~ java
@@ -214,7 +215,7 @@ The code sample below explains (with comments) how to create a descriptor for th
     }
   ~~~
 
-- *OptimizerNode*: The optimizer node is the place where all comes together. It creates the list of *OperatorDescriptors*, implements the result data set size estimation, and assigns a name to the operation. It is a relatively small class and can be more or less copied again from the {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/dag/MapNode.java "MapNode" %}.
+- *OptimizerNode*: The optimizer node is the place where all comes together. It creates the list of *OperatorDescriptors*, implements the result data set size estimation, and assigns a name to the operation. It is a relatively small class and can be more or less copied again from the {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/dag/MapNode.java "MapNode" %}.
 
 
 ### Common API
@@ -223,7 +224,7 @@ To make the operation available to the higher-level APIs, it needs to be added t
 base operator. Create a class `MapPartitionOperatorBase`, after the pattern of the {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/operators/base/MapOperatorBase.java "MapOperatorBase" %}.
 
 In addition, the optimizer needs to know which OptimizerNode how to create an OptimizerNode from the OperatorBase. This happens in the class
-`GraphCreatingVisitor` in the {% gh_link /flink-compiler/src/main/java/org/apache/flink/compiler/PactCompiler.java "Optimizer" %}.
+`GraphCreatingVisitor` in the {% gh_link /flink-optimizer/src/main/java/org/apache/flink/optimizer/Optimizer.java "Optimizer" %}.
 
 *Note:* A pending idea is to allow to skip this step by unifying the OptimizerNode and the Common API operator. They essentially fulfill the
 same function. The Common API operator exists only in order for the `flink-java` and `flink-scala` packages to not have a dependency on the
