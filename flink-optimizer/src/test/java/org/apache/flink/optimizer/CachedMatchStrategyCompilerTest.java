@@ -22,6 +22,7 @@ package org.apache.flink.optimizer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
 import org.apache.flink.api.common.Plan;
@@ -215,7 +216,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 		Configuration joinStrategy = new Configuration();
 		joinStrategy.setString(Optimizer.HINT_SHIP_STRATEGY, Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH);
 		
-		if(strategy != "") {
+		if(!strategy.equals("")) {
 			joinStrategy.setString(Optimizer.HINT_LOCAL_STRATEGY, strategy);
 		}
 		
@@ -223,7 +224,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 
 		DataSet<Tuple3<Long, Long, Long>> output = iteration.closeWith(inner);
 		
-		output.print();
+		output.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
 		
 		return env.createProgramPlan();
 		
@@ -250,7 +251,7 @@ public class CachedMatchStrategyCompilerTest extends CompilerTestBase {
 
 		DataSet<Tuple3<Long, Long, Long>> output = iteration.closeWith(inner);
 		
-		output.print();
+		output.output(new DiscardingOutputFormat<Tuple3<Long,Long,Long>>());
 		
 		return env.createProgramPlan();
 		

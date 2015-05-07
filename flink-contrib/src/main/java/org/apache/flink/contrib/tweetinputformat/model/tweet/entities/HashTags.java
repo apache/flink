@@ -15,21 +15,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.contrib.tweetinputformat.model.tweet.entities;
 
-package org.apache.flink.optimizer.util;
+/**
+ * Represents hashtags which have been parsed out of the
+ * {@link package org.apache.flink.contrib.tweetinputformat.model.tweet.Tweet} text.
+ */
 
-import java.io.Serializable;
+public class HashTags {
 
-import org.apache.flink.api.java.record.functions.JoinFunction;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
+	private long[] indices = new long[2];
 
-@SuppressWarnings("deprecation")
-public class DummyNonPreservingMatchStub extends JoinFunction implements Serializable {
-	private static final long serialVersionUID = 1L;
+	private String text = "";
 
-	@Override
-	public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
-		out.collect(value1);
+
+	public long[] getIndices() {
+		return indices;
 	}
+
+	public void setIndices(long[] indices) {
+		this.indices = indices;
+	}
+
+	public void setIndices(long start, long end) {
+		this.indices[0] = start;
+		this.indices[1] = end;
+
+	}
+
+	public String getText() {
+		return text;
+	}
+
+	public void setText(String text, boolean hashExist) {
+		if (hashExist) {
+			this.text = text.substring((int) indices[0] + 1);
+		} else {
+			this.text = text;
+		}
+	}
+
 }

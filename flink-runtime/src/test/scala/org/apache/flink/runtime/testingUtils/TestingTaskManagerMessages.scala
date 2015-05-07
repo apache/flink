@@ -29,6 +29,8 @@ import org.apache.flink.runtime.taskmanager.Task
 object TestingTaskManagerMessages {
   
   case class NotifyWhenTaskRemoved(executionID: ExecutionAttemptID)
+
+  case class NotifyWhenTaskIsRunning(executionID: ExecutionAttemptID)
   
   case class ResponseRunningTasks(tasks: Map[ExecutionAttemptID, Task]){
     import collection.JavaConverters._

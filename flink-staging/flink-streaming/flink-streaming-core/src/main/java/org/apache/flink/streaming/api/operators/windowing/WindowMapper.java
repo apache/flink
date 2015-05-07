@@ -17,7 +17,10 @@
 
 package org.apache.flink.streaming.api.operators.windowing;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.streaming.api.datastream.WindowedDataStream;
 import org.apache.flink.streaming.api.functions.WindowMapFunction;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -39,7 +42,8 @@ public class WindowMapper<IN, OUT> extends StreamMap<StreamWindow<IN>, StreamWin
 		withoutInputCopy();
 	}
 
-	private static class WindowMap<T, R> implements MapFunction<StreamWindow<T>, StreamWindow<R>> {
+	private static class WindowMap<T, R> extends AbstractRichFunction
+			implements MapFunction<StreamWindow<T>, StreamWindow<R>> {
 
 		private static final long serialVersionUID = 1L;
 		WindowMapFunction<T, R> mapper;
@@ -57,6 +61,11 @@ public class WindowMapper<IN, OUT> extends StreamMap<StreamWindow<IN>, StreamWin
 			mapper.mapWindow(window, outputWindow);
 
 			return outputWindow;
+		}
+
+		@Override
+		public void setRuntimeContext(RuntimeContext t) {
+			FunctionUtils.setFunctionRuntimeContext(mapper, t);
 		}
 
 	}

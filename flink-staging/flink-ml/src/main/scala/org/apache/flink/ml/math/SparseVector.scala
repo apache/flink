@@ -23,7 +23,7 @@ import scala.util.Sorting
 /** Sparse vector implementation storing the data in two arrays. One index contains the sorted
   * indices of the non-zero vector entries and the other the corresponding vector entries
   */
-class SparseVector(
+case class SparseVector(
     val size: Int,
     val indices: Array[Int],
     val data: Array[Double])
@@ -52,6 +52,42 @@ class SparseVector(
   override def copy: Vector = {
     new SparseVector(size, indices.clone, data.clone)
   }
+
+  /** Returns the dot product of the recipient and the argument
+    *
+    * @param other a Vector
+    * @return a scalar double of dot product
+    */
+  override def dot(other: Vector): Double = {
+    require(size == other.size, "The size of vector must be equal.")
+    other match {
+      case DenseVector(otherData) =>
+        indices.zipWithIndex.map { case (sparseIdx, idx) => data(idx) * otherData(sparseIdx) }.sum
+      case SparseVector(_, otherIndices, otherData) =>
+        var left = 0
+        var right = 0
+        var result = 0.0
+
+        while (left < indices.length && right < otherIndices.length) {
+          if (indices(left) < otherIndices(right)) {
+            left += 1
+          } else if (otherIndices(right) < indices(left)) {
+            right += 1
+          } else {
+            result += data(left) * otherData(right)
+            left += 1
+            right += 1
+          }
+        }
+        result
+    }
+  }
+
+  /** Magnitude of a vector
+    *
+    * @return
+    */
+  override def magnitude: Double = math.sqrt(data.map(x => x * x).sum)
 
   /** Element wise access function
     *
@@ -177,5 +213,17 @@ object SparseVector {
     }
 
     new SparseVector(size, indices, data)
+  }
+
+  /** Convenience method to be able to instantiate a SparseVector with a single element. The Scala
+    * type inference mechanism cannot infer that the second tuple value has to be of type Double
+    * if only a single tuple is provided.
+    *
+    * @param size
+    * @param entry
+    * @return
+    */
+  def fromCOO(size: Int, entry: (Int, Int)): SparseVector = {
+    fromCOO(size, (entry._1, entry._2.toDouble))
   }
 }

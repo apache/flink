@@ -22,6 +22,7 @@ package org.apache.flink.optimizer;
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
@@ -43,7 +44,8 @@ public class BroadcastVariablePipelinebreakerTest extends CompilerTestBase {
 			DataSet<String> source1 = env.fromElements("test");
 			DataSet<String> source2 = env.fromElements("test");
 			
-			source1.map(new IdentityMapper<String>()).withBroadcastSet(source2, "some name").print();
+			source1.map(new IdentityMapper<String>()).withBroadcastSet(source2, "some name")
+					.output(new DiscardingOutputFormat<String>());
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -66,7 +68,8 @@ public class BroadcastVariablePipelinebreakerTest extends CompilerTestBase {
 				
 				DataSet<String> source1 = env.fromElements("test");
 				
-				source1.map(new IdentityMapper<String>()).map(new IdentityMapper<String>()).withBroadcastSet(source1, "some name").print();
+				source1.map(new IdentityMapper<String>()).map(new IdentityMapper<String>()).withBroadcastSet(source1, "some name")
+						.output(new DiscardingOutputFormat<String>());
 				
 				Plan p = env.createProgramPlan();
 				OptimizedPlan op = compileNoStats(p);

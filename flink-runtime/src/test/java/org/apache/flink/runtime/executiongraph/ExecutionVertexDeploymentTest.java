@@ -22,6 +22,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.*;
 
 import static org.junit.Assert.*;
 
+import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
@@ -73,7 +74,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
-			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			
 			// no repeated scheduling
 			try {
@@ -102,7 +103,7 @@ public class ExecutionVertexDeploymentTest {
 
 			final JobVertexID jid = new JobVertexID();
 
-			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleAcknowledgingTaskManager.class));
 			
 			final Instance instance = getInstance(simpleTaskManager);
@@ -118,7 +119,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			vertex.deployToSlot(slot);
 			
-			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			
 			// no repeated scheduling
 			try {
@@ -131,7 +132,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -146,7 +147,7 @@ public class ExecutionVertexDeploymentTest {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleAcknowledgingTaskManager.class));
 			
 			final Instance instance = getInstance(simpleTaskManager);
@@ -168,15 +169,8 @@ public class ExecutionVertexDeploymentTest {
 				fail("Scheduled from wrong state");
 			}
 			catch (IllegalStateException e) {}
-			
-			// wait until the state transition must be done
-			for (int i = 0; i < 100; i++) {
-				if (vertex.getExecutionState() != ExecutionState.RUNNING) {
-					Thread.sleep(10);
-				}
-			}
-			
-			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+
+			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			
 			// no repeated scheduling
 			try {
@@ -187,7 +181,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
-			assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -202,7 +196,7 @@ public class ExecutionVertexDeploymentTest {
 
 			final JobVertexID jid = new JobVertexID();
 
-			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleFailingTaskManager.class));
 			
 			final Instance instance = getInstance(simpleTaskManager);
@@ -238,7 +232,7 @@ public class ExecutionVertexDeploymentTest {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleFailingTaskManager.class));
 			
 			final Instance instance = getInstance(simpleTaskManager);
@@ -287,7 +281,7 @@ public class ExecutionVertexDeploymentTest {
 
 			TestingUtils.setExecutionContext(ec);
 
-			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system,
+			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system,
 					Props.create(SimpleAcknowledgingTaskManager.class));
 			final Instance instance = getInstance(simpleTaskManager);
 			final SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
@@ -337,7 +331,7 @@ public class ExecutionVertexDeploymentTest {
 					AkkaUtils.getDefaultTimeout());
 			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-			final TestActorRef<?> simpleTaskManager = TestActorRef.create(system, Props.create(new
+			final TestActorRef<? extends Actor> simpleTaskManager = TestActorRef.create(system, Props.create(new
 					ExecutionVertexCancelTest.CancelSequenceTaskManagerCreator(new
 					TaskOperationResult(eid, false), new TaskOperationResult(eid, true))));
 
@@ -365,11 +359,6 @@ public class ExecutionVertexDeploymentTest {
 			deploy.run();
 
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-
-			// should have sent another cancel call
-			queue.triggerNextAction();
-			// execute onComplete callback
-			queue.triggerNextAction();
 
 			assertEquals(testError, vertex.getFailureCause());
 			

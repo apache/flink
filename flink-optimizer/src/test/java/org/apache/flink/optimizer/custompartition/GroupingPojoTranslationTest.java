@@ -30,7 +30,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.testfunctions.DummyReducer;
-import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
@@ -76,7 +76,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
 					.rebalance().setParallelism(4);
 			
 			data.groupBy("a").withPartitioner(new TestPartitionerInt())
-				.reduceGroup(new IdentityGroupReducer<Pojo2>())
+				.reduceGroup(new IdentityGroupReducerCombinable<Pojo2>())
 				.print();
 			
 			Plan p = env.createProgramPlan();
@@ -106,7 +106,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
 			
 			data.groupBy("a").withPartitioner(new TestPartitionerInt())
 				.sortGroup("b", Order.ASCENDING)
-				.reduceGroup(new IdentityGroupReducer<Pojo3>())
+				.reduceGroup(new IdentityGroupReducerCombinable<Pojo3>())
 				.print();
 			
 			Plan p = env.createProgramPlan();
@@ -137,7 +137,7 @@ public class GroupingPojoTranslationTest extends CompilerTestBase {
 			data.groupBy("a").withPartitioner(new TestPartitionerInt())
 				.sortGroup("b", Order.ASCENDING)
 				.sortGroup("c", Order.DESCENDING)
-				.reduceGroup(new IdentityGroupReducer<Pojo4>())
+				.reduceGroup(new IdentityGroupReducerCombinable<Pojo4>())
 				.print();
 			
 			Plan p = env.createProgramPlan();

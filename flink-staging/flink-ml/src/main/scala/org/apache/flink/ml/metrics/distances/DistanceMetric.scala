@@ -16,19 +16,22 @@
  * limitations under the License.
  */
 
+package org.apache.flink.ml.metrics.distances
 
-package org.apache.flink.optimizer.util;
+import org.apache.flink.ml.math.Vector
 
+/** DistanceMeasure interface is used for object which determines distance between two points.
+  */
+trait DistanceMetric {
+  /** Returns the distance between the arguments.
+    *
+    * @param a a Vector defining a multi-dimensional point in some space
+    * @param b a Vector defining a multi-dimensional point in some space
+    * @return a scalar double of the distance
+    */
+  def distance(a: Vector, b: Vector): Double
 
-import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
-import org.apache.flink.types.Record;
-
-
-public final class DummyOutputFormat extends DelimitedOutputFormat {
-	private static final long serialVersionUID = 1L;
-	
-	@Override
-	public int serializeRecord(Record rec, byte[] target) throws Exception {
-		return 0;
-	}
+  protected def checkValidArguments(a: Vector, b: Vector) = {
+    require(a.size == b.size, "The each size of vectors must be same to calculate distance.")
+  }
 }

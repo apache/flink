@@ -16,22 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.util;
+package org.apache.flink.ml.metrics.distances
 
-import java.io.Serializable;
+import org.apache.flink.ml.math.Vector
 
-import org.apache.flink.api.java.record.functions.MapFunction;
-import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsExcept;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
+/** This class implements a Tanimoto distance metric. The class calculates the distance between
+  * the given vectors. The vectors are assumed as bit-wise vectors. We convert the result of
+  * division to a usable distance. So, 1 - similarity is actually returned.
+  *
+  * @see http://en.wikipedia.org/wiki/Jaccard_index
+  */
+class TanimotoDistanceMetric extends DistanceMetric {
+  override def distance(a: Vector, b: Vector): Double = {
+    checkValidArguments(a, b)
 
-@SuppressWarnings("deprecation")
-@ConstantFieldsExcept({})
-public final class IdentityMap extends MapFunction implements Serializable {
-	private static final long serialVersionUID = 1L;
-	
-	@Override
-	public void map(Record record, Collector<Record> out) throws Exception {
-		out.collect(record);
-	}
+    val dotProd: Double = a.dot(b)
+    1 - dotProd / (a.magnitude * a.magnitude + b.magnitude * b.magnitude - dotProd)
+  }
+}
+
+object TanimotoDistanceMetric {
+  def apply() = new TanimotoDistanceMetric()
 }

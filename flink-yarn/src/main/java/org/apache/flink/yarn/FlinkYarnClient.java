@@ -118,9 +118,9 @@ public class FlinkYarnClient extends AbstractFlinkYarnClient {
 	 */
 	private int slots = -1;
 
-	private int jobManagerMemoryMb = 512;
+	private int jobManagerMemoryMb = 1024;
 
-	private int taskManagerMemoryMb = 512;
+	private int taskManagerMemoryMb = 1024;
 
 	private int taskManagerCount = 1;
 

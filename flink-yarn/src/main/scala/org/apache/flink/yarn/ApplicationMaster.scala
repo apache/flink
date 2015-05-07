@@ -21,6 +21,7 @@ import java.io.{PrintWriter, FileWriter, BufferedWriter}
 import java.security.PrivilegedAction
 
 import akka.actor._
+import grizzled.slf4j.Logger
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.{GlobalConfiguration, Configuration, ConfigConstants}
 import org.apache.flink.runtime.akka.AkkaUtils
@@ -38,7 +39,7 @@ import scala.io.Source
 object ApplicationMaster {
   import scala.collection.JavaConversions._
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
+  val LOG = Logger(getClass)
 
   val CONF_FILE = "flink-conf.yaml"
   val MODIFIED_CONF_FILE = "flink-conf-modified.yaml"
@@ -50,9 +51,9 @@ object ApplicationMaster {
     LOG.info(s"YARN daemon runs as ${UserGroupInformation.getCurrentUser.getShortUserName} " +
       s"setting user to execute Flink ApplicationMaster/JobManager to ${yarnClientUsername}")
 
-    EnvironmentInformation.logEnvironmentInfo(LOG, "YARN ApplicationMaster/JobManager", args)
+    EnvironmentInformation.logEnvironmentInfo(LOG.logger, "YARN ApplicationMaster/JobManager", args)
     EnvironmentInformation.checkJavaVersion()
-    org.apache.flink.runtime.util.SignalHandler.register(LOG)
+    org.apache.flink.runtime.util.SignalHandler.register(LOG.logger)
 
     val ugi = UserGroupInformation.createRemoteUser(yarnClientUsername)
 
@@ -206,7 +207,7 @@ object ApplicationMaster {
     (Configuration, ActorSystem, ActorRef, ActorRef) = {
 
     LOG.info("Starting JobManager for YARN")
-    LOG.info("Loading config from: {}", currDir)
+    LOG.info(s"Loading config from: $currDir.")
 
     GlobalConfiguration.loadConfiguration(currDir)
     val configuration = GlobalConfiguration.getConfiguration()

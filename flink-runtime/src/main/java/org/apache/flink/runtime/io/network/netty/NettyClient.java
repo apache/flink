@@ -93,10 +93,6 @@ class NettyClient {
 		// Pooled allocator for Netty's ByteBuf instances
 		bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
 
-		// Low and high water marks for flow control
-		bootstrap.option(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, config.getMemorySegmentSize() / 2);
-		bootstrap.option(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, config.getMemorySegmentSize());
-
 		// Receive and send buffer size
 		int receiveAndSendBufferSize = config.getSendAndReceiveBufferSize();
 		if (receiveAndSendBufferSize > 0) {

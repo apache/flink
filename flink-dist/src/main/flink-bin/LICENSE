@@ -243,6 +243,7 @@ under the Apache License (v 2.0):
  - StartBootstrap (http://startbootstrap.com)
  - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
  - Jettison (http://jettison.codehaus.org)
+ - json-simple (https://code.google.com/p/json-simple/)
  - Akka (http://akka.io)
  - Metrics (https://github.com/dropwizard/metrics)
  
@@ -308,6 +309,7 @@ BSD-style licenses:
  - Scala Compiler Reflect (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - Scala Quasiquotes (http://scalamacros.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - ASM (http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
+ - Grizzled SLF4J (http://software.clapper.org/grizzled-slf4j/) - Copyright (c) 2010 Brian M. Clapper
 
 
 (Below is the 3-clause BSD license)

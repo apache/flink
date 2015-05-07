@@ -173,15 +173,15 @@ public class StreamGraph extends StreamingPlan {
 
 		chaining = false;
 
-		StreamLoop iteration = new StreamLoop(iterationID, getVertex(iterationHead), timeOut);
+		StreamLoop iteration = new StreamLoop(iterationID, getStreamNode(iterationHead), timeOut);
 		streamLoops.put(iterationID, iteration);
 		vertexIDtoLoop.put(vertexID, iteration);
 
 		setSerializersFrom(iterationHead, vertexID);
-		getVertex(vertexID).setOperatorName("IterationHead-" + iterationHead);
+		getStreamNode(vertexID).setOperatorName("IterationHead-" + iterationHead);
 
-		int outpartitionerIndex = getVertex(iterationHead).getInEdgeIndices().get(0);
-		StreamPartitioner<?> outputPartitioner = getVertex(outpartitionerIndex).getOutEdges()
+		int outpartitionerIndex = getStreamNode(iterationHead).getInEdgeIndices().get(0);
+		StreamPartitioner<?> outputPartitioner = getStreamNode(outpartitionerIndex).getOutEdges()
 				.get(0).getPartitioner();
 
 		addEdge(vertexID, iterationHead, outputPartitioner, 0, new ArrayList<String>());
@@ -196,22 +196,23 @@ public class StreamGraph extends StreamingPlan {
 	public void addIterationTail(Integer vertexID, Integer iterationTail, Integer iterationID,
 			long waitTime) {
 
-		if (getVertex(iterationTail).getBufferTimeout() == 0) {
+		if (getStreamNode(iterationTail).getBufferTimeout() == 0) {
 			throw new RuntimeException("Buffer timeout 0 at iteration tail is not supported.");
 		}
 
 		addNode(vertexID, StreamIterationTail.class, null, null).setParallelism(
-				getVertex(iterationTail).getParallelism());
+				getStreamNode(iterationTail).getParallelism());
 
 		StreamLoop iteration = streamLoops.get(iterationID);
-		iteration.setTail(getVertex(iterationTail));
+		iteration.setTail(getStreamNode(iterationTail));
 		vertexIDtoLoop.put(vertexID, iteration);
 
 		setSerializersFrom(iterationTail, vertexID);
-		getVertex(vertexID).setOperatorName("IterationTail-" + iterationTail);
+		getStreamNode(vertexID).setOperatorName("IterationTail-" + iterationTail);
 
-		setParallelism(iteration.getHead().getID(), getVertex(iterationTail).getParallelism());
-		setBufferTimeout(iteration.getHead().getID(), getVertex(iterationTail).getBufferTimeout());
+		setParallelism(iteration.getHead().getID(), getStreamNode(iterationTail).getParallelism());
+		setBufferTimeout(iteration.getHead().getID(), getStreamNode(iterationTail)
+				.getBufferTimeout());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("ITERATION SINK: {}", vertexID);
@@ -233,14 +234,14 @@ public class StreamGraph extends StreamingPlan {
 	public void addEdge(Integer upStreamVertexID, Integer downStreamVertexID,
 			StreamPartitioner<?> partitionerObject, int typeNumber, List<String> outputNames) {
 
-		StreamEdge edge = new StreamEdge(getVertex(upStreamVertexID),
-				getVertex(downStreamVertexID), typeNumber, outputNames, partitionerObject);
-		getVertex(edge.getSourceID()).addOutEdge(edge);
-		getVertex(edge.getTargetID()).addInEdge(edge);
+		StreamEdge edge = new StreamEdge(getStreamNode(upStreamVertexID),
+				getStreamNode(downStreamVertexID), typeNumber, outputNames, partitionerObject);
+		getStreamNode(edge.getSourceID()).addOutEdge(edge);
+		getStreamNode(edge.getTargetID()).addInEdge(edge);
 	}
 
 	public <T> void addOutputSelector(Integer vertexID, OutputSelector<T> outputSelector) {
-		getVertex(vertexID).addOutputSelector(outputSelector);
+		getStreamNode(vertexID).addOutputSelector(outputSelector);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Outputselector set for {}", vertexID);
@@ -249,24 +250,24 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public void setParallelism(Integer vertexID, int parallelism) {
-		getVertex(vertexID).setParallelism(parallelism);
+		getStreamNode(vertexID).setParallelism(parallelism);
 	}
 
 	public void setBufferTimeout(Integer vertexID, long bufferTimeout) {
-		getVertex(vertexID).setBufferTimeout(bufferTimeout);
+		getStreamNode(vertexID).setBufferTimeout(bufferTimeout);
 	}
 
 	private void setSerializers(Integer vertexID, StreamRecordSerializer<?> in1,
 			StreamRecordSerializer<?> in2, StreamRecordSerializer<?> out) {
-		StreamNode vertex = getVertex(vertexID);
+		StreamNode vertex = getStreamNode(vertexID);
 		vertex.setSerializerIn1(in1);
 		vertex.setSerializerIn2(in2);
 		vertex.setSerializerOut(out);
 	}
 
 	private void setSerializersFrom(Integer from, Integer to) {
-		StreamNode fromVertex = getVertex(from);
-		StreamNode toVertex = getVertex(to);
+		StreamNode fromVertex = getStreamNode(from);
+		StreamNode toVertex = getStreamNode(to);
 
 		toVertex.setSerializerIn1(fromVertex.getTypeSerializerOut());
 		toVertex.setSerializerOut(fromVertex.getTypeSerializerIn1());
@@ -275,18 +276,32 @@ public class StreamGraph extends StreamingPlan {
 	public <OUT> void setOutType(Integer vertexID, TypeInformation<OUT> outType) {
 		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType,
 				executionConfig);
-		getVertex(vertexID).setSerializerOut(serializer);
+		getStreamNode(vertexID).setSerializerOut(serializer);
 	}
 
 	public <IN, OUT> void setOperator(Integer vertexID, StreamOperator<IN, OUT> operatorObject) {
-		getVertex(vertexID).setOperator(operatorObject);
+		getStreamNode(vertexID).setOperator(operatorObject);
 	}
 
 	public void setInputFormat(Integer vertexID, InputFormat<String, ?> inputFormat) {
-		getVertex(vertexID).setInputFormat(inputFormat);
+		getStreamNode(vertexID).setInputFormat(inputFormat);
 	}
 
-	public StreamNode getVertex(Integer vertexID) {
+	public void setResourceStrategy(Integer vertexID, ResourceStrategy strategy) {
+		StreamNode node = getStreamNode(vertexID);
+		switch (strategy) {
+		case ISOLATE:
+			node.isolateSlot();
+			break;
+		case NEWGROUP:
+			node.startNewSlotSharingGroup();
+			break;
+		default:
+			throw new IllegalArgumentException("Unknown resource strategy");
+		}
+	}
+
+	public StreamNode getStreamNode(Integer vertexID) {
 		return streamNodes.get(vertexID);
 	}
 
@@ -295,7 +310,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	protected StreamEdge getEdge(int sourceId, int targetId) {
-		Iterator<StreamEdge> outIterator = getVertex(sourceId).getOutEdges().iterator();
+		Iterator<StreamEdge> outIterator = getStreamNode(sourceId).getOutEdges().iterator();
 		while (outIterator.hasNext()) {
 			StreamEdge edge = outIterator.next();
 
@@ -309,6 +324,10 @@ public class StreamGraph extends StreamingPlan {
 
 	public Collection<Integer> getSourceIDs() {
 		return sources;
+	}
+
+	public Collection<StreamNode> getStreamNodes() {
+		return streamNodes.values();
 	}
 
 	public Set<Tuple2<Integer, StreamOperator<?, ?>>> getOperators() {
@@ -412,6 +431,10 @@ public class StreamGraph extends StreamingPlan {
 				pw.close();
 			}
 		}
+	}
+
+	public static enum ResourceStrategy {
+		DEFAULT, ISOLATE, NEWGROUP
 	}
 
 	/**

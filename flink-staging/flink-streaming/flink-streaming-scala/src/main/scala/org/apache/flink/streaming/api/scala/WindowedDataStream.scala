@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
-import org.apache.flink.streaming.api.datastream.{WindowedDataStream => JavaWStream}
+import org.apache.flink.streaming.api.datastream.{WindowedDataStream => JavaWStream, DiscretizedStream}
 import org.apache.flink.streaming.api.functions.WindowMapFunction
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.SumFunction
@@ -37,6 +37,31 @@ import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.util.Collector
 
 class WindowedDataStream[T](javaStream: JavaWStream[T]) {
+
+  /**
+   * Gets the name of the current data stream. This name is
+   * used by the visualization and logging during runtime.
+   *
+   * @return Name of the stream.
+   */
+  def getName : String = javaStream match {
+    case stream : DiscretizedStream[_] => javaStream.getName
+    case _ => throw new
+        UnsupportedOperationException("Only supported for windowing operators.")
+  }
+
+  /**
+   * Sets the name of the current data stream. This name is
+   * used by the visualization and logging during runtime.
+   *
+   * @return The named operator
+   */
+  def name(name: String) : WindowedDataStream[T] = javaStream match {
+    case stream : DiscretizedStream[_] => javaStream.name(name)
+    case _ => throw new
+        UnsupportedOperationException("Only supported for windowing operators.")
+    this
+  }
 
   /**
    * Defines the slide size (trigger frequency) for the windowed data stream.

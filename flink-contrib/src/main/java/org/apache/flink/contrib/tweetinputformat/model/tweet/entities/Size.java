@@ -15,18 +15,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.contrib.tweetinputformat.model.tweet.entities;
 
-package org.apache.flink.optimizer.util;
+/**
+ * An object showing available sizes for the media file.
+ */
+public class Size {
 
-import org.apache.flink.api.java.record.functions.CrossFunction;
-import org.apache.flink.types.Record;
+	private long w;
 
-@SuppressWarnings("deprecation")
-public class DummyCrossStub extends CrossFunction {
-	private static final long serialVersionUID = 1L;
+	private long h;
 
-	@Override
-	public Record cross(Record first, Record second) throws Exception {
-		return first;
+	private String resize = "";
+
+
+	public Size(long width, long height, String resize) {
+
+		this.w = width;
+		this.h = height;
+		this.resize = resize;
+
+	}
+
+
+	public long getWidth() {
+		return w;
+	}
+
+	public void setWidth(long width) {
+		this.w = width;
+	}
+
+	public long getHeight() {
+		return h;
+	}
+
+	public void setHeight(long height) {
+		this.h = height;
+	}
+
+	public String getResize() {
+		return resize;
+	}
+
+	public void setResize(String resize) {
+		this.resize = resize;
 	}
 }

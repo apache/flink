@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.util;
 
-import java.io.Serializable;
+package org.apache.flink.optimizer.testfunctions;
 
-import org.apache.flink.api.java.record.functions.JoinFunction;
-import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsFirstExcept;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
+import org.apache.flink.api.common.functions.CrossFunction;
 
-@SuppressWarnings("deprecation")
-@ConstantFieldsFirstExcept({})
-public class DummyMatchStub extends JoinFunction implements Serializable {
+public class IdentityCrosser<T> implements CrossFunction<T, T, T> {
+
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public void join(Record value1, Record value2, Collector<Record> out) throws Exception {
-		out.collect(value1);
+	public T cross(T first, T second) {
+		return first;
 	}
 }

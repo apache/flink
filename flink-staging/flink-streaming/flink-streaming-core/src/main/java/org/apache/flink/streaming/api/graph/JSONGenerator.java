@@ -60,7 +60,7 @@ public class JSONGenerator {
 			Map<Integer, Integer> edgeRemapings) throws JSONException {
 
 		Integer vertexID = toVisit.get(0);
-		StreamNode vertex = streamGraph.getVertex(vertexID);
+		StreamNode vertex = streamGraph.getStreamNode(vertexID);
 
 		if (streamGraph.getSourceIDs().contains(vertexID)
 				|| Collections.disjoint(vertex.getInEdges(), toVisit)) {
@@ -97,7 +97,7 @@ public class JSONGenerator {
 			obj.put(STEPS, iterationSteps);
 			obj.put(ID, iterationHead);
 			obj.put(PACT, "IterativeDataStream");
-			obj.put(PARALLELISM, streamGraph.getVertex(iterationHead).getParallelism());
+			obj.put(PARALLELISM, streamGraph.getStreamNode(iterationHead).getParallelism());
 			obj.put(CONTENTS, "Stream Iteration");
 			JSONArray iterationInputs = new JSONArray();
 			obj.put(PREDECESSORS, iterationInputs);
@@ -115,7 +115,7 @@ public class JSONGenerator {
 			Map<Integer, Integer> edgeRemapings, JSONArray iterationInEdges) throws JSONException {
 
 		Integer vertexID = toVisit.get(0);
-		StreamNode vertex = streamGraph.getVertex(vertexID);
+		StreamNode vertex = streamGraph.getStreamNode(vertexID);
 		toVisit.remove(vertexID);
 
 		// Ignoring head and tail to avoid redundancy
@@ -154,7 +154,7 @@ public class JSONGenerator {
 
 	private void decorateNode(Integer vertexID, JSONObject node) throws JSONException {
 
-		StreamNode vertex = streamGraph.getVertex(vertexID);
+		StreamNode vertex = streamGraph.getStreamNode(vertexID);
 
 		node.put(ID, vertexID);
 		node.put(TYPE, vertex.getOperatorName());
@@ -165,7 +165,7 @@ public class JSONGenerator {
 			node.put(PACT, "Data Stream");
 		}
 
-		StreamOperator<?, ?> operator = streamGraph.getVertex(vertexID).getOperator();
+		StreamOperator<?, ?> operator = streamGraph.getStreamNode(vertexID).getOperator();
 
 		if (operator != null && operator.getUserFunction() != null) {
 			node.put(CONTENTS, vertex.getOperatorName() + " at "
@@ -174,7 +174,7 @@ public class JSONGenerator {
 			node.put(CONTENTS, vertex.getOperatorName());
 		}
 
-		node.put(PARALLELISM, streamGraph.getVertex(vertexID).getParallelism());
+		node.put(PARALLELISM, streamGraph.getStreamNode(vertexID).getParallelism());
 	}
 
 }

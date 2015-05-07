@@ -197,8 +197,17 @@ public final class ConfigConstants {
 	 * Upper bound for heap cutoff on YARN.
 	 * The "yarn.heap-cutoff-ratio" is removing a certain ratio from the heap.
 	 * This value is limiting this cutoff to a absolute value.
+	 *
+	 * THE VALUE IS NO LONGER IN USE.
 	 */
+	@Deprecated
 	public static final String YARN_HEAP_LIMIT_CAP = "yarn.heap-limit-cap";
+
+	/**
+	 * Minimum amount of memory to remove from the heap space as a safety margin.
+	 */
+	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
+
 
 	/**
 	 * Reallocate failed YARN containers.
@@ -512,6 +521,13 @@ public final class ConfigConstants {
 	 * The default timeout for filesystem stream opening: infinite (means max long milliseconds).
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
+
+	// ------------------------ YARN Configuration ------------------------
+
+
+	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = 384;
+
+	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.15f;
 	
 	
 	// ------------------------ File System Behavior ------------------------

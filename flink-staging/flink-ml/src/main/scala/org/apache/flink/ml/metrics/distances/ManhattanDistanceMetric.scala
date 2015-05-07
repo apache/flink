@@ -16,25 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.util;
+package org.apache.flink.ml.metrics.distances
 
-import java.io.Serializable;
-import java.util.Iterator;
+import org.apache.flink.ml.math.Vector
 
-import org.apache.flink.api.java.record.functions.ReduceFunction;
-import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFieldsExcept;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
+/** This class implements a Manhattan distance metric. The class calculates the distance between
+  * the given vectors by summing the differences between each coordinate.
+  *
+  * @see http://en.wikipedia.org/wiki/Taxicab_geometry
+  */
+class ManhattanDistanceMetric extends DistanceMetric{
+  override def distance(a: Vector, b: Vector): Double = {
+    checkValidArguments(a, b)
+    (0 until a.size).map(i => math.abs(a(i) - b(i))).sum
+  }
+}
 
-@SuppressWarnings("deprecation")
-@ConstantFieldsExcept({})
-public final class IdentityReduce extends ReduceFunction implements Serializable {
-	private static final long serialVersionUID = 1L;
-	
-	@Override
-	public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
-		while (records.hasNext()) {
-			out.collect(records.next());
-		}
-	}
+object ManhattanDistanceMetric {
+  def apply() = new ManhattanDistanceMetric()
 }

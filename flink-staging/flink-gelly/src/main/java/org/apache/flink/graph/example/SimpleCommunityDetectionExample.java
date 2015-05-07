@@ -37,7 +37,7 @@ import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
  * 	<li> with default data
  * </ul>
  *
- * The input files is a plain text file and must be formatted as follows:
+ * The input file is a plain text file and must be formatted as follows:
  * Edges are represented by tuples of srcVertexId, trgVertexId, weight which are
  * separated by tabs. Edges themselves are separated by newlines.
  * For example: <code>1\t2\t1.0\n1\t3\t2.0\n</code> defines two edges,

@@ -16,27 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.util;
+package org.apache.flink.runtime
 
-import java.io.Serializable;
-import java.util.Iterator;
+import _root_.akka.actor.Actor
+import grizzled.slf4j.Logger
 
-import org.apache.flink.api.java.record.functions.CoGroupFunction;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
+/** Adds a logger to an [[akka.actor.Actor]] implementation
+  *
+  */
+trait ActorSynchronousLogging {
+  self: Actor =>
 
-@SuppressWarnings("deprecation")
-public class DummyCoGroupStub extends CoGroupFunction implements Serializable {
-	private static final long serialVersionUID = 1L;
-
-	@Override
-	public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out) {
-		while (records1.hasNext()) {
-			out.collect(records1.next());
-		}
-
-		while (records2.hasNext()) {
-			out.collect(records2.next());
-		}
-	}
+  lazy val log = Logger(getClass)
 }

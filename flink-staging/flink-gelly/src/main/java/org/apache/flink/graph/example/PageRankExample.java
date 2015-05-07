@@ -104,15 +104,15 @@ public class PageRankExample implements ProgramDescription {
 	private static boolean parseParameters(String[] args) {
 
 		if(args.length > 0) {
-			if(args.length != 4) {
+			if(args.length != 3) {
 				System.err.println("Usage: PageRank <input edges path> <output path> <num iterations>");
 				return false;
 			}
 
 			fileOutput = true;
-			edgeInputPath = args[1];
-			outputPath = args[2];
-			maxIterations = Integer.parseInt(args[3]);
+			edgeInputPath = args[0];
+			outputPath = args[1];
+			maxIterations = Integer.parseInt(args[2]);
 		} else {
 			System.out.println("Executing PageRank example with default parameters and built-in default data.");
 			System.out.println("  Provide parameters to read input data from files.");

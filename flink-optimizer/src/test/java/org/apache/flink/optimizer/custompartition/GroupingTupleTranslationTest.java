@@ -33,7 +33,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.testfunctions.DummyReducer;
-import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
@@ -108,7 +108,7 @@ public class GroupingTupleTranslationTest extends CompilerTestBase {
 					.rebalance().setParallelism(4);
 			
 			data.groupBy(0).withPartitioner(new TestPartitionerInt())
-				.reduceGroup(new IdentityGroupReducer<Tuple2<Integer,Integer>>())
+				.reduceGroup(new IdentityGroupReducerCombinable<Tuple2<Integer,Integer>>())
 				.print();
 			
 			Plan p = env.createProgramPlan();
@@ -138,7 +138,7 @@ public class GroupingTupleTranslationTest extends CompilerTestBase {
 			
 			data.groupBy(0).withPartitioner(new TestPartitionerInt())
 				.sortGroup(1, Order.ASCENDING)
-				.reduceGroup(new IdentityGroupReducer<Tuple3<Integer,Integer,Integer>>())
+				.reduceGroup(new IdentityGroupReducerCombinable<Tuple3<Integer,Integer,Integer>>())
 				.print();
 			
 			Plan p = env.createProgramPlan();
@@ -169,7 +169,7 @@ public class GroupingTupleTranslationTest extends CompilerTestBase {
 			data.groupBy(0).withPartitioner(new TestPartitionerInt())
 				.sortGroup(1, Order.ASCENDING)
 				.sortGroup(2, Order.DESCENDING)
-				.reduceGroup(new IdentityGroupReducer<Tuple4<Integer,Integer,Integer,Integer>>())
+				.reduceGroup(new IdentityGroupReducerCombinable<Tuple4<Integer,Integer,Integer,Integer>>())
 				.print();
 			
 			Plan p = env.createProgramPlan();

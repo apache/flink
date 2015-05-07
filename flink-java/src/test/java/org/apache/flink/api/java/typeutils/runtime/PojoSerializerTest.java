@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
@@ -68,11 +69,13 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		Random rnd = new Random(874597969123412341L);
 
 		return new TestUserClass[]{
-				new TestUserClass(rnd.nextInt(), "foo", rnd.nextDouble(), new int[]{1, 2, 3},
+				new TestUserClass(rnd.nextInt(), "foo", rnd.nextDouble(), new int[]{1, 2, 3}, new Date(),
 						new NestedTestUserClass(rnd.nextInt(), "foo@boo", rnd.nextDouble(), new int[]{10, 11, 12})),
-				new TestUserClass(rnd.nextInt(), "bar", rnd.nextDouble(), new int[]{4, 5, 6},
+				new TestUserClass(rnd.nextInt(), "bar", rnd.nextDouble(), new int[]{4, 5, 6}, null,
 						new NestedTestUserClass(rnd.nextInt(), "bar@bas", rnd.nextDouble(), new int[]{20, 21, 22})),
-				new TestUserClass(rnd.nextInt(), null, rnd.nextDouble(), null, null)
+				new TestUserClass(rnd.nextInt(), null, rnd.nextDouble(), null, null, null),
+				new TestUserClass(rnd.nextInt(), "bar", rnd.nextDouble(), new int[]{4, 5, 6}, new Date(),
+						new NestedTestUserClass(rnd.nextInt(), "bar@bas", rnd.nextDouble(), new int[]{20, 21, 22}))
 		};
 
 	}
@@ -83,17 +86,19 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		public String dumm2;
 		public double dumm3;
 		public int[] dumm4;
+		public Date dumm5;
 
 		public NestedTestUserClass nestedClass;
 
 		public TestUserClass() {
 		}
 
-		public TestUserClass(int dumm1, String dumm2, double dumm3, int[] dumm4, NestedTestUserClass nestedClass) {
+		public TestUserClass(int dumm1, String dumm2, double dumm3, int[] dumm4, Date dumm5, NestedTestUserClass nestedClass) {
 			this.dumm1 = dumm1;
 			this.dumm2 = dumm2;
 			this.dumm3 = dumm3;
 			this.dumm4 = dumm4;
+			this.dumm5 = dumm5;
 			this.nestedClass = nestedClass;
 		}
 
@@ -202,7 +207,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		fields[0] = result.get(0).getPosition();
 		TypeComparator<TestUserClass> pojoComp = pType.createComparator( fields, new boolean[]{true}, 0, new ExecutionConfig());
 		
-		TestUserClass pojoTestRecord = new TestUserClass(0, "abc", 3d, new int[] {1,2,3}, new NestedTestUserClass(1, "haha", 4d, new int[] {5,4,3}));
+		TestUserClass pojoTestRecord = new TestUserClass(0, "abc", 3d, new int[] {1,2,3}, new Date(), new NestedTestUserClass(1, "haha", 4d, new int[] {5,4,3}));
 		int pHash = pojoComp.hash(pojoTestRecord);
 		
 		Tuple1<String> tupleTest = new Tuple1<String>("haha");

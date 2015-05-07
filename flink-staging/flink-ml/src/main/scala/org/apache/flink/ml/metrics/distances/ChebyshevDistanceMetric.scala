@@ -16,27 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.optimizer.util;
+package org.apache.flink.ml.metrics.distances
 
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.java.record.io.DelimitedInputFormat;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Record;
+import org.apache.flink.ml.math.Vector
 
-public final class DummyInputFormat extends DelimitedInputFormat {
-	private static final long serialVersionUID = 1L;
-	
-	private final IntValue integer = new IntValue(1);
+/** This class implements a Chebyshev distance metric. The class calculates the distance between
+  * the given vectors by finding the maximum difference between each coordinate.
+  *
+  * @see http://en.wikipedia.org/wiki/Chebyshev_distance
+  */
+class ChebyshevDistanceMetric extends DistanceMetric {
+  override def distance(a: Vector, b: Vector): Double = {
+    checkValidArguments(a, b)
+    (0 until a.size).map(i => math.abs(a(i) - b(i))).max
+  }
+}
 
-	@Override
-	public Record readRecord(Record target, byte[] bytes, int offset, int numBytes) {
-		target.setField(0, this.integer);
-		target.setField(1, this.integer);
-		return target;
-	}
-
-	@Override
-	public FileBaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		return (cachedStatistics instanceof FileBaseStatistics) ? (FileBaseStatistics) cachedStatistics : null;
-	}
+object ChebyshevDistanceMetric {
+  def apply() = new ChebyshevDistanceMetric()
 }

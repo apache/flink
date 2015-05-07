@@ -61,11 +61,7 @@ public class InputSplitIterator<T extends InputSplit> implements Iterator<T> {
 			this.nextInputSplit = (T) inputSplitProvider.getNextInputSplit();
 		}
 
-		if (this.nextInputSplit == null) {
-			return false;
-		}
-
-		return true;
+		return this.nextInputSplit != null;
 	}
 
 
