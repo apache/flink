@@ -108,14 +108,14 @@ class SquaredLoss extends RegressionLoss {
 
 }
 
-class HingeLoss extends ClassificationLoss {
+class LogisticLoss extends ClassificationLoss {
   /** Calculates the loss for a given prediction/truth pair
     *
     * @param prediction The predicted value
     * @param truth The true value
     */
   override protected def loss(prediction: Double, truth: Double): Double = {
-    math.max(0, 1 - prediction * truth)
+    math.log(1 + math.exp(-truth * prediction))
   }
 
   /** Calculates the derivative of the loss function with respect to the prediction
@@ -124,12 +124,31 @@ class HingeLoss extends ClassificationLoss {
     * @param truth The true value
     */
   override protected def lossDerivative(prediction: Double, truth: Double): Double = {
-    if (truth * prediction < 1)
-      -truth * prediction
-    else {
-      0
-    }
+    (-truth * math.exp(-truth * prediction)) / (1 + math.exp(-truth * prediction))
   }
 }
+  class HingeLoss extends ClassificationLoss {
+    /** Calculates the loss for a given prediction/truth pair
+      *
+      * @param prediction The predicted value
+      * @param truth The true value
+      */
+    override protected def loss(prediction: Double, truth: Double): Double = {
+      math.max(0, 1 - prediction * truth)
+    }
+
+    /** Calculates the derivative of the loss function with respect to the prediction
+      *
+      * @param prediction The predicted value
+      * @param truth The true value
+      */
+    override protected def lossDerivative(prediction: Double, truth: Double): Double = {
+      if (truth * prediction < 1)
+        -truth * prediction
+      else {
+        0
+      }
+    }
+  }
 
 
