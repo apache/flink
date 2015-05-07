@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import akka.actor.ActorRef;
 
 import akka.actor.ActorSystem;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -40,11 +41,13 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -196,8 +199,10 @@ public class ExecutionGraph implements Serializable {
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointCoordinator checkpointCoordinator;
-	
-	
+
+	// ------ Fields that are only relevant for archived execution graphs ------------
+	private ExecutionConfig executionConfig = null;
+
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
 	// --------------------------------------------------------------------------------------------
@@ -617,7 +622,12 @@ public class ExecutionGraph implements Serializable {
 		if (!state.isTerminalState()) {
 			throw new IllegalStateException("Can only archive the job from a terminal state");
 		}
-
+		// "unpack" execution config before we throw away the usercode classloader.
+		try {
+			executionConfig = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(jobConfiguration, ExecutionConfig.CONFIG_KEY,userClassLoader);
+		} catch (Exception e) {
+			LOG.warn("Error deserializing the execution config while archiving the execution graph", e);
+		}
 		// clear the non-serializable fields
 		userClassLoader = null;
 		scheduler = null;
@@ -632,6 +642,10 @@ public class ExecutionGraph implements Serializable {
 		requiredJarFiles.clear();
 		jobStatusListenerActors.clear();
 		executionListenerActors.clear();
+	}
+
+	public ExecutionConfig getExecutionConfig() {
+		return this.executionConfig;
 	}
 
 	/**

@@ -31,6 +31,7 @@ import org.apache.flink.api.scala.hadoop.mapred
 import org.apache.flink.api.scala.hadoop.mapreduce
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.core.fs.Path
+import org.apache.flink.configuration.Configuration;
 
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv, CollectionEnvironment}
 import org.apache.flink.api.common.io.{InputFormat, FileInputFormat}
@@ -635,14 +636,24 @@ object ExecutionEnvironment {
 
   /**
    * Creates a local execution environment. The local execution environment will run the program in
-   * a multi-threaded fashion in the same JVM as the environment was created in. The default degree
-   * of parallelism of the local environment is the number of hardware contexts (CPU cores/threads).
+   * a multi-threaded fashion in the same JVM as the environment was created in. The parallelism of
+   * the local environment is the number of hardware contexts (CPU cores/threads).
    */
   def createLocalEnvironment(
       parallelism: Int = Runtime.getRuntime.availableProcessors())
       : ExecutionEnvironment = {
     val javaEnv = JavaEnv.createLocalEnvironment()
     javaEnv.setParallelism(parallelism)
+    new ExecutionEnvironment(javaEnv)
+  }
+
+  /**
+   * Creates a local execution environment. The local execution environment will run the program in
+   * a multi-threaded fashion in the same JVM as the environment was created in.
+   * This method allows to pass a custom Configuration to the local environment.
+   */
+  def createLocalEnvironment(customConfiguration: Configuration): ExecutionEnvironment = {
+    val javaEnv = JavaEnv.createLocalEnvironment(customConfiguration)
     new ExecutionEnvironment(javaEnv)
   }
 

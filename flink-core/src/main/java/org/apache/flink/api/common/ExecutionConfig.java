@@ -23,6 +23,7 @@ import com.esotericsoftware.kryo.Serializer;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A config to define the behavior of the program execution. It allows to define (among other
@@ -78,6 +79,8 @@ public class ExecutionConfig implements Serializable {
 
 	/** If set to true, progress updates are printed to System.out during execution */
 	private boolean printProgressDuringExecution = true;
+
+	private GlobalJobParameters globalJobParameters = null;
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in lists to ensure they are registered in order in all kryo instances.
@@ -342,6 +345,18 @@ public class ExecutionConfig implements Serializable {
 		return this.printProgressDuringExecution;
 	}
 
+	public GlobalJobParameters getGlobalJobParameters() {
+		return globalJobParameters;
+	}
+
+	/**
+	 * Register a custom, serializable user configuration object.
+	 * @param globalJobParameters Custom user configuration object
+	 */
+	public void setGlobalJobParameters(GlobalJobParameters globalJobParameters) {
+		this.globalJobParameters = globalJobParameters;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
@@ -529,6 +544,8 @@ public class ExecutionConfig implements Serializable {
 	}
 
 
+	// ------------------------------ Utilities  ----------------------------------
+
 	public static class Entry<K, V> implements Serializable {
 
 		private static final long serialVersionUID = 1L;
@@ -585,4 +602,23 @@ public class ExecutionConfig implements Serializable {
 					'}';
 		}
 	}
+
+	/**
+	 * Interface for custom user configuration object registered at the execution config.
+	 *
+	 * This user config is accessible at runtime through
+	 * getRuntimeContext().getExecutionConfig().getUserConfig()
+	 */
+	public static class GlobalJobParameters implements Serializable {
+		/**
+		 * Convert UserConfig into a Map<String, String> representation.
+		 * This can be used by the runtime, for example for presenting the user config in the web frontend.
+		 *
+		 * @return Key/Value representation of the UserConfig, or null.
+		 */
+		public Map<String, String> toMap() {
+			return null;
+		}
+	}
+
 }
