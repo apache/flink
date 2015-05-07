@@ -296,7 +296,7 @@ private[flink] trait TypeInformationGen[C <: Context] {
       var error = false
       while (traversalClazz != null) {
         for (field <- traversalClazz.getDeclaredFields) {
-          if (clazzFields.contains(field.getName)) {
+          if (clazzFields.contains(field.getName) && !Modifier.isStatic(field.getModifiers)) {
             println(s"The field $field is already contained in the " +
               s"hierarchy of the class $clazz. Please use unique field names throughout " +
               "your class hierarchy")
