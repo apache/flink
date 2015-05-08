@@ -16,19 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer
+import akka.actor.UntypedActor;
+
+import java.util.concurrent.BlockingQueue;
 
 /**
- * This object contains the job manager profiler messages
+ * Actor for testing that simply puts all its messages into a 
+ * blocking queue.
  */
-object JobManagerProfilerMessages {
+class ForwardingActor extends UntypedActor {
 
-  /**
-   * Reports profiling data to the profiler.
-   * @param profilingDataContainer
-   */
-  case class ReportProfilingData(profilingDataContainer: ProfilingDataContainer)
+	private final BlockingQueue<Object> queue;
+	
+	public ForwardingActor(BlockingQueue<Object> queue) {
+		this.queue = queue;
+	}
 
+	@Override
+	public void onReceive(Object message) {
+		queue.add(message);
+	}
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.state.StateHandle;
+import org.apache.flink.runtime.util.SerializedValue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,9 @@ import java.util.Map;
  * A pending checkpoint is a checkpoint that has been started, but has not been
  * acknowledged by all tasks that need to acknowledge it. Once all tasks have
  * acknowledged it, it becomes a {@link SuccessfulCheckpoint}.
+ * 
+ * <p>Note that the pending checkpoint, as well as the successful checkpoint keep the
+ * state handles always as serialized values, never as actual values.</p>
  */
 public class PendingCheckpoint {
 	
@@ -117,12 +121,12 @@ public class PendingCheckpoint {
 				return completed;
 			}
 			else {
-				throw new IllegalStateException("Cannot complete checkpoint while nit all tasks are acknowledged");
+				throw new IllegalStateException("Cannot complete checkpoint while not all tasks are acknowledged");
 			}
 		}
 	}
 	
-	public boolean acknowledgeTask(ExecutionAttemptID attemptID, StateHandle state) {
+	public boolean acknowledgeTask(ExecutionAttemptID attemptID, SerializedValue<StateHandle<?>> state) {
 		synchronized (lock) {
 			if (discarded) {
 				return false;
@@ -158,6 +162,7 @@ public class PendingCheckpoint {
 
 	@Override
 	public String toString() {
-		return "";
+		return String.format("PendingCheckpoint %d @ %d - confirmed=%d, pending=%d",
+				checkpointId, checkpointTimestamp, getNumberOfAcknowledgedTasks(), getNumberOfNonAcknowledgedTasks());
 	}
 }

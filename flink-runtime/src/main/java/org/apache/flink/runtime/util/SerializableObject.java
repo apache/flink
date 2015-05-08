@@ -16,8 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.profiling.impl.types;
+package org.apache.flink.runtime.util;
 
-import org.apache.flink.core.io.IOReadableWritable;
-
-public interface InternalProfilingData extends IOReadableWritable {}
+/**
+ * A simple object that only implements {@link java.io.Serializable}, so it can be used
+ * in serializable classes.
+ */
+public class SerializableObject implements java.io.Serializable {
+	
+	private static final long serialVersionUID = -7322636177391854669L;
+}

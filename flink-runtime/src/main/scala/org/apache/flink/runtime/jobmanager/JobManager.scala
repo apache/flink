@@ -33,11 +33,11 @@ import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
-import org.apache.flink.runtime.messages.CheckpointingMessages.{StateBarrierAck, BarrierAck}
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.Messages.{Disconnect, Acknowledge}
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.accumulators._
+import org.apache.flink.runtime.messages.checkpoint.{AcknowledgeCheckpoint, AbstractCheckpointMessage}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
@@ -47,16 +47,13 @@ import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
-import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
+import org.apache.flink.runtime.jobgraph.{JobVertexID, JobGraph, JobStatus}
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{SendStackTrace, Heartbeat}
-import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.util.{ExceptionUtils, InstantiationUtil}
-
-import org.slf4j.LoggerFactory
 
 import akka.actor._
 
@@ -92,20 +89,19 @@ import scala.collection.JavaConverters._
  * - [[JobStatusChanged]] indicates that the status of job (RUNNING, CANCELING, FINISHED, etc.) has
  * changed. This message is sent by the ExecutionGraph.
  */
-class JobManager(val flinkConfiguration: Configuration,
-                 val instanceManager: InstanceManager,
-                 val scheduler: FlinkScheduler,
-                 val libraryCacheManager: BlobLibraryCacheManager,
-                 val archive: ActorRef,
-                 val accumulatorManager: AccumulatorManager,
-                 val profiler: Option[ActorRef],
-                 val defaultExecutionRetries: Int,
-                 val delayBetweenRetries: Long,
-                 val timeout: FiniteDuration)
+class JobManager(protected val flinkConfiguration: Configuration,
+                 protected val instanceManager: InstanceManager,
+                 protected val scheduler: FlinkScheduler,
+                 protected val libraryCacheManager: BlobLibraryCacheManager,
+                 protected val archive: ActorRef,
+                 protected val accumulatorManager: AccumulatorManager,
+                 protected val defaultExecutionRetries: Int,
+                 protected val delayBetweenRetries: Long,
+                 protected val timeout: FiniteDuration)
   extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
   /** List of current jobs running jobs */
-  val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
+  protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
 
 
   /**
@@ -124,7 +120,6 @@ class JobManager(val flinkConfiguration: Configuration,
     }
 
     archive ! PoisonPill
-    profiler.foreach( ref => ref ! PoisonPill )
 
     for((e,_) <- currentJobs.values) {
       e.fail(new Exception("The JobManager is shutting down."))
@@ -283,6 +278,9 @@ class JobManager(val flinkConfiguration: Configuration,
 
       sender ! NextInputSplit(serializedInputSplit)
 
+    case checkpointMessage : AbstractCheckpointMessage =>
+      handleCheckpointMessage(checkpointMessage)
+      
     case JobStatusChanged(jobID, newJobStatus, timeStamp, error) =>
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
@@ -326,19 +324,6 @@ class JobManager(val flinkConfiguration: Configuration,
           }
         case None =>
           removeJob(jobID)
-      }
-
-    case msg: BarrierAck =>
-      currentJobs.get(msg.jobID) match {
-        case Some(jobExecution) =>
-          jobExecution._1.getStateCheckpointerActor forward  msg
-        case None =>
-      }
-    case msg: StateBarrierAck =>
-      currentJobs.get(msg.jobID) match {
-        case Some(jobExecution) =>
-          jobExecution._1.getStateCheckpointerActor forward  msg
-        case None =>
       }
 
     case ScheduleOrUpdateConsumers(jobId, partitionId) =>
@@ -491,10 +476,7 @@ class JobManager(val flinkConfiguration: Configuration,
         executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
         executionGraph.setScheduleMode(jobGraph.getScheduleMode)
         executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
-
-        executionGraph.setCheckpointingEnabled(jobGraph.isCheckpointingEnabled)
-        executionGraph.setCheckpointingInterval(jobGraph.getCheckpointingInterval)
-
+        
         // initialize the vertices that have a master initialization hook
         // file output formats create directories here, input formats create splits
         if (log.isDebugEnabled) {
@@ -536,8 +518,33 @@ class JobManager(val flinkConfiguration: Configuration,
           log.debug(s"Successfully created execution graph from job graph ${jobId} (${jobName}).")
         }
 
-        // give an actorContext
-        executionGraph.setParentContext(context)
+        // configure the state checkpointing
+        val snapshotSettings = jobGraph.getSnapshotSettings
+        if (snapshotSettings != null) {
+
+          val idToVertex: JobVertexID => ExecutionJobVertex = id => {
+            val vertex = executionGraph.getJobVertex(id)
+            if (vertex == null) {
+              throw new JobSubmissionException(jobId,
+                "The snapshot checkpointing settings refer to non-existent vertex " + id)
+            }
+            vertex
+          }
+
+          val triggerVertices: java.util.List[ExecutionJobVertex] =
+            snapshotSettings.getVerticesToTrigger.asScala.map(idToVertex).asJava
+
+          val ackVertices: java.util.List[ExecutionJobVertex] =
+            snapshotSettings.getVerticesToAcknowledge.asScala.map(idToVertex).asJava
+
+          val confirmVertices: java.util.List[ExecutionJobVertex] =
+            snapshotSettings.getVerticesToConfirm.asScala.map(idToVertex).asJava
+
+          executionGraph.enableSnaphotCheckpointing(
+            snapshotSettings.getCheckpointInterval, snapshotSettings.getCheckpointTimeout,
+            triggerVertices, ackVertices, confirmVertices,
+            context.system)
+        }
 
         // get notified about job status changes
         executionGraph.registerJobStatusListener(self)
@@ -592,6 +599,40 @@ class JobManager(val flinkConfiguration: Configuration,
     }
   }
 
+  /**
+   * Dedicated handler for checkpoint messages.
+   * 
+   * @param actorMessage The checkpoint actor message.
+   */
+  private def handleCheckpointMessage(actorMessage: AbstractCheckpointMessage): Unit = {
+    actorMessage match {
+      case ackMessage: AcknowledgeCheckpoint =>
+        val jid = ackMessage.getJob()
+        currentJobs.get(jid) match {
+          case Some((graph, _)) =>
+            val coordinator = graph.getCheckpointCoordinator()
+            if (coordinator != null) {
+              try {
+                coordinator.receiveAcknowledgeMessage(ackMessage)
+              }
+              catch {
+                case t: Throwable =>
+                  log.error(s"Error in CheckpointCoordinator while processing $ackMessage", t)
+              }
+            }
+            else {
+              log.error(
+                s"Received ConfirmCheckpoint message for job $jid with no CheckpointCoordinator")
+            }
+            
+          case None => log.error(s"Received ConfirmCheckpoint for unavailable job $jid")
+        }
+
+      // unknown checkpoint message
+      case _ => unhandled(actorMessage)
+    }
+  }
+  
   /**
    * Handle unmatched messages with an exception.
    */
@@ -935,7 +976,7 @@ object JobManager {
 
   /**
    * Create the job manager components as (instanceManager, scheduler, libraryCacheManager,
-   *              archiverProps, accumulatorManager, profiler, defaultExecutionRetries,
+   *              archiverProps, accumulatorManager, defaultExecutionRetries,
    *              delayBetweenRetries, timeout)
    *
    * @param configuration The configuration from which to parse the config values.
@@ -943,14 +984,12 @@ object JobManager {
    */
   def createJobManagerComponents(configuration: Configuration) :
     (InstanceManager, FlinkScheduler, BlobLibraryCacheManager,
-      Props, AccumulatorManager, Option[Props], Int, Long, FiniteDuration, Int) = {
+      Props, AccumulatorManager, Int, Long, FiniteDuration, Int) = {
 
     val timeout: FiniteDuration = AkkaUtils.getTimeout(configuration)
 
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
-
-    val profilingEnabled = configuration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, false)
 
     val cleanupInterval = configuration.getLong(
       ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
@@ -977,12 +1016,6 @@ object JobManager {
       }
 
     val archiveProps: Props = Props(classOf[MemoryArchivist], archiveCount)
-
-    val profilerProps: Option[Props] = if (profilingEnabled) {
-      Some(Props(classOf[JobManagerProfiler]))
-    } else {
-      None
-    }
 
     val accumulatorManager: AccumulatorManager = new AccumulatorManager(Math.min(1, archiveCount))
 
@@ -1018,7 +1051,7 @@ object JobManager {
     }
 
     (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-      profilerProps, executionRetries, delayBetweenRetries, timeout, archiveCount)
+      executionRetries, delayBetweenRetries, timeout, archiveCount)
   }
 
   /**
@@ -1052,11 +1085,8 @@ object JobManager {
                             archiverActorName: Option[String]): (ActorRef, ActorRef) = {
 
     val (instanceManager, scheduler, libraryCacheManager, archiveProps, accumulatorManager,
-      profilerProps, executionRetries, delayBetweenRetries,
+      executionRetries, delayBetweenRetries,
       timeout, _) = createJobManagerComponents(configuration)
-
-    val profiler: Option[ActorRef] =
-                 profilerProps.map( props => actorSystem.actorOf(props, PROFILER_NAME) )
 
     // start the archiver wither with the given name, or without (avoid name conflicts)
     val archiver: ActorRef = archiverActorName match {
@@ -1065,7 +1095,7 @@ object JobManager {
     }
 
     val jobManagerProps = Props(classOf[JobManager], configuration, instanceManager, scheduler,
-        libraryCacheManager, archiver, accumulatorManager, profiler, executionRetries,
+        libraryCacheManager, archiver, accumulatorManager, executionRetries,
         delayBetweenRetries, timeout)
 
     val jobManager: ActorRef = jobMangerActorName match {

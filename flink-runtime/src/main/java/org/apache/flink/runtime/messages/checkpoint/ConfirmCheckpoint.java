@@ -30,15 +30,39 @@ public class ConfirmCheckpoint extends AbstractCheckpointMessage implements java
 
 	private static final long serialVersionUID = 2094094662279578953L;
 
-	public ConfirmCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId) {
+	/** The timestamp associated with the checkpoint */
+	private final long timestamp;
+	
+	public ConfirmCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, long timestamp) {
 		super(job, taskExecutionId, checkpointId);
+		this.timestamp = timestamp;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	public long getTimestamp() {
+		return timestamp;
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	@Override
+	public int hashCode() {
+		return super.hashCode() + (int) (timestamp ^ (timestamp >>> 32));
+	}
+
+	@Override
 	public boolean equals(Object o) {
-		return this == o || ( (o instanceof ConfirmCheckpoint) && super.equals(o));
+		if (this == o) {
+			return true;
+		}
+		else if (o instanceof ConfirmCheckpoint) {
+			ConfirmCheckpoint that = (ConfirmCheckpoint) o;
+			return this.timestamp == that.timestamp && super.equals(o);
+		}
+		else {
+			return false;
+		}
 	}
 
 	@Override

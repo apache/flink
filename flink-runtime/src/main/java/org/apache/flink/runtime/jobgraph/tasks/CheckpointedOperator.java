@@ -16,27 +16,9 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.jobgraph.tasks;
 
-package org.apache.flink.runtime.profiling;
-
-/**
- * A profiling exception is thrown if an error occur during profiling execution.
- * 
- */
-public class ProfilingException extends Exception {
-
-	/**
-	 * Generated serialVersionUID.
-	 */
-	private static final long serialVersionUID = -3282996556813630561L;
-
-	/**
-	 * Constructs a new profiling exception with the given error message.
-	 * 
-	 * @param errorMsg
-	 *        The error message to be included in the exception.
-	 */
-	public ProfilingException(String errorMsg) {
-		super(errorMsg);
-	}
+public interface CheckpointedOperator {
+	
+	void triggerCheckpoint(long checkpointId, long timestamp);
 }

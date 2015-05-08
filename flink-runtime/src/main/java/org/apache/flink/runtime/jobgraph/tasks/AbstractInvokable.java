@@ -40,7 +40,7 @@ public abstract class AbstractInvokable {
 
 
 	/** The environment assigned to this invokable. */
-	private volatile Environment environment;
+	private Environment environment;
 
 	/** The execution config, cached from the deserialization from the JobConfiguration */
 	private ExecutionConfig executionConfig;
@@ -66,14 +66,14 @@ public abstract class AbstractInvokable {
 	 * @param environment
 	 *        the environment of this task
 	 */
-	public final void setEnvironment(final Environment environment) {
+	public final void setEnvironment(Environment environment) {
 		this.environment = environment;
 	}
 
 	/**
 	 * Returns the environment of this task.
 	 * 
-	 * @return the environment of this task or <code>null</code> if the environment has not yet been set
+	 * @return The environment of this task.
 	 */
 	public Environment getEnvironment() {
 		return this.environment;
