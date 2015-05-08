@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -33,11 +35,27 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.NeighborsFunctionWithVertexValue;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.validation.GraphValidator;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.util.Collector;
 
+/**
+ * Affinity Propagation Algorithm.
+ *
+ * Initially, the input graph will be reconstructed to a new graph, in which the vertex value is hash map containing
+ * similarity, responsibility and availability to its neighbor vertices. In the original affinity propagation, 
+ * the responsibility availabilities if each pair is update in one iteration, here, on of this iteration is finshed by two
+ * super steps (vertex centric iteration).
+ * In the odd super step, each vertex propagates the availabilities to all its neighborhoods, and 
+ * each vertex update the responsibility according to the received availabilities afterwards.
+ * In the even step, each vertex propagates the availabilities to all its neighborhoods, and 
+ * each vertex update the availability according to the received responsibilities afterwards.
+ * The algorithm converges when all the maximum number of iterations is reached.
+ *
+ * @see <a href="http://www.psi.toronto.edu/index.php?q=affinity%20propagation">for details about affinity propagation algorithm</a>
+ */
 @SuppressWarnings({ "serial"})
 public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 
@@ -49,15 +67,39 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 	}
 	
 	/**
-	 * For each vertex v, the value is a hashmap including [k': s(v,k'), r(v, k'), a(k',v)] 
-	 * @param originalGraph
-	 * @return
+	 * Transfer the value of each vertex from Double to HashMap<Long, Tuple3<Double, Double,Double>>;
+	 * In the hash map, the key is the ID of the neighbor vertex.  
+	 * The content Tuple3<Double, Double, Double> contains the similarity, responsibility and availability to corresponding 
+	 * to the neighbor vertex.
 	 */
 	private Graph<Long, HashMap<Long, Tuple3<Double, Double,Double>>, Double> transferGraph(Graph<Long, Long, Double> originalGraph){
+		/*Remove duplicated edges and reconstruct the edge set for a directed graph.*/
+		DataSet<Edge<Long, Double>> clearedEdges = originalGraph.getEdges().map(new MapFunction<Edge<Long, Double>, Edge<Long, Double>>(){
+			@Override
+			public Edge<Long, Double> map(Edge<Long, Double> e)
+					throws Exception {
+				if (e.f0 > e.f1){
+					return e.reverse();
+				}
+				return e;
+			}
+			
+		}).groupBy(0,1).reduceGroup(new GroupReduceFunction<Edge<Long,Double>,Edge<Long,Double>>(){
+			@Override
+			public void reduce(Iterable<Edge<Long, Double>> values,
+					Collector<Edge<Long, Double>> out) throws Exception {
+				for (Edge<Long, Double> e: values){
+					out.collect(e);
+					if (e.f0 !=e.f1){
+						out.collect(e.reverse());
+					}
+					break;
+				}
+			}
+			
+		});
 		/*Reconstruct a graph*/
 		DataSet<Vertex<Long, Long>> vertices = originalGraph.getVertices();
-		DataSet<Edge<Long, Double>> edges = originalGraph.getEdges();
-
 		/*Transfer the vertex value to a hash map, which stores the <Similarity, Responsibility, Availability> to the neigbor vertices */
 		DataSet<Vertex<Long,HashMap<Long, Tuple3<Double, Double,Double>>>> newVertices = vertices.map(
 				new MapFunction<Vertex<Long, Long>,Vertex<Long,HashMap<Long, Tuple3<Double, Double,Double>>>>(){
@@ -75,17 +117,17 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 		
 		/*Construct a new graph with HashMap<key, <Similarity, Responsibility, Availability>> value for each vertex*/
 		Graph<Long, HashMap<Long, Tuple3<Double, Double, Double>>, Double> newGraph = 
-				Graph.fromDataSet(newVertices, edges, ExecutionEnvironment.getExecutionEnvironment());
+				Graph.fromDataSet(newVertices, clearedEdges, ExecutionEnvironment.getExecutionEnvironment());
 
 		
 		/*run iteration once to get similarity */
 		Graph<Long, HashMap<Long, Tuple3<Double, Double,Double>>, Double> hashMappedGraph = 
-				newGraph.runVertexCentricIteration(new InitialVertexUpdater(), new InitialMessenger(), 1);
+				newGraph.runVertexCentricIteration(new InitialVertexHashmap(), new InitialMessenger(), 1);
 			
 		return hashMappedGraph;
 	}
 	
-	public static final class InitialVertexUpdater 
+	public static final class InitialVertexHashmap 
 	extends VertexUpdateFunction<Long, HashMap<Long, Tuple3<Double, Double,Double>>, Tuple2<Long, Double>>{
 		
 		@Override
@@ -117,9 +159,54 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 		}
 	}
 
+	
+	/**
+	 * Validate there is one self-edge for  each vertex
+	 */
+	public static final class SelfEdgeValidator extends GraphValidator<Long, Long, Double>{
+		@Override
+		public boolean validate(Graph<Long, Long, Double> graph) throws Exception{
+			/*Check the number of self-edges*/
+			DataSet<Edge<Long, Double>> selfEdges = graph.getEdges().filter(new FilterFunction<Edge<Long, Double>>(){
+				@Override
+				public boolean filter(Edge<Long, Double> value){
+					return value.f0 == value.f1;
+				}
+			});
+			if (selfEdges.count() != graph.getVertices().count()){
+				return false;
+			}
+			/*Check duplicated self-edges*/
+			DataSet<Edge<Long, Double>> duplicatedEdges = selfEdges.groupBy(0).reduceGroup(new GroupReduceFunction<Edge<Long, Double>,
+					Edge<Long, Double>>(){
+						@Override
+						public void reduce(Iterable<Edge<Long, Double>> values,
+								Collector<Edge<Long, Double>> out)
+								throws Exception {
+							int cnt = 0;
+							for (Edge<Long, Double> e:values){
+								cnt++;
+								if (cnt > 1){
+									out.collect(e);
+								}
+							}
+						}
+			});
+			if (duplicatedEdges.count() > 0){
+				return false;
+			}
+			return true;
+		}
+	}
+	
 	@Override
-	public Graph<Long, Long, Double> run(Graph<Long, Long, Double> input) {
-		/*Transfer the vertex value to HashMap<Long, Tuple3<Double, Double,Double>>*/
+	public Graph<Long, Long, Double> run(Graph<Long, Long, Double> input) throws Exception{
+		
+		//Check the validity of the input graph
+		if (!input.validate(new SelfEdgeValidator())){
+			throw new Exception("Self-edges checking error");
+		}
+			
 		Graph<Long, HashMap<Long, Tuple3<Double, Double,Double>>, Double> graph = transferGraph(input);
 		
 		//Run the vertex centric iteration
@@ -129,11 +216,12 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 		//Find the centers of each vertices
 		DataSet<Vertex<Long, Long>> resultSet = stableGraph.groupReduceOnNeighbors(new ExamplarSelection(), EdgeDirection.OUT);
 		
-		//Recover to the format of original graph
+		//Reconstruct the graph to the original format
 		Graph<Long, Long, Double> resultGraph = Graph.fromDataSet(resultSet, 
 				input.getEdges(), ExecutionEnvironment.getExecutionEnvironment());
 		return resultGraph;
 	}
+	
 	public static final class ExamplarSelection implements 
 	NeighborsFunctionWithVertexValue<Long, HashMap<Long, Tuple3<Double, Double, Double>>, 
 	Double, Vertex<Long, Long>>{
@@ -145,7 +233,7 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 				Collector<Vertex<Long, Long>> out) throws Exception {
 			/*Get Evidence*/
 			HashMap<Long, Tuple3<Double, Double, Double>> hmap = vertex.getValue();
-			Double selfEvidence = hmap.get(vertex.getId()).f1 + hmap.get(vertex.getId()).f2;
+			double selfEvidence = hmap.get(vertex.getId()).f1 + hmap.get(vertex.getId()).f2;
 			if (selfEvidence > 0){
 				out.collect(new Vertex<Long, Long>(vertex.getId(), vertex.getId()));
 				return;
@@ -155,7 +243,7 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 				for (Tuple2<Edge<Long, Double>, Vertex<Long, HashMap<Long, Tuple3<Double, Double, Double>>>> neigbor: neighbors){
 					Long neigborId = neigbor.f1.getId();
 					HashMap<Long, Tuple3<Double, Double, Double>> neigborMap = neigbor.f1.getValue();
-					Double neigborEvidence = neigborMap.get(neigborId).f1 + neigborMap.get(neigborId).f2;
+					double neigborEvidence = neigborMap.get(neigborId).f1 + neigborMap.get(neigborId).f2;
 					//Only the neighbor vertex with positive evidence can be possible exemplar of current vertex
 					if (neigborEvidence > 0 ){
 						Double neigborSimilarity = neigbor.f0.getValue();
@@ -190,12 +278,12 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 			int step = getSuperstepNumber();
 			/*odd step: receive neighbor responsibility and update the responsibility*/
 			if (step % 2 == 1){ 
-				Double selfSum = vertexValue.get(vertexKey).f0 + vertexValue.get(vertexKey).f2;
+				double selfSum = vertexValue.get(vertexKey).f0 + vertexValue.get(vertexKey).f2;
 				/*The max a(v, k) + s(v, k)*/
-				Double maxSum = selfSum;
-				Long maxKey = vertexKey;
+				double maxSum = selfSum;
+				long maxKey = vertexKey;
 				/*The second max a(v, k) + s(v, k)*/
- 				Double secondMaxSum = Double.NEGATIVE_INFINITY;
+				double secondMaxSum = Double.NEGATIVE_INFINITY;
 				for (Tuple2<Long, Double> msg: inMessages){
 					Long adjacentVertex = msg.f0;
 					Double sum = msg.f1 + vertexValue.get(adjacentVertex).f0;
@@ -210,7 +298,6 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 				if (maxKey != vertexKey && selfSum > secondMaxSum){
 					secondMaxSum = selfSum;
 				}
-
 				/*Update responsibility*/
 				for (Entry<Long, Tuple3<Double, Double, Double>> entry: vertexValue.entrySet()){
 					Double newRespons = 0.0;
@@ -227,7 +314,6 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 			}else{
 				/*Odd step: receive responsibility and update availability */
 				double sum = 0.0;
-				
 				/*msg.f1 is the received responsibility*/
 				ArrayList<Tuple2<Long, Double>> allMessages = new ArrayList<Tuple2<Long, Double>>();
 				for (Tuple2<Long, Double> msg: inMessages){
@@ -270,7 +356,7 @@ public class AffinityPropogation implements GraphAlgorithm<Long, Long, Double> {
 			}else{
 				/*Even step: propagate responsibility*/
 				for (Edge<Long, Double> e: getOutgoingEdges()){
-					Long dest = e.getTarget();
+					long dest = e.getTarget();
 					if (dest != vertexKey){
 						sendMessageTo(dest, new Tuple2<Long, Double>(vertexKey, vertexValue.get(dest).f1));
 					}
