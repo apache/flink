@@ -90,8 +90,20 @@ class GradientDescent(runParameters: ParameterMap) extends IterativeSolver {
 
     val numberOfIterations: Int = parameterMap(Iterations)
 
+    // Initialize weights
     val initialWeightsDS: DataSet[WeightVector] = initWeights match {
-      case Some(x) => x
+      // Ensure provided weight vector is a DenseVector
+      case Some(wvDS) => {
+        wvDS.map{wv => {
+          val denseWeights = wv.weights match {
+            case dv: DenseVector => dv
+            case sv: SparseVector => sv.toDenseVector
+          }
+          WeightVector(denseWeights, wv.intercept)
+        }
+
+        }
+      }
       case None => createInitialWeightVector(dimensionsDS)
     }
 

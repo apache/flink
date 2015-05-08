@@ -18,13 +18,8 @@
 
 package org.apache.flink.ml.optimization
 
-import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
+import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector => FlinkDenseVector, BLAS}
 import org.apache.flink.ml.math.Breeze._
-
-import breeze.numerics._
-import breeze.linalg.{norm => BreezeNorm}
-
-
 
 /** Represents a type of regularization penalty
   *
@@ -174,23 +169,15 @@ class L1Regularization extends Regularization {
       effectiveStepSize: Double,
       regParameter: Double) {
     BLAS.axpy(-effectiveStepSize, gradient, oldWeights)
-    val brzWeights = oldWeights.asBreeze
 
     // Apply proximal operator (soft thresholding)
     val shrinkageVal = regParameter * effectiveStepSize
     var i = 0
-    while (i < brzWeights.length) {
-      val wi = brzWeights(i)
-      brzWeights(i) = signum(wi) * math.max(0.0, abs(wi) - shrinkageVal)
+    while (i < oldWeights.size) {
+      val wi = oldWeights(i)
+      oldWeights.update(i, math.signum(wi) * math.max(0.0, math.abs(wi) - shrinkageVal))
       i += 1
     }
-
-    BLAS.copy(brzWeights.fromBreeze, oldWeights)
-
-    // We could maybe define a Breeze Universal function for the proximal operator, and test if it's
-    // faster that the for loop + copy above
-    //    brzWeights = signum(brzWeights) * max(0.0, abs(brzWeights) - shrinkageVal)
-
   }
 
   /** Adds the regularization term to the loss value
@@ -202,6 +189,12 @@ class L1Regularization extends Regularization {
     */
   override def regLoss(loss: Double, weightVector: FlinkVector, regularizationParameter: Double):
   Double = {
-    loss + BreezeNorm(weightVector.asBreeze, 1.0) * regularizationParameter
+    loss + l1Norm(weightVector) * regularizationParameter
+  }
+
+  // TODO(tvas): Replace once we decide on how we deal with vector ops (roll our own or use Breeze)
+  /** $L_1$ norm of a Vector **/
+  private def l1Norm(vector: FlinkVector) : Double = {
+    vector.valueIterator.fold(0.0){(a,b) => math.abs(a) + math.abs(b)}
   }
 }
