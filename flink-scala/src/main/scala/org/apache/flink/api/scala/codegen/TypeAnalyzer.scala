@@ -17,20 +17,12 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.types.{BooleanValue, ByteValue, CharValue, DoubleValue, FloatValue, IntValue, LongValue, ShortValue, StringValue}
+
 import scala.collection._
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.macros.Context
 import scala.util.DynamicVariable
-
-import org.apache.flink.types.BooleanValue
-import org.apache.flink.types.ByteValue
-import org.apache.flink.types.CharValue
-import org.apache.flink.types.DoubleValue
-import org.apache.flink.types.FloatValue
-import org.apache.flink.types.IntValue
-import org.apache.flink.types.StringValue
-import org.apache.flink.types.LongValue
-import org.apache.flink.types.ShortValue
 
 private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
   with TypeDescriptors[C] =>
@@ -81,9 +73,10 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
           case WritableType() => WritableDescriptor(id, tpe)
 
-          case JavaType() =>
-            // It's a Java Class, let the TypeExtractor deal with it...
-            GenericClassDescriptor(id, tpe)
+            // Disable, allow analyzePojo to reject Java classes that it cannot handle
+//          case JavaType() =>
+//            // It's a Java Class, let the TypeExtractor deal with it...
+//            GenericClassDescriptor(id, tpe)
 
           case _ => analyzePojo(id, tpe)
         }
@@ -148,6 +141,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
         .filter { _.isTerm }
         .map { _.asTerm }
         .filter { _.isVar }
+        .filter { !_.isStatic }
         .filterNot { _.annotations.exists( _.tpe <:< typeOf[scala.transient]) }
 
       if (fields.isEmpty) {
@@ -186,7 +180,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
 
       val fieldDescriptors = fields map {
         f =>
-          val fieldTpe = f.getter.asMethod.returnType.asSeenFrom(tpe, tpe.typeSymbol)
+          val fieldTpe = f.typeSignatureIn(tpe)
           FieldDescriptor(f.name.toString.trim, f.getter, f.setter, fieldTpe, analyze(fieldTpe))
       }
 
