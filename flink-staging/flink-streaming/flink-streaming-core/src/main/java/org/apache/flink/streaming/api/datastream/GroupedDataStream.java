@@ -42,7 +42,14 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 
 	KeySelector<OUT, ?> keySelector;
 
-	protected GroupedDataStream(DataStream<OUT> dataStream, KeySelector<OUT, ?> keySelector) {
+	/**
+	 * Creates a new {@link GroupedDataStream}, group inclusion is determined using
+	 * a {@link KeySelector} on the elements of the {@link DataStream}.
+	 *
+	 * @param dataStream Base stream of data
+	 * @param keySelector Function for determining group inclusion
+	 */
+	public GroupedDataStream(DataStream<OUT> dataStream, KeySelector<OUT, ?> keySelector) {
 		super(dataStream.partitionBy(keySelector));
 		this.keySelector = keySelector;
 	}
