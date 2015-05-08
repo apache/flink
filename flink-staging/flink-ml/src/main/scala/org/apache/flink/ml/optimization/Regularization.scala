@@ -18,8 +18,7 @@
 
 package org.apache.flink.ml.optimization
 
-import org.apache.flink.ml.math.{Vector => FlinkVector, DenseVector => FlinkDenseVector, BLAS}
-import org.apache.flink.ml.math.Breeze._
+import org.apache.flink.ml.math.{Vector => FlinkVector, BLAS}
 
 /** Represents a type of regularization penalty
   *
@@ -127,8 +126,7 @@ class L2Regularization extends DiffRegularization {
     */
   override def regLoss(loss: Double, weightVector: FlinkVector, regParameter: Double)
     : Double = {
-    val brzVector = weightVector.asBreeze
-    loss + regParameter * (brzVector dot brzVector) / 2
+    loss + regParameter * BLAS.dot(weightVector, weightVector) / 2
   }
 
   /** Adds the regularization gradient term to the loss gradient. The gradient is updated in place.
@@ -175,7 +173,7 @@ class L1Regularization extends Regularization {
     var i = 0
     while (i < oldWeights.size) {
       val wi = oldWeights(i)
-      oldWeights.update(i, math.signum(wi) * math.max(0.0, math.abs(wi) - shrinkageVal))
+      oldWeights(i) = math.signum(wi) * math.max(0.0, math.abs(wi) - shrinkageVal)
       i += 1
     }
   }
