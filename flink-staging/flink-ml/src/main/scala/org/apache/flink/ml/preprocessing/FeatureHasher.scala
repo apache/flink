@@ -18,40 +18,96 @@
 
 package org.apache.flink.ml.preprocessing
 
+import java.nio.charset.StandardCharsets
+
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.ml.common.{ParameterMap, Parameter, Transformer}
-import org.apache.flink.ml.math.{DenseVector, SparseVector, Vector}
+import org.apache.flink.ml.math.{Vector, SparseVector}
 import org.apache.flink.ml.preprocessing.FeatureHasher.{NonNegative, NumFeatures}
-
+import org.apache.flink.api.scala._
 import scala.util.hashing.MurmurHash3
 
 
-class FeatureHasher extends Transformer[Vector, Vector] with Serializable {
-  // parameters: n_features, non_negative
+/** This transformer turns sequences of symbolic feature names (strings) into flink.ml.math.SparseVectors,
+  * using a hash function to compute the matrix column corresponding to a name. Aka the hashing trick.
+  * The hash function employed is the signed 32-bit version of Murmurhash3.
+  *
+  * By default for [[FeatureHasher]] transformer numFeatures=2&#94;20 and nonNegative=false.
+  *
+  * This transformer takes a [[Seq]] of strings and maps it to a
+  * feature [[Vector]].
+  *
+  * This transformer can be prepended to all [[Transformer]] and
+  * [[org.apache.flink.ml.common.Learner]] implementations which expect an input of
+  * [[Vector]].
+  *
+  * @example
+  *          {{{
+  *            val trainingDS: DataSet[Seq[String]] = env.fromCollection(data)
+  *            val transformer = FeatureHasher().setNumFeatures(65536).setNonNegative(false)
+  *
+  *            transformer.transform(trainingDS)
+  *          }}}
+  *
+  * =Parameters=
+  *
+  * - [[FeatureHasher.NumFeatures]]: The number of features (entries) in the output vector; by default equal to 2&#94;20
+  * - [[FeatureHasher.NonNegative]]: Whether output vector should contain non-negative values only.
+  * When True, output values can be interpreted as frequencies. When False, output values will have expected value zero;
+  * by default equal to false
+  */
+class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
+
+  // The seed used to initialize the hasher
+  val Seed = 0
+
+  /** Sets the number of features (entries) in the output vector
+    *
+    * @param numFeatures the user-specified numFeatures value. In case the user gives a value less than 1,
+    *                    numFeatures is set to its default value: 2&#94;20
+    * @return the FeatureHasher instance with its numFeatures value set to the user-specified value
+    */
   def setNumFeatures(numFeatures: Int): FeatureHasher = {
-    // parameter check
+    if (numFeatures < 1)
+      return this
     parameters.add(NumFeatures, numFeatures)
     this
   }
 
+  /** Sets whether output vector should contain non-negative values only
+    *
+    * @param nonNegative the user-specified nonNegative value.
+    * @return the FeatureHasher instance with its nonNegative value set to the user-specified value
+    */
   def setNonNegative(nonNegative: Boolean): FeatureHasher = {
     parameters.add(NonNegative, nonNegative)
     this
   }
 
-  override def transform(input: DataSet[Vector], parameters: ParameterMap):
+  override def transform(input: DataSet[Seq[String]], parameters: ParameterMap):
   DataSet[Vector] = {
     val resultingParameters = this.parameters ++ parameters
+
     val nonNegative = resultingParameters(NonNegative)
     val numFeatures = resultingParameters(NumFeatures)
 
+    // each item of the sequence is hashed and transformed into a tuple (index, value)
     input.map {
-      vector =>
-        val v = DenseVector.zeros(numFeatures)
-        for (i <- 0 until vector.size) {
-          val idx = Math.abs(MurmurHash3.bytesHash(vector(i).getBytes, 0) % numFeatures)
-          v(idx) += (if (idx >= 0) 1 else -1)
+      inputSeq => {
+        val a = inputSeq.map {
+          s => {
+            // unicode strings are converted to utf-8
+            // bytesHash is faster than arrayHash, because it hashes 4 bytes at once
+            val h = MurmurHash3.bytesHash(s.getBytes(StandardCharsets.UTF_8), Seed) % numFeatures
+            val index = Math.abs(h)
+            // add nonNegative handling to value
+            val value = if (nonNegative || (h >= 0)) 1.0 else -1.0
+            (index, value)
+          }
         }
+        // Sparse vector implicitly sums up all values belonging to an index
+        SparseVector.fromCOO(numFeatures, a)
+      }
     }
   }
 }
@@ -59,7 +115,7 @@ class FeatureHasher extends Transformer[Vector, Vector] with Serializable {
 object FeatureHasher {
 
   case object NumFeatures extends Parameter[Int] {
-    override val defaultValue: Option[Int] = Some(Math.pow(2, 18).toInt)
+    override val defaultValue: Option[Int] = Some(Math.pow(2, 20).toInt)
   }
 
   case object NonNegative extends Parameter[Boolean] {
