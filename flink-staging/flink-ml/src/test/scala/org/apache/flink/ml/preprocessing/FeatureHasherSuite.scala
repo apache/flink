@@ -17,10 +17,12 @@
  */
 package org.apache.flink.ml.preprocessing
 
-import org.apache.flink.ml.math.{Vector, DenseVector}
+import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.ml.math.SparseVector
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{Matchers, FlatSpec}
 
+import org.apache.flink.api.scala._
 
 class FeatureHasherSuite
   extends FlatSpec
@@ -29,12 +31,39 @@ class FeatureHasherSuite
 
   behavior of "Flink's Feature Hasher"
 
-  it should "map "
+  it should "transform a sequence of strings into a sparse vector of given size" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
+    env.setParallelism (2)
+
+    val numFeatures = 16
+    val input = Seq(
+      Seq("TEST1", "TEST2", "TEST3"),
+      Seq("TEST1", "TEST1", "TEST2"),
+      Seq("TEST1"),
+      "Two households both alike in dignity In fair Verona where we lay our scene".split(" ").toSeq
+    )
+
+    val expectedResults = List(
+      SparseVector.fromCOO(numFeatures, Map((0, 1.0), (4, 1.0), (12, -1.0))),
+      SparseVector.fromCOO(numFeatures, Map((4, 2.0), (12, -1.0))),
+      SparseVector.fromCOO(numFeatures, Map((4, 1.0))),
+      SparseVector.fromCOO(numFeatures, Map((0, 1.0), (2, -2.0), (5, 1.0), (10, 1.0), (12, -1.0), (13, -1.0),
+        (14, -2.0), (15, 1.0)))
+    )
+
+    val inputDS = env.fromCollection(input)
+
+    val transformer = FeatureHasher ()
+      .setNumFeatures(numFeatures).setNonNegative(false)
+
+    val transformedDS = transformer.transform (inputDS)
+
+    val results = transformedDS.collect()
+
+    for((result, expectedResult) <- results zip expectedResults) {
+      result.equalsVector(expectedResult) should be(true)
+    }
+  }
 }
 
-object FeatureHasherData {
-  val data: Seq[Vector] = List(
-    DenseVector(Array("TEST1"))
-  )
-}
