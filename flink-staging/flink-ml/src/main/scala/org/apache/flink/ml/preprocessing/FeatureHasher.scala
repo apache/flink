@@ -94,19 +94,19 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
     // each item of the sequence is hashed and transformed into a tuple (index, value)
     input.map {
       inputSeq => {
-        val a = inputSeq.map {
+        val entries = inputSeq.map {
           s => {
             // unicode strings are converted to utf-8
             // bytesHash is faster than arrayHash, because it hashes 4 bytes at once
             val h = MurmurHash3.bytesHash(s.getBytes(StandardCharsets.UTF_8), Seed) % numFeatures
             val index = Math.abs(h)
-            // add nonNegative handling to value
+            // take also care of non negative case
             val value = if (nonNegative || (h >= 0)) 1.0 else -1.0
             (index, value)
           }
         }
         // Sparse vector implicitly sums up all values belonging to an index
-        SparseVector.fromCOO(numFeatures, a)
+        SparseVector.fromCOO(numFeatures, entries)
       }
     }
   }
