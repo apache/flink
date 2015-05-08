@@ -251,7 +251,7 @@ class JavaBatchTranslator extends PlanTranslator {
         val translatedInput = translateInternal(input)
         val inType = translatedInput.getType.asInstanceOf[CompositeType[Row]]
         val filter = new ExpressionFilterFunction[Row](predicate, inType)
-        translatedInput.filter(filter)
+        translatedInput.filter(filter).name(predicate.toString)
     }
   }
 

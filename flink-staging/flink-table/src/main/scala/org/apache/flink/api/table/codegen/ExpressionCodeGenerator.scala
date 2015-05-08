@@ -317,7 +317,7 @@ abstract class ExpressionCodeGenerator[R](
 
       case EqualTo(left, right) =>
         generateIfNonNull(left, right, BOOLEAN_TYPE_INFO) {
-          (leftTerm, rightTerm) => s"$leftTerm == $rightTerm"
+          (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
         }
 
       case NotEqualTo(left, right) =>
