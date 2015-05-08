@@ -139,15 +139,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // Comparison
 
-  lazy val equalTo: PackratParser[Expression] = term ~ "===" ~ term ^^ {
+  lazy val equalTo: PackratParser[Expression] = term ~ ("===" | "=") ~ term ^^ {
     case l ~ _ ~ r => EqualTo(l, r)
   }
 
-  lazy val equalToAlt: PackratParser[Expression] = term ~ "=" ~ term ^^ {
-    case l ~ _ ~ r => EqualTo(l, r)
-  }
-
-  lazy val notEqualTo: PackratParser[Expression] = term ~ "!==" ~ term ^^ {
+  lazy val notEqualTo: PackratParser[Expression] = term ~ ("!==" | "!=" | "<>") ~ term ^^ {
     case l ~ _ ~ r => NotEqualTo(l, r)
   }
 
@@ -168,7 +164,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val comparison: PackratParser[Expression] =
-      equalTo | equalToAlt | notEqualTo |
+      equalTo | notEqualTo |
       greaterThan | greaterThanOrEqual |
       lessThan | lessThanOrEqual | term
 
