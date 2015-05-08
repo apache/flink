@@ -24,17 +24,9 @@ import java.util.List;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
-import org.apache.flink.graph.Vertex;
 
 public class AffinityPropogationData {
-
-	public static DataSet<Vertex<Long, Long>> getDefautVertexSet(ExecutionEnvironment env){
-		List<Vertex<Long, Long>> vertexList = new LinkedList<Vertex<Long, Long>>();
-		for (Object[] v : ToyProblemPreferences) {
-			vertexList.add(new Vertex<Long, Long>((Long)v[0], (Long)v[0]));
-		}
-		return env.fromCollection(vertexList);
-	}
+	
 	public static DataSet<Edge<Long, Double>> getDefautEdgeDataSet(ExecutionEnvironment env){
 		List<Edge<Long, Double>> edgeList = new LinkedList<Edge<Long, Double>>();
 		for (Object[] o: ToyProblemSimlarities){
@@ -42,43 +34,32 @@ public class AffinityPropogationData {
 		}
 		return env.fromCollection(edgeList);
 	}
-	public static DataSet<Edge<Long, Double>> getDefautSelfEdgeDataSet(ExecutionEnvironment env){
-		List<Edge<Long, Double>> selfEdgeList = new LinkedList<Edge<Long, Double>>();
-		for (Object[] o: ToyProblemPreferences){
-			selfEdgeList.add(new Edge<Long, Double>((Long)o[0], (Long)o[0], (Double)o[1]));
-		}
-		return env.fromCollection(selfEdgeList);
-	}
-	
-	public static final Object[][] ToyProblemPreferences = new Object[][]{
-		new Object[]{1L,-15.561256},
-		new Object[]{2L, -15.561256},
-		new Object[]{3L, -15.561256},
-		new Object[]{4L, -15.561256},
-		new Object[]{5L, -15.561256},
-		new Object[]{6L, -15.561256},
-		new Object[]{7L, -15.561256},
-		new Object[]{8L, -15.561256},
-		new Object[]{9L, -15.561256},
-		new Object[]{10L, -15.561256},
-		new Object[]{11L, -15.561256},
-		new Object[]{12L, -15.561256},
-		new Object[]{13L, -15.561256},
-		new Object[]{14L, -15.561256},
-		new Object[]{15L, -15.561256},
-		new Object[]{16L, -15.561256},
-		new Object[]{17L, -15.561256},
-		new Object[]{18L, -15.561256},
-		new Object[]{19L, -15.561256},
-		new Object[]{20L, -15.561256},
-		new Object[]{21L, -15.561256},
-		new Object[]{22L, -15.561256},
-		new Object[]{23L, -15.561256},
-		new Object[]{24L, -15.561256},
-		new Object[]{25L, -15.561256},
-	};
-	
 	public static final Object[][] ToyProblemSimlarities = new Object[][]{
+		new Object[]{1L, 1L, -15.561256},
+		new Object[]{2L, 2L, -15.561256},
+		new Object[]{3L, 3L, -15.561256},
+		new Object[]{4L, 4L, -15.561256},
+		new Object[]{5L, 5L, -15.561256},
+		new Object[]{6L, 6L, -15.561256},
+		new Object[]{7L, 7L, -15.561256},
+		new Object[]{8L, 8L, -15.561256},
+		new Object[]{9L, 9L, -15.561256},
+		new Object[]{10L, 10L, -15.561256},
+		new Object[]{11L, 11L, -15.561256},
+		new Object[]{12L, 12L, -15.561256},
+		new Object[]{13L, 13L, -15.561256},
+		new Object[]{14L, 14L, -15.561256},
+		new Object[]{15L, 15L, -15.561256},
+		new Object[]{16L, 16L, -15.561256},
+		new Object[]{17L, 17L, -15.561256},
+		new Object[]{18L, 18L, -15.561256},
+		new Object[]{19L, 19L, -15.561256},
+		new Object[]{20L, 20L, -15.561256},
+		new Object[]{21L, 21L, -15.561256},
+		new Object[]{22L, 22L, -15.561256},
+		new Object[]{23L, 23L, -15.561256},
+		new Object[]{24L, 24L, -15.561256},
+		new Object[]{25L, 25L, -15.561256},
 		new Object[]{1L, 2L, -1.860905},
 		new Object[]{1L, 3L, -4.065932},
 		new Object[]{1L, 4L, -9.292907},
@@ -680,5 +661,4 @@ public class AffinityPropogationData {
 		new Object[]{25L, 23L, -26.658965},
 		new Object[]{25L, 24L, -31.940506},
 		};
-	
 }
