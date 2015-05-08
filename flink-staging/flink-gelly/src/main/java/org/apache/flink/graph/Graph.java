@@ -714,7 +714,7 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K, VV, EV> getUndirected() {
 
-		DataSet<Edge<K, EV>> undirectedEdges = edges.union(edges.map(new ReverseEdgesMap<K, EV>()));
+		DataSet<Edge<K, EV>> undirectedEdges = edges.flatMap(new RegularAndReversedEdgesMap<K, EV>());
 		return new Graph<K, VV, EV>(vertices, undirectedEdges, this.context);
 	}
 
@@ -933,6 +933,16 @@ public class Graph<K, VV, EV> {
 
 		public Edge<K, EV> map(Edge<K, EV> value) {
 			return new Edge<K, EV>(value.f1, value.f0, value.f2);
+		}
+	}
+
+	private static final class RegularAndReversedEdgesMap<K, EV>
+			implements FlatMapFunction<Edge<K, EV>, Edge<K, EV>> {
+
+		@Override
+		public void flatMap(Edge<K, EV> edge, Collector<Edge<K, EV>> out) throws Exception {
+			out.collect(new Edge<K, EV>(edge.f0, edge.f1, edge.f2));
+			out.collect(new Edge<K, EV>(edge.f1, edge.f0, edge.f2));
 		}
 	}
 
