@@ -71,7 +71,7 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
     */
   def setNumFeatures(numFeatures: Int): FeatureHasher = {
     // number of features must be greater zero
-    if (numFeatures < 1)
+    if(numFeatures < 1)
       return this
     parameters.add(NumFeatures, numFeatures)
     this
@@ -105,7 +105,7 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
             val index = Math.abs(h)
             /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
                dependent of the other bits */
-            val value = if (h >= 0) 1.0 else -1.0
+            val value = if(h >= 0) 1.0 else -1.0
             (index, value)
           }
         }
