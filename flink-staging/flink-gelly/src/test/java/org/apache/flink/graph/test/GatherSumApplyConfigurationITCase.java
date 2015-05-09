@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.gsa.ApplyFunction;
+import org.apache.flink.graph.gsa.GSAConfiguration;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.Neighbor;
@@ -78,7 +79,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 
 		// create the configuration object
-		IterationConfiguration parameters = new IterationConfiguration();
+		GSAConfiguration parameters = new GSAConfiguration();
 
 		parameters.addBroadcastSetForGatherFunction("gatherBcastSet", env.fromElements(1, 2, 3));
 		parameters.addBroadcastSetForSumFunction("sumBcastSet", env.fromElements(4, 5, 6));
@@ -110,7 +111,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 				.withEdges(TestGraphUtils.getLongLongEdgeData(env), new DummyGather(),
 						new DummySum(), new DummyApply(), 10);
 
-		IterationConfiguration parameters = new IterationConfiguration();
+		GSAConfiguration parameters = new GSAConfiguration();
 		parameters.setName("gelly iteration");
 		parameters.setParallelism(2);
 		parameters.setSolutionSetUnmanagedMemory(true);

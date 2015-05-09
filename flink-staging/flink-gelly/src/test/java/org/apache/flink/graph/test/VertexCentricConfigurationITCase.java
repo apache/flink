@@ -30,6 +30,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.IterationConfiguration;
 import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -77,7 +78,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				TestGraphUtils.getLongLongEdges(), env).mapVertices(new AssignOneMapper());
 
 		// create the configuration object
-		IterationConfiguration parameters = new IterationConfiguration();
+		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
 
 		parameters.addBroadcastSetForUpdateFunction("updateBcastSet", env.fromElements(1, 2, 3));
 		parameters.addBroadcastSetForMessagingFunction("messagingBcastSet", env.fromElements(4, 5, 6));
@@ -107,7 +108,7 @@ public class VertexCentricConfigurationITCase extends MultipleProgramsTestBase {
 				.withEdges(TestGraphUtils.getLongLongEdgeData(env), new DummyUpdateFunction(), 
 						new DummyMessageFunction(), 10);
 		
-		IterationConfiguration parameters = new IterationConfiguration();
+		VertexCentricConfiguration parameters = new VertexCentricConfiguration();
 		parameters.setName("gelly iteration");
 		parameters.setParallelism(2);
 		parameters.setSolutionSetUnmanagedMemory(true);

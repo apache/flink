@@ -67,15 +67,6 @@ public abstract class ApplyFunction<K extends Comparable<K> & Serializable, VV e
 	}
 
 	/**
-	 * Gets the number of the superstep, starting at <tt>1</tt>.
-	 *
-	 * @return The number of the current superstep.
-	 */
-	public int getSuperstepNumber() {
-		return this.runtimeContext.getSuperstepNumber();
-	}
-
-	/**
 	 * Gets the iteration aggregator registered under the given name. The iteration aggregator combines
 	 * all aggregates globally once per superstep and makes them available in the next superstep.
 	 *

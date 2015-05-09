@@ -40,7 +40,6 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.IterationConfiguration;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -66,7 +65,7 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 	private final ApplyFunction<K, VV, M> apply;
 	private final int maximumNumberOfIterations;
 
-	private IterationConfiguration configuration;
+	private GSAConfiguration configuration;
 
 	// ----------------------------------------------------------------------------------
 
@@ -360,14 +359,14 @@ public class GatherSumApplyIteration<K extends Comparable<K> & Serializable,
 	 *
 	 * @param parameters the configuration parameters
 	 */
-	public void configure(IterationConfiguration parameters) {
+	public void configure(GSAConfiguration parameters) {
 		this.configuration = parameters;
 	}
 
 	/**
 	 * @return the configuration parameters of this gather-sum-apply iteration
 	 */
-	public IterationConfiguration getIterationConfiguration() {
+	public GSAConfiguration getIterationConfiguration() {
 		return this.configuration;
 	}
 }

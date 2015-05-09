@@ -49,10 +49,12 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.graph.gsa.ApplyFunction;
+import org.apache.flink.graph.gsa.GSAConfiguration;
 import org.apache.flink.graph.gsa.GatherFunction;
 import org.apache.flink.graph.gsa.GatherSumApplyIteration;
 import org.apache.flink.graph.gsa.SumFunction;
 import org.apache.flink.graph.spargel.MessagingFunction;
+import org.apache.flink.graph.spargel.VertexCentricConfiguration;
 import org.apache.flink.graph.spargel.VertexCentricIteration;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.graph.utils.EdgeToTuple3Map;
@@ -1209,7 +1211,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	public <M> Graph<K, VV, EV> runVertexCentricIteration(
 			VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
 			MessagingFunction<K, VV, M, EV> messagingFunction,
-			int maximumNumberOfIterations, IterationConfiguration parameters) {
+			int maximumNumberOfIterations, VertexCentricConfiguration parameters) {
 
 		VertexCentricIteration<K, VV, M, EV> iteration = VertexCentricIteration.withEdges(
 				edges, vertexUpdateFunction, messagingFunction, maximumNumberOfIterations);
@@ -1258,7 +1260,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	public <M> Graph<K, VV, EV> runGatherSumApplyIteration(
 			GatherFunction<VV, EV, M> gatherFunction, SumFunction<VV, EV, M> sumFunction,
 			ApplyFunction<K, VV, M> applyFunction, int maximumNumberOfIterations,
-			IterationConfiguration parameters) {
+			GSAConfiguration parameters) {
 
 		GatherSumApplyIteration<K, VV, EV, M> iteration = GatherSumApplyIteration.withEdges(
 				edges, gatherFunction, sumFunction, applyFunction, maximumNumberOfIterations);

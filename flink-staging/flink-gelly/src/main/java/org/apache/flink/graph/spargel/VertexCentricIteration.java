@@ -36,7 +36,6 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
-import org.apache.flink.graph.IterationConfiguration;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
 
@@ -61,9 +60,7 @@ import org.apache.flink.util.Collector;
  * </ul>
  * <p>
  * Vertex-centric graph iterations are instantiated by the
- * {@link #withPlainEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method, or the
- * {@link #withValuedEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method, depending on whether
- * the graph's edges are carrying values.
+ * {@link #withEdges(DataSet, VertexUpdateFunction, MessagingFunction, int)} method.
  *
  * @param <VertexKey> The type of the vertex key (the vertex identifier).
  * @param <VertexValue> The type of the vertex value (the state of the vertex).
@@ -86,7 +83,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 	
 	private DataSet<Vertex<VertexKey, VertexValue>> initialVertices;
 
-	private IterationConfiguration configuration;
+	private VertexCentricConfiguration configuration;
 	
 	// ----------------------------------------------------------------------------------
 	
@@ -367,14 +364,14 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 	 *
 	 * @param parameters the configuration parameters
 	 */
-	public void configure(IterationConfiguration parameters) {
+	public void configure(VertexCentricConfiguration parameters) {
 		this.configuration = parameters;
 	}
 
 	/**
 	 * @return the configuration parameters of this vertex-centric iteration
 	 */
-	public IterationConfiguration getIterationConfiguration() {
+	public VertexCentricConfiguration getIterationConfiguration() {
 		return this.configuration;
 	}
 }
