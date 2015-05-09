@@ -28,8 +28,9 @@ import org.apache.flink.ml.math.{Vector, SparseVector}
 import scala.util.hashing.MurmurHash3
 
 
-/** This transformer turns sequences of symbolic feature names (strings) into flink.ml.math.SparseVectors,
-  * using a hash function to compute the matrix column corresponding to a name. Aka the hashing trick.
+/** This transformer turns sequences of symbolic feature names (strings) into
+  * flink.ml.math.SparseVectors, using a hash function to compute the matrix column corresponding
+  * to a name. Aka the hashing trick.
   * The hash function employed is the signed 32-bit version of Murmurhash3.
   *
   * By default for [[FeatureHasher]] transformer numFeatures=2#94;20 and nonNegative=false.
@@ -51,10 +52,11 @@ import scala.util.hashing.MurmurHash3
   *
   * =Parameters=
   *
-  * - [[FeatureHasher.NumFeatures]]: The number of features (entries) in the output vector; by default equal to 2&#94;20
+  * - [[FeatureHasher.NumFeatures]]: The number of features (entries) in the output vector;
+  * by default equal to 2&#94;20
   * - [[FeatureHasher.NonNegative]]: Whether output vector should contain non-negative values only.
-  * When True, output values can be interpreted as frequencies. When False, output values will have expected value zero;
-  * by default equal to false
+  * When True, output values can be interpreted as frequencies. When False, output values will have
+  * expected value zero; by default equal to false
   */
 class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
 
@@ -63,8 +65,8 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
 
   /** Sets the number of features (entries) in the output vector
     *
-    * @param numFeatures the user-specified numFeatures value. In case the user gives a value less than 1,
-    *                    numFeatures is set to its default value: 2&#94;20
+    * @param numFeatures the user-specified numFeatures value. In case the user gives a value less
+    *                    than 1, numFeatures is set to its default value: 2&#94;20
     * @return the FeatureHasher instance with its numFeatures value set to the user-specified value
     */
   def setNumFeatures(numFeatures: Int): FeatureHasher = {
@@ -101,7 +103,8 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
             // bytesHash is faster than arrayHash, because it hashes 4 bytes at once
             val h = MurmurHash3.bytesHash(s.getBytes(StandardCharsets.UTF_8), Seed) % numFeatures
             val index = Math.abs(h)
-            // instead of using two hash functions (Weinberger et al.), assume the sign is independent of the other bits
+            /* instead of using two hash functions (Weinberger et al.), assume the sign is in-
+               dependent of the other bits */
             val value = if (h >= 0) 1.0 else -1.0
             (index, value)
           }
@@ -109,7 +112,7 @@ class FeatureHasher extends Transformer[Seq[String], Vector] with Serializable {
         val myVector = SparseVector.fromCOO(numFeatures, entries)
         // in case of non negative output, return the absolute of the vector
         if(nonNegative) {
-          // maybe there's a more straightforward way of applying a function to all elements of a vector
+          // maybe there's a straightforward way of applying a function element wise to a vector
           for(index <- myVector.indices) {
             myVector(index) = Math.abs(myVector(index))
           }
