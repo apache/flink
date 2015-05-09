@@ -1356,6 +1356,7 @@ public class Graph<K, VV, EV> {
 	}
 
 	@ForwardedFieldsFirst("f0; f2->f1")
+	@ForwardedFieldsSecond("*->f2")
 	private static final class ProjectEdgeWithNeighbor<K, VV, EV> implements FlatJoinFunction<
 		Tuple3<K, K, Edge<K, EV>>, Vertex<K, VV>, Tuple3<K, Edge<K, EV>, Vertex<K, VV>>> {
 
