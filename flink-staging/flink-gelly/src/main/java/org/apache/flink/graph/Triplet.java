@@ -20,8 +20,6 @@ package org.apache.flink.graph;
 
 import org.apache.flink.api.java.tuple.Tuple5;
 
-import java.io.Serializable;
-
 /**
  * A Triplet stores and retrieves the edges along with their corresponding source and target vertices.
  * Triplets can be obtained from the input graph via the {@link org.apache.flink.graph.Graph#getTriplets()} method.
@@ -30,8 +28,7 @@ import java.io.Serializable;
  * @param <VV> the vertex value type
  * @param <EV> the edge value type
  */
-public class Triplet <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-		extends Tuple5<K, K, VV, VV, EV> {
+public class Triplet <K, VV, EV> extends Tuple5<K, K, VV, VV, EV> {
 
 	private static final long serialVersionUID = 1L;
 

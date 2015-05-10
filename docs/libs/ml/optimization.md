@@ -177,8 +177,19 @@ mini-batch SGD will be performed.
         <td>
           <p>
             Initial step size for the gradient descent method.
-            This value controls how far the gradient descent method moves in the opposite direction of the gradient.
+            This value controls how far the gradient descent method moves in the opposite direction 
+            of the gradient.
             (Default value: <strong>0.1</strong>)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Prediction Function</strong></td>
+        <td>
+          <p>
+            Class that provides the prediction function, used to calculate $\hat{y}$ based on the 
+            weights and the example features, and the prediction gradient.
+            (Default value: <strong>LinearPrediction</strong>)
           </p>
         </td>
       </tr>
@@ -215,8 +226,8 @@ val trainingDS: DataSet[LabeledVector] = ...
 val weightDS = sgd.optimize(inputDS, None)
 
 // Retrieve the optimized weights
-val weightVector = weightDS.collect().head
+val weightVector = weightDS
 
-val intercept = weightVector.intercept
-val weights = weightVector.weights
+// We can now use the weightVector to make predictions
+
 {% endhighlight %}

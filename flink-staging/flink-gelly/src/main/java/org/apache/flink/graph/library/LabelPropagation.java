@@ -25,7 +25,6 @@ import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 import org.apache.flink.types.NullValue;
 
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -41,8 +40,7 @@ import java.util.Map.Entry;
  * 
  */
 @SuppressWarnings("serial")
-public class LabelPropagation<K extends Comparable<K> & Serializable>
-		implements GraphAlgorithm<K, Long, NullValue> {
+public class LabelPropagation<K> implements GraphAlgorithm<K, Long, NullValue> {
 
 	private final int maxIterations;
 
@@ -63,8 +61,7 @@ public class LabelPropagation<K extends Comparable<K> & Serializable>
 	 * Function that updates the value of a vertex by adopting the most frequent
 	 * label among its in-neighbors
 	 */
-	public static final class UpdateVertexLabel<K extends Comparable<K> & Serializable>
-			extends VertexUpdateFunction<K, Long, Long> {
+	public static final class UpdateVertexLabel<K> extends VertexUpdateFunction<K, Long, Long> {
 
 		public void updateVertex(K vertexKey, Long vertexValue,
 				MessageIterator<Long> inMessages) {
@@ -105,8 +102,7 @@ public class LabelPropagation<K extends Comparable<K> & Serializable>
 	/**
 	 * Sends the vertex label to all out-neighbors
 	 */
-	public static final class SendNewLabelToNeighbors<K extends Comparable<K> & Serializable>
-			extends MessagingFunction<K, Long, Long, NullValue> {
+	public static final class SendNewLabelToNeighbors<K> extends MessagingFunction<K, Long, Long, NullValue> {
 
 		public void sendMessages(K vertexKey, Long newLabel) {
 			sendMessageToAllNeighbors(newLabel);

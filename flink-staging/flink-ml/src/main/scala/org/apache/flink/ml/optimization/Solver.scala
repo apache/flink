@@ -36,10 +36,9 @@ abstract class Solver extends Serializable with WithParameters {
     * @param initialWeights The initial weight that will be optimized
     * @return A Vector of weights optimized to the given problem
     */
-  def optimize(data: DataSet[LabeledVector], initialWeights: Option[DataSet[WeightVector]]):
-  DataSet[WeightVector]
-  // TODO(tvas): Maybe we want to pass a WeightVector directly here, instead of a
-  // DataSet[WeightVector]
+  def optimize(
+    data: DataSet[LabeledVector],
+    initialWeights: Option[DataSet[WeightVector]]): DataSet[WeightVector]
 
   /** Creates a DataSet with one zero vector. The zero vector has dimension d, which is given
     * by the dimensionDS.
@@ -62,7 +61,7 @@ abstract class Solver extends Serializable with WithParameters {
     this
   }
 
-  def setRegularizationType(regularization: RegularizationType): Solver = {
+  def setRegularizationType(regularization: Regularization): Solver = {
     parameters.add(RegularizationType, regularization)
     this
   }
@@ -73,7 +72,7 @@ abstract class Solver extends Serializable with WithParameters {
   }
 
   def setPredictionFunction(predictionFunction: PredictionFunction): Solver = {
-    parameters.add(PredictionFunctionParam, predictionFunction)
+    parameters.add(PredictionFunctionParameter, predictionFunction)
     this
   }
 }
@@ -89,7 +88,7 @@ object Solver {
     val defaultValue = Some(new SquaredLoss)
   }
 
-  case object RegularizationType extends Parameter[RegularizationType] {
+  case object RegularizationType extends Parameter[Regularization] {
     val defaultValue = Some(new NoRegularization)
   }
 
@@ -97,7 +96,7 @@ object Solver {
     val defaultValue = Some(0.0) // TODO(tvas): Properly initialize this, ensure Parameter > 0!
   }
 
-  case object PredictionFunctionParam extends Parameter[PredictionFunction] {
+  case object PredictionFunctionParameter extends Parameter[PredictionFunction] {
     val defaultValue = Some(new LinearPrediction)
   }
 }
@@ -106,7 +105,6 @@ object Solver {
   *
   * See [[https://en.wikipedia.org/wiki/Iterative_method Iterative Methods on Wikipedia]] for more
   * info
-  *
   */
 abstract class IterativeSolver extends Solver {
 
@@ -120,15 +118,6 @@ abstract class IterativeSolver extends Solver {
     parameters.add(Stepsize, stepsize)
     this
   }
-
-  //  def setConvergenceThreshold(convergenceThreshold: Double): GradientDescent = {
-  //    parameters.add(ConvergenceThreshold, convergenceThreshold)
-  //    this
-  //  }
-
-  //  case object ConvergenceThreshold extends Parameter[Double] {
-  //    val defaultValue = None
-  //  }
 }
 
 object IterativeSolver {

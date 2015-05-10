@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.spargel;
 
-import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -69,8 +68,7 @@ import org.apache.flink.util.Collector;
  * @param <Message> The type of the message sent between vertices along the edges.
  * @param <EdgeValue> The type of the values that are associated with the edges.
  */
-public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Serializable, VertexValue extends Serializable, 
-	Message, EdgeValue extends Serializable> 
+public class VertexCentricIteration<VertexKey, VertexValue,	Message, EdgeValue> 
 	implements CustomUnaryOperation<Vertex<VertexKey, VertexValue>, Vertex<VertexKey, VertexValue>>
 {
 	private final VertexUpdateFunction<VertexKey, VertexValue, Message> updateFunction;
@@ -218,8 +216,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 	 * 
 	 * @return An in stance of the vertex-centric graph computation operator.
 	 */
-	public static final <VertexKey extends Comparable<VertexKey> & Serializable, VertexValue extends Serializable, 
-		Message, EdgeValue extends Serializable>
+	public static final <VertexKey, VertexValue, Message, EdgeValue>
 			VertexCentricIteration<VertexKey, VertexValue, Message, EdgeValue> withEdges(
 					DataSet<Edge<VertexKey, EdgeValue>> edgesWithValue,
 					VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
@@ -233,8 +230,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 	//  Wrapping UDFs
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class VertexUpdateUdf<VertexKey extends Comparable<VertexKey> & Serializable, 
-		VertexValue extends Serializable, Message> 
+	private static final class VertexUpdateUdf<VertexKey, VertexValue, Message> 
 		extends RichCoGroupFunction<Tuple2<VertexKey, Message>, Vertex<VertexKey, VertexValue>, Vertex<VertexKey, VertexValue>>
 		implements ResultTypeQueryable<Vertex<VertexKey, VertexValue>>
 	{
@@ -308,8 +304,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey> & Se
 	/*
 	 * UDF that encapsulates the message sending function for graphs where the edges have an associated value.
 	 */
-	private static final class MessagingUdfWithEdgeValues<VertexKey extends Comparable<VertexKey> & Serializable, 
-		VertexValue extends Serializable, Message, EdgeValue extends Serializable> 
+	private static final class MessagingUdfWithEdgeValues<VertexKey, VertexValue, Message, EdgeValue> 
 		extends RichCoGroupFunction<Edge<VertexKey, EdgeValue>, Vertex<VertexKey, VertexValue>, Tuple2<VertexKey, Message>>
 		implements ResultTypeQueryable<Tuple2<VertexKey, Message>>
 	{

@@ -393,6 +393,18 @@ class TypeInformationGenTest {
   }
 
   @Test
+  def testTrait(): Unit = {
+    trait TestTrait {
+      def foo() = 1
+      def bar(x: Int): Int
+    }
+
+    val ti = createTypeInformation[TestTrait]
+
+    Assert.assertTrue(ti.isInstanceOf[GenericTypeInfo[TestTrait]])
+  }
+
+  @Test
   def testGetFlatFields(): Unit = {
 
     val tupleTypeInfo = createTypeInformation[(Int, Int, Int, Int)].

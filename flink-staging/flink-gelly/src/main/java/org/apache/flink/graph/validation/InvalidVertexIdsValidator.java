@@ -28,11 +28,8 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.util.Collector;
 
-import java.io.Serializable;
-
 @SuppressWarnings("serial")
-public class InvalidVertexIdsValidator<K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable>
-		extends GraphValidator<K, VV, EV> {
+public class InvalidVertexIdsValidator<K, VV, EV> extends GraphValidator<K, VV, EV> {
 
 	/**
 	 * Checks that the edge set input contains valid vertex Ids, i.e. that they
@@ -51,16 +48,14 @@ public class InvalidVertexIdsValidator<K extends Comparable<K> & Serializable, V
 		return invalidIds.map(new KToTupleMap<K>()).count() == 0;
 	}
 
-	private static final class MapEdgeIds<K extends Comparable<K> & Serializable, EV extends Serializable>
-			implements FlatMapFunction<Edge<K, EV>, Tuple1<K>> {
+	private static final class MapEdgeIds<K, EV> implements FlatMapFunction<Edge<K, EV>, Tuple1<K>> {
 		public void flatMap(Edge<K, EV> edge, Collector<Tuple1<K>> out) {
 			out.collect(new Tuple1<K>(edge.f0));
 			out.collect(new Tuple1<K>(edge.f1));
 		}
 	}
 
-	private static final class GroupInvalidIds<K extends Comparable<K> & Serializable, VV extends Serializable>
-			implements CoGroupFunction<Vertex<K, VV>, Tuple1<K>, K> {
+	private static final class GroupInvalidIds<K, VV> implements CoGroupFunction<Vertex<K, VV>, Tuple1<K>, K> {
 		public void coGroup(Iterable<Vertex<K, VV>> vertexId,
 				Iterable<Tuple1<K>> edgeId, Collector<K> out) {
 			if (!(vertexId.iterator().hasNext())) {

@@ -86,7 +86,7 @@ public class JDBCExample implements Program, ProgramDescription {
 		prepareTestDb();
 		JDBCExample tut = new JDBCExample();
 		JobExecutionResult res = LocalExecutor.execute(tut, args);
-		System.out.println("runtime: " + res.getNetRuntime());
+		System.out.println("runtime: " + res.getNetRuntime() + " ms");
 
 		System.exit(0);
 	}

@@ -36,8 +36,7 @@ import org.apache.flink.util.Collector;
  * <VertexValue> The vertex value type.
  * <Message> The message type.
  */
-public abstract class VertexUpdateFunction<VertexKey extends Comparable<VertexKey> & Serializable, 
-	VertexValue extends Serializable, Message> implements Serializable {
+public abstract class VertexUpdateFunction<VertexKey, VertexValue, Message> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 	

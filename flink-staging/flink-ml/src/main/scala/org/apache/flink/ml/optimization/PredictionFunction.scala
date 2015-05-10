@@ -30,8 +30,8 @@ abstract class PredictionFunction extends Serializable {
 
 /** A linear prediction function **/
 class LinearPrediction extends PredictionFunction {
-  override def predict(features: FlinkVector, weights: WeightVector): Double = {
-    BLAS.dot(features, weights.weights) + weights.intercept
+  override def predict(features: FlinkVector, weightVector: WeightVector): Double = {
+    BLAS.dot(features, weightVector.weights) + weightVector.intercept
   }
 
   override def gradient(features: FlinkVector, weights: WeightVector): FlinkVector = {features}

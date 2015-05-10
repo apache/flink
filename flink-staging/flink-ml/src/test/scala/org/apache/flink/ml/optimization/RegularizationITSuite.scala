@@ -20,35 +20,96 @@ package org.apache.flink.ml.optimization
 
 import org.apache.flink.ml.common.WeightVector
 import org.apache.flink.ml.math.DenseVector
-import org.scalatest.{Matchers, FlatSpec}
-
 import org.apache.flink.api.scala._
 import org.apache.flink.test.util.FlinkTestBase
+
+import org.scalatest.{Matchers, FlatSpec}
+
+
 
 
 class RegularizationITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
   behavior of "The regularization type implementations"
 
-  it should "not change the weights when no regularization is used" in {
+  it should "not change the loss when no regularization is used" in {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     env.setParallelism(2)
 
-    val regType = new NoRegularization
+    val regularization = new NoRegularization
 
     val weightVector = new WeightVector(DenseVector(1.0), 1.0)
     val effectiveStepsize = 1.0
-    val regularizationParameter = 0.0
+    val regParameter = 0.0
     val gradient = DenseVector(0.0)
+    val originalLoss = 1.0
 
-    regType.takeStep(weightVector.weights,  gradient, effectiveStepsize, 0.0)
+    val adjustedLoss = regularization.regLoss(originalLoss, weightVector.weights, regParameter)
 
-    weightVector.weights shouldEqual DenseVector(1.0)
-    weightVector.intercept should be (1.0 +- 0.0001)
-
+    adjustedLoss should be (originalLoss +- 0.0001)
   }
 
-  // TODO: Unit tests for L1, L2 calculations
+  it should "correctly apply L1 regularization" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
+    val regularization = new L1Regularization
+
+    val weightVector = new WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
+    val effectiveStepsize = 1.0
+    val regParameter = 0.5
+    val gradient = DenseVector(0.0, 0.0, 0.0, 0.0, 0.0)
+
+    regularization.takeStep(weightVector.weights,  gradient, effectiveStepsize, regParameter)
+
+    val expectedWeights = DenseVector(-0.5, 0.5, 0.0, 0.0, 0.0)
+
+    weightVector.weights shouldEqual expectedWeights
+    weightVector.intercept should be (1.0 +- 0.0001)
+  }
+
+  it should "correctly calculate L1 loss"  in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
+    val regularization = new L1Regularization
+
+    val weightVector = new WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
+    val regParameter = 0.5
+    val originalLoss = 1.0
+
+    val adjustedLoss = regularization.regLoss(originalLoss, weightVector.weights, regParameter)
+
+    weightVector shouldEqual WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
+    adjustedLoss should be (2.4 +- 0.1)
+  }
+
+  it should "correctly adjust the gradient and loss for L2 regularization" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
+    val regularization = new L2Regularization
+
+    val weightVector = new WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
+    val regParameter = 0.5
+    val lossGradient = DenseVector(0.0, 0.0, 0.0, 0.0, 0.0)
+    val originalLoss = 1.0
+
+    val adjustedLoss = regularization.regularizedLossAndGradient(
+      originalLoss,
+      weightVector.weights,
+      lossGradient,
+      regParameter)
+
+    val expectedGradient = DenseVector(-0.5, 0.5, 0.2, -0.2, 0.0)
+
+    weightVector shouldEqual WeightVector(DenseVector(-1.0, 1.0, 0.4, -0.4, 0.0), 1.0)
+    adjustedLoss should be (1.58 +- 0.1)
+    lossGradient shouldEqual expectedGradient
+  }
 }

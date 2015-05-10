@@ -118,7 +118,7 @@ public class FilterITCase extends MultipleProgramsTestBase {
 				tableEnv.toTable(input, "a, b, c");
 
 		Table result = table
-				.filter(" a % 2 === 0 ");
+				.filter(" a % 2 = 0 ");
 
 		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
 		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
@@ -128,6 +128,48 @@ public class FilterITCase extends MultipleProgramsTestBase {
 		expected = "2,2,Hello\n" + "4,3,Hello world, how are you?\n" + "6,3,Luke Skywalker\n" + "8,4," +
 				"Comment#2\n" + "10,4,Comment#4\n" + "12,5,Comment#6\n" + "14,5,Comment#8\n" + "16,6," +
 				"Comment#10\n" + "18,6,Comment#12\n" + "20,6,Comment#14\n";
+	}
+
+	@Test
+	public void testNotEquals() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
+
+		Table table =
+				tableEnv.toTable(input, "a, b, c");
+
+		Table result = table
+				.filter("!( a % 2 <> 0 ) ");
+
+		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		env.execute();
+
+		expected = "2,2,Hello\n" + "4,3,Hello world, how are you?\n" + "6,3,Luke Skywalker\n" + "8,4," +
+				"Comment#2\n" + "10,4,Comment#4\n" + "12,5,Comment#6\n" + "14,5,Comment#8\n" + "16,6," +
+				"Comment#10\n" + "18,6,Comment#12\n" + "20,6,Comment#14\n";
+	}
+
+	@Test
+	public void testIntegerBiggerThan128() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		TableEnvironment tableEnv = new TableEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> input = env.fromElements(new Tuple3<Integer, Long, String>(300, 1L, "Hello"));
+
+		Table table = tableEnv.toTable(input, "a, b, c");
+
+		Table result = table.filter("a = 300 ");
+
+		DataSet<Row> ds = tableEnv.toSet(result, Row.class);
+		ds.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+
+		env.execute();
+
+		expected = "300,1,Hello\n";
 	}
 }
 

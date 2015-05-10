@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.library;
 
-import java.io.Serializable;
-
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAlgorithm;
@@ -27,8 +25,7 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.MessagingFunction;
 import org.apache.flink.graph.spargel.VertexUpdateFunction;
 
-public class PageRank<K extends Comparable<K> & Serializable> implements
-		GraphAlgorithm<K, Double, Double> {
+public class PageRank<K> implements	GraphAlgorithm<K, Double, Double> {
 
 	private double beta;
 	private int maxIterations;
@@ -51,8 +48,7 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	 * ranks from all incoming messages and then applying the dampening formula.
 	 */
 	@SuppressWarnings("serial")
-	public static final class VertexRankUpdater<K extends Comparable<K> & Serializable>
-			extends VertexUpdateFunction<K, Double, Double> {
+	public static final class VertexRankUpdater<K> extends VertexUpdateFunction<K, Double, Double> {
 
 		private final double beta;
 		private final long numVertices;
@@ -82,8 +78,7 @@ public class PageRank<K extends Comparable<K> & Serializable> implements
 	 * value.
 	 */
 	@SuppressWarnings("serial")
-	public static final class RankMessenger<K extends Comparable<K> & Serializable>
-			extends MessagingFunction<K, Double, Double, Double> {
+	public static final class RankMessenger<K> extends MessagingFunction<K, Double, Double, Double> {
 
 		private final long numVertices;
 
